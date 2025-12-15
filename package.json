@@ -1,0 +1,31 @@
+{
+  "name": "packetarch",
+  "version": "1.0.0",
+  "description": "OT Traffic Simulation Platform - Generate hyper-realistic industrial network traffic",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm run --parallel dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "build": "pnpm run --parallel build",
+    "build:frontend": "pnpm --filter frontend build",
+    "lint": "pnpm run --parallel lint",
+    "test": "pnpm run --parallel test",
+    "docker:up": "docker-compose -f docker/docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose -f docker/docker-compose.dev.yml down",
+    "docker:logs": "docker-compose -f docker/docker-compose.dev.yml logs -f"
+  },
+  "keywords": [
+    "ot",
+    "scada",
+    "industrial",
+    "network",
+    "simulation",
+    "pcap",
+    "modbus",
+    "profinet",
+    "ethernet-ip"
+  ],
+  "author": "",
+  "license": "MIT"
+}

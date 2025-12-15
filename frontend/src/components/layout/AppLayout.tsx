@@ -1,0 +1,328 @@
+/**
+ * Main application layout with navigation - Cisco inspired dark theme
+ */
+
+import React, { useState, useCallback } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Badge } from 'antd';
+import type { MenuInfo } from 'rc-menu/lib/interface';
+import {
+  DashboardOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ApiOutlined,
+  BellOutlined,
+  DatabaseOutlined,
+  FolderOutlined,
+  ExperimentOutlined,
+  CloudServerOutlined,
+  GlobalOutlined,
+  BugOutlined,
+  LockOutlined,
+} from '@ant-design/icons';
+import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
+import ChangePasswordModal from '../modals/ChangePasswordModal';
+
+const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
+
+const AppLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
+  const { panels, toggleLeftSidebar } = useUIStore();
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Handle menu navigation - preserve scenario context when on studio
+  const handleMenuClick = useCallback(
+    (info: MenuInfo) => {
+      const targetPath = info.key;
+
+      // If clicking "Scenario Studio" while already on studio, don't navigate
+      // This preserves the current ?scenario=X query parameter
+      if (targetPath === '/studio' && location.pathname === '/studio') {
+        return;
+      }
+
+      // For other studio clicks (from different pages), go to scenarios list
+      // so user can pick a scenario to edit
+      if (targetPath === '/studio' && location.pathname !== '/studio') {
+        navigate('/scenarios');
+        return;
+      }
+
+      // Normal navigation for other menu items
+      navigate(targetPath);
+    },
+    [navigate, location.pathname]
+  );
+
+  const menuItems = [
+    {
+      key: '/',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard',
+    },
+    {
+      key: '/scenarios',
+      icon: <FolderOutlined />,
+      label: 'Scenarios',
+    },
+    {
+      key: '/studio',
+      icon: <AppstoreOutlined />,
+      label: 'Scenario Studio',
+    },
+    {
+      key: '/devices',
+      icon: <DatabaseOutlined />,
+      label: 'Device Library',
+    },
+    {
+      key: '/learning',
+      icon: <ExperimentOutlined />,
+      label: 'PCAP Learning',
+    },
+    {
+      key: '/deployments',
+      icon: <CloudServerOutlined />,
+      label: 'Deployments',
+    },
+    {
+      key: '/ip-management',
+      icon: <GlobalOutlined />,
+      label: 'IP Management',
+    },
+    {
+      key: '/cves',
+      icon: <BugOutlined />,
+      label: 'CVE Browser',
+    },
+  ];
+
+  // Add admin menu if user is admin
+  if (user?.is_admin) {
+    menuItems.push({
+      key: '/admin/settings',
+      icon: <SettingOutlined />,
+      label: 'Settings',
+    });
+  }
+
+  const userMenuItems = [
+    {
+      key: 'change-password',
+      icon: <LockOutlined />,
+      label: 'Change Password',
+      onClick: () => setPasswordModalOpen(true),
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Logout',
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={!panels.leftSidebarOpen}
+        width={panels.leftSidebarWidth}
+        theme="dark"
+        style={{
+          background: '#141428',
+          borderRight: '1px solid #2d2d52',
+        }}
+      >
+        {/* Logo Section */}
+        <div
+          style={{
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0d0d1a',
+            borderBottom: '1px solid #2d2d52',
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: panels.leftSidebarOpen ? 36 : 32,
+              height: panels.leftSidebarOpen ? 36 : 32,
+              borderRadius: 8,
+              background: 'linear-gradient(135deg, #049FD9 0%, #00BCEB 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(4, 159, 217, 0.3)',
+            }}
+          >
+            <ApiOutlined style={{ fontSize: panels.leftSidebarOpen ? 20 : 18, color: '#fff' }} />
+          </div>
+          {panels.leftSidebarOpen && (
+            <Text
+              strong
+              style={{
+                fontSize: 16,
+                color: '#fff',
+                letterSpacing: '-0.3px',
+              }}
+            >
+              PacketArch
+            </Text>
+          )}
+        </div>
+
+        <Menu
+          mode="inline"
+          theme="dark"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+          onClick={handleMenuClick}
+          style={{
+            background: 'transparent',
+            borderRight: 0,
+            marginTop: 8,
+          }}
+        />
+
+        {/* System Status Indicator */}
+        {panels.leftSidebarOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 16,
+              left: 16,
+              right: 16,
+              padding: '12px 16px',
+              background: '#1a1a2e',
+              borderRadius: 8,
+              border: '1px solid #2d2d52',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: '#6CC04A',
+                  boxShadow: '0 0 8px rgba(108, 192, 74, 0.5)',
+                }}
+              />
+              <Text style={{ color: '#6CC04A', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                System Online
+              </Text>
+            </div>
+            <Text style={{ color: '#6b6b8a', fontSize: 10 }}>
+              Backend Connected
+            </Text>
+          </div>
+        )}
+      </Sider>
+
+      <Layout>
+        <Header
+          style={{
+            padding: '0 24px',
+            background: '#0d0d1a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid #2d2d52',
+            height: 64,
+          }}
+        >
+          <Space>
+            <Button
+              type="text"
+              icon={panels.leftSidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+              onClick={toggleLeftSidebar}
+              style={{ color: '#a8a8c0' }}
+            />
+            <Text style={{ color: '#6b6b8a', fontSize: 12, marginLeft: 8 }}>
+              OT Traffic Simulation Platform
+            </Text>
+          </Space>
+
+          <Space size="large">
+            {/* Notifications */}
+            <Badge count={0} showZero={false}>
+              <Button
+                type="text"
+                icon={<BellOutlined style={{ fontSize: 18 }} />}
+                style={{ color: '#a8a8c0' }}
+              />
+            </Badge>
+
+            {/* User Menu */}
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <Space
+                style={{
+                  cursor: 'pointer',
+                  padding: '4px 12px',
+                  borderRadius: 6,
+                  background: '#141428',
+                  border: '1px solid #2d2d52',
+                }}
+              >
+                <Avatar
+                  size="small"
+                  style={{
+                    background: 'linear-gradient(135deg, #049FD9 0%, #00BCEB 100%)',
+                  }}
+                  icon={<UserOutlined />}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                  <Text style={{ color: '#fff', fontSize: 13 }}>{user?.username}</Text>
+                  <Text style={{ color: '#6b6b8a', fontSize: 10 }}>
+                    {user?.is_admin ? 'Administrator' : 'User'}
+                  </Text>
+                </div>
+              </Space>
+            </Dropdown>
+          </Space>
+        </Header>
+
+        <Content
+          className="tech-grid-bg"
+          style={{
+            margin: 0,
+            padding: 24,
+            background: '#1a1a2e',
+            minHeight: 'calc(100vh - 64px)',
+            overflow: 'auto',
+          }}
+        >
+          <Outlet />
+        </Content>
+      </Layout>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+      />
+    </Layout>
+  );
+};
+
+export default AppLayout;

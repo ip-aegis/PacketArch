@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_USER: packetarch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-packetarch_dev}
+      POSTGRES_DB: packetarch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U packetarch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:-packetarch_dev}@postgres:5432/packetarch
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+      DEBUG: ${DEBUG:-false}
+    # Backend is only accessible via nginx proxy (not exposed to host)
+    expose:
+      - "8001"
+    volumes:
+      - pcap_uploads:/app/data/pcap_uploads
+      - pcap_output:/app/output/pcap
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "443:443"
+    volumes:
+      - ssl_certs:/etc/nginx/ssl
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@packetarch.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  redis_data:
+  pcap_uploads:
+  pcap_output:
+  ssl_certs:

@@ -1,0 +1,322 @@
+/* PacketArch Global Styles - Cisco Inspired Dark Theme */
+
+:root {
+  /* Cisco Brand Colors */
+  --cisco-blue: #049FD9;
+  --cisco-cyan: #00BCEB;
+  --cisco-dark-blue: #005073;
+  --cisco-green: #6CC04A;
+  --cisco-yellow: #FFCC00;
+  --cisco-red: #CF2030;
+  --cisco-orange: #FF7300;
+
+  /* Dark Theme Colors */
+  --bg-primary: #0d0d1a;
+  --bg-secondary: #141428;
+  --bg-tertiary: #1a1a2e;
+  --bg-card: #232342;
+  --bg-elevated: #2d2d52;
+
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #a8a8c0;
+  --text-muted: #6b6b8a;
+
+  /* Border Colors */
+  --border-primary: #2d2d52;
+  --border-secondary: #3d3d6b;
+
+  /* Glow Effects */
+  --glow-cyan: 0 0 20px rgba(0, 188, 235, 0.3);
+  --glow-blue: 0 0 20px rgba(4, 159, 217, 0.3);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'CiscoSans', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Ant Design overrides for Cisco look */
+.ant-layout {
+  min-height: 100vh;
+  background: var(--bg-tertiary);
+}
+
+.ant-layout-header {
+  background: var(--bg-primary) !important;
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ant-layout-sider {
+  background: var(--bg-secondary) !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  border-right: 1px solid var(--border-primary);
+}
+
+.ant-layout-content {
+  background: var(--bg-tertiary);
+}
+
+/* Card styling */
+.ant-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 8px;
+}
+
+.ant-card:hover {
+  border-color: var(--cisco-blue) !important;
+  box-shadow: var(--glow-blue);
+}
+
+.ant-card-head {
+  border-bottom: 1px solid var(--border-primary);
+}
+
+/* Button styling */
+.ant-btn-primary {
+  background: linear-gradient(135deg, var(--cisco-blue) 0%, var(--cisco-cyan) 100%);
+  border: none;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, var(--cisco-cyan) 0%, var(--cisco-blue) 100%);
+  box-shadow: var(--glow-cyan);
+}
+
+/* Input styling */
+.ant-input,
+.ant-input-password,
+.ant-select-selector {
+  background: var(--bg-card) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-input:hover,
+.ant-input-password:hover,
+.ant-select-selector:hover {
+  border-color: var(--cisco-cyan) !important;
+}
+
+.ant-input:focus,
+.ant-input-password:focus,
+.ant-input-focused {
+  border-color: var(--cisco-blue) !important;
+  box-shadow: 0 0 0 2px rgba(4, 159, 217, 0.2) !important;
+}
+
+/* Menu styling */
+.ant-menu-dark {
+  background: var(--bg-secondary) !important;
+}
+
+.ant-menu-dark .ant-menu-item:hover {
+  background: var(--bg-elevated) !important;
+}
+
+.ant-menu-dark .ant-menu-item-selected {
+  background: linear-gradient(90deg, var(--cisco-blue) 0%, transparent 100%) !important;
+  border-left: 3px solid var(--cisco-cyan);
+}
+
+/* Table styling */
+.ant-table {
+  background: var(--bg-card) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--bg-secondary) !important;
+  border-bottom: 2px solid var(--cisco-blue) !important;
+  color: var(--cisco-cyan) !important;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--bg-elevated) !important;
+}
+
+/* Tabs styling */
+.ant-tabs-tab {
+  color: var(--text-secondary) !important;
+}
+
+.ant-tabs-tab:hover {
+  color: var(--cisco-cyan) !important;
+}
+
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--cisco-blue) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: linear-gradient(90deg, var(--cisco-blue), var(--cisco-cyan)) !important;
+}
+
+/* Scrollbar styling - Cisco dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cisco-blue);
+}
+
+/* Custom utility classes */
+.full-height {
+  height: 100%;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Cisco accent border effect */
+.cisco-accent-top {
+  border-top: 3px solid;
+  border-image: linear-gradient(90deg, var(--cisco-blue), var(--cisco-cyan)) 1;
+}
+
+.cisco-accent-left {
+  border-left: 3px solid;
+  border-image: linear-gradient(180deg, var(--cisco-blue), var(--cisco-cyan)) 1;
+}
+
+/* Glowing text effect for headings */
+.cisco-glow {
+  text-shadow: 0 0 10px rgba(0, 188, 235, 0.5);
+}
+
+/* Status indicators */
+.status-online {
+  color: var(--cisco-green);
+}
+
+.status-offline {
+  color: var(--text-muted);
+}
+
+.status-warning {
+  color: var(--cisco-yellow);
+}
+
+.status-error {
+  color: var(--cisco-red);
+}
+
+/* Network/tech grid pattern for backgrounds */
+.tech-grid-bg {
+  background-image:
+    linear-gradient(rgba(4, 159, 217, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(4, 159, 217, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Pulse animation for active elements */
+@keyframes cisco-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 188, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 188, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 188, 235, 0);
+  }
+}
+
+.pulse {
+  animation: cisco-pulse 2s infinite;
+}
+
+/* React Flow Controls - Dark Theme */
+.react-flow__controls {
+  background: #1a2734 !important;
+  border: 1px solid #2a3f54 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.react-flow__controls-button {
+  background: #253545 !important;
+  border: none !important;
+  border-bottom: 1px solid #2a3f54 !important;
+  color: #b8c9dc !important;
+  fill: #b8c9dc !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #3a5068 !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button svg {
+  fill: #b8c9dc !important;
+}
+
+/* React Flow MiniMap - Dark Theme */
+.react-flow__minimap {
+  background: #1a2734 !important;
+  border: 1px solid #2a3f54 !important;
+  border-radius: 8px !important;
+}
+
+/* Ant Design Collapse in dark sidebar */
+.ant-collapse-ghost > .ant-collapse-item > .ant-collapse-header {
+  color: #b8c9dc !important;
+}
+
+.ant-collapse-ghost > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+  padding: 0 !important;
+}
+
+/* Dark theme input placeholder */
+.ant-input::placeholder {
+  color: #6a8caf !important;
+}

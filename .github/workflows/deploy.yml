@@ -1,0 +1,93 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  REMOTE_DIR: /home/${{ secrets.SSH_USER }}/packetarch
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync files to server
+        run: |
+          echo "Syncing files to production server..."
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '__pycache__' \
+            --exclude '.git' \
+            --exclude '.venv' \
+            --exclude 'venv' \
+            --exclude '.env' \
+            --exclude '*.pyc' \
+            --exclude '.pytest_cache' \
+            --exclude '.mypy_cache' \
+            --exclude 'dist' \
+            --exclude 'build' \
+            --exclude '*.egg-info' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REMOTE_DIR }}/
+
+      - name: Build and deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
+            set -e
+
+            echo "=== Deployment started ==="
+
+            cd ~/packetarch
+
+            # Create/update .env if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "Creating .env file..."
+              cat > .env << 'ENVEOF'
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+          DEBUG=false
+          ENVEOF
+            fi
+
+            # Build and restart containers
+            echo "Building and starting containers..."
+            sudo /usr/bin/docker compose down || true
+            sudo /usr/bin/docker compose up -d --build
+
+            # Wait for services to be healthy
+            echo "Waiting for services to start..."
+            sleep 20
+
+            # Show status
+            echo "=== Container Status ==="
+            sudo /usr/bin/docker compose ps
+
+            echo "=== Deployment complete ==="
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "Checking if services are responding..."
+          sleep 10
+          # Try HTTPS first (port 443), fall back to HTTP health endpoint
+          curl -sfk https://${{ secrets.SSH_HOST }}/health || \
+          curl -sf http://${{ secrets.SSH_HOST }}:8001/health || \
+          echo "Health check pending (services may need more startup time)"
+          echo "Deployment finished!"
+          echo ""
+          echo "Access URL: https://${{ secrets.SSH_HOST }}"

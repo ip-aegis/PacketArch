@@ -1,0 +1,81 @@
+Remote Docker Host Setup (Ubuntu) - Lab Environment
+===================================================
+
+This sets up a remote Ubuntu server to accept Docker API connections
+for PacketArch traffic deployment. No TLS - quick lab setup.
+
+Prerequisites:
+- Ubuntu 20.04+ with Docker installed (apt install docker.io)
+- Root/sudo access
+
+
+STEP 1: Configure Docker Daemon
+-------------------------------
+sudo nano /etc/docker/daemon.json
+
+Add this content:
+
+{
+  "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"]
+}
+
+
+STEP 2: Fix Docker Service
+--------------------------
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo nano /etc/systemd/system/docker.service.d/override.conf
+
+Add this content:
+
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd
+
+
+STEP 3: Restart Docker
+----------------------
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+Verify it's listening:
+sudo ss -tlnp | grep 2375
+
+
+STEP 4: Open Firewall
+---------------------
+sudo ufw allow 2375/tcp
+
+
+STEP 5: Build Traffic Generator Image
+--------------------------------------
+Copy the docker/traffic-generator folder to the remote host, then:
+
+cd /path/to/traffic-generator
+sudo docker build -t packetarch/traffic-generator:latest .
+
+
+STEP 6: Configure in PacketArch
+-------------------------------
+1. Go to Settings > Docker Hosts
+2. Click "Add Docker Host"
+3. Fill in:
+   - Name: Lab Server
+   - Docker API URL: tcp://YOUR_SERVER_IP:2375
+   - TLS Enabled: OFF
+   - Default Interface: eth0 (or run "ip link show" to find yours)
+4. Click Create
+5. Click Test Connection to verify
+
+
+TROUBLESHOOTING
+---------------
+Connection refused:
+  - Check Docker listening: sudo ss -tlnp | grep 2375
+  - Check firewall: sudo ufw status
+  - Check Docker logs: sudo journalctl -u docker -f
+
+Find network interfaces:
+  ip link show
+
+Common interface names:
+  eth0, ens192 (VMware), enp0s3 (VirtualBox), eno1 (onboard)

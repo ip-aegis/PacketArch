@@ -1,0 +1,65 @@
+"""PCAP file writer wrapper."""
+
+import os
+from pathlib import Path
+
+from scapy.utils import PcapWriter as ScapyPcapWriter
+
+
+class PcapWriter:
+    """Wrapper around Scapy's PcapWriter with tracking."""
+
+    def __init__(self, output_path: str | Path):
+        """Initialize PCAP writer.
+
+        Args:
+            output_path: Path where PCAP file will be written
+        """
+        self.output_path = Path(output_path)
+        self.packet_count = 0
+        self.file_size = 0
+
+        # Ensure output directory exists
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Initialize Scapy's PcapWriter
+        self._writer = ScapyPcapWriter(str(self.output_path), append=False, sync=True)
+
+    def write_packet(self, packet_bytes: bytes, timestamp: float | None = None) -> None:
+        """Write a packet to the PCAP file.
+
+        Args:
+            packet_bytes: Raw packet bytes
+            timestamp: Optional timestamp (seconds since epoch)
+        """
+        # Scapy expects timestamp in seconds (float)
+        if timestamp is not None:
+            timestamp_sec = timestamp / 1000.0  # Convert ms to seconds
+        else:
+            timestamp_sec = None
+
+        self._writer.write(packet_bytes, sec=timestamp_sec)
+        self.packet_count += 1
+
+    def close(self) -> None:
+        """Close the PCAP file and update file size."""
+        if self._writer:
+            self._writer.close()
+            self._writer = None
+
+        # Get final file size
+        if self.output_path.exists():
+            self.file_size = os.path.getsize(self.output_path)
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+
+    def __del__(self):
+        """Ensure file is closed on deletion."""
+        if hasattr(self, "_writer") and self._writer:
+            self.close()

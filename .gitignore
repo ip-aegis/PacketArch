@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.local.env
+
+# Database
+*.db
+*.sqlite3
+
+# Docker
+docker/data/
+
+# Test coverage
+coverage/
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+
+# Generated files
+*.pcap
+*.pcapng
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Secrets (never commit)
+secrets/
+*.pem
+*.key
+nul
