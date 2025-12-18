@@ -187,6 +187,9 @@ async def apply_fingerprint_to_device(
     if not scenario:
         return json.dumps({"error": "Scenario not found"})
 
+    # Refresh to get latest state (important when multiple tools modify the same scenario)
+    await db.refresh(scenario)
+
     definition = scenario.definition.copy()
     devices = definition.get("devices", {})
 

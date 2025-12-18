@@ -13,6 +13,7 @@ from app.protocol_engines.vendor_oui import generate_mac_address
 from app.services.ip_management import IPManagementService
 from app.services.template_pattern_service import TemplatePatternService
 from app.services.cve_fingerprint_service import CVEFingerprintService
+from app.services.vendor_fingerprints import get_fingerprint_by_vendor_model
 from app.scenario_templates import (
     VERTICAL_TEMPLATES,
     get_template,
@@ -332,6 +333,16 @@ async def create_scenario_from_template(
                 "fingerprintModel": device_spec.get("fingerprint_model"),
                 "network": {},
             }
+
+            # Populate full vendor_fingerprint for traffic generation
+            # This provides deep CIP fingerprinting data (ethernet_ip_identity, cip_identity_object, etc.)
+            vendor = device_spec.get("vendor")
+            fingerprint_model = device_spec.get("fingerprint_model")
+            if vendor and fingerprint_model:
+                full_fingerprint = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
+                if full_fingerprint:
+                    device["vendorFingerprint"] = full_fingerprint
+                    logger.debug(f"Added vendorFingerprint for device {device_id}: {fingerprint_model}")
 
             # Add role if specified
             if device_spec.get("role"):

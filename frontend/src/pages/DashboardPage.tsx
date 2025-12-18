@@ -57,12 +57,19 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <div>
-          <Title level={2}>Welcome to PacketArch</Title>
-          <Paragraph type="secondary">
-            OT Traffic Simulation Platform - Generate hyper-realistic industrial network
-            traffic for testing and training.
-          </Paragraph>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <img
+            src="/dashboard_logo.png"
+            alt="Industrial Packet Generator"
+            style={{ width: 80, height: 80, objectFit: 'contain' }}
+          />
+          <div>
+            <Title level={2} style={{ marginBottom: 4 }}>Industrial Packet Generator</Title>
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              OT Traffic Simulation Platform - Generate hyper-realistic industrial network
+              traffic for testing and training.
+            </Paragraph>
+          </div>
         </div>
 
         <Spin spinning={statsLoading}>

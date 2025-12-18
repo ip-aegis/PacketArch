@@ -23,6 +23,7 @@ from app.services.vendor_fingerprint_data import (
     get_random_oui_for_vendor,
     VENDOR_OUI_PREFIXES,
 )
+from app.ai_services.nl_parser import extract_device_counts
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +322,11 @@ class ScenarioGenerator:
         description: str,
         name: str | None = None,
         duration_ms: int = 300000,
+        preferred_vendors: list[str] | None = None,
+        preferred_protocols: list[str] | None = None,
+        vertical: str | None = None,
+        total_device_count: int | None = None,
+        device_counts: dict[str, int] | None = None,
     ) -> GeneratedScenario:
         """Generate a scenario from natural language description.
 
@@ -328,6 +334,11 @@ class ScenarioGenerator:
             description: Natural language scenario description
             name: Optional scenario name
             duration_ms: Scenario duration in milliseconds
+            preferred_vendors: Optional list of preferred vendors (e.g., ["rockwell", "siemens"])
+            preferred_protocols: Optional list of preferred protocols (e.g., ["modbus_tcp", "ethernet_ip"])
+            vertical: Optional vertical override (e.g., "manufacturing", "water")
+            total_device_count: Optional target total device count (AI decides the mix)
+            device_counts: Optional specific counts per device type (e.g., {"plc": 5, "hmi": 2})
 
         Returns:
             Generated scenario
@@ -335,12 +346,55 @@ class ScenarioGenerator:
         # Extract entities
         entities = self._extract_entities(description)
 
-        # Determine vertical
-        vertical = self._determine_vertical(entities, description)
-        template = VERTICAL_TEMPLATES.get(vertical, VERTICAL_TEMPLATES["manufacturing"])
+        # Determine device count constraints
+        # Priority: explicit params > NL parsing
+        max_devices = None
+        explicit_device_counts: dict[str, int] | None = None
 
-        # Generate devices
-        devices = self._generate_devices(entities, template)
+        if device_counts:
+            # Manual mode: user specified exact counts per device type
+            explicit_device_counts = device_counts
+            max_devices = sum(device_counts.values())
+            logger.info(f"Using explicit device counts: {device_counts} (total: {max_devices})")
+        elif total_device_count:
+            # AI decides mix mode: user specified total, AI decides distribution
+            max_devices = total_device_count
+            logger.info(f"User requested total {max_devices} devices (AI decides mix)")
+        else:
+            # Fallback: parse device counts from natural language
+            parsed_counts = extract_device_counts(description)
+            if parsed_counts["has_explicit_total"]:
+                max_devices = parsed_counts["total_requested"]
+                logger.info(f"NL parser: max {max_devices} devices")
+            elif parsed_counts["total_requested"] > 0:
+                max_devices = parsed_counts["total_requested"]
+                explicit_device_counts = parsed_counts.get("device_counts", {})
+                logger.info(f"NL parser: implied max {max_devices} devices")
+
+        # Determine vertical (use override if provided)
+        if vertical and vertical in VERTICAL_TEMPLATES:
+            determined_vertical = vertical
+        else:
+            determined_vertical = self._determine_vertical(entities, description)
+        template = VERTICAL_TEMPLATES.get(determined_vertical, VERTICAL_TEMPLATES["manufacturing"])
+
+        # Apply vendor constraints if provided
+        if preferred_vendors:
+            logger.info(f"Applying vendor constraints: {preferred_vendors}")
+            template = self._apply_vendor_constraints(template, preferred_vendors)
+
+        # Apply protocol constraints if provided
+        if preferred_protocols:
+            logger.info(f"Applying protocol constraints: {preferred_protocols}")
+            template = self._apply_protocol_constraints(template, preferred_protocols)
+
+        # Generate devices with limit enforcement
+        devices = self._generate_devices(
+            entities,
+            template,
+            max_devices=max_devices,
+            parsed_device_counts=explicit_device_counts or {},
+        )
 
         # Generate zones
         zones = self._generate_zones(template, devices)
@@ -353,7 +407,7 @@ class ScenarioGenerator:
             scenario_id=str(uuid.uuid4()),
             name=name or f"{template['name']} Scenario",
             description=description,
-            vertical=vertical,
+            vertical=determined_vertical,
             devices=devices,
             flows=flows,
             zones=zones,
@@ -363,7 +417,7 @@ class ScenarioGenerator:
                     {"type": e.entity_type, "value": e.value, "confidence": e.confidence}
                     for e in entities
                 ],
-                "template_used": vertical,
+                "template_used": determined_vertical,
             },
         )
 
@@ -372,6 +426,75 @@ class ScenarioGenerator:
             f"{len(devices)} devices and {len(flows)} flows"
         )
         return scenario
+
+    def _apply_vendor_constraints(
+        self,
+        template: dict[str, Any],
+        preferred_vendors: list[str],
+    ) -> dict[str, Any]:
+        """Apply vendor constraints to a template.
+
+        Filters the template's device vendor lists to only include
+        vendors from the preferred list.
+
+        Args:
+            template: Original template dictionary
+            preferred_vendors: List of preferred vendor names (lowercase)
+
+        Returns:
+            Modified template with filtered vendors
+        """
+        import copy
+        modified = copy.deepcopy(template)
+        preferred_lower = [v.lower() for v in preferred_vendors]
+
+        for device_type, config in modified.get("typical_devices", {}).items():
+            if "vendors" in config:
+                # Filter to only preferred vendors
+                filtered = [v for v in config["vendors"] if v.lower() in preferred_lower]
+                if filtered:
+                    config["vendors"] = filtered
+                # If no overlap, keep original to avoid empty list
+
+        return modified
+
+    def _apply_protocol_constraints(
+        self,
+        template: dict[str, Any],
+        preferred_protocols: list[str],
+    ) -> dict[str, Any]:
+        """Apply protocol constraints to a template.
+
+        Filters the template's protocol list to only include
+        protocols from the preferred list.
+
+        Args:
+            template: Original template dictionary
+            preferred_protocols: List of preferred protocol names
+
+        Returns:
+            Modified template with filtered protocols
+        """
+        import copy
+        modified = copy.deepcopy(template)
+
+        # Normalize protocol names (handle variations like "modbus_tcp" vs "modbus tcp")
+        preferred_normalized = []
+        for p in preferred_protocols:
+            normalized = p.lower().replace(" ", "_").replace("-", "_")
+            preferred_normalized.append(normalized)
+
+        if "protocols" in modified:
+            # Filter to only preferred protocols
+            filtered = [
+                p for p in modified["protocols"]
+                if p.lower().replace(" ", "_").replace("-", "_") in preferred_normalized
+            ]
+            if filtered:
+                modified["protocols"] = filtered
+            # If no overlap, keep original to avoid empty list
+
+        return modified
 
     def _extract_entities(self, text: str) -> list[ExtractedEntity]:
         """Extract entities from text.
@@ -477,6 +600,8 @@ class ScenarioGenerator:
         self,
         entities: list[ExtractedEntity],
         template: dict[str, Any],
+        max_devices: int | None = None,
+        parsed_device_counts: dict[str, int] | None = None,
     ) -> list[GeneratedDevice]:
         """Generate devices based on entities and template.
 
@@ -489,6 +614,8 @@ class ScenarioGenerator:
         Args:
             entities: Extracted entities
             template: Vertical template
+            max_devices: Maximum total devices to generate (user-specified limit)
+            parsed_device_counts: Device counts parsed from natural language (e.g., {"plc": 5, "sensor": 10})
 
         Returns:
             List of generated devices with fingerprint data
@@ -497,24 +624,114 @@ class ScenarioGenerator:
 
         devices = []
 
-        # Get device counts from entities
-        device_counts = {}
-        for e in entities:
-            if e.entity_type == "device_count":
-                device_type, count = e.value.split(":")
-                device_counts[device_type] = int(count)
+        # Use parsed device counts if provided, otherwise extract from entities
+        device_counts = parsed_device_counts.copy() if parsed_device_counts else {}
+        if not device_counts:
+            for e in entities:
+                if e.entity_type == "device_count":
+                    device_type, count = e.value.split(":")
+                    device_counts[device_type] = int(count)
 
         # Get preferred vendors
         preferred_vendors = [e.value for e in entities if e.entity_type == "vendor"]
 
+        # Calculate planned device counts per type
+        planned_counts = {}
+        template_ranges = {}  # Store min/max for scaling
+
+        for device_type, config in template["typical_devices"].items():
+            min_count, max_count = config["count_range"]
+            template_ranges[device_type] = (min_count, max_count)
+
+            if device_type in device_counts:
+                # User specified exact count for this type
+                planned_counts[device_type] = device_counts[device_type]
+            elif max_devices is not None:
+                # Start with minimum, will scale up/down later
+                planned_counts[device_type] = min_count
+            else:
+                # No target, use random within range
+                planned_counts[device_type] = random.randint(min_count, max_count)
+
+        # Scale to meet max_devices target
+        total_planned = sum(planned_counts.values())
+
+        if max_devices is not None and total_planned != max_devices:
+            critical_types = {"plc", "rtu", "hmi"}
+
+            if total_planned < max_devices:
+                # Scale UP to meet target
+                logger.info(f"Scaling up from {total_planned} to {max_devices} devices")
+                devices_to_add = max_devices - total_planned
+
+                # Calculate how much room each type has to grow (up to its max)
+                growth_room = {}
+                for dtype, count in planned_counts.items():
+                    _, max_count = template_ranges.get(dtype, (0, count))
+                    growth_room[dtype] = max(0, max_count - count)
+
+                total_growth_room = sum(growth_room.values())
+
+                if total_growth_room > 0:
+                    # Distribute additional devices proportionally based on growth room
+                    for dtype in planned_counts.keys():
+                        if growth_room[dtype] > 0:
+                            # Proportion of growth this type should get
+                            proportion = growth_room[dtype] / total_growth_room
+                            additional = int(devices_to_add * proportion)
+                            # Don't exceed max for this type
+                            _, max_count = template_ranges.get(dtype, (0, 100))
+                            planned_counts[dtype] = min(planned_counts[dtype] + additional, max_count)
+
+                    # If still under target, add to types with remaining room
+                    remaining = max_devices - sum(planned_counts.values())
+                    while remaining > 0:
+                        added_any = False
+                        for dtype in planned_counts.keys():
+                            if remaining <= 0:
+                                break
+                            _, max_count = template_ranges.get(dtype, (0, 100))
+                            if planned_counts[dtype] < max_count:
+                                planned_counts[dtype] += 1
+                                remaining -= 1
+                                added_any = True
+                        if not added_any:
+                            # All types at max, can't add more
+                            break
+
+                logger.info(f"After scaling up: {planned_counts} (total: {sum(planned_counts.values())})")
+
+            elif total_planned > max_devices:
+                # Scale DOWN (existing logic)
+                logger.info(f"Scaling down from {total_planned} to {max_devices} devices")
+                scale_factor = max_devices / total_planned
+
+                scaled_counts = {}
+                for dtype, count in planned_counts.items():
+                    scaled = max(1 if dtype in critical_types else 0, int(count * scale_factor))
+                    scaled_counts[dtype] = scaled
+
+                # If still over limit, reduce non-critical types further
+                while sum(scaled_counts.values()) > max_devices:
+                    non_critical = [(k, v) for k, v in scaled_counts.items() if k not in critical_types and v > 0]
+                    if not non_critical:
+                        critical = [(k, v) for k, v in scaled_counts.items() if v > 1]
+                        if critical:
+                            largest = max(critical, key=lambda x: x[1])
+                            scaled_counts[largest[0]] -= 1
+                        else:
+                            break
+                    else:
+                        largest = max(non_critical, key=lambda x: x[1])
+                        scaled_counts[largest[0]] -= 1
+
+                planned_counts = scaled_counts
+                logger.info(f"After scaling down: {planned_counts} (total: {sum(planned_counts.values())})")
+
         # Generate devices for each type
         for device_type, config in template["typical_devices"].items():
-            # Determine count
-            if device_type in device_counts:
-                count = device_counts[device_type]
-            else:
-                min_count, max_count = config["count_range"]
-                count = random.randint(min_count, max_count)
+            # Use pre-calculated count
+            count = planned_counts.get(device_type, 0)
 
             # Skip if count is 0
             if count == 0:
@@ -591,6 +808,34 @@ class ScenarioGenerator:
                     f"{fingerprint_model or 'none'} (vendor={vendor})"
                 )
 
+        # Ensure at least 1 controller (PLC/RTU) exists for flow generation
+        has_controller = any(d.device_type in ["plc", "rtu"] for d in devices)
+        has_field_devices = any(d.device_type not in ["plc", "rtu", "hmi"] for d in devices)
+
+        if not has_controller and has_field_devices and len(devices) > 0:
+            logger.info("No controller devices found. Adding a PLC for flow generation.")
+            # Add a PLC to enable proper flow generation
+            plc_config = template["typical_devices"].get("plc", {})
+            vendors = plc_config.get("vendors", ["rockwell", "siemens"])
+            vendor = random.choice(vendors)
+            protocols = template.get("protocols", ["modbus_tcp"])
+
+            device = GeneratedDevice(
+                device_id=str(uuid.uuid4()),
+                device_type="plc",
+                name="PLC-MAIN-001",
+                vendor=vendor,
+                model=None,
+                ip_address=self._generate_ip(template["zones"][0]),
+                mac_address=generate_mac_address(vendor=vendor, device_type="plc"),
+                zone=template["zones"][0],
+                protocols=protocols,
+                fingerprint_model=None,
+                error_config=plc_config.get("error_config"),
+                fingerprint_data=None,
+            )
+            devices.insert(0, device)  # Add at beginning
+
         return devices
 
     def _generate_zones(
@@ -633,6 +878,8 @@ class ScenarioGenerator:
         Returns:
             List of generated flows
         """
+        import random
+
         flows = []
 
         # Find controllers (PLCs, RTUs)
@@ -645,7 +892,6 @@ class ScenarioGenerator:
         # Controller to field device flows
         for controller in controllers:
             # Each controller polls several field devices
-            import random
             target_count = min(len(field_devices), random.randint(3, 10))
             targets = random.sample(field_devices, target_count) if field_devices else []
 
@@ -679,6 +925,51 @@ class ScenarioGenerator:
                     description=f"{hmi.name} monitoring {controller.name}",
                 )
                 flows.append(flow)
+
+        # FALLBACK: If no flows generated but we have 2+ devices, create peer flows
+        if not flows and len(devices) >= 2:
+            logger.warning(
+                f"No controller devices found for flow generation. "
+                f"Creating fallback peer-to-peer flows for {len(devices)} devices."
+            )
+            # Create flows between adjacent devices
+            for i in range(len(devices) - 1):
+                source = devices[i]
+                target = devices[i + 1]
+
+                # Find common protocol
+                common = set(source.protocols) & set(target.protocols)
+                protocol = list(common)[0] if common else "modbus_tcp"
+
+                flow = GeneratedFlow(
+                    flow_id=str(uuid.uuid4()),
+                    source_device_id=source.device_id,
+                    destination_device_id=target.device_id,
+                    protocol=protocol,
+                    poll_interval_ms=poll_intervals.get("normal", 1000),
+                    description=f"{source.name} to {target.name}",
+                )
+                flows.append(flow)
+
+            # Also create some reverse flows for bidirectional communication
+            for i in range(0, len(devices) - 1, 2):  # Every other pair
+                source = devices[i + 1]
+                target = devices[i]
+
+                common = set(source.protocols) & set(target.protocols)
+                protocol = list(common)[0] if common else "modbus_tcp"
+
+                flow = GeneratedFlow(
+                    flow_id=str(uuid.uuid4()),
+                    source_device_id=source.device_id,
+                    destination_device_id=target.device_id,
+                    protocol=protocol,
+                    poll_interval_ms=poll_intervals.get("slow", 2000),
+                    description=f"{source.name} to {target.name} (response)",
+                )
+                flows.append(flow)
+
+            logger.info(f"Created {len(flows)} fallback flows")
 
         return flows
 

@@ -13,18 +13,26 @@ from collections.abc import Iterator
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.ethernet_ip.packets import (
+    CIP_CLASS_IDENTITY,
+    CIP_SERVICE_GET_ATTRIBUTE_ALL,
+    CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
     CIP_STATUS_CONNECTION_FAILURE,
     CIP_STATUS_CONNECTION_LOST,
     CIP_STATUS_RESOURCE_UNAVAILABLE,
     build_cip_error_response,
     build_cip_forward_open_request,
     build_cip_forward_open_response,
+    build_cip_get_attribute_all_response,
+    build_cip_get_attribute_single_response,
     build_cip_io_data,
+    build_cip_unconnected_send_request,
+    build_cip_unconnected_send_response,
     build_enip_packet,
     build_enip_packet_fingerprinted,
     build_forward_open_error_response,
     build_list_identity_request_packet,
     build_list_identity_response_packet,
+    build_list_services_response,
     build_register_session_request,
     build_register_session_response,
 )
@@ -584,6 +592,267 @@ class EtherNetIPEngine(ProtocolEngine):
                 "has_vulnerability_override": applicator._vulnerability_override is not None,
             },
         )
+
+    def generate_cip_discovery_sequence(
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        start_time_ms: float,
+    ) -> Iterator[PacketEvent]:
+        """Generate CIP Identity Object attribute query sequence for deep fingerprinting.
+
+        This sequence simulates what Cisco Cyber Vision does during detailed device
+        discovery beyond basic ListIdentity:
+
+        1. Establish TCP connection (if not already connected)
+        2. RegisterSession to get a session handle
+        3. GetAttributeAll on Identity Object (Class 0x01, Instance 0x01)
+        4. GetAttributeSingle queries for extended attributes (9, 10, 19, 20)
+        5. ListServices to discover capabilities
+
+        The responses include detailed device information like:
+        - Configuration Consistency Value
+        - Heartbeat Interval
+        - Maximum CIP Connections
+        - Protection Mode (Rockwell-specific)
+        - Supported languages
+
+        Args:
+            flow: Flow context with source/destination devices
+            state: Conversation state (should be in "registered" state)
+            start_time_ms: Start timestamp
+
+        Yields:
+            PacketEvent for CIP discovery requests and responses
+        """
+        current_time = start_time_ms
+        applicator = flow.destination.fingerprint_applicator
+        session_handle = state.custom_data.get("session_handle", 1)
+
+        # Get TCP sequence numbers
+        client_seq = state.custom_data["tcp_seq_client"]
+        server_seq = state.custom_data["tcp_seq_server"]
+
+        # Generate sender context
+        sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+        # === GetAttributeAll on Identity Object (Class 0x01, Instance 0x01) ===
+        # This is the primary deep fingerprinting query
+
+        get_all_request = build_cip_unconnected_send_request(
+            service=CIP_SERVICE_GET_ATTRIBUTE_ALL,
+            class_id=CIP_CLASS_IDENTITY,
+            instance_id=1,
+            attribute_id=None,
+            session_handle=session_handle,
+            sender_context=sender_context,
+        )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.source,
+                flow.destination,
+                get_all_request,
+                seq=client_seq,
+                ack=server_seq,
+                flags="PA",
+            ),
+            direction="request",
+            metadata={
+                "type": "cip_get_attribute_all_request",
+                "class": CIP_CLASS_IDENTITY,
+                "instance": 1,
+            },
+        )
+
+        # Response timing
+        timing_sample = applicator.get_response_delay()
+        current_time += timing_sample.delay_ms
+
+        # Build GetAttributeAll response with fingerprint data
+        cip_response = build_cip_get_attribute_all_response(
+            applicator,
+            CIP_CLASS_IDENTITY,
+            1,
+        )
+        get_all_response = build_cip_unconnected_send_response(
+            cip_response,
+            session_handle,
+            sender_context,
+        )
+
+        client_seq += len(get_all_request)
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.destination,
+                flow.source,
+                get_all_response,
+                seq=server_seq,
+                ack=client_seq,
+                flags="PA",
+            ),
+            direction="response",
+            metadata={
+                "type": "cip_get_attribute_all_response",
+                "class": CIP_CLASS_IDENTITY,
+                "instance": 1,
+            },
+        )
+
+        server_seq += len(get_all_response)
+        current_time += random.uniform(10.0, 30.0)
+
+        # === GetAttributeSingle queries for extended attributes ===
+        # Cyber Vision queries specific attributes for deeper fingerprinting
+
+        extended_attributes = [
+            (9, "configuration_consistency_value"),
+            (10, "heartbeat_interval"),
+            (19, "protection_mode"),
+            (20, "maximum_cip_connections"),
+        ]
+
+        for attr_id, attr_name in extended_attributes:
+            sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+            get_single_request = build_cip_unconnected_send_request(
+                service=CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
+                class_id=CIP_CLASS_IDENTITY,
+                instance_id=1,
+                attribute_id=attr_id,
+                session_handle=session_handle,
+                sender_context=sender_context,
+            )
+
+            yield PacketEvent(
+                timestamp_ms=current_time,
+                flow_id=flow.flow_id,
+                packet_bytes=build_enip_packet_fingerprinted(
+                    flow.source,
+                    flow.destination,
+                    get_single_request,
+                    seq=client_seq,
+                    ack=server_seq,
+                    flags="PA",
+                ),
+                direction="request",
+                metadata={
+                    "type": "cip_get_attribute_single_request",
+                    "class": CIP_CLASS_IDENTITY,
+                    "instance": 1,
+                    "attribute": attr_id,
+                    "attribute_name": attr_name,
+                },
+            )
+
+            # Response timing
+            timing_sample = applicator.get_response_delay()
+            current_time += timing_sample.delay_ms
+
+            # Build GetAttributeSingle response
+            cip_response = build_cip_get_attribute_single_response(
+                applicator,
+                CIP_CLASS_IDENTITY,
+                1,
+                attr_id,
+            )
+            get_single_response = build_cip_unconnected_send_response(
+                cip_response,
+                session_handle,
+                sender_context,
+            )
+
+            client_seq += len(get_single_request)
+
+            yield PacketEvent(
+                timestamp_ms=current_time,
+                flow_id=flow.flow_id,
+                packet_bytes=build_enip_packet_fingerprinted(
+                    flow.destination,
+                    flow.source,
+                    get_single_response,
+                    seq=server_seq,
+                    ack=client_seq,
+                    flags="PA",
+                ),
+                direction="response",
+                metadata={
+                    "type": "cip_get_attribute_single_response",
+                    "class": CIP_CLASS_IDENTITY,
+                    "instance": 1,
+                    "attribute": attr_id,
+                    "attribute_name": attr_name,
+                },
+            )
+
+            server_seq += len(get_single_response)
+            current_time += random.uniform(5.0, 15.0)
+
+        # === ListServices to discover capabilities ===
+        sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+        # Build ListServices request (simple encapsulation header only)
+        from app.protocol_engines.ethernet_ip.packets import (
+            ENIP_CMD_LIST_SERVICES,
+            build_encapsulation_header,
+        )
+        list_services_request = build_encapsulation_header(
+            command=ENIP_CMD_LIST_SERVICES,
+            length=0,
+            session_handle=0,
+            sender_context=sender_context,
+        )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.source,
+                flow.destination,
+                list_services_request,
+                seq=client_seq,
+                ack=server_seq,
+                flags="PA",
+            ),
+            direction="request",
+            metadata={"type": "enip_list_services_request"},
+        )
+
+        # Response timing
+        timing_sample = applicator.get_response_delay()
+        current_time += timing_sample.delay_ms
+
+        # Build ListServices response
+        list_services_response_payload = build_list_services_response(
+            applicator,
+            sender_context,
+        )
+
+        client_seq += len(list_services_request)
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.destination,
+                flow.source,
+                list_services_response_payload,
+                seq=server_seq,
+                ack=client_seq,
+                flags="PA",
+            ),
+            direction="response",
+            metadata={"type": "enip_list_services_response"},
+        )
+
+        # Update state
+        state.custom_data["tcp_seq_client"] = client_seq + len(list_services_request)
+        state.custom_data["tcp_seq_server"] = server_seq + len(list_services_response_payload)
 
     def generate_shutdown_sequence(
         self,

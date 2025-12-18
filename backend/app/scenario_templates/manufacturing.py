@@ -631,14 +631,14 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Motion Controller",
-             "cve_ids": ["CVE-2021-22681"]},
+             "cve_ids": ["CVE-2021-22681", "CVE-2022-1161"]},
 
             # Palletizing controllers - CompactLogix (with CVE vulnerabilities)
             {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "process",
              "name_pattern": "PALLET-{n:03d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1769-L24ER-QB1B",
              "role": "Palletizing Controller",
-             "cve_ids": ["CVE-2021-22681"]},
+             "cve_ids": ["CVE-2021-22681", "CVE-2022-1161"]},
 
             # Servo drives - Kinetix 5500 for motion
             {"type": "servo", "vendor": "rockwell", "count": 12, "zone": "field",

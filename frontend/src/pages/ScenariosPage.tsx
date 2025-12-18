@@ -43,6 +43,7 @@ import {
   ExperimentOutlined,
   FileAddOutlined,
   RocketOutlined,
+  RobotOutlined,
   InboxOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
@@ -552,6 +553,13 @@ const ScenariosPage: React.FC = () => {
             onClick={() => setTemplateModalOpen(true)}
           >
             From Template
+          </Button>
+          <Button
+            icon={<RobotOutlined />}
+            style={{ borderColor: '#5a9fd4', color: '#5a9fd4' }}
+            onClick={() => navigate('/scenarios/ai-create')}
+          >
+            AI Create
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             New Blank

@@ -1,5 +1,6 @@
 """Traffic generator container entrypoint."""
 
+import copy
 import json
 import logging
 import os
@@ -44,6 +45,75 @@ def parse_scenario(scenario_json: str) -> dict:
         sys.exit(1)
 
 
+def build_device_fingerprint(device: dict, protocol: str) -> dict:
+    """Build enriched fingerprint for a device, merging CVE overrides.
+
+    Args:
+        device: Device dictionary from scenario
+        protocol: Protocol being used (for context-specific enrichment)
+
+    Returns:
+        Enriched fingerprint dictionary
+    """
+    # Get base fingerprint
+    fingerprint = copy.deepcopy(
+        device.get("vendor_fingerprint") or
+        device.get("vendorFingerprint") or
+        {}
+    )
+
+    # Merge CVE identity overrides
+    cve_overrides = device.get("cveIdentityOverrides", {})
+    if cve_overrides:
+        logger.info(f"Device {device.get('name')}: Merging CVE overrides: {list(cve_overrides.keys())}")
+        for key in ["modbus_identity", "ethernet_ip_identity", "profinet_identity", "cip_identity_object"]:
+            if key in cve_overrides:
+                if key in fingerprint and isinstance(fingerprint[key], dict):
+                    fingerprint[key].update(cve_overrides[key])
+                else:
+                    fingerprint[key] = cve_overrides[key]
+                logger.info(f"  Merged {key}: {fingerprint[key]}")
+
+    # Enrich fingerprint with device info for protocol identity fields
+    device_name = device.get("name", "")
+    fingerprint_model = device.get("fingerprintModel", "")
+    vendor = device.get("vendor", "")
+
+    # PROFINET: Ensure station_name is set (critical for Cyber Vision detection)
+    if "profinet_identity" in fingerprint or protocol in ("profinet", "profisafe"):
+        if "profinet_identity" not in fingerprint:
+            fingerprint["profinet_identity"] = {}
+        pn_id = fingerprint["profinet_identity"]
+        if not pn_id.get("station_name"):
+            station = device_name.lower().replace(" ", "-").replace("_", "-") if device_name else None
+            if station:
+                pn_id["station_name"] = station
+                logger.debug(f"Generated PROFINET station_name '{station}' from device name")
+
+    # EtherNet/IP: Ensure product_name is set
+    if "ethernet_ip_identity" in fingerprint or protocol == "ethernet_ip":
+        if "ethernet_ip_identity" not in fingerprint:
+            fingerprint["ethernet_ip_identity"] = {}
+        eip_id = fingerprint["ethernet_ip_identity"]
+        if not eip_id.get("product_name"):
+            product = fingerprint_model or device_name
+            if product:
+                eip_id["product_name"] = product
+                logger.debug(f"Generated EtherNet/IP product_name '{product}' from device info")
+
+    # Modbus: Ensure vendor_name and product_code are set
+    if "modbus_identity" in fingerprint or protocol == "modbus_tcp":
+        if "modbus_identity" not in fingerprint:
+            fingerprint["modbus_identity"] = {}
+        mb_id = fingerprint["modbus_identity"]
+        if not mb_id.get("vendor_name") and vendor:
+            mb_id["vendor_name"] = vendor.title()
+        if not mb_id.get("product_code") and fingerprint_model:
+            mb_id["product_code"] = fingerprint_model
+
+    return fingerprint
+
+
 def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | None:
     """Create a FlowContext from scenario definition."""
     try:
@@ -54,20 +124,27 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
             logger.warning(f"Missing device for flow {flow_def.get('id')}")
             return None
 
+        # Get protocol
+        protocol = flow_def.get("protocol", "modbus_tcp")
+
         # Get network info
         src_network = source_device.get("network", {})
         dst_network = target_device.get("network", {})
 
-        # Create device contexts
+        # Build fingerprints for BOTH source and destination (for discovery)
+        src_fingerprint = build_device_fingerprint(source_device, protocol)
+        dst_fingerprint = build_device_fingerprint(target_device, protocol)
+
+        # Create device contexts with vendor fingerprints for device identification
         source = DeviceContext(
             device_id=source_device.get("id", ""),
             mac_address=src_network.get("macAddress", "00:00:00:00:00:01"),
             ip_address=src_network.get("ipAddress", "10.0.0.1"),
             port=flow_def.get("protocolConfig", {}).get("sourcePort", 50000),
+            vendor_fingerprint=src_fingerprint,
         )
 
         # Get destination port based on protocol
-        protocol = flow_def.get("protocol", "modbus_tcp")
         default_port = 502 if protocol == "modbus_tcp" else 44818
 
         destination = DeviceContext(
@@ -76,6 +153,7 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
             ip_address=dst_network.get("ipAddress", "10.0.0.2"),
             port=flow_def.get("protocolConfig", {}).get("port", default_port),
             unit_id=flow_def.get("protocolConfig", {}).get("unitId", 1),
+            vendor_fingerprint=dst_fingerprint,
         )
 
         # Get timing

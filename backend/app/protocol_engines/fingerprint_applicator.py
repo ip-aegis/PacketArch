@@ -88,36 +88,48 @@ class FingerprintApplicator:
 
         This modifies the protocol identity responses to include vulnerable
         firmware version strings that security scanners will detect.
+
+        Supports both key naming conventions:
+        - With _override suffix: modbus_identity_override (from DB model)
+        - Without suffix: modbus_identity (from extract_identity_overrides)
         """
         override = self.vulnerability_override
 
-        # Apply Modbus identity overrides
-        if override.get("modbus_identity_override"):
-            self.modbus_identity.update(override["modbus_identity_override"])
-            logger.debug(
-                f"Applied Modbus vulnerability override: {override['modbus_identity_override']}"
-            )
+        # Apply Modbus identity overrides (support both key formats)
+        modbus_override = (
+            override.get("modbus_identity_override") or
+            override.get("modbus_identity")
+        )
+        if modbus_override:
+            self.modbus_identity.update(modbus_override)
+            logger.debug(f"Applied Modbus vulnerability override: {modbus_override}")
 
-        # Apply EtherNet/IP identity overrides
-        if override.get("ethernet_ip_identity_override"):
-            self.ethernet_ip_identity.update(override["ethernet_ip_identity_override"])
-            logger.debug(
-                f"Applied EtherNet/IP vulnerability override: {override['ethernet_ip_identity_override']}"
-            )
+        # Apply EtherNet/IP identity overrides (support both key formats)
+        eip_override = (
+            override.get("ethernet_ip_identity_override") or
+            override.get("ethernet_ip_identity")
+        )
+        if eip_override:
+            self.ethernet_ip_identity.update(eip_override)
+            logger.debug(f"Applied EtherNet/IP vulnerability override: {eip_override}")
 
-        # Apply PROFINET identity overrides
-        if override.get("profinet_identity_override"):
-            self.profinet_identity.update(override["profinet_identity_override"])
-            logger.debug(
-                f"Applied PROFINET vulnerability override: {override['profinet_identity_override']}"
-            )
+        # Apply PROFINET identity overrides (support both key formats)
+        pn_override = (
+            override.get("profinet_identity_override") or
+            override.get("profinet_identity")
+        )
+        if pn_override:
+            self.profinet_identity.update(pn_override)
+            logger.debug(f"Applied PROFINET vulnerability override: {pn_override}")
 
-        # Apply S7 identity overrides
-        if override.get("s7_identity_override"):
-            self.s7_identity.update(override["s7_identity_override"])
-            logger.debug(
-                f"Applied S7 vulnerability override: {override['s7_identity_override']}"
-            )
+        # Apply S7 identity overrides (support both key formats)
+        s7_override = (
+            override.get("s7_identity_override") or
+            override.get("s7_identity")
+        )
+        if s7_override:
+            self.s7_identity.update(s7_override)
+            logger.debug(f"Applied S7 vulnerability override: {s7_override}")
 
     @property
     def is_vulnerable(self) -> bool:
@@ -384,6 +396,132 @@ class FingerprintApplicator:
     def get_enip_device_type(self) -> int:
         """Get CIP Device Type."""
         return self.ethernet_ip_identity.get("device_type", 14)
+
+    # ========== CIP Identity Object (Deep Fingerprinting) ==========
+
+    def get_cip_identity_object(self) -> dict[str, Any]:
+        """Get complete CIP Identity Object attributes (1-20) for deep fingerprinting.
+
+        This combines basic ethernet_ip_identity with extended cip_identity_object
+        attributes used by Cisco Cyber Vision for detailed device identification.
+
+        Returns:
+            Dictionary with all CIP Identity Object attributes
+        """
+        # Start with basic identity data
+        identity = {
+            "vendor_id": self.ethernet_ip_identity.get("vendor_id", 1),
+            "device_type": self.ethernet_ip_identity.get("device_type", 14),
+            "product_code": self.ethernet_ip_identity.get("product_code", 1),
+            "revision": {
+                "major": self.ethernet_ip_identity.get("revision_major", 1),
+                "minor": self.ethernet_ip_identity.get("revision_minor", 0),
+            },
+            "status": self.ethernet_ip_identity.get("status", 0x0030),
+            "serial_number": self.ethernet_ip_identity.get("serial_number", 0x12345678),
+            "product_name": self.ethernet_ip_identity.get("product_name", "Unknown Device"),
+            "state": self.ethernet_ip_identity.get("state", 3),
+        }
+
+        # Merge with extended CIP Identity Object attributes from fingerprint
+        cip_identity = self.fingerprint.get("cip_identity_object", {})
+        if cip_identity:
+            identity.update({
+                "status": cip_identity.get("status", identity["status"]),
+                "configuration_consistency_value": cip_identity.get(
+                    "configuration_consistency_value", 0
+                ),
+                "heartbeat_interval": cip_identity.get("heartbeat_interval", 250),
+                "active_language": cip_identity.get("active_language", "English"),
+                "supported_languages": cip_identity.get("supported_languages", ["English"]),
+                "protection_mode": cip_identity.get("protection_mode", 0),
+                "maximum_cip_connections": cip_identity.get("maximum_cip_connections", 32),
+            })
+
+        # Apply vulnerability overrides if present
+        cip_override = self.vulnerability_override.get("cip_identity_override", {})
+        if cip_override:
+            identity.update(cip_override)
+            logger.debug(f"Applied CIP Identity vulnerability override: {cip_override}")
+
+        return identity
+
+    def get_connection_manager_object(self) -> dict[str, Any]:
+        """Get Connection Manager Object (Class 0x06) attributes.
+
+        Returns connection parameters used by Cyber Vision for capability detection.
+
+        Returns:
+            Dictionary with Connection Manager attributes
+        """
+        default = {
+            "max_connections": 32,
+            "connection_timeout_multiplier": 32,
+            "transport_class_trigger": 0xA3,
+            "supported_connection_types": ["implicit", "explicit"],
+        }
+
+        cm_object = self.fingerprint.get("connection_manager_object", {})
+        return {**default, **cm_object}
+
+    def get_assembly_objects(self) -> dict[str, Any]:
+        """Get Assembly Object (Class 0x04) configurations.
+
+        Returns I/O assembly configurations for device capability fingerprinting.
+
+        Returns:
+            Dictionary with assembly configurations (input, output, config, safety)
+        """
+        default = {
+            "input": {"instance": 100, "size_bytes": 128},
+            "output": {"instance": 101, "size_bytes": 128},
+        }
+
+        assembly_objects = self.fingerprint.get("assembly_objects", {})
+        return {**default, **assembly_objects}
+
+    def get_cip_safety_info(self) -> dict[str, Any] | None:
+        """Get CIP Safety information for GuardLogix/safety devices.
+
+        Returns safety network configuration for CIP Safety fingerprinting.
+
+        Returns:
+            Dictionary with CIP Safety attributes, or None if not a safety device
+        """
+        return self.fingerprint.get("cip_safety")
+
+    def get_list_services(self) -> list[dict[str, Any]]:
+        """Get ListServices response data for EtherNet/IP capability advertising.
+
+        Returns:
+            List of service dictionaries with type_code, name, and capability_flags
+        """
+        services_config = self.fingerprint.get("list_services_response", {})
+
+        services = []
+        if services_config.get("communications"):
+            services.append(services_config["communications"])
+
+        if not services:
+            # Default communications service
+            services = [{
+                "type_code": 0x0100,
+                "name": "Communications",
+                "capability_flags": 0x0120,  # TCP + UDP
+            }]
+
+        return services
+
+    def is_safety_device(self) -> bool:
+        """Check if this device supports CIP Safety protocol.
+
+        Returns:
+            True if device has CIP Safety configuration
+        """
+        return (
+            self.fingerprint.get("cip_safety") is not None or
+            self.fingerprint.get("protocol_quirks", {}).get("cip_safety_enabled", False)
+        )
 
     # ========== PROFINET Identity ==========
 

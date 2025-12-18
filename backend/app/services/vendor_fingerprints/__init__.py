@@ -15,6 +15,15 @@ from typing import Any
 from .rockwell import get_rockwell_fingerprints, ROCKWELL_OUI_PREFIXES
 from .siemens import get_siemens_fingerprints, SIEMENS_OUI_PREFIXES
 from .schneider import get_schneider_fingerprints, SCHNEIDER_OUI_PREFIXES
+from .specialty import (
+    get_specialty_fingerprints,
+    SICK_OUI_PREFIXES,
+    YOKOGAWA_OUI_PREFIXES,
+    ENDRESS_HAUSER_OUI_PREFIXES,
+    HONEYWELL_OUI_PREFIXES,
+    ABB_OUI_PREFIXES,
+    EMERSON_OUI_PREFIXES,
+)
 
 # ODVA Vendor IDs (official registrations)
 ODVA_VENDOR_IDS = {
@@ -43,21 +52,12 @@ VENDOR_OUI_PREFIXES = {
     "rockwell": ROCKWELL_OUI_PREFIXES,
     "siemens": SIEMENS_OUI_PREFIXES,
     "schneider": SCHNEIDER_OUI_PREFIXES,
-    "abb": [
-        "00:20:99",  # ABB Industrial Systems
-        "00:21:99",  # ABB STOTZ-KONTAKT
-        "CC:DA:0C",  # ABB
-    ],
-    "honeywell": [
-        "00:60:35",  # Honeywell
-        "00:D0:36",  # Honeywell
-        "64:31:7E",  # Honeywell
-    ],
-    "emerson": [
-        "00:A0:F8",  # Emerson Network Power
-        "00:03:38",  # Emerson
-        "00:90:E8",  # Fisher-Rosemount (Emerson)
-    ],
+    "sick": SICK_OUI_PREFIXES,
+    "yokogawa": YOKOGAWA_OUI_PREFIXES,
+    "endress+hauser": ENDRESS_HAUSER_OUI_PREFIXES,
+    "honeywell": HONEYWELL_OUI_PREFIXES,
+    "abb": ABB_OUI_PREFIXES,
+    "emerson": EMERSON_OUI_PREFIXES,
     "ge": [
         "00:14:49",  # GE Fanuc Automation
         "00:60:B0",  # GE Energy
@@ -69,12 +69,15 @@ VENDOR_OUI_PREFIXES = {
 def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     """Get all vendor fingerprints for seeding.
 
-    Returns comprehensive fingerprints for Rockwell, Siemens, and Schneider.
+    Returns comprehensive fingerprints for all supported vendors:
+    - Major vendors: Rockwell, Siemens, Schneider
+    - Specialty vendors: SICK, Yokogawa, Endress+Hauser, Honeywell, ABB, Emerson
     """
     fingerprints = []
     fingerprints.extend(get_rockwell_fingerprints())
     fingerprints.extend(get_siemens_fingerprints())
     fingerprints.extend(get_schneider_fingerprints())
+    fingerprints.extend(get_specialty_fingerprints())
     return fingerprints
 
 

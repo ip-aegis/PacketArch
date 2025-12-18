@@ -207,7 +207,7 @@ const ScenarioStudioPage: React.FC = () => {
     return (
       <div
         style={{
-          height: '100vh',
+          height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -221,7 +221,7 @@ const ScenarioStudioPage: React.FC = () => {
   return (
     <div
       style={{
-        height: '100vh',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

@@ -32,17 +32,29 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
 
   useEffect(() => {
     if (flow) {
+      // Default phases if not present
+      const phases = flow.phases || {
+        startup: true,
+        steadyState: true,
+        maintenance: true,
+        shutdown: true,
+      };
+      const timing = flow.timing || {
+        intervalMs: 1000,
+        jitterMs: 100,
+      };
+
       form.setFieldsValue({
         name: flow.name,
         protocol: flow.protocol,
-        intervalMs: flow.timing.intervalMs,
-        jitterMs: flow.timing.jitterMs,
-        burstSize: flow.timing.burstSize,
-        burstIntervalMs: flow.timing.burstIntervalMs,
-        phaseStartup: flow.phases.startup,
-        phaseSteadyState: flow.phases.steadyState,
-        phaseMaintenance: flow.phases.maintenance,
-        phaseShutdown: flow.phases.shutdown,
+        intervalMs: timing.intervalMs,
+        jitterMs: timing.jitterMs,
+        burstSize: timing.burstSize,
+        burstIntervalMs: timing.burstIntervalMs,
+        phaseStartup: phases.startup,
+        phaseSteadyState: phases.steadyState,
+        phaseMaintenance: phases.maintenance,
+        phaseShutdown: phases.shutdown,
       });
     }
   }, [flow, form]);
@@ -68,7 +80,11 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
     if ('burstIntervalMs' in changedValues) timingUpdates.burstIntervalMs = changedValues.burstIntervalMs;
 
     if (Object.keys(timingUpdates).length > 0) {
-      updates.timing = { ...flow.timing, ...timingUpdates };
+      const currentTiming = flow.timing || {
+        intervalMs: 1000,
+        jitterMs: 100,
+      };
+      updates.timing = { ...currentTiming, ...timingUpdates };
     }
 
     // Phase updates
@@ -79,7 +95,13 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
     if ('phaseShutdown' in changedValues) phaseUpdates.shutdown = changedValues.phaseShutdown;
 
     if (Object.keys(phaseUpdates).length > 0) {
-      updates.phases = { ...flow.phases, ...phaseUpdates };
+      const currentPhases = flow.phases || {
+        startup: true,
+        steadyState: true,
+        maintenance: true,
+        shutdown: true,
+      };
+      updates.phases = { ...currentPhases, ...phaseUpdates };
     }
 
     if (Object.keys(updates).length > 0) {

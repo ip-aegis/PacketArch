@@ -32,10 +32,141 @@ from app.models.scenario import Scenario
 from app.models.settings import SystemSetting
 from app.scenario_templates import get_template, list_templates, list_verticals
 from app.services.ai_session_service import AISessionService
+from app.services.ai_scenario_preview_service import AIScenarioPreviewService
+from app.services.ip_management import IPManagementService
+from app.services.vendor_fingerprints import (
+    get_fingerprint_by_vendor_model,
+    get_fingerprints_by_vendor,
+    VENDOR_OUI_PREFIXES,
+)
+from app.ai_services.nl_parser import extract_device_counts, format_device_counts_for_prompt, get_device_limit_warning
+import random
 
 logger = logging.getLogger(__name__)
 
+# Maximum devices allowed per scenario
+MAX_DEVICES_PER_SCENARIO = 100
+
+
+def _generate_vendor_mac(vendor: str, device_type: str) -> str:
+    """Generate a MAC address using vendor-specific OUI prefix.
+
+    Args:
+        vendor: Vendor name (e.g., 'rockwell', 'siemens')
+        device_type: Device type for fallback vendor selection
+
+    Returns:
+        MAC address string in format XX:XX:XX:XX:XX:XX
+    """
+    # Get vendor OUI prefixes
+    vendor_lower = vendor.lower() if vendor else ""
+    oui_prefixes = VENDOR_OUI_PREFIXES.get(vendor_lower)
+
+    if not oui_prefixes:
+        # Fallback: try to find OUI by device type typical vendors
+        device_type_vendors = {
+            "plc": ["siemens", "rockwell", "schneider"],
+            "hmi": ["siemens", "rockwell"],
+            "rtu": ["schneider", "abb"],
+            "drive": ["siemens", "abb", "schneider"],
+            "sensor": ["sick", "endress+hauser"],
+        }
+        fallback_vendors = device_type_vendors.get(device_type.lower(), ["siemens"])
+        for fb_vendor in fallback_vendors:
+            oui_prefixes = VENDOR_OUI_PREFIXES.get(fb_vendor)
+            if oui_prefixes:
+                break
+
+    if not oui_prefixes:
+        # Ultimate fallback - generic OUI
+        oui_prefixes = ["00:00:00"]
+
+    # Select random OUI from vendor's prefixes
+    oui = random.choice(oui_prefixes)
+
+    # Generate random NIC portion (last 3 octets)
+    nic = [random.randint(0, 255) for _ in range(3)]
+
+    return f"{oui}:{nic[0]:02X}:{nic[1]:02X}:{nic[2]:02X}"
+
+
+def _generate_serial_number(vendor: str, fingerprint_data: dict) -> str:
+    """Generate a realistic serial number based on vendor patterns.
+
+    Args:
+        vendor: Vendor name
+        fingerprint_data: Fingerprint data that may contain serial format hints
+
+    Returns:
+        Serial number string
+    """
+    vendor_lower = vendor.lower() if vendor else ""
+
+    # Vendor-specific serial number formats
+    if vendor_lower == "rockwell":
+        # Rockwell format: XXXYYYYY (plant code + sequence)
+        return f"{random.choice(['ACD', 'MKE', 'TEC'])}{random.randint(10000, 99999)}"
+    elif vendor_lower == "siemens":
+        # Siemens format: S XXXX-XXXX-XXXX
+        return f"S {random.randint(1000,9999)}-{random.randint(1000,9999)}-{random.randint(1000,9999)}"
+    elif vendor_lower == "schneider":
+        # Schneider format: XXYYMMDDNNNN
+        return f"{random.randint(10,99)}{random.randint(1,12):02d}{random.randint(1,28):02d}{random.randint(1000,9999)}"
+    elif vendor_lower == "abb":
+        # ABB format: 3HADXXXXXX
+        return f"3HAD{random.randint(100000, 999999)}"
+    elif vendor_lower == "honeywell":
+        # Honeywell format: XXXXXXXX
+        return f"{random.randint(10000000, 99999999)}"
+    elif vendor_lower == "emerson":
+        # Emerson format: DXXXXXXXX
+        return f"D{random.randint(10000000, 99999999)}"
+    else:
+        # Generic format
+        return f"SN{random.randint(100000000, 999999999)}"
+
+
+def detect_convergence(tool_calls_history: list[dict]) -> tuple[bool, str]:
+    """Detect if AI is done or stuck in a loop.
+
+    Returns (should_stop, reason) tuple.
+
+    Detection rules:
+    1. Same tool called 5+ times consecutively = stuck loop
+    2. add_device called after device limit warning = should stop
+    3. No tool calls for 2+ iterations = natural completion
+    """
+    if len(tool_calls_history) < 3:
+        return False, ""
+
+    # Check for add_device loop (same tool called 5+ times consecutively)
+    last_5_names = [tc.get("name") for tc in tool_calls_history[-5:]]
+    if len(last_5_names) == 5 and len(set(last_5_names)) == 1:
+        if last_5_names[0] == "add_device":
+            return True, "Detected add_device loop - stopping to prevent device explosion"
+        elif last_5_names[0] == "add_flow":
+            return True, "Detected add_flow loop - stopping"
+
+    # Check for oscillating patterns (A, B, A, B, A, B)
+    if len(tool_calls_history) >= 6:
+        last_6_names = [tc.get("name") for tc in tool_calls_history[-6:]]
+        if (
+            last_6_names[0] == last_6_names[2] == last_6_names[4]
+            and last_6_names[1] == last_6_names[3] == last_6_names[5]
+            and last_6_names[0] != last_6_names[1]
+        ):
+            return True, f"Detected oscillating pattern between {last_6_names[0]} and {last_6_names[1]}"
+
+    return False, ""
+
+
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
+
+
+class AISessionCreateRequest(BaseModel):
+    """Request to create or resume an AI session for a scenario."""
+
+    scenario_id: str = Field(..., description="Scenario UUID to associate with the session")
 
 
 class AISessionResponse(BaseModel):
@@ -43,6 +174,8 @@ class AISessionResponse(BaseModel):
 
     session_id: str
     created_at: str
+    scenario_id: str | None = None
+    messages: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AIChatRequest(BaseModel):
@@ -124,7 +257,7 @@ def _register_mcp_tools(db: DBSession, user_id: str | None = None) -> None:
 
     mcp_server.register_tool(
         name="add_device",
-        description="Add a device to a scenario",
+        description="Add a device to a scenario. IMPORTANT: Maximum 100 devices per scenario. Plan your device count carefully before adding devices.",
         input_schema={
             "type": "object",
             "properties": {
@@ -1180,9 +1313,11 @@ def _register_mcp_tools(db: DBSession, user_id: str | None = None) -> None:
     mcp_server.register_tool(
         name="generate_scenario_from_nl",
         description="""Generate a complete OT scenario from a natural language description.
-Creates devices, flows, zones, and protocol configurations automatically.
+PREFERRED method for creating new scenarios - creates devices, flows, zones automatically.
+IMPORTANT: Respects device counts specified in the description (e.g., "25 devices", "no more than 10 PLCs").
 Example: "A manufacturing plant with 5 Rockwell PLCs, 2 HMIs, and 10 VFDs using EtherNet/IP"
-Returns: New scenario ID, device count, flow count, and extracted entities.""",
+Returns: New scenario ID, device count, flow count, and extracted entities.
+Maximum 100 devices per scenario.""",
         input_schema={
             "type": "object",
             "properties": {
@@ -1633,28 +1768,37 @@ async def _create_from_template(
 
 @router.post("/sessions", response_model=AISessionResponse)
 async def create_ai_session(
+    request: AISessionCreateRequest,
     current_user: CurrentUser,
     db: DBSession,
 ) -> AISessionResponse:
-    """Create a new AI assistant session.
+    """Create or resume an AI assistant session for a scenario.
+
+    If a session already exists for this user+scenario, returns the existing
+    session with its conversation history. Otherwise creates a new session.
 
     Args:
+        request: Request containing scenario_id
         current_user: Authenticated user
         db: Database session
 
     Returns:
-        Session information
+        Session information with conversation history
     """
     # Note: Tools are registered per-chat request with the current db session
     # to ensure the db session is valid for the duration of tool execution.
     # See _register_mcp_tools call in chat_with_ai.
 
-    # Create session in Redis
-    session_data = await AISessionService.create_session(str(current_user.id))
+    # Get or create session for this scenario (persists across panel open/close)
+    session_data = await AISessionService.get_or_create_session_for_scenario(
+        str(current_user.id), request.scenario_id
+    )
 
     return AISessionResponse(
         session_id=session_data["id"],
         created_at=session_data["created_at"],
+        scenario_id=session_data.get("scenario_id"),
+        messages=session_data.get("messages", []),
     )
 
 
@@ -1684,6 +1828,66 @@ async def end_ai_session(
     return {"message": "Session ended"}
 
 
+@router.get("/sessions/scenario/{scenario_id}", response_model=AISessionResponse | None)
+async def get_session_for_scenario(
+    scenario_id: str,
+    current_user: CurrentUser,
+) -> AISessionResponse | None:
+    """Get existing AI session for a scenario.
+
+    Returns the session with conversation history if it exists,
+    or None if no session exists for this user+scenario.
+
+    Args:
+        scenario_id: Scenario UUID
+        current_user: Authenticated user
+
+    Returns:
+        Session information with conversation history, or None
+    """
+    session_data = await AISessionService.get_session_for_scenario(
+        str(current_user.id), scenario_id
+    )
+
+    if session_data is None:
+        return None
+
+    return AISessionResponse(
+        session_id=session_data["id"],
+        created_at=session_data["created_at"],
+        scenario_id=session_data.get("scenario_id"),
+        messages=session_data.get("messages", []),
+    )
+
+
+@router.delete("/sessions/scenario/{scenario_id}")
+async def clear_scenario_conversation(
+    scenario_id: str,
+    current_user: CurrentUser,
+) -> dict[str, str]:
+    """Clear AI conversation for a scenario.
+
+    Deletes the session and its conversation history. A new session
+    will be created on the next chat message.
+
+    Args:
+        scenario_id: Scenario UUID
+        current_user: Authenticated user
+
+    Returns:
+        Success message
+    """
+    deleted = await AISessionService.delete_session_for_scenario(
+        str(current_user.id), scenario_id
+    )
+
+    if not deleted:
+        # Session didn't exist, but that's okay for clearing
+        return {"message": "No conversation to clear"}
+
+    return {"message": "Conversation cleared"}
+
+
 @router.post("/chat", response_model=AIChatResponse)
 async def chat_with_ai(
     request: AIChatRequest,
@@ -1700,12 +1904,15 @@ async def chat_with_ai(
     Returns:
         AI response
     """
-    # Validate session using Redis
-    session = await AISessionService.validate_session(request.session_id, str(current_user.id))
+    user_id = str(current_user.id)
+    scenario_id = request.scenario_id
+
+    # Validate session exists for this user+scenario
+    session = await AISessionService.get_session_for_scenario(user_id, scenario_id)
     if session is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found or not authorized",
+            detail="Session not found - please open AI panel first",
         )
 
     # Register MCP tools with the current request's db session
@@ -1741,14 +1948,14 @@ async def chat_with_ai(
         "mac": sanitizer._mac_mapping,
         "hostname": sanitizer._hostname_mapping,
     }
-    await AISessionService.update_session(request.session_id, sanitizer_mappings=sanitizer_mappings)
+    await AISessionService.update_session_for_scenario(user_id, scenario_id, sanitizer_mappings=sanitizer_mappings)
 
     # Append user message to session immediately (before processing)
     # Session stores only clean text messages - tool execution is ephemeral in current_messages
-    await AISessionService.append_message(request.session_id, {"role": "user", "content": request.message})
+    await AISessionService.append_message_for_scenario(user_id, scenario_id, {"role": "user", "content": request.message})
 
     # Refresh session data to get updated messages
-    session = await AISessionService.get_session(request.session_id)
+    session = await AISessionService.get_session_for_scenario(user_id, scenario_id)
     messages = session["messages"].copy()
 
     # Build enhanced system prompt with domain expertise
@@ -1765,7 +1972,28 @@ async def chat_with_ai(
     }
     vertical_context = vertical_contexts.get(vertical, "General OT environment with industrial devices and protocols.")
 
+    # Parse user message to extract device counts for better guidance
+    user_message = request.message
+    parsed_counts = extract_device_counts(user_message)
+    device_count_info = format_device_counts_for_prompt(parsed_counts)
+    device_limit_warning = get_device_limit_warning(parsed_counts, MAX_DEVICES_PER_SCENARIO)
+
+    # Build dynamic constraints section
+    constraints_section = f"""## CRITICAL CONSTRAINTS (READ FIRST)
+1. **Maximum {MAX_DEVICES_PER_SCENARIO} devices per scenario** - This is a HARD LIMIT enforced by the system.
+2. **Parsed from user request**: {device_count_info}"""
+
+    if device_limit_warning:
+        constraints_section += f"\n3. **{device_limit_warning}**"
+
+    if parsed_counts["has_explicit_total"]:
+        constraints_section += f"""
+4. **User specified "{parsed_counts['total_requested']}" devices** - Do NOT create more than this number.
+5. **Use generate_scenario_from_nl** for creating complete scenarios - it respects device limits automatically."""
+
     system_prompt = f"""You are an expert OT (Operational Technology) network engineer and AI assistant for PacketArch, an industrial network traffic simulation platform used for security testing and training.
+
+{constraints_section}
 
 ## Your Expertise
 - **Industrial Protocols**: Modbus TCP, EtherNet/IP, PROFINET, S7/Siemens, OPC UA, DNP3, IEC 104, BACnet
@@ -1804,14 +2032,21 @@ async def chat_with_ai(
 - Deploy scenarios to Docker hosts for traffic generation
 - Control deployment lifecycle (start/stop/status)
 
-## Guidelines for Best Results
-1. **Always apply fingerprints** after adding devices for realistic traffic signatures
-2. **Suggest relevant CVEs** based on device vendor, model, and firmware when asked about vulnerabilities
-3. **Use learned patterns** when available to match real-world traffic captures
-4. **Validate topology** before deployment to catch configuration issues
-5. **Score realism** periodically and suggest improvements
-6. When adding devices, prefer specific vendors (Siemens, Rockwell, Schneider) over generic types
-7. For manufacturing: use EtherNet/IP or PROFINET; for utilities: use Modbus TCP or DNP3
+## Tool Selection Guide
+- **Creating a new scenario with devices** → Use `generate_scenario_from_nl` (handles everything automatically)
+- **Adding 1-3 devices to existing scenario** → Use `add_device` (but check device count first)
+- **NEVER** loop `add_device` to create many devices - use `generate_scenario_from_nl` instead
+
+## Best Practices
+1. Apply vendor fingerprints after adding devices for realistic traffic signatures
+2. Suggest relevant CVEs based on device vendor, model, and firmware when asked
+3. Use learned patterns when available to match real-world traffic captures
+4. Validate topology before deployment to catch configuration issues
+5. Prefer specific vendors (Siemens, Rockwell, Schneider) over generic types
+6. For manufacturing: use EtherNet/IP or PROFINET; for utilities: use Modbus TCP or DNP3
+
+## When You're Done
+Stop calling tools and provide a summary of what was created. Do not continue adding devices beyond the requested count.
 
 ## Privacy Note
 Network addresses shown are sanitized for privacy. Use the addresses returned by tools, not hardcoded IPs."""
@@ -1835,7 +2070,7 @@ Network addresses shown are sanitized for privacy. Use the addresses returned by
         current_messages = [system_message] + messages
         all_tool_calls = []
         final_response_text = ""
-        max_iterations = 5  # Prevent infinite loops
+        max_iterations = 15  # Prevent infinite loops, increased for complex scenarios
 
         logger.info(f"Starting AI chat. Session messages count: {len(session['messages'])}")
         logger.info(f"Session messages structure: {[(m.get('role'), type(m.get('content')).__name__, str(m.get('content'))[:100] if isinstance(m.get('content'), str) else 'list') for m in session['messages']]}")
@@ -1874,12 +2109,38 @@ Network addresses shown are sanitized for privacy. Use the addresses returned by
             final_response_text += response_text
             all_tool_calls.extend(tool_calls_this_round)
 
+            # Check for convergence (stuck loops, oscillating patterns)
+            should_stop, stop_reason = detect_convergence(all_tool_calls)
+            if should_stop:
+                logger.warning(f"Convergence detected: {stop_reason}")
+                # Generate a completion message
+                tool_names = [tc.get("name", "") for tc in all_tool_calls]
+                device_adds = sum(1 for n in tool_names if n == "add_device")
+                flow_adds = sum(1 for n in tool_names if n == "add_flow")
+
+                completion_parts = []
+                if device_adds > 0:
+                    completion_parts.append(f"{device_adds} devices added")
+                if flow_adds > 0:
+                    completion_parts.append(f"{flow_adds} data flows created")
+
+                if completion_parts:
+                    final_response_text = f"Scenario creation completed! {', '.join(completion_parts)}. The scenario is ready for review."
+                else:
+                    final_response_text = "Operation completed. Please check the Scenario Studio for results."
+
+                await AISessionService.append_message_for_scenario(user_id, scenario_id, {
+                    "role": "assistant",
+                    "content": final_response_text,
+                })
+                break
+
             # If no tool calls, we're done
             if not tool_calls_this_round:
                 logger.info(f"No more tool calls. Final response length: {len(final_response_text)}")
                 # Append assistant response to session (user message was already added above)
                 # Only store the final text response, not tool_use blocks
-                await AISessionService.append_message(request.session_id, {
+                await AISessionService.append_message_for_scenario(user_id, scenario_id, {
                     "role": "assistant",
                     "content": final_response_text,  # Use accumulated text from all iterations
                 })
@@ -1924,13 +2185,19 @@ Network addresses shown are sanitized for privacy. Use the addresses returned by
                                 logger.info(f"Executing tool: {tool_name} (no scenario_id required)")
 
                         result = await handler(**tool_input)
+                        result_str = json.dumps(result) if not isinstance(result, str) else result
                         logger.info(f"Tool {tool_name} completed successfully")
+                        # Update tool call with result for frontend to extract scenario IDs
+                        tool_call["result"] = result_str
+                        tool_call["success"] = True
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": tool_id,
-                            "content": json.dumps(result) if not isinstance(result, str) else result,
+                            "content": result_str,
                         })
                     else:
+                        tool_call["result"] = f"Error: Unknown tool '{tool_name}'"
+                        tool_call["success"] = False
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": tool_id,
@@ -1939,6 +2206,8 @@ Network addresses shown are sanitized for privacy. Use the addresses returned by
                         })
                 except Exception as tool_error:
                     logger.error(f"Error executing tool {tool_name}: {tool_error}")
+                    tool_call["result"] = f"Error: {str(tool_error)}"
+                    tool_call["success"] = False
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tool_id,
@@ -1957,14 +2226,38 @@ Network addresses shown are sanitized for privacy. Use the addresses returned by
                 "content": tool_results,
             })
         else:
-            # Hit max iterations - still save the conversation
+            # Hit max iterations - still save the conversation with a helpful message
             logger.warning("AI tool execution hit max iterations")
-            # Append assistant response to session (user message was already added above)
-            if final_response_text:
-                await AISessionService.append_message(request.session_id, {
-                    "role": "assistant",
-                    "content": final_response_text,
-                })
+
+            # Add a completion message if response is empty or minimal
+            if not final_response_text or len(final_response_text.strip()) < 50:
+                # Count what was created
+                tool_names = [tc.get("name", "") for tc in all_tool_calls]
+                device_adds = sum(1 for n in tool_names if n == "add_device")
+                flow_adds = sum(1 for n in tool_names if n == "add_flow")
+                cve_applies = sum(1 for n in tool_names if n == "apply_cve_to_device")
+                fingerprints = sum(1 for n in tool_names if n == "apply_fingerprint_to_device")
+
+                completion_parts = []
+                if device_adds > 0:
+                    completion_parts.append(f"{device_adds} devices added")
+                if flow_adds > 0:
+                    completion_parts.append(f"{flow_adds} data flows created")
+                if cve_applies > 0:
+                    completion_parts.append(f"{cve_applies} CVEs applied")
+                if fingerprints > 0:
+                    completion_parts.append(f"{fingerprints} vendor fingerprints applied")
+
+                if completion_parts:
+                    final_response_text = f"Scenario creation completed! {', '.join(completion_parts)}. The scenario is ready for review in the Scenario Studio."
+                else:
+                    final_response_text = "The operation completed. Please check the Scenario Studio for results."
+
+            # Append assistant response to session
+            await AISessionService.append_message_for_scenario(user_id, scenario_id, {
+                "role": "assistant",
+                "content": final_response_text,
+            })
 
         return AIChatResponse(
             response=final_response_text,
@@ -2004,18 +2297,21 @@ async def chat_with_ai_stream(
     Returns:
         Server-Sent Events stream
     """
-    # Validate session using Redis
-    session = await AISessionService.validate_session(request.session_id, str(current_user.id))
+    user_id = str(current_user.id)
+    scenario_id = request.scenario_id
+
+    # Validate session exists for this user+scenario
+    session = await AISessionService.get_session_for_scenario(user_id, scenario_id)
     if session is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found or not authorized",
+            detail="Session not found - please open AI panel first",
         )
 
     # Get scenario
     result = await db.execute(
         select(Scenario).where(
-            Scenario.id == uuid.UUID(request.scenario_id),
+            Scenario.id == uuid.UUID(scenario_id),
             Scenario.user_id == current_user.id,
         )
     )
@@ -2026,9 +2322,6 @@ async def chat_with_ai_stream(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Scenario not found",
         )
-
-    # Store session_id for use in generator
-    session_id = request.session_id
 
     async def event_generator():
         """Generate SSE events for AI chat."""
@@ -2053,13 +2346,13 @@ async def chat_with_ai_stream(
                 "mac": sanitizer._mac_mapping,
                 "hostname": sanitizer._hostname_mapping,
             }
-            await AISessionService.update_session(session_id, sanitizer_mappings=sanitizer_mappings)
+            await AISessionService.update_session_for_scenario(user_id, scenario_id, sanitizer_mappings=sanitizer_mappings)
 
             # Append user message to Redis
-            await AISessionService.append_message(session_id, {"role": "user", "content": request.message})
+            await AISessionService.append_message_for_scenario(user_id, scenario_id, {"role": "user", "content": request.message})
 
             # Get updated session with messages
-            session_data = await AISessionService.get_session(session_id)
+            session_data = await AISessionService.get_session_for_scenario(user_id, scenario_id)
             messages = session_data["messages"].copy()
 
             # Build system prompt
@@ -2075,12 +2368,27 @@ async def chat_with_ai_stream(
             }
             vertical_context = vertical_contexts.get(vertical, "General OT environment.")
 
+            # Parse user message to extract device counts
+            parsed_counts = extract_device_counts(request.message)
+            device_count_info = format_device_counts_for_prompt(parsed_counts)
+            device_limit_warning = get_device_limit_warning(parsed_counts, MAX_DEVICES_PER_SCENARIO)
+
+            # Build constraints
+            constraints = f"CRITICAL: Max {MAX_DEVICES_PER_SCENARIO} devices. {device_count_info}"
+            if device_limit_warning:
+                constraints += f" {device_limit_warning}"
+            if parsed_counts["has_explicit_total"]:
+                constraints += f" User requested {parsed_counts['total_requested']} devices - do NOT exceed."
+
             system_prompt = f"""You are an expert OT network engineer AI assistant for PacketArch.
+{constraints}
+
 Current Scenario: {scenario.name} | Vertical: {vertical} - {vertical_context}
 Devices: {device_count} | Flows: {flow_count}
 
-Use your tools to help compose, enhance, and deploy OT network traffic scenarios.
-Apply vendor fingerprints for realism, suggest CVEs for security testing, and use learned patterns when available."""
+TOOL SELECTION: For new scenarios with devices, use generate_scenario_from_nl. Only use add_device for 1-3 device additions.
+Apply vendor fingerprints for realism, suggest CVEs for security testing, and use learned patterns when available.
+When done, stop calling tools and provide a summary."""
 
             system_message = {"role": "system", "content": system_prompt}
 
@@ -2101,7 +2409,7 @@ Apply vendor fingerprints for realism, suggest CVEs for security testing, and us
             current_messages = [system_message] + messages
             all_tool_calls = []
             final_response_text = ""
-            max_iterations = 5
+            max_iterations = 15  # Increased for complex scenarios
 
             for iteration in range(max_iterations):
                 yield f"data: {json.dumps({'type': 'thinking', 'iteration': iteration + 1, 'message': f'AI processing (iteration {iteration + 1})...'})}\n\n"
@@ -2133,9 +2441,36 @@ Apply vendor fingerprints for realism, suggest CVEs for security testing, and us
                 final_response_text += response_text
                 all_tool_calls.extend(tool_calls_this_round)
 
+                # Check for convergence (stuck loops)
+                should_stop, stop_reason = detect_convergence(all_tool_calls)
+                if should_stop:
+                    logger.warning(f"Convergence detected (streaming): {stop_reason}")
+                    # Generate completion message
+                    tool_names = [tc.get("name", "") for tc in all_tool_calls]
+                    device_adds = sum(1 for n in tool_names if n == "add_device")
+                    flow_adds = sum(1 for n in tool_names if n == "add_flow")
+
+                    completion_parts = []
+                    if device_adds > 0:
+                        completion_parts.append(f"{device_adds} devices added")
+                    if flow_adds > 0:
+                        completion_parts.append(f"{flow_adds} flows created")
+
+                    if completion_parts:
+                        completion_msg = f"Scenario creation completed! {', '.join(completion_parts)}."
+                    else:
+                        completion_msg = "Operation completed."
+
+                    yield f"data: {json.dumps({'type': 'text', 'content': completion_msg})}\n\n"
+                    await AISessionService.append_message_for_scenario(user_id, scenario_id, {
+                        "role": "assistant",
+                        "content": completion_msg,
+                    })
+                    break
+
                 # If no tool calls, we're done
                 if not tool_calls_this_round:
-                    await AISessionService.append_message(session_id, {
+                    await AISessionService.append_message_for_scenario(user_id, scenario_id, {
                         "role": "assistant",
                         "content": final_response_text,
                     })
@@ -2171,17 +2506,24 @@ Apply vendor fingerprints for realism, suggest CVEs for security testing, and us
                                 del tool_input["scenario_id"]
 
                             result = await handler(**tool_input)
+                            result_str = json.dumps(result) if not isinstance(result, str) else result
 
                             # Emit tool_complete event
                             yield f"data: {json.dumps({'type': 'tool_complete', 'name': tool_name, 'success': True, 'result_preview': str(result)[:200] if result else None})}\n\n"
 
+                            # Update tool call with result for frontend to extract scenario IDs
+                            tool_call["result"] = result_str
+                            tool_call["success"] = True
+
                             tool_results.append({
                                 "type": "tool_result",
                                 "tool_use_id": tool_id,
-                                "content": json.dumps(result) if not isinstance(result, str) else result,
+                                "content": result_str,
                             })
                         else:
                             yield f"data: {json.dumps({'type': 'tool_complete', 'name': tool_name, 'success': False, 'error': f'Unknown tool: {tool_name}'})}\n\n"
+                            tool_call["result"] = f"Error: Unknown tool '{tool_name}'"
+                            tool_call["success"] = False
                             tool_results.append({
                                 "type": "tool_result",
                                 "tool_use_id": tool_id,
@@ -2191,6 +2533,8 @@ Apply vendor fingerprints for realism, suggest CVEs for security testing, and us
                     except Exception as tool_error:
                         logger.error(f"Error executing tool {tool_name}: {tool_error}")
                         yield f"data: {json.dumps({'type': 'tool_complete', 'name': tool_name, 'success': False, 'error': str(tool_error)})}\n\n"
+                        tool_call["result"] = f"Error: {str(tool_error)}"
+                        tool_call["success"] = False
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": tool_id,
@@ -2206,7 +2550,7 @@ Apply vendor fingerprints for realism, suggest CVEs for security testing, and us
             else:
                 # Hit max iterations
                 if final_response_text:
-                    await AISessionService.append_message(session_id, {
+                    await AISessionService.append_message_for_scenario(user_id, scenario_id, {
                         "role": "assistant",
                         "content": final_response_text,
                     })
@@ -2358,3 +2702,461 @@ async def list_ai_tools(current_user: CurrentUser) -> list[AIToolDefinition]:
     ]
 
     return tools
+
+
+# ==================== AI Scenario Creation Wizard ====================
+
+
+class AIScenarioGenerateRequest(BaseModel):
+    """Request for AI scenario generation preview."""
+
+    name: str = Field(..., description="Scenario name")
+    vertical: str = Field(..., description="Industry vertical")
+    description: str = Field(..., description="Natural language description")
+    vendors: list[str] | None = Field(None, description="Preferred vendors (None = let AI decide)")
+    protocols: list[str] | None = Field(None, description="Preferred protocols (None = let AI decide)")
+    duration_ms: int = Field(300000, description="Scenario duration in milliseconds")
+    # Device count options
+    total_device_count: int | None = Field(
+        None,
+        description="Target total device count (AI decides the mix). Range: 5-100.",
+        ge=5,
+        le=100,
+    )
+    device_counts: dict[str, int] | None = Field(
+        None,
+        description="Specific counts per device type (e.g., {'plc': 5, 'hmi': 2})",
+    )
+
+
+class AIScenarioPreviewDevice(BaseModel):
+    """Device in a scenario preview."""
+
+    device_id: str
+    name: str
+    device_type: str
+    vendor: str | None = None
+    ip_address: str | None = None
+    protocols: list[str] = Field(default_factory=list)
+
+
+class AIScenarioPreviewFlow(BaseModel):
+    """Flow in a scenario preview."""
+
+    flow_id: str
+    source_device_id: str
+    destination_device_id: str
+    protocol: str
+    description: str
+
+
+class AIScenarioPreviewResponse(BaseModel):
+    """Response with generated scenario preview."""
+
+    preview_id: str
+    name: str
+    vertical: str
+    description: str
+    devices: list[AIScenarioPreviewDevice]
+    flows: list[AIScenarioPreviewFlow]
+    device_count: int
+    flow_count: int
+    protocols_used: list[str]
+    vendors_used: list[str]
+    zones: list[dict[str, Any]] = Field(default_factory=list)
+    # AI enhancement metadata
+    ai_enhanced: bool = False
+    ai_features: list[str] = Field(default_factory=list)
+    design_rationale: str | None = None
+
+
+@router.post("/scenarios/generate-preview", response_model=AIScenarioPreviewResponse)
+async def generate_scenario_preview(
+    request: AIScenarioGenerateRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> AIScenarioPreviewResponse:
+    """Generate a scenario preview from natural language description.
+
+    This creates a preview without saving to the database. The preview
+    is stored in Redis for 30 minutes and can be used to create the
+    actual scenario.
+
+    Uses Claude AI for intelligent scenario design with automatic fallback
+    to rule-based generation if AI is unavailable.
+
+    Args:
+        request: Generation request with name, vertical, description
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Preview with devices, flows, and summary statistics
+    """
+    from app.ai_services.ai_scenario_designer import AIScenarioDesigner
+
+    # Use AI-enhanced scenario designer (with rule-based fallback)
+    designer = AIScenarioDesigner(db)
+
+    try:
+        result = await designer.design_scenario(
+            description=request.description,
+            name=request.name,
+            duration_ms=request.duration_ms,
+            preferred_vendors=request.vendors,
+            preferred_protocols=request.protocols,
+            vertical=request.vertical,
+            total_device_count=request.total_device_count,
+            device_counts=request.device_counts,
+        )
+        scenario = result.scenario
+        ai_enhanced = result.ai_enhanced
+        ai_features = result.ai_features
+        design_rationale = result.design_rationale
+
+        if result.fallback_reason:
+            logger.info(f"AI fallback: {result.fallback_reason}")
+    except Exception as e:
+        logger.error(f"Failed to generate scenario preview: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate scenario: {str(e)}",
+        )
+
+    # Enforce device limit
+    if len(scenario.devices) > MAX_DEVICES_PER_SCENARIO:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Generated scenario exceeds device limit ({len(scenario.devices)} > {MAX_DEVICES_PER_SCENARIO}). Please request fewer devices.",
+        )
+
+    # Build preview data
+    devices = [
+        AIScenarioPreviewDevice(
+            device_id=d.device_id,
+            name=d.name,
+            device_type=d.device_type,
+            vendor=d.vendor,
+            ip_address=d.ip_address,
+            protocols=d.protocols,
+        )
+        for d in scenario.devices
+    ]
+
+    flows = [
+        AIScenarioPreviewFlow(
+            flow_id=f.flow_id,
+            source_device_id=f.source_device_id,
+            destination_device_id=f.destination_device_id,
+            protocol=f.protocol,
+            description=f.description,
+        )
+        for f in scenario.flows
+    ]
+
+    # Extract unique protocols and vendors
+    protocols_used = list(set(f.protocol for f in scenario.flows))
+    vendors_used = list(set(d.vendor for d in scenario.devices if d.vendor))
+
+    # Store preview in Redis
+    preview_data = {
+        "name": request.name,
+        "vertical": request.vertical,
+        "description": request.description,
+        "duration_ms": request.duration_ms,
+        "devices": [d.model_dump() for d in devices],
+        "flows": [f.model_dump() for f in flows],
+        "zones": scenario.zones,
+        "protocols_used": protocols_used,
+        "vendors_used": vendors_used,
+    }
+
+    preview_id = await AIScenarioPreviewService.store_preview(
+        str(current_user.id), preview_data
+    )
+
+    return AIScenarioPreviewResponse(
+        preview_id=preview_id,
+        name=request.name,
+        vertical=request.vertical,
+        description=request.description,
+        devices=devices,
+        flows=flows,
+        device_count=len(devices),
+        flow_count=len(flows),
+        protocols_used=protocols_used,
+        vendors_used=vendors_used,
+        zones=scenario.zones,
+        ai_enhanced=ai_enhanced,
+        ai_features=ai_features,
+        design_rationale=design_rationale,
+    )
+
+
+class AIScenarioCreateFromPreviewRequest(BaseModel):
+    """Request to create scenario from preview."""
+
+    preview_id: str = Field(..., description="Preview ID from generate-preview")
+
+
+class AIScenarioCreateFromPreviewResponse(BaseModel):
+    """Response after creating scenario from preview."""
+
+    success: bool
+    scenario_id: str
+    name: str
+    device_count: int
+    flow_count: int
+
+
+@router.post("/scenarios/create-from-preview", response_model=AIScenarioCreateFromPreviewResponse)
+async def create_scenario_from_preview(
+    request: AIScenarioCreateFromPreviewRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> AIScenarioCreateFromPreviewResponse:
+    """Create an actual scenario from a validated preview.
+
+    Args:
+        request: Request with preview_id
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Created scenario information
+    """
+    # Get preview
+    preview = await AIScenarioPreviewService.get_preview(
+        request.preview_id, str(current_user.id)
+    )
+
+    if preview is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Preview not found or expired",
+        )
+
+    # Convert preview to database format
+    # First, build zones with proper layout
+    zones = {}
+    zone_device_map = {}  # device_id -> zone_name mapping
+    preview_zones = preview.get("zones", [])
+
+    # Layout zones in a grid (2 columns)
+    zone_width = 450
+    zone_height = 350
+    zone_margin = 50
+    zones_per_row = 2
+
+    for idx, z in enumerate(preview_zones):
+        zone_name = z.get("name", f"zone_{idx}")
+        row = idx // zones_per_row
+        col = idx % zones_per_row
+
+        zone_x = zone_margin + col * (zone_width + zone_margin)
+        zone_y = zone_margin + row * (zone_height + zone_margin)
+
+        zones[zone_name] = {
+            "id": zone_name,
+            "name": zone_name.replace("_", " ").title(),
+            "type": "network",
+            "position": {"x": zone_x, "y": zone_y},
+            "dimensions": {"width": zone_width, "height": zone_height},
+            "deviceIds": z.get("device_ids", []),
+        }
+
+        # Map devices to their zone
+        for device_id in z.get("device_ids", []):
+            zone_device_map[device_id] = zone_name
+
+    # Create database scenario first to get ID for IP allocation
+    db_scenario = Scenario(
+        user_id=current_user.id,
+        name=preview["name"],
+        description=preview["description"],
+        vertical=preview["vertical"],
+        total_duration_ms=preview.get("duration_ms", 300000),
+        definition={},  # Will be populated below
+        version=1,
+    )
+    db.add(db_scenario)
+    await db.flush()  # Get the scenario ID without committing
+
+    # Allocate IP range for this scenario
+    try:
+        ip_allocation = await IPManagementService.allocate_range(db, db_scenario.id)
+        await db.flush()  # Ensure allocation is visible for subsequent get_next_ip calls
+        logger.info(f"Allocated IP range {ip_allocation.cidr_range} for scenario {db_scenario.id}")
+    except ValueError as e:
+        logger.error(f"Failed to allocate IP range: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to allocate IP range: {e}",
+        )
+
+    # Build devices with positions inside their zones
+    devices = {}
+    zone_device_counters = {}  # Track device placement within each zone
+
+    for d in preview.get("devices", []):
+        device_id = d["device_id"]
+        zone_name = zone_device_map.get(device_id)
+        vendor = d.get("vendor", "").lower()
+        device_type = d.get("device_type", "")
+        fingerprint_model = d.get("fingerprint_model")
+
+        # Calculate position inside zone
+        if zone_name and zone_name in zones:
+            zone = zones[zone_name]
+            zone_x = zone["position"]["x"]
+            zone_y = zone["position"]["y"]
+
+            # Get device index within this zone
+            if zone_name not in zone_device_counters:
+                zone_device_counters[zone_name] = 0
+            device_idx = zone_device_counters[zone_name]
+            zone_device_counters[zone_name] += 1
+
+            # Grid layout inside zone (3 columns, with padding)
+            devices_per_row = 3
+            device_padding = 30
+            device_spacing_x = 130
+            device_spacing_y = 100
+
+            row = device_idx // devices_per_row
+            col = device_idx % devices_per_row
+
+            device_x = zone_x + device_padding + col * device_spacing_x
+            device_y = zone_y + 60 + row * device_spacing_y  # 60px for zone header
+        else:
+            # Fallback position for devices without zones
+            device_x = 100 + (len(devices) % 5) * 150
+            device_y = 100 + (len(devices) // 5) * 120
+
+        # Get IP from management pool
+        try:
+            ip_info = await IPManagementService.get_next_ip(db, db_scenario.id)
+            ip_address = ip_info["ip_address"]
+            subnet_mask = ip_info["subnet_mask"]
+            gateway = ip_info["gateway"]
+            logger.debug(f"Assigned IP {ip_address} to device {device_id}")
+        except ValueError as e:
+            # Fallback if IP exhausted - should not happen normally
+            logger.warning(f"IP allocation failed for device {device_id}: {e}. Using fallback.")
+            ip_address = d.get("ip_address", "10.0.0.10")
+            subnet_mask = "255.255.255.0"
+            gateway = "10.0.0.1"
+
+        # Generate MAC address using vendor OUI
+        mac_address = _generate_vendor_mac(vendor, device_type)
+
+        # Get fingerprint data for deep fingerprinting
+        fingerprint_data = None
+        if vendor and fingerprint_model:
+            fingerprint_data = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
+        elif vendor:
+            # Try to get a fingerprint for this vendor
+            vendor_fps = get_fingerprints_by_vendor(vendor)
+            if vendor_fps:
+                # Pick one appropriate for device type if possible
+                for fp in vendor_fps:
+                    fp_type = fp.get("device_type", "").lower()
+                    if fp_type == device_type or not fp_type:
+                        fingerprint_data = fp
+                        break
+                if not fingerprint_data:
+                    fingerprint_data = vendor_fps[0]
+
+        # Build network config with deep fingerprint data
+        network_config = {
+            "macAddress": mac_address,
+            "ipAddress": ip_address,
+            "subnetMask": subnet_mask,
+            "gateway": gateway,
+        }
+
+        # Build device with fingerprint data
+        device_def = {
+            "id": device_id,
+            "name": d["name"],
+            "type": device_type,
+            "protocols": d.get("protocols", []),
+            "position": {"x": device_x, "y": device_y},
+            "zoneId": zone_name,
+            "network": network_config,
+            "vendor": d.get("vendor"),
+        }
+
+        # Apply deep fingerprint data if available
+        if fingerprint_data:
+            device_def["fingerprint"] = {
+                "vendor": fingerprint_data.get("vendor"),
+                "vendor_family": fingerprint_data.get("vendor_family"),
+                "model": fingerprint_data.get("model"),
+                "firmware_version": fingerprint_data.get("firmware_version"),
+                "serial_number": _generate_serial_number(vendor, fingerprint_data),
+            }
+
+            # Protocol-specific identity data
+            if fingerprint_data.get("modbus_identity"):
+                device_def["fingerprint"]["modbus_identity"] = fingerprint_data["modbus_identity"]
+            if fingerprint_data.get("ethernet_ip_identity"):
+                device_def["fingerprint"]["ethernet_ip_identity"] = fingerprint_data["ethernet_ip_identity"]
+            if fingerprint_data.get("profinet_identity"):
+                device_def["fingerprint"]["profinet_identity"] = fingerprint_data["profinet_identity"]
+
+            # TCP stack characteristics
+            if fingerprint_data.get("tcp_stack"):
+                device_def["fingerprint"]["tcp_stack"] = fingerprint_data["tcp_stack"]
+
+            # Response timing
+            if fingerprint_data.get("response_timing"):
+                device_def["fingerprint"]["response_timing"] = fingerprint_data["response_timing"]
+
+        devices[device_id] = device_def
+
+    flows = {}
+    for f in preview.get("flows", []):
+        flows[f["flow_id"]] = {
+            "id": f["flow_id"],
+            "name": f["description"],
+            "sourceDeviceId": f["source_device_id"],
+            "targetDeviceId": f["destination_device_id"],
+            "protocol": f["protocol"],
+            "timing": {"intervalMs": 1000, "jitterMs": 50},
+            "protocolConfig": {},
+            "phases": {
+                "startup": True,
+                "steadyState": True,
+                "maintenance": False,
+                "shutdown": True,
+            },
+        }
+
+    # Update scenario definition (scenario was created earlier for IP allocation)
+    db_scenario.definition = {
+        "devices": devices,
+        "flows": flows,
+        "zones": zones,
+        "phases": [],
+        "events": [],
+    }
+
+    await db.commit()
+    await db.refresh(db_scenario)
+
+    # Delete preview after successful creation
+    await AIScenarioPreviewService.delete_preview(request.preview_id)
+
+    logger.info(
+        f"Created scenario {db_scenario.id} from preview {request.preview_id} "
+        f"with {len(devices)} devices and {len(flows)} flows"
+    )
+
+    return AIScenarioCreateFromPreviewResponse(
+        success=True,
+        scenario_id=str(db_scenario.id),
+        name=preview["name"],
+        device_count=len(devices),
+        flow_count=len(flows),
+    )

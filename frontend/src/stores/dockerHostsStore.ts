@@ -31,6 +31,29 @@ interface DockerHostsState {
   clearError: () => void;
 }
 
+// Helper to extract error message from various error formats
+const extractErrorMessage = (error: any, fallback: string): string => {
+  const detail = error.response?.data?.detail;
+
+  // Handle Pydantic validation errors (array of error objects)
+  if (Array.isArray(detail)) {
+    return detail.map((err: any) => err.msg || JSON.stringify(err)).join('; ');
+  }
+
+  // Handle string detail
+  if (typeof detail === 'string') {
+    return detail;
+  }
+
+  // Handle object with message
+  if (detail?.msg) {
+    return detail.msg;
+  }
+
+  // Fallback to error message
+  return error.message || fallback;
+};
+
 export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
   hosts: [],
   selectedHost: null,
@@ -44,8 +67,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       const response = await dockerHostsApi.list();
       set({ hosts: response.items, isLoading: false });
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch Docker hosts';
+      const message = extractErrorMessage(error, 'Failed to fetch Docker hosts');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -58,8 +80,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       set({ selectedHost: host, isLoading: false });
       return host;
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch Docker host';
+      const message = extractErrorMessage(error, 'Failed to fetch Docker host');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -75,8 +96,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       }));
       return host;
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to create Docker host';
+      const message = extractErrorMessage(error, 'Failed to create Docker host');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -93,8 +113,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       }));
       return host;
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to update Docker host';
+      const message = extractErrorMessage(error, 'Failed to update Docker host');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -110,8 +129,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
         isLoading: false,
       }));
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to delete Docker host';
+      const message = extractErrorMessage(error, 'Failed to delete Docker host');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -126,8 +144,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       }
       return result;
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Connection test failed';
+      const message = extractErrorMessage(error, 'Connection test failed');
       return {
         success: false,
         message,
@@ -145,8 +162,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       set({ interfaces, isLoading: false });
       return interfaces;
     } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch interfaces';
+      const message = extractErrorMessage(error, 'Failed to fetch interfaces');
       set({ error: message, isLoading: false });
       throw error;
     }

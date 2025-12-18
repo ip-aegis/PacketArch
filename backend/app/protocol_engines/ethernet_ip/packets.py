@@ -777,3 +777,457 @@ def build_list_identity_response_packet(
         sender_context=sender_context,
     )
     return build_enip_udp_packet(src, dst, payload, ttl=tcp_options.ttl)
+
+
+# =============================================================================
+# CIP Service Constants for Deep Fingerprinting
+# =============================================================================
+
+# CIP Service Codes
+CIP_SERVICE_GET_ATTRIBUTE_ALL = 0x01
+CIP_SERVICE_GET_ATTRIBUTE_SINGLE = 0x0E
+CIP_SERVICE_SET_ATTRIBUTE_SINGLE = 0x10
+CIP_SERVICE_FORWARD_OPEN = 0x54
+CIP_SERVICE_FORWARD_CLOSE = 0x4E
+
+# CIP Service Response Codes (reply service = service | 0x80)
+CIP_SERVICE_RESPONSE_MASK = 0x80
+
+# CIP Status Codes
+CIP_STATUS_SUCCESS = 0x00
+CIP_STATUS_PATH_SEGMENT_ERROR = 0x04
+CIP_STATUS_PATH_DESTINATION_UNKNOWN = 0x05
+CIP_STATUS_SERVICE_NOT_SUPPORTED = 0x08
+CIP_STATUS_ATTRIBUTE_NOT_SUPPORTED = 0x14
+CIP_STATUS_OBJECT_DOES_NOT_EXIST = 0x16
+
+# CIP Object Classes
+CIP_CLASS_IDENTITY = 0x01
+CIP_CLASS_MESSAGE_ROUTER = 0x02
+CIP_CLASS_ASSEMBLY = 0x04
+CIP_CLASS_CONNECTION_MANAGER = 0x06
+CIP_CLASS_PARAMETER = 0x0F
+CIP_CLASS_TCP_IP_INTERFACE = 0xF5
+CIP_CLASS_ETHERNET_LINK = 0xF6
+
+
+def build_list_services_response(
+    fingerprint_applicator: "FingerprintApplicator",
+    sender_context: bytes = b"\x00" * 8,
+) -> bytes:
+    """Build EtherNet/IP ListServices response using fingerprint data.
+
+    ListServices advertises what communication services the device supports.
+    Cisco Cyber Vision queries this to determine device capabilities.
+
+    Args:
+        fingerprint_applicator: Applicator with vendor fingerprint data
+        sender_context: 8-byte sender context from request
+
+    Returns:
+        Complete ListServices response payload
+    """
+    # Get services from fingerprint
+    services = fingerprint_applicator.get_list_services()
+
+    if not services:
+        # Default communications service if none defined
+        services = [{
+            "type_code": 0x0100,
+            "name": "Communications",
+            "capability_flags": 0x0120,  # TCP + UDP
+        }]
+
+    # Build service items
+    service_items = b""
+    for service in services:
+        # Service name (max 16 chars, null-padded)
+        name = service.get("name", "Communications")[:16]
+        name_bytes = name.encode("utf-8").ljust(16, b"\x00")
+
+        # Build service item
+        service_item = struct.pack(
+            "<HH",
+            service.get("type_code", 0x0100),
+            service.get("capability_flags", 0x0120),
+        )
+        service_item += name_bytes
+
+        service_items += struct.pack("<HH", CPF_TYPE_LIST_SERVICES, len(service_item))
+        service_items += service_item
+
+    # Build CPF header (item count)
+    cpf_data = struct.pack("<H", len(services)) + service_items
+
+    # Build encapsulation header
+    header = build_encapsulation_header(
+        command=ENIP_CMD_LIST_SERVICES,
+        length=len(cpf_data),
+        session_handle=0,
+        sender_context=sender_context,
+    )
+
+    return header + cpf_data
+
+
+def build_cip_error_response(
+    service: int,
+    status: int = CIP_STATUS_SERVICE_NOT_SUPPORTED,
+    additional_status: bytes = b"",
+) -> bytes:
+    """Build CIP error response.
+
+    Args:
+        service: Original service code (will be ORed with 0x80)
+        status: CIP error status code
+        additional_status: Additional status bytes
+
+    Returns:
+        CIP error response bytes
+    """
+    additional_status_size = len(additional_status) // 2  # Size in words
+    return struct.pack(
+        "<BBB",
+        service | CIP_SERVICE_RESPONSE_MASK,  # Reply service
+        0x00,  # Reserved
+        status,
+    ) + struct.pack("<B", additional_status_size) + additional_status
+
+
+def build_cip_get_attribute_all_response(
+    fingerprint_applicator: "FingerprintApplicator",
+    class_id: int,
+    instance_id: int,
+) -> bytes:
+    """Build CIP GetAttributeAll response for Identity Object.
+
+    This is the primary response Cisco Cyber Vision uses for deep fingerprinting.
+    It returns all attributes of the Identity Object in a single response.
+
+    Args:
+        fingerprint_applicator: Applicator with vendor fingerprint data
+        class_id: CIP class ID (0x01 for Identity)
+        instance_id: Instance ID (typically 1)
+
+    Returns:
+        Complete CIP GetAttributeAll response bytes
+    """
+    if class_id != CIP_CLASS_IDENTITY or instance_id != 1:
+        return build_cip_error_response(
+            CIP_SERVICE_GET_ATTRIBUTE_ALL,
+            CIP_STATUS_OBJECT_DOES_NOT_EXIST,
+        )
+
+    # Get identity data from fingerprint
+    identity = fingerprint_applicator.get_cip_identity_object()
+
+    # Build Identity Object attributes in CIP order
+    # Attr 1: Vendor ID (UINT)
+    # Attr 2: Device Type (UINT)
+    # Attr 3: Product Code (UINT)
+    # Attr 4: Revision (STRUCT: Major USINT + Minor USINT)
+    # Attr 5: Status (WORD)
+    # Attr 6: Serial Number (UDINT)
+    # Attr 7: Product Name (SHORT_STRING)
+    # Attr 8: State (USINT)
+    # Extended attributes may follow
+
+    vendor_id = identity.get("vendor_id", 1)
+    device_type = identity.get("device_type", 14)
+    product_code = identity.get("product_code", 1)
+    revision = identity.get("revision", {"major": 1, "minor": 0})
+    status = identity.get("status", 0x0030)
+    serial_number = identity.get("serial_number", 0x12345678)
+    product_name = identity.get("product_name", "Unknown Device")[:32]
+    state = identity.get("state", 3)
+
+    # Build attribute data
+    attr_data = struct.pack(
+        "<HHH",
+        vendor_id,
+        device_type,
+        product_code,
+    )
+
+    # Revision (Major + Minor as separate bytes)
+    if isinstance(revision, dict):
+        attr_data += struct.pack("<BB", revision.get("major", 1), revision.get("minor", 0))
+    else:
+        attr_data += struct.pack("<BB", 1, 0)
+
+    # Status
+    attr_data += struct.pack("<H", status)
+
+    # Serial Number
+    attr_data += struct.pack("<I", serial_number)
+
+    # Product Name (SHORT_STRING: length byte + string)
+    name_bytes = product_name.encode("utf-8")
+    attr_data += struct.pack("<B", len(name_bytes)) + name_bytes
+
+    # State
+    attr_data += struct.pack("<B", state)
+
+    # Build response header
+    response = struct.pack(
+        "<BBB",
+        CIP_SERVICE_GET_ATTRIBUTE_ALL | CIP_SERVICE_RESPONSE_MASK,  # Reply service
+        0x00,  # Reserved
+        CIP_STATUS_SUCCESS,
+    ) + struct.pack("<B", 0)  # Additional status size (0)
+
+    return response + attr_data
+
+
+def build_cip_get_attribute_single_response(
+    fingerprint_applicator: "FingerprintApplicator",
+    class_id: int,
+    instance_id: int,
+    attribute_id: int,
+) -> bytes:
+    """Build CIP GetAttributeSingle response using fingerprint data.
+
+    This allows Cyber Vision to query individual attributes of the Identity Object.
+    Extended attributes (9-20) are used for deeper fingerprinting.
+
+    Args:
+        fingerprint_applicator: Applicator with vendor fingerprint data
+        class_id: CIP class ID (0x01 for Identity)
+        instance_id: Instance ID (typically 1)
+        attribute_id: Attribute number to return (1-20)
+
+    Returns:
+        Complete CIP GetAttributeSingle response bytes
+    """
+    if class_id != CIP_CLASS_IDENTITY or instance_id != 1:
+        return build_cip_error_response(
+            CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
+            CIP_STATUS_OBJECT_DOES_NOT_EXIST,
+        )
+
+    # Get identity data from fingerprint
+    identity = fingerprint_applicator.get_cip_identity_object()
+
+    # Build response header
+    response_header = struct.pack(
+        "<BBB",
+        CIP_SERVICE_GET_ATTRIBUTE_SINGLE | CIP_SERVICE_RESPONSE_MASK,
+        0x00,  # Reserved
+        CIP_STATUS_SUCCESS,
+    ) + struct.pack("<B", 0)  # Additional status size
+
+    # Map attribute IDs to values
+    attr_data = _build_identity_attribute_value(identity, attribute_id)
+
+    if attr_data is None:
+        return build_cip_error_response(
+            CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
+            CIP_STATUS_ATTRIBUTE_NOT_SUPPORTED,
+        )
+
+    return response_header + attr_data
+
+
+def _build_identity_attribute_value(identity: dict[str, Any], attribute_id: int) -> bytes | None:
+    """Build the value bytes for a specific Identity Object attribute.
+
+    Args:
+        identity: CIP Identity Object dictionary
+        attribute_id: Attribute number (1-20)
+
+    Returns:
+        Attribute value bytes, or None if attribute not supported
+    """
+    if attribute_id == 1:
+        # Vendor ID (UINT)
+        return struct.pack("<H", identity.get("vendor_id", 1))
+
+    elif attribute_id == 2:
+        # Device Type (UINT)
+        return struct.pack("<H", identity.get("device_type", 14))
+
+    elif attribute_id == 3:
+        # Product Code (UINT)
+        return struct.pack("<H", identity.get("product_code", 1))
+
+    elif attribute_id == 4:
+        # Revision (STRUCT: Major USINT + Minor USINT)
+        revision = identity.get("revision", {"major": 1, "minor": 0})
+        if isinstance(revision, dict):
+            return struct.pack("<BB", revision.get("major", 1), revision.get("minor", 0))
+        return struct.pack("<BB", 1, 0)
+
+    elif attribute_id == 5:
+        # Status (WORD)
+        return struct.pack("<H", identity.get("status", 0x0030))
+
+    elif attribute_id == 6:
+        # Serial Number (UDINT)
+        return struct.pack("<I", identity.get("serial_number", 0x12345678))
+
+    elif attribute_id == 7:
+        # Product Name (SHORT_STRING)
+        name = identity.get("product_name", "Unknown")[:32]
+        name_bytes = name.encode("utf-8")
+        return struct.pack("<B", len(name_bytes)) + name_bytes
+
+    elif attribute_id == 8:
+        # State (USINT)
+        return struct.pack("<B", identity.get("state", 3))
+
+    elif attribute_id == 9:
+        # Configuration Consistency Value (UDINT) - Extended attribute
+        return struct.pack("<I", identity.get("configuration_consistency_value", 0))
+
+    elif attribute_id == 10:
+        # Heartbeat Interval (USINT) - Extended attribute
+        return struct.pack("<B", min(identity.get("heartbeat_interval", 250), 255))
+
+    elif attribute_id == 11:
+        # Active Language (STRUCT with 3 language strings)
+        lang = identity.get("active_language", "English")
+        if isinstance(lang, dict):
+            lang = lang.get("lang1", "English")
+        # Return as SHORT_STRING
+        lang_bytes = lang[:32].encode("utf-8")
+        return struct.pack("<B", len(lang_bytes)) + lang_bytes
+
+    elif attribute_id == 12:
+        # Supported Language List (ARRAY of SHORT_STRING)
+        languages = identity.get("supported_languages", ["English"])
+        result = struct.pack("<H", len(languages))  # Array length
+        for lang in languages[:16]:  # Max 16 languages
+            lang_bytes = lang[:32].encode("utf-8")
+            result += struct.pack("<B", len(lang_bytes)) + lang_bytes
+        return result
+
+    elif attribute_id == 19:
+        # Protection Mode (USINT) - Rockwell-specific
+        return struct.pack("<B", identity.get("protection_mode", 0))
+
+    elif attribute_id == 20:
+        # Maximum CIP Connections (UINT) - Extended attribute
+        return struct.pack("<H", identity.get("maximum_cip_connections", 32))
+
+    else:
+        # Attribute not supported
+        return None
+
+
+def build_cip_unconnected_send_request(
+    service: int,
+    class_id: int,
+    instance_id: int,
+    attribute_id: int | None = None,
+    session_handle: int = 0,
+    sender_context: bytes = b"\x00" * 8,
+) -> bytes:
+    """Build CIP Unconnected Send request for attribute queries.
+
+    This wraps CIP services in an UCMM (Unconnected Message Manager) request.
+    Used for GetAttributeAll/GetAttributeSingle queries.
+
+    Args:
+        service: CIP service code (e.g., 0x01 for GetAttributeAll)
+        class_id: CIP class ID (e.g., 0x01 for Identity)
+        instance_id: Instance ID (typically 1)
+        attribute_id: Attribute ID for GetAttributeSingle (None for GetAttributeAll)
+        session_handle: Session handle from RegisterSession
+        sender_context: 8-byte sender context
+
+    Returns:
+        Complete Unconnected Send request bytes
+    """
+    # Build CIP path: Class/Instance[/Attribute]
+    # Path format: segment_type(1 byte) + value(variable)
+    # Class segment: 0x20 + class_id (1 byte for small class)
+    # Instance segment: 0x24 + instance_id (1 byte for small instance)
+    # Attribute segment: 0x30 + attribute_id (1 byte for small attribute)
+
+    if class_id <= 0xFF:
+        path = struct.pack("<BB", 0x20, class_id)  # 8-bit class
+    else:
+        path = struct.pack("<BxH", 0x21, class_id)  # 16-bit class
+
+    if instance_id <= 0xFF:
+        path += struct.pack("<BB", 0x24, instance_id)  # 8-bit instance
+    else:
+        path += struct.pack("<BxH", 0x25, instance_id)  # 16-bit instance
+
+    if attribute_id is not None:
+        if attribute_id <= 0xFF:
+            path += struct.pack("<BB", 0x30, attribute_id)  # 8-bit attribute
+        else:
+            path += struct.pack("<BxH", 0x31, attribute_id)  # 16-bit attribute
+
+    # Build CIP Message Router Request
+    path_size = len(path) // 2  # Path size in words
+    cip_request = struct.pack("<BB", service, path_size) + path
+
+    # Build Unconnected Send message (UCMM)
+    # Route path to Message Router (backplane, slot 0)
+    route_path = struct.pack("<BB", 0x01, 0x00)  # Port 1, slot 0
+    route_path_size = len(route_path) // 2
+
+    ucmm_data = struct.pack(
+        "<BBHBB",
+        0x52,  # Unconnected Send service
+        0x02,  # Path size for Connection Manager
+        0x0006,  # Connection Manager class
+        0x01,  # Instance
+        route_path_size,
+    ) + route_path + struct.pack("<H", len(cip_request)) + cip_request
+
+    # Build CPF (Common Packet Format)
+    # Item 0: Null Address Item
+    # Item 1: Unconnected Data Item
+    cpf_data = struct.pack("<HHH", 2, CPF_TYPE_NULL, 0)  # 2 items, null address
+    cpf_data += struct.pack("<HH", CPF_TYPE_UNCONNECTED_DATA, len(ucmm_data))
+    cpf_data += ucmm_data
+
+    # Build SendRRData header
+    header = build_encapsulation_header(
+        command=ENIP_CMD_SEND_RR_DATA,
+        length=len(cpf_data) + 6,  # +6 for interface handle and timeout
+        session_handle=session_handle,
+        sender_context=sender_context,
+    )
+
+    # Interface handle (0) and timeout (0)
+    return header + struct.pack("<IH", 0, 0) + cpf_data
+
+
+def build_cip_unconnected_send_response(
+    cip_response: bytes,
+    session_handle: int = 0,
+    sender_context: bytes = b"\x00" * 8,
+) -> bytes:
+    """Build CIP Unconnected Send response wrapper.
+
+    Wraps CIP service responses in UCMM response format.
+
+    Args:
+        cip_response: The CIP service response bytes
+        session_handle: Session handle from RegisterSession
+        sender_context: 8-byte sender context
+
+    Returns:
+        Complete Unconnected Send response bytes
+    """
+    # Build CPF (Common Packet Format)
+    # Item 0: Null Address Item
+    # Item 1: Unconnected Data Item with CIP response
+    cpf_data = struct.pack("<HHH", 2, CPF_TYPE_NULL, 0)  # 2 items, null address
+    cpf_data += struct.pack("<HH", CPF_TYPE_UNCONNECTED_DATA, len(cip_response))
+    cpf_data += cip_response
+
+    # Build SendRRData header
+    header = build_encapsulation_header(
+        command=ENIP_CMD_SEND_RR_DATA,
+        length=len(cpf_data) + 6,  # +6 for interface handle and timeout
+        session_handle=session_handle,
+        sender_context=sender_context,
+    )
+
+    # Interface handle (0) and timeout (0)
+    return header + struct.pack("<IH", 0, 0) + cpf_data

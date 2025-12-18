@@ -157,11 +157,15 @@ const PcapUploadPanel: React.FC<PcapUploadPanelProps> = ({
 
   // Handle file selection
   const handleFileSelect: UploadProps['beforeUpload'] = (file) => {
-    const isValidType = file.name.endsWith('.pcap') ||
-                        file.name.endsWith('.pcapng') ||
-                        file.name.endsWith('.cap');
+    const fileName = file.name.toLowerCase();
+    const isValidType = fileName.endsWith('.pcap') ||
+                        fileName.endsWith('.pcapng') ||
+                        fileName.endsWith('.cap') ||
+                        fileName.endsWith('.pcap.gz') ||
+                        fileName.endsWith('.pcapng.gz') ||
+                        fileName.endsWith('.cap.gz');
     if (!isValidType) {
-      message.error('Only .pcap, .pcapng, and .cap files are allowed');
+      message.error('Only .pcap, .pcapng, .cap files (and .gz compressed) are allowed');
       return false;
     }
     setSelectedFile(file);
@@ -171,17 +175,21 @@ const PcapUploadPanel: React.FC<PcapUploadPanelProps> = ({
 
   // Handle upload
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      message.error('No file selected');
+      return;
+    }
 
+    message.loading({ content: 'Starting upload...', key: 'upload' });
     setUploading(true);
     try {
-      const result = await uploadPcap(selectedFile, {
+      const result = await uploadPcap(selectedFile as File, {
         description: description || undefined,
         source_environment: sourceEnvironment || undefined,
         industry_vertical: industryVertical || undefined,
       });
 
-      message.success('PCAP uploaded successfully');
+      message.success({ content: 'PCAP uploaded successfully', key: 'upload' });
       setUploadModalVisible(false);
       setSelectedFile(null);
       setDescription('');
@@ -194,10 +202,11 @@ const PcapUploadPanel: React.FC<PcapUploadPanelProps> = ({
       await fetchCaptures();
     } catch (err: any) {
       console.error('Failed to upload PCAP:', err);
+      const errorMsg = err?.response?.data?.detail || err?.message || 'Unknown error';
       if (err?.response?.status === 409) {
-        message.warning('This PCAP file has already been uploaded');
+        message.warning({ content: 'This PCAP file has already been uploaded', key: 'upload' });
       } else {
-        message.error('Failed to upload PCAP');
+        message.error({ content: `Failed to upload PCAP: ${errorMsg}`, key: 'upload' });
       }
     } finally {
       setUploading(false);
@@ -265,19 +274,20 @@ const PcapUploadPanel: React.FC<PcapUploadPanelProps> = ({
         styles={{ body: { padding: '12px' } }}
       >
         <Dragger
-          accept=".pcap,.pcapng,.cap"
+          accept=".pcap,.pcapng,.cap,.gz"
           showUploadList={false}
           beforeUpload={handleFileSelect}
-          style={{ background: '#0d1117', borderColor: '#2a3f54' }}
+          multiple={false}
+          style={{ background: '#0d1117', borderColor: '#2a3f54', cursor: 'pointer' }}
         >
           <p className="ant-upload-drag-icon">
             <InboxOutlined style={{ color: '#5a9fd4', fontSize: 32 }} />
           </p>
           <p style={{ color: '#8aa4bc', fontSize: 12 }}>
-            Click or drag PCAP file to upload
+            Click here or drag PCAP file to select
           </p>
           <p style={{ color: '#6a8caf', fontSize: 10 }}>
-            Supports .pcap, .pcapng, .cap files
+            Supports .pcap, .pcapng, .cap files (including .gz compressed)
           </p>
         </Dragger>
 
@@ -430,19 +440,10 @@ const PcapUploadPanel: React.FC<PcapUploadPanelProps> = ({
           setUploadModalVisible(false);
           setSelectedFile(null);
         }}
-        footer={[
-          <Button key="cancel" onClick={() => setUploadModalVisible(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="upload"
-            type="primary"
-            loading={uploading}
-            onClick={handleUpload}
-          >
-            Upload
-          </Button>,
-        ]}
+        onOk={handleUpload}
+        okText="Upload"
+        okButtonProps={{ loading: uploading }}
+        cancelText="Cancel"
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <div>

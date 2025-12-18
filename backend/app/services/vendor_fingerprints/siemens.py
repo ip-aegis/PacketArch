@@ -46,6 +46,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0303,
+                "device_type": "CPU 1517-3 PN/DP",
                 "station_name": "plc-cpu1517",
                 "device_role": 2,  # Controller
                 "im0_manufacturer": "Siemens AG",
@@ -101,6 +102,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0301,
+                "device_type": "CPU 1511-1 PN",
                 "station_name": "plc-cpu1511",
                 "device_role": 2,
                 "im0_manufacturer": "Siemens AG",
@@ -148,6 +150,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x030F,  # F-series
+                "device_type": "CPU 1516F-3 PN/DP",
                 "station_name": "plc-s71500f",
                 "device_role": 2,
                 "im0_manufacturer": "Siemens AG",
@@ -210,6 +213,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x010F,
+                "device_type": "CPU 1214FC DC/DC/DC",
                 "station_name": "plc-s71200f",
                 "device_role": 1,
                 "im0_manufacturer": "Siemens AG",
@@ -261,6 +265,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x010D,
+                "device_type": "CPU 1214C DC/DC/DC",
                 "station_name": "plc-s71200",
                 "device_role": 1,
                 "im0_manufacturer": "Siemens AG",
@@ -306,6 +311,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0202,
+                "device_type": "CPU 315-2 PN/DP",
                 "station_name": "plc-s7300",
                 "device_role": 1,
             },
@@ -345,6 +351,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0203,
+                "device_type": "CPU 416-3 PN/DP",
                 "station_name": "plc-s7400",
                 "device_role": 2,
             },
@@ -387,6 +394,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0500,
+                "device_type": "SINAMICS G120C",
                 "station_name": "drive-g120c",
                 "device_role": 1,
             },
@@ -423,6 +431,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0501,
+                "device_type": "SINAMICS S120",
                 "station_name": "drive-s120",
                 "device_role": 1,
             },
@@ -452,6 +461,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0502,
+                "device_type": "SINAMICS G115D",
                 "station_name": "drive-g115d",
                 "device_role": 1,
             },
@@ -484,6 +494,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0403,
+                "device_type": "KTP900 Basic",
                 "station_name": "hmi-ktp900",
                 "device_role": 1,
                 "im0_manufacturer": "Siemens AG",
@@ -515,6 +526,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0404,
+                "device_type": "TP1200 Comfort",
                 "station_name": "hmi-tp1200",
                 "device_role": 1,
             },
@@ -547,6 +559,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0601,
+                "device_type": "ET 200SP IM155-6 PN",
                 "station_name": "et200sp-im155",
                 "device_role": 1,
                 "im0_manufacturer": "Siemens AG",
@@ -581,6 +594,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0602,
+                "device_type": "ET 200MP IM155-5 PN",
                 "station_name": "et200mp-im155",
                 "device_role": 1,
             },
@@ -613,6 +627,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0700,
+                "device_type": "SCALANCE XB208",
                 "station_name": "switch-xb208",
                 "device_role": 1,
             },

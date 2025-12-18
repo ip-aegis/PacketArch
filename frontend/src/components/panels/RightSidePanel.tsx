@@ -1,11 +1,10 @@
 /**
- * Right Side Panel - Combined Properties, Realism, Deploy, and AI Assistant tabs
+ * Right Side Panel - AI Assistant, Properties, and Deploy tabs
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Tabs, Typography, Empty, Badge } from 'antd';
-import { ControlOutlined, RobotOutlined, CloudUploadOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { ControlOutlined, RobotOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import DevicePropertyForm from './DevicePropertyForm';
@@ -13,7 +12,6 @@ import FlowPropertyForm from './FlowPropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
-import RealisticSettingsPanel from '../realism/RealisticSettingsPanel';
 
 const { Text } = Typography;
 
@@ -22,8 +20,7 @@ interface RightSidePanelProps {
 }
 
 const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
-  const [activeTab, setActiveTab] = useState('properties');
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('ai');
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
 
   const {
@@ -122,14 +119,19 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     <DeploymentPanel scenarioId={scenarioId} />
   );
 
-  const realismContent = (
-    <RealisticSettingsPanel
-      scenarioId={scenarioId}
-      onOpenPcapLearning={() => navigate('/learning')}
-    />
-  );
-
   const items = [
+    {
+      key: 'ai',
+      label: (
+        <span style={{ color: isConnected ? '#52c41a' : undefined }}>
+          <RobotOutlined /> AI Assistant
+          {pendingActions.length > 0 && (
+            <Badge dot style={{ marginLeft: 4 }} />
+          )}
+        </span>
+      ),
+      children: aiContent,
+    },
     {
       key: 'properties',
       label: (
@@ -140,15 +142,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
       children: propertiesContent,
     },
     {
-      key: 'realism',
-      label: (
-        <span>
-          <ExperimentOutlined /> Realism
-        </span>
-      ),
-      children: realismContent,
-    },
-    {
       key: 'deploy',
       label: (
         <span>
@@ -156,18 +149,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         </span>
       ),
       children: deployContent,
-    },
-    {
-      key: 'ai',
-      label: (
-        <span style={{ color: isConnected ? '#52c41a' : undefined }}>
-          <RobotOutlined /> AI
-          {pendingActions.length > 0 && (
-            <Badge dot style={{ marginLeft: 4 }} />
-          )}
-        </span>
-      ),
-      children: aiContent,
     },
   ];
 

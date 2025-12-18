@@ -294,16 +294,29 @@ class ExternalCommsSpec:
 # Updated with comprehensive vendor-specific device profiles
 FINGERPRINT_MODEL_MAP: dict[str, list[str]] = {
     "rockwell": [
-        # PLCs
-        "1756-L85E", "1756-L73", "1769-L33ER", "1769-L24ER-QB1B",
-        # Safety PLCs
-        "1756-L83ES", "1756-L73S", "1769-L33ERMS",
-        # Drives & Servos
-        "PowerFlex 525", "PowerFlex 753", "Kinetix 5500",
-        # HMIs
-        "PanelView Plus 7", "PanelView 800",
-        # Remote I/O & Infrastructure
-        "1734-AENT", "5094-AEN2TR", "Stratix 5700",
+        # PLCs (ControlLogix)
+        "1756-L85E", "1756-L84E", "1756-L83E", "1756-L82E", "1756-L81E", "1756-L73",
+        # PLCs (CompactLogix)
+        "1769-L33ER", "1769-L30ERM", "1769-L24ER-QB1B",
+        # PLCs (MicroLogix - legacy)
+        "1766-L32BWA", "1763-L16BWA",
+        # Safety PLCs (GuardLogix)
+        "1756-L83ES", "1756-L73S",
+        # Safety PLCs (Compact GuardLogix)
+        "1769-L33ERMS", "1769-L32ES", "1769-L31ES",
+        # Drives (PowerFlex catalog numbers)
+        "25B-D030N104",   # PowerFlex 525
+        "20F-D052N103",   # PowerFlex 753
+        # Servos (Kinetix catalog numbers)
+        "2198-D012-ERS3", # Kinetix 5500
+        # HMIs (PanelView catalog numbers)
+        "2711P-T10C22D9P", # PanelView Plus 7
+        "2711R-T7T",       # PanelView 800
+        # Remote I/O
+        "1734-AENT",       # Point I/O
+        "5094-AEN2TR",     # FLEX 5000
+        # Network Infrastructure (Stratix catalog numbers)
+        "1783-BMS10CGL",   # Stratix 5700
     ],
     "siemens": [
         # PLCs
@@ -332,9 +345,31 @@ FINGERPRINT_MODEL_MAP: dict[str, list[str]] = {
         "TM3DI32K", "STB NIP 2311",
         "TCSESM083F2CU0", "OsiSense XU",
     ],
-    "abb": ["PM5630-2ETH"],
-    "honeywell": ["LCNP4M"],
-    "emerson": ["S-series Controller", "ROC800L"],
+    # Specialty vendors - sensors, analyzers, instrumentation
+    "sick": [
+        # Vision & Scanners
+        "Inspector P631", "CLV650-0120",
+    ],
+    "yokogawa": [
+        # Analyzers & Transmitters
+        "TDLS8000", "EJA530A", "GC8000",
+    ],
+    "endress+hauser": [
+        # Flow & Level Instrumentation
+        "Promag 400", "FMP50", "CM442",
+    ],
+    "honeywell": [
+        # Process Analytics & Tank Gauging
+        "Optiflex 6000", "Pipeline LDS", "UDA2182",
+    ],
+    "abb": [
+        # Protection Relays & Drives
+        "REF615", "REX640", "ACS880-01", "M2BAX 180MLB",
+    ],
+    "emerson": [
+        # Valves & DCS
+        "DVC6200", "3051S", "5700", "MD Plus",
+    ],
     "ge": ["IC695CPE400", "IS420UCSBH1A"],
 }
 

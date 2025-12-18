@@ -5,11 +5,11 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
-import { UserOutlined, LockOutlined, ApiOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import type { LoginCredentials } from '../types';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -87,45 +87,17 @@ const LoginPage: React.FC = () => {
         }}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Logo and Title */}
+          {/* Logo */}
           <div style={{ textAlign: 'center' }}>
-            <div
+            <img
+              src="/logo.png"
+              alt="Industrial Packet Generator"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 64,
-                height: 64,
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #049FD9 0%, #00BCEB 100%)',
-                marginBottom: 16,
-                boxShadow: '0 8px 24px rgba(4, 159, 217, 0.4)',
+                maxWidth: 280,
+                width: '100%',
+                objectFit: 'contain',
               }}
-            >
-              <ApiOutlined style={{ fontSize: 32, color: '#fff' }} />
-            </div>
-            <Title
-              level={2}
-              style={{
-                marginBottom: 4,
-                color: '#fff',
-                fontWeight: 600,
-                letterSpacing: '-0.5px',
-              }}
-            >
-              PacketArch
-            </Title>
-            <Text
-              style={{
-                color: '#00BCEB',
-                fontSize: 13,
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                fontWeight: 500,
-              }}
-            >
-              OT Traffic Simulation
-            </Text>
+            />
           </div>
 
           {error && (

@@ -80,6 +80,37 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "cip_connection_timeout_multiplier": 32,
                 "forward_open_max_connections": 64,
             },
+            # Extended CIP Identity Object attributes (Class 0x01) for deep fingerprinting
+            "cip_identity_object": {
+                "status": 0x0030,  # Attr 5: owned + configured
+                "configuration_consistency_value": 0xA5B6C7D8,  # Attr 9
+                "heartbeat_interval": 250,  # Attr 10 (ms)
+                "active_language": "English",  # Attr 11
+                "supported_languages": ["English"],  # Attr 12
+                "protection_mode": 0,  # Attr 19: 0=no protection
+                "maximum_cip_connections": 64,  # Attr 20
+            },
+            # Connection Manager Object (Class 0x06)
+            "connection_manager_object": {
+                "max_connections": 64,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,  # Class 1, Production trigger
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            # Assembly Objects (Class 0x04)
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 500},
+                "output": {"instance": 101, "size_bytes": 500},
+                "config": {"instance": 102, "size_bytes": 64},
+            },
+            # ListServices response
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,  # TCP + UDP encapsulation
+                },
+            },
             "is_builtin": True,
         },
         # ControlLogix L73 (Mid-Range)
@@ -136,6 +167,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "enip_encap_timeout_ms": 10000,
                 "cip_connection_timeout_multiplier": 32,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xB6C7D8E9,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 48,
+            },
+            "connection_manager_object": {
+                "max_connections": 48,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 496},
+                "output": {"instance": 101, "size_bytes": 496},
+                "config": {"instance": 102, "size_bytes": 64},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ============================================================
@@ -186,6 +244,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0008,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xC7D8E9FA,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 32,
+            },
+            "connection_manager_object": {
+                "max_connections": 32,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # CompactLogix L24ER-QB1B
@@ -232,6 +317,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.001,
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xD8E9FA0B,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 24,
+            },
+            "connection_manager_object": {
+                "max_connections": 24,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
             },
             "is_builtin": True,
         },
@@ -300,6 +412,44 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "safety_watchdog_ms": 50,
                 "safe_state_behavior": "de-energize",
             },
+            "cip_identity_object": {
+                "status": 0x0070,  # owned + configured + safety
+                "configuration_consistency_value": 0xE9FA0B1C,
+                "heartbeat_interval": 100,  # Faster for safety
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 64,
+            },
+            "connection_manager_object": {
+                "max_connections": 64,
+                "connection_timeout_multiplier": 16,  # Shorter for safety
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send", "safety"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 500},
+                "output": {"instance": 101, "size_bytes": 500},
+                "config": {"instance": 102, "size_bytes": 64},
+                "safety_input": {"instance": 700, "size_bytes": 128},
+                "safety_output": {"instance": 701, "size_bytes": 128},
+            },
+            # CIP Safety attributes for GuardLogix
+            "cip_safety": {
+                "safety_network_number": 1,
+                "safety_signature": 0x1A2B3C4D5E6F,
+                "configuration_signature": 0x6F5E4D3C2B1A,
+                "time_correction_network_timestamp": 0,
+                "tunid": (1, 1, 0, 0),  # Target Unique Network Identifier
+                "snn_format": "time_based",
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # GuardLogix L73S (Mid-Range Safety)
@@ -358,6 +508,43 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "category": "Cat4",
                 "safety_watchdog_ms": 50,
             },
+            "cip_identity_object": {
+                "status": 0x0070,
+                "configuration_consistency_value": 0xFA0B1C2D,
+                "heartbeat_interval": 100,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 48,
+            },
+            "connection_manager_object": {
+                "max_connections": 48,
+                "connection_timeout_multiplier": 16,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send", "safety"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 496},
+                "output": {"instance": 101, "size_bytes": 496},
+                "config": {"instance": 102, "size_bytes": 64},
+                "safety_input": {"instance": 700, "size_bytes": 100},
+                "safety_output": {"instance": 701, "size_bytes": 100},
+            },
+            "cip_safety": {
+                "safety_network_number": 1,
+                "safety_signature": 0x2B3C4D5E6F70,
+                "configuration_signature": 0x706F5E4D3C2B,
+                "time_correction_network_timestamp": 0,
+                "tunid": (1, 1, 0, 0),
+                "snn_format": "time_based",
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # Compact GuardLogix L33ERMS
@@ -413,6 +600,43 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "category": "Cat3",
                 "safety_watchdog_ms": 100,
             },
+            "cip_identity_object": {
+                "status": 0x0070,
+                "configuration_consistency_value": 0x0B1C2D3E,
+                "heartbeat_interval": 100,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 32,
+            },
+            "connection_manager_object": {
+                "max_connections": 32,
+                "connection_timeout_multiplier": 16,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send", "safety"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+                "safety_input": {"instance": 700, "size_bytes": 64},
+                "safety_output": {"instance": 701, "size_bytes": 64},
+            },
+            "cip_safety": {
+                "safety_network_number": 1,
+                "safety_signature": 0x3C4D5E6F7081,
+                "configuration_signature": 0x81706F5E4D3C,
+                "time_correction_network_timestamp": 0,
+                "tunid": (1, 1, 0, 0),
+                "snn_format": "time_based",
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ============================================================
@@ -462,6 +686,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.001,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x1C2D3E4F,
+                "heartbeat_interval": 500,  # Drives have longer heartbeat
+                "active_language": "English",
+                "supported_languages": ["English", "Spanish", "German", "French"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 16,
+            },
+            "connection_manager_object": {
+                "max_connections": 16,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 32},
+                "output": {"instance": 101, "size_bytes": 32},
+                "config": {"instance": 102, "size_bytes": 16},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # PowerFlex 753
@@ -507,6 +758,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0008,
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x2D3E4F50,
+                "heartbeat_interval": 500,
+                "active_language": "English",
+                "supported_languages": ["English", "Spanish", "German", "French", "Chinese"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 32,
+            },
+            "connection_manager_object": {
+                "max_connections": 32,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 64},
+                "output": {"instance": 101, "size_bytes": 64},
+                "config": {"instance": 102, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
             },
             "is_builtin": True,
         },
@@ -556,6 +834,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2, 3],
                 "exception_probability": 0.0005,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x3E4F5061,
+                "heartbeat_interval": 250,  # Servo has fast heartbeat
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 8,
+            },
+            "connection_manager_object": {
+                "max_connections": 8,
+                "connection_timeout_multiplier": 16,  # Fast timeout for motion
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 32},
+                "output": {"instance": 101, "size_bytes": 32},
+                "config": {"instance": 102, "size_bytes": 16},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ============================================================
@@ -592,6 +897,32 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "std_dev_ms": 8.0,
                 "distribution": "lognormal",
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x4F506172,
+                "heartbeat_interval": 1000,  # HMIs have longer heartbeat
+                "active_language": "English",
+                "supported_languages": ["English", "Spanish", "German", "French", "Chinese", "Japanese"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 32,
+            },
+            "connection_manager_object": {
+                "max_connections": 32,
+                "connection_timeout_multiplier": 64,  # HMIs have longer timeout
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["explicit"],  # HMIs typically explicit only
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 128},
+                "output": {"instance": 101, "size_bytes": 128},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0100,  # TCP only for HMI
+                },
+            },
             "is_builtin": True,
         },
         # PanelView 800
@@ -624,6 +955,32 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 25.0,
                 "std_dev_ms": 12.0,
                 "distribution": "lognormal",
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x50617283,
+                "heartbeat_interval": 1000,
+                "active_language": "English",
+                "supported_languages": ["English", "Spanish", "German", "French"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 16,
+            },
+            "connection_manager_object": {
+                "max_connections": 16,
+                "connection_timeout_multiplier": 64,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 64},
+                "output": {"instance": 101, "size_bytes": 64},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0100,
+                },
             },
             "is_builtin": True,
         },
@@ -665,6 +1022,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2],
                 "exception_probability": 0.0002,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x61728394,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 16,
+            },
+            "connection_manager_object": {
+                "max_connections": 16,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 32},
+                "output": {"instance": 101, "size_bytes": 32},
+                "config": {"instance": 102, "size_bytes": 16},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # FLEX 5000 5094-AEN2TR
@@ -702,6 +1086,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2],
                 "exception_probability": 0.0002,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x728394A5,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 32,
+            },
+            "connection_manager_object": {
+                "max_connections": 32,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 64},
+                "output": {"instance": 101, "size_bytes": 64},
+                "config": {"instance": 102, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ============================================================
@@ -737,6 +1148,32 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 5.0,
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x8394A5B6,
+                "heartbeat_interval": 500,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 64,
+            },
+            "connection_manager_object": {
+                "max_connections": 64,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0x01,  # Switches are different
+                "supported_connection_types": ["explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 8},
+                "output": {"instance": 101, "size_bytes": 8},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0100,  # TCP only
+                },
             },
             "is_builtin": True,
         },
@@ -791,6 +1228,32 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "exception_probability": 0.002,
                 "timeout_probability": 0.001,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0x94A5B6C7,
+                "heartbeat_interval": 500,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 8,  # Limited for legacy
+            },
+            "connection_manager_object": {
+                "max_connections": 8,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 32},
+                "output": {"instance": 101, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0100,  # TCP only for legacy
+                },
+            },
             "is_builtin": True,
         },
         # MicroLogix 1100 (Older Legacy)
@@ -837,6 +1300,32 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.003,
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xA5B6C7D8,
+                "heartbeat_interval": 500,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 4,  # Very limited for legacy
+            },
+            "connection_manager_object": {
+                "max_connections": 4,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 16},
+                "output": {"instance": 101, "size_bytes": 16},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0100,
+                },
             },
             "is_builtin": True,
         },
@@ -889,6 +1378,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0006,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xB6C7D8E9,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 40,
+            },
+            "connection_manager_object": {
+                "max_connections": 40,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 496},
+                "output": {"instance": 101, "size_bytes": 496},
+                "config": {"instance": 102, "size_bytes": 64},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ControlLogix L82E (Mid-Range)
@@ -937,6 +1453,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0005,
             },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xC7D8E9FA,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 48,
+            },
+            "connection_manager_object": {
+                "max_connections": 48,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 500},
+                "output": {"instance": 101, "size_bytes": 500},
+                "config": {"instance": 102, "size_bytes": 64},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # ControlLogix L84E (High-Range)
@@ -984,6 +1527,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0004,
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xD8E9FA0B,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 56,
+            },
+            "connection_manager_object": {
+                "max_connections": 56,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 500},
+                "output": {"instance": 101, "size_bytes": 500},
+                "config": {"instance": 102, "size_bytes": 64},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
             },
             "is_builtin": True,
         },
@@ -1035,6 +1605,33 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0009,
+            },
+            "cip_identity_object": {
+                "status": 0x0030,
+                "configuration_consistency_value": 0xE9FA0B1C,
+                "heartbeat_interval": 250,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 28,
+            },
+            "connection_manager_object": {
+                "max_connections": 28,
+                "connection_timeout_multiplier": 32,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
             },
             "is_builtin": True,
         },
@@ -1095,6 +1692,43 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "category": "Cat3",
                 "safety_watchdog_ms": 100,
             },
+            "cip_identity_object": {
+                "status": 0x0070,  # Safety status
+                "configuration_consistency_value": 0xFA0B1C2D,
+                "heartbeat_interval": 100,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 24,
+            },
+            "connection_manager_object": {
+                "max_connections": 24,
+                "connection_timeout_multiplier": 16,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send", "safety"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+                "safety_input": {"instance": 700, "size_bytes": 48},
+                "safety_output": {"instance": 701, "size_bytes": 48},
+            },
+            "cip_safety": {
+                "safety_network_number": 1,
+                "safety_signature": 0x4D5E6F708192,
+                "configuration_signature": 0x9281706F5E4D,
+                "time_correction_network_timestamp": 0,
+                "tunid": (1, 1, 0, 0),
+                "snn_format": "time_based",
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
+            },
             "is_builtin": True,
         },
         # Compact GuardLogix L32ES
@@ -1150,6 +1784,43 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "sil_level": "SIL2",
                 "category": "Cat3",
                 "safety_watchdog_ms": 100,
+            },
+            "cip_identity_object": {
+                "status": 0x0070,
+                "configuration_consistency_value": 0x0B1C2D3E,
+                "heartbeat_interval": 100,
+                "active_language": "English",
+                "supported_languages": ["English"],
+                "protection_mode": 0,
+                "maximum_cip_connections": 28,
+            },
+            "connection_manager_object": {
+                "max_connections": 28,
+                "connection_timeout_multiplier": 16,
+                "transport_class_trigger": 0xA3,
+                "supported_connection_types": ["implicit", "explicit", "unconnected_send", "safety"],
+            },
+            "assembly_objects": {
+                "input": {"instance": 100, "size_bytes": 248},
+                "output": {"instance": 101, "size_bytes": 248},
+                "config": {"instance": 102, "size_bytes": 32},
+                "safety_input": {"instance": 700, "size_bytes": 56},
+                "safety_output": {"instance": 701, "size_bytes": 56},
+            },
+            "cip_safety": {
+                "safety_network_number": 1,
+                "safety_signature": 0x5E6F708192A3,
+                "configuration_signature": 0xA39281706F5E,
+                "time_correction_network_timestamp": 0,
+                "tunid": (1, 1, 0, 0),
+                "snn_format": "time_based",
+            },
+            "list_services_response": {
+                "communications": {
+                    "type_code": 0x0100,
+                    "name": "Communications",
+                    "capability_flags": 0x0120,
+                },
             },
             "is_builtin": True,
         },

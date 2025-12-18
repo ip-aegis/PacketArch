@@ -635,3 +635,88 @@ class ProfinetEngine(ProtocolEngine):
             slot_number=slot_number,
             subslot_number=1,
         )
+
+    def generate_dcp_discovery_sequence(
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        start_time_ms: float,
+    ) -> Iterator[PacketEvent]:
+        """Generate PROFINET DCP discovery sequence for device fingerprinting.
+
+        This generates DCP Identify request/response that contains device identity
+        information used by scanners like Cisco Cyber Vision:
+        - Station name
+        - Vendor ID / Device ID
+        - Device role
+        - OEM Device ID (includes firmware version - key for CVE detection)
+
+        This is called by the orchestrator before main traffic to ensure
+        device identity is visible to network scanners.
+
+        Args:
+            flow: Flow context
+            state: Conversation state
+            start_time_ms: Start timestamp
+
+        Yields:
+            PacketEvent for DCP discovery sequence
+        """
+        current_time = start_time_ms
+
+        # DCP Identify Request (Controller -> Multicast)
+        # This simulates a controller/scanner querying for devices
+        dcp_request = build_dcp_identify_request_packet(
+            src=flow.source,
+            dst_mac="01:0E:CF:00:00:00",  # PROFINET DCP multicast
+        )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=dcp_request,
+            direction="request",
+            metadata={
+                "type": "dcp_identify_request",
+                "xid": state.custom_data.get("dcp_xid", 1),
+                "discovery_phase": True,
+            },
+        )
+
+        # DCP Identify Response (Device -> Controller)
+        # Response delay based on device fingerprint timing
+        applicator = flow.destination.fingerprint_applicator
+        timing_sample = applicator.get_response_delay()
+        response_delay = max(timing_sample.delay_ms, random.uniform(10.0, 50.0))
+        current_time += response_delay
+
+        # Use fingerprinted DCP response for realistic identity
+        if flow.destination.vendor_fingerprint:
+            dcp_response = build_dcp_identify_response_packet_fingerprinted(
+                src=flow.destination,
+                dst=flow.source,
+                xid=state.custom_data.get("dcp_xid", 1),
+            )
+        else:
+            dcp_response = build_dcp_identify_response_packet(
+                src=flow.destination,
+                dst=flow.source,
+                xid=state.custom_data.get("dcp_xid", 1),
+                device_name=state.custom_data.get("device_name", "device"),
+                vendor_id=state.custom_data.get("vendor_id", 0x002A),
+                device_id=state.custom_data.get("device_id", 0x0001),
+            )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=dcp_response,
+            direction="response",
+            metadata={
+                "type": "dcp_identify_response",
+                "xid": state.custom_data.get("dcp_xid", 1),
+                "device_name": state.custom_data.get("device_name", "device"),
+                "is_fingerprinted": bool(flow.destination.vendor_fingerprint),
+                "discovery_phase": True,
+            },
+        )

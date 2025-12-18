@@ -63,6 +63,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,  # Running
                     "status": 0x0000,  # Normal operation
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No protection - vulnerable to unauthorized code changes
+                    "configuration_consistency_value": 0xDEAD0000,  # Indicates unconfigured/vulnerable
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "31.012",
@@ -85,6 +91,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No protection - vulnerable
+                    "configuration_consistency_value": 0xDEAD0001,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
             # Additional vulnerable firmware versions
@@ -110,6 +122,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xDEAD0002,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "29.011",
@@ -133,6 +151,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xDEAD0003,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "28.015",
@@ -155,6 +179,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L84E/B LOGIX5584",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xDEAD0004,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
         ],
@@ -213,6 +243,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No protection - vulnerable to CIP RCE
+                    "configuration_consistency_value": 0xBAD00000,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "31.011",
@@ -235,6 +271,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xBAD00001,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
             {
@@ -259,6 +301,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xBAD00002,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "29.013",
@@ -281,6 +329,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xBAD00003,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
         ],
@@ -338,6 +392,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No authentication - vulnerable to bypass
+                    "configuration_consistency_value": 0x0,  # Unconfigured security
+                    "maximum_cip_connections": 32,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "31.011",
@@ -360,6 +420,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1769-L33ER/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0x0,
+                    "maximum_cip_connections": 32,
+                    "heartbeat_interval": 250,
                 },
             },
             {
@@ -384,6 +450,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0x0,
+                    "maximum_cip_connections": 32,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "29.011",
@@ -406,6 +478,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1769-L36ERM/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0x0,
+                    "maximum_cip_connections": 32,
+                    "heartbeat_interval": 250,
                 },
             },
         ],
@@ -463,6 +541,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No protection - permanently vulnerable (EOL)
+                    "configuration_consistency_value": 0xFFFFFFFF,  # Legacy device
+                    "maximum_cip_connections": 8,  # MicroLogix has limited connections
+                    "heartbeat_interval": 500,
+                },
             },
             {
                 "firmware_version": "21.006",
@@ -485,6 +569,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1766-L32BWA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xFFFFFFFF,
+                    "maximum_cip_connections": 8,
+                    "heartbeat_interval": 500,
                 },
             },
             {
@@ -509,6 +599,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xFFFFFFFF,
+                    "maximum_cip_connections": 8,
+                    "heartbeat_interval": 500,
+                },
             },
             {
                 "firmware_version": "21.004",
@@ -532,6 +628,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xFFFFFFFF,
+                    "maximum_cip_connections": 8,
+                    "heartbeat_interval": 500,
+                },
             },
             {
                 "firmware_version": "21.003",
@@ -554,6 +656,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1766-L32AWAA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xFFFFFFFF,
+                    "maximum_cip_connections": 8,
+                    "heartbeat_interval": 500,
                 },
             },
         ],
@@ -610,6 +718,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,  # No memory protection - vulnerable to unauthorized access
+                    "configuration_consistency_value": 0xCAFE0000,  # Pre-patch firmware
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "33.011",
@@ -632,6 +746,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xCAFE0001,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
             {
@@ -656,6 +776,12 @@ ROCKWELL_CVES: list[dict] = [
                     "state": 3,
                     "status": 0x0000,
                 },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xCAFE0002,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
+                },
             },
             {
                 "firmware_version": "32.011",
@@ -678,6 +804,12 @@ ROCKWELL_CVES: list[dict] = [
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,
+                },
+                "cip_identity_override": {
+                    "protection_mode": 0,
+                    "configuration_consistency_value": 0xCAFE0003,
+                    "maximum_cip_connections": 64,
+                    "heartbeat_interval": 250,
                 },
             },
         ],

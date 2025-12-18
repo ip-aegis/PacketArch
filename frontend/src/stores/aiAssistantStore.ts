@@ -20,6 +20,9 @@ import type {
 // Helper to refresh scenario after AI modifications
 const refreshScenarioCanvas = async (scenarioId: string) => {
   try {
+    // Add small delay to ensure database commit is complete
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     const scenario = await scenariosApi.get(scenarioId);
     const definition = scenario.definition as {
       devices?: Record<string, unknown>;
@@ -27,6 +30,11 @@ const refreshScenarioCanvas = async (scenarioId: string) => {
       zones?: Record<string, unknown>;
       phases?: unknown[];
     };
+
+    const deviceCount = Object.keys(definition?.devices || {}).length;
+    const flowCount = Object.keys(definition?.flows || {}).length;
+
+    console.log(`Refreshing scenario canvas: ${deviceCount} devices, ${flowCount} flows`);
 
     useScenarioStore.getState().loadScenario({
       id: scenario.id,
@@ -48,6 +56,23 @@ const refreshScenarioCanvas = async (scenarioId: string) => {
   } catch (error) {
     console.error('Failed to refresh scenario after AI modifications:', error);
   }
+};
+
+// Helper to extract new scenario ID from tool results
+const extractNewScenarioId = (toolCalls: Array<{ name: string; result?: string }>): string | null => {
+  for (const call of toolCalls) {
+    if (call.name === 'generate_scenario_from_nl' && call.result) {
+      try {
+        const result = JSON.parse(call.result);
+        if (result.success && result.scenario_id) {
+          return result.scenario_id;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+  return null;
 };
 
 export interface Message {
@@ -107,7 +132,7 @@ interface AIAssistantState {
   cancelStream: () => void;
   acceptAction: (actionId: string) => Promise<void>;
   rejectAction: (actionId: string) => Promise<void>;
-  clearConversation: () => void;
+  clearConversation: () => Promise<void>;
   addMessage: (message: Message) => void;
   setProcessing: (processing: boolean) => void;
   setSessionId: (sessionId: string | null) => void;
@@ -132,28 +157,41 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
   abortController: null,
 
   openPanel: async (scenarioId: string) => {
-    // Create AI session - always start fresh
+    // Get or create AI session for this scenario (persists across panel opens)
     try {
-      const session = await aiApi.createSession();
+      const session = await aiApi.createSession({ scenario_id: scenarioId });
+
+      // Convert session messages to our Message format
+      const existingMessages: Message[] = (session.messages || []).map((msg, index) => ({
+        id: `msg_${session.created_at}_${index}`,
+        role: msg.role,
+        content: msg.content,
+        timestamp: session.created_at,
+      }));
+
       set({
         isOpen: true,
         currentScenarioId: scenarioId,
         sessionId: session.session_id,
         isConnected: true,
-        // Clear previous conversation
-        messages: [],
+        // Load existing conversation from session
+        messages: existingMessages,
         pendingActions: [],
         streamingContent: '',
         toolProgress: [],
         thinkingMessage: null,
       });
+
+      if (existingMessages.length > 0) {
+        console.log(`Resumed AI session with ${existingMessages.length} messages`);
+      }
     } catch (error) {
-      console.error('Failed to create AI session:', error);
+      console.error('Failed to create/resume AI session:', error);
       set({
         isOpen: true,
         currentScenarioId: scenarioId,
         isConnected: false,
-        // Clear previous conversation even on error
+        // Clear previous conversation on error
         messages: [],
         pendingActions: [],
       });
@@ -168,19 +206,15 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
       state.abortController.abort();
     }
 
-    // End session if exists
-    if (state.sessionId) {
-      try {
-        await aiApi.endSession(state.sessionId);
-      } catch (error) {
-        console.error('Failed to end AI session:', error);
-      }
-    }
+    // NOTE: We do NOT delete the session on close - it persists for this scenario.
+    // User can clear conversation explicitly via the "Clear conversation" button.
 
     set({
       isOpen: false,
+      // Keep scenario/session IDs for potential reopen
       currentScenarioId: null,
       sessionId: null,
+      // Clear local state but session persists in Redis
       messages: [],
       pendingActions: [],
       isConnected: false,
@@ -231,9 +265,25 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
         isProcessing: false,
       }));
 
-      // Refresh scenario canvas if tools were executed
-      if (response.tool_calls && response.tool_calls.length > 0) {
-        await refreshScenarioCanvas(state.currentScenarioId);
+      // Always refresh scenario canvas after AI response completes
+      if (state.currentScenarioId) {
+        // Check if a new scenario was created (generate_scenario_from_nl)
+        const newScenarioId = response.tool_calls ? extractNewScenarioId(response.tool_calls) : null;
+
+        if (newScenarioId && newScenarioId !== state.currentScenarioId) {
+          // New scenario created - refresh that one and navigate to it
+          console.log(`New scenario created: ${newScenarioId}`);
+          await refreshScenarioCanvas(newScenarioId);
+
+          // Update current scenario ID to the new one
+          set({ currentScenarioId: newScenarioId });
+
+          // Navigate to the new scenario
+          window.location.href = `/studio?scenario=${newScenarioId}`;
+        } else {
+          // Same scenario - just refresh to get latest data
+          await refreshScenarioCanvas(state.currentScenarioId);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -356,9 +406,25 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
               abortController: null,
             }));
 
-            // Refresh scenario canvas if tools were executed
-            if (event.tool_calls && event.tool_calls.length > 0 && state.currentScenarioId) {
-              await refreshScenarioCanvas(state.currentScenarioId);
+            // Always refresh scenario canvas after AI response completes
+            if (state.currentScenarioId) {
+              // Check if a new scenario was created (generate_scenario_from_nl)
+              const newScenarioId = event.tool_calls ? extractNewScenarioId(event.tool_calls) : null;
+
+              if (newScenarioId && newScenarioId !== state.currentScenarioId) {
+                // New scenario created - refresh that one and notify user
+                console.log(`New scenario created: ${newScenarioId}`);
+                await refreshScenarioCanvas(newScenarioId);
+
+                // Update current scenario ID to the new one
+                set({ currentScenarioId: newScenarioId });
+
+                // Navigate to the new scenario (user needs to see it)
+                window.location.href = `/studio?scenario=${newScenarioId}`;
+              } else {
+                // Same scenario - just refresh to get latest data
+                await refreshScenarioCanvas(state.currentScenarioId);
+              }
             }
           },
 
@@ -469,11 +535,40 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
     }
   },
 
-  clearConversation: () => {
-    set({
-      messages: [],
-      pendingActions: [],
-    });
+  clearConversation: async () => {
+    const state = get();
+
+    // Clear conversation in backend (Redis)
+    if (state.currentScenarioId) {
+      try {
+        await aiApi.clearConversation(state.currentScenarioId);
+        console.log('Conversation cleared for scenario:', state.currentScenarioId);
+      } catch (error) {
+        console.error('Failed to clear conversation:', error);
+      }
+
+      // Create a fresh session for the same scenario
+      try {
+        const session = await aiApi.createSession({ scenario_id: state.currentScenarioId });
+        set({
+          sessionId: session.session_id,
+          messages: [],
+          pendingActions: [],
+        });
+      } catch (error) {
+        console.error('Failed to create new session after clear:', error);
+        set({
+          messages: [],
+          pendingActions: [],
+        });
+      }
+    } else {
+      // Fallback: just clear local state
+      set({
+        messages: [],
+        pendingActions: [],
+      });
+    }
   },
 
   addMessage: (message: Message) => {

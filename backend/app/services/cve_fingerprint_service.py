@@ -198,6 +198,8 @@ class CVEFingerprintService:
             "ethernet_ip_identity": variant.ethernet_ip_identity_override or {},
             "profinet_identity": variant.profinet_identity_override or {},
             "s7_identity": variant.s7_identity_override or {},
+            # CIP Identity Object overrides for deep fingerprinting (Cyber Vision)
+            "cip_identity_override": getattr(variant, "cip_identity_override", None) or {},
             "firmware_version": variant.firmware_version,
             "cve_id": variant.cve_vulnerability.cve_id if variant.cve_vulnerability else None,
             "display_name": variant.display_name,

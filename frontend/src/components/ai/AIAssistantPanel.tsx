@@ -2,13 +2,14 @@
  * AI Assistant Panel - Docked side panel (always visible when open)
  */
 
-import React from 'react';
-import { Button, Space, Typography, Badge, Divider } from 'antd';
+import React, { useState } from 'react';
+import { Button, Space, Typography, Badge, Divider, Tooltip, Popconfirm } from 'antd';
 import {
   CloseOutlined,
   RobotOutlined,
   CheckCircleOutlined,
   DisconnectOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import ChatInterface from './ChatInterface';
@@ -21,8 +22,21 @@ const AIAssistantPanel: React.FC = () => {
     isConnected,
     isProcessing,
     pendingActions,
+    messages,
     closePanel,
+    clearConversation,
   } = useAIAssistantStore();
+
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearConversation = async () => {
+    setIsClearing(true);
+    try {
+      await clearConversation();
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   return (
     <div
@@ -57,12 +71,33 @@ const AIAssistantPanel: React.FC = () => {
             <DisconnectOutlined style={{ color: '#ff4d4f' }} />
           )}
         </Space>
-        <Button
-          type="text"
-          size="small"
-          icon={<CloseOutlined style={{ color: '#8aa4bc' }} />}
-          onClick={closePanel}
-        />
+        <Space size={4}>
+          {messages.length > 0 && (
+            <Popconfirm
+              title="Clear conversation"
+              description="This will delete all messages. Continue?"
+              onConfirm={handleClearConversation}
+              okText="Clear"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Clear conversation">
+                <Button
+                  type="text"
+                  size="small"
+                  loading={isClearing}
+                  icon={<DeleteOutlined style={{ color: '#8aa4bc' }} />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined style={{ color: '#8aa4bc' }} />}
+            onClick={closePanel}
+          />
+        </Space>
       </div>
 
       {/* Status bar */}

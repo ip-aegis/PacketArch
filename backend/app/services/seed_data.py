@@ -1181,6 +1181,7 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
                         "profinet_identity_override"
                     ),
                     s7_identity_override=variant_data.get("s7_identity_override"),
+                    cip_identity_override=variant_data.get("cip_identity_override"),
                     target_vendor=cve_data["vendor"],
                     target_product_family=cve_data.get("product_family"),
                     target_models=cve_data.get("affected_models"),

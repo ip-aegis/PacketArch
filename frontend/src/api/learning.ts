@@ -272,7 +272,7 @@ export interface PatternStats {
 // API functions
 
 export async function getLearningStats(): Promise<LearningStats> {
-  const response = await apiClient.get<LearningStats>('/learning/stats');
+  const response = await apiClient.get<LearningStats>('/api/v1/learning/stats');
   return response.data;
 }
 export async function uploadPcap(
@@ -297,7 +297,8 @@ export async function uploadPcap(
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        // Let axios set Content-Type automatically with proper boundary for multipart/form-data
+        'Content-Type': undefined,
       },
     }
   );

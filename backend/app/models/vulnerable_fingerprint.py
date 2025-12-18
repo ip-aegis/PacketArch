@@ -109,6 +109,18 @@ class VulnerableFingerprintVariant(Base):
     #   "firmware_version": "V2.8.0"
     # }
 
+    cip_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for CIP Identity Object (Class 0x01) deep fingerprinting",
+    )
+    # Example: {
+    #   "protection_mode": 0,  # 0 = no protection (vulnerable)
+    #   "configuration_consistency_value": 0xDEAD0000,
+    #   "heartbeat_interval": 250,
+    #   "maximum_cip_connections": 64,
+    # }
+
     # Full protocol response templates (optional - for more complex cases)
     full_modbus_mei_template: Mapped[dict | None] = mapped_column(
         JSONB,
@@ -188,6 +200,7 @@ class VulnerableFingerprintVariant(Base):
             "ethernet_ip_identity_override": self.ethernet_ip_identity_override or {},
             "profinet_identity_override": self.profinet_identity_override or {},
             "s7_identity_override": self.s7_identity_override or {},
+            "cip_identity_override": self.cip_identity_override or {},
         }
 
     def applies_to_fingerprint(self, fingerprint_vendor: str, fingerprint_model: str | None = None) -> bool:

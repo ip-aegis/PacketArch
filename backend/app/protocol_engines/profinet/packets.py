@@ -439,15 +439,30 @@ def build_dcp_identify_response_fingerprinted(
     profinet_identity = applicator.profinet_identity
 
     # Get identity values from fingerprint
+    # Support both naming conventions for compatibility
     device_name = profinet_identity.get("station_name", "device")
     vendor_id = profinet_identity.get("vendor_id", 0x002A)
     device_id = profinet_identity.get("device_id", 0x0001)
     device_role = profinet_identity.get("device_role", 0x01)  # IO-Device
     device_vendor = profinet_identity.get("device_vendor", "")
-    hardware_revision = profinet_identity.get("hardware_revision", "1.0")
-    software_revision = profinet_identity.get("software_revision", "V1.0")
-    order_id = profinet_identity.get("order_id", "")
-    serial_number = profinet_identity.get("serial_number", "")
+    # Support multiple key names for hardware/software versions
+    hardware_revision = (
+        profinet_identity.get("hardware_revision") or
+        profinet_identity.get("hw_release") or
+        profinet_identity.get("im0_hw_revision") or
+        "1.0"
+    )
+    if isinstance(hardware_revision, int):
+        hardware_revision = str(hardware_revision)
+    # Support sw_release (CVE data), software_revision, im0_sw_revision (Siemens)
+    software_revision = (
+        profinet_identity.get("software_revision") or
+        profinet_identity.get("sw_release") or
+        profinet_identity.get("im0_sw_revision") or
+        "V1.0"
+    )
+    order_id = profinet_identity.get("order_id") or profinet_identity.get("im0_order_id", "")
+    serial_number = profinet_identity.get("serial_number") or profinet_identity.get("im0_serial_number", "")
     device_type = profinet_identity.get("device_type", "")
 
     blocks = b""

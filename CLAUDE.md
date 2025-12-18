@@ -151,98 +151,56 @@ cd docker && docker-compose -f docker-compose.dev.yml down
 
 ---
 
-## Production Deployment
+## Production Environment
 
-### Production Architecture
+### Overview
+Development and production run on the same server (10.10.20.231). "Production" is the local Docker environment.
+
+- **Server**: 10.10.20.231 (this machine)
+- **User**: rocsmith
+- **URL**: https://10.10.20.231
+- **Credentials**: admin / PacketArch_Admin!
+- **Working Directory**: `/home/rocsmith/packetarch`
+
+### Architecture
 - **HTTPS** on port 443 with self-signed SSL certificates
 - **Nginx** reverse proxy terminates TLS and proxies API calls to backend
 - **All traffic** (frontend + API) served through single HTTPS endpoint
 - **Backend** not directly exposed (internal Docker network only)
 
-### Production Server
-- **IP**: 10.10.20.231
-- **User**: rocsmith
-- **URL**: https://10.10.20.231
-- **Credentials**: admin / PacketArch_Admin!
+### Deploying Changes
 
-### Deployment Methods
+After making code changes, rebuild the affected container(s):
 
-#### Method 1: Quick Deploy Script (Recommended)
 ```bash
-python deploy_now.py
-```
-Uses SSH key authentication (`~/.ssh/packetarch_deploy`) to:
-1. Upload all project files via SCP
-2. Rebuild Docker containers
-3. Verify deployment health
+# Rebuild backend only (most common)
+cd /home/rocsmith/packetarch && docker compose up -d --build backend
 
-#### Method 2: Manual SCP + SSH
-```bash
-# Upload files
-scp -i ~/.ssh/packetarch_deploy -r ./backend rocsmith@10.10.20.231:/home/rocsmith/packetarch/
-scp -i ~/.ssh/packetarch_deploy -r ./frontend rocsmith@10.10.20.231:/home/rocsmith/packetarch/
-scp -i ~/.ssh/packetarch_deploy -r ./docker rocsmith@10.10.20.231:/home/rocsmith/packetarch/
-scp -i ~/.ssh/packetarch_deploy ./docker-compose.yml rocsmith@10.10.20.231:/home/rocsmith/packetarch/
+# Rebuild frontend only
+cd /home/rocsmith/packetarch && docker compose up -d --build frontend
 
-# SSH and rebuild
-ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231
-cd /home/rocsmith/packetarch
-docker compose down
-docker compose up -d --build
+# Rebuild everything
+cd /home/rocsmith/packetarch && docker compose up -d --build
 ```
 
-#### Method 3: Interactive Deploy Tool
-```bash
-python deploy.py
-```
-Prompts for credentials interactively. Choose option `[2] Update/Rebuild` for existing installations.
-
-### SSH Key Setup (First Time)
-
-1. **Generate SSH key pair:**
-   ```bash
-   ssh-keygen -t ed25519 -C "packetarch-deploy" -f ~/.ssh/packetarch_deploy -N ""
-   ```
-
-2. **Copy public key to server:**
-   ```bash
-   ssh-copy-id -i ~/.ssh/packetarch_deploy.pub rocsmith@10.10.20.231
-   ```
-
-3. **Test connection:**
-   ```bash
-   ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 "echo OK"
-   ```
-
-### GitHub Actions (Private Network Limitation)
-
-GitHub Actions workflow is configured (`.github/workflows/deploy.yml`) but **cannot reach private IPs** like 10.10.20.231 from GitHub's public runners.
-
-**GitHub Secrets configured:**
-- `SSH_HOST` - 10.10.20.231
-- `SSH_USER` - rocsmith
-- `SSH_PRIVATE_KEY` - Ed25519 private key
-- `POSTGRES_PASSWORD`, `SECRET_KEY`, `ADMIN_PASSWORD`
-
-**Options for CI/CD:**
-1. Use local deployment scripts (current approach)
-2. Set up a self-hosted GitHub Actions runner inside the network
-3. Expose server via public IP or VPN tunnel
-
-### Production Container Status
+### Container Management
 
 ```bash
 # Check status
-ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 \
-  "cd /home/rocsmith/packetarch && docker compose ps"
+docker compose ps
 
 # View logs
-ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 \
-  "cd /home/rocsmith/packetarch && docker compose logs -f backend"
+docker compose logs -f backend
+docker compose logs -f frontend
 
 # Restart services
-ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 \
-  "cd /home/rocsmith/packetarch && docker compose restart"
+docker compose restart
+
+# Stop everything
+docker compose down
+
+# Start everything
+docker compose up -d
 ```
 
 ### Production Ports
@@ -251,8 +209,8 @@ ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 \
 |---------|---------------|---------------|-------|
 | Frontend (nginx) | 443 | 443 | HTTPS with self-signed cert |
 | Backend | 8001 | Not exposed | Accessed via nginx proxy |
-| PostgreSQL | 5432 | 5432 | Consider closing in production |
-| Redis | 6379 | 6379 | Consider closing in production |
+| PostgreSQL | 5432 | 5432 | Database |
+| Redis | 6379 | 6379 | Cache and message broker |
 
 ### SSL Certificate
 
@@ -263,13 +221,12 @@ Self-signed certificate auto-generated on first container start:
 
 ```bash
 # Force regenerate SSL cert
-ssh -i ~/.ssh/packetarch_deploy rocsmith@10.10.20.231 \
-  "cd /home/rocsmith/packetarch && docker compose down && docker volume rm packetarch_ssl_certs && docker compose up -d"
+docker compose down && docker volume rm packetarch_ssl_certs && docker compose up -d
 ```
 
 ### Environment Variables
 
-Production `.env` file on server (`/home/rocsmith/packetarch/.env`):
+Production `.env` file (`/home/rocsmith/packetarch/.env`):
 ```
 POSTGRES_PASSWORD=PacketArch_Prod_2024!
 SECRET_KEY=<generated-secret>
@@ -277,6 +234,45 @@ ENCRYPTION_KEY=
 ADMIN_PASSWORD=PacketArch_Admin!
 DEBUG=false
 ```
+
+---
+
+## Remote Traffic Agent
+
+A separate traffic injection host runs scenario traffic on the network.
+
+### Agent Details
+- **IP**: 10.10.20.113
+- **User**: cisco / cisco
+- **Docker Image**: `packetarch/traffic-generator:latest`
+- **Code Location**: `/home/cisco/traffic-generator/`
+
+### How It Works
+1. PacketArch backend sends scenario data to the remote agent
+2. Agent launches a Docker container with `packetarch/traffic-generator:latest`
+3. Container runs `live_orchestrator.py` which injects packets onto the network interface
+4. Cisco Cyber Vision (or other sensors) see the traffic and detect devices/vulnerabilities
+
+### Updating the Agent
+
+After modifying `live_orchestrator.py`, rebuild the Docker image:
+
+```bash
+# SSH to remote agent
+ssh cisco@10.10.20.113
+
+# Rebuild image
+cd /home/cisco/traffic-generator
+docker build -t packetarch/traffic-generator:latest .
+
+# Restart any running containers (or restart scenario from PacketArch UI)
+docker stop $(docker ps -q --filter "name=packetarch-generator")
+```
+
+### Key Files
+- `app/live_orchestrator.py` - Main traffic generation logic
+- `app/entrypoint.py` - Container entrypoint, receives scenario config
+- `Dockerfile` - Container build definition
 
 ---
 
@@ -465,7 +461,7 @@ Describe scenarios in plain English and let AI generate the configuration.
 ## Project Structure
 
 ```
-D:\Dev\PacketArch/
+/home/rocsmith/packetarch/
 ├── backend/                    # FastAPI REST API
 │   ├── app/
 │   │   ├── api/routes/        # API endpoints

@@ -10,6 +10,8 @@ import LearningPage from './pages/LearningPage';
 import DeploymentsPage from './pages/DeploymentsPage';
 import IPManagementPage from './pages/IPManagementPage';
 import CVEBrowserPage from './pages/CVEBrowserPage';
+import HelpPage from './pages/HelpPage';
+import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
 import SettingsPage from './pages/admin/SettingsPage';
 
 function App() {
@@ -31,11 +33,14 @@ function App() {
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="studio" element={<ScenarioStudioPage />} />
         <Route path="scenarios" element={<ScenariosPage />} />
+        <Route path="scenarios/ai-create" element={<AIScenarioWizardPage />} />
         <Route path="devices" element={<DeviceLibraryPage />} />
         <Route path="learning" element={<LearningPage />} />
         <Route path="deployments" element={<DeploymentsPage />} />
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
+        <Route path="help" element={<HelpPage />} />
+        <Route path="help/:articleId" element={<HelpPage />} />
 
         {/* Admin routes */}
         <Route

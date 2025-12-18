@@ -56,6 +56,10 @@ interface ScenarioState {
   updateZone: (id: string, updates: Partial<ScenarioZone>) => void;
   removeZone: (id: string) => void;
 
+  // Bulk actions for layout
+  bulkMoveDevices: (positions: Record<string, { x: number; y: number }>) => void;
+  bulkUpdateZones: (updates: Record<string, { position?: { x: number; y: number }; dimensions?: { width: number; height: number } }>) => void;
+
   // Phase actions
   addPhase: (phase: Phase) => void;
   updatePhase: (id: string, updates: Partial<Phase>) => void;
@@ -263,6 +267,33 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
         devices: updatedDevices,
         isDirty: true,
       };
+    }),
+
+  // Bulk actions for layout
+  bulkMoveDevices: (positions) =>
+    set((state) => {
+      const updatedDevices = { ...state.devices };
+      for (const [id, position] of Object.entries(positions)) {
+        if (updatedDevices[id]) {
+          updatedDevices[id] = { ...updatedDevices[id], position };
+        }
+      }
+      return { devices: updatedDevices, isDirty: true };
+    }),
+
+  bulkUpdateZones: (updates) =>
+    set((state) => {
+      const updatedZones = { ...state.zones };
+      for (const [id, update] of Object.entries(updates)) {
+        if (updatedZones[id]) {
+          updatedZones[id] = {
+            ...updatedZones[id],
+            ...(update.position && { position: update.position }),
+            ...(update.dimensions && { dimensions: update.dimensions }),
+          };
+        }
+      }
+      return { zones: updatedZones, isDirty: true };
     }),
 
   // Phase actions

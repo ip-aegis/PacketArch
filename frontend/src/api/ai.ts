@@ -7,6 +7,12 @@ import apiClient from './client';
 export interface AISession {
   session_id: string;
   created_at: string;
+  scenario_id?: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
+export interface AISessionCreateRequest {
+  scenario_id: string;
 }
 
 export interface AIChatRequest {
@@ -103,15 +109,35 @@ export interface AIStreamCallbacks {
 
 export const aiApi = {
   /**
-   * Create a new AI session
+   * Create or resume an AI session for a scenario.
+   * If a session already exists for this scenario, returns it with conversation history.
    */
-  createSession: async (): Promise<AISession> => {
-    const response = await apiClient.post<AISession>('/api/v1/ai/sessions');
+  createSession: async (request: AISessionCreateRequest): Promise<AISession> => {
+    const response = await apiClient.post<AISession>('/api/v1/ai/sessions', request);
     return response.data;
   },
 
   /**
-   * End an AI session
+   * Get existing session for a scenario (if any)
+   */
+  getSessionForScenario: async (scenarioId: string): Promise<AISession | null> => {
+    try {
+      const response = await apiClient.get<AISession | null>(`/api/v1/ai/sessions/scenario/${scenarioId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Clear conversation for a scenario (delete session)
+   */
+  clearConversation: async (scenarioId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/ai/sessions/scenario/${scenarioId}`);
+  },
+
+  /**
+   * End an AI session (legacy - for backwards compatibility)
    */
   endSession: async (sessionId: string): Promise<void> => {
     await apiClient.delete(`/api/v1/ai/sessions/${sessionId}`);

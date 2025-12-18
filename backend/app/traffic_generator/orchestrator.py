@@ -9,7 +9,7 @@ from uuid import UUID
 from app.protocol_engines import get_engine
 from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.timing import apply_jitter
-from app.protocol_engines.types import ConversationState, FlowContext, PacketEvent
+from app.protocol_engines.types import ConversationState, FlowContext, PacketEvent, ProtocolType
 from app.traffic_generator.models import GenerationResult, JobStatus
 from app.traffic_generator.pcap_writer import PcapWriter
 from app.traffic_generator.scheduler import EventScheduler
@@ -149,6 +149,9 @@ class TrafficOrchestrator:
                 logger.info(f"Output: {self.config.output_path}")
                 logger.info(f"Flows: {len(self.flows)}")
 
+                # Schedule discovery sequences first (device identity fingerprinting)
+                self._schedule_discovery_sequences()
+
                 # Schedule startup sequences for all flows
                 self._schedule_startup_sequences()
 
@@ -237,6 +240,76 @@ class TrafficOrchestrator:
                 completed_at=end_time,
             )
 
+    def _schedule_discovery_sequences(self) -> None:
+        """Schedule protocol-specific discovery sequences for device fingerprinting.
+
+        Discovery sequences emit device identity information that scanners like
+        Cisco Cyber Vision use to identify devices and detect vulnerable firmware.
+
+        For EtherNet/IP:
+        - ListIdentity (UDP): Basic device identification
+        - CIP Identity Object queries (TCP): Deep fingerprinting with extended attributes
+
+        For PROFINET:
+        - DCP Identify: Device identification including I&M data
+        """
+        import random
+
+        discovery_time = 0.0  # Start discovery before main traffic
+
+        for flow_state in self.flows:
+            protocol = flow_state.flow.protocol
+
+            # EtherNet/IP discovery sequences
+            if protocol == ProtocolType.ETHERNET_IP:
+                engine = flow_state.engine
+
+                # ListIdentity discovery (UDP unicast to simulate scanner query)
+                if hasattr(engine, "generate_discovery_sequence"):
+                    discovery_events = engine.generate_discovery_sequence(
+                        flow_state.flow,
+                        flow_state.conversation,
+                        start_time_ms=discovery_time,
+                    )
+                    for packet_event in discovery_events:
+                        self.scheduler.schedule(packet_event.timestamp_ms, packet_event)
+                    discovery_time += random.uniform(50.0, 150.0)
+
+                # CIP deep fingerprinting (after TCP connection established)
+                # This needs to run after startup, so we schedule it differently
+                if hasattr(engine, "generate_cip_discovery_sequence"):
+                    # Schedule CIP discovery after connection is established
+                    # We use a control event to trigger this after startup
+                    self.scheduler.schedule(
+                        discovery_time + 500.0,  # After TCP setup
+                        {
+                            "type": "cip_discovery",
+                            "flow_id": flow_state.flow.flow_id,
+                        },
+                    )
+                    discovery_time += random.uniform(100.0, 200.0)
+
+            # PROFINET discovery sequences
+            elif protocol == ProtocolType.PROFINET:
+                engine = flow_state.engine
+
+                # DCP Identify discovery
+                if hasattr(engine, "generate_dcp_discovery_sequence"):
+                    discovery_events = engine.generate_dcp_discovery_sequence(
+                        flow_state.flow,
+                        flow_state.conversation,
+                        start_time_ms=discovery_time,
+                    )
+                    for packet_event in discovery_events:
+                        self.scheduler.schedule(packet_event.timestamp_ms, packet_event)
+                    discovery_time += random.uniform(50.0, 150.0)
+
+            # Modbus TCP - FC 43 Read Device Identification is handled in poll cycles
+            # when device_id_code is configured, so no separate discovery needed
+
+        if discovery_time > 0:
+            logger.info(f"Scheduled discovery sequences up to {discovery_time:.2f}ms")
+
     def _schedule_startup_sequences(self) -> None:
         """Schedule startup sequences for all flows."""
         for flow_state in self.flows:
@@ -296,6 +369,9 @@ class TrafficOrchestrator:
         if event_type == "poll":
             flow_id = event.get("flow_id")
             self._handle_poll_event(flow_id)
+        elif event_type == "cip_discovery":
+            flow_id = event.get("flow_id")
+            self._handle_cip_discovery_event(flow_id)
 
     def _handle_poll_event(self, flow_id: str) -> None:
         """Handle a poll event for a flow.
@@ -337,3 +413,39 @@ class TrafficOrchestrator:
                 next_poll_time,
                 {"type": "poll", "flow_id": flow_id},
             )
+
+    def _handle_cip_discovery_event(self, flow_id: str) -> None:
+        """Handle CIP deep fingerprinting discovery for EtherNet/IP.
+
+        This generates CIP Identity Object queries that Cisco Cyber Vision
+        uses for detailed device identification beyond basic ListIdentity.
+
+        Args:
+            flow_id: Flow identifier
+        """
+        # Find the flow
+        flow_state = None
+        for fs in self.flows:
+            if fs.flow.flow_id == flow_id:
+                flow_state = fs
+                break
+
+        if not flow_state:
+            logger.warning(f"Flow {flow_id} not found for CIP discovery event")
+            return
+
+        # Check if engine supports CIP discovery
+        if not hasattr(flow_state.engine, "generate_cip_discovery_sequence"):
+            return
+
+        # Generate CIP discovery sequence (GetAttributeAll, GetAttributeSingle)
+        cip_events = flow_state.engine.generate_cip_discovery_sequence(
+            flow_state.flow,
+            flow_state.conversation,
+            start_time_ms=self.current_time_ms,
+        )
+
+        for packet_event in cip_events:
+            self.scheduler.schedule(packet_event.timestamp_ms, packet_event)
+
+        logger.debug(f"Scheduled CIP discovery for flow {flow_id}")

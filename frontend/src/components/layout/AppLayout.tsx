@@ -160,34 +160,29 @@ const AppLayout: React.FC = () => {
             justifyContent: 'center',
             background: '#0d0d1a',
             borderBottom: '1px solid #2d2d52',
-            gap: 12,
+            padding: panels.leftSidebarOpen ? '8px 16px' : '8px',
           }}
         >
-          <div
-            style={{
-              width: panels.leftSidebarOpen ? 36 : 32,
-              height: panels.leftSidebarOpen ? 36 : 32,
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, #049FD9 0%, #00BCEB 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(4, 159, 217, 0.3)',
-            }}
-          >
-            <ApiOutlined style={{ fontSize: panels.leftSidebarOpen ? 20 : 18, color: '#fff' }} />
-          </div>
-          {panels.leftSidebarOpen && (
-            <Text
-              strong
+          {panels.leftSidebarOpen ? (
+            <img
+              src="/logo.png"
+              alt="Industrial Packet Generator"
               style={{
-                fontSize: 16,
-                color: '#fff',
-                letterSpacing: '-0.3px',
+                maxWidth: '100%',
+                maxHeight: 48,
+                objectFit: 'contain',
               }}
-            >
-              PacketArch
-            </Text>
+            />
+          ) : (
+            <img
+              src="/sidebar_icon.png"
+              alt="IPG"
+              style={{
+                width: 32,
+                height: 32,
+                objectFit: 'contain',
+              }}
+            />
           )}
         </div>
 
@@ -306,10 +301,11 @@ const AppLayout: React.FC = () => {
           className="tech-grid-bg"
           style={{
             margin: 0,
-            padding: 24,
+            // No padding for studio page to maximize canvas space
+            padding: location.pathname === '/studio' ? 0 : 24,
             background: '#1a1a2e',
-            minHeight: 'calc(100vh - 64px)',
-            overflow: 'auto',
+            height: 'calc(100vh - 64px)',
+            overflow: location.pathname === '/studio' ? 'hidden' : 'auto',
           }}
         >
           <Outlet />

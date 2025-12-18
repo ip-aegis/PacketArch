@@ -15,6 +15,9 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.models.scenario import Scenario
 from app.models.anomaly_template import AnomalyTemplate, AnomalyCategory
 
+# Maximum devices per scenario to prevent runaway generation
+MAX_DEVICES_PER_SCENARIO = 100
+
 
 async def generate_scenario_from_nl(
     db: AsyncSession,
@@ -51,6 +54,14 @@ async def generate_scenario_from_nl(
         name=name,
         duration_ms=duration_ms,
     )
+
+    # Enforce device limit
+    if len(scenario.devices) > MAX_DEVICES_PER_SCENARIO:
+        return json.dumps({
+            "error": f"Generated scenario exceeds device limit ({len(scenario.devices)} > {MAX_DEVICES_PER_SCENARIO}). Please request fewer devices.",
+            "requested_devices": len(scenario.devices),
+            "max_allowed": MAX_DEVICES_PER_SCENARIO
+        })
 
     # Convert to database format
     devices = {}
@@ -120,7 +131,8 @@ async def generate_scenario_from_nl(
     await db.commit()
     await db.refresh(db_scenario)
 
-    return json.dumps({
+    # Build response with optional warnings
+    response = {
         "success": True,
         "scenario_id": str(db_scenario.id),
         "name": scenario.name,
@@ -129,7 +141,16 @@ async def generate_scenario_from_nl(
         "flow_count": len(flows),
         "zone_count": len(zones),
         "extracted_entities": scenario.metadata.get("extracted_entities", []),
-    })
+    }
+
+    # Add warning if no flows were generated
+    if len(devices) > 0 and len(flows) == 0:
+        response["warning"] = (
+            "No traffic flows were generated. Devices may not communicate. "
+            "Consider adding flows manually or re-generating with controller devices (PLCs/RTUs)."
+        )
+
+    return json.dumps(response)
 
 
 async def suggest_vertical_template(description: str) -> str:

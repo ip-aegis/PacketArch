@@ -22,6 +22,7 @@ SESSION_TTL_SECONDS = 86400
 
 # Redis key prefixes
 SESSION_PREFIX = "ai_session:"
+SCENARIO_SESSION_PREFIX = "ai_session_scenario:"  # Format: ai_session_scenario:{user_id}:{scenario_id}
 PENDING_ACTION_PREFIX = "ai_pending_action:"
 
 
@@ -190,6 +191,173 @@ class AISessionService:
         if session.get("user_id") != user_id:
             return None
         return session
+
+    # ==================== Scenario-Scoped Sessions ====================
+    # These methods manage AI sessions that persist per user+scenario combination.
+    # Unlike regular sessions that are deleted on panel close, these persist
+    # until explicitly cleared or TTL expires.
+
+    @classmethod
+    def _get_scenario_session_key(cls, user_id: str, scenario_id: str) -> str:
+        """Get Redis key for a scenario-scoped session.
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+
+        Returns:
+            Redis key string
+        """
+        return f"{SCENARIO_SESSION_PREFIX}{user_id}:{scenario_id}"
+
+    @classmethod
+    async def get_session_for_scenario(
+        cls, user_id: str, scenario_id: str
+    ) -> dict[str, Any] | None:
+        """Get existing session for a specific scenario.
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+
+        Returns:
+            Session data if exists, None otherwise
+        """
+        client = await cls.get_client()
+        key = cls._get_scenario_session_key(user_id, scenario_id)
+        data = await client.get(key)
+
+        if data is None:
+            return None
+
+        return json.loads(data)
+
+    @classmethod
+    async def get_or_create_session_for_scenario(
+        cls, user_id: str, scenario_id: str
+    ) -> dict[str, Any]:
+        """Get existing session for scenario or create new one.
+
+        This is the primary method for opening the AI panel in Scenario Studio.
+        It ensures conversation history persists across page refreshes.
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+
+        Returns:
+            Session data (existing or newly created)
+        """
+        # Check for existing session
+        existing = await cls.get_session_for_scenario(user_id, scenario_id)
+        if existing is not None:
+            # Refresh TTL on access
+            client = await cls.get_client()
+            key = cls._get_scenario_session_key(user_id, scenario_id)
+            await client.expire(key, SESSION_TTL_SECONDS)
+            logger.info(f"Resumed AI session for scenario {scenario_id} (user {user_id})")
+            return existing
+
+        # Create new session
+        client = await cls.get_client()
+        session_id = str(uuid4())
+        created_at = datetime.utcnow().isoformat()
+
+        session_data = {
+            "id": session_id,
+            "user_id": user_id,
+            "scenario_id": scenario_id,
+            "messages": [],
+            "created_at": created_at,
+            "sanitizer_mappings": {},
+        }
+
+        key = cls._get_scenario_session_key(user_id, scenario_id)
+        await client.setex(
+            key,
+            SESSION_TTL_SECONDS,
+            json.dumps(session_data),
+        )
+
+        logger.info(f"Created new AI session {session_id} for scenario {scenario_id} (user {user_id})")
+        return session_data
+
+    @classmethod
+    async def update_session_for_scenario(
+        cls,
+        user_id: str,
+        scenario_id: str,
+        messages: list[dict] | None = None,
+        sanitizer_mappings: dict | None = None,
+    ) -> bool:
+        """Update a scenario-scoped session.
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+            messages: Updated messages list (optional)
+            sanitizer_mappings: Updated sanitizer mappings (optional)
+
+        Returns:
+            True if updated, False if session not found
+        """
+        client = await cls.get_client()
+        key = cls._get_scenario_session_key(user_id, scenario_id)
+
+        data = await client.get(key)
+        if data is None:
+            return False
+
+        session = json.loads(data)
+
+        if messages is not None:
+            session["messages"] = messages
+        if sanitizer_mappings is not None:
+            session["sanitizer_mappings"] = sanitizer_mappings
+
+        await client.setex(key, SESSION_TTL_SECONDS, json.dumps(session))
+        return True
+
+    @classmethod
+    async def append_message_for_scenario(
+        cls, user_id: str, scenario_id: str, message: dict
+    ) -> bool:
+        """Append a message to a scenario-scoped session.
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+            message: Message dict with role and content
+
+        Returns:
+            True if appended, False if session not found
+        """
+        session = await cls.get_session_for_scenario(user_id, scenario_id)
+        if session is None:
+            return False
+
+        session["messages"].append(message)
+        return await cls.update_session_for_scenario(
+            user_id, scenario_id, messages=session["messages"]
+        )
+
+    @classmethod
+    async def delete_session_for_scenario(cls, user_id: str, scenario_id: str) -> bool:
+        """Delete a scenario-scoped session (clear conversation).
+
+        Args:
+            user_id: User ID
+            scenario_id: Scenario UUID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        client = await cls.get_client()
+        key = cls._get_scenario_session_key(user_id, scenario_id)
+        deleted = await client.delete(key)
+        if deleted:
+            logger.info(f"Cleared AI conversation for scenario {scenario_id} (user {user_id})")
+        return bool(deleted)
 
     @classmethod
     async def refresh_ttl(cls, session_id: str) -> bool:

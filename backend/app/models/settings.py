@@ -63,10 +63,37 @@ class SystemSetting(Base):
 # Default settings to be seeded
 DEFAULT_SETTINGS = [
     {
+        "key": "ai_provider",
+        "value": "anthropic",
+        "is_secret": False,
+        "category": "ai",
+        "description": "AI provider to use (anthropic or openai)",
+    },
+    {
+        "key": "anthropic_model",
+        "value": "claude-sonnet-4-20250514",
+        "is_secret": False,
+        "category": "ai",
+        "description": "Anthropic model to use for AI features",
+    },
+    {
+        "key": "openai_model",
+        "value": "gpt-4o",
+        "is_secret": False,
+        "category": "ai",
+        "description": "OpenAI model to use for AI features",
+    },
+    {
         "key": "anthropic_api_key",
         "is_secret": True,
-        "category": "api_tokens",
+        "category": "ai",
         "description": "Anthropic API key for Claude MCP integration",
+    },
+    {
+        "key": "openai_api_key",
+        "is_secret": True,
+        "category": "ai",
+        "description": "OpenAI API key for GPT integration",
     },
     {
         "key": "default_subnet_plant_floor",

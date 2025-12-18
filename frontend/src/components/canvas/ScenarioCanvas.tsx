@@ -315,6 +315,15 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* CSS for smooth layout transitions */}
+      <style>{`
+        .react-flow__node {
+          transition: transform 300ms ease-out !important;
+        }
+        .react-flow__node.dragging {
+          transition: none !important;
+        }
+      `}</style>
       <ReactFlow
         nodes={nodes}
         edges={edges}

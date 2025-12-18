@@ -6,9 +6,9 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.scenario import Scenario
+from app.mcp_server.tools.scenario_lock import safe_update_scenario
 
 
 async def list_flows(db: AsyncSession, scenario_id: str) -> str:
@@ -68,44 +68,39 @@ async def add_flow(db: AsyncSession, scenario_id: str, flow_data: dict[str, Any]
     Returns:
         JSON string with flow ID
     """
-    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        return json.dumps({"error": "Scenario not found"})
-
-    # Validate that source and target devices exist
-    definition = scenario.definition.copy()
-    devices = definition.get("devices", {})
+    # Generate flow ID upfront so we can reference it in the closure
+    flow_id = flow_data.get("id") or f"flow_{uuid.uuid4().hex[:8]}"
 
     source_id = flow_data.get("sourceDeviceId")
     target_id = flow_data.get("targetDeviceId")
 
-    if source_id not in devices:
-        return json.dumps({"error": f"Source device {source_id} not found"})
+    def do_add_flow(definition: dict) -> dict:
+        """Inner function that modifies definition and returns result."""
+        devices = definition.get("devices", {})
 
-    if target_id not in devices:
-        return json.dumps({"error": f"Target device {target_id} not found"})
+        # Validate that source and target devices exist
+        if source_id not in devices:
+            return {"error": f"Source device {source_id} not found"}
 
-    # Generate flow ID if not provided
-    flow_id = flow_data.get("id") or f"flow_{uuid.uuid4().hex[:8]}"
+        if target_id not in devices:
+            return {"error": f"Target device {target_id} not found"}
 
-    # Get or initialize flows dict
-    flows = definition.get("flows", {})
+        # Get or initialize flows dict
+        flows = definition.setdefault("flows", {})
 
-    # Add flow
-    flows[flow_id] = flow_data
-    definition["flows"] = flows
+        # Add flow with the generated ID
+        flow_to_add = flow_data.copy()
+        flow_to_add["id"] = flow_id
+        flows[flow_id] = flow_to_add
 
-    # Update scenario - use flag_modified to ensure JSONB change is detected
-    scenario.definition = definition
-    flag_modified(scenario, "definition")
-    scenario.version += 1
+        return {"success": True, "flow_id": flow_id, "current_count": len(flows)}
 
-    await db.commit()
-    await db.refresh(scenario)
+    scenario, result = await safe_update_scenario(db, scenario_id, do_add_flow)
 
-    return json.dumps({"success": True, "flow_id": flow_id})
+    if scenario is None:
+        return json.dumps({"error": "Scenario not found"})
+
+    return json.dumps(result)
 
 
 async def update_flow(
@@ -122,33 +117,26 @@ async def update_flow(
     Returns:
         JSON string with result
     """
-    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
-    scenario = result.scalar_one_or_none()
+    def do_update_flow(definition: dict) -> dict:
+        """Inner function that modifies definition and returns result."""
+        flows = definition.get("flows", {})
 
-    if not scenario:
+        if flow_id not in flows:
+            return {"error": f"Flow {flow_id} not found"}
+
+        # Merge updates
+        flow = flows[flow_id].copy()
+        flow.update(updates)
+        flows[flow_id] = flow
+
+        return {"success": True, "flow_id": flow_id}
+
+    scenario, result = await safe_update_scenario(db, scenario_id, do_update_flow)
+
+    if scenario is None:
         return json.dumps({"error": "Scenario not found"})
 
-    definition = scenario.definition.copy()
-    flows = definition.get("flows", {})
-
-    if flow_id not in flows:
-        return json.dumps({"error": f"Flow {flow_id} not found"})
-
-    # Merge updates
-    flow = flows[flow_id].copy()
-    flow.update(updates)
-    flows[flow_id] = flow
-    definition["flows"] = flows
-
-    # Update scenario - use flag_modified to ensure JSONB change is detected
-    scenario.definition = definition
-    flag_modified(scenario, "definition")
-    scenario.version += 1
-
-    await db.commit()
-    await db.refresh(scenario)
-
-    return json.dumps({"success": True, "flow_id": flow_id})
+    return json.dumps(result)
 
 
 async def remove_flow(db: AsyncSession, scenario_id: str, flow_id: str) -> str:
@@ -162,31 +150,24 @@ async def remove_flow(db: AsyncSession, scenario_id: str, flow_id: str) -> str:
     Returns:
         JSON string with result
     """
-    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
-    scenario = result.scalar_one_or_none()
+    def do_remove_flow(definition: dict) -> dict:
+        """Inner function that modifies definition and returns result."""
+        flows = definition.get("flows", {})
 
-    if not scenario:
+        if flow_id not in flows:
+            return {"error": f"Flow {flow_id} not found"}
+
+        # Remove flow
+        del flows[flow_id]
+
+        return {"success": True, "flow_id": flow_id}
+
+    scenario, result = await safe_update_scenario(db, scenario_id, do_remove_flow)
+
+    if scenario is None:
         return json.dumps({"error": "Scenario not found"})
 
-    definition = scenario.definition.copy()
-    flows = definition.get("flows", {})
-
-    if flow_id not in flows:
-        return json.dumps({"error": f"Flow {flow_id} not found"})
-
-    # Remove flow
-    del flows[flow_id]
-    definition["flows"] = flows
-
-    # Update scenario - use flag_modified to ensure JSONB change is detected
-    scenario.definition = definition
-    flag_modified(scenario, "definition")
-    scenario.version += 1
-
-    await db.commit()
-    await db.refresh(scenario)
-
-    return json.dumps({"success": True, "flow_id": flow_id})
+    return json.dumps(result)
 
 
 async def suggest_flows(db: AsyncSession, scenario_id: str, source_device_id: str) -> str:
