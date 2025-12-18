@@ -3160,3 +3160,135 @@ async def create_scenario_from_preview(
         device_count=len(devices),
         flow_count=len(flows),
     )
+
+
+class GenerateDescriptionRequest(BaseModel):
+    """Request to generate an AI description for a scenario."""
+
+    scenario_id: str = Field(..., description="Scenario UUID")
+
+
+class GenerateDescriptionResponse(BaseModel):
+    """Response with generated description."""
+
+    description: str
+    scenario_name: str
+    device_count: int
+    flow_count: int
+    protocols: list[str]
+
+
+@router.post("/generate-description", response_model=GenerateDescriptionResponse)
+async def generate_scenario_description(
+    request: GenerateDescriptionRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> GenerateDescriptionResponse:
+    """Generate an AI description for an existing scenario.
+
+    Analyzes the scenario's devices, flows, zones, and configuration
+    to produce a meaningful description.
+
+    Args:
+        request: Request with scenario_id
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Generated description and scenario metadata
+    """
+    # Fetch scenario
+    result = await db.execute(
+        select(Scenario).where(
+            Scenario.id == request.scenario_id,
+            Scenario.user_id == current_user.id,
+        )
+    )
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scenario not found",
+        )
+
+    # Extract scenario data
+    definition = scenario.definition or {}
+    devices = definition.get("devices", {})
+    flows = definition.get("flows", {})
+    zones = definition.get("zones", {})
+
+    # Build device summary
+    device_types = {}
+    vendors = set()
+    for d in devices.values():
+        dtype = d.get("type", "unknown")
+        device_types[dtype] = device_types.get(dtype, 0) + 1
+        if d.get("vendor"):
+            vendors.add(d["vendor"])
+
+    device_summary = ", ".join([f"{count} {dtype}(s)" for dtype, count in device_types.items()])
+    if not device_summary:
+        device_summary = "No devices"
+
+    # Extract protocols from flows
+    protocols = set()
+    for f in flows.values():
+        if f.get("protocol"):
+            protocols.add(f["protocol"])
+
+    # Get zone names
+    zone_names = [z.get("name", z.get("id", "unnamed")) for z in zones.values()]
+
+    # Build prompt for AI
+    prompt = f"""You are an OT network specialist. Generate a concise 2-3 sentence description for this industrial network simulation scenario.
+
+Scenario Name: {scenario.name}
+Industry Vertical: {scenario.vertical or 'Not specified'}
+Devices: {device_summary}
+Vendors: {', '.join(vendors) if vendors else 'Not specified'}
+Protocols: {', '.join(protocols) if protocols else 'None configured'}
+Network Zones: {', '.join(zone_names) if zone_names else 'No zones defined'}
+Communication Flows: {len(flows)}
+
+Write ONLY the description text. Do not include any preamble, labels, or formatting. Just the plain description sentences."""
+
+    # Get AI provider and generate description
+    try:
+        provider = await _get_ai_provider(db)
+        response = await provider.chat(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500,
+        )
+
+        # Extract text from response
+        description = ""
+        if isinstance(response, dict):
+            content = response.get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        description = block.get("text", "").strip()
+                        break
+            elif isinstance(content, str):
+                description = content.strip()
+        else:
+            description = str(response).strip()
+
+        if not description:
+            description = f"A {scenario.vertical or 'industrial'} network simulation scenario with {len(devices)} devices and {len(flows)} communication flows."
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate description: {e}")
+        # Provide a fallback description
+        description = f"A {scenario.vertical or 'industrial'} network simulation scenario featuring {device_summary.lower()} across {len(zones)} network zones with {len(flows)} communication flows."
+
+    return GenerateDescriptionResponse(
+        description=description,
+        scenario_name=scenario.name,
+        device_count=len(devices),
+        flow_count=len(flows),
+        protocols=list(protocols),
+    )

@@ -107,6 +107,14 @@ export interface AIStreamCallbacks {
   onError?: (event: AIStreamErrorEvent) => void;
 }
 
+export interface GenerateDescriptionResponse {
+  description: string;
+  scenario_name: string;
+  device_count: number;
+  flow_count: number;
+  protocols: string[];
+}
+
 export const aiApi = {
   /**
    * Create or resume an AI session for a scenario.
@@ -271,6 +279,17 @@ export const aiApi = {
     } finally {
       reader.releaseLock();
     }
+  },
+
+  /**
+   * Generate an AI description for a scenario
+   */
+  generateDescription: async (scenarioId: string): Promise<GenerateDescriptionResponse> => {
+    const response = await apiClient.post<GenerateDescriptionResponse>(
+      '/api/v1/ai/generate-description',
+      { scenario_id: scenarioId }
+    );
+    return response.data;
   },
 };
 

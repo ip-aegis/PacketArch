@@ -3,17 +3,20 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Typography, Empty, Badge } from 'antd';
-import { ControlOutlined, RobotOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import { Tabs, Typography, Empty, Badge, Input, Button, Space, Divider } from 'antd';
+import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined } from '@ant-design/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
+import { useScenarioStore } from '../../stores/scenarioStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
+import GenerateDescriptionModal from '../ai/GenerateDescriptionModal';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 interface RightSidePanelProps {
   scenarioId: string | null;
@@ -21,6 +24,7 @@ interface RightSidePanelProps {
 
 const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const [activeTab, setActiveTab] = useState('ai');
+  const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
 
   const {
@@ -31,6 +35,11 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     openPanel,
   } = useAIAssistantStore();
 
+  // Scenario metadata from store
+  const scenarioName = useScenarioStore((state) => state.name);
+  const scenarioDescription = useScenarioStore((state) => state.description);
+  const setMetadata = useScenarioStore((state) => state.setMetadata);
+
   // Handle tab change - open AI session when switching to AI tab
   const handleTabChange = (activeKey: string) => {
     setActiveTab(activeKey);
@@ -39,25 +48,70 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     }
   };
 
+  // Handle description save from modal
+  const handleSaveDescription = async (description: string) => {
+    setMetadata({ description });
+  };
+
+  // Scenario metadata panel shown when nothing is selected
+  const scenarioMetadataPanel = (
+    <div>
+      <Text strong style={{ color: '#c9d1d9', display: 'block', marginBottom: 16 }}>
+        Scenario Properties
+      </Text>
+
+      <div style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 11, color: '#6a8caf', display: 'block', marginBottom: 4 }}>
+          Name
+        </Text>
+        <Text style={{ color: '#c9d1d9' }}>{scenarioName}</Text>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 11, color: '#6a8caf', display: 'block', marginBottom: 4 }}>
+          Description
+        </Text>
+        <TextArea
+          rows={3}
+          value={scenarioDescription}
+          onChange={(e) => setMetadata({ description: e.target.value })}
+          placeholder="Add a description for this scenario..."
+          style={{
+            background: '#0d1117',
+            border: '1px solid #2a3f54',
+            color: '#c9d1d9',
+            resize: 'vertical',
+          }}
+        />
+      </div>
+
+      {scenarioId && (
+        <Button
+          type="default"
+          icon={<RobotOutlined />}
+          onClick={() => setGenerateDescModalOpen(true)}
+          style={{
+            borderColor: '#1890ff',
+            color: '#1890ff',
+          }}
+          block
+        >
+          Generate with AI
+        </Button>
+      )}
+
+      <Divider style={{ borderColor: '#2a3f54', margin: '20px 0' }} />
+
+      <Text style={{ fontSize: 11, color: '#6a8caf' }}>
+        Select a device or flow to edit its properties
+      </Text>
+    </div>
+  );
+
   const propertiesContent = (
     <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
       {!activePropertyContext.type || activePropertyContext.ids.length === 0 ? (
-        <Empty
-          image={<ControlOutlined style={{ fontSize: 48, color: '#4a6a8a' }} />}
-          description={
-            <div>
-              <Text style={{ fontSize: '13px', color: '#8aa4bc' }}>
-                No selection
-              </Text>
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ fontSize: '11px', color: '#6a8caf' }}>
-                  Click on a device or flow to view and edit its properties
-                </Text>
-              </div>
-            </div>
-          }
-          style={{ marginTop: '60px' }}
-        />
+        scenarioMetadataPanel
       ) : activePropertyContext.type === 'device' ? (
         <DevicePropertyForm deviceId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'flow' ? (
@@ -153,55 +207,69 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   ];
 
   return (
-    <div
-      style={{
-        width: '360px',
-        height: '100%',
-        background: '#1e2d3d',
-        borderLeft: '1px solid #2a3f54',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={items}
-        destroyInactiveTabPane
-        style={{ height: '100%' }}
-        tabBarStyle={{
-          margin: 0,
-          padding: '0 12px',
-          background: '#1a2734',
-          borderBottom: '1px solid #2a3f54',
+    <>
+      <div
+        style={{
+          width: '360px',
+          height: '100%',
+          background: '#1e2d3d',
+          borderLeft: '1px solid #2a3f54',
+          display: 'flex',
+          flexDirection: 'column',
         }}
-        className="right-side-panel-tabs"
-      />
-      <style>{`
-        .right-side-panel-tabs .ant-tabs-content-holder {
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .right-side-panel-tabs .ant-tabs-content {
-          height: 100%;
-        }
-        .right-side-panel-tabs .ant-tabs-tabpane {
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-        }
-        .right-side-panel-tabs .ant-tabs-nav {
-          margin-bottom: 0;
-        }
-        .right-side-panel-tabs .ant-tabs-tab {
-          color: #8aa4bc;
-        }
-        .right-side-panel-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-          color: #5a9fd4;
-        }
-      `}</style>
-    </div>
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          items={items}
+          destroyInactiveTabPane
+          style={{ height: '100%' }}
+          tabBarStyle={{
+            margin: 0,
+            padding: '0 12px',
+            background: '#1a2734',
+            borderBottom: '1px solid #2a3f54',
+          }}
+          className="right-side-panel-tabs"
+        />
+        <style>{`
+          .right-side-panel-tabs .ant-tabs-content-holder {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          }
+          .right-side-panel-tabs .ant-tabs-content {
+            height: 100%;
+          }
+          .right-side-panel-tabs .ant-tabs-tabpane {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+          }
+          .right-side-panel-tabs .ant-tabs-nav {
+            margin-bottom: 0;
+          }
+          .right-side-panel-tabs .ant-tabs-tab {
+            color: #8aa4bc;
+          }
+          .right-side-panel-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+            color: #5a9fd4;
+          }
+        `}</style>
+      </div>
+
+      {/* Generate Description Modal */}
+      {scenarioId && (
+        <GenerateDescriptionModal
+          open={generateDescModalOpen}
+          onClose={() => setGenerateDescModalOpen(false)}
+          onSave={handleSaveDescription}
+          scenarioId={scenarioId}
+          scenarioName={scenarioName}
+          currentDescription={scenarioDescription || undefined}
+        />
+      )}
+    </>
   );
 };
 

@@ -53,6 +53,7 @@ const { Dragger } = Upload;
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scenariosApi, type ScenarioFilters, type ScenarioSummary, type ScenarioCreate } from '../api/scenarios';
 import { templatesApi, type TemplateSummary, type CreateFromTemplateRequest } from '../api/templates';
+import { GenerateDescriptionModal } from '../components/ai';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -87,6 +88,8 @@ const ScenariosPage: React.FC = () => {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFileData, setImportFileData] = useState<Record<string, unknown> | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
+  const [selectedScenarioForDesc, setSelectedScenarioForDesc] = useState<ScenarioSummary | null>(null);
   const [createForm] = Form.useForm();
   const [templateForm] = Form.useForm();
 
@@ -204,6 +207,19 @@ const ScenariosPage: React.FC = () => {
     },
   });
 
+  // Update scenario mutation (for description updates)
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { description: string } }) =>
+      scenariosApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] });
+    },
+    onError: (error: any) => {
+      const detail = error.response?.data?.detail || error.message || 'Unknown error';
+      message.error(`Failed to update scenario: ${detail}`);
+    },
+  });
+
   const handleToggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedIds((prev) => {
@@ -310,6 +326,11 @@ const ScenariosPage: React.FC = () => {
       label: 'Open in Studio',
     },
     {
+      key: 'generate-description',
+      icon: <RobotOutlined />,
+      label: 'Generate Description',
+    },
+    {
       key: 'duplicate',
       icon: <CopyOutlined />,
       label: 'Duplicate',
@@ -337,6 +358,10 @@ const ScenariosPage: React.FC = () => {
       case 'open':
         handleOpenScenario(scenario.id);
         break;
+      case 'generate-description':
+        setSelectedScenarioForDesc(scenario);
+        setGenerateDescModalOpen(true);
+        break;
       case 'duplicate':
         duplicateMutation.mutate(scenario.id);
         break;
@@ -354,6 +379,14 @@ const ScenariosPage: React.FC = () => {
         });
         break;
     }
+  };
+
+  const handleSaveDescription = async (description: string) => {
+    if (!selectedScenarioForDesc) return;
+    await updateMutation.mutateAsync({
+      id: selectedScenarioForDesc.id,
+      data: { description },
+    });
   };
 
   const renderScenarioCard = (scenario: ScenarioSummary) => {
@@ -1140,6 +1173,21 @@ const ScenariosPage: React.FC = () => {
           </Card>
         )}
       </Modal>
+
+      {/* Generate Description Modal */}
+      {selectedScenarioForDesc && (
+        <GenerateDescriptionModal
+          open={generateDescModalOpen}
+          onClose={() => {
+            setGenerateDescModalOpen(false);
+            setSelectedScenarioForDesc(null);
+          }}
+          onSave={handleSaveDescription}
+          scenarioId={selectedScenarioForDesc.id}
+          scenarioName={selectedScenarioForDesc.name}
+          currentDescription={selectedScenarioForDesc.description || undefined}
+        />
+      )}
     </div>
   );
 };
