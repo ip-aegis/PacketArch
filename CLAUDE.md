@@ -1,5 +1,35 @@
 # PacketArch Development Guidelines
 
+## Repository
+
+- **GitHub**: https://github.com/kingsmanrocky-max/PacketArch
+- **Branch**: `master` (primary branch)
+- **Clone**: `git clone git@github.com:kingsmanrocky-max/PacketArch.git`
+
+### Git Workflow
+
+```bash
+# Pull latest changes
+git pull origin master
+
+# After making changes, commit and push
+git add -A
+git commit -m "Description of changes"
+git push origin master
+```
+
+### SSH Key Setup
+
+The server uses SSH authentication for GitHub. The SSH key is located at:
+- Private: `~/.ssh/id_ed25519`
+- Public: `~/.ssh/id_ed25519.pub`
+
+If you need to set up on a new machine, add the public key to GitHub:
+1. Copy the public key: `cat ~/.ssh/id_ed25519.pub`
+2. Add to GitHub: Settings → SSH and GPG keys → New SSH key
+
+---
+
 ## Off-Box Access
 
 This application is configured for **off-box access** - meaning it can be accessed from other machines on the network, not just localhost.
