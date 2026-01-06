@@ -8,13 +8,11 @@ import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Badge } from
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import {
   DashboardOutlined,
-  AppstoreOutlined,
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  ApiOutlined,
   BellOutlined,
   DatabaseOutlined,
   FolderOutlined,
@@ -43,28 +41,12 @@ const AppLayout: React.FC = () => {
     navigate('/login');
   };
 
-  // Handle menu navigation - preserve scenario context when on studio
+  // Handle menu navigation
   const handleMenuClick = useCallback(
     (info: MenuInfo) => {
-      const targetPath = info.key;
-
-      // If clicking "Scenario Studio" while already on studio, don't navigate
-      // This preserves the current ?scenario=X query parameter
-      if (targetPath === '/studio' && location.pathname === '/studio') {
-        return;
-      }
-
-      // For other studio clicks (from different pages), go to scenarios list
-      // so user can pick a scenario to edit
-      if (targetPath === '/studio' && location.pathname !== '/studio') {
-        navigate('/scenarios');
-        return;
-      }
-
-      // Normal navigation for other menu items
-      navigate(targetPath);
+      navigate(info.key);
     },
-    [navigate, location.pathname]
+    [navigate]
   );
 
   const menuItems = [
@@ -77,11 +59,6 @@ const AppLayout: React.FC = () => {
       key: '/scenarios',
       icon: <FolderOutlined />,
       label: 'Scenarios',
-    },
-    {
-      key: '/studio',
-      icon: <AppstoreOutlined />,
-      label: 'Scenario Studio',
     },
     {
       key: '/devices',

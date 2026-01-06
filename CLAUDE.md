@@ -471,6 +471,46 @@ Inject anomalies into generated traffic for security testing and detection valid
 
 ---
 
+## Docker Hosts Management
+
+Configure and manage remote Docker hosts for distributed traffic generation.
+
+### Overview
+PacketArch can deploy traffic generators to remote Docker hosts, allowing traffic injection from multiple network locations. Hosts are configured with TLS certificates for secure API communication.
+
+### Features
+- **TLS Authentication**: Secure connection using CA, client cert, and client key
+- **Connection Testing**: Verify connectivity before deployment
+- **Interface Discovery**: List available network interfaces on remote hosts
+- **Encrypted Storage**: Client keys are encrypted at rest
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/docker-hosts` | List all Docker hosts |
+| POST | `/api/v1/docker-hosts` | Create a new Docker host |
+| GET | `/api/v1/docker-hosts/{id}` | Get Docker host details |
+| PUT | `/api/v1/docker-hosts/{id}` | Update Docker host |
+| DELETE | `/api/v1/docker-hosts/{id}` | Delete Docker host |
+| POST | `/api/v1/docker-hosts/{id}/test` | Test connection |
+| GET | `/api/v1/docker-hosts/{id}/interfaces` | List network interfaces |
+
+### Setting Up a Docker Host
+1. Install Docker Engine on the target Linux host
+2. Generate TLS certificates (CA, server, client)
+3. Configure Docker daemon for remote TCP access on port 2376
+4. Configure firewall to allow port 2376 from PacketArch server
+5. Add host in PacketArch: Settings > Docker Hosts
+
+### Key Files
+- `backend/app/api/routes/docker_hosts.py` - API endpoints
+- `backend/app/models/docker_host.py` - Database model
+- `backend/app/services/docker_service.py` - Docker API client
+- `frontend/src/components/admin/DockerHostsTab.tsx` - Admin UI
+- `frontend/src/content/help/docker-host-setup.tsx` - Setup guide
+
+---
+
 ## AI-Enhanced Features
 
 ### Natural Language Scenario Generation
@@ -481,10 +521,27 @@ Describe scenarios in plain English and let AI generate the configuration.
 - Protocol configuration recommendations
 - Traffic pattern optimization
 
+### AI-Powered Help System
+Context-aware help with AI chat for troubleshooting and setup guidance.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/ai/help` | Get AI-powered help for a question |
+
+Supported contexts:
+- `docker_host_setup` - Docker host configuration help
+- `general` - General PacketArch usage help
+
 ### API Integration
 - MCP Server at `backend/app/mcp_server/`
 - Anthropic Claude for AI provider
 - HTTP + SSE transport
+
+### Key AI Files
+- `backend/app/api/routes/ai.py` - AI endpoints (chat, help, preview)
+- `backend/app/mcp_server/` - MCP tool server
+- `backend/app/ai_services/` - AI scenario generation
+- `frontend/src/components/admin/DockerHostHelpDrawer.tsx` - Help drawer with AI chat
 
 ---
 
@@ -500,15 +557,19 @@ Describe scenarios in plain English and let AI generate the configuration.
 │   │   │   ├── ip_management.py # IP range allocation
 │   │   │   ├── learning.py    # PCAP learning
 │   │   │   ├── anomalies.py   # Anomaly injection
+│   │   │   ├── docker_hosts.py # Docker host management
+│   │   │   ├── ai.py          # AI assistant & help
 │   │   │   └── ...
 │   │   ├── core/              # Config, DB, security
 │   │   ├── models/            # SQLAlchemy models
 │   │   │   ├── scenario.py    # Scenario model
 │   │   │   ├── ip_range_allocation.py # IP allocation model
+│   │   │   ├── docker_host.py # Docker host model
 │   │   │   └── ...
 │   │   ├── schemas/           # Pydantic schemas
 │   │   ├── services/          # Business logic
 │   │   │   ├── ip_management.py # IP allocation service
+│   │   │   ├── docker_service.py # Docker API client
 │   │   │   └── ...
 │   │   ├── scenario_templates/ # Industry vertical templates
 │   │   │   ├── manufacturing.py
@@ -533,7 +594,13 @@ Describe scenarios in plain English and let AI generate the configuration.
 │       │   ├── layout/        # App layout
 │       │   ├── panels/        # Side panels
 │       │   ├── anomalies/     # Anomaly components
-│       │   └── learning/      # Learning components
+│       │   ├── learning/      # Learning components
+│       │   └── admin/         # Admin components
+│       │       ├── DockerHostsTab.tsx     # Docker hosts UI
+│       │       └── DockerHostHelpDrawer.tsx # Help with AI chat
+│       ├── content/help/      # Help system content
+│       │   ├── index.ts       # Help registry
+│       │   └── docker-host-setup.tsx # Docker setup guide
 │       ├── pages/             # Route pages
 │       │   ├── ScenariosPage.tsx
 │       │   ├── IPManagementPage.tsx

@@ -187,16 +187,27 @@ async def test_docker_host_connection(
             detail="Docker host not found",
         )
 
-    # Decrypt client key for connection
-    if host.client_key:
-        host.client_key = decrypt_value(host.client_key)
+    # Decrypt client key for connection - store in temp var to avoid modifying model
+    decrypted_key = decrypt_value(host.client_key) if host.client_key else None
+
+    # Expunge from session so we can safely modify for docker_service without affecting DB
+    await db.refresh(host)
+    db.expunge(host)
+
+    # Now safe to modify for connection
+    host.client_key = decrypted_key
 
     test_result = docker_service.test_connection(host)
 
-    # Update last_connected_at on success
+    # Update last_connected_at on success using a fresh update
     if test_result.success:
         from datetime import datetime, timezone
-        host.last_connected_at = datetime.now(timezone.utc)
+        from sqlalchemy import update
+        await db.execute(
+            update(DockerHost)
+            .where(DockerHost.id == host_id)
+            .values(last_connected_at=datetime.now(timezone.utc))
+        )
         await db.commit()
 
     return DockerHostTestResult(
@@ -226,9 +237,15 @@ async def list_docker_host_interfaces(
             detail="Docker host not found",
         )
 
-    # Decrypt client key for connection
-    if host.client_key:
-        host.client_key = decrypt_value(host.client_key)
+    # Decrypt client key for connection - store in temp var to avoid modifying model
+    decrypted_key = decrypt_value(host.client_key) if host.client_key else None
+
+    # Expunge from session so we can safely modify for docker_service without affecting DB
+    await db.refresh(host)
+    db.expunge(host)
+
+    # Now safe to modify for connection
+    host.client_key = decrypted_key
 
     try:
         interfaces = docker_service.list_interfaces(host)

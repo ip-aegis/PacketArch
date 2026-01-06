@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     max_simulation_duration_ms: int = 600000  # 10 minutes default max
 
     # First user (created on startup if no users exist)
+    # Note: ADMIN_PASSWORD env var is mapped to FIRST_USER_PASSWORD in docker-compose.yml
     first_user_username: str = "admin"
     first_user_password: str = "changeme123"
 

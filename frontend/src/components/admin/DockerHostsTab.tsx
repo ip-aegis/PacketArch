@@ -29,10 +29,12 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
   SafetyCertificateOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useDockerHostsStore } from '../../stores/dockerHostsStore';
 import type { DockerHost, DockerHostCreate, DockerHostTestResult } from '../../types/docker';
+import DockerHostHelpDrawer from './DockerHostHelpDrawer';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -54,6 +56,7 @@ const DockerHostsTab: React.FC = () => {
   const [editingHost, setEditingHost] = useState<DockerHost | null>(null);
   const [testingHostId, setTestingHostId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<DockerHostTestResult | null>(null);
+  const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -293,13 +296,39 @@ const DockerHostsTab: React.FC = () => {
         </Card>
       )}
 
+      <Alert
+        type="info"
+        showIcon
+        icon={<QuestionCircleOutlined />}
+        message={
+          <Space>
+            <span>New to Docker host setup?</span>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setHelpDrawerOpen(true)}
+              style={{ padding: 0 }}
+            >
+              View the setup guide with AI-powered help
+            </Button>
+          </Space>
+        }
+        style={{ background: '#1e2d3d', border: '1px solid #2a3f54', marginBottom: 16 }}
+        closable
+      />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text type="secondary">
           Configure remote Docker hosts for traffic generator deployment.
         </Text>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          Add Docker Host
-        </Button>
+        <Space>
+          <Button icon={<QuestionCircleOutlined />} onClick={() => setHelpDrawerOpen(true)}>
+            Setup Guide
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            Add Docker Host
+          </Button>
+        </Space>
       </div>
 
       <Table
@@ -314,7 +343,21 @@ const DockerHostsTab: React.FC = () => {
       />
 
       <Modal
-        title={editingHost ? 'Edit Docker Host' : 'Add Docker Host'}
+        title={
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <span>{editingHost ? 'Edit Docker Host' : 'Add Docker Host'}</span>
+            <Tooltip title="Setup Guide & AI Help">
+              <Button
+                type="text"
+                icon={<QuestionCircleOutlined />}
+                onClick={() => setHelpDrawerOpen(true)}
+                style={{ color: '#049FD9' }}
+              >
+                Need Help?
+              </Button>
+            </Tooltip>
+          </Space>
+        }
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -425,6 +468,12 @@ const DockerHostsTab: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Help Drawer with Setup Guide and AI Chat */}
+      <DockerHostHelpDrawer
+        open={helpDrawerOpen}
+        onClose={() => setHelpDrawerOpen(false)}
+      />
     </Space>
   );
 };
