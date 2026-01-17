@@ -20,8 +20,10 @@ VENDOR_OUIS: dict[str, list[str]] = {
     "rockwell": [
         "00:00:BC",  # Allen-Bradley (legacy)
         "00:1D:9C",  # Rockwell Automation
-        "00:1B:90",  # Rockwell Collins
-        "B4:8C:9D",  # Rockwell Automation
+        "08:61:95",  # Rockwell Automation
+        "5C:88:16",  # Rockwell Automation
+        "E4:90:69",  # Rockwell Automation
+        "F4:54:33",  # Rockwell Automation
     ],
     "schneider": [
         "00:00:54",  # Schneider Electric (legacy Modicon)
@@ -52,7 +54,6 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "F4:4E:05",  # Honeywell Connected
     ],
     "ge": [
-        "00:04:A5",  # GE Intelligent Platforms
         "00:09:45",  # GE Fanuc Automation
         "00:30:C1",  # GE Healthcare
         "00:50:99",  # GE Industrial Systems
@@ -72,11 +73,10 @@ VENDOR_OUIS: dict[str, list[str]] = {
     "phoenix_contact": [
         "00:A0:45",  # Phoenix Contact
         "00:16:9D",  # Phoenix Contact
-        "00:60:65",  # Phoenix Contact
+        "A8:74:1D",  # Phoenix Contact
     ],
     "beckhoff": [
         "00:01:05",  # Beckhoff Automation
-        "00:04:A5",  # Beckhoff shared
     ],
     "wago": [
         "00:30:DE",  # WAGO Kontakttechnik
@@ -127,6 +127,7 @@ VENDOR_OUIS: dict[str, list[str]] = {
     "cisco": [
         "00:00:0C",  # Cisco Systems
         "00:1A:A1",  # Cisco Systems
+        "00:1B:90",  # Cisco Systems
         "00:24:51",  # Cisco
         "00:25:84",  # Cisco
     ],
@@ -213,8 +214,8 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:18:3E",  # Wavetronix LLC
     ],
     "flir": [
-        "00:40:7F",  # FLIR Systems
-        "00:80:F4",  # FLIR Systems
+        "00:40:7F",  # FLIR Systems (Sweden)
+        "00:1B:D8",  # FLIR Systems Inc
     ],
     "daktronics": [
         "00:06:D3",  # Daktronics Inc
