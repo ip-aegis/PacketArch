@@ -58,6 +58,17 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:50:99",  # GE Industrial Systems
         "00:22:52",  # GE Digital Energy
     ],
+    # Protection Relay / Power Grid Vendors
+    "sel": [
+        "00:30:A7",  # Schweitzer Engineering Laboratories
+        "00:1C:73",  # SEL Inc
+    ],
+    "basler": [
+        "00:1E:C9",  # Basler Electric
+    ],
+    "beckwith": [
+        "00:1A:F0",  # Beckwith Electric
+    ],
     "phoenix_contact": [
         "00:A0:45",  # Phoenix Contact
         "00:16:9D",  # Phoenix Contact
@@ -132,12 +143,50 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:0C:46",  # Copa-Data
     ],
 
-    # Building Automation
+    # Building Automation / BMS Vendors
     "johnson_controls": [
         "00:1A:17",  # Johnson Controls
+        "00:16:C7",  # Johnson Controls Inc
+        "00:23:BE",  # Johnson Controls Systems
     ],
     "tridium": [
-        "00:50:62",  # Tridium
+        "00:50:62",  # Tridium (Niagara Framework)
+    ],
+    "trane": [
+        "00:0D:AD",  # Trane Technologies
+        "00:1C:C0",  # Trane
+    ],
+    "carrier": [
+        "00:0D:AD",  # Carrier Corporation (shared with Trane parent)
+        "00:1E:8E",  # Carrier
+    ],
+    "delta_controls": [
+        "00:0B:AB",  # Delta Controls
+        "00:0D:9F",  # Delta Controls Inc
+    ],
+    "distech": [
+        "00:1E:C0",  # Distech Controls
+        "D0:77:14",  # Distech Controls Inc
+    ],
+    "carel": [
+        "00:0D:5D",  # Carel Industries
+        "00:15:F9",  # Carel SpA
+    ],
+    "automated_logic": [
+        "00:14:C1",  # Automated Logic Corporation
+        "00:1C:12",  # Automated Logic
+    ],
+    "kmc_controls": [
+        "00:10:E3",  # KMC Controls
+    ],
+    "alerton": [
+        "00:0B:39",  # Alerton Technologies
+    ],
+    "reliable_controls": [
+        "00:19:F5",  # Reliable Controls Corporation
+    ],
+    "lennox": [
+        "00:11:2F",  # Lennox Industries
     ],
 
     # Network Infrastructure for OT
@@ -146,6 +195,62 @@ VENDOR_OUIS: dict[str, list[str]] = {
     ],
     "harting": [
         "00:0D:C5",  # HARTING
+    ],
+
+    # Transportation/ITS Vendors
+    "siemens_its": [
+        "00:1F:F8",  # Siemens AG (ITS division)
+        "00:0E:8C",  # Siemens AG
+        "64:00:6A",  # Siemens AG
+    ],
+    "econolite": [
+        "00:19:FA",  # Econolite Control Products
+    ],
+    "mccain": [
+        "00:0D:56",  # McCain Traffic Supply
+    ],
+    "wavetronix": [
+        "00:18:3E",  # Wavetronix LLC
+    ],
+    "flir": [
+        "00:40:7F",  # FLIR Systems
+        "00:80:F4",  # FLIR Systems
+    ],
+    "daktronics": [
+        "00:06:D3",  # Daktronics Inc
+    ],
+    "kapsch": [
+        "00:0B:6B",  # Kapsch TrafficCom
+    ],
+    "qfree": [
+        "00:17:B0",  # Q-Free ASA
+    ],
+    "q_free": [
+        "00:17:B0",  # Q-Free ASA (alias with underscore)
+    ],
+    "q-free": [
+        "00:17:B0",  # Q-Free ASA (alias with hyphen)
+    ],
+    "axis": [
+        "00:40:8C",  # Axis Communications
+        "AC:CC:8E",  # Axis Communications
+        "B8:A4:4F",  # Axis Communications
+    ],
+    "pelco": [
+        "00:0C:CE",  # Pelco (Schneider)
+        "00:0F:FE",  # Pelco
+    ],
+    "bosch": [
+        "00:04:13",  # Bosch Security Systems
+        "00:07:5F",  # Bosch
+    ],
+    "hikvision": [
+        "C0:56:E3",  # Hikvision
+        "44:19:B6",  # Hikvision
+        "BC:AD:28",  # Hikvision
+    ],
+    "vaisala": [
+        "00:0C:D6",  # Vaisala
     ],
 }
 
@@ -166,7 +271,77 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
     "firewall": ["cisco", "hirschmann", "phoenix_contact"],
     "relay": ["ge", "abb", "siemens", "schneider"],
     "meter": ["schneider", "ge", "siemens", "abb"],
-    "protection_relay": ["ge", "abb", "siemens", "schneider"],
+    "protection_relay": ["sel", "ge", "abb", "siemens", "schneider", "basler", "beckwith"],
+
+    # Transportation/ITS Device Types
+    "traffic_controller": ["econolite", "siemens", "mccain"],
+    "dms": ["daktronics"],
+    "dynamic_message_sign": ["daktronics"],
+    "radar_sensor": ["wavetronix"],
+    "thermal_sensor": ["flir"],
+    "weather_station": ["vaisala"],
+    "toll_system": ["kapsch"],
+    "toll_controller": ["kapsch"],
+    "rsu": ["qfree"],
+    "roadside_unit": ["qfree"],
+    "its_camera": ["axis", "pelco", "bosch", "hikvision"],
+    "ptz_camera": ["pelco", "bosch"],
+    "anpr_camera": ["hikvision", "bosch"],
+
+    # Additional Transportation/ITS Device Types (tunnel, toll, infrastructure)
+    "master_station": ["siemens", "siemens_its"],
+    "toll_host": ["kapsch"],
+    "lane_controller": ["kapsch"],
+    "video_detector": ["axis", "bosch", "hikvision"],
+    "detector_rack": ["mccain"],
+    "lighting_controller": ["siemens", "siemens_its"],
+    "ventilation_controller": ["siemens", "siemens_its"],
+    "chem_sensor": ["vaisala"],
+    "fire_panel": ["schneider"],
+    "seismic_sensor": ["schneider"],
+    "pump_controller": ["schneider"],
+    "barrier_controller": ["schneider"],
+    "classification_sensor": ["wavetronix"],
+    "camera": ["axis", "pelco", "bosch", "hikvision"],
+
+    # Building Automation / BMS Device Types
+    "bac": ["johnson_controls", "honeywell", "siemens", "schneider"],  # Building Automation Controller
+    "building_controller": ["johnson_controls", "honeywell", "siemens", "schneider"],
+    "bms_server": ["johnson_controls", "honeywell", "schneider"],
+    "ahu_controller": ["trane", "carrier", "johnson_controls", "honeywell"],  # Air Handling Unit
+    "vav_controller": ["trane", "johnson_controls", "distech", "carrier"],  # Variable Air Volume
+    "chiller_controller": ["trane", "carrier", "johnson_controls", "york"],
+    "boiler_controller": ["honeywell", "siemens", "johnson_controls"],
+    "rooftop_unit": ["trane", "carrier", "lennox"],
+    "crac_unit": ["schneider", "emerson", "carel"],  # Computer Room AC
+    "energy_meter": ["schneider", "siemens", "honeywell", "johnson_controls"],
+    "power_meter": ["schneider", "siemens", "ge"],
+    "thermostat": ["honeywell", "johnson_controls", "trane", "carrier"],
+    "room_controller": ["distech", "delta_controls", "johnson_controls"],
+    "zone_controller": ["distech", "delta_controls", "johnson_controls", "trane"],
+    "access_panel": ["honeywell", "johnson_controls", "siemens"],
+    "access_controller": ["honeywell", "johnson_controls", "siemens"],
+    "niagara_jace": ["tridium", "honeywell"],  # Tridium JACE controllers
+    "webctrl": ["automated_logic"],  # Automated Logic WebCTRL
+    "metasys": ["johnson_controls"],  # Johnson Controls Metasys
+    "tracer": ["trane"],  # Trane Tracer controllers
+
+    # Oil & Gas / Process Industry Device Types
+    "safety_plc": ["schneider", "honeywell", "siemens", "yokogawa", "abb"],  # SIS/ESD controllers
+    "safety_io": ["schneider", "honeywell", "siemens", "yokogawa"],  # Safety I/O modules
+    "flow_computer": ["schneider", "emerson", "abb", "honeywell"],  # Custody transfer
+    "gas_chromatograph": ["yokogawa", "emerson", "siemens"],  # Process analyzers
+    "compressor_controller": ["schneider", "emerson", "ge", "siemens"],  # Compressor control
+    "leak_detection": ["honeywell", "emerson", "siemens"],  # Pipeline LDS
+    "wellhead_controller": ["schneider", "emerson", "honeywell"],  # Wellsite RTUs
+    "custody_meter": ["emerson", "endress_hauser", "schneider"],  # Fiscal metering
+    "process_analyzer": ["yokogawa", "emerson", "honeywell", "siemens"],  # Online analyzers
+    "valve_positioner": ["emerson", "siemens", "abb", "honeywell"],  # Fisher DVC, etc.
+    "pressure_transmitter": ["emerson", "endress_hauser", "yokogawa", "honeywell"],
+    "flow_transmitter": ["emerson", "endress_hauser", "yokogawa", "siemens"],
+    "level_transmitter": ["emerson", "endress_hauser", "yokogawa", "siemens"],
+    "temperature_transmitter": ["emerson", "endress_hauser", "yokogawa", "honeywell"],
+    "dcs_controller": ["emerson", "honeywell", "yokogawa", "abb", "siemens"],  # DeltaV, Experion, CENTUM
 }
 
 # Default OUI for unknown vendors (locally administered)

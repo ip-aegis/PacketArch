@@ -123,22 +123,33 @@ class AIScenarioDesigner:
 
     # Zone-based IP subnet mapping
     ZONE_SUBNETS = {
+        # Manufacturing zones
         "process_control": "10.10.1",
         "safety": "10.10.2",
         "enterprise": "10.10.100",
+        "production": "10.10.50",
+        "packaging": "10.10.60",
+        "quality_control": "10.10.70",
+        "utilities": "10.10.80",
+        # Water/Wastewater zones
         "scada": "10.20.1",
         "field": "10.20.10",
         "corporate": "10.20.100",
+        # Energy zones
         "substation": "10.30.1",
         "control_center": "10.30.100",
+        # Oil & Gas zones
         "wellhead": "10.40.1",
         "pipeline": "10.40.10",
         "refinery": "10.40.20",
         "control_room": "10.40.100",
-        "production": "10.50.1",
-        "packaging": "10.50.10",
-        "quality_control": "10.50.20",
-        "utilities": "10.50.30",
+        # Transportation zones
+        "tmc": "10.50.1",  # Traffic Management Center
+        "corridor": "10.50.10",  # Highway/Arterial Corridor
+        "tunnel": "10.50.20",  # Tunnel/Bridge Infrastructure
+        "toll_plaza": "10.50.30",  # Toll Collection Area
+        "intersection": "10.50.40",  # Urban Intersection Network
+        "freeway": "10.50.50",  # Freeway Management
     }
 
     def __init__(self, db: AsyncSession):
@@ -162,6 +173,7 @@ class AIScenarioDesigner:
         preferred_protocols: list[str] | None = None,
         total_device_count: int | None = None,
         device_counts: dict[str, int] | None = None,
+        include_vulnerable_devices: bool = False,
     ) -> AIDesignResult:
         """Design a scenario using AI with rule-based fallback.
 
@@ -174,6 +186,7 @@ class AIScenarioDesigner:
             preferred_protocols: User-selected protocols (None = AI decides)
             total_device_count: Target total device count (AI decides mix)
             device_counts: Specific counts per device type
+            include_vulnerable_devices: Include CVE-vulnerable devices for security testing
 
         Returns:
             AIDesignResult with generated scenario and metadata
@@ -317,6 +330,7 @@ Design a complete OT network scenario with devices, communication flows, and net
 - water: RTUs, PLCs, pump controllers, flow meters, level sensors (Schneider, Honeywell, GE)
 - energy: RTUs, IEDs, PMUs, meters (GE, ABB, Siemens)
 - oil_gas: RTUs, PLCs, flow computers, compressor controllers (Emerson, Honeywell, ABB)
+- transportation: Traffic controllers, DMS, radars, cameras, RSUs, weather stations (Econolite, Siemens ITS, McCain, Wavetronix, Axis, FLIR)
 
 ## Vendor-Protocol Matching
 - Rockwell/Allen-Bradley → ethernet_ip (EtherNet/IP)
@@ -326,6 +340,12 @@ Design a complete OT network scenario with devices, communication flows, and net
 - Honeywell → modbus_tcp
 - Emerson → modbus_tcp
 - GE → modbus_tcp or ethernet_ip
+- Transportation ITS vendors → snmp (NTCIP)
+  - Econolite, Siemens ITS, McCain → snmp (traffic controllers)
+  - Wavetronix, FLIR → snmp (detection sensors)
+  - Axis, Pelco, Hikvision → snmp (ITS cameras)
+  - Daktronics → snmp (DMS/message signs)
+  - Kapsch, Q-Free → snmp (tolling/RSU)
 
 ## Output Format
 Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
@@ -339,8 +359,8 @@ Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
   "devices": [
     {{
       "name": "Descriptive_Device_Name",
-      "device_type": "plc|hmi|rtu|drive|sensor|robot|ied|meter|pump_controller|flow_meter|level_sensor|flow_computer",
-      "vendor": "rockwell|siemens|schneider|abb|honeywell|emerson|ge",
+      "device_type": "plc|hmi|rtu|drive|sensor|robot|ied|meter|pump_controller|flow_meter|level_sensor|flow_computer|traffic_controller|dms|rsu|radar_sensor|lidar_sensor|weather_station|camera|thermal_sensor|lighting_controller|ventilation_controller|toll_controller|anpr_camera",
+      "vendor": "rockwell|siemens|schneider|abb|honeywell|emerson|ge|econolite|siemens_its|mccain|wavetronix|flir|vaisala|daktronics|axis|pelco|hikvision|bosch|kapsch|q-free",
       "fingerprint_model": "model from fingerprint list or null",
       "zone_id": "zone_1",
       "role": "Brief description of device's role in the scenario",
@@ -351,7 +371,7 @@ Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
     {{
       "source_name": "Device_Name",
       "target_name": "Device_Name",
-      "protocol": "modbus_tcp|ethernet_ip|profinet",
+      "protocol": "modbus_tcp|ethernet_ip|profinet|snmp",
       "description": "Contextual description of this communication flow",
       "poll_interval_ms": 1000,
       "pattern": "polling|event|periodic"
@@ -683,13 +703,18 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
     # ==================== Connectivity & Hierarchy Validation ====================
 
     # Device type classifications for OT hierarchy
-    CONTROLLER_TYPES = {"plc", "rtu", "dcs", "safety_plc"}
+    CONTROLLER_TYPES = {"plc", "rtu", "dcs", "safety_plc", "traffic_controller", "toll_controller"}
     FIELD_DEVICE_TYPES = {
+        # Traditional OT field devices
         "sensor", "drive", "meter", "io_module", "flow_meter",
         "level_sensor", "pump_controller", "servo", "actuator",
         "temperature_sensor", "pressure_sensor", "valve",
+        # Transportation field devices
+        "radar_sensor", "lidar_sensor", "thermal_sensor", "weather_station",
+        "camera", "video_detector", "anpr_camera", "dms", "rsu",
+        "lighting_controller", "ventilation_controller",
     }
-    SUPERVISORY_TYPES = {"hmi", "scada_server", "historian", "engineering_station"}
+    SUPERVISORY_TYPES = {"hmi", "scada_server", "historian", "engineering_station", "tmc"}
 
     def _ensure_connectivity(
         self,

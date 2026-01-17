@@ -1085,12 +1085,21 @@ async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
     from app.services.cve_data import ALL_CVES
 
     created = 0
+    # Track CVE IDs already processed in this batch to avoid duplicates
+    processed_cve_ids: set[str] = set()
 
     for cve_data in ALL_CVES:
-        # Check if CVE already exists
+        cve_id = cve_data["cve_id"]
+
+        # Skip if we've already processed this CVE ID in this batch
+        if cve_id in processed_cve_ids:
+            continue
+        processed_cve_ids.add(cve_id)
+
+        # Check if CVE already exists in database
         result = await db.execute(
             select(CVEVulnerability).where(
-                CVEVulnerability.cve_id == cve_data["cve_id"]
+                CVEVulnerability.cve_id == cve_id
             )
         )
         existing = result.scalar_one_or_none()
@@ -1158,12 +1167,12 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
 
         # Create variants from CVE's vulnerable_variants list
         for variant_data in cve_data.get("vulnerable_variants", []):
-            # Check if variant already exists
+            # Check if variant already exists (by display_name to allow multiple models)
             result = await db.execute(
                 select(VulnerableFingerprintVariant).where(
                     VulnerableFingerprintVariant.cve_vulnerability_id == cve_record.id,
-                    VulnerableFingerprintVariant.firmware_version
-                    == variant_data["firmware_version"],
+                    VulnerableFingerprintVariant.display_name
+                    == variant_data["display_name"],
                 )
             )
             existing = result.scalar_one_or_none()
@@ -1182,6 +1191,10 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
                     ),
                     s7_identity_override=variant_data.get("s7_identity_override"),
                     cip_identity_override=variant_data.get("cip_identity_override"),
+                    snmp_identity_override=variant_data.get("snmp_identity_override"),
+                    bacnet_identity_override=variant_data.get("bacnet_identity_override"),
+                    # SNMP sys_descr template for auto-derivation
+                    snmp_sys_descr_template=variant_data.get("snmp_sys_descr_template"),
                     target_vendor=cve_data["vendor"],
                     target_product_family=cve_data.get("product_family"),
                     target_models=cve_data.get("affected_models"),

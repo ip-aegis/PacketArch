@@ -35,7 +35,8 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Historian Server
             {"type": "historian", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"]},
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "role": "Historian"},
 
             # Treatment Process PLCs - Schneider M340 with CVE vulnerabilities
             {"type": "plc", "vendor": "schneider", "count": 4, "zone": "process",
@@ -64,15 +65,16 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # VFDs for Pumps - Schneider Altivar ATV930
             {"type": "drive", "vendor": "schneider", "count": 10, "zone": "field",
              "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930",
+             "fingerprint_model": "ATV930D15N4",
              "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
              "role": "Pump Drive"},
 
             # Distributed I/O - Schneider Advantys STB
             {"type": "remote_io", "vendor": "schneider", "count": 8, "zone": "field",
              "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "STB NIP 2311",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003}},
+             "fingerprint_model": "STBNIP2311",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Field I/O Module"},
 
             # Flow Meters - Endress+Hauser (industry-standard instrumentation)
             {"type": "sensor", "vendor": "endress_hauser", "count": 12, "zone": "field",
@@ -98,7 +100,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switch - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 4, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -221,23 +223,23 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # Pump VFDs at Main Station - Schneider Altivar ATV930
             {"type": "drive", "vendor": "schneider", "count": 6, "zone": "process",
              "name_pattern": "VFD-MPS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930",
+             "fingerprint_model": "ATV930D15N4",
              "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
              "role": "Main Pump Drive"},
 
-            # HMI at Main Station - Schneider Magelis with CVE vulnerabilities
+            # HMI at Main Station - Schneider Magelis
             {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "process",
              "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMIST6700",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Operator Station",
-             "cve_ids": ["CVE-2018-7760"]},
+             "role": "Operator Station"},
 
             # Remote I/O - Schneider TM3
             {"type": "remote_io", "vendor": "schneider", "count": 4, "zone": "process",
              "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM3DI32K",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003}},
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Field I/O Module"},
         ],
         "flows": [
             # Slow poll for remote stations (30 seconds, typical for large service area)
@@ -339,7 +341,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # Booster Pump VFDs - Schneider Altivar ATV320 (compact)
             {"type": "drive", "vendor": "schneider", "count": 12, "zone": "remote",
              "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV320",
+             "fingerprint_model": "ATV320U22N4C",
              "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.0004},
              "role": "Booster Pump Drive"},
 
@@ -356,28 +358,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # Pressure Sensors - Schneider OsiSense
             {"type": "sensor", "vendor": "schneider", "count": 20, "zone": "remote",
              "name_pattern": "PT-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "OsiSense XU",
+             "fingerprint_model": "STBNIP2311",
              "role": "Pressure Transmitter"},
 
-            # Control Center HMI - Schneider Magelis with CVE vulnerabilities
+            # Control Center HMI - Schneider Magelis
             {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "enterprise",
              "name_pattern": "OWS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
              "fingerprint_model": "HMIST6700",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Operator Workstation",
-             "cve_ids": ["CVE-2018-7760"]},
+             "role": "Operator Workstation"},
 
-            # Remote HMI (compact) at Booster Stations - Schneider Magelis HMISTM6 with CVE vulnerabilities
+            # Remote HMI (compact) at Booster Stations - Schneider Magelis HMISTM6
             {"type": "hmi", "vendor": "schneider", "count": 6, "zone": "remote",
              "name_pattern": "HMI-BOOST-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMISTM6",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Local Operator Panel",
-             "cve_ids": ["CVE-2018-7760"]},
+             "role": "Local Operator Panel"},
 
             # Network Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 6, "zone": "remote",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -445,5 +445,335 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "scan_ot_ports": True,
             "target_device_types": ["rtu", "plc", "hmi"],
         },
+    },
+
+    # ============================================================
+    # HONEYWELL WATER/WASTEWATER TEMPLATES
+    # ============================================================
+
+    "honeywell_water_treatment": {
+        "name": "Honeywell Experion Water Treatment Plant",
+        "description": "Large municipal water treatment facility using Honeywell Experion PKS "
+                       "DCS for process control. Common in large utilities and industrial water "
+                       "systems. Contains critical vulnerabilities including CVSS 10.0 RCE.",
+        "vertical": "water_wastewater",
+        "devices": [
+            # Experion PKS C300 Controllers (with critical CVE vulnerabilities)
+            {"type": "dcs_controller", "vendor": "honeywell", "count": 4, "zone": "process",
+             "name_pattern": "C300-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "C300",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "DCS Controller",
+             "cve_ids": ["CVE-2020-10628", "CVE-2021-38397"]},
+
+            # Experion PKS C200 Controllers (backup/smaller processes)
+            {"type": "dcs_controller", "vendor": "honeywell", "count": 2, "zone": "process",
+             "name_pattern": "C200-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "C200",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Secondary Controller",
+             "cve_ids": ["CVE-2020-10628", "CVE-2020-6959"]},
+
+            # Experion Server
+            {"type": "scada_server", "vendor": "honeywell", "count": 2, "zone": "enterprise",
+             "name_pattern": "EXPERION-SVR-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "fingerprint_model": "Experion Server",
+             "role": "SCADA Server",
+             "cve_ids": ["CVE-2023-25078"]},
+
+            # Honeywell Safety Manager
+            {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "process",
+             "name_pattern": "SAFETY-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Safety Manager",
+             "role": "Safety Controller"},
+
+            # Field I/O - Honeywell Series C I/O
+            {"type": "remote_io", "vendor": "honeywell", "count": 12, "zone": "field",
+             "name_pattern": "FIO-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Series C I/O",
+             "role": "Field I/O Module"},
+
+            # VFDs for Pumps - Generic Modbus drives
+            {"type": "drive", "vendor": "schneider", "count": 8, "zone": "field",
+             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Pump Drive"},
+
+            # Flow Meters - Endress+Hauser
+            {"type": "sensor", "vendor": "endress_hauser", "count": 10, "zone": "field",
+             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
+             "role": "Flow Transmitter"},
+
+            # Analyzers - Yokogawa
+            {"type": "sensor", "vendor": "yokogawa", "count": 6, "zone": "field",
+             "name_pattern": "AIT-{n:03d}", "protocols": ["modbus_tcp"],
+             "role": "Water Quality Analyzer"},
+
+            # Operator Workstations - Experion Station
+            {"type": "hmi", "vendor": "honeywell", "count": 4, "zone": "enterprise",
+             "name_pattern": "OWS-{n:03d}", "protocols": ["opc_ua"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Workstation"},
+        ],
+        "flows": [
+            # DCS controller polling (250ms - fast DCS cycle)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["dcs_controller"], "target_types": ["remote_io", "sensor"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            # Server to controller (1 second)
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["dcs_controller"]},
+            # HMI to server (500ms)
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["scada_server"]},
+            # Drive control (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["dcs_controller"], "target_types": ["drive"]},
+            # Safety monitoring (100ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["safety_plc"], "target_types": ["dcs_controller"]},
+        ],
+        "zones": [
+            {"id": "enterprise", "name": "Control Center", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "process", "name": "Treatment Process", "level": 2,
+             "subnet_offset": 1, "vlan": 200, "security_level": "standard"},
+            {"id": "field", "name": "Field Devices", "level": 1,
+             "subnet_offset": 2, "vlan": 300, "security_level": "standard"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "timeout"],
+            "protocol": ["modbus_exception", "opc_ua_error"],
+            "sequence": ["out_of_order"],
+            "payload": ["out_of_range_value"],
+            "network": [],
+            "security": ["unauthorized_write", "file_upload_attempt"],  # CVE-2021-38397
+        },
+        "pcap_learning_hints": [
+            {"protocol": "opc_ua", "flow_type": "dcs_communication", "priority": "high",
+             "description": "Experion PKS OPC UA patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "field_io", "priority": "high",
+             "description": "DCS to field I/O communication patterns"},
+        ],
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "https",
+            "c2_pattern": "jittered_5m",
+            "enable_exfil": True,
+            "exfil_protocol": "dns",
+            "exfil_data_size": 1024,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "file_upload_exploit"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["dcs_controller", "scada_server", "hmi"],
+        },
+        "total_duration_ms": 600000,  # 10 minutes
+    },
+
+    # ============================================================
+    # ABB WATER/WASTEWATER TEMPLATES
+    # ============================================================
+
+    "abb_water_treatment": {
+        "name": "ABB AC500 Water Treatment Plant",
+        "description": "Water treatment facility using ABB AC500 PLCs for process control. "
+                       "Common in European water utilities and industrial applications. "
+                       "Contains authentication bypass and buffer overflow vulnerabilities.",
+        "vertical": "water_wastewater",
+        "devices": [
+            # ABB AC500 PM590 PLCs (main controllers with CVE vulnerabilities)
+            {"type": "plc", "vendor": "abb", "count": 4, "zone": "process",
+             "name_pattern": "PLC-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "PM590-ETH",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Process Controller",
+             "cve_ids": ["CVE-2021-22285"]},
+
+            # ABB AC500 PM554 PLCs (compact/remote with buffer overflow CVE)
+            {"type": "plc", "vendor": "abb", "count": 6, "zone": "remote",
+             "name_pattern": "RTU-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM554-TP-ETH",
+             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
+             "role": "Remote RTU",
+             "cve_ids": ["CVE-2019-18253"]},
+
+            # ABB AC500 PM583 PLCs (chemical dosing)
+            {"type": "plc", "vendor": "abb", "count": 2, "zone": "process",
+             "name_pattern": "CHEM-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM583-ETH",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Chemical Controller",
+             "cve_ids": ["CVE-2021-22285"]},
+
+            # ABB CP600 HMI Panels
+            {"type": "hmi", "vendor": "abb", "count": 3, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Operator Panel"},
+
+            # ABB ACS580 Drives for pumps
+            {"type": "drive", "vendor": "abb", "count": 10, "zone": "field",
+             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ACS580",
+             "role": "Pump Drive"},
+
+            # ABB CI501 I/O Modules
+            {"type": "remote_io", "vendor": "abb", "count": 8, "zone": "field",
+             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Remote I/O"},
+
+            # Flow Meters - Endress+Hauser
+            {"type": "sensor", "vendor": "endress_hauser", "count": 8, "zone": "field",
+             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
+             "role": "Flow Transmitter"},
+
+            # Level Sensors
+            {"type": "sensor", "vendor": "endress_hauser", "count": 6, "zone": "field",
+             "name_pattern": "LT-{n:03d}", "protocols": ["modbus_tcp"],
+             "role": "Level Transmitter"},
+        ],
+        "flows": [
+            # PLC to field devices (1 second)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["drive", "remote_io", "sensor"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            # HMI to PLC (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"]},
+            # Remote RTU polling (5 seconds)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+        ],
+        "zones": [
+            {"id": "process", "name": "Treatment Plant", "level": 2,
+             "subnet_offset": 0, "vlan": 100, "security_level": "standard"},
+            {"id": "field", "name": "Field Devices", "level": 1,
+             "subnet_offset": 1, "vlan": 200, "security_level": "standard"},
+            {"id": "remote", "name": "Remote Stations", "level": 1,
+             "subnet_offset": 2, "vlan": 300, "security_level": "minimal"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["modbus_exception"],
+            "sequence": ["out_of_order"],
+            "payload": ["buffer_overflow_attempt"],  # CVE-2019-18253
+            "network": ["packet_loss_wan"],
+            "security": ["auth_bypass_attempt"],  # CVE-2021-22285
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "plc_polling", "priority": "high",
+             "description": "ABB AC500 Modbus communication patterns"},
+            {"protocol": "ethernet_ip", "flow_type": "cip_messaging", "priority": "medium",
+             "description": "ABB EtherNet/IP patterns"},
+        ],
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "dns",
+            "c2_pattern": "jittered_5m",
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "buffer_overflow"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "hmi"],
+        },
+        "total_duration_ms": 600000,  # 10 minutes
+    },
+
+    # ============================================================
+    # SCHNEIDER LEGACY WATER/WASTEWATER TEMPLATES
+    # ============================================================
+
+    "schneider_legacy_water": {
+        "name": "Schneider Legacy Water System",
+        "description": "Older water/wastewater system using legacy Schneider Modicon Premium "
+                       "and Quantum PLCs. Common in facilities not yet upgraded to M580/M340. "
+                       "Contains hardcoded FTP credentials vulnerability (no patch available).",
+        "vertical": "water_wastewater",
+        "devices": [
+            # Modicon Premium PLCs (legacy with hardcoded credentials - NO FIX)
+            {"type": "plc", "vendor": "schneider", "count": 3, "zone": "process",
+             "name_pattern": "PLC-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TSXP57204M",
+             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
+             "role": "Process Controller",
+             "cve_ids": ["CVE-2018-7760"]},
+
+            # Modicon Premium PLCs (remote pumping stations)
+            {"type": "rtu", "vendor": "schneider", "count": 8, "zone": "remote",
+             "name_pattern": "PS-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TSXP57154M",
+             "error_config": {"exception_rate": 0.002, "timeout_rate": 0.003},
+             "role": "Pump Station RTU",
+             "cve_ids": ["CVE-2018-7760"]},
+
+            # Older Magelis HMIs
+            {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "Operator Panel"},
+
+            # Older Altivar drives
+            {"type": "drive", "vendor": "schneider", "count": 12, "zone": "field",
+             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320U22N4C",
+             "role": "Pump Drive"},
+
+            # Advantys STB I/O
+            {"type": "remote_io", "vendor": "schneider", "count": 6, "zone": "field",
+             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
+             "role": "Field I/O Module"},
+        ],
+        "flows": [
+            # Modbus polling (2 seconds - slower legacy)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["drive", "remote_io"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            # HMI to PLC (1 second)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"]},
+            # Remote station polling (10 seconds)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["plc"], "target_types": ["rtu"],
+             "jitter_ms": 1000, "jitter_type": "exponential"},
+        ],
+        "zones": [
+            {"id": "process", "name": "Control Building", "level": 2,
+             "subnet_offset": 0, "vlan": 50, "security_level": "standard"},
+            {"id": "field", "name": "Field Devices", "level": 1,
+             "subnet_offset": 1, "vlan": 60, "security_level": "standard"},
+            {"id": "remote", "name": "Pump Stations", "level": 1,
+             "subnet_offset": 2, "vlan": 70, "security_level": "minimal"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["modbus_exception"],
+            "sequence": [],
+            "payload": [],
+            "network": ["packet_loss_wan"],
+            "security": ["ftp_login_attempt", "hardcoded_cred_exploit"],  # CVE-2018-7760
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "legacy_polling", "priority": "high",
+             "description": "Legacy Modicon Premium communication patterns"},
+        ],
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "ftp",  # FTP-based C2 exploiting hardcoded creds
+            "c2_pattern": "jittered_10m",
+            "enable_exfil": True,
+            "exfil_protocol": "ftp",
+            "exfil_data_size": 4096,
+            "enable_exploits": True,
+            "exploit_patterns": ["ftp_hardcoded_login", "modbus_write_scan"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "rtu"],
+        },
+        "total_duration_ms": 600000,  # 10 minutes
     },
 }

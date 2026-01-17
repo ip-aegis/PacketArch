@@ -33,6 +33,7 @@ from app.models.settings import SystemSetting
 from app.scenario_templates import get_template, list_templates, list_verticals
 from app.services.ai_session_service import AISessionService
 from app.services.ai_scenario_preview_service import AIScenarioPreviewService
+from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.ip_management import IPManagementService
 from app.services.vendor_fingerprints import (
     get_fingerprint_by_vendor_model,
@@ -2727,6 +2728,11 @@ class AIScenarioGenerateRequest(BaseModel):
         None,
         description="Specific counts per device type (e.g., {'plc': 5, 'hmi': 2})",
     )
+    # CVE vulnerability option
+    include_vulnerable_devices: bool = Field(
+        False,
+        description="Include CVE-vulnerable devices for security testing",
+    )
 
 
 class AIScenarioPreviewDevice(BaseModel):
@@ -2738,6 +2744,9 @@ class AIScenarioPreviewDevice(BaseModel):
     vendor: str | None = None
     ip_address: str | None = None
     protocols: list[str] = Field(default_factory=list)
+    # CVE vulnerability info
+    cve_ids: list[str] = Field(default_factory=list)
+    is_vulnerable: bool = False
 
 
 class AIScenarioPreviewFlow(BaseModel):
@@ -2768,6 +2777,9 @@ class AIScenarioPreviewResponse(BaseModel):
     ai_enhanced: bool = False
     ai_features: list[str] = Field(default_factory=list)
     design_rationale: str | None = None
+    # CVE vulnerability stats
+    vulnerable_device_count: int = 0
+    cve_ids_used: list[str] = Field(default_factory=list)
 
 
 @router.post("/scenarios/generate-preview", response_model=AIScenarioPreviewResponse)
@@ -2808,6 +2820,7 @@ async def generate_scenario_preview(
             vertical=request.vertical,
             total_device_count=request.total_device_count,
             device_counts=request.device_counts,
+            include_vulnerable_devices=request.include_vulnerable_devices,
         )
         scenario = result.scenario
         ai_enhanced = result.ai_enhanced
@@ -2843,6 +2856,34 @@ async def generate_scenario_preview(
         for d in scenario.devices
     ]
 
+    # Apply CVE vulnerabilities if requested
+    vulnerable_device_count = 0
+    cve_ids_used: set[str] = set()
+
+    if request.include_vulnerable_devices:
+        import random
+        from app.services.cve_data import get_cves_for_vendor
+
+        high_value_types = {"plc", "rtu", "hmi", "scada_server"}
+
+        for device in devices:
+            if not device.vendor:
+                continue
+
+            vendor_cves = get_cves_for_vendor(device.vendor)
+            if not vendor_cves:
+                continue
+
+            # 25% base probability, 40% for high-value targets
+            prob = 0.40 if device.device_type in high_value_types else 0.25
+
+            if random.random() < prob:
+                selected_cve = random.choice(vendor_cves)
+                device.cve_ids = [selected_cve["cve_id"]]
+                device.is_vulnerable = True
+                vulnerable_device_count += 1
+                cve_ids_used.add(selected_cve["cve_id"])
+
     flows = [
         AIScenarioPreviewFlow(
             flow_id=f.flow_id,
@@ -2869,6 +2910,7 @@ async def generate_scenario_preview(
         "zones": scenario.zones,
         "protocols_used": protocols_used,
         "vendors_used": vendors_used,
+        "include_vulnerable_devices": request.include_vulnerable_devices,
     }
 
     preview_id = await AIScenarioPreviewService.store_preview(
@@ -2890,6 +2932,8 @@ async def generate_scenario_preview(
         ai_enhanced=ai_enhanced,
         ai_features=ai_features,
         design_rationale=design_rationale,
+        vulnerable_device_count=vulnerable_device_count,
+        cve_ids_used=list(cve_ids_used),
     )
 
 
@@ -3001,7 +3045,7 @@ async def create_scenario_from_preview(
     for d in preview.get("devices", []):
         device_id = d["device_id"]
         zone_name = zone_device_map.get(device_id)
-        vendor = d.get("vendor", "").lower()
+        vendor = (d.get("vendor") or "").lower()
         device_type = d.get("device_type", "")
         fingerprint_model = d.get("fingerprint_model")
 
@@ -3112,6 +3156,30 @@ async def create_scenario_from_preview(
             # Response timing
             if fingerprint_data.get("response_timing"):
                 device_def["fingerprint"]["response_timing"] = fingerprint_data["response_timing"]
+
+        # Resolve CVE identity overrides if device has CVE IDs
+        cve_ids = d.get("cve_ids", [])
+        if cve_ids:
+            try:
+                variant = await CVEFingerprintService.get_best_variant_for_device(
+                    db,
+                    vendor=vendor,
+                    fingerprint_model=fingerprint_model,
+                    cve_ids=cve_ids,
+                )
+                if variant:
+                    device_def["vulnerableVariantId"] = str(variant.id)
+                    device_def["vulnerableFirmware"] = variant.firmware_version
+                    device_def["cveIds"] = cve_ids
+                    # Store identity overrides for traffic generation - CRITICAL for CVE detection
+                    device_def["cveIdentityOverrides"] = (
+                        CVEFingerprintService.extract_identity_overrides(variant)
+                    )
+                    logger.info(
+                        f"Resolved CVE for AI device {device_id}: {variant.display_name}"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to resolve CVE for AI device {device_id}: {e}")
 
         devices[device_id] = device_def
 

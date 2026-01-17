@@ -328,7 +328,9 @@ PacketArch is an OT Traffic Simulation Platform with three main subsystems:
 - **Styling**: Ant Design with Cisco-inspired dark theme
 
 ### 2. Traffic Generation (Backend)
-- **Protocol Engines**: `backend/app/protocol_engines/` - Modbus, EtherNet/IP, PROFINET
+- **Protocol Engines**: `backend/app/protocol_engines/` - Modbus, EtherNet/IP, PROFINET, S7comm, BACnet, SNMP
+- **Identity System**: `backend/app/protocol_engines/identity/` - Protocol-specific device identification
+- **Timing System**: `backend/app/protocol_engines/timing/` - Realistic response delay simulation
 - **Orchestrator**: `backend/app/traffic_generator/` - Coordinates engines, timing, PCAP output
 - **Background Jobs**: Celery with Redis for long-running generation tasks
 - **Output**: PCAP files in `./output/pcap/`
@@ -360,15 +362,71 @@ React Flow custom components:
 - `ZoneNode` - Resizable network zone containers
 - `FlowEdge` - Protocol connections with color coding
 
+### Protocol Identity System
+Centralized identity management for protocol-specific device identification responses.
+
+**Architecture:**
+- `ProtocolIdentityBuilder` - Base class for protocol-specific identity builders
+- Registry pattern with `@register_builder` decorator
+- Supports firmware version derivation across protocols
+
+**Supported Protocols:**
+- Modbus: Device identification (MEI function 0x2B)
+- EtherNet/IP: Identity object attributes
+- PROFINET: DCP identify response fields
+- S7comm: SZL system information
+- BACnet: Device object properties
+- SNMP: System MIB OIDs
+
+**Key Files:**
+- `backend/app/protocol_engines/identity/` - Identity builder system
+- `backend/app/protocol_engines/identity/base.py` - Base builder class
+- `backend/app/protocol_engines/identity/*_builder.py` - Protocol-specific builders
+
+### Timing System
+Realistic response delay simulation using statistical distributions.
+
+**Supported Distributions:**
+- Gaussian: Normal distribution (most common for devices)
+- Lognormal: Skewed distribution (network delays)
+- Uniform: Even distribution within bounds
+- Exponential: Memoryless arrivals
+- Gamma: Flexible shape (response times)
+- Learned: Replay from captured samples
+
+**Pre-configured Models:**
+- `DEFAULT_TIMING_CONFIG` - Standard device timing (~15ms mean)
+- `FAST_DEVICE_TIMING_CONFIG` - High-performance devices (~5ms mean)
+- `SLOW_DEVICE_TIMING_CONFIG` - Legacy/slow devices (~50ms mean)
+- `NOISY_NETWORK_TIMING_CONFIG` - Congested networks (~25ms mean, high variance)
+
+**Usage:**
+```python
+from app.protocol_engines.timing import timing_model_from_fingerprint
+
+model = timing_model_from_fingerprint(device.vendor_fingerprint)
+sample = model.sample()
+delay_ms = sample.delay_ms
+```
+
+**Key Files:**
+- `backend/app/protocol_engines/timing/` - Timing model system
+- `backend/app/protocol_engines/timing/interface.py` - TimingConfig, TimingModel protocol
+- `backend/app/protocol_engines/timing/models.py` - Distribution implementations
+- `backend/app/protocol_engines/timing/factory.py` - Model creation functions
+
 ---
 
 ## Supported Protocols
 
 | Protocol | Port | Engine Status |
 |----------|------|---------------|
-| Modbus TCP | 502 | Priority 1 |
-| EtherNet/IP | 44818 (TCP), 2222 (UDP) | Priority 2 |
-| PROFINET | N/A (Layer 2) | Priority 3 |
+| Modbus TCP | 502 | Production |
+| EtherNet/IP | 44818 (TCP), 2222 (UDP) | Production |
+| PROFINET | N/A (Layer 2) | Production |
+| S7comm | 102 (TCP) | Production |
+| BACnet/IP | 47808 (UDP) | Production |
+| SNMP/NTCIP | 161, 162 (UDP) | Production |
 | OPC UA | 4840 | Future |
 | DNP3 | 20000 | Future |
 | IEC 104 | 2404 | Future |
@@ -381,6 +439,8 @@ React Flow custom components:
 - **Water/Wastewater**: SCADA, RTUs, DNP3/Modbus polling
 - **Energy/Power**: Substation RTUs, IEC-104, event bursts
 - **Oil & Gas**: Pipeline SCADA, Modbus/OPC UA, sparse polling
+- **Building Automation/BMS**: Commercial buildings, campus BMS, data centers with BACnet/IP, Modbus TCP
+- **Transportation/ITS**: Highway corridors, urban intersections, tunnels, toll plazas with SNMP/NTCIP
 
 ---
 
@@ -417,7 +477,7 @@ Learn traffic patterns from existing PCAP files to create realistic scenarios.
 - Upload PCAP files for analysis
 - Extract device fingerprints and communication patterns
 - Generate scenario templates from learned patterns
-- Support for Modbus, EtherNet/IP, and PROFINET protocols
+- Support for Modbus, EtherNet/IP, PROFINET, S7comm, BACnet, and SNMP protocols
 
 ### API Endpoints
 | Method | Endpoint | Description |
@@ -449,6 +509,8 @@ Templates are defined in `backend/app/scenario_templates/`:
 - `water.py` - Water/Wastewater templates
 - `energy.py` - Energy/Power templates
 - `oil_gas.py` - Oil & Gas templates
+- `building_automation.py` - Building Automation/BMS templates
+- `transportation.py` - Transportation/ITS templates
 - `phases.py` - Traffic phase definitions
 
 ---
@@ -511,6 +573,50 @@ PacketArch can deploy traffic generators to remote Docker hosts, allowing traffi
 
 ---
 
+## Cisco Cyber Vision Integration
+
+Integrate with Cisco Cyber Vision for device discovery, comparison, and enrichment.
+
+### Overview
+PacketArch can connect to Cisco Cyber Vision centers to compare simulated devices against real discovered devices, match by MAC/IP address, and push enrichment data back to CV.
+
+### Features
+- **Device Discovery**: Fetch devices, presets, and vulnerabilities from Cyber Vision
+- **Scenario Comparison**: Compare PacketArch scenario devices against CV-discovered devices
+- **Device Matching**: Match by MAC address (100% confidence) or IP address (95% confidence)
+- **Device Enrichment**: Push vendor, model, firmware, and custom properties to CV devices
+- **Vulnerability Tracking**: View vulnerabilities detected by Cyber Vision
+
+### API Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/cyber-vision/settings` | Get CV connection settings |
+| PUT | `/api/v1/cyber-vision/settings` | Update CV connection settings |
+| GET | `/api/v1/cyber-vision/status` | Check CV connection status |
+| POST | `/api/v1/cyber-vision/test-connection` | Test connection with credentials |
+| GET | `/api/v1/cyber-vision/presets` | List CV presets |
+| GET | `/api/v1/cyber-vision/devices` | List CV devices (paginated) |
+| GET | `/api/v1/cyber-vision/devices/{id}` | Get device details |
+| GET | `/api/v1/cyber-vision/vulnerabilities` | List CV vulnerabilities |
+| POST | `/api/v1/cyber-vision/compare/{scenario_id}` | Compare scenario against CV |
+| POST | `/api/v1/cyber-vision/enrich` | Push device data to CV |
+
+### Configuration
+1. Navigate to Settings > Cyber Vision
+2. Enter your Cyber Vision center URL (e.g., `https://cv-center.example.com`)
+3. Provide an API token with appropriate permissions
+4. Configure SSL verification (disable for self-signed certificates)
+
+### Key Files
+- `backend/app/api/routes/cyber_vision.py` - API endpoints
+- `backend/app/services/cyber_vision_service.py` - CV API client
+- `backend/app/schemas/cyber_vision.py` - Pydantic schemas
+- `frontend/src/pages/CyberVisionPage.tsx` - CV comparison UI
+- `frontend/src/api/cyberVision.ts` - Frontend API client
+- `frontend/src/stores/cyberVisionStore.ts` - Zustand state
+
+---
+
 ## AI-Enhanced Features
 
 ### Natural Language Scenario Generation
@@ -558,6 +664,7 @@ Supported contexts:
 │   │   │   ├── learning.py    # PCAP learning
 │   │   │   ├── anomalies.py   # Anomaly injection
 │   │   │   ├── docker_hosts.py # Docker host management
+│   │   │   ├── cyber_vision.py # Cisco CV integration
 │   │   │   ├── ai.py          # AI assistant & help
 │   │   │   └── ...
 │   │   ├── core/              # Config, DB, security
@@ -567,17 +674,30 @@ Supported contexts:
 │   │   │   ├── docker_host.py # Docker host model
 │   │   │   └── ...
 │   │   ├── schemas/           # Pydantic schemas
+│   │   │   ├── cyber_vision.py # CV API schemas
+│   │   │   └── ...
 │   │   ├── services/          # Business logic
 │   │   │   ├── ip_management.py # IP allocation service
 │   │   │   ├── docker_service.py # Docker API client
+│   │   │   ├── cyber_vision_service.py # CV API client
 │   │   │   └── ...
 │   │   ├── scenario_templates/ # Industry vertical templates
 │   │   │   ├── manufacturing.py
 │   │   │   ├── water.py
 │   │   │   ├── energy.py
 │   │   │   ├── oil_gas.py
+│   │   │   ├── building_automation.py # BMS templates
+│   │   │   ├── transportation.py # ITS templates
 │   │   │   └── phases.py
 │   │   ├── protocol_engines/  # OT protocol implementations
+│   │   │   ├── modbus/        # Modbus TCP engine
+│   │   │   ├── ethernet_ip/   # EtherNet/IP engine
+│   │   │   ├── profinet/      # PROFINET engine
+│   │   │   ├── s7/            # S7comm engine
+│   │   │   ├── bacnet/        # BACnet/IP engine
+│   │   │   ├── snmp/          # SNMP/NTCIP engine
+│   │   │   ├── identity/      # Protocol identity builders
+│   │   │   └── timing/        # Timing model system
 │   │   ├── traffic_generator/ # PCAP generation
 │   │   ├── ai_services/       # AI scenario generation
 │   │   └── mcp_server/        # AI integration
@@ -588,6 +708,7 @@ Supported contexts:
 │       │   ├── scenarios.ts   # Scenario API
 │       │   ├── ipManagement.ts # IP management API
 │       │   ├── learning.ts    # Learning API
+│       │   ├── cyberVision.ts # CV API client
 │       │   └── ...
 │       ├── components/        # UI components
 │       │   ├── canvas/        # React Flow canvas
@@ -597,6 +718,7 @@ Supported contexts:
 │       │   ├── learning/      # Learning components
 │       │   └── admin/         # Admin components
 │       │       ├── DockerHostsTab.tsx     # Docker hosts UI
+│       │       ├── CyberVisionTab.tsx     # CV settings UI
 │       │       └── DockerHostHelpDrawer.tsx # Help with AI chat
 │       ├── content/help/      # Help system content
 │       │   ├── index.ts       # Help registry
@@ -605,8 +727,11 @@ Supported contexts:
 │       │   ├── ScenariosPage.tsx
 │       │   ├── IPManagementPage.tsx
 │       │   ├── LearningPage.tsx
+│       │   ├── CyberVisionPage.tsx # CV comparison UI
 │       │   └── ...
 │       ├── stores/            # Zustand state
+│       │   ├── cyberVisionStore.ts # CV state management
+│       │   └── ...
 │       └── types/             # TypeScript types
 ├── docker/                     # Docker Compose
 └── docs/                       # Documentation

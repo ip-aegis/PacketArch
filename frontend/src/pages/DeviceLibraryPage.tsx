@@ -87,6 +87,8 @@ const verticalColors: Record<string, string> = {
   water_wastewater: '#00BCEB',
   energy_power: '#FBAB18',
   oil_gas: '#FF7043',
+  transportation: '#9C27B0',
+  building_automation: '#00BCD4',
 };
 
 const DeviceLibraryPage: React.FC = () => {

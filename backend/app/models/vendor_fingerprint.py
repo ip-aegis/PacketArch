@@ -68,6 +68,21 @@ class VendorFingerprint(Base):
         nullable=True,
         comment="PROFINET DCP identity block data",
     )
+    s7_identity: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="S7comm SZL identity data (order_code, firmware_version)",
+    )
+    snmp_identity: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="SNMP system identity (sys_descr, sys_object_id, sys_name)",
+    )
+    bacnet_identity: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="BACnet I-Am identity (vendor_id, model_name, firmware_revision)",
+    )
 
     # TCP/IP stack fingerprint characteristics
     tcp_stack: Mapped[dict] = mapped_column(

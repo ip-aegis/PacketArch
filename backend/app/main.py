@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import admin, ai, anomalies, auth, cve, deployments, devices, docker_hosts, fingerprints, generation, health, ip_management, learning, protocols, scenarios, stats, templates, users
+from app.api.routes import admin, ai, anomalies, auth, cve, cyber_vision, deployments, devices, docker_hosts, fingerprints, generation, health, ip_management, learning, protocols, scenarios, stats, templates, users
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
@@ -102,6 +102,7 @@ app.include_router(fingerprints.router, prefix=settings.api_prefix)
 app.include_router(ip_management.router, prefix=settings.api_prefix)
 app.include_router(stats.router, prefix=settings.api_prefix)
 app.include_router(cve.router, prefix=settings.api_prefix)
+app.include_router(cyber_vision.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(http_sse.router, prefix=settings.api_prefix)
 

@@ -12,6 +12,7 @@ import IPManagementPage from './pages/IPManagementPage';
 import CVEBrowserPage from './pages/CVEBrowserPage';
 import HelpPage from './pages/HelpPage';
 import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
+import CyberVisionPage from './pages/CyberVisionPage';
 import SettingsPage from './pages/admin/SettingsPage';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
         <Route path="deployments" element={<DeploymentsPage />} />
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
+        <Route path="cyber-vision" element={<CyberVisionPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="help/:articleId" element={<HelpPage />} />
 

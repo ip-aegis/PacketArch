@@ -45,6 +45,8 @@ import {
   RocketOutlined,
   RobotOutlined,
   InboxOutlined,
+  CarOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { Upload } from 'antd';
@@ -64,6 +66,8 @@ const verticalConfig: Record<string, { icon: React.ReactNode; color: string; lab
   water_wastewater: { icon: <ExperimentOutlined />, color: '#00BCEB', label: 'Water/Wastewater' },
   energy_power: { icon: <ThunderboltOutlined />, color: '#FBAB18', label: 'Energy/Power' },
   oil_gas: { icon: <ApiOutlined />, color: '#FF7043', label: 'Oil & Gas' },
+  transportation: { icon: <CarOutlined />, color: '#9C27B0', label: 'Transportation' },
+  building_automation: { icon: <HomeOutlined />, color: '#00BCD4', label: 'Building Automation' },
 };
 
 const formatDuration = (ms: number): string => {

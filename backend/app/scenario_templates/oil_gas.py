@@ -36,7 +36,8 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Historian
             {"type": "historian", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"]},
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "role": "Historian"},
 
             # Compressor/Pump Station PLCs - Schneider M340 with CVE vulnerabilities
             {"type": "plc", "vendor": "schneider", "count": 6, "zone": "process",
@@ -111,7 +112,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 8, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -260,7 +261,8 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_io", "vendor": "schneider", "count": 16, "zone": "field",
              "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM3DI32K",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003}},
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Field I/O Module"},
 
             # Operator Stations - Schneider Magelis HMIST6700 with CVE vulnerabilities
             {"type": "hmi", "vendor": "schneider", "count": 6, "zone": "enterprise",
@@ -272,7 +274,8 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Historian
             {"type": "historian", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"]},
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "role": "Historian"},
 
             # Shore Communication Gateway
             {"type": "gateway", "vendor": "schneider", "count": 2, "zone": "enterprise",
@@ -291,7 +294,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 8, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -414,13 +417,15 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_io", "vendor": "schneider", "count": 24, "zone": "field",
              "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "STB NIP 2311",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003}},
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Field I/O Module"},
 
             # Safety I/O - Schneider TM5 Safety
             {"type": "safety_io", "vendor": "schneider", "count": 8, "zone": "safety",
              "name_pattern": "SIO-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM5CSLC100FS",
-             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001}},
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "role": "Safety I/O Module"},
 
             # Analyzers (many) - Yokogawa (industry standard)
             {"type": "sensor", "vendor": "yokogawa", "count": 24, "zone": "field",
@@ -466,11 +471,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Historian
             {"type": "historian", "vendor": "schneider", "count": 2, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"]},
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "role": "Historian"},
 
             # Network Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 12, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -620,7 +626,8 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_io", "vendor": "schneider", "count": 12, "zone": "process",
              "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM3DI32K",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003}},
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Field I/O Module"},
 
             # Operator Stations - Schneider Magelis HMISTM6 (compact) with CVE vulnerabilities
             {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "enterprise",
@@ -640,7 +647,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 6, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
         ],
@@ -705,6 +712,408 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": False,  # Too noisy for remote sites
             "scan_ot_ports": False,
             "target_device_types": ["rtu", "hmi"],
+        },
+    },
+
+    "honeywell_experion_refinery": {
+        "name": "Honeywell Experion PKS Refinery",
+        "description": "Petroleum refinery using Honeywell Experion PKS distributed control system. "
+                       "Features C300/C200 controllers with authentication bypass vulnerabilities, "
+                       "Safety Manager for SIS, and Experion Server for supervisory control.",
+        "vertical": "oil_gas",
+        "devices": [
+            # Experion PKS C300 Controllers (authentication bypass CVE-2020-10628)
+            {"type": "plc", "vendor": "honeywell", "count": 12, "zone": "process",
+             "name_pattern": "C300-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "C300",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "DCS Controller",
+             "cve_ids": ["CVE-2020-10628"]},
+
+            # Experion PKS C200 Controllers (authentication bypass CVE-2020-10628)
+            {"type": "plc", "vendor": "honeywell", "count": 6, "zone": "process",
+             "name_pattern": "C200-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "C200",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "DCS Controller",
+             "cve_ids": ["CVE-2020-10628"]},
+
+            # Experion Server (file upload RCE CVE-2021-38397)
+            {"type": "scada_server", "vendor": "honeywell", "count": 2, "zone": "enterprise",
+             "name_pattern": "EXPSVR-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "fingerprint_model": "Experion Server",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "role": "Experion Server",
+             "cve_ids": ["CVE-2021-38397"]},
+
+            # Safety Manager FSC (authentication bypass CVE-2022-30315)
+            {"type": "safety_plc", "vendor": "honeywell", "count": 4, "zone": "safety",
+             "name_pattern": "SM-FSC-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Safety Manager",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-30315"]},
+
+            # Series C I/O Modules
+            {"type": "remote_io", "vendor": "honeywell", "count": 24, "zone": "field",
+             "name_pattern": "CIO-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Series C I/O",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
+
+            # Experion Stations (operator workstations)
+            {"type": "hmi", "vendor": "honeywell", "count": 8, "zone": "enterprise",
+             "name_pattern": "EXP-WS-{n:03d}", "protocols": ["opc_ua"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Station"},
+
+            # Yokogawa Analyzers (common in refineries)
+            {"type": "sensor", "vendor": "yokogawa", "count": 16, "zone": "field",
+             "name_pattern": "AIT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "GC8000",
+             "role": "Process Analyzer"},
+
+            # Endress+Hauser Flow Meters (CVE-2023-1617)
+            {"type": "sensor", "vendor": "endress_hauser", "count": 20, "zone": "field",
+             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "cve_ids": ["CVE-2023-1617"],
+             "role": "Flow Transmitter"},
+
+            # Honeywell Enraf Level Gauges
+            {"type": "sensor", "vendor": "honeywell", "count": 12, "zone": "field",
+             "name_pattern": "LT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Optiflex 6000",
+             "role": "Level Gauge"},
+        ],
+        "flows": [
+            # DCS control (100ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["remote_io"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+            # Inter-controller (250ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+            # Safety system (50ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 50,
+             "source_types": ["safety_plc"], "target_types": ["remote_io"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            # SCADA to controllers
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["plc"]},
+            # Operator displays
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["scada_server"]},
+            # Analyzer polling (10 seconds)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["plc"], "target_types": ["sensor"]},
+        ],
+        "zones": [
+            {"id": "enterprise", "name": "Plant Network", "level": 3,
+             "subnet_offset": 0, "vlan": 10, "security_level": "high"},
+            {"id": "process", "name": "Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 20, "security_level": "standard"},
+            {"id": "field", "name": "Field Network", "level": 1,
+             "subnet_offset": 2, "vlan": 30, "security_level": "standard"},
+            {"id": "safety", "name": "Safety Network", "level": 2,
+             "subnet_offset": 3, "vlan": 40, "security_level": "critical"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "jitter_spike"],
+            "protocol": ["modbus_exception"],
+            "sequence": [],
+            "payload": ["setpoint_deviation"],
+            "network": [],
+            "security": ["authentication_bypass", "unauthorized_file_upload"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "experion_control", "priority": "high",
+             "description": "Honeywell Experion C300/C200 communication patterns"},
+            {"protocol": "opc_ua", "flow_type": "experion_supervision", "priority": "high",
+             "description": "Experion Server OPC UA patterns"},
+        ],
+        "total_duration_ms": 600000,
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "https",
+            "c2_pattern": "jittered_5m",
+            "enable_exfil": True,
+            "exfil_protocol": "https",
+            "exfil_data_size": 1024,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["scada_server", "hmi", "safety_plc"],
+        },
+    },
+
+    "emerson_deltav_plant": {
+        "name": "Emerson DeltaV Process Plant",
+        "description": "Chemical or petrochemical plant using Emerson DeltaV DCS. Features MD Plus "
+                       "and S-Series controllers with RCE and authentication vulnerabilities, "
+                       "ROC800 RTUs for remote operations, and comprehensive field instrumentation.",
+        "vertical": "oil_gas",
+        "devices": [
+            # DeltaV MD Plus Controllers (RCE CVE-2022-29966)
+            {"type": "plc", "vendor": "emerson", "count": 10, "zone": "process",
+             "name_pattern": "MD-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "MD Plus",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "DCS Controller",
+             "cve_ids": ["CVE-2022-29966"]},
+
+            # DeltaV S-Series Controllers (missing auth CVE-2022-30262)
+            {"type": "plc", "vendor": "emerson", "count": 6, "zone": "process",
+             "name_pattern": "SS-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "S-Series",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "DCS Controller",
+             "cve_ids": ["CVE-2022-30262"]},
+
+            # ROC800 RTUs for remote tank farms (command injection CVE-2023-46687)
+            {"type": "rtu", "vendor": "emerson", "count": 8, "zone": "remote",
+             "name_pattern": "ROC-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ROC800",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0003},
+             "role": "Remote RTU",
+             "cve_ids": ["CVE-2023-46687"]},
+
+            # ROC800L for wellsites (command injection CVE-2023-46687)
+            {"type": "rtu", "vendor": "emerson", "count": 12, "zone": "remote",
+             "name_pattern": "ROCL-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ROC800L",
+             "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.001},
+             "role": "Wellsite RTU",
+             "cve_ids": ["CVE-2023-46687"]},
+
+            # Rosemount Transmitters
+            {"type": "sensor", "vendor": "emerson", "count": 40, "zone": "field",
+             "name_pattern": "PT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "3051S",
+             "role": "Pressure Transmitter"},
+
+            # Micro Motion Flow Meters
+            {"type": "sensor", "vendor": "emerson", "count": 15, "zone": "field",
+             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "5700",
+             "role": "Flow Meter"},
+
+            # Fisher Control Valves (FIELDVUE)
+            {"type": "actuator", "vendor": "emerson", "count": 25, "zone": "field",
+             "name_pattern": "CV-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "DVC6200",
+             "role": "Control Valve"},
+
+            # Operator Workstations (generic)
+            {"type": "hmi", "vendor": "emerson", "count": 6, "zone": "enterprise",
+             "name_pattern": "OWS-{n:03d}", "protocols": ["opc_ua"],
+             "role": "Operator Station"},
+
+            # Historian
+            {"type": "historian", "vendor": "emerson", "count": 2, "zone": "enterprise",
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua"],
+             "role": "Historian"},
+        ],
+        "flows": [
+            # DCS control (100ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["sensor", "actuator"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+            # EtherNet/IP I/O
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # RTU polling (slow for remote)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["rtu"],
+             "jitter_ms": 2000, "jitter_type": "exponential"},
+            # Historian collection
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["historian"], "target_types": ["plc"]},
+            # Operator displays
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"]},
+        ],
+        "zones": [
+            {"id": "enterprise", "name": "Plant Network", "level": 3,
+             "subnet_offset": 0, "vlan": 10, "security_level": "high"},
+            {"id": "process", "name": "Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 20, "security_level": "standard"},
+            {"id": "field", "name": "Field Network", "level": 1,
+             "subnet_offset": 2, "vlan": 30, "security_level": "standard"},
+            {"id": "remote", "name": "Remote Sites", "level": 1,
+             "subnet_offset": 3, "vlan": 40, "security_level": "minimal"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["modbus_exception"],
+            "sequence": [],
+            "payload": ["setpoint_deviation"],
+            "network": ["packet_loss_satellite"],
+            "security": ["remote_code_execution", "command_injection"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "deltav_control", "priority": "high",
+             "description": "Emerson DeltaV controller communication patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "roc_polling", "priority": "high",
+             "description": "ROC800 RTU slow polling patterns"},
+        ],
+        "total_duration_ms": 900000,
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "dns",
+            "c2_pattern": "jittered_10m",
+            "enable_exfil": True,
+            "exfil_protocol": "dns",
+            "exfil_data_size": 256,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "rtu", "hmi"],
+        },
+    },
+
+    "yokogawa_centum_refinery": {
+        "name": "Yokogawa CENTUM VP Refinery",
+        "description": "Large petroleum refinery using Yokogawa CENTUM VP DCS with ProSafe-RS "
+                       "safety system. Features authentication bypass vulnerabilities in both "
+                       "DCS and SIS controllers, with comprehensive process instrumentation.",
+        "vertical": "oil_gas",
+        "devices": [
+            # CENTUM VP Field Control Stations (auth bypass CVE-2022-21177)
+            {"type": "plc", "vendor": "yokogawa", "count": 16, "zone": "process",
+             "name_pattern": "FCS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "CENTUM VP",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Field Control Station",
+             "cve_ids": ["CVE-2022-21177", "CVE-2019-6008"]},
+
+            # ProSafe-RS Safety Controllers (auth bypass CVE-2023-26593)
+            {"type": "safety_plc", "vendor": "yokogawa", "count": 6, "zone": "safety",
+             "name_pattern": "SCS-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ProSafe-RS",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2023-26593"]},
+
+            # Yokogawa Gas Chromatographs
+            {"type": "sensor", "vendor": "yokogawa", "count": 8, "zone": "field",
+             "name_pattern": "GC-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "GC8000",
+             "role": "Gas Chromatograph"},
+
+            # Yokogawa TDLS Analyzers
+            {"type": "sensor", "vendor": "yokogawa", "count": 12, "zone": "field",
+             "name_pattern": "AIT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TDLS8000",
+             "role": "Laser Analyzer"},
+
+            # Yokogawa Pressure Transmitters
+            {"type": "sensor", "vendor": "yokogawa", "count": 60, "zone": "field",
+             "name_pattern": "PT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EJA530A",
+             "role": "Pressure Transmitter"},
+
+            # Yokogawa pH Analyzers
+            {"type": "sensor", "vendor": "yokogawa", "count": 16, "zone": "field",
+             "name_pattern": "QIT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH Analyzer"},
+
+            # Endress+Hauser Flow Meters (CVE-2023-1617)
+            {"type": "sensor", "vendor": "endress_hauser", "count": 30, "zone": "field",
+             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "cve_ids": ["CVE-2023-1617"],
+             "role": "Flow Meter"},
+
+            # Emerson Control Valves
+            {"type": "actuator", "vendor": "emerson", "count": 45, "zone": "field",
+             "name_pattern": "CV-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "DVC6200",
+             "role": "Control Valve"},
+
+            # Operator Workstations
+            {"type": "hmi", "vendor": "yokogawa", "count": 10, "zone": "enterprise",
+             "name_pattern": "HIS-{n:03d}", "protocols": ["opc_ua"],
+             "role": "Human Interface Station"},
+
+            # Engineering Stations
+            {"type": "engineering_station", "vendor": "yokogawa", "count": 2, "zone": "enterprise",
+             "name_pattern": "ENG-{n:03d}", "protocols": ["opc_ua"],
+             "role": "Engineering Station"},
+
+            # Historian
+            {"type": "historian", "vendor": "yokogawa", "count": 2, "zone": "enterprise",
+             "name_pattern": "EXAOPC-{n:03d}", "protocols": ["opc_ua"],
+             "role": "Historian"},
+        ],
+        "flows": [
+            # DCS control (100ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["sensor", "actuator"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+            # Safety system (50ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 50,
+             "source_types": ["safety_plc"], "target_types": ["sensor"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            # Inter-controller (250ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+            # Analyzer polling (10 seconds)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["plc"], "target_types": ["sensor"]},
+            # Historian collection
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["historian"], "target_types": ["plc"]},
+            # Operator displays
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"]},
+            # Engineering station to PLCs (configuration/monitoring)
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["engineering_station"], "target_types": ["plc"]},
+        ],
+        "zones": [
+            {"id": "enterprise", "name": "Plant Network", "level": 3,
+             "subnet_offset": 0, "vlan": 10, "security_level": "high"},
+            {"id": "process", "name": "Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 20, "security_level": "standard"},
+            {"id": "field", "name": "Field Network", "level": 1,
+             "subnet_offset": 2, "vlan": 30, "security_level": "standard"},
+            {"id": "safety", "name": "Safety Network", "level": 2,
+             "subnet_offset": 3, "vlan": 40, "security_level": "critical"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "jitter_spike"],
+            "protocol": ["modbus_exception"],
+            "sequence": [],
+            "payload": ["setpoint_deviation", "out_of_range_value"],
+            "network": [],
+            "security": ["authentication_bypass", "safety_system_tampering"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "centum_control", "priority": "high",
+             "description": "Yokogawa CENTUM VP FCS communication patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "prosafe_safety", "priority": "high",
+             "description": "ProSafe-RS safety system communication patterns"},
+        ],
+        "total_duration_ms": 600000,
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "https",
+            "c2_pattern": "jittered_5m",
+            "enable_exfil": True,
+            "exfil_protocol": "https",
+            "exfil_data_size": 1024,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "safety_plc", "hmi"],
         },
     },
 }

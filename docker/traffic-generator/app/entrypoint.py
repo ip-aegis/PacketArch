@@ -62,11 +62,14 @@ def build_device_fingerprint(device: dict, protocol: str) -> dict:
         {}
     )
 
-    # Merge CVE identity overrides
+    # Merge CVE identity overrides (all protocol identity types)
     cve_overrides = device.get("cveIdentityOverrides", {})
     if cve_overrides:
         logger.info(f"Device {device.get('name')}: Merging CVE overrides: {list(cve_overrides.keys())}")
-        for key in ["modbus_identity", "ethernet_ip_identity", "profinet_identity", "cip_identity_object"]:
+        for key in [
+            "modbus_identity", "ethernet_ip_identity", "profinet_identity",
+            "cip_identity_object", "bacnet_identity", "snmp_identity", "s7_identity"
+        ]:
             if key in cve_overrides:
                 if key in fingerprint and isinstance(fingerprint[key], dict):
                     fingerprint[key].update(cve_overrides[key])
@@ -145,7 +148,17 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
         )
 
         # Get destination port based on protocol
-        default_port = 502 if protocol == "modbus_tcp" else 44818
+        PROTOCOL_PORTS = {
+            "modbus_tcp": 502,
+            "s7comm": 102,
+            "s7comm_plus": 102,
+            "ethernet_ip": 44818,
+            "bacnet_ip": 47808,
+            "dnp3": 20000,
+            "opcua": 4840,
+            "iec104": 2404,
+        }
+        default_port = PROTOCOL_PORTS.get(protocol, 44818)
 
         destination = DeviceContext(
             device_id=target_device.get("id", ""),

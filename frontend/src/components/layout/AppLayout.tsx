@@ -21,6 +21,7 @@ import {
   GlobalOutlined,
   BugOutlined,
   LockOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -84,6 +85,11 @@ const AppLayout: React.FC = () => {
       key: '/cves',
       icon: <BugOutlined />,
       label: 'CVE Browser',
+    },
+    {
+      key: '/cyber-vision',
+      icon: <EyeOutlined />,
+      label: 'Cyber Vision',
     },
   ];
 

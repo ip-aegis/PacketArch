@@ -40,6 +40,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "9.80",
                 "display_name": "PACSystems RX3i CPE400 (CVE-2022-23925)",
+                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Automation",
                     "product_code": "IC695CPE400",
@@ -58,6 +59,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "9.70",
                 "display_name": "PACSystems RX3i CPE330 (CVE-2022-23925)",
+                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE330 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Automation",
                     "product_code": "IC695CPE330",
@@ -107,6 +109,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "03.04.00",
                 "display_name": "MarkVIe (CVE-2021-27426)",
+                "snmp_sys_descr_template": "GE Energy MarkVIe Speedtronic Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Energy",
                     "product_code": "MarkVIe",
@@ -151,6 +154,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "9.45",
                 "display_name": "PACSystems RX3i (CVE-2020-12525)",
+                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Automation",
                     "product_code": "IC695CPE400",
@@ -200,6 +204,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "7.2",
                 "display_name": "Proficy Historian (CVE-2022-46660)",
+                "snmp_sys_descr_template": "GE Digital Proficy Historian v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Digital",
                     "product_code": "Proficy-Historian",
@@ -242,6 +247,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "9.30",
                 "display_name": "PACSystems RX3i CPE400 (CVE-2018-10936)",
+                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Automation",
                     "product_code": "IC695CPE400",
@@ -259,6 +265,7 @@ GE_EMERSON_CVES: list[dict] = [
             {
                 "firmware_version": "9.21",
                 "display_name": "PACSystems RX3i CPE310 (CVE-2018-10936)",
+                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE310 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "GE Automation",
                     "product_code": "IC695CPE310",

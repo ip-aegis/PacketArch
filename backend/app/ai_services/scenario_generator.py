@@ -183,6 +183,87 @@ VERTICAL_TEMPLATES = {
         "zones": ["wellhead", "pipeline", "refinery", "control_room"],
         "poll_intervals_ms": {"fast": 500, "normal": 2000, "slow": 10000},
     },
+    "transportation": {
+        "name": "Transportation ITS",
+        "description": "Traffic management, toll systems, tunnels, and highway operations",
+        "typical_devices": {
+            "traffic_controller": {
+                "count_range": (2, 20),
+                "vendors": ["econolite", "siemens_its", "mccain"],
+                "fingerprint_models": {
+                    "econolite": "Cobalt ATC",
+                    "siemens_its": "M60",
+                    "mccain": "2070 ATC",
+                },
+                "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
+            },
+            "dms": {
+                "count_range": (1, 10),
+                "vendors": ["daktronics"],
+                "fingerprint_models": {
+                    "daktronics": "Venus 1500",
+                },
+                "error_config": {"exception_rate": 0.002, "timeout_rate": 0.003},
+            },
+            "rsu": {
+                "count_range": (2, 20),
+                "vendors": ["q-free", "kapsch"],
+                "fingerprint_models": {
+                    "q-free": "RSU 5000",
+                    "kapsch": "TCS 2000",
+                },
+                "error_config": {"exception_rate": 0.001, "timeout_rate": 0.001},
+            },
+            "radar_sensor": {
+                "count_range": (5, 50),
+                "vendors": ["wavetronix"],
+                "fingerprint_models": {
+                    "wavetronix": "SmartSensor HD",
+                },
+                "error_config": {"exception_rate": 0.002, "timeout_rate": 0.003},
+            },
+            "weather_station": {
+                "count_range": (1, 10),
+                "vendors": ["vaisala"],
+                "fingerprint_models": {
+                    "vaisala": "RWIS500",
+                },
+            },
+            "camera": {
+                "count_range": (5, 30),
+                "vendors": ["axis", "pelco", "hikvision"],
+                "fingerprint_models": {
+                    "axis": "P1455-LE",
+                    "pelco": "Spectra Enhanced",
+                    "hikvision": "DS-2CD7A26G0/P",
+                },
+            },
+            "thermal_sensor": {
+                "count_range": (2, 20),
+                "vendors": ["flir"],
+                "fingerprint_models": {
+                    "flir": "TrafiOne",
+                },
+            },
+            "lighting_controller": {
+                "count_range": (2, 10),
+                "vendors": ["siemens_its"],
+                "fingerprint_models": {
+                    "siemens_its": "TCS-LIGHT",
+                },
+            },
+            "ventilation_controller": {
+                "count_range": (1, 5),
+                "vendors": ["siemens_its"],
+                "fingerprint_models": {
+                    "siemens_its": "TCS-VENT",
+                },
+            },
+        },
+        "protocols": ["snmp"],
+        "zones": ["tmc", "field", "corridor", "tunnel"],
+        "poll_intervals_ms": {"fast": 500, "normal": 2000, "slow": 10000},
+    },
 }
 
 # Device type to protocol mapping
@@ -201,6 +282,20 @@ DEVICE_PROTOCOL_MAP = {
     "level_sensor": ["modbus_tcp"],
     "flow_computer": ["modbus_tcp", "opc_ua"],
     "compressor_controller": ["modbus_tcp", "ethernet_ip"],
+    # Transportation device types - SNMP/NTCIP based
+    "traffic_controller": ["snmp"],
+    "dms": ["snmp"],
+    "rsu": ["snmp"],
+    "radar_sensor": ["snmp"],
+    "lidar_sensor": ["snmp"],
+    "weather_station": ["snmp"],
+    "camera": ["snmp"],
+    "thermal_sensor": ["snmp"],
+    "lighting_controller": ["snmp"],
+    "ventilation_controller": ["snmp"],
+    "toll_controller": ["snmp"],
+    "anpr_camera": ["snmp"],
+    "video_detector": ["snmp"],
 }
 
 # Keywords for entity extraction
@@ -213,6 +308,19 @@ DEVICE_KEYWORDS = {
     "sensor": ["sensor", "transmitter", "probe", "detector"],
     "ied": ["ied", "intelligent electronic device", "relay"],
     "meter": ["meter", "power meter", "energy meter"],
+    # Transportation device types
+    "traffic_controller": ["traffic controller", "signal controller", "atc", "traffic signal", "intersection controller"],
+    "dms": ["dms", "dynamic message sign", "variable message sign", "vms", "message board", "highway sign"],
+    "rsu": ["rsu", "roadside unit", "v2x", "connected vehicle", "dsrc"],
+    "radar_sensor": ["radar", "vehicle detector", "smartsensor", "traffic sensor"],
+    "lidar_sensor": ["lidar", "laser scanner", "3d scanner"],
+    "weather_station": ["weather station", "rwis", "environmental sensor", "roadway weather"],
+    "camera": ["camera", "cctv", "surveillance", "its camera", "traffic camera"],
+    "thermal_sensor": ["thermal", "infrared", "flir", "thermal detector"],
+    "lighting_controller": ["lighting controller", "tunnel lighting", "bridge lighting"],
+    "ventilation_controller": ["ventilation", "tunnel fan", "air handling"],
+    "toll_controller": ["toll", "tolling", "etc", "electronic toll"],
+    "anpr_camera": ["anpr", "lpr", "license plate", "plate reader"],
 }
 
 VENDOR_KEYWORDS = {
@@ -223,6 +331,20 @@ VENDOR_KEYWORDS = {
     "honeywell": ["honeywell", "experion", "c300"],
     "emerson": ["emerson", "deltav", "ovation", "roc"],
     "ge": ["ge", "general electric", "mark vi", "rx3i"],
+    # Transportation vendors
+    "econolite": ["econolite", "cobalt", "asc/3", "autoscope"],
+    "siemens_its": ["siemens its", "m60", "atc-940", "siemens traffic"],
+    "mccain": ["mccain", "170e", "2070", "atms"],
+    "wavetronix": ["wavetronix", "smartsensor", "advance"],
+    "flir": ["flir", "trafione", "trafisense", "thermal"],
+    "vaisala": ["vaisala", "rwis", "weather sensor"],
+    "daktronics": ["daktronics", "venus", "vanguard"],
+    "axis": ["axis", "axis communications"],
+    "pelco": ["pelco", "spectra"],
+    "hikvision": ["hikvision", "ds-"],
+    "bosch": ["bosch", "mic ip"],
+    "kapsch": ["kapsch", "traffics", "tcs"],
+    "q-free": ["q-free", "qfree", "tolling"],
 }
 
 PROTOCOL_KEYWORDS = {
@@ -232,6 +354,7 @@ PROTOCOL_KEYWORDS = {
     "opc_ua": ["opc ua", "opc-ua", "opcua", "opc unified"],
     "dnp3": ["dnp3", "dnp 3", "distributed network protocol"],
     "iec_104": ["iec 104", "iec104", "iec 60870-5-104", "iec-104"],
+    "snmp": ["snmp", "ntcip", "mib", "simple network management"],
 }
 
 VERTICAL_KEYWORDS = {
@@ -239,6 +362,11 @@ VERTICAL_KEYWORDS = {
     "water": ["water", "wastewater", "treatment plant", "pumping station", "utility"],
     "energy": ["power", "energy", "substation", "grid", "generation", "transmission"],
     "oil_gas": ["oil", "gas", "pipeline", "refinery", "petrochemical", "upstream", "downstream"],
+    "transportation": [
+        "transportation", "traffic", "highway", "freeway", "interstate", "toll", "tunnel", "bridge",
+        "its", "intelligent transportation", "tmc", "traffic management", "intersection", "corridor",
+        "roadway", "arterial", "signal", "dms", "ramp meter", "connected vehicle", "v2x",
+    ],
 }
 
 
@@ -984,18 +1112,26 @@ class ScenarioGenerator:
         """
         # Zone-based subnets
         zone_subnets = {
+            # Manufacturing zones
             "process_control": "10.10.1",
             "safety": "10.10.2",
             "enterprise": "10.10.100",
+            # Water/Wastewater zones
             "scada": "10.20.1",
             "field": "10.20.10",
             "corporate": "10.20.100",
+            # Energy zones
             "substation": "10.30.1",
             "control_center": "10.30.100",
+            # Oil & Gas zones
             "wellhead": "10.40.1",
             "pipeline": "10.40.10",
             "refinery": "10.40.20",
             "control_room": "10.40.100",
+            # Transportation zones
+            "tmc": "10.50.1",  # Traffic Management Center
+            "corridor": "10.50.10",  # Highway/Arterial Corridor
+            "tunnel": "10.50.20",  # Tunnel/Bridge Infrastructure
         }
 
         subnet = zone_subnets.get(zone, "192.168.1")

@@ -42,7 +42,7 @@ from app.protocol_engines.modbus.packets import (
     build_tcp_handshake_syn,
     build_tcp_handshake_syn_ack,
 )
-from app.protocol_engines.timing import get_response_delay
+from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
     FlowContext,

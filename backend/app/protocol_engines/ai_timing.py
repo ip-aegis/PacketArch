@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 from scipy import stats
 
-from app.protocol_engines.timing import JitterModel
+from app.protocol_engines.jitter import JitterModel
 
 logger = logging.getLogger(__name__)
 

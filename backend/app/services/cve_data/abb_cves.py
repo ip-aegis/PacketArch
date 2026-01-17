@@ -41,6 +41,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "6.0.3.2",
                 "display_name": "System 800xA (CVE-2020-8477)",
+                "snmp_sys_descr_template": "ABB System 800xA DCS v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "800xA",
@@ -91,6 +92,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "2.8.4",
                 "display_name": "AC500 PM590 (CVE-2021-22285)",
+                "snmp_sys_descr_template": "ABB AC500 PM590-ETH PLC v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "PM590-ETH",
@@ -109,6 +111,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "2.7.2",
                 "display_name": "AC500 PM583 (CVE-2021-22285)",
+                "snmp_sys_descr_template": "ABB AC500 PM583-ETH PLC v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "PM583-ETH",
@@ -158,6 +161,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "3.4.1",
                 "display_name": "SPIET800 (CVE-2022-26057)",
+                "snmp_sys_descr_template": "ABB SPI SPIET800 Ethernet Interface v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "SPIET800",
@@ -200,6 +204,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "2.5.1",
                 "display_name": "PM554-TP-ETH (CVE-2019-18253)",
+                "snmp_sys_descr_template": "ABB AC500 PM554-TP-ETH PLC v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "PM554-TP-ETH",
@@ -250,6 +255,7 @@ ABB_CVES: list[dict] = [
             {
                 "firmware_version": "3.0 SP2",
                 "display_name": "Symphony Plus (CVE-2020-8481)",
+                "snmp_sys_descr_template": "ABB Symphony Plus S+ Operations v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "ABB",
                     "product_code": "Symphony-Plus",

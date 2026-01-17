@@ -6,6 +6,8 @@ from .manufacturing import MANUFACTURING_TEMPLATES
 from .water import WATER_TEMPLATES
 from .energy import ENERGY_TEMPLATES
 from .oil_gas import OIL_GAS_TEMPLATES
+from .transportation import TRANSPORTATION_TEMPLATES
+from .building_automation import BUILDING_AUTOMATION_TEMPLATES
 from .phases import PHASE_TEMPLATES, get_default_phases
 
 
@@ -15,6 +17,8 @@ VERTICAL_TEMPLATES: dict[str, dict[str, Any]] = {
     "water_wastewater": WATER_TEMPLATES,
     "energy_power": ENERGY_TEMPLATES,
     "oil_gas": OIL_GAS_TEMPLATES,
+    "transportation": TRANSPORTATION_TEMPLATES,
+    "building_automation": BUILDING_AUTOMATION_TEMPLATES,
 }
 
 

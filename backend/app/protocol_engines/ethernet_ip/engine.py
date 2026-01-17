@@ -43,9 +43,11 @@ from app.protocol_engines.modbus.packets import (
     build_tcp_handshake_syn,
     build_tcp_handshake_syn_ack,
 )
-from app.protocol_engines.timing import get_response_delay
+from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
+    ConversationStateBase,
+    EtherNetIPConversationState,
     FlowContext,
     PacketEvent,
     ProtocolType,
@@ -60,22 +62,20 @@ class EtherNetIPEngine(ProtocolEngine):
     def protocol_type(self) -> ProtocolType:
         return ProtocolType.ETHERNET_IP
 
-    def create_initial_state(self, flow: FlowContext) -> ConversationState:
-        """Create initial conversation state."""
-        return ConversationState(
+    def create_initial_state(self, flow: FlowContext) -> EtherNetIPConversationState:
+        """Create initial conversation state using typed EtherNetIPConversationState."""
+        return EtherNetIPConversationState(
             flow_id=flow.flow_id,
             state_name="unconnected",
             transaction_id=0,
             sequence_number=random.randint(1, 65535),
-            custom_data={
-                "tcp_seq_client": random.randint(1000, 9999),
-                "tcp_seq_server": random.randint(1000, 9999),
-                "tcp_ack_client": 0,
-                "tcp_ack_server": 0,
-                "session_handle": 0,
-                "connection_id": 0,
-                "io_sequence": 0,
-            },
+            tcp_seq_client=random.randint(1000, 9999),
+            tcp_seq_server=random.randint(1000, 9999),
+            tcp_ack_client=0,
+            tcp_ack_server=0,
+            session_handle=0,
+            connection_id=0,
+            io_sequence=0,
         )
 
     def generate_startup_sequence(

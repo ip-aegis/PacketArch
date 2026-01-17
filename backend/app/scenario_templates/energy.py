@@ -41,25 +41,47 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Bay Controller",
              "cve_ids": ["CVE-2021-22681"]},
 
-            # Protection Relays - SEL (industry standard for protection)
+            # Protection Relays - SEL (industry standard - auth bypass & OpenSSL vulns)
             {"type": "protection_relay", "vendor": "sel", "count": 8, "zone": "process",
              "name_pattern": "SEL-{n:03d}", "protocols": ["iec104", "dnp3"],
+             "fingerprint_model": "SEL-751",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2023-2745", "CVE-2022-0778"],
              "role": "Line Protection"},
 
-            # Protection Relays - ABB (transformer protection)
+            # Protection Relays - ABB (transformer protection - auth bypass)
             {"type": "protection_relay", "vendor": "abb", "count": 6, "zone": "process",
              "name_pattern": "REL-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "REF615",
+             "cve_ids": ["CVE-2021-22287"],
              "role": "Transformer Protection"},
 
-            # Protection Relays - Siemens (bus protection)
+            # Protection Relays - Siemens 7SJ85 (bus protection - DoS via malformed packets)
             {"type": "protection_relay", "vendor": "siemens", "count": 4, "zone": "process",
              "name_pattern": "7SJ-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7SJ85",
+             "cve_ids": ["CVE-2019-18285"],
              "role": "Bus Protection"},
 
-            # Metering - Schneider ION (industry standard)
+            # Protection Relays - Siemens 7SL87 (line differential - info disclosure)
+            {"type": "protection_relay", "vendor": "siemens", "count": 4, "zone": "process",
+             "name_pattern": "7SL-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7SL87",
+             "cve_ids": ["CVE-2020-8568"],
+             "role": "Line Differential"},
+
+            # Protection Relays - SEL-451 (bay control with OpenSSL vuln)
+            {"type": "protection_relay", "vendor": "sel", "count": 4, "zone": "process",
+             "name_pattern": "SEL451-{n:03d}", "protocols": ["iec104", "dnp3"],
+             "fingerprint_model": "SEL-451",
+             "cve_ids": ["CVE-2022-0778"],
+             "role": "Bay Controller"},
+
+            # Metering - Schneider ION (DoS vuln)
             {"type": "meter", "vendor": "schneider", "count": 12, "zone": "field",
              "name_pattern": "PM-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "cve_ids": ["CVE-2021-22714"],
              "role": "Power Meter"},
 
             # Transformer Monitoring
@@ -72,7 +94,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_io", "vendor": "rockwell", "count": 8, "zone": "field",
              "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002}},
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
 
             # Local HMI - Rockwell PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "process",
@@ -88,8 +111,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switch - Rockwell Stratix
             {"type": "switch", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
-             "fingerprint_model": "Stratix 5700",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
              "role": "Industrial Switch"},
         ],
         "flows": [
@@ -228,8 +251,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switch - Rockwell Stratix
             {"type": "switch", "vendor": "rockwell", "count": 3, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
-             "fingerprint_model": "Stratix 5700",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
              "role": "Industrial Switch"},
         ],
         "flows": [
@@ -360,11 +383,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_io", "vendor": "rockwell", "count": 16, "zone": "field",
              "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "5094-AEN2TR",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002}},
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
 
             # Historian
             {"type": "historian", "vendor": "rockwell", "count": 2, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "ethernet_ip"]},
+             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "ethernet_ip"],
+             "role": "Historian"},
 
             # Operator Stations - Rockwell PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 6, "zone": "enterprise",
@@ -387,8 +412,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Network Switches - Rockwell Stratix
             {"type": "switch", "vendor": "rockwell", "count": 8, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": [],
-             "fingerprint_model": "Stratix 5700",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
              "role": "Industrial Switch"},
         ],
         "flows": [
@@ -458,6 +483,379 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,  # Recon-only for detection testing
             "scan_ot_ports": True,
             "target_device_types": ["plc", "safety_plc", "hmi"],
+        },
+    },
+
+    "ge_multilin_substation": {
+        "name": "GE Multilin Protection Substation",
+        "description": "High-voltage transmission substation with GE Multilin protection relays. "
+                       "Features 850 feeder protection with hardcoded credentials vulnerability, "
+                       "F650 bay controllers, and T60 transformer protection with buffer overflow vulnerability.",
+        "vertical": "energy_power",
+        "devices": [
+            # Substation RTU/Gateway - Rockwell ControlLogix L73
+            {"type": "rtu", "vendor": "rockwell", "count": 2, "zone": "process",
+             "name_pattern": "RTU-{n:03d}", "protocols": ["ethernet_ip", "dnp3"],
+             "fingerprint_model": "1756-L73",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Substation Gateway",
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
+
+            # GE Multilin 850 Feeder Protection (hardcoded credentials vulnerability)
+            {"type": "protection_relay", "vendor": "ge", "count": 8, "zone": "process",
+             "name_pattern": "GE850-{n:03d}", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "850",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2019-10935"],
+             "role": "Feeder Protection"},
+
+            # GE Multilin F650 Bay Controller (hardcoded credentials vulnerability)
+            {"type": "protection_relay", "vendor": "ge", "count": 6, "zone": "process",
+             "name_pattern": "GEF650-{n:03d}", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "F650",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2019-10935"],
+             "role": "Bay Controller"},
+
+            # GE Multilin T60 Transformer Protection (buffer overflow vulnerability)
+            {"type": "protection_relay", "vendor": "ge", "count": 4, "zone": "process",
+             "name_pattern": "GET60-{n:03d}", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "T60",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2018-10936"],
+             "role": "Transformer Protection"},
+
+            # Metering - Schneider ION8650 Power Quality (DoS vuln)
+            {"type": "meter", "vendor": "schneider", "count": 10, "zone": "field",
+             "name_pattern": "ION-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2021-22714"],
+             "role": "Power Quality Meter"},
+
+            # Remote I/O - Rockwell Point I/O
+            {"type": "remote_io", "vendor": "rockwell", "count": 8, "zone": "field",
+             "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
+
+            # Local HMI - Rockwell PanelView Plus 7
+            {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
+             "fingerprint_model": "PanelView Plus 7",
+             "role": "Operator Station"},
+
+            # Network Switch - Rockwell Stratix
+            {"type": "switch", "vendor": "rockwell", "count": 3, "zone": "process",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # DNP3 polling from RTU to GE relays
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+            # Modbus TCP polling from RTU to meters
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["meter"]},
+            # EtherNet/IP I/O
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["rtu"], "target_types": ["remote_io"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # HMI to RTU
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["rtu"]},
+            # SNMP monitoring of network switches
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["switch"]},
+        ],
+        "zones": [
+            {"id": "process", "name": "Substation LAN", "level": 2,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "field", "name": "Process Bus", "level": 1,
+             "subnet_offset": 1, "vlan": 101, "security_level": "standard"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["dnp3_internal_error", "modbus_exception"],
+            "sequence": ["out_of_order"],
+            "payload": [],
+            "network": [],
+            "security": ["unauthorized_control", "hardcoded_creds_attempt"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "dnp3", "flow_type": "relay_polling", "priority": "high",
+             "description": "Learn GE Multilin protection relay communication patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "metering", "priority": "medium",
+             "description": "ION8650 power quality meter patterns"},
+        ],
+        "total_duration_ms": 600000,
+        "external_comms": {
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["rtu", "protection_relay"],
+        },
+    },
+
+    "sel_comprehensive_protection": {
+        "name": "SEL Comprehensive Protection System",
+        "description": "Large transmission substation using diverse SEL protection relay portfolio. "
+                       "Includes SEL-751 feeder protection, SEL-451 bay controllers, SEL-311C line "
+                       "protection, SEL-487E transformer protection, and SEL-2411 automation controllers. "
+                       "Features authentication bypass and OpenSSL vulnerabilities.",
+        "vertical": "energy_power",
+        "devices": [
+            # Substation Automation Controller - SEL-2411
+            {"type": "rtu", "vendor": "sel", "count": 2, "zone": "process",
+             "name_pattern": "SEL2411-{n:03d}", "protocols": ["dnp3", "iec104"],
+             "fingerprint_model": "SEL-2411",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2022-0778"],
+             "role": "Automation Controller"},
+
+            # SEL-751 Feeder Protection (authentication bypass)
+            {"type": "protection_relay", "vendor": "sel", "count": 12, "zone": "process",
+             "name_pattern": "SEL751-{n:03d}", "protocols": ["dnp3", "iec104"],
+             "fingerprint_model": "SEL-751",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2023-2745", "CVE-2022-0778"],
+             "role": "Feeder Protection"},
+
+            # SEL-451 Bay Controller (OpenSSL vulnerability)
+            {"type": "protection_relay", "vendor": "sel", "count": 8, "zone": "process",
+             "name_pattern": "SEL451-{n:03d}", "protocols": ["dnp3", "iec104"],
+             "fingerprint_model": "SEL-451",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2022-0778"],
+             "role": "Bay Controller"},
+
+            # SEL-311C Line Protection (OpenSSL vulnerability)
+            {"type": "protection_relay", "vendor": "sel", "count": 6, "zone": "process",
+             "name_pattern": "SEL311C-{n:03d}", "protocols": ["dnp3", "iec104"],
+             "fingerprint_model": "SEL-311C",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2022-0778"],
+             "role": "Line Protection"},
+
+            # SEL-487E Transformer Protection (OpenSSL vulnerability)
+            {"type": "protection_relay", "vendor": "sel", "count": 4, "zone": "process",
+             "name_pattern": "SEL487E-{n:03d}", "protocols": ["dnp3", "iec104"],
+             "fingerprint_model": "SEL-487E",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2022-0778"],
+             "role": "Transformer Protection"},
+
+            # Metering - Schneider PM8000
+            {"type": "meter", "vendor": "schneider", "count": 8, "zone": "field",
+             "name_pattern": "PM-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "role": "Power Meter"},
+
+            # Remote I/O - Rockwell Point I/O
+            {"type": "remote_io", "vendor": "rockwell", "count": 10, "zone": "field",
+             "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
+
+            # Local HMI - Rockwell PanelView Plus 7
+            {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
+             "fingerprint_model": "PanelView Plus 7",
+             "role": "Operator Station"},
+
+            # Network Switch - Rockwell Stratix
+            {"type": "switch", "vendor": "rockwell", "count": 4, "zone": "process",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # DNP3 polling from automation controller to relays
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "jitter_ms": 300, "jitter_type": "gaussian"},
+            # IEC 104 spontaneous reporting
+            {"protocol": "iec104", "pattern": "spontaneous", "interval_ms": 0,
+             "source_types": ["protection_relay"], "target_types": ["rtu"]},
+            # Modbus TCP metering
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["meter"]},
+            # EtherNet/IP I/O
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["hmi"], "target_types": ["remote_io"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # HMI to automation controller
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["rtu"]},
+            # SNMP monitoring
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["switch"]},
+        ],
+        "zones": [
+            {"id": "process", "name": "Substation LAN", "level": 2,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "field", "name": "Process Bus", "level": 1,
+             "subnet_offset": 1, "vlan": 101, "security_level": "standard"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["dnp3_internal_error", "iec104_internal_error"],
+            "sequence": ["spontaneous_storm", "out_of_order"],
+            "payload": [],
+            "network": [],
+            "security": ["authentication_bypass", "openssl_exploit_attempt"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "dnp3", "flow_type": "sel_relay_comms", "priority": "high",
+             "description": "Learn SEL protection relay DNP3 communication patterns"},
+            {"protocol": "iec104", "flow_type": "spontaneous_events", "priority": "high",
+             "description": "Capture SEL relay IEC 104 event reporting"},
+        ],
+        "total_duration_ms": 600000,
+        "external_comms": {
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["rtu", "protection_relay"],
+        },
+    },
+
+    "siemens_relay_substation": {
+        "name": "Siemens SIPROTEC Protection Substation",
+        "description": "Transmission substation featuring comprehensive Siemens SIPROTEC 5 relay portfolio. "
+                       "Includes 7SJ85 overcurrent, 7SL87 line differential, 7UT87 transformer differential, "
+                       "and 7SD87 distance protection relays with DoS and information disclosure vulnerabilities.",
+        "vertical": "energy_power",
+        "devices": [
+            # Substation RTU - Rockwell ControlLogix
+            {"type": "rtu", "vendor": "rockwell", "count": 2, "zone": "process",
+             "name_pattern": "RTU-{n:03d}", "protocols": ["ethernet_ip", "iec104"],
+             "fingerprint_model": "1756-L73",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Substation Gateway",
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
+
+            # Siemens 7SJ85 Overcurrent Protection (DoS vulnerability)
+            {"type": "protection_relay", "vendor": "siemens", "count": 8, "zone": "process",
+             "name_pattern": "7SJ85-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7SJ85",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2019-18285"],
+             "role": "Overcurrent Protection"},
+
+            # Siemens 7SL87 Line Differential (info disclosure vulnerability)
+            {"type": "protection_relay", "vendor": "siemens", "count": 6, "zone": "process",
+             "name_pattern": "7SL87-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7SL87",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2020-8568"],
+             "role": "Line Differential"},
+
+            # Siemens 7UT87 Transformer Differential (DoS vulnerability)
+            {"type": "protection_relay", "vendor": "siemens", "count": 4, "zone": "process",
+             "name_pattern": "7UT87-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7UT87",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2019-18285"],
+             "role": "Transformer Differential"},
+
+            # Siemens 7SD87 Distance Protection (DoS vulnerability)
+            {"type": "protection_relay", "vendor": "siemens", "count": 6, "zone": "process",
+             "name_pattern": "7SD87-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "7SD87",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "cve_ids": ["CVE-2019-18285"],
+             "role": "Distance Protection"},
+
+            # ABB REX640 Protection (IEC 61850 - auth bypass)
+            {"type": "protection_relay", "vendor": "abb", "count": 4, "zone": "process",
+             "name_pattern": "REX-{n:03d}", "protocols": ["iec104"],
+             "fingerprint_model": "REX640",
+             "cve_ids": ["CVE-2021-22287"],
+             "role": "IEC 61850 Protection"},
+
+            # Metering - Schneider ION8650
+            {"type": "meter", "vendor": "schneider", "count": 10, "zone": "field",
+             "name_pattern": "ION-{n:03d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2021-22714"],
+             "role": "Power Quality Meter"},
+
+            # Remote I/O - Rockwell FLEX 5000
+            {"type": "remote_io", "vendor": "rockwell", "count": 8, "zone": "field",
+             "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Field I/O Module"},
+
+            # Local HMI - Rockwell PanelView 800
+            {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "PanelView 800",
+             "role": "Local Panel"},
+
+            # Network Switch - Rockwell Stratix
+            {"type": "switch", "vendor": "rockwell", "count": 4, "zone": "process",
+             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
+             "fingerprint_model": "Stratix",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # IEC 104 polling from RTU to SIPROTEC relays
+            {"protocol": "iec104", "pattern": "gi", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"]},
+            # IEC 104 spontaneous reporting
+            {"protocol": "iec104", "pattern": "spontaneous", "interval_ms": 0,
+             "source_types": ["protection_relay"], "target_types": ["rtu"]},
+            # Modbus TCP metering
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["meter"]},
+            # EtherNet/IP I/O
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["rtu"], "target_types": ["remote_io"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # HMI to RTU
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["rtu"]},
+            # SNMP monitoring
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["switch"]},
+        ],
+        "zones": [
+            {"id": "process", "name": "Substation LAN", "level": 2,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "field", "name": "Process Bus", "level": 1,
+             "subnet_offset": 1, "vlan": 101, "security_level": "standard"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "delayed_response"],
+            "protocol": ["iec104_internal_error"],
+            "sequence": ["spontaneous_storm", "out_of_order"],
+            "payload": [],
+            "network": [],
+            "security": ["siprotec_dos_attempt", "info_disclosure_attempt"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "iec104", "flow_type": "siprotec_comms", "priority": "high",
+             "description": "Learn Siemens SIPROTEC 5 IEC 104 communication patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "metering", "priority": "medium",
+             "description": "ION8650 power quality meter patterns"},
+        ],
+        "total_duration_ms": 600000,
+        "external_comms": {
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["rtu", "protection_relay"],
         },
     },
 }

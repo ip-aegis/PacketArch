@@ -62,6 +62,8 @@ from app.protocol_engines.s7.engine import S7Engine  # noqa: E402, F401
 from app.protocol_engines.opc_ua.engine import OpcUaEngine  # noqa: E402, F401
 from app.protocol_engines.dnp3.engine import Dnp3Engine  # noqa: E402, F401
 from app.protocol_engines.iec104.engine import Iec104Engine  # noqa: E402, F401
+from app.protocol_engines.snmp.engine import SnmpEngine  # noqa: E402, F401
+from app.protocol_engines.bacnet.engine import BACnetEngine  # noqa: E402, F401
 
 # AI-enhanced engines
 from app.protocol_engines.ai_enhanced_base import (  # noqa: E402, F401
@@ -97,6 +99,8 @@ __all__ = [
     "OpcUaEngine",
     "Dnp3Engine",
     "Iec104Engine",
+    "SnmpEngine",
+    "BACnetEngine",
     # AI-enhanced
     "AIEnhancedProtocolEngine",
     "AIEnhancedEngineFactory",

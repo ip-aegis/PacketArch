@@ -33,11 +33,13 @@ from app.protocol_engines.profinet.packets import (
     generate_io_data,
 )
 from app.protocol_engines.profinet.states import RTCycleState
-from app.protocol_engines.timing import apply_jitter, get_response_delay
+from app.protocol_engines.jitter import apply_jitter, get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
+    ConversationStateBase,
     FlowContext,
     PacketEvent,
+    ProfinetConversationState,
     ProtocolType,
 )
 

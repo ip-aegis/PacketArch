@@ -36,7 +36,7 @@ from app.protocol_engines.opc_ua.packets import (
     build_read_request,
     build_read_response,
 )
-from app.protocol_engines.timing import get_response_delay
+from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
     FlowContext,

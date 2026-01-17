@@ -27,13 +27,13 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CPU 1517-3 PN/DP",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Process Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
             {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
              "name_pattern": "PLC-AUX-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "CPU 1511-1 PN",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
-             "cve_ids": ["CVE-2019-13945"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2022-38465"]},
 
             # HMI Layer - Siemens Comfort and Basic Panels
             {"type": "hmi", "vendor": "siemens", "count": 3, "zone": "process",
@@ -149,7 +149,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CPU 1517-3 PN/DP",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Robot Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
 
             # Safety PLCs - Siemens S7-1500F with PROFIsafe (with CVE vulnerabilities)
             {"type": "safety_plc", "vendor": "siemens", "count": 4, "zone": "process",
@@ -157,7 +157,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CPU 1516F-3 PN/DP",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
-             "cve_ids": ["CVE-2019-13945"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2022-38465"]},
 
             # Vision systems - Keep SICK (specialty vendor)
             {"type": "sensor", "vendor": "sick", "count": 6, "zone": "field",
@@ -266,14 +266,14 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CPU 1517-3 PN/DP",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Motion Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
 
             # Palletizing controllers - Siemens S7-1500 (with CVE vulnerabilities)
             {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
              "name_pattern": "PALLET-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "CPU 1511-1 PN",
              "role": "Palletizing Controller",
-             "cve_ids": ["CVE-2019-13945"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2022-38465"]},
 
             # Servo drives - Siemens SINAMICS S120 for motion
             {"type": "servo", "vendor": "siemens", "count": 12, "zone": "field",
@@ -766,9 +766,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "2711R-T7T",
              "role": "Operator Interface"},
 
-            # SCADA server for Modbus polling
-            {"type": "scada_server", "vendor": "generic", "count": 1, "zone": "enterprise",
+            # SCADA server for Modbus polling (GE Proficy Historian with SQL Injection vuln)
+            {"type": "scada_server", "vendor": "ge", "count": 1, "zone": "enterprise",
              "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
              "role": "SCADA Server"},
         ],
         "flows": [
@@ -822,5 +824,200 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "target_device_types": ["plc", "hmi"],
         },
         "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # SIEMENS LEGACY AND BUDGET TEMPLATES
+    # ============================================================
+
+    "siemens_legacy_manufacturing": {
+        "name": "Siemens Legacy Manufacturing Cell",
+        "description": "Brownfield manufacturing cell with legacy Siemens S7-300 and S7-400 PLCs. "
+                       "Common in older facilities not yet upgraded to S7-1500. "
+                       "Contains devices with known DoS vulnerability (CVE-2019-13103).",
+        "vertical": "manufacturing",
+        "devices": [
+            # Legacy S7-300 PLCs (with CVE vulnerability)
+            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
+             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "CPU 315-2 PN/DP",
+             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
+             "role": "Process Controller",
+             "cve_ids": ["CVE-2019-13103"]},
+
+            # Legacy S7-400 PLCs for coordination (with CVE vulnerability)
+            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
+             "name_pattern": "PLC-MAIN-{n:03d}", "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "CPU 416-3 PN/DP",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Main Controller",
+             "cve_ids": ["CVE-2019-13103"]},
+
+            # Older HMI panels - Siemens Basic Panels
+            {"type": "hmi", "vendor": "siemens", "count": 3, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "KTP900 Basic",
+             "role": "Operator Interface"},
+
+            # Older SINAMICS drives
+            {"type": "drive", "vendor": "siemens", "count": 8, "zone": "field",
+             "name_pattern": "VFD-{n:03d}", "protocols": ["profinet"],
+             "fingerprint_model": "SINAMICS G120C",
+             "role": "Variable Frequency Drive"},
+
+            # Distributed I/O - ET 200MP (older than SP)
+            {"type": "io_module", "vendor": "siemens", "count": 12, "zone": "field",
+             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet"],
+             "fingerprint_model": "ET 200MP IM155-5 PN",
+             "role": "Distributed I/O"},
+
+            # Network Infrastructure - Siemens SCALANCE
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "field",
+             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "SCALANCE XB208",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # PROFINET cyclic IO (slower for legacy - 8ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # HMI polling via S7comm (1000ms)
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+            # SNMP monitoring (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["switch"]},
+        ],
+        "zones": [
+            {"id": "process", "name": "Process Control Zone", "level": 2,
+             "subnet_offset": 0, "vlan": 30},
+            {"id": "field", "name": "Field Device Zone", "level": 1,
+             "subnet_offset": 1, "vlan": 40},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "timeout", "watchdog_timeout"],
+            "protocol": ["profinet_alarm", "s7comm_error"],
+            "sequence": ["duplicate", "out_of_order"],
+            "payload": ["value_spike"],
+            "network": [],
+            "security": ["dos_attack"],  # CVE-2019-13103 exploitation
+        },
+        "pcap_learning_hints": [
+            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
+             "description": "Learn PROFINET RT cycle timing from legacy S7-300/400"},
+            {"protocol": "s7comm", "flow_type": "hmi_polling", "priority": "high",
+             "description": "Capture S7comm communication patterns (legacy protocol)"},
+        ],
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "http",
+            "c2_pattern": "jittered_30s",
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["s7_stop_cpu", "s7_dos"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "hmi"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    "siemens_small_manufacturing": {
+        "name": "Siemens Small Manufacturing Cell",
+        "description": "Budget-friendly manufacturing cell with Siemens S7-1200 PLCs. "
+                       "Common in smaller facilities or machine-level applications. "
+                       "Contains devices with known web server vulnerability (CVE-2019-10929).",
+        "vertical": "manufacturing",
+        "devices": [
+            # S7-1200 PLCs (with CVE vulnerability)
+            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
+             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "CPU 1214C DC/DC/DC",
+             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
+             "role": "Machine Controller",
+             "cve_ids": ["CVE-2019-10929"]},
+
+            # S7-1200F Safety PLCs
+            {"type": "safety_plc", "vendor": "siemens", "count": 2, "zone": "process",
+             "name_pattern": "SAFETY-{n:03d}", "protocols": ["profinet", "profisafe"],
+             "fingerprint_model": "CPU 1214FC DC/DC/DC",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2019-10929"]},
+
+            # Basic HMI panels
+            {"type": "hmi", "vendor": "siemens", "count": 2, "zone": "process",
+             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "KTP900 Basic",
+             "role": "Operator Interface"},
+
+            # Small drives
+            {"type": "drive", "vendor": "siemens", "count": 6, "zone": "field",
+             "name_pattern": "VFD-{n:03d}", "protocols": ["profinet"],
+             "fingerprint_model": "SINAMICS G120C",
+             "role": "Variable Frequency Drive"},
+
+            # Distributed I/O - Siemens ET 200SP
+            {"type": "io_module", "vendor": "siemens", "count": 8, "zone": "field",
+             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet"],
+             "fingerprint_model": "ET 200SP IM155-6 PN",
+             "role": "Distributed I/O"},
+
+            # Network switch
+            {"type": "switch", "vendor": "siemens", "count": 1, "zone": "field",
+             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "SCALANCE XB208",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # PROFINET cyclic IO (4ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            # Safety communication via PROFIsafe (8ms)
+            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 8,
+             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"]},
+            # HMI polling via S7comm+ (500ms)
+            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+            # SNMP monitoring (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["switch"]},
+        ],
+        "zones": [
+            {"id": "process", "name": "Cell Control Zone", "level": 2,
+             "subnet_offset": 0, "vlan": 50},
+            {"id": "field", "name": "Field Devices", "level": 1,
+             "subnet_offset": 1, "vlan": 51},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "timeout"],
+            "protocol": ["profinet_alarm", "s7comm_error", "profisafe_error"],
+            "sequence": ["duplicate"],
+            "payload": ["value_spike"],
+            "network": [],
+            "security": ["web_server_dos"],  # CVE-2019-10929 exploitation
+        },
+        "pcap_learning_hints": [
+            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
+             "description": "Capture S7-1200 PROFINET communication patterns"},
+            {"protocol": "s7comm_plus", "flow_type": "hmi_polling", "priority": "medium",
+             "description": "S7-1200 HMI polling patterns"},
+        ],
+        "external_comms": {
+            "enable_c2": True,
+            "c2_protocol": "http",
+            "c2_pattern": "jittered_1m",
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["s7_stop_cpu", "web_server_dos"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["plc", "hmi"],
+        },
+        "total_duration_ms": 180000,  # 3 minutes
     },
 }

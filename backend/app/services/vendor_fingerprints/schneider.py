@@ -41,6 +41,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Modicon M580 ePAC",
                 "model_name": "BMEP586040",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M580 BMEP586040 Firmware V3.30",
+                "sys_name": "M580-BMEP586040",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.580",
+                "sys_location": "Control Room",
+            },
             "ethernet_ip_identity": {
                 "vendor_id": SCHNEIDER_ODVA_VENDOR_ID,
                 "device_type": 14,  # PLC
@@ -95,6 +101,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Modicon M580 ePAC Hot Standby",
                 "model_name": "BMEH586040",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M580 BMEH586040 Hot Standby Firmware V3.30",
+                "sys_name": "M580-BMEH586040",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.580",
+                "sys_location": "Control Room",
+            },
             "ethernet_ip_identity": {
                 "vendor_id": SCHNEIDER_ODVA_VENDOR_ID,
                 "device_type": 14,
@@ -119,10 +131,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 3.5,
                 "std_dev_ms": 2.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 4.0,
             },
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4, 5, 6, 10, 11],
-                "exception_probability": 0.0004,  # Lower for redundant
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0001,
             },
             "protocol_quirks": {
                 "modbus_max_registers": 125,
@@ -144,6 +159,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "vendor_url": "http://www.schneider-electric.com",
                 "product_name": "Modicon M580 Safety ePAC",
                 "model_name": "BMEP586040S",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M580 Safety BMEP586040S Firmware V3.20",
+                "sys_name": "M580S-BMEP586040S",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.580",
+                "sys_location": "Safety Zone",
             },
             "ethernet_ip_identity": {
                 "vendor_id": SCHNEIDER_ODVA_VENDOR_ID,
@@ -170,10 +191,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "std_dev_ms": 1.8,
                 "distribution": "gaussian",
                 "outlier_probability": 0.002,
+                "outlier_multiplier": 4.0,
             },
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4, 5, 6],
-                "exception_probability": 0.0002,  # Very low for safety
+                "exception_probability": 0.0002,
+                "timeout_probability": 0.00005,
             },
             "protocol_quirks": {
                 "modbus_max_registers": 125,
@@ -205,6 +228,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Modicon M340 CPU",
                 "model_name": "BMXP3420302",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M340 BMXP3420302 Firmware V3.51",
+                "sys_name": "M340-BMXP3420302",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.340",
+                "sys_location": "Control Cabinet",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -218,10 +247,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 7.0,
                 "std_dev_ms": 4.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.005,
+                "outlier_multiplier": 3.5,
             },
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3, 4, 5, 6],
                 "exception_probability": 0.0008,
+                "timeout_probability": 0.0004,
             },
             "protocol_quirks": {
                 "modbus_max_registers": 120,
@@ -245,6 +277,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Modicon M241 Logic Controller",
                 "model_name": "TM241CE40R",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M241 TM241CE40R Firmware V5.1.62",
+                "sys_name": "M241-TM241CE40R",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.241",
+                "sys_location": "Machine Cabinet",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -258,6 +296,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 8.0,
                 "std_dev_ms": 5.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.006,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4, 5, 6],
+                "exception_probability": 0.001,
+                "timeout_probability": 0.0005,
             },
             "is_builtin": True,
         },
@@ -275,6 +320,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Modicon M251 Logic Controller",
                 "model_name": "TM251MESE",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M251 TM251MESE Firmware V5.1.62",
+                "sys_name": "M251-TM251MESE",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.251",
+                "sys_location": "Machine Cabinet",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -288,6 +339,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 10.0,
                 "std_dev_ms": 6.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.008,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4, 5, 6],
+                "exception_probability": 0.0012,
+                "timeout_probability": 0.0006,
             },
             "is_builtin": True,
         },
@@ -304,6 +362,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "major_minor_revision": "2.0.11",
                 "product_name": "Modicon M262 Logic/Motion Controller",
                 "model_name": "TM262L20MESE8T",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon M262 TM262L20MESE8T Firmware V2.0.11",
+                "sys_name": "M262-TM262L20MESE8T",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.262",
+                "sys_location": "Machine Cabinet",
             },
             "ethernet_ip_identity": {
                 "vendor_id": SCHNEIDER_ODVA_VENDOR_ID,
@@ -328,6 +392,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 5.0,
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.004,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4, 5, 6],
+                "exception_probability": 0.0006,
+                "timeout_probability": 0.0003,
             },
             "is_builtin": True,
         },
@@ -347,6 +418,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "major_minor_revision": "V2.9",
                 "product_name": "Altivar Process ATV930",
                 "model_name": "Variable Speed Drive",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Altivar Process ATV930D15N4 Firmware V2.9",
+                "sys_name": "ATV930-D15N4",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.200.930",
+                "sys_location": "Drive Cabinet",
             },
             "ethernet_ip_identity": {
                 "vendor_id": SCHNEIDER_ODVA_VENDOR_ID,
@@ -371,6 +448,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 12.0,
                 "std_dev_ms": 7.0,
                 "distribution": "exponential",
+                "outlier_probability": 0.006,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0008,
+                "timeout_probability": 0.0004,
             },
             "is_builtin": True,
         },
@@ -388,6 +472,12 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "Altivar Machine ATV320",
                 "model_name": "Variable Speed Drive",
             },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Altivar Machine ATV320U22N4C Firmware V2.1",
+                "sys_name": "ATV320-U22N4C",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.200.320",
+                "sys_location": "Drive Cabinet",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 8192,
@@ -401,6 +491,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 15.0,
                 "std_dev_ms": 10.0,
                 "distribution": "exponential",
+                "outlier_probability": 0.008,
+                "outlier_multiplier": 2.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.001,
+                "timeout_probability": 0.0005,
             },
             "is_builtin": True,
         },
@@ -444,6 +541,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 3.5,
                 "std_dev_ms": 2.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 4.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0002,
             },
             "is_builtin": True,
         },
@@ -477,6 +581,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 20.0,
                 "std_dev_ms": 12.0,
                 "distribution": "lognormal",
+                "outlier_probability": 0.01,
+                "outlier_multiplier": 2.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0008,
+                "timeout_probability": 0.0004,
             },
             "is_builtin": True,
         },
@@ -507,6 +618,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 30.0,
                 "std_dev_ms": 18.0,
                 "distribution": "lognormal",
+                "outlier_probability": 0.012,
+                "outlier_multiplier": 2.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.001,
+                "timeout_probability": 0.0005,
             },
             "is_builtin": True,
         },
@@ -540,6 +658,13 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 2.5,
                 "std_dev_ms": 1.5,
                 "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 4.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.00015,
             },
             "is_builtin": True,
         },
@@ -570,6 +695,114 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 4.0,
                 "std_dev_ms": 2.5,
                 "distribution": "gaussian",
+                "outlier_probability": 0.004,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0002,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # Legacy Modicon Premium PLCs (Water/Wastewater)
+        # ============================================================
+        # Modicon Premium TSXP57204M
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Modicon Premium",
+            "model": "TSXP57204M",
+            "firmware_version": "3.60",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "TSXP57204M",
+                "major_minor_revision": "3.60",
+                "vendor_url": "http://www.schneider-electric.com",
+                "product_name": "Modicon Premium PLC",
+                "model_name": "TSXP57204M",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon Premium TSXP57204M Firmware V3.60",
+                "sys_name": "PREMIUM-TSXP57204M",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.57",
+                "sys_location": "Control Room",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+                "sack_permitted": False,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 3.0,
+                "max_ms": 60.0,
+                "mean_ms": 15.0,
+                "std_dev_ms": 10.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.008,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4, 5, 6],
+                "exception_probability": 0.001,
+                "timeout_probability": 0.0005,
+            },
+            "protocol_quirks": {
+                "modbus_max_registers": 100,
+                "unity_pro_compatible": False,  # Uses older software
+                "ftp_enabled": True,  # CVE-2018-7760 - hardcoded FTP creds
+            },
+            "is_builtin": True,
+        },
+        # Modicon Premium TSXP57154M (Compact version)
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Modicon Premium",
+            "model": "TSXP57154M",
+            "firmware_version": "3.60",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "TSXP57154M",
+                "major_minor_revision": "3.60",
+                "vendor_url": "http://www.schneider-electric.com",
+                "product_name": "Modicon Premium PLC",
+                "model_name": "TSXP57154M",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric Modicon Premium TSXP57154M Firmware V3.60",
+                "sys_name": "PREMIUM-TSXP57154M",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.100.57",
+                "sys_location": "Remote Station",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+                "sack_permitted": False,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 4.0,
+                "max_ms": 80.0,
+                "mean_ms": 20.0,
+                "std_dev_ms": 12.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.01,
+                "outlier_multiplier": 2.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4, 5, 6],
+                "exception_probability": 0.0015,
+                "timeout_probability": 0.0008,
+            },
+            "protocol_quirks": {
+                "modbus_max_registers": 100,
+                "unity_pro_compatible": False,
+                "ftp_enabled": True,  # CVE-2018-7760 - hardcoded FTP creds
             },
             "is_builtin": True,
         },
@@ -603,6 +836,177 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
                 "mean_ms": 5.0,
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.00015,
+            },
+            "is_builtin": True,
+        },
+
+        # ============================================================
+        # ALTIVAR VARIABLE FREQUENCY DRIVES
+        # ============================================================
+        # ATV930 (High-performance process drive)
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Altivar",
+            "model": "ATV930",
+            "firmware_version": "V2.1IE26",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "ATV930",
+                "major_minor_revision": "V2.1IE26",
+                "product_name": "Altivar Process ATV930",
+                "model_name": "ATV930",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 67,  # Schneider
+                "device_type": 22,  # AC Drive
+                "product_code": 930,
+                "revision_major": 2,
+                "revision_minor": 1,
+                "product_name": "Altivar Process ATV930",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+            },
+            "response_timing": {
+                "min_ms": 2.0,
+                "max_ms": 25.0,
+                "mean_ms": 8.0,
+                "std_dev_ms": 4.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.005,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0005,
+                "timeout_probability": 0.0002,
+            },
+            "is_builtin": True,
+        },
+        # ATV320 (Compact machinery drive)
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Altivar",
+            "model": "ATV320",
+            "firmware_version": "V1.7IE18",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "ATV320",
+                "major_minor_revision": "V1.7IE18",
+                "product_name": "Altivar Machine ATV320",
+                "model_name": "ATV320",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 4096,
+                "mss": 1460,
+            },
+            "response_timing": {
+                "min_ms": 3.0,
+                "max_ms": 30.0,
+                "mean_ms": 10.0,
+                "std_dev_ms": 5.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.008,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0008,
+                "timeout_probability": 0.0003,
+            },
+            "is_builtin": True,
+        },
+
+        # ============================================================
+        # MODICON TM5 SAFETY I/O
+        # ============================================================
+        # TM5CSLC100FS (Safety Logic Controller)
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Modicon TM5",
+            "model": "TM5CSLC100FS",
+            "firmware_version": "V1.40",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "TM5CSLC100FS",
+                "major_minor_revision": "V1.40",
+                "product_name": "TM5 Safety Logic Controller",
+                "model_name": "TM5CSLC100FS",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+            },
+            "response_timing": {
+                "min_ms": 1.0,
+                "max_ms": 15.0,
+                "mean_ms": 5.0,
+                "std_dev_ms": 2.5,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 2.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0002,
+                "timeout_probability": 0.0001,
+            },
+            "protocol_quirks": {
+                "safety_certified": True,
+                "sil_level": 3,
+            },
+            "is_builtin": True,
+        },
+
+        # ============================================================
+        # ADVANTYS STB DISTRIBUTED I/O
+        # ============================================================
+        # STB NIP 2311 (Network Interface Processor)
+        {
+            "vendor": "Schneider",
+            "vendor_family": "Advantys STB",
+            "model": "STB NIP 2311",
+            "firmware_version": "V6.0",
+            "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "modbus_identity": {
+                "vendor_name": "Schneider Electric",
+                "product_code": "STBNIP2311",
+                "major_minor_revision": "V6.0",
+                "product_name": "Advantys STB Network Interface",
+                "model_name": "STB NIP 2311",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 4096,
+                "mss": 1460,
+            },
+            "response_timing": {
+                "min_ms": 2.0,
+                "max_ms": 20.0,
+                "mean_ms": 6.0,
+                "std_dev_ms": 3.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.005,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0005,
+                "timeout_probability": 0.0002,
             },
             "is_builtin": True,
         },

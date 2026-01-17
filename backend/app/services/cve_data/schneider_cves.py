@@ -2,7 +2,12 @@
 
 CVE information for Modicon M340, M580, and M251/M241 series PLCs.
 These vulnerabilities are detectable via firmware version strings in
-Modbus FC 43 device identification responses.
+protocol identity responses (Modbus FC 43, EtherNet/IP ListIdentity, SNMP sysDescr).
+
+NOTE: firmware_version is the single source of truth. Protocol-specific
+firmware fields (major_minor_revision, revision_major/minor, sw_release, etc.)
+are AUTO-DERIVED by FirmwareVersionDeriver. Only non-firmware fields
+(vendor_name, product_code, model_name) need explicit overrides.
 """
 
 from datetime import datetime
@@ -42,26 +47,41 @@ SCHNEIDER_CVES: list[dict] = [
         "published_date": datetime(2023, 2, 16),
         "vulnerable_variants": [
             {
-                "firmware_version": "3.10",
+                "firmware_version": "3.10",  # Auto-derived to all protocols
                 "display_name": "Modicon M580 BMEP582040 (CVE-2022-45789)",
+                # SNMP sysDescr template for Cyber Vision detection
+                "snmp_sys_descr_template": "Schneider Electric Modicon M580 BMEP582040 Firmware V{firmware_version}",
+                # Non-firmware fields for Modbus identity
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMEP582040",
-                    "major_minor_revision": "3.10",
                     "product_name": "Modicon M580 Safety PLC",
                     "model_name": "BMEP582040",
                     "user_application_name": "M580_Safety_Controller",
+                },
+                # Non-firmware fields for EtherNet/IP identity
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,  # Schneider Electric ODVA vendor ID
+                    "device_type": 14,  # PLC
+                    "product_code": 582040,
+                    "product_name": "Modicon M580 BMEP582040",
                 },
             },
             {
                 "firmware_version": "3.05",
                 "display_name": "Modicon M580 BMEP584040 (CVE-2022-45789)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M580 BMEP584040 Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMEP584040",
-                    "major_minor_revision": "3.05",
                     "product_name": "Modicon M580 Safety PLC",
                     "model_name": "BMEP584040",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_code": 584040,
+                    "product_name": "Modicon M580 BMEP584040",
                 },
             },
         ],
@@ -102,23 +122,35 @@ SCHNEIDER_CVES: list[dict] = [
             {
                 "firmware_version": "3.40",
                 "display_name": "Modicon M340 BMXP342020 (CVE-2021-22779)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M340 BMXP342020 Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMXP342020",
-                    "major_minor_revision": "3.40",
                     "product_name": "Modicon M340 Processor",
                     "model_name": "BMXP342020",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_code": 342020,
+                    "product_name": "Modicon M340 BMXP342020",
                 },
             },
             {
                 "firmware_version": "3.30",
                 "display_name": "Modicon M340 BMXP3420302 (CVE-2021-22779)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M340 BMXP3420302 Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMXP3420302",
-                    "major_minor_revision": "3.30",
                     "product_name": "Modicon M340 Processor",
                     "model_name": "BMXP3420302",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_code": 3420302,
+                    "product_name": "Modicon M340 BMXP3420302",
                 },
             },
         ],
@@ -159,23 +191,33 @@ SCHNEIDER_CVES: list[dict] = [
             {
                 "firmware_version": "5.1.3",
                 "display_name": "Modicon M251 TM251MESE (CVE-2020-7540)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M251 TM251MESE Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "TM251MESE",
-                    "major_minor_revision": "5.1.3",
                     "product_name": "Modicon M251 Logic Controller",
                     "model_name": "TM251MESE",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_name": "Modicon M251 TM251MESE",
                 },
             },
             {
                 "firmware_version": "5.0.2",
                 "display_name": "Modicon M241 TM241CE40R (CVE-2020-7540)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M241 TM241CE40R Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "TM241CE40R",
-                    "major_minor_revision": "5.0.2",
                     "product_name": "Modicon M241 Logic Controller",
                     "model_name": "TM241CE40R",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_name": "Modicon M241 TM241CE40R",
                 },
             },
         ],
@@ -214,10 +256,10 @@ SCHNEIDER_CVES: list[dict] = [
             {
                 "firmware_version": "3.60",
                 "display_name": "Modicon Premium TSXP57204M (CVE-2018-7760)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon Premium TSXP57204M Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "TSXP57204M",
-                    "major_minor_revision": "3.60",
                     "product_name": "Modicon Premium PLC",
                     "model_name": "TSXP57204M",
                 },
@@ -258,12 +300,18 @@ SCHNEIDER_CVES: list[dict] = [
             {
                 "firmware_version": "3.20",
                 "display_name": "Modicon M340 BMXP342020 (CVE-2019-6829)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M340 BMXP342020 Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMXP342020",
-                    "major_minor_revision": "3.20",
                     "product_name": "Modicon M340 Processor",
                     "model_name": "BMXP342020",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_code": 342020,
+                    "product_name": "Modicon M340 BMXP342020",
                 },
             },
         ],
@@ -302,12 +350,18 @@ SCHNEIDER_CVES: list[dict] = [
             {
                 "firmware_version": "3.30",
                 "display_name": "Modicon M580 BMEP584040 (CVE-2022-37300)",
+                "snmp_sys_descr_template": "Schneider Electric Modicon M580 BMEP584040 Firmware V{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Schneider Electric",
                     "product_code": "BMEP584040",
-                    "major_minor_revision": "3.30",
                     "product_name": "Modicon M580 Safety PLC",
                     "model_name": "BMEP584040",
+                },
+                "ethernet_ip_identity_override": {
+                    "vendor_id": 67,
+                    "device_type": 14,
+                    "product_code": 584040,
+                    "product_name": "Modicon M580 BMEP584040",
                 },
             },
         ],

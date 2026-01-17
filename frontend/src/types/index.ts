@@ -67,7 +67,9 @@ export type VerticalType =
   | 'manufacturing'
   | 'water_wastewater'
   | 'energy_power'
-  | 'oil_gas';
+  | 'oil_gas'
+  | 'transportation'
+  | 'building_automation';
 
 // Zone types
 export type ZoneType =

@@ -27,9 +27,11 @@ import {
   CloudServerOutlined,
   TeamOutlined,
   RobotOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import DockerHostsTab from '../../components/admin/DockerHostsTab';
 import UserManagementTab from '../../components/admin/UserManagementTab';
+import CyberVisionTab from '../../components/admin/CyberVisionTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { SystemSetting } from '../../types';
 
@@ -472,6 +474,15 @@ const SettingsPage: React.FC = () => {
         </span>
       ),
       children: <DockerHostsTab />,
+    },
+    {
+      key: 'cyber_vision',
+      label: (
+        <span>
+          <EyeOutlined /> Cyber Vision
+        </span>
+      ),
+      children: <CyberVisionTab />,
     },
     {
       key: 'users',

@@ -121,6 +121,40 @@ class VulnerableFingerprintVariant(Base):
     #   "maximum_cip_connections": 64,
     # }
 
+    snmp_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for SNMP sysDescr/sysName identity (for ITS/transportation devices)",
+    )
+    # Example: {
+    #   "sys_descr": "Siemens SICAM CP-8000 Master Station V5.20",
+    #   "sys_name": "cp8000-substation-01",
+    #   "sys_object_id": "1.3.6.1.4.1.4329.2.51.1",
+    # }
+
+    bacnet_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for BACnet I-Am identity (for BMS/building automation devices)",
+    )
+    # Example: {
+    #   "vendor_id": 5,  # Johnson Controls
+    #   "vendor_name": "Johnson Controls",
+    #   "model_name": "NAE55 Network Automation Engine",
+    #   "firmware_revision": "12.0.3",
+    #   "device_instance": 100001,
+    # }
+
+    # SNMP sys_descr template for firmware version interpolation
+    snmp_sys_descr_template: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Template for SNMP sysDescr with {firmware_version} placeholder",
+    )
+    # Example: "Schneider Electric Modicon M580 Firmware V{firmware_version}"
+    # At runtime, {firmware_version} is replaced with the actual firmware version.
+    # This enables auto-derivation without explicit snmp_identity_override.
+
     # Full protocol response templates (optional - for more complex cases)
     full_modbus_mei_template: Mapped[dict | None] = mapped_column(
         JSONB,
@@ -193,15 +227,22 @@ class VulnerableFingerprintVariant(Base):
         """Get all protocol identity overrides combined.
 
         Returns:
-            Dictionary with all protocol overrides
+            Dictionary with all protocol overrides and firmware_version for auto-derivation
         """
-        return {
+        overrides = {
+            "firmware_version": self.firmware_version,
             "modbus_identity_override": self.modbus_identity_override or {},
             "ethernet_ip_identity_override": self.ethernet_ip_identity_override or {},
             "profinet_identity_override": self.profinet_identity_override or {},
             "s7_identity_override": self.s7_identity_override or {},
             "cip_identity_override": self.cip_identity_override or {},
+            "snmp_identity_override": self.snmp_identity_override or {},
+            "bacnet_identity_override": self.bacnet_identity_override or {},
         }
+        # Include SNMP sys_descr template for auto-derivation if present
+        if self.snmp_sys_descr_template:
+            overrides["snmp_sys_descr_template"] = self.snmp_sys_descr_template
+        return overrides
 
     def applies_to_fingerprint(self, fingerprint_vendor: str, fingerprint_model: str | None = None) -> bool:
         """Check if this variant applies to a given fingerprint.

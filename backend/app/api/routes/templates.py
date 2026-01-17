@@ -14,6 +14,11 @@ from app.services.ip_management import IPManagementService
 from app.services.template_pattern_service import TemplatePatternService
 from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.vendor_fingerprints import get_fingerprint_by_vendor_model
+from app.traffic_generator.flow_generator import (
+    DeviceSpec,
+    FlowPattern,
+    generate_flows_for_scenario,
+)
 from app.scenario_templates import (
     VERTICAL_TEMPLATES,
     get_template,
@@ -104,6 +109,9 @@ class CreateFromTemplateRequest(BaseModel):
     phase_preset: str = "standard"
     auto_assign_addresses: bool = True
     total_duration_ms: int | None = None
+    # Flow generation pattern (realistic, hierarchical, mesh, star, tree)
+    flow_pattern: str = "realistic"
+    use_smart_flow_generation: bool = True  # Use new SmartFlowGenerator
     # Learned pattern options
     apply_learned_patterns: bool = True
     learned_pattern_options: LearnedPatternOptions | None = None
@@ -357,23 +365,24 @@ async def create_scenario_from_template(
             if cve_ids:
                 device["cveIds"] = cve_ids
 
-                # Resolve CVE configuration (vulnerable variant lookup)
+                # Resolve CVE configuration using unified resolver
                 try:
-                    variant = await CVEFingerprintService.get_best_variant_for_device(
+                    resolved_cve = await CVEFingerprintService.resolve_cves_for_device(
                         db,
                         vendor=device_spec.get("vendor", ""),
-                        fingerprint_model=device_spec.get("fingerprint_model"),
+                        model=device_spec.get("fingerprint_model"),
                         cve_ids=cve_ids,
+                        base_fingerprint=device.get("vendorFingerprint"),
                     )
-                    if variant:
-                        device["vulnerableVariantId"] = str(variant.id)
-                        device["vulnerableFirmware"] = variant.firmware_version
-                        # Store identity overrides for traffic generation
-                        device["cveIdentityOverrides"] = (
-                            CVEFingerprintService.extract_identity_overrides(variant)
-                        )
+                    if resolved_cve:
+                        device["vulnerableVariantId"] = resolved_cve.variant_id
+                        device["vulnerableFirmware"] = resolved_cve.firmware_version
+                        # Store fully resolved identity overrides for traffic generation
+                        device["cveIdentityOverrides"] = resolved_cve.to_vulnerability_override()
+                        device["resolvedCveSeverity"] = resolved_cve.severity
                         logger.info(
-                            f"Resolved CVE for device {device_id}: {variant.display_name}"
+                            f"Resolved CVE for device {device_id}: {resolved_cve.display_name} "
+                            f"(severity={resolved_cve.severity})"
                         )
                 except Exception as e:
                     logger.warning(f"Failed to resolve CVE for device {device_id}: {e}")
@@ -391,54 +400,106 @@ async def create_scenario_from_template(
     if request.auto_assign_addresses and zones:
         _auto_assign_ips(devices, zones, allocation)
 
-    # Build flows from template - ensure every device has at least one flow
+    # Build flows - using SmartFlowGenerator for role-based generation
     flows = {}
-    flow_index = 0
 
-    # Group devices by type for flow matching
-    devices_by_type: dict[str, list[str]] = {}
-    for device_id, device in devices.items():
-        dtype = device.get("type", "unknown")
-        if dtype not in devices_by_type:
-            devices_by_type[dtype] = []
-        devices_by_type[dtype].append(device_id)
+    if request.use_smart_flow_generation:
+        # Use SmartFlowGenerator for role-based, realistic flow generation
+        # Convert devices dict to list of dicts for the generator
+        device_list = []
+        for device_id, device in devices.items():
+            device_dict = {
+                "device_id": device_id,
+                "device_type": device.get("type", "unknown"),
+                "role": device.get("role"),  # May be None - DeviceSpec.from_dict will infer
+                "ip_address": device.get("network", {}).get("ipAddress", "0.0.0.0"),
+                "mac_address": device.get("network", {}).get("macAddress"),
+                "vendor": device.get("vendor"),
+                "protocols": device.get("protocols", []),
+            }
+            device_list.append(device_dict)
 
-    for flow_spec in template.get("flows", []):
-        source_types = flow_spec.get("source_types", [])
-        target_types = flow_spec.get("target_types", [])
-        protocol = flow_spec.get("protocol")
-        interval_ms = flow_spec.get("interval_ms", 1000)
+        # Get default protocol from template flows (first protocol found)
+        default_protocol = "modbus_tcp"
+        template_flows = template.get("flows", [])
+        if template_flows:
+            default_protocol = template_flows[0].get("protocol", "modbus_tcp")
 
-        # Create flows between matching device types
-        for source_type in source_types:
-            for target_type in target_types:
-                source_devices = devices_by_type.get(source_type, [])
-                target_devices = devices_by_type.get(target_type, [])
+        # Get available protocols from template
+        protocols = list({f.get("protocol") for f in template_flows if f.get("protocol")})
 
-                if not source_devices or not target_devices:
-                    continue
+        # Generate flows using SmartFlowGenerator
+        generated_flows = generate_flows_for_scenario(
+            devices=device_list,
+            pattern=request.flow_pattern or "realistic",
+            protocols=protocols if protocols else None,
+        )
 
-                # Smart flow distribution: EVERY source AND target must have at least one flow
-                # Generate max(sources, targets) flows to ensure full coverage on both sides
-                n_flows = max(len(source_devices), len(target_devices))
+        # Convert generated flows to scenario format
+        for flow_dict in generated_flows:
+            flow_id = flow_dict["flow_id"]
+            flows[flow_id] = {
+                "id": flow_id,
+                "sourceDeviceId": flow_dict["source_id"],
+                "targetDeviceId": flow_dict["destination_id"],
+                "protocol": flow_dict["protocol"],
+                "timing": {
+                    "intervalMs": int(flow_dict.get("poll_rate", 1000)),
+                },
+                "priority": flow_dict.get("priority", 5),
+                "config": {},
+            }
 
-                for i in range(n_flows):
-                    source_id = source_devices[i % len(source_devices)]
-                    target_id = target_devices[i % len(target_devices)]
+        logger.info(
+            f"SmartFlowGenerator created {len(flows)} flows using '{request.flow_pattern}' pattern"
+        )
+    else:
+        # Legacy flow generation (round-robin based on device types)
+        flow_index = 0
 
-                    if source_id != target_id:
-                        flow_index += 1
-                        flow_id = f"flow_{flow_index:03d}"
-                        flows[flow_id] = {
-                            "id": flow_id,
-                            "sourceDeviceId": source_id,
-                            "targetDeviceId": target_id,
-                            "protocol": protocol,
-                            "timing": {
-                                "intervalMs": interval_ms,
-                            },
-                            "config": {},
-                        }
+        # Group devices by type for flow matching
+        devices_by_type: dict[str, list[str]] = {}
+        for device_id, device in devices.items():
+            dtype = device.get("type", "unknown")
+            if dtype not in devices_by_type:
+                devices_by_type[dtype] = []
+            devices_by_type[dtype].append(device_id)
+
+        for flow_spec in template.get("flows", []):
+            source_types = flow_spec.get("source_types", [])
+            target_types = flow_spec.get("target_types", [])
+            protocol = flow_spec.get("protocol")
+            interval_ms = flow_spec.get("interval_ms", 1000)
+
+            # Create flows between matching device types
+            for source_type in source_types:
+                for target_type in target_types:
+                    source_devices = devices_by_type.get(source_type, [])
+                    target_devices = devices_by_type.get(target_type, [])
+
+                    if not source_devices or not target_devices:
+                        continue
+
+                    # Round-robin flow distribution
+                    n_flows = max(len(source_devices), len(target_devices))
+
+                    for i in range(n_flows):
+                        source_id = source_devices[i % len(source_devices)]
+                        target_id = target_devices[i % len(target_devices)]
+
+                        if source_id != target_id:
+                            flow_index += 1
+                            flow_id = f"flow_{flow_index:03d}"
+                            flows[flow_id] = {
+                                "id": flow_id,
+                                "sourceDeviceId": source_id,
+                                "targetDeviceId": target_id,
+                                "protocol": protocol,
+                                "timing": {
+                                    "intervalMs": interval_ms,
+                                },
+                                "config": {},
+                            }
 
     # Generate phases
     phases = get_default_phases(

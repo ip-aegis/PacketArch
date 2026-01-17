@@ -165,4 +165,25 @@ DEFAULT_SETTINGS = [
         "category": "system",
         "description": "Enable real-time packet generation",
     },
+    # Cyber Vision settings
+    {
+        "key": "cyber_vision_url",
+        "value": "",
+        "is_secret": False,
+        "category": "cyber_vision",
+        "description": "Cisco Cyber Vision center URL (e.g., https://10.10.20.115)",
+    },
+    {
+        "key": "cyber_vision_api_token",
+        "is_secret": True,
+        "category": "cyber_vision",
+        "description": "Cisco Cyber Vision API token for authentication",
+    },
+    {
+        "key": "cyber_vision_verify_ssl",
+        "value": "false",
+        "is_secret": False,
+        "category": "cyber_vision",
+        "description": "Verify SSL certificates when connecting to Cyber Vision",
+    },
 ]

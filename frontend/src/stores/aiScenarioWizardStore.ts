@@ -12,10 +12,13 @@ export const VERTICALS = [
   { id: 'water', name: 'Water/Wastewater', description: 'Water treatment and distribution' },
   { id: 'energy', name: 'Energy/Power', description: 'Substations and power distribution' },
   { id: 'oil_gas', name: 'Oil & Gas', description: 'Pipeline and refinery SCADA' },
+  { id: 'transportation', name: 'Transportation', description: 'Traffic management and ITS systems' },
+  { id: 'building_automation', name: 'Building Automation', description: 'BMS, HVAC, and smart buildings' },
 ];
 
 // Available vendors
 export const VENDORS = [
+  // Traditional OT vendors
   { id: 'rockwell', name: 'Rockwell Automation', aka: 'Allen-Bradley' },
   { id: 'siemens', name: 'Siemens', aka: 'S7/PROFINET' },
   { id: 'schneider', name: 'Schneider Electric', aka: 'Modicon' },
@@ -23,6 +26,24 @@ export const VENDORS = [
   { id: 'honeywell', name: 'Honeywell', aka: 'Experion' },
   { id: 'ge', name: 'GE', aka: 'PACSystems' },
   { id: 'emerson', name: 'Emerson', aka: 'DeltaV' },
+  { id: 'yokogawa', name: 'Yokogawa', aka: 'CENTUM VP' },
+  // Transportation/ITS vendors
+  { id: 'econolite', name: 'Econolite', aka: 'Cobalt/ASC Controllers' },
+  { id: 'siemens_its', name: 'Siemens ITS', aka: 'M60 Controllers' },
+  { id: 'mccain', name: 'McCain', aka: '170E/2070 Controllers' },
+  { id: 'wavetronix', name: 'Wavetronix', aka: 'SmartSensor Radar' },
+  { id: 'flir', name: 'FLIR', aka: 'TrafiOne Thermal' },
+  { id: 'axis', name: 'Axis Communications', aka: 'ITS Cameras' },
+  { id: 'daktronics', name: 'Daktronics', aka: 'Venus DMS' },
+  { id: 'kapsch', name: 'Kapsch TrafficCom', aka: 'Toll Systems' },
+  { id: 'q-free', name: 'Q-Free', aka: 'RSU/Tolling' },
+  // Building Automation / BMS vendors
+  { id: 'johnson_controls', name: 'Johnson Controls', aka: 'Metasys/NAE' },
+  { id: 'trane', name: 'Trane', aka: 'Tracer Controllers' },
+  { id: 'carrier', name: 'Carrier', aka: 'i-Vu Controllers' },
+  { id: 'automated_logic', name: 'Automated Logic', aka: 'WebCTRL' },
+  { id: 'delta_controls', name: 'Delta Controls', aka: 'enteliBUS' },
+  { id: 'distech', name: 'Distech Controls', aka: 'ECLYPSE' },
 ];
 
 // Available protocols
@@ -33,6 +54,8 @@ export const PROTOCOLS = [
   { id: 'dnp3', name: 'DNP3', description: 'Distributed Network Protocol' },
   { id: 'iec104', name: 'IEC 104', description: 'IEC 60870-5-104' },
   { id: 'opcua', name: 'OPC UA', description: 'Open Platform Communications' },
+  { id: 'snmp', name: 'SNMP/NTCIP', description: 'Transportation ITS protocol' },
+  { id: 'bacnet', name: 'BACnet/IP', description: 'Building automation protocol' },
 ];
 
 // Device types by vertical
@@ -60,8 +83,33 @@ export const DEVICE_TYPES_BY_VERTICAL: Record<string, Array<{ id: string; name: 
   oil_gas: [
     { id: 'rtu', name: 'RTU', description: 'Remote Terminal Unit', range: [10, 100] },
     { id: 'plc', name: 'PLC', description: 'Programmable Logic Controller', range: [2, 10] },
+    { id: 'dcs', name: 'DCS Controller', description: 'Distributed Control System', range: [2, 20] },
+    { id: 'sis', name: 'Safety System', description: 'Safety Instrumented System (SIS)', range: [1, 5] },
     { id: 'flow_computer', name: 'Flow Computer', description: 'Gas Flow Computer', range: [5, 30] },
     { id: 'compressor_controller', name: 'Compressor Controller', description: 'Compressor Control', range: [2, 10] },
+  ],
+  transportation: [
+    { id: 'traffic_controller', name: 'Traffic Controller', description: 'Actuated Signal Controller', range: [2, 20] },
+    { id: 'radar_sensor', name: 'Radar/Lidar Sensor', description: 'Vehicle detection radar', range: [5, 50] },
+    { id: 'dms', name: 'Dynamic Message Sign', description: 'Variable message sign', range: [1, 10] },
+    { id: 'weather_station', name: 'Weather Station', description: 'RWIS environmental sensor', range: [1, 10] },
+    { id: 'rsu', name: 'Roadside Unit', description: 'V2X communication unit', range: [2, 20] },
+    { id: 'camera', name: 'ITS Camera', description: 'Traffic surveillance camera', range: [5, 30] },
+    { id: 'lighting_controller', name: 'Lighting Controller', description: 'Tunnel/bridge lighting control', range: [2, 10] },
+    { id: 'ventilation_controller', name: 'Ventilation System', description: 'Tunnel ventilation control', range: [1, 5] },
+    { id: 'toll_controller', name: 'Toll Controller', description: 'Electronic toll collection', range: [2, 10] },
+    { id: 'network_switch', name: 'Network Switch', description: 'Industrial Ethernet switch', range: [2, 15] },
+    { id: 'rtu', name: 'RTU', description: 'Remote Terminal Unit', range: [2, 10] },
+  ],
+  building_automation: [
+    { id: 'bac', name: 'Building Controller', description: 'Building Automation Controller', range: [1, 5] },
+    { id: 'ahu_controller', name: 'AHU Controller', description: 'Air Handling Unit Controller', range: [2, 10] },
+    { id: 'vav_controller', name: 'VAV Controller', description: 'Variable Air Volume Controller', range: [10, 100] },
+    { id: 'chiller_controller', name: 'Chiller Controller', description: 'Chiller/Cooling Plant Controller', range: [1, 5] },
+    { id: 'boiler_controller', name: 'Boiler Controller', description: 'Boiler/Heating Plant Controller', range: [1, 5] },
+    { id: 'lighting_controller', name: 'Lighting Controller', description: 'Lighting Zone Controller', range: [5, 20] },
+    { id: 'energy_meter', name: 'Energy Meter', description: 'Power/Energy Meter', range: [5, 30] },
+    { id: 'access_controller', name: 'Access Controller', description: 'Access Control Panel', range: [2, 15] },
   ],
 };
 
@@ -86,6 +134,7 @@ interface AIScenarioWizardState {
   // Step 4: Vendors
   letAiDecideVendors: boolean;
   selectedVendors: string[];
+  includeVulnerableDevices: boolean;
 
   // Step 5: Protocols
   letAiDecideProtocols: boolean;
@@ -109,6 +158,7 @@ interface AIScenarioWizardState {
   setDeviceCount: (deviceType: string, count: number) => void;
   setLetAiDecideVendors: (value: boolean) => void;
   toggleVendor: (vendorId: string) => void;
+  setIncludeVulnerableDevices: (value: boolean) => void;
   setLetAiDecideProtocols: (value: boolean) => void;
   toggleProtocol: (protocolId: string) => void;
 
@@ -137,6 +187,7 @@ const initialState = {
   // Vendors
   letAiDecideVendors: true,
   selectedVendors: [] as string[],
+  includeVulnerableDevices: false,
   // Protocols
   letAiDecideProtocols: true,
   selectedProtocols: [] as string[],
@@ -182,6 +233,8 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
       : [...state.selectedVendors, vendorId];
     set({ selectedVendors: selected });
   },
+
+  setIncludeVulnerableDevices: (value: boolean) => set({ includeVulnerableDevices: value }),
 
   setLetAiDecideProtocols: (value: boolean) => set({
     letAiDecideProtocols: value,
@@ -237,6 +290,8 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
         // Device count parameters
         total_device_count: state.letAiDecideDevices ? state.totalDeviceCount : null,
         device_counts: state.letAiDecideDevices ? null : state.deviceCounts,
+        // CVE vulnerability option
+        include_vulnerable_devices: state.includeVulnerableDevices,
       });
 
       set({ preview, isGenerating: false });

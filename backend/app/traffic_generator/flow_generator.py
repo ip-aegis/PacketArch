@@ -1,0 +1,747 @@
+"""Smart Flow Generator for OT Traffic Simulation.
+
+This module provides intelligent flow generation that ensures all devices
+participate in network traffic based on their roles in the OT hierarchy.
+
+Instead of simple round-robin flow creation, this generator:
+1. Assigns roles to devices based on their type (controller, HMI, field device)
+2. Creates realistic communication patterns based on role relationships
+3. Ensures no devices are orphaned (all devices have at least one flow)
+4. Supports multiple flow patterns (hierarchical, mesh, star)
+
+OT Communication Hierarchy:
+- SCADA/Historian: Polls controllers, receives alarms
+- HMI: Monitors controllers, issues commands
+- Controller (PLC/RTU): Controls field devices, reports to SCADA
+- Field Device: Responds to controller queries
+"""
+
+import logging
+import random
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class DeviceRole(str, Enum):
+    """Device roles in OT communication hierarchy."""
+
+    SCADA = "scada"  # SCADA server, historian, engineering workstation
+    HMI = "hmi"  # Human-machine interface, operator workstation
+    CONTROLLER = "controller"  # PLC, RTU, DCS controller
+    FIELD_DEVICE = "field_device"  # I/O module, drive, sensor, actuator
+    GATEWAY = "gateway"  # Protocol converter, network gateway
+    HISTORIAN = "historian"  # Data historian server
+    ENGINEERING = "engineering"  # Engineering workstation
+    SAFETY = "safety"  # Safety controller, SIS
+
+
+class FlowPattern(str, Enum):
+    """Flow generation patterns."""
+
+    HIERARCHICAL = "hierarchical"  # Strict hierarchy: SCADA -> Controller -> Field
+    MESH = "mesh"  # All-to-all communication
+    STAR = "star"  # Central node communicates with all others
+    TREE = "tree"  # Tree structure with branching
+    REALISTIC = "realistic"  # Role-based realistic OT traffic
+
+
+# Role relationship definitions
+# Key: initiating role, Value: list of roles that can be targets
+ROLE_CONNECTIONS: dict[DeviceRole, list[DeviceRole]] = {
+    DeviceRole.SCADA: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.HMI,
+        DeviceRole.GATEWAY,
+        DeviceRole.HISTORIAN,
+    ],
+    DeviceRole.HMI: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.SCADA,
+    ],
+    DeviceRole.CONTROLLER: [
+        DeviceRole.FIELD_DEVICE,
+        DeviceRole.CONTROLLER,  # Controller-to-controller for interlocks
+        DeviceRole.GATEWAY,
+    ],
+    DeviceRole.FIELD_DEVICE: [],  # Responds only, doesn't initiate
+    DeviceRole.GATEWAY: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.FIELD_DEVICE,
+    ],
+    DeviceRole.HISTORIAN: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.SCADA,
+    ],
+    DeviceRole.ENGINEERING: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.HMI,
+        DeviceRole.SCADA,
+    ],
+    DeviceRole.SAFETY: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.FIELD_DEVICE,
+    ],
+}
+
+# Default polling rates by role (polls per minute)
+DEFAULT_POLL_RATES: dict[tuple[DeviceRole, DeviceRole], float] = {
+    (DeviceRole.SCADA, DeviceRole.CONTROLLER): 6.0,  # 10-second poll
+    (DeviceRole.SCADA, DeviceRole.HMI): 2.0,  # 30-second status
+    (DeviceRole.HMI, DeviceRole.CONTROLLER): 12.0,  # 5-second refresh
+    (DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 60.0,  # 1-second I/O
+    (DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 2.0,  # Interlock check
+    (DeviceRole.HISTORIAN, DeviceRole.CONTROLLER): 1.0,  # 1-minute archive
+}
+
+
+@dataclass
+class DeviceSpec:
+    """Specification for a device in flow generation.
+
+    Attributes:
+        device_id: Unique device identifier
+        role: Device role in OT hierarchy
+        ip_address: Device IP address
+        mac_address: Device MAC address
+        protocols: List of supported protocols
+        vendor: Vendor name
+        model: Device model
+        unit_id: Modbus unit ID or similar
+        metadata: Additional device metadata
+    """
+
+    device_id: str
+    role: DeviceRole
+    ip_address: str
+    mac_address: str = ""
+    protocols: list[str] = field(default_factory=list)
+    vendor: str = ""
+    model: str = ""
+    unit_id: int = 1
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "DeviceSpec":
+        """Create DeviceSpec from dictionary.
+
+        Args:
+            data: Dictionary with device data
+
+        Returns:
+            DeviceSpec instance
+        """
+        role_str = data.get("role") or "field_device"
+        try:
+            role = DeviceRole(role_str.lower())
+        except ValueError:
+            role = cls._infer_role(data)
+
+        return cls(
+            device_id=data.get("device_id", data.get("id", "")),
+            role=role,
+            ip_address=data.get("ip_address", data.get("ip", "")),
+            mac_address=data.get("mac_address", data.get("mac", "")),
+            protocols=data.get("protocols", []),
+            vendor=data.get("vendor", ""),
+            model=data.get("model", ""),
+            unit_id=data.get("unit_id", 1),
+            metadata=data.get("metadata", {}),
+        )
+
+    @staticmethod
+    def _infer_role(data: dict[str, Any]) -> DeviceRole:
+        """Infer device role from device type and characteristics.
+
+        Args:
+            data: Device data dictionary
+
+        Returns:
+            Inferred DeviceRole
+        """
+        # Check both 'device_type' and 'type' fields (templates use 'type')
+        device_type = (data.get("device_type") or data.get("type") or "").lower()
+        name = (data.get("name") or "").lower()
+        model = (data.get("model") or "").lower()
+
+        # Check for historian (dedicated check before SCADA)
+        if device_type == "historian":
+            return DeviceRole.HISTORIAN
+
+        # Check for SCADA/server
+        if any(x in device_type for x in ["scada", "server", "master"]):
+            return DeviceRole.SCADA
+        if any(x in name for x in ["scada", "historian", "server"]):
+            return DeviceRole.SCADA
+
+        # Check for HMI
+        if any(x in device_type for x in ["hmi", "panel", "display", "workstation"]):
+            return DeviceRole.HMI
+        if any(x in name for x in ["hmi", "panel", "operator"]):
+            return DeviceRole.HMI
+
+        # Check for controller
+        if any(x in device_type for x in ["plc", "rtu", "controller", "pac", "dcs"]):
+            return DeviceRole.CONTROLLER
+        if any(x in model for x in ["cpu", "plc", "1756", "s7-"]):
+            return DeviceRole.CONTROLLER
+
+        # Check for gateway
+        if any(x in device_type for x in ["gateway", "converter", "bridge"]):
+            return DeviceRole.GATEWAY
+
+        # Check for safety (safety_io, sis, etc.)
+        if any(x in device_type for x in ["safety", "sis", "guardlogix"]):
+            return DeviceRole.SAFETY
+
+        # Check for I/O modules (remote_io, io_module, etc.)
+        if any(x in device_type for x in ["remote_io", "io_module", "io_rack", "distributed_io"]):
+            return DeviceRole.FIELD_DEVICE
+
+        # Default to field device
+        return DeviceRole.FIELD_DEVICE
+
+
+@dataclass
+class GeneratedFlow:
+    """A generated flow between two devices.
+
+    Attributes:
+        flow_id: Unique flow identifier
+        source: Source device specification
+        destination: Destination device specification
+        protocol: Protocol for this flow
+        poll_rate: Polls per minute
+        priority: Flow priority (1-10, higher = more important)
+        metadata: Additional flow metadata
+    """
+
+    flow_id: str
+    source: DeviceSpec
+    destination: DeviceSpec
+    protocol: str
+    poll_rate: float = 6.0
+    priority: int = 5
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization.
+
+        Returns:
+            Dictionary representation
+        """
+        return {
+            "flow_id": self.flow_id,
+            "source_id": self.source.device_id,
+            "source_ip": self.source.ip_address,
+            "destination_id": self.destination.device_id,
+            "destination_ip": self.destination.ip_address,
+            "protocol": self.protocol,
+            "poll_rate": self.poll_rate,
+            "priority": self.priority,
+            "metadata": self.metadata,
+        }
+
+
+class SmartFlowGenerator:
+    """Intelligent flow generator for OT traffic patterns.
+
+    Generates flows based on device roles and OT communication patterns,
+    ensuring all devices participate in network traffic.
+
+    Usage:
+        generator = SmartFlowGenerator()
+        devices = [DeviceSpec(...), DeviceSpec(...)]
+        flows = generator.generate_flows(devices, FlowPattern.REALISTIC)
+    """
+
+    def __init__(
+        self,
+        min_flows_per_device: int = 1,
+        max_flows_per_device: int = 5,
+        default_protocol: str = "modbus_tcp",
+    ):
+        """Initialize the flow generator.
+
+        Args:
+            min_flows_per_device: Minimum flows for each device
+            max_flows_per_device: Maximum flows from each initiator
+            default_protocol: Default protocol when not specified
+        """
+        self.min_flows_per_device = min_flows_per_device
+        self.max_flows_per_device = max_flows_per_device
+        self.default_protocol = default_protocol
+        self._flow_counter = 0
+
+    def generate_flows(
+        self,
+        devices: list[DeviceSpec],
+        pattern: FlowPattern = FlowPattern.REALISTIC,
+        protocols: list[str] | None = None,
+    ) -> list[GeneratedFlow]:
+        """Generate flows ensuring all devices participate.
+
+        Args:
+            devices: List of device specifications
+            pattern: Flow generation pattern
+            protocols: Allowed protocols (None = use device protocols)
+
+        Returns:
+            List of generated flows
+        """
+        if not devices:
+            return []
+
+        if pattern == FlowPattern.HIERARCHICAL:
+            flows = self._generate_hierarchical(devices, protocols)
+        elif pattern == FlowPattern.MESH:
+            flows = self._generate_mesh(devices, protocols)
+        elif pattern == FlowPattern.STAR:
+            flows = self._generate_star(devices, protocols)
+        elif pattern == FlowPattern.TREE:
+            flows = self._generate_tree(devices, protocols)
+        else:  # REALISTIC
+            flows = self._generate_realistic(devices, protocols)
+
+        # Ensure minimum flows per device
+        flows = self._ensure_minimum_participation(devices, flows, protocols)
+
+        logger.info(
+            f"Generated {len(flows)} flows for {len(devices)} devices "
+            f"using {pattern.value} pattern"
+        )
+
+        return flows
+
+    def _generate_realistic(
+        self,
+        devices: list[DeviceSpec],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Generate flows based on realistic OT communication patterns.
+
+        Args:
+            devices: Device specifications
+            protocols: Allowed protocols
+
+        Returns:
+            List of flows
+        """
+        flows = []
+
+        # Group devices by role
+        by_role: dict[DeviceRole, list[DeviceSpec]] = {}
+        for device in devices:
+            if device.role not in by_role:
+                by_role[device.role] = []
+            by_role[device.role].append(device)
+
+        # Generate flows based on role relationships
+        for source_role, target_roles in ROLE_CONNECTIONS.items():
+            sources = by_role.get(source_role, [])
+            for source in sources:
+                targets_added = 0
+                for target_role in target_roles:
+                    targets = by_role.get(target_role, [])
+                    for target in targets:
+                        if source.device_id == target.device_id:
+                            continue
+
+                        if targets_added >= self.max_flows_per_device:
+                            break
+
+                        protocol = self._select_protocol(source, target, protocols)
+                        poll_rate = DEFAULT_POLL_RATES.get(
+                            (source_role, target_role), 6.0
+                        )
+
+                        flow = self._create_flow(
+                            source, target, protocol, poll_rate
+                        )
+                        flows.append(flow)
+                        targets_added += 1
+
+        return flows
+
+    def _generate_hierarchical(
+        self,
+        devices: list[DeviceSpec],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Generate flows in strict hierarchy.
+
+        Args:
+            devices: Device specifications
+            protocols: Allowed protocols
+
+        Returns:
+            List of flows
+        """
+        flows = []
+        hierarchy = [
+            DeviceRole.SCADA,
+            DeviceRole.HMI,
+            DeviceRole.CONTROLLER,
+            DeviceRole.FIELD_DEVICE,
+        ]
+
+        # Group by role
+        by_role: dict[DeviceRole, list[DeviceSpec]] = {}
+        for device in devices:
+            if device.role not in by_role:
+                by_role[device.role] = []
+            by_role[device.role].append(device)
+
+        # Connect each level to the next
+        for i, role in enumerate(hierarchy[:-1]):
+            next_role = hierarchy[i + 1]
+            sources = by_role.get(role, [])
+            targets = by_role.get(next_role, [])
+
+            for source in sources:
+                # Distribute targets among sources
+                for target in targets:
+                    protocol = self._select_protocol(source, target, protocols)
+                    flow = self._create_flow(source, target, protocol)
+                    flows.append(flow)
+
+        return flows
+
+    def _generate_mesh(
+        self,
+        devices: list[DeviceSpec],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Generate all-to-all mesh flows.
+
+        Args:
+            devices: Device specifications
+            protocols: Allowed protocols
+
+        Returns:
+            List of flows
+        """
+        flows = []
+
+        for source in devices:
+            for target in devices:
+                if source.device_id == target.device_id:
+                    continue
+
+                protocol = self._select_protocol(source, target, protocols)
+                flow = self._create_flow(source, target, protocol)
+                flows.append(flow)
+
+        return flows
+
+    def _generate_star(
+        self,
+        devices: list[DeviceSpec],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Generate star topology with central node.
+
+        Args:
+            devices: Device specifications
+            protocols: Allowed protocols
+
+        Returns:
+            List of flows
+        """
+        flows = []
+
+        if len(devices) < 2:
+            return flows
+
+        # Find central node (prefer SCADA, then controller, then first device)
+        central = None
+        for role in [DeviceRole.SCADA, DeviceRole.CONTROLLER, DeviceRole.HMI]:
+            for device in devices:
+                if device.role == role:
+                    central = device
+                    break
+            if central:
+                break
+
+        if not central:
+            central = devices[0]
+
+        # Create flows from central to all others
+        for device in devices:
+            if device.device_id == central.device_id:
+                continue
+
+            protocol = self._select_protocol(central, device, protocols)
+            flow = self._create_flow(central, device, protocol)
+            flows.append(flow)
+
+        return flows
+
+    def _generate_tree(
+        self,
+        devices: list[DeviceSpec],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Generate tree topology with branching.
+
+        Args:
+            devices: Device specifications
+            protocols: Allowed protocols
+
+        Returns:
+            List of flows
+        """
+        flows = []
+
+        if len(devices) < 2:
+            return flows
+
+        # Sort by role hierarchy
+        role_order = {
+            DeviceRole.SCADA: 0,
+            DeviceRole.HISTORIAN: 1,
+            DeviceRole.HMI: 2,
+            DeviceRole.ENGINEERING: 3,
+            DeviceRole.CONTROLLER: 4,
+            DeviceRole.GATEWAY: 5,
+            DeviceRole.SAFETY: 6,
+            DeviceRole.FIELD_DEVICE: 7,
+        }
+        sorted_devices = sorted(
+            devices, key=lambda d: role_order.get(d.role, 99)
+        )
+
+        # Build tree: each device connects to ~2 devices at next level
+        branching_factor = 2
+        for i, device in enumerate(sorted_devices[:-1]):
+            start = min((i + 1) * branching_factor, len(sorted_devices) - 1)
+            end = min(start + branching_factor, len(sorted_devices))
+
+            for j in range(start, end):
+                target = sorted_devices[j]
+                protocol = self._select_protocol(device, target, protocols)
+                flow = self._create_flow(device, target, protocol)
+                flows.append(flow)
+
+        return flows
+
+    def _ensure_minimum_participation(
+        self,
+        devices: list[DeviceSpec],
+        flows: list[GeneratedFlow],
+        protocols: list[str] | None,
+    ) -> list[GeneratedFlow]:
+        """Ensure all devices have minimum number of flows.
+
+        Args:
+            devices: All devices
+            flows: Current flows
+            protocols: Allowed protocols
+
+        Returns:
+            Updated flow list
+        """
+        # Count participation
+        participation: dict[str, int] = {d.device_id: 0 for d in devices}
+        for flow in flows:
+            participation[flow.source.device_id] = (
+                participation.get(flow.source.device_id, 0) + 1
+            )
+            participation[flow.destination.device_id] = (
+                participation.get(flow.destination.device_id, 0) + 1
+            )
+
+        # Find devices needing more flows
+        device_map = {d.device_id: d for d in devices}
+        orphans = [
+            device_map[did]
+            for did, count in participation.items()
+            if count < self.min_flows_per_device
+        ]
+
+        if not orphans:
+            return flows
+
+        logger.debug(f"Adding flows for {len(orphans)} under-connected devices")
+
+        # Connect orphans to appropriate devices
+        for orphan in orphans:
+            # Find a suitable partner based on role
+            target_roles = ROLE_CONNECTIONS.get(orphan.role, [])
+
+            # For field devices, they should be targets, not sources
+            if orphan.role == DeviceRole.FIELD_DEVICE:
+                # Find a controller to poll this device
+                controllers = [
+                    d for d in devices
+                    if d.role == DeviceRole.CONTROLLER
+                    and d.device_id != orphan.device_id
+                ]
+                if controllers:
+                    source = random.choice(controllers)
+                    protocol = self._select_protocol(source, orphan, protocols)
+                    flow = self._create_flow(source, orphan, protocol)
+                    flows.append(flow)
+                continue
+
+            # For initiators, find targets
+            for target_role in target_roles:
+                targets = [
+                    d for d in devices
+                    if d.role == target_role and d.device_id != orphan.device_id
+                ]
+                if targets:
+                    target = random.choice(targets)
+                    protocol = self._select_protocol(orphan, target, protocols)
+                    flow = self._create_flow(orphan, target, protocol)
+                    flows.append(flow)
+                    break
+
+        return flows
+
+    def _select_protocol(
+        self,
+        source: DeviceSpec,
+        target: DeviceSpec,
+        allowed: list[str] | None,
+    ) -> str:
+        """Select appropriate protocol for a flow.
+
+        Args:
+            source: Source device
+            target: Target device
+            allowed: Allowed protocols
+
+        Returns:
+            Protocol name
+        """
+        # Find common protocols
+        source_protocols = set(source.protocols) if source.protocols else set()
+        target_protocols = set(target.protocols) if target.protocols else set()
+
+        common = source_protocols & target_protocols
+        if allowed:
+            common = common & set(allowed)
+
+        if common:
+            return random.choice(list(common))
+
+        # Fall back to target's protocols
+        if target_protocols:
+            if allowed:
+                target_protocols = target_protocols & set(allowed)
+            if target_protocols:
+                return random.choice(list(target_protocols))
+
+        # Fall back to allowed or default
+        if allowed:
+            return allowed[0]
+
+        return self.default_protocol
+
+    def _create_flow(
+        self,
+        source: DeviceSpec,
+        target: DeviceSpec,
+        protocol: str,
+        poll_rate: float = 6.0,
+    ) -> GeneratedFlow:
+        """Create a flow between two devices.
+
+        Args:
+            source: Source device
+            target: Target device
+            protocol: Protocol name
+            poll_rate: Polls per minute
+
+        Returns:
+            GeneratedFlow instance
+        """
+        self._flow_counter += 1
+        flow_id = f"flow_{self._flow_counter:04d}"
+
+        # Determine priority based on roles
+        priority = self._calculate_priority(source.role, target.role)
+
+        return GeneratedFlow(
+            flow_id=flow_id,
+            source=source,
+            destination=target,
+            protocol=protocol,
+            poll_rate=poll_rate,
+            priority=priority,
+            metadata={
+                "source_role": source.role.value,
+                "destination_role": target.role.value,
+            },
+        )
+
+    def _calculate_priority(
+        self,
+        source_role: DeviceRole,
+        target_role: DeviceRole,
+    ) -> int:
+        """Calculate flow priority based on roles.
+
+        Args:
+            source_role: Source device role
+            target_role: Target device role
+
+        Returns:
+            Priority value (1-10)
+        """
+        # Safety-related flows are highest priority
+        if source_role == DeviceRole.SAFETY or target_role == DeviceRole.SAFETY:
+            return 10
+
+        # Controller-to-field is high priority (real-time I/O)
+        if source_role == DeviceRole.CONTROLLER and target_role == DeviceRole.FIELD_DEVICE:
+            return 8
+
+        # HMI updates are medium-high
+        if source_role == DeviceRole.HMI:
+            return 7
+
+        # SCADA polling is medium
+        if source_role == DeviceRole.SCADA:
+            return 5
+
+        # Historian is lower priority
+        if source_role == DeviceRole.HISTORIAN:
+            return 3
+
+        return 5
+
+
+def generate_flows_for_scenario(
+    devices: list[dict[str, Any]],
+    pattern: str = "realistic",
+    protocols: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Convenience function to generate flows from device dictionaries.
+
+    Args:
+        devices: List of device dictionaries
+        pattern: Flow pattern name
+        protocols: Allowed protocols
+
+    Returns:
+        List of flow dictionaries
+    """
+    # Convert dicts to DeviceSpecs
+    device_specs = [DeviceSpec.from_dict(d) for d in devices]
+
+    # Parse pattern
+    try:
+        flow_pattern = FlowPattern((pattern or "realistic").lower())
+    except ValueError:
+        flow_pattern = FlowPattern.REALISTIC
+
+    # Generate flows
+    generator = SmartFlowGenerator()
+    flows = generator.generate_flows(device_specs, flow_pattern, protocols)
+
+    # Convert to dicts
+    return [f.to_dict() for f in flows]

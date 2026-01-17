@@ -3,6 +3,19 @@
 CVE information for S7-1200, S7-1500, and S7-300/400 series PLCs.
 These vulnerabilities are detectable via firmware version strings in
 S7comm SZL responses and PROFINET DCP identify responses.
+
+Detection Methods:
+    1. S7comm SZL: Cyber Vision parses firmware_version from SZL response
+    2. PROFINET DCP: Cyber Vision parses sw_release from DCP identity
+
+Auto-Derivation:
+    With FirmwareVersionDeriver, only the top-level `firmware_version` field
+    is required. The following are auto-derived:
+    - s7_identity.firmware_version (V-prefixed format)
+    - profinet_identity.sw_release (V-prefixed format)
+
+    Model-specific fields (order_code, module_type, vendor_id, device_id)
+    remain explicit as they are NOT firmware-related.
 """
 
 from datetime import datetime
@@ -43,12 +56,22 @@ SIEMENS_CVES: list[dict] = [
         "published_date": datetime(2019, 12, 10),
         "vulnerable_variants": [
             {
+                # firmware_version is the single source of truth
+                # Auto-derived to: s7_identity.firmware_version = "V2.8.0"
+                #                  profinet_identity.sw_release = "V2.8.0"
                 "firmware_version": "V2.8.0",
                 "display_name": "S7-1516 CPU (CVE-2019-13945)",
+                # SNMP sys_descr template - firmware auto-interpolated
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1516-3 PN/DP {firmware_version}",
+                # SNMP identity with Siemens enterprise OID for device identification
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1516",  # Siemens S7-1516
+                    "sys_name": "S7-1516-3-PN-DP",
+                },
+                # Non-firmware fields - must be explicit
                 "s7_identity_override": {
                     "order_code": "6ES7 516-3AN01-0AB0",
                     "module_type": "CPU 1516-3 PN/DP",
-                    "firmware_version": "V2.8.0",
                     "serial_number": "S V-P92001234",
                     "hardware_version": "1",
                 },
@@ -57,25 +80,29 @@ SIEMENS_CVES: list[dict] = [
                     "device_id": 0x0500,
                     "device_type": "CPU 1516-3 PN/DP",
                     "device_role": "controller",
-                    "sw_release": "V2.8.0",
                     "order_id": "6ES7 516-3AN01-0AB0",
+                    "sw_release": "V2.8.0",
                 },
             },
             {
                 "firmware_version": "V2.6.1",
                 "display_name": "S7-1515 CPU (CVE-2019-13945)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1515-2 PN {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1515",  # Siemens S7-1515
+                    "sys_name": "S7-1515-2-PN",
+                },
                 "s7_identity_override": {
                     "order_code": "6ES7 515-2AM02-0AB0",
                     "module_type": "CPU 1515-2 PN",
-                    "firmware_version": "V2.6.1",
                     "serial_number": "S V-P91001234",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
                     "device_id": 0x0400,
                     "device_type": "CPU 1515-2 PN",
-                    "sw_release": "V2.6.1",
                     "order_id": "6ES7 515-2AM02-0AB0",
+                    "sw_release": "V2.6.1",
                 },
             },
         ],
@@ -119,17 +146,21 @@ SIEMENS_CVES: list[dict] = [
             {
                 "firmware_version": "V2.9.1",
                 "display_name": "S7-1516 CPU (CVE-2020-15782)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1516-3 PN/DP {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1516",  # Siemens S7-1516
+                    "sys_name": "S7-1516-3-PN-DP",
+                },
                 "s7_identity_override": {
                     "order_code": "6ES7 516-3AN01-0AB0",
                     "module_type": "CPU 1516-3 PN/DP",
-                    "firmware_version": "V2.9.1",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
                     "device_id": 0x0500,
                     "device_type": "CPU 1516-3 PN/DP",
-                    "sw_release": "V2.9.1",
                     "order_id": "6ES7 516-3AN01-0AB0",
+                    "sw_release": "V2.9.1",
                 },
             },
         ],
@@ -170,16 +201,19 @@ SIEMENS_CVES: list[dict] = [
             {
                 "firmware_version": "V4.3",
                 "display_name": "S7-1215C CPU (CVE-2019-10929)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1200 CPU 1215C DC/DC/DC {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1215",  # Siemens S7-1215C
+                    "sys_name": "S7-1215C-DC-DC-DC",
+                },
                 "s7_identity_override": {
                     "order_code": "6ES7 215-1AG40-0XB0",
                     "module_type": "CPU 1215C DC/DC/DC",
-                    "firmware_version": "V4.3",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
                     "device_id": 0x0200,
                     "device_type": "CPU 1215C DC/DC/DC",
-                    "sw_release": "V4.3",
                     "order_id": "6ES7 215-1AG40-0XB0",
                 },
             },
@@ -218,17 +252,21 @@ SIEMENS_CVES: list[dict] = [
             {
                 "firmware_version": "V3.0.0",
                 "display_name": "S7-1516 CPU (CVE-2022-38465)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1516-3 PN/DP {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1516",  # Siemens S7-1516
+                    "sys_name": "S7-1516-3-PN-DP",
+                },
                 "s7_identity_override": {
                     "order_code": "6ES7 516-3AN01-0AB0",
                     "module_type": "CPU 1516-3 PN/DP",
-                    "firmware_version": "V3.0.0",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
                     "device_id": 0x0500,
                     "device_type": "CPU 1516-3 PN/DP",
-                    "sw_release": "V3.0.0",
                     "order_id": "6ES7 516-3AN01-0AB0",
+                    "sw_release": "V3.0.0",
                 },
             },
         ],
@@ -267,16 +305,19 @@ SIEMENS_CVES: list[dict] = [
             {
                 "firmware_version": "V3.2.17",
                 "display_name": "S7-315-2 PN/DP (CVE-2019-13103)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-300 CPU 315-2 PN/DP {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.315",  # Siemens S7-315
+                    "sys_name": "S7-315-2-PN-DP",
+                },
                 "s7_identity_override": {
                     "order_code": "6ES7 315-2EH14-0AB0",
                     "module_type": "CPU 315-2 PN/DP",
-                    "firmware_version": "V3.2.17",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
                     "device_id": 0x0103,
                     "device_type": "CPU 315-2 PN/DP",
-                    "sw_release": "V3.2.17",
                     "order_id": "6ES7 315-2EH14-0AB0",
                 },
             },

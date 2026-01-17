@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { Typography, Switch, Row, Col, Card, Checkbox, Space } from 'antd';
-import { RobotOutlined, CheckCircleFilled } from '@ant-design/icons';
+import { RobotOutlined, CheckCircleFilled, SecurityScanOutlined } from '@ant-design/icons';
 import { useAIScenarioWizardStore } from '../../stores/aiScenarioWizardStore';
 
 const { Title, Text, Paragraph } = Typography;
@@ -25,6 +25,8 @@ const VendorSelectionStep: React.FC<Props> = ({ vendors }) => {
     selectedVendors,
     setLetAiDecideVendors,
     toggleVendor,
+    includeVulnerableDevices,
+    setIncludeVulnerableDevices,
   } = useAIScenarioWizardStore();
 
   return (
@@ -60,6 +62,33 @@ const VendorSelectionStep: React.FC<Props> = ({ vendors }) => {
             <br />
             <Text style={{ color: '#8aa4bc', fontSize: 13 }}>
               AI will select appropriate vendors based on your description and vertical
+            </Text>
+          </div>
+        </Space>
+      </Card>
+
+      {/* CVE Vulnerability Toggle */}
+      <Card
+        style={{
+          backgroundColor: includeVulnerableDevices ? '#3f2a2a' : '#1e2d3d',
+          borderColor: includeVulnerableDevices ? '#d45a5a' : '#2a3f54',
+          marginBottom: 24,
+        }}
+        styles={{ body: { padding: 16 } }}
+      >
+        <Space align="center">
+          <Switch
+            checked={includeVulnerableDevices}
+            onChange={setIncludeVulnerableDevices}
+          />
+          <SecurityScanOutlined style={{ color: '#d45a5a', fontSize: 20 }} />
+          <div>
+            <Text strong style={{ color: '#e0e8f0' }}>
+              Include CVE-vulnerable devices
+            </Text>
+            <br />
+            <Text style={{ color: '#8aa4bc', fontSize: 13 }}>
+              AI will assign known CVE vulnerabilities to a realistic subset of devices for security testing
             </Text>
           </div>
         </Space>

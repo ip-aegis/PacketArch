@@ -24,6 +24,41 @@ from .specialty import (
     ABB_OUI_PREFIXES,
     EMERSON_OUI_PREFIXES,
 )
+from .transportation import (
+    get_transportation_fingerprints,
+    ECONOLITE_OUI_PREFIXES,
+    SIEMENS_ITS_OUI_PREFIXES,
+    MCCAIN_OUI_PREFIXES,
+    WAVETRONIX_OUI_PREFIXES,
+    FLIR_OUI_PREFIXES,
+    DAKTRONICS_OUI_PREFIXES,
+    KAPSCH_OUI_PREFIXES,
+    QFREE_OUI_PREFIXES,
+    AXIS_OUI_PREFIXES,
+    PELCO_OUI_PREFIXES,
+    BOSCH_OUI_PREFIXES,
+    HIKVISION_OUI_PREFIXES,
+)
+from .building_automation import (
+    get_building_automation_fingerprints,
+    JOHNSON_CONTROLS_OUI_PREFIXES,
+    TRIDIUM_OUI_PREFIXES,
+    TRANE_OUI_PREFIXES,
+    CARRIER_OUI_PREFIXES,
+    DELTA_CONTROLS_OUI_PREFIXES,
+    DISTECH_OUI_PREFIXES,
+    CAREL_OUI_PREFIXES,
+    AUTOMATED_LOGIC_OUI_PREFIXES,
+    SIEMENS_BUILDING_OUI_PREFIXES,
+    SCHNEIDER_BMS_OUI_PREFIXES,
+)
+from .energy import (
+    get_energy_fingerprints,
+    SEL_OUI_PREFIXES,
+    SIEMENS_PROTECTION_OUI_PREFIXES,
+    GE_MULTILIN_OUI_PREFIXES,
+    BASLER_OUI_PREFIXES,
+)
 
 # ODVA Vendor IDs (official registrations)
 ODVA_VENDOR_IDS = {
@@ -63,6 +98,32 @@ VENDOR_OUI_PREFIXES = {
         "00:60:B0",  # GE Energy
         "1C:39:47",  # GE
     ],
+    # Transportation vendors
+    "econolite": ECONOLITE_OUI_PREFIXES,
+    "siemens_its": SIEMENS_ITS_OUI_PREFIXES,
+    "mccain": MCCAIN_OUI_PREFIXES,
+    "wavetronix": WAVETRONIX_OUI_PREFIXES,
+    "flir": FLIR_OUI_PREFIXES,
+    "daktronics": DAKTRONICS_OUI_PREFIXES,
+    "kapsch": KAPSCH_OUI_PREFIXES,
+    "q-free": QFREE_OUI_PREFIXES,
+    "axis": AXIS_OUI_PREFIXES,
+    "pelco": PELCO_OUI_PREFIXES,
+    "bosch": BOSCH_OUI_PREFIXES,
+    "hikvision": HIKVISION_OUI_PREFIXES,
+    # Building Automation / BMS vendors
+    "johnson_controls": JOHNSON_CONTROLS_OUI_PREFIXES,
+    "tridium": TRIDIUM_OUI_PREFIXES,
+    "trane": TRANE_OUI_PREFIXES,
+    "carrier": CARRIER_OUI_PREFIXES,
+    "delta_controls": DELTA_CONTROLS_OUI_PREFIXES,
+    "distech": DISTECH_OUI_PREFIXES,
+    "carel": CAREL_OUI_PREFIXES,
+    "automated_logic": AUTOMATED_LOGIC_OUI_PREFIXES,
+    # Energy / Protection Relay vendors
+    "sel": SEL_OUI_PREFIXES,
+    "ge_multilin": GE_MULTILIN_OUI_PREFIXES,
+    "basler": BASLER_OUI_PREFIXES,
 }
 
 
@@ -72,30 +133,45 @@ def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     Returns comprehensive fingerprints for all supported vendors:
     - Major vendors: Rockwell, Siemens, Schneider
     - Specialty vendors: SICK, Yokogawa, Endress+Hauser, Honeywell, ABB, Emerson
+    - Transportation vendors: Econolite, McCain, Wavetronix, FLIR, Daktronics, etc.
+    - Building Automation: Johnson Controls, Trane, Carrier, Delta Controls, etc.
+    - Energy / Protection: SEL, GE Multilin, Siemens SIPROTEC, ABB Relion
     """
     fingerprints = []
     fingerprints.extend(get_rockwell_fingerprints())
     fingerprints.extend(get_siemens_fingerprints())
     fingerprints.extend(get_schneider_fingerprints())
     fingerprints.extend(get_specialty_fingerprints())
+    fingerprints.extend(get_transportation_fingerprints())
+    fingerprints.extend(get_building_automation_fingerprints())
+    fingerprints.extend(get_energy_fingerprints())
     return fingerprints
 
 
 def get_fingerprint_by_vendor_model(vendor: str, model: str) -> dict[str, Any] | None:
-    """Find a fingerprint by vendor and model."""
-    for fp in get_all_vendor_fingerprints():
-        if fp["vendor"].lower() == vendor.lower() and fp.get("model") == model:
-            return fp
-    return None
+    """Find a fingerprint by vendor and model using O(1) cached lookup.
+
+    Uses FingerprintCache for efficient lookups instead of O(n) scanning.
+
+    Matches against multiple fields for flexibility:
+    - model (exact match, e.g., "6ES7 517-3AP00-0AB0")
+    - profinet_identity.device_type (e.g., "CPU 1517-3 PN/DP")
+    - modbus_identity.product_name (e.g., "CPU 1517-3 PN/DP")
+    - ethernet_ip_identity.product_name (e.g., "1756-L85E/B")
+    - s7_identity.module_type (e.g., "CPU 1517-3 PN/DP")
+    """
+    from app.services.fingerprint_cache import get_fingerprint_cache
+
+    cache = get_fingerprint_cache()
+    return cache.get_by_vendor_model(vendor, model)
 
 
 def get_fingerprints_by_vendor(vendor: str) -> list[dict[str, Any]]:
-    """Get all fingerprints for a vendor."""
-    return [
-        fp
-        for fp in get_all_vendor_fingerprints()
-        if fp["vendor"].lower() == vendor.lower()
-    ]
+    """Get all fingerprints for a vendor using cached lookup."""
+    from app.services.fingerprint_cache import get_fingerprint_cache
+
+    cache = get_fingerprint_cache()
+    return cache.get_by_vendor(vendor)
 
 
 def get_random_oui_for_vendor(vendor: str) -> str | None:

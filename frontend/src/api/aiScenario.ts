@@ -16,6 +16,8 @@ export interface AIScenarioGenerateRequest {
   // Device count options
   total_device_count?: number | null;  // AI decides mix, user specifies total
   device_counts?: Record<string, number> | null;  // User specifies per-type counts
+  // CVE vulnerability option
+  include_vulnerable_devices?: boolean;
 }
 
 export interface AIScenarioPreviewDevice {
@@ -25,6 +27,9 @@ export interface AIScenarioPreviewDevice {
   vendor?: string;
   ip_address?: string;
   protocols: string[];
+  // CVE vulnerability info
+  cve_ids?: string[];
+  is_vulnerable?: boolean;
 }
 
 export interface AIScenarioPreviewFlow {
@@ -51,6 +56,9 @@ export interface AIScenarioPreviewResponse {
   ai_enhanced: boolean;
   ai_features: string[];
   design_rationale?: string | null;
+  // CVE vulnerability stats
+  vulnerable_device_count?: number;
+  cve_ids_used?: string[];
 }
 
 export interface AIScenarioCreateResponse {

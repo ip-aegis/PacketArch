@@ -487,14 +487,34 @@ class FC43ReadDeviceIdentification(FunctionCodeHandler):
         config: dict[str, Any],
         fingerprint_applicator: "FingerprintApplicator",
     ) -> bytes:
-        """Build response using fingerprint applicator directly."""
+        """Build response using fingerprint applicator with identity builder.
+
+        This method uses the identity builder plugin system for generating
+        Modbus MEI (FC43) responses with proper CVE-vulnerable firmware versions.
+        """
         device_id_code = config.get("device_id_code", 0x01)
+
+        # Try using the new identity builder system first
+        try:
+            identity_response = fingerprint_applicator.get_identity_response(
+                "modbus",
+                device_id_code=device_id_code,
+            )
+
+            if identity_response.raw_response:
+                # raw_response already includes MEI data, prepend function code
+                return struct.pack(">B", self.function_code) + identity_response.raw_response
+        except (KeyError, ImportError):
+            # Identity builder not available, fall back to legacy method
+            pass
+
+        # Legacy fallback: use build_modbus_mei_response
         mei_response = fingerprint_applicator.build_modbus_mei_response(device_id_code)
 
         if mei_response:
             return struct.pack(">B", self.function_code) + mei_response
         else:
-            # Fallback to generic response
+            # Final fallback to generic response
             return self.build_response(config, {})
 
 

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from app.protocol_engines import get_engine
 from app.protocol_engines.base import ProtocolEngine
-from app.protocol_engines.timing import apply_jitter
+from app.protocol_engines.jitter import apply_jitter
 from app.protocol_engines.types import ConversationState, FlowContext, PacketEvent, ProtocolType
 from app.traffic_generator.models import GenerationResult, JobStatus
 from app.traffic_generator.pcap_writer import PcapWriter

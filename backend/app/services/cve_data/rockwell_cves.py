@@ -44,6 +44,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "32.011",
                 "display_name": "ControlLogix L85E (CVE-2022-1159)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -73,6 +74,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "31.012",
                 "display_name": "ControlLogix L83E (CVE-2022-1159)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L83E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L83E",
@@ -103,6 +105,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "30.011",
                 "display_name": "ControlLogix L85E v30 (CVE-2022-1159)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -132,6 +135,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "29.011",
                 "display_name": "ControlLogix L85E v29 (CVE-2022-1159)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -161,6 +165,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "28.015",
                 "display_name": "ControlLogix L84E v28 (CVE-2022-1159)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L84E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L84E",
@@ -224,6 +229,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "32.016",
                 "display_name": "ControlLogix L85E (CVE-2022-1161)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -253,6 +259,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "31.011",
                 "display_name": "ControlLogix L85E v31 (CVE-2022-1161)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -282,6 +289,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "30.016",
                 "display_name": "ControlLogix L84E v30 (CVE-2022-1161)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L84E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L84E",
@@ -311,6 +319,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "29.013",
                 "display_name": "ControlLogix L83E v29 (CVE-2022-1161)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L83E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L83E",
@@ -373,6 +382,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "32.013",
                 "display_name": "CompactLogix L33ER (CVE-2021-22681)",
+                "snmp_sys_descr_template": "Rockwell Automation 1769-L33ER/B CompactLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1769-L33ER",
@@ -402,6 +412,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "31.011",
                 "display_name": "CompactLogix L33ER v31 (CVE-2021-22681)",
+                "snmp_sys_descr_template": "Rockwell Automation 1769-L33ER/B CompactLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1769-L33ER",
@@ -431,6 +442,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "30.013",
                 "display_name": "CompactLogix L30ER v30 (CVE-2021-22681)",
+                "snmp_sys_descr_template": "Rockwell Automation 1769-L30ER/B CompactLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1769-L30ER",
@@ -460,6 +472,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "29.011",
                 "display_name": "CompactLogix L36ERM v29 (CVE-2021-22681)",
+                "snmp_sys_descr_template": "Rockwell Automation 1769-L36ERM/B CompactLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1769-L36ERM",
@@ -522,6 +535,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "21.007",
                 "display_name": "MicroLogix 1400 v21.007 (CVE-2019-10954)",
+                "snmp_sys_descr_template": "Rockwell Automation 1766-L32BWA MicroLogix 1400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1766-L32BWA",
@@ -551,6 +565,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "21.006",
                 "display_name": "MicroLogix 1400 v21.006 (CVE-2019-10954)",
+                "snmp_sys_descr_template": "Rockwell Automation 1766-L32BWA MicroLogix 1400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1766-L32BWA",
@@ -580,6 +595,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "21.005",
                 "display_name": "MicroLogix 1400 v21.005 (CVE-2019-10954)",
+                "snmp_sys_descr_template": "Rockwell Automation 1766-L32BWAA MicroLogix 1400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1766-L32BWAA",
@@ -609,6 +625,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "21.004",
                 "display_name": "MicroLogix 1400 v21.004 (CVE-2019-10954)",
+                "snmp_sys_descr_template": "Rockwell Automation 1766-L32BXB MicroLogix 1400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1766-L32BXB",
@@ -638,6 +655,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "21.003",
                 "display_name": "MicroLogix 1400 v21.003 (CVE-2019-10954)",
+                "snmp_sys_descr_template": "Rockwell Automation 1766-L32AWAA MicroLogix 1400 v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1766-L32AWAA",
@@ -699,6 +717,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "33.016",
                 "display_name": "ControlLogix L85E v33.016 (CVE-2023-3595)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -728,6 +747,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "33.011",
                 "display_name": "ControlLogix L85E v33.011 (CVE-2023-3595)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L85E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L85E",
@@ -757,6 +777,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "32.016",
                 "display_name": "ControlLogix L84E v32.016 (CVE-2023-3595)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L84E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L84E",
@@ -786,6 +807,7 @@ ROCKWELL_CVES: list[dict] = [
             {
                 "firmware_version": "32.011",
                 "display_name": "ControlLogix L83E v32.011 (CVE-2023-3595)",
+                "snmp_sys_descr_template": "Rockwell Automation 1756-L83E/B ControlLogix v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Rockwell Automation",
                     "product_code": "1756-L83E",

@@ -41,6 +41,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "R510.2",
                 "display_name": "Experion C300 (CVE-2020-10628)",
+                "snmp_sys_descr_template": "Honeywell Experion PKS C300 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell",
                     "product_code": "C300",
@@ -59,6 +60,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "R500.1",
                 "display_name": "Experion C200 (CVE-2020-10628)",
+                "snmp_sys_descr_template": "Honeywell Experion PKS C200 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell",
                     "product_code": "C200",
@@ -109,6 +111,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "R520.1",
                 "display_name": "Experion PKS C300 (CVE-2021-38397)",
+                "snmp_sys_descr_template": "Honeywell Experion PKS C300 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell",
                     "product_code": "C300",
@@ -158,6 +161,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "1.28.16",
                 "display_name": "Saia PCD3.M5 (CVE-2022-30312)",
+                "snmp_sys_descr_template": "Honeywell Saia Burgess PCD3.M5 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell/Saia-Burgess",
                     "product_code": "PCD3.M5",
@@ -168,6 +172,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "1.24.10",
                 "display_name": "Saia PCD2.M5 (CVE-2022-30312)",
+                "snmp_sys_descr_template": "Honeywell Saia Burgess PCD2.M5 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell/Saia-Burgess",
                     "product_code": "PCD2.M5",
@@ -210,6 +215,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "520.2 HF6",
                 "display_name": "Experion Server (CVE-2023-25078)",
+                "snmp_sys_descr_template": "Honeywell Experion Server v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell",
                     "product_code": "EXPERION-SVR",
@@ -252,6 +258,7 @@ HONEYWELL_CVES: list[dict] = [
             {
                 "firmware_version": "R501.6",
                 "display_name": "Experion C200 (CVE-2020-6959)",
+                "snmp_sys_descr_template": "Honeywell Experion PKS C200 Controller v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell",
                     "product_code": "C200",

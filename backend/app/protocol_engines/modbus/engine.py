@@ -27,10 +27,12 @@ from app.protocol_engines.modbus.packets import (
     build_tcp_packet,
     build_tcp_packet_fingerprinted,
 )
-from app.protocol_engines.timing import get_response_delay
+from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
+    ConversationStateBase,
     FlowContext,
+    ModbusConversationState,
     PacketEvent,
     ProtocolType,
 )
@@ -48,31 +50,29 @@ class ModbusTcpEngine(ProtocolEngine):
     def protocol_type(self) -> ProtocolType:
         return ProtocolType.MODBUS_TCP
 
-    def create_initial_state(self, flow: FlowContext) -> ConversationState:
-        """Create initial conversation state."""
-        return ConversationState(
+    def create_initial_state(self, flow: FlowContext) -> ModbusConversationState:
+        """Create initial conversation state using typed ModbusConversationState."""
+        return ModbusConversationState(
             flow_id=flow.flow_id,
             state_name="idle",
             transaction_id=random.randint(1, 65535),
             sequence_number=random.randint(1000, 9999),
-            custom_data={
-                "tcp_seq_client": random.randint(1000, 9999),
-                "tcp_seq_server": random.randint(1000, 9999),
-                "tcp_ack_client": 0,
-                "tcp_ack_server": 0,
-            },
+            tcp_seq_client=random.randint(1000, 9999),
+            tcp_seq_server=random.randint(1000, 9999),
+            tcp_ack_client=0,
+            tcp_ack_server=0,
         )
 
     def generate_startup_sequence(
         self,
         flow: FlowContext,
-        state: ConversationState,
+        state: ModbusConversationState,
         start_time_ms: float,
     ) -> Iterator[PacketEvent]:
         """Generate TCP three-way handshake."""
-        # Get TCP sequence numbers from state
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        # Get TCP sequence numbers from typed state
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # SYN from client
         syn_packet = build_tcp_handshake_syn(flow.source, flow.destination, client_seq)
@@ -117,15 +117,15 @@ class ModbusTcpEngine(ProtocolEngine):
         )
 
         # Update state with final sequence numbers
-        state.custom_data["tcp_seq_client"] = client_seq + 1
-        state.custom_data["tcp_seq_server"] = server_seq + 1
-        state.custom_data["tcp_ack_client"] = server_seq + 1
-        state.custom_data["tcp_ack_server"] = client_seq + 1
+        state.tcp_seq_client = client_seq + 1
+        state.tcp_seq_server = server_seq + 1
+        state.tcp_ack_client = server_seq + 1
+        state.tcp_ack_server = client_seq + 1
 
     def generate_poll_cycle(
         self,
         flow: FlowContext,
-        state: ConversationState,
+        state: ModbusConversationState,
         cycle_time_ms: float,
     ) -> Iterator[PacketEvent]:
         """Generate Modbus request/response pair with error injection support.
@@ -170,9 +170,9 @@ class ModbusTcpEngine(ProtocolEngine):
         # Complete Modbus TCP request
         modbus_request = mbap_header + request_pdu
 
-        # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        # Get TCP sequence numbers from typed state
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # Build and yield request packet (using fingerprinted TCP options from source)
         request_packet = build_tcp_packet_fingerprinted(
@@ -202,21 +202,21 @@ class ModbusTcpEngine(ProtocolEngine):
         # Check for timeout (no response)
         if applicator.should_timeout():
             # No response - simulate timeout
-            # Track retry state
-            retry_count = state.custom_data.get("retry_count", 0)
+            # Track retry state using typed state attributes
+            retry_count = state.retry_count
             max_retries = applicator.get_max_retries()
 
             if retry_count < max_retries and applicator.should_retry():
                 # Schedule a retry
-                state.custom_data["retry_count"] = retry_count + 1
-                state.custom_data["pending_retry"] = True
+                state.retry_count = retry_count + 1
+                state.pending_request = True
                 # Don't update sequence numbers - will retry same request
             else:
                 # Give up - update state for next cycle
-                state.custom_data["retry_count"] = 0
-                state.custom_data["pending_retry"] = False
+                state.retry_count = 0
+                state.pending_request = False
                 state.transaction_id = (state.transaction_id + 1) % 65536
-                state.custom_data["tcp_seq_client"] = client_seq + len(modbus_request)
+                state.tcp_seq_client = client_seq + len(modbus_request)
 
             # Yield timeout metadata event (no packet)
             yield PacketEvent(
@@ -234,8 +234,8 @@ class ModbusTcpEngine(ProtocolEngine):
             return
 
         # Reset retry count on successful response
-        state.custom_data["retry_count"] = 0
-        state.custom_data["pending_retry"] = False
+        state.retry_count = 0
+        state.pending_request = False
 
         # Get response delay from fingerprint timing distribution
         timing_sample = applicator.get_response_delay()
@@ -322,15 +322,15 @@ class ModbusTcpEngine(ProtocolEngine):
 
         # Update state for next cycle
         state.transaction_id = (state.transaction_id + 1) % 65536
-        state.custom_data["tcp_seq_client"] = client_seq_after
-        state.custom_data["tcp_seq_server"] = server_seq + len(modbus_response)
-        state.custom_data["tcp_ack_server"] = client_seq_after
-        state.custom_data["tcp_ack_client"] = server_seq + len(modbus_response)
+        state.tcp_seq_client = client_seq_after
+        state.tcp_seq_server = server_seq + len(modbus_response)
+        state.tcp_ack_server = client_seq_after
+        state.tcp_ack_client = server_seq + len(modbus_response)
 
     def generate_retry_sequence(
         self,
         flow: FlowContext,
-        state: ConversationState,
+        state: ModbusConversationState,
         start_time_ms: float,
     ) -> Iterator[PacketEvent]:
         """Generate a retry sequence after timeout.
@@ -358,19 +358,19 @@ class ModbusTcpEngine(ProtocolEngine):
                 yield event
 
             # Check if we got a response (not timeout)
-            if not state.custom_data.get("pending_retry", False):
+            if not state.pending_request:
                 break
 
     def generate_shutdown_sequence(
         self,
         flow: FlowContext,
-        state: ConversationState,
+        state: ModbusConversationState,
         start_time_ms: float,
     ) -> Iterator[PacketEvent]:
         """Generate TCP connection termination (FIN handshake)."""
-        # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        # Get TCP sequence numbers from typed state
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # FIN from client
         fin_packet = build_tcp_fin(

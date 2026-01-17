@@ -11,6 +11,10 @@ from app.services.cve_data.schneider_cves import SCHNEIDER_CVES
 from app.services.cve_data.honeywell_cves import HONEYWELL_CVES
 from app.services.cve_data.ge_emerson_cves import GE_EMERSON_CVES
 from app.services.cve_data.abb_cves import ABB_CVES
+from app.services.cve_data.transportation_cves import TRANSPORTATION_CVES
+from app.services.cve_data.building_automation_cves import BUILDING_AUTOMATION_CVES
+from app.services.cve_data.energy_cves import ENERGY_CVES
+from app.services.cve_data.oil_gas_cves import OIL_GAS_CVES
 
 # Combined CVE data from all vendors
 ALL_CVES: list[dict] = [
@@ -20,6 +24,10 @@ ALL_CVES: list[dict] = [
     *HONEYWELL_CVES,
     *GE_EMERSON_CVES,
     *ABB_CVES,
+    *TRANSPORTATION_CVES,
+    *BUILDING_AUTOMATION_CVES,
+    *ENERGY_CVES,
+    *OIL_GAS_CVES,
 ]
 
 # Index by CVE ID for quick lookup
@@ -33,6 +41,29 @@ CVES_BY_VENDOR: dict[str, list[dict]] = {
     "Honeywell": HONEYWELL_CVES,
     "GE": GE_EMERSON_CVES,
     "ABB": ABB_CVES,
+    # Transportation vendors
+    "Daktronics": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Daktronics"],
+    "Kapsch": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Kapsch"],
+    "Econolite": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Econolite"],
+    "Wavetronix": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Wavetronix"],
+    "Axis": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Axis"],
+    "Q-Free": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Q-Free"],
+    "Pelco": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Pelco"],
+    "FLIR": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "FLIR"],
+    "Hikvision": [cve for cve in TRANSPORTATION_CVES if cve["vendor"] == "Hikvision"],
+    # Building Automation / BMS vendors
+    "Johnson Controls": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Johnson Controls"],
+    "Trane": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Trane"],
+    "Carrier": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Carrier"],
+    "Delta Controls": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Delta Controls"],
+    "Distech Controls": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Distech Controls"],
+    "Automated Logic": [cve for cve in BUILDING_AUTOMATION_CVES if cve["vendor"] == "Automated Logic"],
+    # Energy / Protection Relay vendors
+    "SEL": [cve for cve in ENERGY_CVES if cve["vendor"] == "SEL"],
+    # Oil & Gas / Process Industry vendors
+    "Yokogawa": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Yokogawa"],
+    "Emerson": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Emerson"],
+    "Endress+Hauser": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Endress+Hauser"],
 }
 
 
@@ -98,6 +129,10 @@ __all__ = [
     "HONEYWELL_CVES",
     "GE_EMERSON_CVES",
     "ABB_CVES",
+    "TRANSPORTATION_CVES",
+    "BUILDING_AUTOMATION_CVES",
+    "ENERGY_CVES",
+    "OIL_GAS_CVES",
     "get_cve",
     "get_cves_for_vendor",
     "get_cves_for_product_family",
