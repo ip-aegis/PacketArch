@@ -5,6 +5,12 @@ including S7-1500, S7-1500F (safety), S7-1200, S7-300, S7-400,
 SINAMICS drives, SIMATIC HMIs, ET 200 I/O, and SCALANCE switches.
 
 Based on real device characteristics for realistic traffic simulation.
+
+Protocol Support:
+- Siemens PLCs use PROFINET and S7comm as primary protocols
+- Some PLCs also support Modbus TCP
+- HMIs and I/O modules typically only use PROFINET
+- SCALANCE switches support PROFINET and SNMP
 """
 
 from typing import Any
@@ -35,6 +41,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 517-3AP00-0AB0",
             "firmware_version": "V3.0.3",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 517-3AP00-0AB0",
@@ -92,6 +99,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 511-1AK02-0AB0",
             "firmware_version": "V3.0.2",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 511-1AK02-0AB0",
@@ -148,6 +156,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 516-3FN02-0AB0",
             "firmware_version": "V3.0.3",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "profisafe", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 516-3FN02-0AB0",
@@ -212,6 +221,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 214-1HF40-0XB0",
             "firmware_version": "V4.5.2",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "profisafe", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 214-1HF40-0XB0",
@@ -273,6 +283,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 214-1AG40-0XB0",
             "firmware_version": "V4.5.2",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 214-1AG40-0XB0",
@@ -328,6 +339,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 315-2EH14-0AB0",
             "firmware_version": "V3.2.17",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 315-2EH14-0AB0",
@@ -379,6 +391,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 416-3ES07-0AB0",
             "firmware_version": "V6.0.9",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "s7comm", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6ES7 416-3ES07-0AB0",
@@ -433,6 +446,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6SL3210-1KE21-7UF1",
             "firmware_version": "V4.8",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6SL3210-1KE21-7UF1",
@@ -481,6 +495,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6SL3130-7TE25-5AA3",
             "firmware_version": "V5.2",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
                 "product_code": "6SL3130-7TE25-5AA3",
@@ -522,13 +537,14 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             },
             "is_builtin": True,
         },
-        # SINAMICS G115D
+        # SINAMICS G115D (PROFINET-only drive)
         {
             "vendor": "Siemens",
             "vendor_family": "SINAMICS",
             "model": "6SL3544-0FB21-1FA0",
             "firmware_version": "V1.2",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0502,
@@ -564,7 +580,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "is_builtin": True,
         },
         # ============================================================
-        # SIMATIC HMIs
+        # SIMATIC HMIs (PROFINET-only)
         # ============================================================
         # KTP900 Basic
         {
@@ -573,6 +589,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6AV2 123-2JB03-0AX0",
             "firmware_version": "V17.0.0",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0403,
@@ -614,6 +631,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6AV2 124-0MC01-0AX0",
             "firmware_version": "V17.0.0",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0404,
@@ -649,7 +667,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "is_builtin": True,
         },
         # ============================================================
-        # ET 200 Distributed I/O
+        # ET 200 Distributed I/O (PROFINET-only)
         # ============================================================
         # ET 200SP IM155-6
         {
@@ -658,6 +676,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 155-6AU01-0BN0",
             "firmware_version": "V4.2.5",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0601,
@@ -702,6 +721,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6ES7 155-5AA01-0AB0",
             "firmware_version": "V4.1.3",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0602,
@@ -737,7 +757,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "is_builtin": True,
         },
         # ============================================================
-        # SCALANCE Network Infrastructure
+        # SCALANCE Network Infrastructure (PROFINET + SNMP)
         # ============================================================
         # SCALANCE XB208
         {
@@ -746,6 +766,7 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
             "model": "6GK5 208-0BA00-2AB2",
             "firmware_version": "V5.2.6",
             "oui_prefixes": SIEMENS_OUI_PREFIXES,
+            "supported_protocols": ["profinet", "snmp"],
             "profinet_identity": {
                 "vendor_id": SIEMENS_PROFINET_VENDOR_ID,
                 "device_id": 0x0700,
@@ -756,6 +777,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_order_id": "6GK5 208-0BA00-2AB2",
                 "im0_hw_revision": 2,
                 "im0_sw_revision": "V5.2.6",
+            },
+            "snmp_identity": {
+                "sys_descr": "Siemens SCALANCE XB208 Industrial Ethernet Switch V5.2.6",
+                "sys_object_id": "1.3.6.1.4.1.4329.6.1.5.1",
+                "sys_name": "SCALANCE-XB208",
+                "sys_location": "Industrial Network",
             },
             "tcp_stack": {
                 "ttl": 64,

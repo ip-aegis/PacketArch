@@ -50,6 +50,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "R144-V0",
             "device_type": "protection_relay",
             "oui_prefixes": SEL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Schweitzer Engineering Laboratories",
@@ -99,6 +100,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "R320-V0",
             "device_type": "protection_relay",
             "oui_prefixes": SEL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Schweitzer Engineering Laboratories",
@@ -148,6 +150,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "R501-V0",
             "device_type": "protection_relay",
             "oui_prefixes": SEL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Schweitzer Engineering Laboratories",
@@ -192,6 +195,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "R103-V0",
             "device_type": "protection_relay",
             "oui_prefixes": SEL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Schweitzer Engineering Laboratories",
@@ -236,6 +240,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "R117-V0",
             "device_type": "rtu",
             "oui_prefixes": SEL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Schweitzer Engineering Laboratories",
@@ -282,6 +287,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "V08.30",
             "device_type": "protection_relay",
             "oui_prefixes": SIEMENS_PROTECTION_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
@@ -326,6 +332,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "V08.30",
             "device_type": "protection_relay",
             "oui_prefixes": SIEMENS_PROTECTION_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
@@ -368,6 +375,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "V08.30",
             "device_type": "protection_relay",
             "oui_prefixes": SIEMENS_PROTECTION_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
@@ -410,6 +418,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "V08.30",
             "device_type": "protection_relay",
             "oui_prefixes": SIEMENS_PROTECTION_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3", "iec104"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "Siemens AG",
@@ -454,6 +463,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "7.30",
             "device_type": "protection_relay",
             "oui_prefixes": GE_MULTILIN_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "GE Digital Energy",
@@ -498,6 +508,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "5.90",
             "device_type": "protection_relay",
             "oui_prefixes": GE_MULTILIN_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "dnp3"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "GE Digital Energy",
@@ -542,6 +553,7 @@ def get_energy_fingerprints() -> list[dict[str, Any]]:
             "firmware_version": "7.5",
             "device_type": "protection_relay",
             "oui_prefixes": GE_MULTILIN_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp", "dnp3"],
             "is_builtin": True,
             "modbus_identity": {
                 "vendor_name": "GE Digital Energy",

@@ -33,6 +33,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "BMEP586040",
             "firmware_version": "3.30",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "BMEP586040",
@@ -93,6 +94,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "BMEH586040",
             "firmware_version": "3.30",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "BMEH586040",
@@ -152,6 +154,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "BMEP586040S",
             "firmware_version": "3.20",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "BMEP586040S",
@@ -220,6 +223,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "BMXP3420302",
             "firmware_version": "3.51",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "BMXP3420302",
@@ -270,6 +274,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TM241CE40R",
             "firmware_version": "5.1.62",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TM241CE40R",
@@ -313,6 +318,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TM251MESE",
             "firmware_version": "5.1.62",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TM251MESE",
@@ -356,6 +362,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TM262L20MESE8T",
             "firmware_version": "2.0.11",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TM262L20MESE8T",
@@ -412,6 +419,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "ATV930D15N4",
             "firmware_version": "V2.9",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "ATV930D15N4",
@@ -465,6 +473,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "ATV320U22N4C",
             "firmware_version": "V2.1",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "ATV320U22N4C",
@@ -511,6 +520,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "LXM32MD18M2",
             "firmware_version": "V2.62",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "LXM32MD18M2",
@@ -561,6 +571,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "HMIST6700",
             "firmware_version": "V6.0",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "HMIST6700",
@@ -598,6 +609,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "HMISTM6",
             "firmware_version": "V5.0",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "HMISTM6",
@@ -638,6 +650,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TM3DI32K",
             "firmware_version": "V1.2",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TM3DI32K",
@@ -675,6 +688,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "STBNIP2311",
             "firmware_version": "V5.0",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "STBNIP2311",
@@ -715,6 +729,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TSXP57204M",
             "firmware_version": "3.60",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TSXP57204M",
@@ -764,6 +779,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TSXP57154M",
             "firmware_version": "3.60",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TSXP57154M",
@@ -816,6 +832,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TCSESM083F2CU0",
             "firmware_version": "V6.2",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TCSESM083F2CU0",
@@ -857,6 +874,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "ATV930",
             "firmware_version": "V2.1IE26",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "ATV930",
@@ -900,6 +918,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "ATV320",
             "firmware_version": "V1.7IE18",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "ATV320",
@@ -939,6 +958,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "TM5CSLC100FS",
             "firmware_version": "V1.40",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TM5CSLC100FS",
@@ -982,6 +1002,7 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
             "model": "STB NIP 2311",
             "firmware_version": "V6.0",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "STBNIP2311",

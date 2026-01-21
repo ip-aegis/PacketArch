@@ -434,10 +434,11 @@ class CVEFingerprintService:
         firmware_version: str,
         base_fingerprint: dict[str, Any] | None = None,
     ) -> dict[str, dict[str, Any]]:
-        """Build all protocol identity overrides from a variant.
+        """Build protocol identity overrides scoped to supported protocols.
 
         Uses the identity builder plugin system for consistent firmware
-        field derivation across all protocols.
+        field derivation. Only builds identities for protocols declared
+        in the fingerprint's supported_protocols field.
 
         Args:
             variant: Vulnerable fingerprint variant
@@ -451,40 +452,58 @@ class CVEFingerprintService:
             derive_all_firmware_fields,
             get_registered_protocols,
         )
+        from app.protocol_engines.protocols import (
+            get_supported_protocols,
+            PROTOCOL_TO_IDENTITY_KEY,
+        )
 
         result: dict[str, dict[str, Any]] = {}
         base = base_fingerprint or {}
 
-        # Auto-derive firmware fields for all protocols
+        # Get supported protocols - authoritative source for protocol scoping
+        supported = get_supported_protocols(base)
+
+        # Auto-derive firmware fields only for supported protocols
         if firmware_version:
-            # Prepare base identities from fingerprint
-            base_identities = {
-                "modbus_identity": base.get("modbus_identity", {}),
-                "ethernet_ip_identity": base.get("ethernet_ip_identity", {}),
-                "profinet_identity": base.get("profinet_identity", {}),
-                "s7_identity": base.get("protocol_quirks", {}).get("s7_identity", {})
-                or base.get("s7_identity", {}),
-                "snmp_identity": base.get("snmp_identity", {}),
-                "bacnet_identity": base.get("bacnet_identity", {}),
-            }
+            # Prepare base identities only for supported protocols
+            base_identities = {}
+            for protocol in supported:
+                identity_key = PROTOCOL_TO_IDENTITY_KEY.get(protocol)
+                if identity_key:
+                    # Handle s7_identity in protocol_quirks (legacy Siemens pattern)
+                    if identity_key == "s7_identity":
+                        base_identities[identity_key] = (
+                            base.get("protocol_quirks", {}).get("s7_identity", {})
+                            or base.get("s7_identity", {})
+                        )
+                    else:
+                        base_identities[identity_key] = base.get(identity_key, {})
 
-            # Derive firmware fields for all protocols
-            derived = derive_all_firmware_fields(
-                firmware_version=firmware_version,
-                base_identities=base_identities,
-            )
+            # Skip derivation if no supported protocols
+            if not base_identities:
+                logger.debug(
+                    f"No supported protocols found for CVE variant {variant.id}, "
+                    f"skipping firmware derivation"
+                )
+            else:
+                # Derive firmware fields only for supported protocols
+                derived = derive_all_firmware_fields(
+                    firmware_version=firmware_version,
+                    base_identities=base_identities,
+                    protocols=supported,
+                )
 
-            # Convert FirmwareFields to identity dicts
-            for protocol, fw_fields in derived.items():
-                # Map protocol name to identity key
-                identity_key = f"{protocol}_identity"
-                if protocol == "ethernet_ip":
-                    identity_key = "ethernet_ip_identity"
+                # Convert FirmwareFields to identity dicts
+                for protocol, fw_fields in derived.items():
+                    # Map protocol name to identity key
+                    identity_key = f"{protocol}_identity"
+                    if protocol == "ethernet_ip":
+                        identity_key = "ethernet_ip_identity"
 
-                result[identity_key] = {
-                    **base_identities.get(identity_key, {}),
-                    **fw_fields.fields,
-                }
+                    result[identity_key] = {
+                        **base_identities.get(identity_key, {}),
+                        **fw_fields.fields,
+                    }
 
         # Apply explicit overrides from variant (highest priority)
         explicit_overrides = {

@@ -100,6 +100,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "Cobalt ATC",
             "firmware_version": "V2.1.5",
             "oui_prefixes": ECONOLITE_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Econolite Cobalt ATC Traffic Controller V2.1.5",
                 "sys_object_id": "1.3.6.1.4.1.1206.4.2.1.1",
@@ -141,6 +142,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "ASC/3-2100",
             "firmware_version": "V2.0.8",
             "oui_prefixes": ECONOLITE_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Econolite ASC/3-2100 Signal Controller V2.0.8",
                 "sys_object_id": "1.3.6.1.4.1.1206.4.2.1.2",
@@ -181,6 +183,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "M60",
             "firmware_version": "V6.2.1",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens M60 Traffic Controller V6.2.1",
                 "sys_object_id": "1.3.6.1.4.1.4329.6.1.1",
@@ -221,6 +224,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "CP-8000",
             "firmware_version": "V5.30",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens SICAM CP-8000 Master Station V5.30",
                 "sys_object_id": "1.3.6.1.4.1.4329.6.1.2",
@@ -260,6 +264,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "2070 ATC",
             "firmware_version": "V3.6.2",
             "oui_prefixes": MCCAIN_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "McCain 2070 ATC Controller V3.6.2",
                 "sys_object_id": "1.3.6.1.4.1.1206.4.2.1.3",
@@ -296,6 +301,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "170E",
             "firmware_version": "V2.4.0",
             "oui_prefixes": MCCAIN_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "McCain 170E Controller V2.4.0",
                 "sys_object_id": "1.3.6.1.4.1.1206.4.2.1.4",
@@ -336,6 +342,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "SmartSensor HD",
             "firmware_version": "V8.5",
             "oui_prefixes": WAVETRONIX_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Wavetronix SmartSensor HD Radar V8.5",
                 "sys_object_id": "1.3.6.1.4.1.34362.1.1.1",
@@ -371,6 +378,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "SmartSensor Advance",
             "firmware_version": "V8.5",
             "oui_prefixes": WAVETRONIX_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Wavetronix SmartSensor Advance V8.5",
                 "sys_object_id": "1.3.6.1.4.1.34362.1.2.1",
@@ -409,6 +417,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "TrafiOne",
             "firmware_version": "V3.5.0",
             "oui_prefixes": FLIR_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "FLIR TrafiOne Thermal Detector V3.5.0",
                 "sys_object_id": "1.3.6.1.4.1.28846.1.1.1",
@@ -443,6 +452,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "TrafiSense",
             "firmware_version": "V3.5.0",
             "oui_prefixes": FLIR_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "FLIR TrafiSense Multi-Lane Detector V3.5.0",
                 "sys_object_id": "1.3.6.1.4.1.28846.1.2.1",
@@ -481,6 +491,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "Venus 1500",
             "firmware_version": "V4.2",
             "oui_prefixes": DAKTRONICS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Daktronics Venus 1500 DMS Controller V4.2",
                 "sys_object_id": "1.3.6.1.4.1.2407.1.1.1",
@@ -516,6 +527,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "Venus 7000",
             "firmware_version": "V4.2",
             "oui_prefixes": DAKTRONICS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Daktronics Venus 7000 DMS Controller V4.2 Build 4021",
                 "sys_object_id": "1.3.6.1.4.1.2407.1.2.1",
@@ -554,6 +566,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "TCS 2000",
             "firmware_version": "V3.6.0",
             "oui_prefixes": KAPSCH_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Kapsch TrafficCom TCS 2000 Toll Controller V3.6.0",
                 "sys_object_id": "1.3.6.1.4.1.22706.1.1.2",
@@ -593,6 +606,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "RSU 5000",
             "firmware_version": "V2.9.0",
             "oui_prefixes": QFREE_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Q-Free RSU 5000 Roadside Unit V2.9.0",
                 "sys_object_id": "1.3.6.1.4.1.32055.1.1.5",
@@ -632,6 +646,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "P1455-LE",
             "firmware_version": "10.12",
             "oui_prefixes": AXIS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "AXIS P1455-LE Network Camera; 10.12; Linux 4.14 armv7l",
                 "sys_object_id": "1.3.6.1.4.1.368.1.1.1",
@@ -669,6 +684,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "P1448-LE",
             "firmware_version": "10.12",
             "oui_prefixes": AXIS_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "AXIS P1448-LE Network Camera; 10.12; Linux 4.14 armv7l",
                 "sys_object_id": "1.3.6.1.4.1.368.1.1.2",
@@ -707,6 +723,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "Spectra Enhanced",
             "firmware_version": "V1.32",
             "oui_prefixes": PELCO_OUI_PREFIXES,
+            "supported_protocols": ["snmp"],
             "snmp_identity": {
                 "sys_descr": "Pelco Spectra Enhanced PTZ Camera V1.32",
                 "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",
@@ -746,6 +763,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "MIC IP 7100i",
             "firmware_version": "7.82.0127",
             "oui_prefixes": BOSCH_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Bosch MIC IP 7100i PTZ Camera 7.82.0127",
                 "sys_object_id": "1.3.6.1.4.1.3246.1.1.7100",
@@ -784,6 +802,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "DS-2CD7A26G0/P",
             "firmware_version": "V5.7.2",
             "oui_prefixes": HIKVISION_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera V5.7.2",
                 "sys_object_id": "1.3.6.1.4.1.39165.1.1.1",
@@ -911,6 +930,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "TCS-VENT",
             "firmware_version": "V2.1.0",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens TCS Tunnel Ventilation Controller V2.1.0",
                 "sys_object_id": "1.3.6.1.4.1.4329.6.2.1",
@@ -946,6 +966,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "TCS-LIGHT",
             "firmware_version": "V2.0.5",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens TCS Tunnel Lighting Controller V2.0.5",
                 "sys_object_id": "1.3.6.1.4.1.4329.6.2.2",
@@ -985,6 +1006,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "C600",
             "firmware_version": "V10.71",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens Climatix C600 Controller V10.71",
                 "sys_object_id": "1.3.6.1.4.1.4329.7.1.1",
@@ -1031,6 +1053,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "X-200",
             "firmware_version": "V5.2.4",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens SCALANCE X-200 Industrial Ethernet Switch V5.2.4",
                 "sys_object_id": "1.3.6.1.4.1.4329.3.1.1",
@@ -1068,6 +1091,7 @@ def get_transportation_fingerprints() -> list[dict[str, Any]]:
             "model": "XM-400",
             "firmware_version": "V6.3.0",
             "oui_prefixes": SIEMENS_ITS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "snmp_identity": {
                 "sys_descr": "Siemens SCALANCE XM-400 Industrial Ethernet Switch V6.3.0",
                 "sys_object_id": "1.3.6.1.4.1.4329.3.2.1",

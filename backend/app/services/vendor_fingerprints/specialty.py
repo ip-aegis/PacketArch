@@ -70,6 +70,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Inspector P631",
             "firmware_version": "2.4.3",
             "oui_prefixes": SICK_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "ethernet_ip_identity": {
                 "vendor_id": 218,  # SICK AG ODVA vendor ID
                 "device_type": 43,  # Machine Vision
@@ -118,6 +119,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "CLV650-0120",
             "firmware_version": "5.60",
             "oui_prefixes": SICK_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "ethernet_ip_identity": {
                 "vendor_id": 218,
                 "device_type": 12,  # Communications Adapter
@@ -168,6 +170,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "TDLS8000",
             "firmware_version": "R1.04.01",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "TDLS8000",
@@ -206,6 +209,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "EJA530A",
             "firmware_version": "3.01",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "EJA530A",
@@ -243,6 +247,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "GC8000",
             "firmware_version": "1.10.00",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "GC8000",
@@ -280,6 +285,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "FLXA402",
             "firmware_version": "2.02",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "FLXA402",
@@ -318,6 +324,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "SC450G",
             "firmware_version": "1.04",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "SC450G",
@@ -356,6 +363,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "RC400G",
             "firmware_version": "1.05",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "RC400G",
@@ -397,6 +405,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "CENTUM VP",
             "firmware_version": "R6.08.00",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "CENTUM-VP",
@@ -435,6 +444,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "ProSafe-RS",
             "firmware_version": "R4.05.00",
             "oui_prefixes": YOKOGAWA_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Yokogawa Electric Corporation",
                 "product_code": "ProSafe-RS",
@@ -476,6 +486,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Promag 400",
             "firmware_version": "01.06.00",
             "oui_prefixes": ENDRESS_HAUSER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Endress+Hauser",
                 "product_code": "50W40-UA0A1AA0AAAA",
@@ -514,6 +525,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Promag W 400",
             "firmware_version": "01.07.00",
             "oui_prefixes": ENDRESS_HAUSER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Endress+Hauser",
                 "product_code": "50W4H-UA0A1AA0AAAA",
@@ -552,6 +564,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "FMP50",
             "firmware_version": "01.05.00",
             "oui_prefixes": ENDRESS_HAUSER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Endress+Hauser",
                 "product_code": "FMP50-ABC1A1AVDWJ",
@@ -589,6 +602,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "FMU90",
             "firmware_version": "01.04.00",
             "oui_prefixes": ENDRESS_HAUSER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Endress+Hauser",
                 "product_code": "FMU90-R11CA111AA3A",
@@ -627,6 +641,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "CM442",
             "firmware_version": "01.09.00",
             "oui_prefixes": ENDRESS_HAUSER_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Endress+Hauser",
                 "product_code": "CM442-AAM1A1A001",
@@ -667,6 +682,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Optiflex 6000",
             "firmware_version": "4.0.1",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Honeywell International Inc.",
                 "product_code": "6000",
@@ -705,6 +721,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Pipeline LDS",
             "firmware_version": "3.2.0",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Honeywell International Inc.",
                 "product_code": "LDS-3200",
@@ -745,6 +762,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "C300",
             "firmware_version": "R520.2",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "C300",
@@ -793,6 +811,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "C200",
             "firmware_version": "R511.5",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "C200",
@@ -841,6 +860,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Experion Server",
             "firmware_version": "520.2 HF7",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "EXPERION-SVR",
@@ -879,6 +899,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Safety Manager",
             "firmware_version": "R520.1",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "SM-SC",
@@ -921,6 +942,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Series C I/O",
             "firmware_version": "R520.1",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "SC-IO",
@@ -959,6 +981,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Experion Station",
             "firmware_version": "520.2",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Honeywell",
                 "product_code": "EXPERION-STN",
@@ -997,6 +1020,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "UDA2182",
             "firmware_version": "2.50",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Honeywell International Inc.",
                 "product_code": "UDA2182",
@@ -1037,6 +1061,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "REF615",
             "firmware_version": "5.1",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "REF615",
@@ -1075,6 +1100,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "REX640",
             "firmware_version": "2.2",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "REX640",
@@ -1112,6 +1138,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "ACS880-01",
             "firmware_version": "1.98",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "ACS880-01",
@@ -1162,6 +1189,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "PM590-ETH",
             "firmware_version": "2.8.6",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "PM590-ETH",
@@ -1210,6 +1238,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "PM583-ETH",
             "firmware_version": "2.8.6",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "PM583-ETH",
@@ -1258,6 +1287,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "PM554-TP-ETH",
             "firmware_version": "2.6.0",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "PM554-TP-ETH",
@@ -1306,6 +1336,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "CP620",
             "firmware_version": "2.1",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "CP620",
@@ -1344,6 +1375,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "ACS580",
             "firmware_version": "2.76",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "ACS580-01",
@@ -1392,6 +1424,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "CI501",
             "firmware_version": "3.2",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "CI501",
@@ -1430,6 +1463,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "M2BAX 180MLB",
             "firmware_version": "1.0",
             "oui_prefixes": ABB_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "ABB",
                 "product_code": "M2BAX 180MLB",
@@ -1470,6 +1504,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "DVC6200",
             "firmware_version": "12.4",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "DVC6200",
@@ -1508,6 +1543,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "3051S",
             "firmware_version": "9.7",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "3051S",
@@ -1545,6 +1581,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "5700",
             "firmware_version": "5.2",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "5700",
@@ -1582,6 +1619,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "MD Plus",
             "firmware_version": "14.3",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "MD Plus",
@@ -1629,6 +1667,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "S-Series",
             "firmware_version": "13.3",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "ethernet_ip"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "S-Series",
@@ -1676,6 +1715,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "ROC800",
             "firmware_version": "3.75",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "ROC800",
@@ -1713,6 +1753,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "ROC800L",
             "firmware_version": "3.75",
             "oui_prefixes": EMERSON_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Emerson Process Management",
                 "product_code": "ROC800L",
@@ -1754,6 +1795,7 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "model": "Proficy Historian",
             "firmware_version": "8.0",
             "oui_prefixes": GE_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_name": "GE Digital",
                 "product_code": "HISTORIAN",

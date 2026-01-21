@@ -428,6 +428,51 @@ class FlowState:
     custom_data: dict[str, Any] = field(default_factory=dict)
 
 
+# Protocol to identity key mapping (local copy for traffic generator)
+PROTOCOL_TO_IDENTITY_KEY: dict[str, str] = {
+    "modbus": "modbus_identity",
+    "ethernet_ip": "ethernet_ip_identity",
+    "cip": "cip_identity_object",
+    "profinet": "profinet_identity",
+    "profisafe": "profinet_identity",
+    "s7comm": "s7_identity",
+    "s7comm_plus": "s7_identity",
+    "bacnet": "bacnet_identity",
+    "snmp": "snmp_identity",
+}
+
+
+def device_supports_protocol(device: DeviceContext, protocol: str) -> bool:
+    """Check if device supports a protocol using supported_protocols field.
+
+    Uses the explicit supported_protocols declaration as the authoritative
+    source. Falls back to checking identity existence for backward compatibility.
+
+    Args:
+        device: DeviceContext with vendor_fingerprint
+        protocol: Protocol name (e.g., "ethernet_ip", "profinet")
+
+    Returns:
+        True if device supports the protocol
+    """
+    fingerprint = device.vendor_fingerprint
+    if not fingerprint:
+        return False
+
+    # Check explicit supported_protocols first (authoritative)
+    supported = fingerprint.get("supported_protocols", [])
+    if supported:
+        return protocol in supported
+
+    # Fallback: infer from identity existence (backward compatibility)
+    identity_key = PROTOCOL_TO_IDENTITY_KEY.get(protocol)
+    if identity_key:
+        identity = fingerprint.get(identity_key)
+        return bool(identity and isinstance(identity, dict))
+
+    return False
+
+
 class LiveTrafficOrchestrator:
     """Orchestrates live traffic injection across multiple flows."""
 
@@ -2759,8 +2804,9 @@ class LiveTrafficOrchestrator:
             if protocol == "ethernet_ip":
                 # EtherNet/IP ListIdentity - generate for BOTH source and target devices
                 for device in [dst, src]:
-                    eip_identity = device.vendor_fingerprint.get("ethernet_ip_identity")
-                    if eip_identity and device.device_id not in discovered_enip:
+                    # Gate by supported_protocols (authoritative) rather than identity existence
+                    if device_supports_protocol(device, "ethernet_ip") and device.device_id not in discovered_enip:
+                        eip_identity = device.get_effective_identity("ethernet_ip_identity")
                         discovered_enip.add(device.device_id)
 
                         # ListIdentity request (broadcast discovery)
@@ -2796,8 +2842,9 @@ class LiveTrafficOrchestrator:
             elif protocol in ("profinet", "profisafe"):
                 # PROFINET DCP Identify - generate for BOTH source and target devices
                 for device in [dst, src]:
-                    pn_identity = device.vendor_fingerprint.get("profinet_identity")
-                    if pn_identity and device.device_id not in discovered_profinet:
+                    # Gate by supported_protocols (authoritative) rather than identity existence
+                    if device_supports_protocol(device, "profinet") and device.device_id not in discovered_profinet:
+                        pn_identity = device.get_effective_identity("profinet_identity")
                         discovered_profinet.add(device.device_id)
                         xid = random.randint(1, 0xFFFFFFFF)
 
@@ -2835,8 +2882,9 @@ class LiveTrafficOrchestrator:
             elif protocol in ("s7comm", "s7comm_plus"):
                 # S7comm SZL discovery - CRITICAL for Siemens device firmware detection
                 # Generate for target device (PLC/controller)
-                s7_identity = dst.vendor_fingerprint.get("s7_identity")
-                if s7_identity and dst.device_id not in discovered_s7comm:
+                # Gate by supported_protocols (authoritative) rather than identity existence
+                if device_supports_protocol(dst, "s7comm") and dst.device_id not in discovered_s7comm:
+                    s7_identity = dst.get_effective_identity("s7_identity")
                     discovered_s7comm.add(dst.device_id)
 
                     # COTP Connection Request
@@ -2922,7 +2970,8 @@ class LiveTrafficOrchestrator:
 
             elif protocol == "modbus_tcp":
                 # Modbus FC 43 Read Device Identification
-                if dst.vendor_fingerprint.get("modbus_identity"):
+                # Gate by supported_protocols (authoritative) rather than identity existence
+                if device_supports_protocol(dst, "modbus"):
                     # This will be sent as part of the first poll cycle
                     # Mark that we should send FC 43 request
                     flow_state.flow.config["send_device_id_request"] = True
@@ -2931,8 +2980,8 @@ class LiveTrafficOrchestrator:
             elif protocol == "snmp":
                 # SNMP sysDescr discovery - CRITICAL for Cyber Vision device identification
                 for device in [dst, src]:
-                    snmp_identity = device.vendor_fingerprint.get("snmp_identity")
-                    if snmp_identity and device.device_id not in discovered_snmp:
+                    # Gate by supported_protocols (authoritative) rather than identity existence
+                    if device_supports_protocol(device, "snmp") and device.device_id not in discovered_snmp:
                         discovered_snmp.add(device.device_id)
 
                         # Generate SNMP GetRequest for system OIDs
@@ -2986,8 +3035,8 @@ class LiveTrafficOrchestrator:
             elif protocol == "bacnet":
                 # BACnet I-Am discovery - CRITICAL for Cyber Vision BMS device detection
                 for device in [dst, src]:
-                    bacnet_identity = device.vendor_fingerprint.get("bacnet_identity")
-                    if bacnet_identity and device.device_id not in discovered_bacnet:
+                    # Gate by supported_protocols (authoritative) rather than identity existence
+                    if device_supports_protocol(device, "bacnet") and device.device_id not in discovered_bacnet:
                         discovered_bacnet.add(device.device_id)
 
                         # Who-Is broadcast from scanner

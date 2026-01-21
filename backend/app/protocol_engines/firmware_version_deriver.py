@@ -332,26 +332,49 @@ class FirmwareVersionDeriver:
         protocols: list[str] | None = None,
         snmp_sys_descr_template: str | None = None,
     ) -> dict[str, dict[str, Any]]:
-        """Derive identity fields for all (or specified) protocols.
+        """Derive identity fields for specified protocols or infer from base_identity.
+
+        Protocol Scoping: When protocols is not specified, the method infers which
+        protocols to derive from the presence of identity keys in base_identity.
+        This prevents phantom identity creation for unsupported protocols.
 
         Args:
-            protocols: List of protocols to derive for, or None for all.
+            protocols: List of protocols to derive for. If None, infers from base_identity.
                       Options: modbus, ethernet_ip, cip, profinet, s7, snmp, bacnet
             snmp_sys_descr_template: Template for SNMP sys_descr
 
         Returns:
             Dictionary with protocol names as keys and identity dicts as values
         """
-        all_protocols = [
-            "modbus",
-            "ethernet_ip",
-            "cip",
-            "profinet",
-            "s7",
-            "snmp",
-            "bacnet",
-        ]
-        target_protocols = protocols or all_protocols
+        # Protocol to identity key mapping for inference
+        protocol_identity_keys = {
+            "modbus": "modbus_identity",
+            "ethernet_ip": "ethernet_ip_identity",
+            "cip": "cip_identity_object",
+            "profinet": "profinet_identity",
+            "s7": "s7_identity",
+            "snmp": "snmp_identity",
+            "bacnet": "bacnet_identity",
+        }
+
+        if protocols is not None:
+            # Explicit protocol list provided - use it
+            target_protocols = protocols
+        else:
+            # Infer from base_identity: only derive for protocols with existing identity
+            target_protocols = []
+            for protocol, identity_key in protocol_identity_keys.items():
+                identity = self.base_identity.get(identity_key)
+                # Check for non-empty, non-None identity
+                if identity and isinstance(identity, dict):
+                    target_protocols.append(protocol)
+
+            if not target_protocols:
+                logger.debug(
+                    f"No protocols inferred from base_identity for "
+                    f"firmware_version={self.firmware_version}"
+                )
+                return {}
 
         result = {}
 

@@ -59,6 +59,7 @@ from .energy import (
     GE_MULTILIN_OUI_PREFIXES,
     BASLER_OUI_PREFIXES,
 )
+from .ge import get_ge_fingerprints, GE_OUI_PREFIXES
 
 # ODVA Vendor IDs (official registrations)
 ODVA_VENDOR_IDS = {
@@ -93,11 +94,7 @@ VENDOR_OUI_PREFIXES = {
     "honeywell": HONEYWELL_OUI_PREFIXES,
     "abb": ABB_OUI_PREFIXES,
     "emerson": EMERSON_OUI_PREFIXES,
-    "ge": [
-        "00:14:49",  # GE Fanuc Automation
-        "00:60:B0",  # GE Energy
-        "1C:39:47",  # GE
-    ],
+    "ge": GE_OUI_PREFIXES,
     # Transportation vendors
     "econolite": ECONOLITE_OUI_PREFIXES,
     "siemens_its": SIEMENS_ITS_OUI_PREFIXES,
@@ -131,7 +128,7 @@ def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     """Get all vendor fingerprints for seeding.
 
     Returns comprehensive fingerprints for all supported vendors:
-    - Major vendors: Rockwell, Siemens, Schneider
+    - Major vendors: Rockwell, Siemens, Schneider, GE
     - Specialty vendors: SICK, Yokogawa, Endress+Hauser, Honeywell, ABB, Emerson
     - Transportation vendors: Econolite, McCain, Wavetronix, FLIR, Daktronics, etc.
     - Building Automation: Johnson Controls, Trane, Carrier, Delta Controls, etc.
@@ -145,6 +142,7 @@ def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     fingerprints.extend(get_transportation_fingerprints())
     fingerprints.extend(get_building_automation_fingerprints())
     fingerprints.extend(get_energy_fingerprints())
+    fingerprints.extend(get_ge_fingerprints())
     return fingerprints
 
 

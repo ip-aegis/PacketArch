@@ -30,6 +30,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L85E",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L85E/B",
@@ -120,6 +121,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L73",
             "firmware_version": "32.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L73/B",
@@ -206,6 +208,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L33ER",
             "firmware_version": "33.013",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L33ER",
@@ -280,6 +283,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L24ER-QB1B",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L24ER-QB1B",
@@ -357,6 +361,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L83ES",
             "firmware_version": "32.014",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L83ES/B",
@@ -459,6 +464,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L73S",
             "firmware_version": "32.012",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L73S/B",
@@ -554,6 +560,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L33ERMS",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L33ERMS",
@@ -649,6 +656,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "25B-D030N104",
             "firmware_version": "7.001",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "25B-D030N104",
@@ -722,6 +730,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "20F-D052N103",
             "firmware_version": "19.003",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "20F-D052N103",
@@ -798,6 +807,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "2198-D012-ERS3",
             "firmware_version": "6.003",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "2198-D012-ERS3",
@@ -873,6 +883,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "2711P-T10C22D9P",
             "firmware_version": "12.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip"],
             "ethernet_ip_identity": {
                 "vendor_id": 1,
                 "device_type": 24,  # Human-Machine Interface
@@ -932,6 +943,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "2711R-T7T",
             "firmware_version": "6.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip"],
             "ethernet_ip_identity": {
                 "vendor_id": 1,
                 "device_type": 24,
@@ -994,6 +1006,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1734-AENT",
             "firmware_version": "6.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip"],
             "ethernet_ip_identity": {
                 "vendor_id": 1,
                 "device_type": 12,  # Communications Adapter
@@ -1058,6 +1071,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "5094-AEN2TR",
             "firmware_version": "3.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "ethernet_ip_identity": {
                 "vendor_id": 1,
                 "device_type": 12,
@@ -1125,6 +1139,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1783-BMS10CGL",
             "firmware_version": "16.03.07",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "snmp"],
             "ethernet_ip_identity": {
                 "vendor_id": 1,
                 "device_type": 12,
@@ -1187,6 +1202,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1766-L32BWA",
             "firmware_version": "21.007",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1766-L32BWA",
@@ -1263,6 +1279,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1766-L32BWAA",
             "firmware_version": "21.007",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1766-L32BWAA",
@@ -1339,6 +1356,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1766-L32BXB",
             "firmware_version": "21.007",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1766-L32BXB",
@@ -1415,6 +1433,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1766-L32AWAA",
             "firmware_version": "21.007",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1766-L32AWAA",
@@ -1491,6 +1510,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1766-L32BXBA",
             "firmware_version": "21.007",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1766-L32BXBA",
@@ -1567,6 +1587,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1763-L16BWA",
             "firmware_version": "14.000",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1763-L16BWA",
@@ -1643,6 +1664,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L81E",
             "firmware_version": "32.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L81E/B",
@@ -1718,6 +1740,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L82E",
             "firmware_version": "32.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L82E/B",
@@ -1793,6 +1816,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1756-L84E",
             "firmware_version": "32.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1756-L84E/B",
@@ -1871,6 +1895,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L30ERM",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L30ERM",
@@ -1949,6 +1974,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L31ES",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L31ES",
@@ -2042,6 +2068,7 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
             "model": "1769-L32ES",
             "firmware_version": "33.011",
             "oui_prefixes": ROCKWELL_OUI_PREFIXES,
+            "supported_protocols": ["ethernet_ip", "modbus"],
             "modbus_identity": {
                 "vendor_name": "Rockwell Automation/Allen-Bradley",
                 "product_code": "1769-L32ES",

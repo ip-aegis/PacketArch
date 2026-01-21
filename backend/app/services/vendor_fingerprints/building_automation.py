@@ -109,6 +109,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "NAE55",
             "firmware_version": "12.0.3",
             "oui_prefixes": JOHNSON_CONTROLS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet", "snmp"],
             "bacnet_identity": {
                 "vendor_id": 5,  # Johnson Controls BACnet vendor ID
                 "vendor_name": "Johnson Controls",
@@ -161,6 +162,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "SNC",
             "firmware_version": "11.0.2",
             "oui_prefixes": JOHNSON_CONTROLS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 5,
                 "vendor_name": "Johnson Controls",
@@ -203,6 +205,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "FEC26",
             "firmware_version": "10.0.1",
             "oui_prefixes": JOHNSON_CONTROLS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 5,
                 "vendor_name": "Johnson Controls",
@@ -244,6 +247,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "JACE 8000",
             "firmware_version": "4.10.1",
             "oui_prefixes": TRIDIUM_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 17,  # Honeywell BACnet vendor ID
                 "vendor_name": "Honeywell",
@@ -286,6 +290,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "XL Web",
             "firmware_version": "5.0.2",
             "oui_prefixes": HONEYWELL_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 17,
                 "vendor_name": "Honeywell",
@@ -326,6 +331,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "SC+",
             "firmware_version": "5.8.0",
             "oui_prefixes": TRANE_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 97,  # Trane BACnet vendor ID
                 "vendor_name": "Trane",
@@ -368,6 +374,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "UC600",
             "firmware_version": "3.5.2",
             "oui_prefixes": TRANE_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 97,
                 "vendor_name": "Trane",
@@ -408,6 +415,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "Pro Open",
             "firmware_version": "7.0.2",
             "oui_prefixes": CARRIER_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 301,  # Carrier BACnet vendor ID
                 "vendor_name": "Carrier",
@@ -453,6 +461,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "CX9680",
             "firmware_version": "1.87.0",
             "oui_prefixes": SCHNEIDER_BMS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 67,  # Schneider Electric BACnet vendor ID
                 "vendor_name": "Schneider Electric",
@@ -503,6 +512,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "C600",
             "firmware_version": "2.0.0",
             "oui_prefixes": SIEMENS_BUILDING_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 24,  # Siemens BACnet vendor ID
                 "vendor_name": "Siemens",
@@ -545,6 +555,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "DXR2.E12",
             "firmware_version": "5.30.0",
             "oui_prefixes": SIEMENS_BUILDING_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 24,
                 "vendor_name": "Siemens",
@@ -585,6 +596,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "Manager",
             "firmware_version": "4.8.0",
             "oui_prefixes": DELTA_CONTROLS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 122,  # Delta Controls BACnet vendor ID
                 "vendor_name": "Delta Controls",
@@ -627,6 +639,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "eBCON",
             "firmware_version": "3.5.0",
             "oui_prefixes": DELTA_CONTROLS_OUI_PREFIXES,
+            "supported_protocols": ["bacnet"],
             "bacnet_identity": {
                 "vendor_id": 122,
                 "vendor_name": "Delta Controls",
@@ -667,6 +680,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "EC-BOS-8",
             "firmware_version": "4.1.2",
             "oui_prefixes": DISTECH_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 165,  # Distech Controls BACnet vendor ID
                 "vendor_name": "Distech Controls",
@@ -709,6 +723,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "ECY-VAV",
             "firmware_version": "2.5.0",
             "oui_prefixes": DISTECH_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 165,
                 "vendor_name": "Distech Controls",
@@ -749,6 +764,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "pCO5+",
             "firmware_version": "3.2.1",
             "oui_prefixes": CAREL_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 260,  # Carel Industries BACnet vendor ID
                 "vendor_name": "Carel Industries",
@@ -802,6 +818,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "Server",
             "firmware_version": "8.5.0",
             "oui_prefixes": AUTOMATED_LOGIC_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet"],
             "bacnet_identity": {
                 "vendor_id": 86,  # Automated Logic BACnet vendor ID
                 "vendor_name": "Automated Logic",
@@ -844,6 +861,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "ME812U",
             "firmware_version": "6.2.0",
             "oui_prefixes": AUTOMATED_LOGIC_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet", "snmp"],
             "bacnet_identity": {
                 "vendor_id": 86,
                 "vendor_name": "Automated Logic",
@@ -884,6 +902,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "InRow DX",
             "firmware_version": "5.3.2",
             "oui_prefixes": SCHNEIDER_BMS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "bacnet", "snmp"],
             "bacnet_identity": {
                 "vendor_id": 67,
                 "vendor_name": "Schneider Electric",
@@ -934,6 +953,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "Galaxy VM",
             "firmware_version": "2.1.0",
             "oui_prefixes": SCHNEIDER_BMS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_id": 0x000B,
                 "product_code": "GVMUPS",
@@ -976,6 +996,7 @@ def get_building_automation_fingerprints() -> list[dict[str, Any]]:
             "model": "Rack PDU",
             "firmware_version": "6.9.6",
             "oui_prefixes": SCHNEIDER_BMS_OUI_PREFIXES,
+            "supported_protocols": ["modbus", "snmp"],
             "modbus_identity": {
                 "vendor_id": 0x000B,
                 "product_code": "AP8953",
