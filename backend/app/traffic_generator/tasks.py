@@ -198,7 +198,8 @@ async def _generate_traffic_async(
             orchestrator = TrafficOrchestrator(config)
 
             # Build flow contexts from scenario definition
-            flow_contexts = _build_flow_contexts(scenario.definition)
+            # Pass scenario_id for unique serial number generation
+            flow_contexts = _build_flow_contexts(scenario.definition, str(scenario.id))
 
             # Add flows to orchestrator
             for flow_context in flow_contexts:
@@ -231,7 +232,10 @@ async def _generate_traffic_async(
         raise
 
 
-def _build_flow_contexts(scenario_definition: dict) -> list[FlowContext]:
+def _build_flow_contexts(
+    scenario_definition: dict,
+    scenario_id: str | None = None,
+) -> list[FlowContext]:
     """Build flow contexts from scenario definition.
 
     Args:
@@ -239,6 +243,8 @@ def _build_flow_contexts(scenario_definition: dict) -> list[FlowContext]:
             Supports both formats:
             - Array format: {"devices": [...], "flows": [...]}
             - Record/Object format: {"devices": {id: {...}, ...}, "flows": {id: {...}, ...}}
+        scenario_id: Scenario identifier for unique serial number generation.
+                    When provided, each device gets a deterministic unique serial.
 
     Returns:
         List of FlowContext objects
@@ -313,7 +319,8 @@ def _build_flow_contexts(scenario_definition: dict) -> list[FlowContext]:
                 or device.get("cve_identity_overrides")
             )
 
-        # Build device contexts with CVE vulnerability overrides
+        # Build device contexts with CVE vulnerability overrides and scenario_id
+        # for unique serial number generation
         source_context = DeviceContext(
             device_id=source_device["id"],
             mac_address=get_network_field(source_device, "mac_address", "00:00:00:00:00:01"),
@@ -323,6 +330,8 @@ def _build_flow_contexts(scenario_definition: dict) -> list[FlowContext]:
             vendor_fingerprint=source_device.get("vendor_fingerprint") or source_device.get("vendorFingerprint", {}),
             # Pass CVE identity overrides for vulnerable firmware emulation
             vulnerability_override=get_cve_overrides(source_device),
+            # Pass scenario_id for unique serial number generation
+            scenario_id=scenario_id,
         )
 
         destination_context = DeviceContext(
@@ -334,6 +343,8 @@ def _build_flow_contexts(scenario_definition: dict) -> list[FlowContext]:
             vendor_fingerprint=destination_device.get("vendor_fingerprint") or destination_device.get("vendorFingerprint", {}),
             # Pass CVE identity overrides for vulnerable firmware emulation
             vulnerability_override=get_cve_overrides(destination_device),
+            # Pass scenario_id for unique serial number generation
+            scenario_id=scenario_id,
         )
 
         # Get protocol

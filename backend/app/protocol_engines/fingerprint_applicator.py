@@ -64,6 +64,8 @@ class FingerprintApplicator:
         self,
         fingerprint: dict[str, Any],
         vulnerability_override: dict[str, Any] | None = None,
+        device_id: str | None = None,
+        scenario_id: str | None = None,
     ):
         """Initialize with a fingerprint configuration.
 
@@ -73,9 +75,15 @@ class FingerprintApplicator:
             vulnerability_override: Optional CVE vulnerability overrides that
                         modify protocol identity responses to include vulnerable
                         firmware versions. See VulnerableFingerprintVariant model.
+            device_id: Unique device identifier for serial number generation.
+                      When provided, unique serial numbers are auto-generated.
+            scenario_id: Scenario identifier for serial number generation.
+                        Combined with device_id to create deterministic serials.
         """
         self.fingerprint = fingerprint
         self.vulnerability_override = vulnerability_override or {}
+        self.device_id = device_id
+        self.scenario_id = scenario_id
         self.tcp_stack = fingerprint.get("tcp_stack", {})
         self.response_timing = fingerprint.get("response_timing", {})
         self.error_behavior = fingerprint.get("error_behavior", {})
@@ -90,6 +98,11 @@ class FingerprintApplicator:
         # Apply vulnerability overrides if provided
         if vulnerability_override:
             self._apply_vulnerability_overrides()
+
+        # Auto-generate unique serial numbers if device_id provided
+        # This prevents Cisco Cyber Vision from merging devices with same fingerprint
+        if device_id:
+            self._apply_unique_serials()
 
         # Initialize RNG for reproducibility if needed
         self._rng = np.random.default_rng()
@@ -203,6 +216,56 @@ class FingerprintApplicator:
         if bacnet_override:
             self.bacnet_identity.update(bacnet_override)
             logger.debug(f"Applied BACnet vulnerability override: {bacnet_override}")
+
+    def _apply_unique_serials(self) -> None:
+        """Generate unique serial numbers for all protocols.
+
+        This method auto-generates unique serial numbers based on device_id
+        and scenario_id to prevent Cisco Cyber Vision from incorrectly merging
+        devices that share the same vendor fingerprint.
+
+        Serial numbers are deterministic - the same device_id + scenario_id
+        combination will always produce the same serial number.
+        """
+        from app.services.serial_number_generator import SerialNumberGenerator
+
+        vendor = self.fingerprint.get("vendor", "")
+
+        # EtherNet/IP: 32-bit integer serial number
+        if self.ethernet_ip_identity:
+            self.ethernet_ip_identity["serial_number"] = SerialNumberGenerator.generate(
+                protocol="ethernet_ip",
+                device_id=self.device_id,
+                scenario_id=self.scenario_id,
+                vendor=vendor,
+            )
+            logger.debug(
+                f"Generated unique EtherNet/IP serial: {self.ethernet_ip_identity['serial_number']}"
+            )
+
+        # S7comm: 12-character string serial number
+        if self.s7_identity:
+            self.s7_identity["serial_number"] = SerialNumberGenerator.generate(
+                protocol="s7",
+                device_id=self.device_id,
+                scenario_id=self.scenario_id,
+                vendor=vendor,
+            )
+            logger.debug(
+                f"Generated unique S7 serial: {self.s7_identity['serial_number']}"
+            )
+
+        # PROFINET I&M0: 16-character hex serial number
+        if self.profinet_identity:
+            self.profinet_identity["im0_serial_number"] = SerialNumberGenerator.generate(
+                protocol="profinet",
+                device_id=self.device_id,
+                scenario_id=self.scenario_id,
+                vendor=vendor,
+            )
+            logger.debug(
+                f"Generated unique PROFINET serial: {self.profinet_identity['im0_serial_number']}"
+            )
 
     @property
     def is_vulnerable(self) -> bool:

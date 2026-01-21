@@ -43,6 +43,10 @@ class DeviceContext:
     # for emitting vulnerable firmware versions in identity responses
     vulnerability_override: dict[str, Any] | None = None
 
+    # Scenario ID for unique serial number generation
+    # When provided, combined with device_id to generate deterministic unique serials
+    scenario_id: str | None = None
+
     # Extended fingerprint fields
     vendor: str | None = None
     vendor_family: str | None = None
@@ -69,9 +73,12 @@ class DeviceContext:
 
             if self.vendor_fingerprint:
                 # Pass vulnerability_override to apply CVE-specific identity overrides
+                # Pass device_id and scenario_id for unique serial number generation
                 self._fingerprint_applicator = FingerprintApplicator(
                     self.vendor_fingerprint,
                     vulnerability_override=self.vulnerability_override,
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
                 )
             else:
                 self._fingerprint_applicator = create_default_applicator()
