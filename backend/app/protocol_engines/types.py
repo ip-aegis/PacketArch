@@ -53,6 +53,10 @@ class DeviceContext:
     model: str | None = None
     firmware_version: str | None = None
 
+    # Device name for generating human-readable unique identifiers
+    # Used for BACnet object_name, PROFINET station_name, SNMP sys_name
+    device_name: str | None = None
+
     # Fingerprint applicator (lazy-loaded)
     _fingerprint_applicator: "FingerprintApplicator | None" = field(
         default=None, repr=False, compare=False
@@ -73,12 +77,13 @@ class DeviceContext:
 
             if self.vendor_fingerprint:
                 # Pass vulnerability_override to apply CVE-specific identity overrides
-                # Pass device_id and scenario_id for unique serial number generation
+                # Pass device_id, scenario_id, and device_name for unique identifier generation
                 self._fingerprint_applicator = FingerprintApplicator(
                     self.vendor_fingerprint,
                     vulnerability_override=self.vulnerability_override,
                     device_id=self.device_id,
                     scenario_id=self.scenario_id,
+                    device_name=self.device_name,
                 )
             else:
                 self._fingerprint_applicator = create_default_applicator()

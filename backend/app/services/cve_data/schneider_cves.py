@@ -63,7 +63,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,  # Schneider Electric ODVA vendor ID
                     "device_type": 14,  # PLC
-                    "product_code": 582040,
+                    "product_code": 582,  # Valid 16-bit product code for M580
                     "product_name": "Modicon M580 BMEP582040",
                 },
             },
@@ -80,7 +80,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,
                     "device_type": 14,
-                    "product_code": 584040,
+                    "product_code": 584,  # Valid 16-bit product code for M580
                     "product_name": "Modicon M580 BMEP584040",
                 },
             },
@@ -132,7 +132,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,
                     "device_type": 14,
-                    "product_code": 342020,
+                    "product_code": 342,  # Valid 16-bit product code for M340
                     "product_name": "Modicon M340 BMXP342020",
                 },
             },
@@ -149,7 +149,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,
                     "device_type": 14,
-                    "product_code": 3420302,
+                    "product_code": 342,  # Valid 16-bit product code for M340
                     "product_name": "Modicon M340 BMXP3420302",
                 },
             },
@@ -310,7 +310,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,
                     "device_type": 14,
-                    "product_code": 342020,
+                    "product_code": 342,  # Valid 16-bit product code for M340
                     "product_name": "Modicon M340 BMXP342020",
                 },
             },
@@ -360,7 +360,7 @@ SCHNEIDER_CVES: list[dict] = [
                 "ethernet_ip_identity_override": {
                     "vendor_id": 67,
                     "device_type": 14,
-                    "product_code": 584040,
+                    "product_code": 584,  # Valid 16-bit product code for M580
                     "product_name": "Modicon M580 BMEP584040",
                 },
             },

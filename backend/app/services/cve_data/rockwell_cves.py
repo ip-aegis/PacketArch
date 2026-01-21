@@ -59,7 +59,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 32,
                     "revision_minor": 11,
-                    "serial_number": 0x1234ABCD,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,  # Running
                     "status": 0x0000,  # Normal operation
@@ -89,7 +89,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x35,
                     "revision_major": 31,
                     "revision_minor": 12,
-                    "serial_number": 0x5678CDEF,
+
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,
@@ -120,7 +120,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 30,
                     "revision_minor": 11,
-                    "serial_number": 0x1234ABCE,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -150,7 +150,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 29,
                     "revision_minor": 11,
-                    "serial_number": 0x1234ABCF,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -180,7 +180,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x36,
                     "revision_major": 28,
                     "revision_minor": 15,
-                    "serial_number": 0x1234ABD0,
+
                     "product_name": "1756-L84E/B LOGIX5584",
                     "state": 3,
                     "status": 0x0000,
@@ -244,7 +244,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 32,
                     "revision_minor": 16,
-                    "serial_number": 0x2345BCDE,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -274,7 +274,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 31,
                     "revision_minor": 11,
-                    "serial_number": 0x2345BCDF,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -304,7 +304,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x36,
                     "revision_major": 30,
                     "revision_minor": 16,
-                    "serial_number": 0x2345BCE0,
+
                     "product_name": "1756-L84E/B LOGIX5584",
                     "state": 3,
                     "status": 0x0000,
@@ -334,7 +334,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x35,
                     "revision_major": 29,
                     "revision_minor": 13,
-                    "serial_number": 0x2345BCE1,
+
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,
@@ -397,7 +397,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x5D,
                     "revision_major": 32,
                     "revision_minor": 13,
-                    "serial_number": 0x3456CDEF,
+
                     "product_name": "1769-L33ER/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
@@ -427,7 +427,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x5D,
                     "revision_major": 31,
                     "revision_minor": 11,
-                    "serial_number": 0x3456CDF0,
+
                     "product_name": "1769-L33ER/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
@@ -457,7 +457,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x5C,
                     "revision_major": 30,
                     "revision_minor": 13,
-                    "serial_number": 0x3456CDF1,
+
                     "product_name": "1769-L30ER/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
@@ -487,7 +487,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x5E,
                     "revision_major": 29,
                     "revision_minor": 11,
-                    "serial_number": 0x3456CDF2,
+
                     "product_name": "1769-L36ERM/B CompactLogix 5370",
                     "state": 3,
                     "status": 0x0000,
@@ -550,7 +550,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x19,
                     "revision_major": 21,
                     "revision_minor": 7,
-                    "serial_number": 0x4567DEF0,
+
                     "product_name": "1766-L32BWA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
@@ -580,7 +580,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x19,
                     "revision_major": 21,
                     "revision_minor": 6,
-                    "serial_number": 0x4567DEF1,
+
                     "product_name": "1766-L32BWA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
@@ -610,7 +610,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x19,
                     "revision_major": 21,
                     "revision_minor": 5,
-                    "serial_number": 0x4567DEF2,
+
                     "product_name": "1766-L32BWAA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
@@ -640,7 +640,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x19,
                     "revision_major": 21,
                     "revision_minor": 4,
-                    "serial_number": 0x4567DEF3,
+
                     "product_name": "1766-L32BXB MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
@@ -670,7 +670,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x19,
                     "revision_major": 21,
                     "revision_minor": 3,
-                    "serial_number": 0x4567DEF4,
+
                     "product_name": "1766-L32AWAA MicroLogix 1400",
                     "state": 3,
                     "status": 0x0000,
@@ -732,7 +732,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 33,
                     "revision_minor": 16,
-                    "serial_number": 0x5678EF01,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -762,7 +762,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x37,
                     "revision_major": 33,
                     "revision_minor": 11,
-                    "serial_number": 0x5678EF02,
+
                     "product_name": "1756-L85E/B LOGIX5585",
                     "state": 3,
                     "status": 0x0000,
@@ -792,7 +792,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x36,
                     "revision_major": 32,
                     "revision_minor": 16,
-                    "serial_number": 0x5678EF03,
+
                     "product_name": "1756-L84E/B LOGIX5584",
                     "state": 3,
                     "status": 0x0000,
@@ -822,7 +822,7 @@ ROCKWELL_CVES: list[dict] = [
                     "product_code": 0x35,
                     "revision_major": 32,
                     "revision_minor": 11,
-                    "serial_number": 0x5678EF04,
+
                     "product_name": "1756-L83E/B LOGIX5583",
                     "state": 3,
                     "status": 0x0000,

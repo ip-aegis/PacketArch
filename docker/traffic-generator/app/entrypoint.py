@@ -1,6 +1,5 @@
 """Traffic generator container entrypoint."""
 
-import copy
 import json
 import logging
 import os
@@ -45,76 +44,54 @@ def parse_scenario(scenario_json: str) -> dict:
         sys.exit(1)
 
 
-def build_device_fingerprint(device: dict, protocol: str) -> dict:
-    """Build enriched fingerprint for a device, merging CVE overrides.
+def get_device_fingerprint(device: dict) -> dict:
+    """Get the fingerprint for a device.
+
+    The fingerprint is already fully enriched by the backend with:
+    - Base vendor fingerprint values
+    - CVE vulnerability overrides (firmware versions, etc.)
+    - Unique instance identifiers (serial numbers, device_instance, etc.)
+
+    This function simply returns the fingerprint as-is. All enrichment
+    happens in the backend's ScenarioDefinitionEnricher before deployment.
 
     Args:
         device: Device dictionary from scenario
-        protocol: Protocol being used (for context-specific enrichment)
 
     Returns:
-        Enriched fingerprint dictionary
+        Fingerprint dictionary (already enriched by backend)
     """
-    # Get base fingerprint
-    fingerprint = copy.deepcopy(
-        device.get("vendor_fingerprint") or
+    return (
         device.get("vendorFingerprint") or
+        device.get("vendor_fingerprint") or
         {}
     )
 
-    # Merge CVE identity overrides (all protocol identity types)
-    cve_overrides = device.get("cveIdentityOverrides", {})
-    if cve_overrides:
-        logger.info(f"Device {device.get('name')}: Merging CVE overrides: {list(cve_overrides.keys())}")
-        for key in [
-            "modbus_identity", "ethernet_ip_identity", "profinet_identity",
-            "cip_identity_object", "bacnet_identity", "snmp_identity", "s7_identity"
-        ]:
-            if key in cve_overrides:
-                if key in fingerprint and isinstance(fingerprint[key], dict):
-                    fingerprint[key].update(cve_overrides[key])
-                else:
-                    fingerprint[key] = cve_overrides[key]
-                logger.info(f"  Merged {key}: {fingerprint[key]}")
 
-    # Enrich fingerprint with device info for protocol identity fields
-    device_name = device.get("name", "")
-    fingerprint_model = device.get("fingerprintModel", "")
-    vendor = device.get("vendor", "")
+def create_device_context(device_id: str, device: dict) -> DeviceContext:
+    """Create a DeviceContext from a device dictionary.
 
-    # PROFINET: Ensure station_name is set (critical for Cyber Vision detection)
-    if "profinet_identity" in fingerprint or protocol in ("profinet", "profisafe"):
-        if "profinet_identity" not in fingerprint:
-            fingerprint["profinet_identity"] = {}
-        pn_id = fingerprint["profinet_identity"]
-        if not pn_id.get("station_name"):
-            station = device_name.lower().replace(" ", "-").replace("_", "-") if device_name else None
-            if station:
-                pn_id["station_name"] = station
-                logger.debug(f"Generated PROFINET station_name '{station}' from device name")
+    This is used to create device contexts for ALL devices in the scenario,
+    including those that don't appear in any flow. This ensures comprehensive
+    device discovery for Cyber Vision.
 
-    # EtherNet/IP: Ensure product_name is set
-    if "ethernet_ip_identity" in fingerprint or protocol == "ethernet_ip":
-        if "ethernet_ip_identity" not in fingerprint:
-            fingerprint["ethernet_ip_identity"] = {}
-        eip_id = fingerprint["ethernet_ip_identity"]
-        if not eip_id.get("product_name"):
-            product = fingerprint_model or device_name
-            if product:
-                eip_id["product_name"] = product
-                logger.debug(f"Generated EtherNet/IP product_name '{product}' from device info")
+    Args:
+        device_id: The device ID
+        device: Device dictionary from scenario
 
-    # Modbus: Ensure vendor_name and product_code are set
-    if "modbus_identity" in fingerprint or protocol == "modbus_tcp":
-        if "modbus_identity" not in fingerprint:
-            fingerprint["modbus_identity"] = {}
-        mb_id = fingerprint["modbus_identity"]
-        if not mb_id.get("vendor_name") and vendor:
-            mb_id["vendor_name"] = vendor.title()
-        if not mb_id.get("product_code") and fingerprint_model:
-            mb_id["product_code"] = fingerprint_model
+    Returns:
+        DeviceContext object
+    """
+    network = device.get("network", {})
+    fingerprint = get_device_fingerprint(device)
 
-    return fingerprint
+    return DeviceContext(
+        device_id=device_id,
+        mac_address=network.get("macAddress", "00:00:00:00:00:01"),
+        ip_address=network.get("ipAddress", "10.0.0.1"),
+        port=502,  # Default port, not used for discovery
+        vendor_fingerprint=fingerprint,
+    )
 
 
 def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | None:
@@ -134,9 +111,10 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
         src_network = source_device.get("network", {})
         dst_network = target_device.get("network", {})
 
-        # Build fingerprints for BOTH source and destination (for discovery)
-        src_fingerprint = build_device_fingerprint(source_device, protocol)
-        dst_fingerprint = build_device_fingerprint(target_device, protocol)
+        # Get fingerprints for BOTH source and destination (for discovery)
+        # Fingerprints are already enriched by the backend with unique identifiers
+        src_fingerprint = get_device_fingerprint(source_device)
+        dst_fingerprint = get_device_fingerprint(target_device)
 
         # Create device contexts with vendor fingerprints for device identification
         source = DeviceContext(
@@ -240,8 +218,24 @@ def main():
 
     # Get definition
     definition = scenario.get("definition", {})
-    devices = definition.get("devices", {})
-    flows = definition.get("flows", {})
+    devices_raw = definition.get("devices", {})
+    flows_raw = definition.get("flows", {})
+
+    # Handle both dict and list formats for devices
+    if isinstance(devices_raw, dict):
+        devices = devices_raw
+    elif isinstance(devices_raw, list):
+        devices = {d.get("id", str(i)): d for i, d in enumerate(devices_raw)}
+    else:
+        devices = {}
+
+    # Handle both dict and list formats for flows
+    if isinstance(flows_raw, dict):
+        flows = flows_raw
+    elif isinstance(flows_raw, list):
+        flows = {f.get("id", str(i)): f for i, f in enumerate(flows_raw)}
+    else:
+        flows = {}
 
     logger.info(f"Found {len(devices)} devices and {len(flows)} flows")
 
@@ -253,6 +247,14 @@ def main():
     global _orchestrator
     orchestrator = LiveTrafficOrchestrator(interface, duration_ms)
     _orchestrator = orchestrator  # Set global for signal handling
+
+    # Create DeviceContext for ALL devices in scenario (for comprehensive discovery)
+    all_device_contexts = []
+    for device_id, device in devices.items():
+        device_context = create_device_context(device_id, device)
+        all_device_contexts.append(device_context)
+    orchestrator.set_all_devices(all_device_contexts)
+    logger.info(f"Registered {len(all_device_contexts)} devices for discovery")
 
     # Add flows
     for flow_id, flow_def in flows.items():

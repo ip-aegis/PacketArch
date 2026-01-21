@@ -66,6 +66,7 @@ class FingerprintApplicator:
         vulnerability_override: dict[str, Any] | None = None,
         device_id: str | None = None,
         scenario_id: str | None = None,
+        device_name: str | None = None,
     ):
         """Initialize with a fingerprint configuration.
 
@@ -79,11 +80,15 @@ class FingerprintApplicator:
                       When provided, unique serial numbers are auto-generated.
             scenario_id: Scenario identifier for serial number generation.
                         Combined with device_id to create deterministic serials.
+            device_name: Human-readable device name for generating unique
+                        network identifiers (BACnet object_name, PROFINET
+                        station_name, SNMP sys_name).
         """
         self.fingerprint = fingerprint
         self.vulnerability_override = vulnerability_override or {}
         self.device_id = device_id
         self.scenario_id = scenario_id
+        self.device_name = device_name
         self.tcp_stack = fingerprint.get("tcp_stack", {})
         self.response_timing = fingerprint.get("response_timing", {})
         self.error_behavior = fingerprint.get("error_behavior", {})
@@ -99,10 +104,11 @@ class FingerprintApplicator:
         if vulnerability_override:
             self._apply_vulnerability_overrides()
 
-        # Auto-generate unique serial numbers if device_id provided
+        # Auto-generate unique identifiers if device_id provided
         # This prevents Cisco Cyber Vision from merging devices with same fingerprint
         if device_id:
             self._apply_unique_serials()
+            self._apply_unique_identifiers()
 
         # Initialize RNG for reproducibility if needed
         self._rng = np.random.default_rng()
@@ -265,6 +271,88 @@ class FingerprintApplicator:
             )
             logger.debug(
                 f"Generated unique PROFINET serial: {self.profinet_identity['im0_serial_number']}"
+            )
+
+    def _apply_unique_identifiers(self) -> None:
+        """Generate unique network identifiers for all protocols.
+
+        This method generates unique identifiers for protocols that require
+        network-unique values:
+        - BACnet: device_instance (must be unique on BACnet network)
+        - BACnet: object_name (should be unique for device identification)
+        - PROFINET: station_name (must be unique on PROFINET network)
+        - SNMP: sys_name (should be unique, typically hostname)
+
+        Identifiers are deterministic - same device_id + scenario_id always
+        produces the same values.
+        """
+        from app.services.unique_identifier_generator import UniqueIdentifierGenerator
+
+        model = self.fingerprint.get("model", "")
+        vendor_family = self.fingerprint.get("vendor_family", "")
+        vendor = self.fingerprint.get("vendor", "")
+
+        # BACnet identity: device_instance and object_name
+        if self.bacnet_identity:
+            # Generate unique device_instance (MUST be unique on BACnet network)
+            self.bacnet_identity["device_instance"] = (
+                UniqueIdentifierGenerator.generate_bacnet_device_instance(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                )
+            )
+            logger.debug(
+                f"Generated unique BACnet device_instance: "
+                f"{self.bacnet_identity['device_instance']}"
+            )
+
+            # Generate unique object_name
+            self.bacnet_identity["object_name"] = (
+                UniqueIdentifierGenerator.generate_bacnet_object_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+            logger.debug(
+                f"Generated unique BACnet object_name: "
+                f"{self.bacnet_identity['object_name']}"
+            )
+
+        # PROFINET identity: station_name (MUST be unique on PROFINET network)
+        if self.profinet_identity:
+            self.profinet_identity["station_name"] = (
+                UniqueIdentifierGenerator.generate_profinet_station_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+            logger.debug(
+                f"Generated unique PROFINET station_name: "
+                f"{self.profinet_identity['station_name']}"
+            )
+
+        # SNMP identity: sys_name
+        if self.snmp_identity:
+            self.snmp_identity["sys_name"] = (
+                UniqueIdentifierGenerator.generate_snmp_sys_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+            logger.debug(
+                f"Generated unique SNMP sys_name: {self.snmp_identity['sys_name']}"
             )
 
     @property

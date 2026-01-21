@@ -303,6 +303,63 @@ SIEMENS_OUI = bytes([0x00, 0x0E, 0x8C])
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# Validation Helpers
+# =============================================================================
+
+def _validate_uint16(value: Any, field_name: str, default: int = 0) -> int:
+    """Validate and clamp a value to unsigned 16-bit range (0-65535).
+
+    This prevents struct.pack overflow errors when packing protocol identity
+    fields like vendor_id, device_id, product_code into 'H' format.
+
+    Args:
+        value: The value to validate (can be int, str, or None)
+        field_name: Name of the field (for logging)
+        default: Default value if validation fails
+
+    Returns:
+        Integer value clamped to 0-65535 range
+    """
+    try:
+        num = int(value) if value is not None else default
+        if num < 0 or num > 65535:
+            logger.warning(
+                f"Value {num} for {field_name} exceeds uint16 range (0-65535), "
+                f"clamping to {min(max(num, 0), 65535)}"
+            )
+            return min(max(num, 0), 65535)
+        return num
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid value '{value}' for {field_name}, using default {default}")
+        return default
+
+
+def _validate_uint8(value: Any, field_name: str, default: int = 0) -> int:
+    """Validate and clamp a value to unsigned 8-bit range (0-255).
+
+    Args:
+        value: The value to validate
+        field_name: Name of the field (for logging)
+        default: Default value if validation fails
+
+    Returns:
+        Integer value clamped to 0-255 range
+    """
+    try:
+        num = int(value) if value is not None else default
+        if num < 0 or num > 255:
+            logger.warning(
+                f"Value {num} for {field_name} exceeds uint8 range (0-255), "
+                f"clamping to {min(max(num, 0), 255)}"
+            )
+            return min(max(num, 0), 255)
+        return num
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid value '{value}' for {field_name}, using default {default}")
+        return default
+
+
 @dataclass
 class DeviceContext:
     """Context information for a device in a flow."""
@@ -385,6 +442,7 @@ class LiveTrafficOrchestrator:
         self.duration_ms = duration_ms
         self.perpetual = duration_ms is None
         self.flows: list[FlowState] = []
+        self.all_devices: list[DeviceContext] = []  # ALL devices in scenario (for discovery)
         self.event_queue: list[tuple[float, int, Any]] = []  # (time_ms, counter, event)
         self.event_counter = 0
         self.packets_sent = 0
@@ -404,6 +462,18 @@ class LiveTrafficOrchestrator:
 
         self.flows.append(flow_state)
         logger.info(f"Added flow {flow_context.flow_id} ({flow_context.protocol})")
+
+    def set_all_devices(self, devices: list[DeviceContext]) -> None:
+        """Set all devices in the scenario for comprehensive discovery.
+
+        This ensures devices that are not part of any flow still get discovery
+        packets generated, allowing Cyber Vision to see their full identity.
+
+        Args:
+            devices: List of all DeviceContext objects in the scenario
+        """
+        self.all_devices = devices
+        logger.info(f"Registered {len(devices)} devices for discovery")
 
     def _schedule_event(self, time_ms: float, event: Any) -> None:
         """Schedule an event at a specific time."""
@@ -1906,14 +1976,16 @@ class LiveTrafficOrchestrator:
         # Use get_effective_identity to apply CVE vulnerability overrides
         eip_identity = src.get_effective_identity("ethernet_ip_identity")
 
-        vendor_id = eip_identity.get("vendor_id", 1)
-        device_type = eip_identity.get("device_type", 14)
-        product_code = eip_identity.get("product_code", 1)
-        revision_major = eip_identity.get("revision_major", 1)
-        revision_minor = eip_identity.get("revision_minor", 0)
+        # Validate 16-bit fields to prevent struct.pack overflow
+        vendor_id = _validate_uint16(eip_identity.get("vendor_id", 1), "vendor_id", 1)
+        device_type = _validate_uint16(eip_identity.get("device_type", 14), "device_type", 14)
+        product_code = _validate_uint16(eip_identity.get("product_code", 1), "product_code", 1)
+        # 8-bit fields
+        revision_major = _validate_uint8(eip_identity.get("revision_major", 1), "revision_major", 1)
+        revision_minor = _validate_uint8(eip_identity.get("revision_minor", 0), "revision_minor", 0)
         serial_number = eip_identity.get("serial_number", 0x12345678)
         product_name = eip_identity.get("product_name", "Unknown Device")[:32]
-        state = eip_identity.get("state", 3)
+        state = _validate_uint8(eip_identity.get("state", 3), "state", 3)
 
         # Socket address info (16 bytes)
         ip_parts = [int(x) for x in src.ip_address.split(".")]
@@ -1973,14 +2045,15 @@ class LiveTrafficOrchestrator:
         eip_identity = fingerprint.get("ethernet_ip_identity", {})
         cip_identity = fingerprint.get("cip_identity_object", {})
 
-        vendor_id = eip_identity.get("vendor_id", 1)
-        device_type = eip_identity.get("device_type", 14)
-        product_code = eip_identity.get("product_code", 1)
-        revision_major = eip_identity.get("revision_major", 1)
-        revision_minor = eip_identity.get("revision_minor", 0)
+        # Validate 16-bit and 8-bit fields to prevent struct.pack overflow
+        vendor_id = _validate_uint16(eip_identity.get("vendor_id", 1), "vendor_id", 1)
+        device_type = _validate_uint16(eip_identity.get("device_type", 14), "device_type", 14)
+        product_code = _validate_uint16(eip_identity.get("product_code", 1), "product_code", 1)
+        revision_major = _validate_uint8(eip_identity.get("revision_major", 1), "revision_major", 1)
+        revision_minor = _validate_uint8(eip_identity.get("revision_minor", 0), "revision_minor", 0)
         serial_number = eip_identity.get("serial_number", 0x12345678)
         product_name = eip_identity.get("product_name", "Unknown")[:32]
-        state = eip_identity.get("state", 3)
+        state = _validate_uint8(eip_identity.get("state", 3), "state", 3)
 
         # Build Identity Object attributes
         product_name_bytes = product_name.encode("utf-8")
@@ -2389,18 +2462,18 @@ class LiveTrafficOrchestrator:
         pn_identity = src.get_effective_identity("profinet_identity")
 
         # Get identity values (support multiple key formats)
-        # Ensure integer types for struct packing
+        # Validate 16-bit fields to prevent struct.pack overflow
         station_name = pn_identity.get("station_name", f"device-{src.device_id[:8]}")
-        vendor_id = int(pn_identity.get("vendor_id", 0x002A))
-        device_id = int(pn_identity.get("device_id", 0x0001))
+        vendor_id = _validate_uint16(pn_identity.get("vendor_id", 0x002A), "profinet_vendor_id", 0x002A)
+        device_id = _validate_uint16(pn_identity.get("device_id", 0x0001), "profinet_device_id", 0x0001)
 
         # Handle device_role - can be int or string like "controller", "device"
         raw_role = pn_identity.get("device_role", 0x01)
         if isinstance(raw_role, str):
             role_map = {"device": 1, "controller": 2, "multidevice": 4, "supervisor": 8}
-            device_role = role_map.get(raw_role.lower(), 1)
+            device_role = _validate_uint8(role_map.get(raw_role.lower(), 1), "profinet_device_role", 1)
         else:
-            device_role = int(raw_role)
+            device_role = _validate_uint8(raw_role, "profinet_device_role", 1)
         order_id = pn_identity.get("order_id") or pn_identity.get("im0_order_id", "")
         sw_revision = (
             pn_identity.get("software_revision") or
@@ -2605,6 +2678,58 @@ class LiveTrafficOrchestrator:
         frame = (
             Ether(src=src.mac_address, dst=LLDP_MULTICAST_MAC, type=LLDP_ETHERTYPE)
             / Raw(load=tlvs)
+        )
+
+        return bytes(frame)
+
+    def _build_gratuitous_arp(self, device: DeviceContext) -> bytes:
+        """Build a Gratuitous ARP packet for IP-to-MAC discovery.
+
+        Gratuitous ARP is sent by a device to announce its IP-to-MAC mapping.
+        This ensures network monitoring tools like Cyber Vision can associate
+        the device's IP address with its MAC address.
+
+        Args:
+            device: Device context with MAC and IP address
+
+        Returns:
+            Raw packet bytes
+        """
+        # Parse IP address to bytes
+        ip_parts = device.ip_address.split(".")
+        ip_bytes = bytes([int(p) for p in ip_parts])
+
+        # Parse MAC address to bytes
+        mac_bytes = bytes.fromhex(device.mac_address.replace(":", ""))
+
+        # ARP packet structure:
+        # - Hardware type (2 bytes): 0x0001 (Ethernet)
+        # - Protocol type (2 bytes): 0x0800 (IPv4)
+        # - Hardware address length (1 byte): 6
+        # - Protocol address length (1 byte): 4
+        # - Opcode (2 bytes): 0x0002 (ARP Reply)
+        # - Sender hardware address (6 bytes): device MAC
+        # - Sender protocol address (4 bytes): device IP
+        # - Target hardware address (6 bytes): device MAC (gratuitous)
+        # - Target protocol address (4 bytes): device IP (gratuitous)
+        arp_payload = struct.pack(
+            ">HHBBH",
+            0x0001,  # Hardware type (Ethernet)
+            0x0800,  # Protocol type (IPv4)
+            6,       # Hardware address length
+            4,       # Protocol address length
+            0x0002,  # Opcode (ARP Reply)
+        )
+        arp_payload += mac_bytes       # Sender MAC
+        arp_payload += ip_bytes        # Sender IP
+        arp_payload += mac_bytes       # Target MAC (gratuitous: same as sender)
+        arp_payload += ip_bytes        # Target IP (gratuitous: same as sender)
+
+        # Build Ethernet frame with ARP ethertype (0x0806)
+        # Destination is broadcast for gratuitous ARP
+        frame = (
+            Ether(src=device.mac_address, dst="ff:ff:ff:ff:ff:ff", type=0x0806)
+            / Raw(load=arp_payload)
         )
 
         return bytes(frame)
@@ -2914,6 +3039,147 @@ class LiveTrafficOrchestrator:
                         )
 
         # ==================================================================
+        # Universal EtherNet/IP Discovery - For ALL devices with EtherNet/IP identity
+        # This ensures Cyber Vision can detect devices that are only sources
+        # in flows (not targets), which normally wouldn't get discovery.
+        # ==================================================================
+        enip_universal: set[str] = set()
+        for flow_state in self.flows:
+            flow = flow_state.flow
+            # Check both source and destination devices
+            for device in [flow.destination, flow.source]:
+                eip_identity = device.vendor_fingerprint.get("ethernet_ip_identity")
+                # Skip if already discovered or no EtherNet/IP identity
+                if not eip_identity or device.device_id in enip_universal:
+                    continue
+                # Skip if already discovered in protocol-specific discovery
+                if device.device_id in discovered_enip:
+                    continue
+                enip_universal.add(device.device_id)
+
+                # Use peer device as scanner
+                other = flow.source if device == flow.destination else flow.destination
+                scanner = DeviceContext(
+                    device_id="enip_scanner",
+                    mac_address=other.mac_address,
+                    ip_address=other.ip_address,
+                    port=50000,
+                )
+
+                # ListIdentity request (broadcast discovery)
+                request = self._build_enip_list_identity_request()
+                request_pkt = self._build_udp_packet(scanner, device, request)
+                self._schedule_event(current_time, ("packet", request_pkt))
+
+                # ListIdentity response (device -> scanner) - includes CVE overrides
+                response = self._build_enip_list_identity_response(device)
+                device_response = DeviceContext(
+                    device_id=device.device_id,
+                    mac_address=device.mac_address,
+                    ip_address=device.ip_address,
+                    port=44818,
+                    vendor_fingerprint=device.vendor_fingerprint,
+                )
+                response_pkt = self._build_udp_packet(device_response, scanner, response)
+                self._schedule_event(current_time + 20, ("packet", response_pkt))
+
+                current_time += 100
+                logger.info(
+                    f"Scheduled universal EtherNet/IP discovery for {device.ip_address} "
+                    f"(vendor={eip_identity.get('vendor_id')}, product={eip_identity.get('product_name', '')[:20]})"
+                )
+
+        # ==================================================================
+        # Universal Modbus Discovery - For ALL devices with Modbus identity
+        # This ensures Cyber Vision can detect devices via FC 43 (MEI)
+        # regardless of flow direction.
+        # ==================================================================
+        modbus_universal: set[str] = set()
+        for flow_state in self.flows:
+            flow = flow_state.flow
+            # Check both source and destination devices
+            for device in [flow.destination, flow.source]:
+                modbus_identity = device.vendor_fingerprint.get("modbus_identity")
+                # Skip if already discovered or no Modbus identity
+                if not modbus_identity or device.device_id in modbus_universal:
+                    continue
+                # Skip if already marked for FC 43 in protocol-specific discovery
+                if device.device_id in discovered_modbus:
+                    continue
+                modbus_universal.add(device.device_id)
+
+                # Use peer device as scanner
+                other = flow.source if device == flow.destination else flow.destination
+
+                # Build TCP connection context for Modbus
+                scanner = DeviceContext(
+                    device_id="modbus_scanner",
+                    mac_address=other.mac_address,
+                    ip_address=other.ip_address,
+                    port=random.randint(40000, 50000),
+                )
+
+                # Create temporary flow state for TCP sequence numbers
+                temp_seq = random.randint(1000, 100000)
+                temp_ack = random.randint(1000, 100000)
+
+                # TCP SYN
+                syn = self._build_tcp_packet(scanner, device, b"", temp_seq, 0, "S")
+                self._schedule_event(current_time, ("packet", syn))
+                current_time += 10
+
+                # TCP SYN-ACK
+                syn_ack = self._build_tcp_packet(device, scanner, b"", temp_ack, temp_seq + 1, "SA")
+                self._schedule_event(current_time, ("packet", syn_ack))
+                current_time += 10
+
+                # TCP ACK
+                ack = self._build_tcp_packet(scanner, device, b"", temp_seq + 1, temp_ack + 1, "A")
+                self._schedule_event(current_time, ("packet", ack))
+                current_time += 10
+
+                # FC 43 Request (MEI type 0x0E, device ID code 0x01)
+                transaction_id = random.randint(1, 65535)
+                unit_id = 1
+                fc43_request = struct.pack(
+                    ">HHHBB BB",
+                    transaction_id,  # Transaction ID
+                    0,  # Protocol ID
+                    2 + 3,  # Length
+                    unit_id,  # Unit ID
+                    0x2B,  # Function code 43
+                    0x0E,  # MEI type
+                    0x01,  # Read Device ID code (basic)
+                )
+                request_pkt = self._build_tcp_packet(
+                    scanner, device, fc43_request, temp_seq + 1, temp_ack + 1
+                )
+                self._schedule_event(current_time, ("packet", request_pkt))
+                current_time += 20
+
+                # FC 43 Response with device identity
+                device_context = DeviceContext(
+                    device_id=device.device_id,
+                    mac_address=device.mac_address,
+                    ip_address=device.ip_address,
+                    port=502,
+                    vendor_fingerprint=device.vendor_fingerprint,
+                    vulnerability_override=device.vulnerability_override,
+                )
+                fc43_response = self._build_modbus_device_id_response(transaction_id, unit_id, device_context)
+                response_pkt = self._build_tcp_packet(
+                    device_context, scanner, fc43_response, temp_ack + 1, temp_seq + 1 + len(fc43_request)
+                )
+                self._schedule_event(current_time, ("packet", response_pkt))
+                current_time += 50
+
+                logger.info(
+                    f"Scheduled universal Modbus FC43 discovery for {device.ip_address} "
+                    f"(vendor={modbus_identity.get('vendor_name', '')[:20]}, "
+                    f"product={modbus_identity.get('product_name', '')[:20]})"
+                )
+
+        # ==================================================================
         # Universal SNMP Discovery - For ALL devices with SNMP identity
         # This ensures Cyber Vision can detect firmware via sysDescr
         # regardless of the primary protocol (Modbus, EtherNet/IP, etc.)
@@ -2978,6 +3244,214 @@ class LiveTrafficOrchestrator:
                     f"Scheduled universal SNMP discovery for {device.ip_address} "
                     f"(sysDescr={sys_descr[:60]})"
                 )
+
+        # ==================================================================
+        # Universal Gratuitous ARP - For ALL devices
+        # This ensures Cyber Vision can associate IP with MAC for every device,
+        # regardless of what protocol identity types they have.
+        # ==================================================================
+        arp_sent: set[str] = set()
+        for flow_state in self.flows:
+            flow = flow_state.flow
+            for device in [flow.destination, flow.source]:
+                if device.device_id not in arp_sent:
+                    arp_sent.add(device.device_id)
+                    arp_pkt = self._build_gratuitous_arp(device)
+                    self._schedule_event(current_time, ("packet", arp_pkt))
+                    current_time += 5
+                    logger.debug(f"Scheduled gratuitous ARP for flow device {device.ip_address}")
+
+        # Also send for all registered devices (catches devices not in flows)
+        for device in self.all_devices:
+            if device.device_id not in arp_sent:
+                arp_sent.add(device.device_id)
+                arp_pkt = self._build_gratuitous_arp(device)
+                self._schedule_event(current_time, ("packet", arp_pkt))
+                current_time += 5
+                logger.debug(f"Scheduled gratuitous ARP for registered device {device.ip_address}")
+
+        logger.info(f"Scheduled gratuitous ARP for {len(arp_sent)} devices")
+
+        # ==================================================================
+        # Orphan Device Discovery - For devices NOT in any flow
+        # Some devices may be defined in the scenario but never used as
+        # source or destination in any flow. These still need discovery.
+        # ==================================================================
+        # Collect all device IDs that appear in flows
+        flow_device_ids: set[str] = set()
+        for flow_state in self.flows:
+            flow_device_ids.add(flow_state.flow.source.device_id)
+            flow_device_ids.add(flow_state.flow.destination.device_id)
+
+        # Find orphan devices (in all_devices but not in any flow)
+        orphan_devices = [d for d in self.all_devices if d.device_id not in flow_device_ids]
+
+        if orphan_devices:
+            logger.info(f"Found {len(orphan_devices)} orphan devices not in any flow - generating discovery")
+
+            # Use first flow device as scanner (if available), or create dummy
+            scanner_base = None
+            if self.flows:
+                scanner_base = self.flows[0].flow.source
+
+            for device in orphan_devices:
+                # Generate scanner context
+                if scanner_base:
+                    scanner = DeviceContext(
+                        device_id="orphan_scanner",
+                        mac_address=scanner_base.mac_address,
+                        ip_address=scanner_base.ip_address,
+                        port=random.randint(40000, 50000),
+                    )
+                else:
+                    # Create a dummy scanner if no flows exist
+                    scanner = DeviceContext(
+                        device_id="orphan_scanner",
+                        mac_address="00:00:00:00:00:01",
+                        ip_address="10.0.0.1",
+                        port=random.randint(40000, 50000),
+                    )
+
+                # EtherNet/IP discovery for orphan device
+                eip_identity = device.vendor_fingerprint.get("ethernet_ip_identity")
+                if eip_identity:
+                    request = self._build_enip_list_identity_request()
+                    request_pkt = self._build_udp_packet(scanner, device, request)
+                    self._schedule_event(current_time, ("packet", request_pkt))
+
+                    response = self._build_enip_list_identity_response(device)
+                    device_response = DeviceContext(
+                        device_id=device.device_id,
+                        mac_address=device.mac_address,
+                        ip_address=device.ip_address,
+                        port=44818,
+                        vendor_fingerprint=device.vendor_fingerprint,
+                    )
+                    response_pkt = self._build_udp_packet(device_response, scanner, response)
+                    self._schedule_event(current_time + 20, ("packet", response_pkt))
+                    current_time += 50
+                    logger.info(f"Scheduled orphan EtherNet/IP discovery for {device.ip_address}")
+
+                # PROFINET DCP discovery for orphan device
+                pn_identity = device.vendor_fingerprint.get("profinet_identity")
+                if pn_identity:
+                    xid = random.randint(1, 0xFFFFFFFF)
+                    request = self._build_profinet_dcp_identify_request(scanner, xid)
+                    self._schedule_event(current_time, ("packet", request))
+
+                    response = self._build_profinet_dcp_identify_response(device, scanner, xid)
+                    self._schedule_event(current_time + 30, ("packet", response))
+
+                    lldp_pkt = self._build_lldp_packet(device)
+                    self._schedule_event(current_time + 60, ("packet", lldp_pkt))
+                    current_time += 100
+                    logger.info(f"Scheduled orphan PROFINET discovery for {device.mac_address}")
+
+                # SNMP discovery for orphan device
+                snmp_identity = device.vendor_fingerprint.get("snmp_identity")
+                if snmp_identity:
+                    request_id = random.randint(1, 0x7FFFFFFF)
+                    system_oids = [
+                        SNMP_OIDS["sysDescr"],
+                        SNMP_OIDS["sysObjectID"],
+                        SNMP_OIDS["sysUpTime"],
+                        SNMP_OIDS["sysName"],
+                    ]
+
+                    device_context = DeviceContext(
+                        device_id=device.device_id,
+                        mac_address=device.mac_address,
+                        ip_address=device.ip_address,
+                        port=SNMP_AGENT_PORT,
+                        vendor_fingerprint=device.vendor_fingerprint,
+                    )
+
+                    request = self._build_snmp_get_request(request_id, system_oids)
+                    request_pkt = self._build_udp_packet(scanner, device_context, request)
+                    self._schedule_event(current_time, ("packet", request_pkt))
+
+                    uptime_ms = int(current_time)
+                    identity_values = self._get_snmp_identity_values(device_context, uptime_ms)
+                    response = self._build_snmp_get_response(request_id, identity_values)
+                    response_pkt = self._build_udp_packet(device_context, scanner, response)
+                    self._schedule_event(current_time + 15, ("packet", response_pkt))
+                    current_time += 50
+                    logger.info(f"Scheduled orphan SNMP discovery for {device.ip_address}")
+
+                # Modbus discovery for orphan device
+                modbus_identity = device.vendor_fingerprint.get("modbus_identity")
+                if modbus_identity:
+                    temp_seq = random.randint(1000, 100000)
+                    temp_ack = random.randint(1000, 100000)
+
+                    # TCP SYN
+                    syn = self._build_tcp_packet(scanner, device, b"", temp_seq, 0, "S")
+                    self._schedule_event(current_time, ("packet", syn))
+                    current_time += 10
+
+                    # TCP SYN-ACK
+                    syn_ack = self._build_tcp_packet(device, scanner, b"", temp_ack, temp_seq + 1, "SA")
+                    self._schedule_event(current_time, ("packet", syn_ack))
+                    current_time += 10
+
+                    # TCP ACK
+                    ack = self._build_tcp_packet(scanner, device, b"", temp_seq + 1, temp_ack + 1, "A")
+                    self._schedule_event(current_time, ("packet", ack))
+                    current_time += 10
+
+                    # FC 43 Request
+                    transaction_id = random.randint(1, 65535)
+                    unit_id = 1
+                    fc43_request = struct.pack(
+                        ">HHHBB BB",
+                        transaction_id, 0, 5, unit_id, 0x2B, 0x0E, 0x01,
+                    )
+                    request_pkt = self._build_tcp_packet(
+                        scanner, device, fc43_request, temp_seq + 1, temp_ack + 1
+                    )
+                    self._schedule_event(current_time, ("packet", request_pkt))
+                    current_time += 20
+
+                    # FC 43 Response
+                    device_context = DeviceContext(
+                        device_id=device.device_id,
+                        mac_address=device.mac_address,
+                        ip_address=device.ip_address,
+                        port=502,
+                        vendor_fingerprint=device.vendor_fingerprint,
+                    )
+                    fc43_response = self._build_modbus_device_id_response(transaction_id, unit_id, device_context)
+                    response_pkt = self._build_tcp_packet(
+                        device_context, scanner, fc43_response, temp_ack + 1, temp_seq + 1 + len(fc43_request)
+                    )
+                    self._schedule_event(current_time, ("packet", response_pkt))
+                    current_time += 50
+                    logger.info(f"Scheduled orphan Modbus FC43 discovery for {device.ip_address}")
+
+                # BACnet discovery for orphan device
+                bacnet_identity = device.vendor_fingerprint.get("bacnet_identity")
+                if bacnet_identity:
+                    # Who-Is request (broadcast)
+                    who_is = self._build_bacnet_who_is()
+                    who_is_pkt = self._build_udp_packet(scanner, device, who_is, src_port=47808, dst_port=47808)
+                    self._schedule_event(current_time, ("packet", who_is_pkt))
+
+                    # I-Am response
+                    i_am = self._build_bacnet_i_am_response(device)
+                    i_am_pkt = self._build_udp_packet(device, scanner, i_am, src_port=47808, dst_port=47808)
+                    self._schedule_event(current_time + 20, ("packet", i_am_pkt))
+                    current_time += 50
+                    logger.info(f"Scheduled orphan BACnet discovery for {device.ip_address}")
+
+                # ==============================================================
+                # FALLBACK: Gratuitous ARP for ALL orphan devices
+                # This ensures CV sees the IP-to-MAC mapping even for devices
+                # without any protocol identity types
+                # ==============================================================
+                arp_pkt = self._build_gratuitous_arp(device)
+                self._schedule_event(current_time, ("packet", arp_pkt))
+                current_time += 20
+                logger.info(f"Scheduled gratuitous ARP for orphan device {device.ip_address} ({device.mac_address})")
 
         return current_time
 

@@ -22,6 +22,7 @@ from app.schemas.deployment import (
     DeploymentResponse,
 )
 from app.services.docker_service import docker_service
+from app.services.scenario_enricher import ScenarioDefinitionEnricher
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +111,22 @@ async def start_deployment(
     await db.commit()
     await db.refresh(deployment)
 
+    # Enrich scenario definition with unique identifiers
+    # This is CRITICAL for remote deployments to ensure each device has
+    # unique serial numbers and network identifiers (BACnet device_instance,
+    # PROFINET station_name, SNMP sys_name, etc.)
+    enriched_definition = ScenarioDefinitionEnricher.enrich_for_deployment(
+        definition=scenario.definition,
+        scenario_id=str(scenario.id),
+    )
+
     # Prepare scenario JSON for the container
     scenario_json = json.dumps({
         "id": str(scenario.id),
         "name": scenario.name,
         "run_mode": data.run_mode,
         "total_duration_ms": data.duration_ms,  # None for perpetual mode
-        "definition": scenario.definition,
+        "definition": enriched_definition,  # Use enriched definition with unique IDs
     })
 
     # Decrypt client key for connection

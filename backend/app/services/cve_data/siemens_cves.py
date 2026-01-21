@@ -72,7 +72,7 @@ SIEMENS_CVES: list[dict] = [
                 "s7_identity_override": {
                     "order_code": "6ES7 516-3AN01-0AB0",
                     "module_type": "CPU 1516-3 PN/DP",
-                    "serial_number": "S V-P92001234",
+
                     "hardware_version": "1",
                 },
                 "profinet_identity_override": {
@@ -95,7 +95,7 @@ SIEMENS_CVES: list[dict] = [
                 "s7_identity_override": {
                     "order_code": "6ES7 515-2AM02-0AB0",
                     "module_type": "CPU 1515-2 PN",
-                    "serial_number": "S V-P91001234",
+
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,

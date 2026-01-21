@@ -319,8 +319,13 @@ def _build_flow_contexts(
                 or device.get("cve_identity_overrides")
             )
 
+        # Helper to get device name with fallback
+        def get_device_name(device: dict) -> str | None:
+            """Get device name from device dict."""
+            return device.get("name") or device.get("label")
+
         # Build device contexts with CVE vulnerability overrides and scenario_id
-        # for unique serial number generation
+        # for unique serial number and identifier generation
         source_context = DeviceContext(
             device_id=source_device["id"],
             mac_address=get_network_field(source_device, "mac_address", "00:00:00:00:00:01"),
@@ -332,6 +337,8 @@ def _build_flow_contexts(
             vulnerability_override=get_cve_overrides(source_device),
             # Pass scenario_id for unique serial number generation
             scenario_id=scenario_id,
+            # Pass device_name for unique identifier generation
+            device_name=get_device_name(source_device),
         )
 
         destination_context = DeviceContext(
@@ -345,6 +352,8 @@ def _build_flow_contexts(
             vulnerability_override=get_cve_overrides(destination_device),
             # Pass scenario_id for unique serial number generation
             scenario_id=scenario_id,
+            # Pass device_name for unique identifier generation
+            device_name=get_device_name(destination_device),
         )
 
         # Get protocol
