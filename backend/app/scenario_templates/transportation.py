@@ -478,30 +478,34 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "cve_ids": ["CVE-2023-28489"]},
 
             # Core Network Switches (SCALANCE XM-400)
+            # Using "SCALANCE XM-400" to match CVE affected_models for Cyber Vision detection
             {"type": "network_switch", "vendor": "siemens", "count": 2, "zone": "core",
              "name_pattern": "CORE-SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "XM-400",
+             "fingerprint_model": "SCALANCE XM-400",
              "role": "Core Switch",
              "cve_ids": ["CVE-2019-6569"]},
 
             # Field Cabinet Switches (SCALANCE X-200)
+            # Using "SCALANCE X-200" to match CVE affected_models for Cyber Vision detection
             {"type": "network_switch", "vendor": "siemens", "count": 12, "zone": "field",
              "name_pattern": "CAB-SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "X-200",
+             "fingerprint_model": "SCALANCE X-200",
              "role": "Cabinet Switch",
              "cve_ids": ["CVE-2019-6569"]},
 
             # Tunnel Monitoring RTUs (TBox with hardcoded creds)
+            # Using "TBox MS-CPU32" to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "tunnel",
              "name_pattern": "TBOX-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "MS-CPU32",
+             "fingerprint_model": "TBox MS-CPU32",
              "role": "Tunnel RTU",
              "cve_ids": ["CVE-2021-22778"]},
 
             # Field RTUs (TBox LT2)
+            # Using "TBox LT2" to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "schneider", "count": 8, "zone": "field",
              "name_pattern": "TBOX-LT-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "LT2",
+             "fingerprint_model": "TBox LT2",
              "role": "Field RTU",
              "cve_ids": ["CVE-2021-22778"]},
 

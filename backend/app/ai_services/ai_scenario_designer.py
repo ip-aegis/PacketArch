@@ -589,6 +589,20 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
                         "timeout_rate": error_behavior.get("timeout_probability", 0.0005),
                     }
 
+            # Ensure device has at least one TCP/UDP protocol for IP traffic generation
+            # Layer 2 only protocols (profinet, profisafe) don't generate IP traffic
+            device_protocols = ai_device.protocols
+            has_tcp_udp = any(p in self.TCP_UDP_PROTOCOLS for p in device_protocols)
+            if not has_tcp_udp:
+                # Add a TCP/UDP protocol based on device type and vendor
+                fallback_protocol = self._get_fallback_tcp_protocol(
+                    ai_device.device_type, ai_device.vendor
+                )
+                device_protocols = device_protocols + [fallback_protocol]
+                logger.info(
+                    f"Added {fallback_protocol} to {ai_device.name} (had only Layer 2 protocols)"
+                )
+
             device = GeneratedDevice(
                 device_id=device_id,
                 device_type=ai_device.device_type,
@@ -598,7 +612,7 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
                 ip_address=self._generate_ip(zone_name),
                 mac_address=mac_address,
                 zone=zone_name,
-                protocols=ai_device.protocols,
+                protocols=device_protocols,
                 fingerprint_model=ai_device.fingerprint_model,
                 error_config=error_config,
                 fingerprint_data=fingerprint_data,
@@ -700,6 +714,38 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         self._mac_counter += 1
         return f"{oui}:{nic[0]:02X}:{nic[1]:02X}:{nic[2]:02X}"
 
+    def _get_fallback_tcp_protocol(self, device_type: str, vendor: str | None) -> str:
+        """Get a fallback TCP/UDP protocol for a device that only has Layer 2 protocols.
+
+        Selects appropriate TCP/UDP protocol based on vendor and device type:
+        - Siemens: s7comm_plus (PLCs/HMIs) or modbus_tcp (drives/IO)
+        - Rockwell: ethernet_ip
+        - Transportation: snmp
+        - Others: modbus_tcp (most universal)
+        """
+        vendor_lower = (vendor or "").lower()
+
+        # Vendor-specific protocols
+        if "siemens" in vendor_lower:
+            if device_type in {"plc", "hmi", "safety_plc"}:
+                return "s7comm_plus"
+            return "modbus_tcp"
+        if "rockwell" in vendor_lower or "allen" in vendor_lower:
+            return "ethernet_ip"
+        if "schneider" in vendor_lower or "modicon" in vendor_lower:
+            return "modbus_tcp"
+
+        # Device type specific
+        if device_type in self.CONTROLLER_TYPES:
+            return "modbus_tcp"
+        if device_type in {"camera", "dms", "rsu", "radar_sensor", "weather_station"}:
+            return "snmp"
+        if device_type in self.SUPERVISORY_TYPES:
+            return "modbus_tcp"
+
+        # Universal fallback
+        return "modbus_tcp"
+
     # ==================== Connectivity & Hierarchy Validation ====================
 
     # Device type classifications for OT hierarchy
@@ -715,6 +761,15 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         "lighting_controller", "ventilation_controller",
     }
     SUPERVISORY_TYPES = {"hmi", "scada_server", "historian", "engineering_station", "tmc"}
+
+    # TCP/UDP protocols that generate IP traffic (required for Cyber Vision discovery)
+    # Layer 2 protocols like PROFINET don't include IP addresses in packets
+    TCP_UDP_PROTOCOLS = {
+        "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
+        "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+    }
+    # Layer 2 only protocols (no IP in packets)
+    LAYER2_ONLY_PROTOCOLS = {"profinet", "profisafe"}
 
     def _ensure_connectivity(
         self,
@@ -868,12 +923,28 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         flow_type: str,
     ) -> GeneratedFlow:
         """Create a flow following OT hierarchy patterns."""
-        # Determine protocol
+        # Determine protocol - MUST use TCP/UDP protocol for IP traffic
         common_protocols = set(source.protocols) & set(target.protocols)
-        if common_protocols:
-            protocol = list(common_protocols)[0]
+
+        # Filter to TCP/UDP protocols only (exclude Layer 2 like PROFINET)
+        tcp_udp_common = common_protocols & self.TCP_UDP_PROTOCOLS
+        if tcp_udp_common:
+            protocol = list(tcp_udp_common)[0]
         else:
-            protocol = source.protocols[0] if source.protocols else "modbus_tcp"
+            # No common TCP/UDP protocol - find any TCP/UDP from either device
+            source_tcp = set(source.protocols) & self.TCP_UDP_PROTOCOLS
+            target_tcp = set(target.protocols) & self.TCP_UDP_PROTOCOLS
+            if source_tcp:
+                protocol = list(source_tcp)[0]
+            elif target_tcp:
+                protocol = list(target_tcp)[0]
+            else:
+                # Neither device has TCP/UDP protocol - use modbus_tcp as universal fallback
+                protocol = "modbus_tcp"
+                logger.warning(
+                    f"No TCP/UDP protocol found for flow {source.name} -> {target.name}, "
+                    f"using modbus_tcp fallback"
+                )
 
         # Determine poll interval based on flow type
         if flow_type == "controller_to_field":

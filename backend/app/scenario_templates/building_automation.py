@@ -34,23 +34,26 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "cve_ids": ["CVE-2023-4804"]},
 
             # Air Handling Units (Trane)
+            # Using Tracer SC+ to match CVE affected_models for Cyber Vision detection
             {"type": "ahu_controller", "vendor": "trane", "count": 4, "zone": "hvac",
              "name_pattern": "AHU-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "SC+",
+             "fingerprint_model": "Tracer SC+",
              "role": "Air Handling Unit Controller",
              "cve_ids": ["CVE-2021-42534"]},
 
             # Variable Air Volume Controllers (Distech)
+            # Using EC-BOS-8 to match CVE affected_models for Cyber Vision detection
             {"type": "vav_controller", "vendor": "distech", "count": 40, "zone": "field",
              "name_pattern": "VAV-{floor:02d}-{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "ECY-VAV",
+             "fingerprint_model": "EC-BOS-8",
              "role": "VAV Zone Controller",
              "cve_ids": ["CVE-2020-9049"]},
 
             # Chiller Plant (Trane - hardcoded credentials vuln)
+            # Using ComfortLink II XL950 to match CVE affected_models for Cyber Vision detection
             {"type": "chiller_controller", "vendor": "trane", "count": 2, "zone": "mechanical",
              "name_pattern": "CHW-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "UC600",
+             "fingerprint_model": "ComfortLink II XL950",
              "cve_ids": ["CVE-2015-2867"],
              "role": "Chiller Controller"},
 
@@ -161,29 +164,34 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "cve_ids": ["CVE-2023-4804"]},
 
             # AHU Controllers per building (Delta Controls - RCE vuln)
+            # Using enteliBUS Manager to match CVE affected_models for Cyber Vision detection
             {"type": "ahu_controller", "vendor": "delta_controls", "count": 24, "zone": "buildings",
              "name_pattern": "AHU-B{building:02d}-{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "eBCON",
+             "fingerprint_model": "enteliBUS Manager",
              "cve_ids": ["CVE-2019-9569"],
              "role": "Air Handling Unit"},
 
             # VAV Controllers distributed across campus
+            # Using EC-BOS-8 to match CVE affected_models for Cyber Vision detection
             {"type": "vav_controller", "vendor": "distech", "count": 200, "zone": "field",
              "name_pattern": "VAV-B{building:02d}-{floor:02d}{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "ECY-VAV",
-             "role": "VAV Zone Controller"},
+             "fingerprint_model": "EC-BOS-8",
+             "role": "VAV Zone Controller",
+             "cve_ids": ["CVE-2020-9049"]},
 
             # Central Plant Chillers (Carrier)
+            # Using i-Vu Pro to match CVE affected_models for Cyber Vision detection
             {"type": "chiller_controller", "vendor": "carrier", "count": 4, "zone": "plant",
              "name_pattern": "CH-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "Pro Open",
+             "fingerprint_model": "i-Vu Pro",
              "role": "Chiller Controller",
              "cve_ids": ["CVE-2020-7002"]},
 
             # Central Plant Boilers (Siemens - Desigo privilege escalation)
+            # Using Desigo CC to match CVE affected_models for Cyber Vision detection
             {"type": "boiler_controller", "vendor": "siemens", "count": 4, "zone": "plant",
              "name_pattern": "BLR-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "C600",
+             "fingerprint_model": "Desigo CC",
              "cve_ids": ["CVE-2022-31465"],
              "role": "Boiler Controller"},
 
@@ -275,9 +283,10 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Precision Cooling Unit"},
 
             # Chiller Plant (Carrier)
+            # Using i-Vu Pro to match CVE affected_models for Cyber Vision detection
             {"type": "chiller_controller", "vendor": "carrier", "count": 4, "zone": "plant",
              "name_pattern": "CH-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "Pro Open",
+             "fingerprint_model": "i-Vu Pro",
              "role": "Chiller Controller",
              "cve_ids": ["CVE-2020-7002"]},
 
@@ -300,9 +309,10 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Temperature/Humidity Sensor"},
 
             # Building Controllers for support areas (Siemens Desigo vuln)
+            # Using Desigo CC to match CVE affected_models for Cyber Vision detection
             {"type": "bac", "vendor": "siemens", "count": 2, "zone": "building",
              "name_pattern": "BMS-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "C600",
+             "fingerprint_model": "Desigo CC",
              "cve_ids": ["CVE-2022-31465"],
              "role": "Building Controller"},
         ],

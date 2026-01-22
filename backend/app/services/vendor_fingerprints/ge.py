@@ -29,7 +29,7 @@ def get_ge_fingerprints() -> list[dict[str, Any]]:
             "model": "Proficy Historian",
             "firmware_version": "8.0",
             "oui_prefixes": GE_OUI_PREFIXES,
-            "supported_protocols": ["modbus", "ethernet_ip", "profinet"],
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "GE Digital",
                 "product_code": "Proficy Historian",
@@ -48,8 +48,6 @@ def get_ge_fingerprints() -> list[dict[str, Any]]:
                 "build_number": "1234",
                 "build_date": "2022-03-15T12:00:00Z",
             },
-            "ethernet_ip_identity": None,
-            "profinet_identity": None,
             "tcp_stack": {
                 "ttl": 128,  # Windows-based server
                 "window_size": 65535,
@@ -98,7 +96,7 @@ def get_ge_fingerprints() -> list[dict[str, Any]]:
             "model": "Proficy Historian 7.2",
             "firmware_version": "7.2",
             "oui_prefixes": GE_OUI_PREFIXES,
-            "supported_protocols": ["modbus", "ethernet_ip"],
+            "supported_protocols": ["modbus"],
             "modbus_identity": {
                 "vendor_name": "GE Digital",
                 "product_code": "Proficy Historian",

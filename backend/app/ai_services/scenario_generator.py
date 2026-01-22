@@ -266,13 +266,22 @@ VERTICAL_TEMPLATES = {
     },
 }
 
+# TCP/UDP protocols that generate IP traffic (required for Cyber Vision discovery)
+# Layer 2 protocols like PROFINET don't include IP addresses in packets
+TCP_UDP_PROTOCOLS = {
+    "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
+    "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+}
+
 # Device type to protocol mapping
+# IMPORTANT: First protocol in list should be TCP/UDP for flow generation
+# Layer 2 protocols (profinet) should come after TCP/UDP protocols
 DEVICE_PROTOCOL_MAP = {
-    "plc": ["ethernet_ip", "profinet", "modbus_tcp"],
+    "plc": ["modbus_tcp", "ethernet_ip", "profinet"],  # TCP/UDP first
     "rtu": ["modbus_tcp", "dnp3"],
-    "hmi": ["ethernet_ip", "modbus_tcp"],
-    "drive": ["profinet", "ethernet_ip", "modbus_tcp"],
-    "robot": ["profinet", "ethernet_ip"],
+    "hmi": ["modbus_tcp", "ethernet_ip"],  # TCP/UDP first
+    "drive": ["modbus_tcp", "ethernet_ip", "profinet"],  # TCP/UDP first
+    "robot": ["ethernet_ip", "profinet"],  # TCP/UDP first
     "ied": ["iec_104", "dnp3"],
     "pmu": ["iec_104"],
     "meter": ["modbus_tcp", "dnp3"],
@@ -878,6 +887,13 @@ class ScenarioGenerator:
             # Filter to template protocols
             protocols = [p for p in protocols if p in template["protocols"]] or [protocols[0]]
 
+            # Ensure at least one TCP/UDP protocol (for IP traffic generation)
+            has_tcp_udp = any(p in TCP_UDP_PROTOCOLS for p in protocols)
+            if not has_tcp_udp:
+                # Add modbus_tcp as universal fallback for IP traffic
+                protocols = protocols + ["modbus_tcp"]
+                logger.info(f"Added modbus_tcp to {device_type} devices (had only Layer 2 protocols)")
+
             # Assign zone
             zones = template["zones"]
             if device_type in ["plc", "rtu"]:
@@ -1024,9 +1040,21 @@ class ScenarioGenerator:
             targets = random.sample(field_devices, target_count) if field_devices else []
 
             for target in targets:
-                # Find common protocol
+                # Find common TCP/UDP protocol (exclude Layer 2 like PROFINET)
                 common = set(controller.protocols) & set(target.protocols)
-                protocol = list(common)[0] if common else controller.protocols[0]
+                tcp_udp_common = common & TCP_UDP_PROTOCOLS
+                if tcp_udp_common:
+                    protocol = list(tcp_udp_common)[0]
+                else:
+                    # Fallback to any TCP/UDP protocol from either device
+                    controller_tcp = set(controller.protocols) & TCP_UDP_PROTOCOLS
+                    target_tcp = set(target.protocols) & TCP_UDP_PROTOCOLS
+                    if controller_tcp:
+                        protocol = list(controller_tcp)[0]
+                    elif target_tcp:
+                        protocol = list(target_tcp)[0]
+                    else:
+                        protocol = "modbus_tcp"  # Universal fallback
 
                 flow = GeneratedFlow(
                     flow_id=str(uuid.uuid4()),
@@ -1041,8 +1069,20 @@ class ScenarioGenerator:
         # HMI to controller flows
         for hmi in hmis:
             for controller in controllers[:3]:  # HMI connects to a few controllers
+                # Find common TCP/UDP protocol
                 common = set(hmi.protocols) & set(controller.protocols)
-                protocol = list(common)[0] if common else "modbus_tcp"
+                tcp_udp_common = common & TCP_UDP_PROTOCOLS
+                if tcp_udp_common:
+                    protocol = list(tcp_udp_common)[0]
+                else:
+                    hmi_tcp = set(hmi.protocols) & TCP_UDP_PROTOCOLS
+                    controller_tcp = set(controller.protocols) & TCP_UDP_PROTOCOLS
+                    if hmi_tcp:
+                        protocol = list(hmi_tcp)[0]
+                    elif controller_tcp:
+                        protocol = list(controller_tcp)[0]
+                    else:
+                        protocol = "modbus_tcp"
 
                 flow = GeneratedFlow(
                     flow_id=str(uuid.uuid4()),
@@ -1065,9 +1105,20 @@ class ScenarioGenerator:
                 source = devices[i]
                 target = devices[i + 1]
 
-                # Find common protocol
+                # Find common TCP/UDP protocol (exclude Layer 2)
                 common = set(source.protocols) & set(target.protocols)
-                protocol = list(common)[0] if common else "modbus_tcp"
+                tcp_udp_common = common & TCP_UDP_PROTOCOLS
+                if tcp_udp_common:
+                    protocol = list(tcp_udp_common)[0]
+                else:
+                    source_tcp = set(source.protocols) & TCP_UDP_PROTOCOLS
+                    target_tcp = set(target.protocols) & TCP_UDP_PROTOCOLS
+                    if source_tcp:
+                        protocol = list(source_tcp)[0]
+                    elif target_tcp:
+                        protocol = list(target_tcp)[0]
+                    else:
+                        protocol = "modbus_tcp"
 
                 flow = GeneratedFlow(
                     flow_id=str(uuid.uuid4()),
@@ -1085,7 +1136,18 @@ class ScenarioGenerator:
                 target = devices[i]
 
                 common = set(source.protocols) & set(target.protocols)
-                protocol = list(common)[0] if common else "modbus_tcp"
+                tcp_udp_common = common & TCP_UDP_PROTOCOLS
+                if tcp_udp_common:
+                    protocol = list(tcp_udp_common)[0]
+                else:
+                    source_tcp = set(source.protocols) & TCP_UDP_PROTOCOLS
+                    target_tcp = set(target.protocols) & TCP_UDP_PROTOCOLS
+                    if source_tcp:
+                        protocol = list(source_tcp)[0]
+                    elif target_tcp:
+                        protocol = list(target_tcp)[0]
+                    else:
+                        protocol = "modbus_tcp"
 
                 flow = GeneratedFlow(
                     flow_id=str(uuid.uuid4()),

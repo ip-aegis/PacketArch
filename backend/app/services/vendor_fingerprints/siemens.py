@@ -61,6 +61,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_hw_revision": 2,
                 "im0_sw_revision": "V3.0.3",
             },
+            "s7_identity": {
+                "order_code": "6ES7 517-3AP00-0AB0",
+                "module_type": "CPU 1517-3 PN/DP",
+                "firmware_version": "V3.0.3",
+                "hardware_version": "2",
+            },
             "tcp_stack": {
                 "ttl": 64,  # Linux-based
                 "window_size": 29200,
@@ -117,6 +123,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_order_id": "6ES7 511-1AK02-0AB0",
                 "im0_hw_revision": 2,
                 "im0_sw_revision": "V3.0.2",
+            },
+            "s7_identity": {
+                "order_code": "6ES7 511-1AK02-0AB0",
+                "module_type": "CPU 1511-1 PN",
+                "firmware_version": "V3.0.2",
+                "hardware_version": "2",
             },
             "tcp_stack": {
                 "ttl": 64,
@@ -175,6 +187,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_order_id": "6ES7 516-3FN02-0AB0",
                 "im0_hw_revision": 2,
                 "im0_sw_revision": "V3.0.3",
+            },
+            "s7_identity": {
+                "order_code": "6ES7 516-3FN02-0AB0",
+                "module_type": "CPU 1516F-3 PN/DP",
+                "firmware_version": "V3.0.3",
+                "hardware_version": "2",
             },
             "tcp_stack": {
                 "ttl": 64,
@@ -240,6 +258,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_hw_revision": 4,
                 "im0_sw_revision": "V4.5.2",
             },
+            "s7_identity": {
+                "order_code": "6ES7 214-1HF40-0XB0",
+                "module_type": "CPU 1214FC DC/DC/DC",
+                "firmware_version": "V4.5.2",
+                "hardware_version": "4",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -302,6 +326,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_hw_revision": 4,
                 "im0_sw_revision": "V4.5.2",
             },
+            "s7_identity": {
+                "order_code": "6ES7 214-1AG40-0XB0",
+                "module_type": "CPU 1214C DC/DC/DC",
+                "firmware_version": "V4.5.2",
+                "hardware_version": "4",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -358,6 +388,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_hw_revision": 14,
                 "im0_sw_revision": "V3.2.17",
             },
+            "s7_identity": {
+                "order_code": "6ES7 315-2EH14-0AB0",
+                "module_type": "CPU 315-2 PN/DP",
+                "firmware_version": "V3.2.17",
+                "hardware_version": "14",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 8192,
@@ -409,6 +445,12 @@ def get_siemens_fingerprints() -> list[dict[str, Any]]:
                 "im0_order_id": "6ES7 416-3ES07-0AB0",
                 "im0_hw_revision": 7,
                 "im0_sw_revision": "V6.0.9",
+            },
+            "s7_identity": {
+                "order_code": "6ES7 416-3ES07-0AB0",
+                "module_type": "CPU 416-3 PN/DP",
+                "firmware_version": "V6.0.9",
+                "hardware_version": "7",
             },
             "tcp_stack": {
                 "ttl": 64,

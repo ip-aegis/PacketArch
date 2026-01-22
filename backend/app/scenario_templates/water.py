@@ -26,9 +26,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "water_wastewater",
         "devices": [
             # Central SCADA - Schneider M580 (Hot Standby pair) with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 2, "zone": "enterprise",
              "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "dnp3", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "SCADA Master",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
@@ -181,9 +182,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "water_wastewater",
         "devices": [
             # Master Station - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "enterprise",
              "name_pattern": "MASTER-{n:03d}", "protocols": ["dnp3", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "SCADA Master",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
@@ -307,9 +309,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "water_wastewater",
         "devices": [
             # SCADA Master - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "enterprise",
              "name_pattern": "SCADA-{n:03d}", "protocols": ["dnp3", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "SCADA Master",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},

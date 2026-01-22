@@ -601,6 +601,13 @@ class SmartFlowGenerator:
 
         return flows
 
+    # TCP/UDP protocols that generate IP traffic
+    # Layer 2 protocols like PROFINET don't include IP addresses in packets
+    TCP_UDP_PROTOCOLS = {
+        "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
+        "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+    }
+
     def _select_protocol(
         self,
         source: DeviceSpec,
@@ -609,13 +616,16 @@ class SmartFlowGenerator:
     ) -> str:
         """Select appropriate protocol for a flow.
 
+        IMPORTANT: Always prioritizes TCP/UDP protocols over Layer 2 protocols
+        to ensure flows generate IP traffic (visible to Cyber Vision).
+
         Args:
             source: Source device
             target: Target device
             allowed: Allowed protocols
 
         Returns:
-            Protocol name
+            Protocol name (always TCP/UDP if possible)
         """
         # Find common protocols
         source_protocols = set(source.protocols) if source.protocols else set()
@@ -625,6 +635,28 @@ class SmartFlowGenerator:
         if allowed:
             common = common & set(allowed)
 
+        # Prioritize TCP/UDP protocols (exclude Layer 2 like PROFINET)
+        tcp_udp_common = common & self.TCP_UDP_PROTOCOLS
+        if tcp_udp_common:
+            return random.choice(list(tcp_udp_common))
+
+        # If no common TCP/UDP, try source's TCP/UDP protocols
+        source_tcp = source_protocols & self.TCP_UDP_PROTOCOLS
+        if source_tcp:
+            if allowed:
+                source_tcp = source_tcp & set(allowed)
+            if source_tcp:
+                return random.choice(list(source_tcp))
+
+        # Try target's TCP/UDP protocols
+        target_tcp = target_protocols & self.TCP_UDP_PROTOCOLS
+        if target_tcp:
+            if allowed:
+                target_tcp = target_tcp & set(allowed)
+            if target_tcp:
+                return random.choice(list(target_tcp))
+
+        # Fall back to any common protocol (may be Layer 2)
         if common:
             return random.choice(list(common))
 

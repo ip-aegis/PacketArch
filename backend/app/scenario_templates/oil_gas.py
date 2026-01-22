@@ -27,9 +27,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "oil_gas",
         "devices": [
             # Control Center - Schneider M580 (Hot Standby pair) with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 2, "zone": "enterprise",
              "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "dnp3", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "SCADA Master",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
@@ -196,17 +197,19 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "oil_gas",
         "devices": [
             # Process Control System (DCS) - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "schneider", "count": 8, "zone": "process",
              "name_pattern": "DCS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "DCS Controller",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
 
             # Safety Instrumented System (SIS) - Schneider M580 Safety with CVE vulnerabilities
+            # Using BMEP584040 to match CVE affected_models for Cyber Vision detection
             {"type": "safety_plc", "vendor": "schneider", "count": 4, "zone": "safety",
              "name_pattern": "SIS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMEP586040S",
+             "fingerprint_model": "BMEP584040",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-45789"]},
@@ -219,9 +222,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "ESD Controller"},
 
             # Fire & Gas System - Schneider M580 Safety with CVE vulnerabilities
+            # Using BMEP584040 to match CVE affected_models for Cyber Vision detection
             {"type": "safety_plc", "vendor": "schneider", "count": 2, "zone": "safety",
              "name_pattern": "F&G-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMEP586040S",
+             "fingerprint_model": "BMEP584040",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
              "role": "Fire & Gas Controller",
              "cve_ids": ["CVE-2022-45789"]},
@@ -243,9 +247,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "cve_ids": ["CVE-2021-22779", "CVE-2019-6829"]},
 
             # Compressor Controls - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "schneider", "count": 3, "zone": "process",
              "name_pattern": "COMP-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "Compressor Controller",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
@@ -383,33 +388,37 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "oil_gas",
         "devices": [
             # DCS Controllers - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "schneider", "count": 12, "zone": "process",
              "name_pattern": "DCS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "DCS Controller",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
 
             # SIS Controllers - Schneider M580 Safety with CVE vulnerabilities
+            # Using BMEP584040 to match CVE affected_models for Cyber Vision detection
             {"type": "safety_plc", "vendor": "schneider", "count": 4, "zone": "safety",
              "name_pattern": "SIS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMEP586040S",
+             "fingerprint_model": "BMEP584040",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
              "role": "SIS Controller",
              "cve_ids": ["CVE-2022-45789"]},
 
             # Burner Management System - Schneider M580 Safety with CVE vulnerabilities
+            # Using BMEP584040 to match CVE affected_models for Cyber Vision detection
             {"type": "safety_plc", "vendor": "schneider", "count": 3, "zone": "safety",
              "name_pattern": "BMS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMEP586040S",
+             "fingerprint_model": "BMEP584040",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.0001},
              "role": "Burner Management",
              "cve_ids": ["CVE-2022-45789"]},
 
             # Advanced Process Control Server with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 2, "zone": "enterprise",
              "name_pattern": "APC-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "role": "APC Server",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
 
@@ -569,17 +578,19 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
         "vertical": "oil_gas",
         "devices": [
             # Central Processing Facility - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "schneider", "count": 4, "zone": "process",
              "name_pattern": "CPF-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "CPF Controller",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
 
             # SCADA Server - Schneider M580 with CVE vulnerabilities
+            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "enterprise",
              "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEH586040",
+             "fingerprint_model": "BMEP582040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "SCADA Master",
              "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},

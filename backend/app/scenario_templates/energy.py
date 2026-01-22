@@ -203,26 +203,29 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Distribution Management",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161", "CVE-2023-3595"]},
 
-            # Substation Gateway (aggregator) - Rockwell ControlLogix L73 with CVE vulnerabilities
+            # Substation Gateway (aggregator) - Rockwell ControlLogix L85E with CVE vulnerabilities
+            # Using 1756-L85E to match CVE affected_models for Cyber Vision detection
             {"type": "gateway", "vendor": "rockwell", "count": 3, "zone": "process",
              "name_pattern": "GW-{n:03d}", "protocols": ["ethernet_ip", "dnp3"],
-             "fingerprint_model": "1756-L73",
+             "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "Substation Gateway",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
 
-            # Recloser Controllers - Rockwell CompactLogix L24ER-QB1B with CVE vulnerabilities
+            # Recloser Controllers - Rockwell CompactLogix L33ER with CVE vulnerabilities
+            # Using 1769-L33ER to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "rockwell", "count": 15, "zone": "remote",
              "name_pattern": "RCL-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "1769-L24ER-QB1B",
+             "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.002, "timeout_rate": 0.005},
              "role": "Recloser Controller",
              "cve_ids": ["CVE-2021-22681"]},
 
-            # Capacitor Bank Controllers - Rockwell CompactLogix L24ER-QB1B with CVE vulnerabilities
+            # Capacitor Bank Controllers - Rockwell CompactLogix L33ER with CVE vulnerabilities
+            # Using 1769-L33ER to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "rockwell", "count": 8, "zone": "remote",
              "name_pattern": "CAP-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "1769-L24ER-QB1B",
+             "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.002, "timeout_rate": 0.005},
              "role": "Capacitor Controller",
              "cve_ids": ["CVE-2021-22681"]},
@@ -349,18 +352,20 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Excitation Controller",
              "cve_ids": ["CVE-2021-22681"]},
 
-            # Balance of Plant - Rockwell ControlLogix L73 with CVE vulnerabilities
+            # Balance of Plant - Rockwell ControlLogix L85E with CVE vulnerabilities
+            # Using 1756-L85E to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "rockwell", "count": 6, "zone": "process",
              "name_pattern": "BOP-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
-             "fingerprint_model": "1756-L73",
+             "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "Balance of Plant Controller",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
 
-            # DCS Controllers - Rockwell ControlLogix L73 with CVE vulnerabilities
+            # DCS Controllers - Rockwell ControlLogix L85E with CVE vulnerabilities
+            # Using 1756-L85E to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "rockwell", "count": 8, "zone": "process",
              "name_pattern": "DCS-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
-             "fingerprint_model": "1756-L73",
+             "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
              "role": "DCS Controller",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
@@ -493,10 +498,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
                        "F650 bay controllers, and T60 transformer protection with buffer overflow vulnerability.",
         "vertical": "energy_power",
         "devices": [
-            # Substation RTU/Gateway - Rockwell ControlLogix L73
+            # Substation RTU/Gateway - Rockwell ControlLogix L85E
+            # Using 1756-L85E to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "rockwell", "count": 2, "zone": "process",
              "name_pattern": "RTU-{n:03d}", "protocols": ["ethernet_ip", "dnp3"],
-             "fingerprint_model": "1756-L73",
+             "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Substation Gateway",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
@@ -734,10 +740,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
                        "and 7SD87 distance protection relays with DoS and information disclosure vulnerabilities.",
         "vertical": "energy_power",
         "devices": [
-            # Substation RTU - Rockwell ControlLogix
+            # Substation RTU - Rockwell ControlLogix L85E
+            # Using 1756-L85E to match CVE affected_models for Cyber Vision detection
             {"type": "rtu", "vendor": "rockwell", "count": 2, "zone": "process",
              "name_pattern": "RTU-{n:03d}", "protocols": ["ethernet_ip", "iec104"],
-             "fingerprint_model": "1756-L73",
+             "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Substation Gateway",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
