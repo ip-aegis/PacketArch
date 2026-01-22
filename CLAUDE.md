@@ -2,9 +2,9 @@
 
 ## Repository
 
-- **GitHub**: https://github.com/kingsmanrocky-max/PacketArch
+- **GitHub**: https://github.com/ip-aegis/PacketArch
 - **Branch**: `master` (primary branch)
-- **Clone**: `git clone git@github.com:kingsmanrocky-max/PacketArch.git`
+- **Clone**: `git clone git@github.com:ip-aegis/PacketArch.git`
 
 ### Git Workflow
 
