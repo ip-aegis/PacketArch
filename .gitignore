@@ -70,3 +70,9 @@ secrets/
 *.pem
 *.key
 nul
+
+# Large binary artifacts
+*.tar
+*.tar.gz
+backend/data/
+backend/app/static/agent/*.tar.gz

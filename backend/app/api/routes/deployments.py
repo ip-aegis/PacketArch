@@ -2,10 +2,10 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,11 +15,14 @@ from app.core.encryption import decrypt_value
 from app.models.docker_host import DockerHost
 from app.models.remote_deployment import DeploymentStatus, RemoteDeployment
 from app.models.scenario import Scenario
+from app.models.traffic_agent import AgentDeployment, TrafficAgent
 from app.schemas.deployment import (
     DeploymentListResponse,
     DeploymentLogsResponse,
     DeploymentRequest,
     DeploymentResponse,
+    UnifiedDeploymentListResponse,
+    UnifiedDeploymentResponse,
 )
 from app.services.docker_service import docker_service
 from app.services.scenario_enricher import ScenarioDefinitionEnricher
@@ -29,33 +32,158 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/deployments", tags=["Deployments"])
 
 
-@router.get("", response_model=DeploymentListResponse)
+@router.get("", response_model=UnifiedDeploymentListResponse)
 async def list_deployments(
     db: DBSession,
     _user: CurrentUser,
     scenario_id: UUID | None = None,
     docker_host_id: UUID | None = None,
-    status_filter: DeploymentStatus | None = None,
-) -> DeploymentListResponse:
-    """List all deployments with optional filters."""
-    query = select(RemoteDeployment).options(
-        selectinload(RemoteDeployment.scenario),
-        selectinload(RemoteDeployment.docker_host),
-    ).order_by(RemoteDeployment.created_at.desc())
+    agent_id: UUID | None = None,
+    status_filter: str | None = Query(None, description="Filter by status"),
+    deployment_type: str | None = Query(None, description="Filter by type: docker, agent"),
+) -> UnifiedDeploymentListResponse:
+    """List all deployments (Docker and Agent) with optional filters.
 
-    if scenario_id:
-        query = query.where(RemoteDeployment.scenario_id == scenario_id)
-    if docker_host_id:
-        query = query.where(RemoteDeployment.docker_host_id == docker_host_id)
-    if status_filter:
-        query = query.where(RemoteDeployment.status == status_filter.value)
+    This endpoint syncs deployment states with what agents report as running
+    to ensure the UI always reflects reality.
+    """
+    from app.services.agent_manager import agent_manager
 
-    result = await db.execute(query)
-    deployments = result.scalars().all()
+    # RESILIENCE: Sync deployment states from all connected agents before listing
+    # The agent is the source of truth - if it says a scenario is running, it is.
+    for conn in agent_manager.get_all_connections():
+        if conn.running_scenarios:
+            for scenario_id_str in conn.running_scenarios:
+                try:
+                    scenario_uuid = UUID(scenario_id_str)
+                    # Find the most recent deployment for this agent/scenario
+                    result = await db.execute(
+                        select(AgentDeployment)
+                        .where(
+                            AgentDeployment.agent_id == conn.agent_id,
+                            AgentDeployment.scenario_id == scenario_uuid,
+                        )
+                        .order_by(AgentDeployment.started_at.desc())
+                        .limit(1)
+                    )
+                    deployment = result.scalar_one_or_none()
+                    if deployment and deployment.state != "running":
+                        old_state = deployment.state
+                        deployment.state = "running"
+                        deployment.stopped_at = None
+                        logger.info(
+                            f"Synced deployment {deployment.id} on page load: "
+                            f"{old_state} -> running"
+                        )
+                except (ValueError, Exception) as e:
+                    logger.debug(f"Could not sync scenario {scenario_id_str}: {e}")
 
-    return DeploymentListResponse(
-        items=[DeploymentResponse.from_model(d) for d in deployments],
-        total=len(deployments),
+    await db.commit()
+
+    all_deployments: list[UnifiedDeploymentResponse] = []
+
+    # Fetch Docker deployments (unless filtered to agent only)
+    if deployment_type != "agent":
+        docker_query = select(RemoteDeployment).options(
+            selectinload(RemoteDeployment.scenario),
+            selectinload(RemoteDeployment.docker_host),
+        ).order_by(RemoteDeployment.created_at.desc())
+
+        if scenario_id:
+            docker_query = docker_query.where(RemoteDeployment.scenario_id == scenario_id)
+        if docker_host_id:
+            docker_query = docker_query.where(RemoteDeployment.docker_host_id == docker_host_id)
+        if status_filter:
+            docker_query = docker_query.where(RemoteDeployment.status == status_filter)
+
+        result = await db.execute(docker_query)
+        docker_deployments = result.scalars().all()
+
+        for d in docker_deployments:
+            all_deployments.append(UnifiedDeploymentResponse.from_docker_deployment(d))
+
+    # Fetch Agent deployments (unless filtered to docker only)
+    if deployment_type != "docker":
+        agent_query = select(AgentDeployment).order_by(AgentDeployment.started_at.desc())
+
+        if scenario_id:
+            agent_query = agent_query.where(AgentDeployment.scenario_id == scenario_id)
+        if agent_id:
+            agent_query = agent_query.where(AgentDeployment.agent_id == agent_id)
+        if status_filter:
+            agent_query = agent_query.where(AgentDeployment.state == status_filter)
+
+        result = await db.execute(agent_query)
+        agent_deployments = result.scalars().all()
+
+        # Auto-fix stuck deployments by checking agent connection status
+        from app.services.agent_manager import agent_manager
+        needs_commit = False
+        now = datetime.now(timezone.utc)
+        stale_threshold = now - timedelta(minutes=2)
+
+        for d in agent_deployments:
+            conn = agent_manager._connections.get(d.agent_id)
+            scenario_id_str = str(d.scenario_id)
+
+            if d.state == "stopping":
+                # Check if the scenario is still in the agent's running_scenarios
+                if conn is None or scenario_id_str not in conn.running_scenarios:
+                    # Agent disconnected or scenario not running - mark as stopped
+                    logger.info(f"Auto-marking deployment {d.id} as stopped (agent disconnected or scenario not running)")
+                    d.state = "stopped"
+                    d.stopped_at = now
+                    needs_commit = True
+
+            elif d.state == "running":
+                # If agent is disconnected, mark deployment as disconnected
+                if conn is None:
+                    logger.info(f"Auto-marking deployment {d.id} as disconnected (agent offline)")
+                    d.state = "disconnected"
+                    needs_commit = True
+                # If agent is connected but scenario not in running_scenarios, mark as stopped
+                elif scenario_id_str not in conn.running_scenarios:
+                    logger.info(f"Auto-marking deployment {d.id} as stopped (scenario not in agent's running list)")
+                    d.state = "stopped"
+                    d.stopped_at = now
+                    needs_commit = True
+
+            elif d.state == "starting":
+                # If starting for too long and agent disconnected, mark as error
+                if d.started_at and d.started_at < stale_threshold:
+                    if conn is None:
+                        logger.info(f"Auto-marking deployment {d.id} as error (stale starting state, agent offline)")
+                        d.state = "error"
+                        d.error_message = "Agent disconnected during startup"
+                        needs_commit = True
+
+        if needs_commit:
+            await db.commit()
+
+        # Fetch related agents and scenarios for agent deployments
+        for d in agent_deployments:
+            # Get agent
+            agent_result = await db.execute(
+                select(TrafficAgent).where(TrafficAgent.id == d.agent_id)
+            )
+            agent = agent_result.scalar_one_or_none()
+
+            # Get scenario
+            scenario_result = await db.execute(
+                select(Scenario).where(Scenario.id == d.scenario_id)
+            )
+            scenario = scenario_result.scalar_one_or_none()
+
+            all_deployments.append(
+                UnifiedDeploymentResponse.from_agent_deployment(d, agent, scenario)
+            )
+
+    # Sort all deployments by created_at descending
+    all_deployments.sort(key=lambda x: x.created_at, reverse=True)
+
+    return UnifiedDeploymentListResponse(
+        items=all_deployments,
+        total=len(all_deployments),
     )
 
 
@@ -308,34 +436,47 @@ async def remove_deployment(
     db: DBSession,
     _user: CurrentUser,
 ) -> None:
-    """Remove a deployment and its container."""
+    """Remove a deployment (Docker or Agent)."""
+    # Try Docker deployment first
     result = await db.execute(
         select(RemoteDeployment)
         .options(selectinload(RemoteDeployment.docker_host))
         .where(RemoteDeployment.id == deployment_id)
     )
-    deployment = result.scalar_one_or_none()
+    docker_deployment = result.scalar_one_or_none()
 
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+    if docker_deployment:
+        # Stop and remove container if it exists
+        if docker_deployment.container_id:
+            host = docker_deployment.docker_host
+            if host.client_key:
+                host.client_key = decrypt_value(host.client_key)
 
-    # Stop and remove container if it exists
-    if deployment.container_id:
-        host = deployment.docker_host
-        if host.client_key:
-            host.client_key = decrypt_value(host.client_key)
+            try:
+                docker_service.stop_container(host, docker_deployment.container_id)
+                docker_service.remove_container(host, docker_deployment.container_id)
+            except Exception as e:
+                logger.warning(f"Failed to remove container: {e}")
 
-        try:
-            docker_service.stop_container(host, deployment.container_id)
-            docker_service.remove_container(host, deployment.container_id)
-        except Exception as e:
-            logger.warning(f"Failed to remove container: {e}")
+        await db.delete(docker_deployment)
+        await db.commit()
+        return
 
-    await db.delete(deployment)
-    await db.commit()
+    # Try Agent deployment
+    result = await db.execute(
+        select(AgentDeployment).where(AgentDeployment.id == deployment_id)
+    )
+    agent_deployment = result.scalar_one_or_none()
+
+    if agent_deployment:
+        await db.delete(agent_deployment)
+        await db.commit()
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Deployment not found",
+    )
 
 
 @router.get("/{deployment_id}/logs", response_model=DeploymentLogsResponse)

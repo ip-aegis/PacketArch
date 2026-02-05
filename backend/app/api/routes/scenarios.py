@@ -6,13 +6,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+
+from sqlalchemy import delete as sql_delete
 
 from app.api.deps import CurrentUser, DBSession
 from app.models.scenario import Scenario
+from app.models.generation_job import GenerationJob
+from app.models.traffic_agent import AgentDeployment
+from app.models.remote_deployment import RemoteDeployment
 from app.services.ip_management import IPManagementService
 from app.services.learned_pattern_service import LearnedPatternService
+from app.services.protocol_validator import validate_scenario_protocols
+from app.services.serial_number_generator import SerialNumberGenerator
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioExport,
@@ -40,6 +47,117 @@ def get_learned_pattern_info(definition: dict) -> tuple[bool, list[str]]:
     if learned_info:
         return True, learned_info.get("protocols_enhanced", [])
     return False, []
+
+
+def ensure_device_serial_numbers(definition: dict, scenario_id: str) -> dict:
+    """Ensure all devices in definition have unique serial numbers.
+
+    Serial numbers are critical for Cyber Vision to correctly identify
+    distinct devices. This function adds serial numbers to devices that
+    have proper identity data but are missing serial numbers.
+
+    IMPORTANT: Only enriches identities that ALREADY EXIST in the fingerprint
+    with proper vendor data. Does NOT create new identity blocks, as that would
+    cause protocol misattribution (e.g., Siemens appearing as Rockwell).
+
+    Args:
+        definition: Scenario definition dict
+        scenario_id: Scenario UUID for deterministic generation
+
+    Returns:
+        Updated definition with serial numbers added
+    """
+    devices = definition.get("devices", {})
+    if not devices:
+        return definition
+
+    # Handle both dict and list formats
+    if isinstance(devices, dict):
+        device_items = devices.items()
+    else:
+        device_items = [(d.get("id", f"device_{i}"), d) for i, d in enumerate(devices)]
+
+    def identity_has_vendor_data(identity: dict | None, required_key: str) -> bool:
+        """Check if identity has real vendor data, not just a serial number placeholder."""
+        if not identity or not isinstance(identity, dict):
+            return False
+        # For EtherNet/IP, vendor_id is required to avoid defaulting to Rockwell
+        if required_key == "vendor_id":
+            return identity.get("vendor_id") is not None
+        # For other protocols, check for any key besides serial_number
+        return any(k != "serial_number" for k in identity.keys())
+
+    for device_id, device in device_items:
+        if not device_id or not device:
+            continue
+
+        fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+        protocols = device.get("protocols", []) or []
+        modified = False
+
+        # EtherNet/IP - ONLY enrich if protocol declared AND identity has vendor_id
+        if "ethernet_ip" in protocols:
+            existing_identity = fingerprint.get("ethernet_ip_identity")
+            if identity_has_vendor_data(existing_identity, "vendor_id"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_ethernet_ip(device_id, scenario_id)
+                    modified = True
+
+        # S7comm - enrich if protocol declared AND identity exists with data
+        if "s7comm" in protocols or "s7comm_plus" in protocols:
+            existing_identity = fingerprint.get("s7_identity")
+            if identity_has_vendor_data(existing_identity, "order_code"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+                    modified = True
+
+        # PROFINET - enrich if protocol declared AND identity exists with data
+        if "profinet" in protocols or "profisafe" in protocols:
+            existing_identity = fingerprint.get("profinet_identity")
+            if identity_has_vendor_data(existing_identity, "vendor_id"):
+                if not existing_identity.get("serial_number"):
+                    serial = SerialNumberGenerator.generate_profinet(device_id, scenario_id)
+                    existing_identity["serial_number"] = serial
+                    existing_identity["im0_serial_number"] = serial
+                    modified = True
+
+        # Modbus - enrich if protocol declared AND identity exists with data
+        if "modbus_tcp" in protocols or "modbus" in protocols:
+            existing_identity = fingerprint.get("modbus_identity")
+            if identity_has_vendor_data(existing_identity, "vendor_name"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+                    modified = True
+
+        # BACnet - enrich if protocol declared AND identity exists with data
+        if "bacnet" in protocols:
+            existing_identity = fingerprint.get("bacnet_identity")
+            if identity_has_vendor_data(existing_identity, "vendor_id"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+                    modified = True
+
+        # SNMP - enrich if protocol declared AND identity exists with data
+        if "snmp" in protocols:
+            existing_identity = fingerprint.get("snmp_identity")
+            if identity_has_vendor_data(existing_identity, "sys_descr"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+                    modified = True
+
+        # OPC UA - enrich if protocol declared AND identity exists with data
+        if "opc_ua" in protocols:
+            existing_identity = fingerprint.get("opc_ua_identity")
+            if identity_has_vendor_data(existing_identity, "manufacturer_name"):
+                if not existing_identity.get("serial_number"):
+                    existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+                    modified = True
+
+        if modified:
+            device["vendorFingerprint"] = fingerprint
+            device["vendor_fingerprint"] = fingerprint
+
+    return definition
 
 
 @router.get("", response_model=ScenarioListResponse)
@@ -166,6 +284,13 @@ async def create_scenario(
         # No IP ranges available - proceed without allocation
         pass
 
+    # CRITICAL: Ensure all devices have unique serial numbers
+    # This prevents Cyber Vision from merging devices with same fingerprint
+    if scenario.definition:
+        scenario.definition = ensure_device_serial_numbers(
+            scenario.definition, str(scenario.id)
+        )
+
     await db.commit()
     await db.refresh(scenario)
 
@@ -200,6 +325,12 @@ async def update_scenario(
     for field, value in update_data.items():
         setattr(scenario, field, value)
 
+    # If definition was updated, ensure all devices have serial numbers
+    if "definition" in update_data and scenario.definition:
+        scenario.definition = ensure_device_serial_numbers(
+            scenario.definition, str(scenario.id)
+        )
+
     # Increment version
     scenario.version += 1
     scenario.updated_at = datetime.now(timezone.utc)
@@ -215,8 +346,14 @@ async def delete_scenario(
     scenario_id: UUID,
     db: DBSession,
     current_user: CurrentUser,
+    force: bool = Query(False, description="Force delete, removing all dependencies"),
 ) -> MessageResponse:
-    """Delete a scenario."""
+    """Delete a scenario.
+
+    If the scenario has active deployments or generation jobs, the delete will fail
+    unless force=true is specified, which will stop deployments and remove all
+    related records first.
+    """
     result = await db.execute(
         select(Scenario).where(
             Scenario.id == scenario_id,
@@ -231,10 +368,70 @@ async def delete_scenario(
             detail="Scenario not found",
         )
 
+    # Check for active agent deployments
+    active_agent_deployments = await db.execute(
+        select(func.count()).select_from(AgentDeployment).where(
+            AgentDeployment.scenario_id == scenario_id,
+            AgentDeployment.state.in_(["running", "starting", "stopping"]),
+        )
+    )
+    active_agent_count = active_agent_deployments.scalar() or 0
+
+    # Check for active docker deployments
+    active_docker_deployments = await db.execute(
+        select(func.count()).select_from(RemoteDeployment).where(
+            RemoteDeployment.scenario_id == scenario_id,
+            RemoteDeployment.status.in_(["running", "starting", "stopping"]),
+        )
+    )
+    active_docker_count = active_docker_deployments.scalar() or 0
+
+    # Check for generation jobs
+    generation_jobs_result = await db.execute(
+        select(func.count()).select_from(GenerationJob).where(
+            GenerationJob.scenario_id == scenario_id,
+        )
+    )
+    generation_job_count = generation_jobs_result.scalar() or 0
+
+    # If there are active deployments and not forcing, return error with details
+    if (active_agent_count > 0 or active_docker_count > 0) and not force:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Cannot delete scenario with active deployments",
+                "active_agent_deployments": active_agent_count,
+                "active_docker_deployments": active_docker_count,
+                "hint": "Stop deployments first or use force=true to force delete",
+            },
+        )
+
+    # Clean up dependencies
+    if force or generation_job_count > 0:
+        # Delete generation jobs
+        await db.execute(
+            sql_delete(GenerationJob).where(GenerationJob.scenario_id == scenario_id)
+        )
+
+    if force:
+        # Delete all agent deployments (including stopped ones)
+        await db.execute(
+            sql_delete(AgentDeployment).where(AgentDeployment.scenario_id == scenario_id)
+        )
+        # Delete all docker deployments (including stopped ones)
+        await db.execute(
+            sql_delete(RemoteDeployment).where(RemoteDeployment.scenario_id == scenario_id)
+        )
+
+    # Now delete the scenario
     await db.delete(scenario)
     await db.commit()
 
-    return MessageResponse(message="Scenario deleted successfully")
+    cleanup_msg = ""
+    if force and (active_agent_count > 0 or active_docker_count > 0 or generation_job_count > 0):
+        cleanup_msg = f" (cleaned up {generation_job_count} generation jobs, {active_agent_count + active_docker_count} deployments)"
+
+    return MessageResponse(message=f"Scenario deleted successfully{cleanup_msg}")
 
 
 class BulkDeleteRequest(BaseModel):
@@ -259,8 +456,6 @@ async def bulk_delete_scenarios(
     Only deletes scenarios owned by the current user.
     Returns the count of actually deleted scenarios.
     """
-    from sqlalchemy import delete as sql_delete
-
     if not request.scenario_ids:
         return BulkDeleteResponse(deleted=0, message="No scenarios specified")
 
@@ -271,7 +466,7 @@ async def bulk_delete_scenarios(
             Scenario.user_id == current_user.id,
         )
     )
-    await db.commit()
+    # Note: commit handled by get_db dependency
 
     deleted_count = result.rowcount
     return BulkDeleteResponse(
@@ -448,11 +643,23 @@ async def validate_scenario(
             protocols_used.add(protocol)
 
         # Check for missing endpoints
-        if not source_id or not target_id:
+        # External flows (EWON Talk2M, etc.) have no target device - they target external IPs
+        flow_config = flow.get("config", {})
+        is_external_flow = flow_config.get("external", False)
+
+        if not source_id:
             warnings.append(ValidationWarning(
                 code="incomplete_flow",
                 severity="error",
-                message=f"Flow is missing source or target device",
+                message=f"Flow is missing source device",
+                details=f"Flow ID: {flow_id}",
+            ))
+        elif not target_id and not is_external_flow:
+            # Only error if target is missing AND it's not an external flow
+            warnings.append(ValidationWarning(
+                code="incomplete_flow",
+                severity="error",
+                message=f"Flow is missing target device",
                 details=f"Flow ID: {flow_id}",
             ))
 
@@ -479,6 +686,48 @@ async def validate_scenario(
                 message=f"Device '{device_name}' has no IP address",
                 details="Consider enabling auto-assign or setting manually",
             ))
+
+    # Check protocol/fingerprint consistency
+    # This prevents issues like Siemens devices appearing as Rockwell in Cyber Vision
+    protocol_issues = validate_scenario_protocols(definition)
+    for issue in protocol_issues:
+        warnings.append(ValidationWarning(
+            code="protocol_identity_mismatch",
+            severity=issue.get("severity", "warning"),
+            message=f"Device '{issue['device_name']}': {issue['issue']}",
+            details=issue.get("recommendation"),
+        ))
+
+    # Check for duplicate device names (critical for SNMP sysName uniqueness)
+    from collections import Counter
+    device_names = [d.get("name", did) for did, d in devices.items()]
+    name_counts = Counter(device_names)
+    duplicates = {name: cnt for name, cnt in name_counts.items() if cnt > 1}
+    for name, count in duplicates.items():
+        warnings.append(ValidationWarning(
+            code="duplicate_device_name",
+            severity="error",
+            message=f"Device name '{name}' is used {count} times",
+            details="Each device must have a unique name for proper SNMP/protocol identification",
+        ))
+
+    # Check for duplicate MAC addresses
+    mac_addresses = []
+    for device_id, device in devices.items():
+        network = device.get("network", {})
+        mac = network.get("macAddress") or network.get("mac_address")
+        if mac:
+            mac_addresses.append((mac.upper(), device.get("name", device_id)))
+    mac_counts = Counter(mac for mac, _ in mac_addresses)
+    duplicate_macs = {mac: cnt for mac, cnt in mac_counts.items() if cnt > 1}
+    for mac, count in duplicate_macs.items():
+        device_names_with_mac = [name for m, name in mac_addresses if m.upper() == mac]
+        warnings.append(ValidationWarning(
+            code="duplicate_mac_address",
+            severity="error",
+            message=f"MAC address '{mac}' is used {count} times",
+            details=f"Devices: {', '.join(device_names_with_mac)}",
+        ))
 
     # Check for empty scenario
     if len(devices) == 0:
@@ -507,6 +756,120 @@ async def validate_scenario(
         device_count=len(devices),
         flow_count=len(flows),
         protocols_used=list(protocols_used),
+    )
+
+
+class RepairProtocolsResponse(BaseModel):
+    """Response from protocol repair operation."""
+    scenario_id: str
+    devices_fixed: int
+    protocols_removed: list[dict]
+    message: str
+
+
+@router.post("/{scenario_id}/repair-protocols", response_model=RepairProtocolsResponse)
+async def repair_scenario_protocols(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> RepairProtocolsResponse:
+    """Repair protocol assignments by removing protocols without fingerprint support.
+
+    This endpoint fixes existing scenarios that have protocol_identity_mismatch errors.
+    It removes protocols from devices that don't have the corresponding identity data
+    in their fingerprint.
+
+    Args:
+        scenario_id: The scenario to repair
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        Summary of repairs made
+    """
+    from app.services.vendor_fingerprints import get_fingerprint_by_vendor_model
+    from app.services.protocol_validator import (
+        get_protocol_identity_key,
+        identity_has_vendor_data,
+    )
+
+    # Get scenario
+    result = await db.execute(
+        select(Scenario).where(
+            Scenario.id == scenario_id,
+            Scenario.user_id == current_user.id,
+        )
+    )
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scenario not found",
+        )
+
+    definition = scenario.definition or {}
+    devices = definition.get("devices", {})
+
+    devices_fixed = 0
+    protocols_removed: list[dict] = []
+
+    for device_id, device in devices.items():
+        device_name = device.get("name", device_id)
+        vendor = (device.get("vendor") or "").lower()
+        fingerprint_model = device.get("fingerprint_model")
+        protocols = device.get("protocols", []) or []
+
+        if not protocols:
+            continue
+
+        # Get fingerprint data
+        fingerprint = (
+            device.get("vendorFingerprint")
+            or device.get("vendor_fingerprint")
+            or device.get("fingerprint")
+            or {}
+        )
+
+        # If no fingerprint in device, try to look it up
+        if not fingerprint and vendor and fingerprint_model:
+            fingerprint = get_fingerprint_by_vendor_model(vendor, fingerprint_model) or {}
+
+        # Filter protocols
+        validated_protocols = []
+        removed_from_device = []
+
+        for protocol in protocols:
+            identity_key = get_protocol_identity_key(protocol)
+            if identity_key:
+                identity = fingerprint.get(identity_key)
+                if identity_has_vendor_data(identity, identity_key):
+                    validated_protocols.append(protocol)
+                else:
+                    removed_from_device.append(protocol)
+            else:
+                validated_protocols.append(protocol)
+
+        if removed_from_device:
+            devices_fixed += 1
+            device["protocols"] = validated_protocols
+            protocols_removed.append({
+                "device_id": device_id,
+                "device_name": device_name,
+                "removed": removed_from_device,
+                "remaining": validated_protocols,
+            })
+
+    # Save changes if any
+    if devices_fixed > 0:
+        scenario.definition = definition
+        await db.commit()
+
+    return RepairProtocolsResponse(
+        scenario_id=str(scenario_id),
+        devices_fixed=devices_fixed,
+        protocols_removed=protocols_removed,
+        message=f"Fixed {devices_fixed} devices, removed {sum(len(p['removed']) for p in protocols_removed)} protocol assignments",
     )
 
 
@@ -687,7 +1050,7 @@ async def apply_patterns(
     Updates the scenario definition with realistic timing, fingerprints,
     and sequences from the PCAP learning system.
     """
-    from app.models.learned_device_fingerprint import LearnedDeviceFingerprint
+    from app.models.device_template import DeviceTemplate, TemplateSource
     from app.models.learned_protocol_pattern import LearnedProtocolPattern
     from app.models.learned_sequence import LearnedSequence
     import uuid as uuid_module
@@ -724,8 +1087,9 @@ async def apply_patterns(
         if request.apply_fingerprints and mapping.get("fingerprint_id"):
             try:
                 fp_result = await db.execute(
-                    select(LearnedDeviceFingerprint).where(
-                        LearnedDeviceFingerprint.id == uuid_module.UUID(mapping["fingerprint_id"])
+                    select(DeviceTemplate).where(
+                        DeviceTemplate.id == uuid_module.UUID(mapping["fingerprint_id"]),
+                        DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
                     )
                 )
                 fingerprint = fp_result.scalar_one_or_none()
@@ -736,7 +1100,7 @@ async def apply_patterns(
                         "source_id": str(fingerprint.id),
                         "tcp_signature": fingerprint.tcp_signature,
                         "response_timings": fingerprint.response_timings,
-                        "inferred_vendor": fingerprint.inferred_vendor,
+                        "inferred_vendor": fingerprint.vendor,
                     }
                     patterns_applied += 1
             except Exception:
@@ -805,14 +1169,137 @@ async def apply_patterns(
     scenario.definition = definition
     scenario.version += 1
     scenario.updated_at = datetime.now(timezone.utc)
-
-    await db.commit()
+    # Note: commit handled by get_db dependency
 
     return ApplyPatternsResponse(
         scenario_id=str(scenario_id),
         devices_updated=devices_updated,
         patterns_applied=patterns_applied,
         message=f"Applied {patterns_applied} patterns to {devices_updated} devices",
+    )
+
+
+# ========== AI Device Naming ==========
+
+
+class RegenerateNamesRequest(BaseModel):
+    """Request to regenerate device names with AI."""
+
+    process_context: str = Field(
+        ...,
+        description="Industrial process description for AI naming (e.g., 'candy factory', 'dairy processing')",
+        min_length=3,
+        max_length=200,
+    )
+
+
+class RegenerateNamesResponse(BaseModel):
+    """Response after regenerating device names."""
+
+    scenario_id: str
+    devices_renamed: int
+    message: str
+
+
+@router.post("/{scenario_id}/regenerate-names", response_model=RegenerateNamesResponse)
+async def regenerate_device_names(
+    scenario_id: UUID,
+    request: RegenerateNamesRequest,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> RegenerateNamesResponse:
+    """Regenerate device names using AI for an existing scenario.
+
+    Uses the scenario's vertical and description, combined with user-provided
+    process context, to generate meaningful, process-aware device names.
+    This transforms generic names like "PLC-MAIN-01" into contextual names
+    like "Chocolate_Tempering_PLC" (if process_context is "candy factory").
+
+    Args:
+        scenario_id: Scenario UUID
+        request: Request body containing process_context (required)
+
+    Returns:
+        Summary of devices renamed
+    """
+    from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
+    from app.mcp_server.ai_providers import AIProviderFactory
+
+    # Get scenario
+    result = await db.execute(
+        select(Scenario).where(
+            Scenario.id == scenario_id,
+            Scenario.user_id == current_user.id,
+        )
+    )
+    scenario = result.scalar_one_or_none()
+
+    if scenario is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scenario not found",
+        )
+
+    definition = scenario.definition or {}
+    devices = definition.get("devices", {})
+    zones = definition.get("zones", {})
+
+    if not devices:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Scenario has no devices to rename",
+        )
+
+    # Get AI provider
+    try:
+        ai_provider = await AIProviderFactory.create(db)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"AI provider not configured: {e}. Configure API key in Settings.",
+        )
+
+    # Build naming context from scenario metadata and user-provided process context
+    context = DeviceNamingContext(
+        vertical=scenario.vertical or "manufacturing",
+        template_name=scenario.name,
+        template_description=scenario.description or "",
+        zones=zones,
+        process_context=request.process_context,
+    )
+
+    # Convert devices dict to list
+    device_list = list(devices.values())
+
+    # Regenerate names with AI
+    namer = AIDeviceNamer()
+    try:
+        enhanced_devices = await namer.enhance_device_names(
+            devices=device_list,
+            context=context,
+            ai_provider=ai_provider,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI naming failed: {e}",
+        )
+
+    # Rebuild devices dict with enhanced names
+    definition["devices"] = {d["id"]: d for d in enhanced_devices}
+
+    # Update scenario
+    scenario.definition = definition
+    scenario.version += 1
+    scenario.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return RegenerateNamesResponse(
+        scenario_id=str(scenario_id),
+        devices_renamed=len(enhanced_devices),
+        message=f"Successfully regenerated names for {len(enhanced_devices)} devices using AI",
     )
 
 

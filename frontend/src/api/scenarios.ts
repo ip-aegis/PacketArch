@@ -121,6 +121,30 @@ export interface ApplyPatternsResponse {
   message: string;
 }
 
+// AI device naming types
+export interface RegenerateNamesRequest {
+  process_context: string;  // Required: e.g., "candy factory", "dairy processing"
+}
+
+export interface RegenerateNamesResponse {
+  scenario_id: string;
+  devices_renamed: number;
+  message: string;
+}
+
+// Protocol repair types
+export interface RepairProtocolsResponse {
+  scenario_id: string;
+  devices_fixed: number;
+  protocols_removed: Array<{
+    device_id: string;
+    device_name: string;
+    removed: string[];
+    remaining: string[];
+  }>;
+  message: string;
+}
+
 const SCENARIOS_PREFIX = '/api/v1/scenarios';
 
 export const scenariosApi = {
@@ -167,9 +191,12 @@ export const scenariosApi = {
 
   /**
    * Delete a scenario
+   * @param id - Scenario ID
+   * @param force - If true, force delete even if there are active deployments or generation jobs
    */
-  async delete(id: string): Promise<void> {
-    await apiClient.delete(`${SCENARIOS_PREFIX}/${id}`);
+  async delete(id: string, force: boolean = false): Promise<void> {
+    const params = force ? '?force=true' : '';
+    await apiClient.delete(`${SCENARIOS_PREFIX}/${id}${params}`);
   },
 
   /**
@@ -235,6 +262,28 @@ export const scenariosApi = {
     const response = await apiClient.post<ApplyPatternsResponse>(
       `${SCENARIOS_PREFIX}/${id}/apply-patterns`,
       request
+    );
+    return response.data;
+  },
+
+  /**
+   * Regenerate device names using AI with user-provided process context
+   */
+  async regenerateDeviceNames(id: string, request: RegenerateNamesRequest): Promise<RegenerateNamesResponse> {
+    const response = await apiClient.post<RegenerateNamesResponse>(
+      `${SCENARIOS_PREFIX}/${id}/regenerate-names`,
+      request
+    );
+    return response.data;
+  },
+
+  /**
+   * Repair protocol assignments by removing protocols without fingerprint support.
+   * This fixes protocol_identity_mismatch validation errors.
+   */
+  async repairProtocols(id: string): Promise<RepairProtocolsResponse> {
+    const response = await apiClient.post<RepairProtocolsResponse>(
+      `${SCENARIOS_PREFIX}/${id}/repair-protocols`
     );
     return response.data;
   },

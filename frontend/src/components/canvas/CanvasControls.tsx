@@ -1,9 +1,9 @@
 /**
- * Canvas controls toolbar (zoom, fit view, undo/redo, delete, layout)
+ * Canvas controls toolbar (zoom, fit view, undo/redo, delete, layout, customize names)
  */
 
-import React from 'react';
-import { Button, Space, Tooltip, Dropdown } from 'antd';
+import React, { useState } from 'react';
+import { Button, Space, Tooltip, Dropdown, Modal, Input, App } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ZoomInOutlined,
@@ -20,14 +20,19 @@ import {
   NodeIndexOutlined,
   AppstoreOutlined,
   RadiusSettingOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { useReactFlow } from '@xyflow/react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
+import { scenariosApi } from '../../api/scenarios';
 
 const CanvasControls: React.FC = () => {
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const undo = useHistoryStore((state) => state.undo);
   const redo = useHistoryStore((state) => state.redo);
@@ -35,9 +40,44 @@ const CanvasControls: React.FC = () => {
   const canRedo = useHistoryStore((state) => state.canRedo());
   const selectedNodeIds = useUIStore((state) => state.selectedNodeIds);
   const removeDevice = useScenarioStore((state) => state.removeDevice);
+  const scenarioId = useScenarioStore((state) => state.id);
+  const deviceCount = useScenarioStore((state) => Object.keys(state.devices).length);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const toggleMinimap = useUIStore((state) => state.toggleMinimap);
   const { applyLayout } = useAutoLayout();
+
+  // Customize Names modal state
+  const [customizeNamesModalOpen, setCustomizeNamesModalOpen] = useState(false);
+  const [processContext, setProcessContext] = useState('');
+
+  // Regenerate names mutation
+  const regenerateNamesMutation = useMutation({
+    mutationFn: (data: { scenarioId: string; processContext: string }) =>
+      scenariosApi.regenerateDeviceNames(data.scenarioId, { process_context: data.processContext }),
+    onSuccess: (result) => {
+      message.success(`${result.devices_renamed} device names updated`);
+      setCustomizeNamesModalOpen(false);
+      setProcessContext('');
+      // Invalidate scenario query to reload with new names
+      queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId] });
+    },
+    onError: (error: any) => {
+      const detail = error.response?.data?.detail || error.message || 'Unknown error';
+      message.error(`Failed to regenerate names: ${detail}`);
+    },
+  });
+
+  const handleCustomizeNames = () => {
+    if (!processContext.trim()) {
+      message.error('Please describe your facility or process');
+      return;
+    }
+    if (!scenarioId) {
+      message.error('No scenario loaded');
+      return;
+    }
+    regenerateNamesMutation.mutate({ scenarioId, processContext: processContext.trim() });
+  };
 
   const handleDelete = () => {
     selectedNodeIds.forEach((nodeId) => {
@@ -170,7 +210,81 @@ const CanvasControls: React.FC = () => {
             </Button>
           </Tooltip>
         </Dropdown>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+
+        {/* Customize Names button */}
+        <Tooltip title="Customize device names using AI based on your facility description">
+          <Button
+            icon={<EditOutlined />}
+            style={buttonStyle}
+            onClick={() => setCustomizeNamesModalOpen(true)}
+            disabled={deviceCount === 0}
+          >
+            Customize Names
+          </Button>
+        </Tooltip>
       </Space>
+
+      {/* Customize Names Modal */}
+      <Modal
+        title="Customize Device Names"
+        open={customizeNamesModalOpen}
+        onOk={handleCustomizeNames}
+        onCancel={() => {
+          setCustomizeNamesModalOpen(false);
+          setProcessContext('');
+        }}
+        confirmLoading={regenerateNamesMutation.isPending}
+        okText="Generate Names"
+        okButtonProps={{ disabled: !processContext.trim() }}
+        styles={{
+          header: { background: '#141428', borderBottom: '1px solid #2d2d52' },
+          body: { background: '#1a1a2e', padding: 24 },
+          content: { background: '#141428' },
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <div style={{ color: '#a8a8c0' }}>
+            Describe your industrial process and AI will generate contextual device names
+            that reflect your specific facility.
+          </div>
+
+          <Input.TextArea
+            value={processContext}
+            onChange={(e) => setProcessContext(e.target.value)}
+            placeholder="e.g., 'candy factory with chocolate tempering line and packaging'"
+            rows={3}
+            maxLength={200}
+            showCount
+            style={{
+              background: '#141428',
+              border: '1px solid #2d2d52',
+              color: '#fff',
+            }}
+          />
+
+          <div
+            style={{
+              background: '#253545',
+              border: '1px solid #3a5068',
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
+            <div style={{ color: '#5a9fd4', fontWeight: 500, marginBottom: 4 }}>
+              Example Transformation
+            </div>
+            <div style={{ color: '#a8a8c0', fontSize: 12 }}>
+              <span style={{ color: '#6b6b8a' }}>Before:</span> CNC_Machining_Main_PLC
+            </div>
+            <div style={{ color: '#a8a8c0', fontSize: 12 }}>
+              <span style={{ color: '#6b6b8a' }}>After:</span> Chocolate_Tempering_PLC
+            </div>
+          </div>
+        </Space>
+      </Modal>
     </div>
   );
 };

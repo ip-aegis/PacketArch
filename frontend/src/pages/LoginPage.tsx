@@ -190,7 +190,7 @@ const LoginPage: React.FC = () => {
             }}
           >
             <Text style={{ color: '#6b6b8a', fontSize: 12 }}>
-              Default: <span style={{ color: '#a8a8c0' }}>admin</span> / <span style={{ color: '#a8a8c0' }}>changeme123</span>
+              Default: <span style={{ color: '#a8a8c0' }}>admin</span> / <span style={{ color: '#a8a8c0' }}>C!sco123</span>
             </Text>
           </div>
         </Space>

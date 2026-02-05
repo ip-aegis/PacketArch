@@ -4,10 +4,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { Form, Input, Select, InputNumber, Divider, Typography, Tag, Space, Tooltip, Alert } from 'antd';
-import { SafetyCertificateOutlined, InfoCircleOutlined, BugOutlined, WarningOutlined } from '@ant-design/icons';
+import { SafetyCertificateOutlined, InfoCircleOutlined, BugOutlined, WarningOutlined, CodeOutlined } from '@ant-design/icons';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import type { DeviceType, ProtocolType, CVEVulnerability, VulnerableFingerprintVariant } from '../../types';
-import { listVendors, getVendorModels, type VendorSummary } from '../../api/fingerprints';
+import {
+  listVendors,
+  getVendorModels,
+  listDeviceTemplates,
+  listTemplateFirmwares,
+  type VendorSummary,
+  type DeviceTemplateSummary,
+  type FirmwareVariant,
+} from '../../api/fingerprints';
 import { listCVEs, listVulnerableVariants, getSeverityColor } from '../../api/cve';
 
 const { Text } = Typography;
@@ -47,6 +55,12 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
   const [vendors, setVendors] = useState<VendorSummary[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+
+  // Device template state
+  const [deviceTemplates, setDeviceTemplates] = useState<DeviceTemplateSummary[]>([]);
+  const [firmwareVariants, setFirmwareVariants] = useState<FirmwareVariant[]>([]);
+  const [loadingFirmwares, setLoadingFirmwares] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   // CVE vulnerability state
   const [cves, setCves] = useState<CVEVulnerability[]>([]);
@@ -95,23 +109,77 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
     fetchCves();
   }, [device?.vendor]);
 
-  // Fetch models when vendor changes
+  // Fetch models and templates when vendor changes
   const handleVendorChange = async (vendor: string) => {
     if (!vendor) {
       setModels([]);
+      setDeviceTemplates([]);
+      setFirmwareVariants([]);
+      setSelectedTemplateId(null);
       form.setFieldValue('fingerprintModel', undefined);
+      form.setFieldValue('firmwareVersion', undefined);
       return;
     }
 
     setLoadingModels(true);
     try {
-      const modelList = await getVendorModels(vendor);
+      const [modelList, templates] = await Promise.all([
+        getVendorModels(vendor),
+        listDeviceTemplates({ vendor }),
+      ]);
       setModels(modelList);
+      setDeviceTemplates(templates);
     } catch (err) {
       console.error('Failed to fetch models:', err);
       setModels([]);
+      setDeviceTemplates([]);
     } finally {
       setLoadingModels(false);
+    }
+  };
+
+  // Fetch firmware variants when model changes
+  const handleModelChange = async (model: string) => {
+    if (!model || !device?.vendor) {
+      setFirmwareVariants([]);
+      setSelectedTemplateId(null);
+      form.setFieldValue('firmwareVersion', undefined);
+      return;
+    }
+
+    // Find matching template
+    const matchedTemplate = deviceTemplates.find(
+      (t) =>
+        t.model.toLowerCase() === model.toLowerCase() ||
+        t.model_name.toLowerCase() === model.toLowerCase() ||
+        t.model.toLowerCase().includes(model.toLowerCase()) ||
+        t.model_name.toLowerCase().includes(model.toLowerCase())
+    );
+
+    if (matchedTemplate) {
+      setSelectedTemplateId(matchedTemplate.id);
+      setLoadingFirmwares(true);
+      try {
+        const firmwares = await listTemplateFirmwares(matchedTemplate.id);
+        setFirmwareVariants(firmwares);
+        // Auto-select default firmware if available
+        const defaultFw = firmwares.find((fw) => fw.is_default);
+        if (defaultFw && !device.firmwareVersion) {
+          form.setFieldValue('firmwareVersion', defaultFw.version);
+          updateDevice(deviceId, {
+            templateId: matchedTemplate.id,
+            firmwareVersion: defaultFw.version,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch firmware variants:', err);
+        setFirmwareVariants([]);
+      } finally {
+        setLoadingFirmwares(false);
+      }
+    } else {
+      setFirmwareVariants([]);
+      setSelectedTemplateId(null);
     }
   };
 
@@ -123,6 +191,7 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
         role: device.role,
         vendor: device.vendor,
         fingerprintModel: device.fingerprintModel,
+        firmwareVersion: device.firmwareVersion,
         vulnerableCve: device.vulnerableCve,
         macAddress: device.network.macAddress,
         ipAddress: device.network.ipAddress,
@@ -137,9 +206,14 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
         burstIntervalMs: device.timing?.burstIntervalMs,
       });
 
-      // Load models if vendor is set
+      // Load models and templates if vendor is set
       if (device.vendor) {
-        handleVendorChange(device.vendor);
+        handleVendorChange(device.vendor).then(() => {
+          // Load firmware variants if model is set
+          if (device.fingerprintModel) {
+            handleModelChange(device.fingerprintModel);
+          }
+        });
       }
 
       // Set selected CVE if device has one
@@ -167,11 +241,19 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
     if ('vendor' in changedValues) {
       updates.vendor = changedValues.vendor;
       handleVendorChange(changedValues.vendor);
-      // Clear CVE when vendor changes
+      // Clear CVE and firmware when vendor changes
       form.setFieldValue('vulnerableCve', undefined);
+      form.setFieldValue('firmwareVersion', undefined);
       setSelectedCve(null);
     }
-    if ('fingerprintModel' in changedValues) updates.fingerprintModel = changedValues.fingerprintModel;
+    if ('fingerprintModel' in changedValues) {
+      updates.fingerprintModel = changedValues.fingerprintModel;
+      handleModelChange(changedValues.fingerprintModel);
+    }
+    if ('firmwareVersion' in changedValues) {
+      updates.firmwareVersion = changedValues.firmwareVersion;
+      updates.templateId = selectedTemplateId;
+    }
 
     // CVE vulnerability fields
     if ('vulnerableCve' in changedValues) {
@@ -295,7 +377,79 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({ deviceId }) => 
         />
       </Form.Item>
 
-      {device.fingerprintModel && (
+      {firmwareVariants.length > 0 && (
+        <Form.Item
+          label={
+            <Space>
+              <span>Firmware Version</span>
+              <Tooltip title="Select firmware version for accurate device fingerprinting. Vulnerable versions show associated CVEs.">
+                <InfoCircleOutlined style={{ color: '#6a8caf', fontSize: 12 }} />
+              </Tooltip>
+            </Space>
+          }
+          name="firmwareVersion"
+        >
+          <Select
+            placeholder={loadingFirmwares ? 'Loading firmwares...' : 'Select firmware version'}
+            allowClear
+            loading={loadingFirmwares}
+            showSearch
+            optionFilterProp="label"
+          >
+            {firmwareVariants.map((fw) => (
+              <Option key={fw.version} value={fw.version} label={fw.version}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space>
+                    <CodeOutlined style={{ color: fw.is_latest ? '#52c41a' : '#8c8c8c' }} />
+                    <span>{fw.version}</span>
+                    {fw.is_latest && (
+                      <Tag color="green" style={{ fontSize: 10, marginRight: 0 }}>
+                        Latest
+                      </Tag>
+                    )}
+                    {fw.is_default && !fw.is_latest && (
+                      <Tag color="blue" style={{ fontSize: 10, marginRight: 0 }}>
+                        Default
+                      </Tag>
+                    )}
+                  </Space>
+                  {fw.cves.length > 0 && (
+                    <Tag color="red" style={{ fontSize: 10 }}>
+                      {fw.cves.length} CVE{fw.cves.length > 1 ? 's' : ''}
+                    </Tag>
+                  )}
+                </Space>
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+      )}
+
+      {device.firmwareVersion && firmwareVariants.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {(() => {
+            const selectedFw = firmwareVariants.find((fw) => fw.version === device.firmwareVersion);
+            return (
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <Tag color="green" icon={<SafetyCertificateOutlined />}>
+                  {device.vendor} {device.fingerprintModel} v{device.firmwareVersion}
+                </Tag>
+                {selectedFw?.cves && selectedFw.cves.length > 0 && (
+                  <Space wrap size={4}>
+                    {selectedFw.cves.map((cve) => (
+                      <Tag key={cve} color="red" icon={<BugOutlined />} style={{ fontSize: 10 }}>
+                        {cve}
+                      </Tag>
+                    ))}
+                  </Space>
+                )}
+              </Space>
+            );
+          })()}
+        </div>
+      )}
+
+      {device.fingerprintModel && firmwareVariants.length === 0 && !loadingFirmwares && (
         <div style={{ marginBottom: 16 }}>
           <Tag color="green" icon={<SafetyCertificateOutlined />}>
             Fingerprint: {device.vendor} {device.fingerprintModel}

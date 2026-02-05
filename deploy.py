@@ -282,7 +282,7 @@ class Deployer:
         env_content = f"""POSTGRES_PASSWORD=PacketArch_Prod_2024!
 SECRET_KEY={secret_key}
 ENCRYPTION_KEY=
-ADMIN_PASSWORD=PacketArch_Admin!
+ADMIN_PASSWORD=C!sco123
 DEBUG=false"""
 
         self.client.run(
@@ -346,7 +346,7 @@ Access URLs:
 
 Credentials:
   Username:  admin
-  Password:  PacketArch_Admin!
+  Password:  C!sco123
 """)
 
     def _get_files_to_upload(self) -> list[Path]:

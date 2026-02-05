@@ -8,11 +8,12 @@ Based on real device characteristics for realistic traffic simulation.
 
 from typing import Any
 
-# GE MAC OUI Prefixes (IEEE registrations)
+# GE MAC OUI Prefixes (IEEE registrations - verified)
 GE_OUI_PREFIXES = [
-    "00:14:49",  # GE Fanuc Automation
-    "00:60:B0",  # GE Energy
-    "1C:39:47",  # GE
+    "00:09:45",  # GE Fanuc Automation (verified IEEE)
+    "00:30:C1",  # GE Healthcare (verified IEEE)
+    "00:50:99",  # GE Industrial Systems (verified IEEE)
+    "00:22:52",  # GE Digital Energy (verified IEEE)
 ]
 
 
@@ -29,7 +30,16 @@ def get_ge_fingerprints() -> list[dict[str, Any]]:
             "model": "Proficy Historian",
             "firmware_version": "8.0",
             "oui_prefixes": GE_OUI_PREFIXES,
-            "supported_protocols": ["modbus"],
+            "supported_protocols": ["modbus", "ethernet_ip"],
+            "ethernet_ip_identity": {
+                "vendor_id": 82,  # GE
+                "device_type": 12,  # Communications Adapter
+                "product_code": 8000,
+                "revision_major": 8,
+                "revision_minor": 0,
+                "product_name": "Proficy Historian",
+                "state": 3,
+            },
             "modbus_identity": {
                 "vendor_name": "GE Digital",
                 "product_code": "Proficy Historian",

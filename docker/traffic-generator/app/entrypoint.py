@@ -68,6 +68,22 @@ def get_device_fingerprint(device: dict) -> dict:
     )
 
 
+def get_vulnerability_override(device: dict) -> dict | None:
+    """Get CVE vulnerability override from device.
+
+    The cveIdentityOverrides field contains CVE-specific identity overrides
+    that modify protocol responses to include vulnerable firmware versions.
+    This data is computed during scenario creation and stored in the device.
+
+    Args:
+        device: Device dictionary from scenario
+
+    Returns:
+        Vulnerability override dictionary or None
+    """
+    return device.get("cveIdentityOverrides")
+
+
 def create_device_context(device_id: str, device: dict) -> DeviceContext:
     """Create a DeviceContext from a device dictionary.
 
@@ -84,6 +100,7 @@ def create_device_context(device_id: str, device: dict) -> DeviceContext:
     """
     network = device.get("network", {})
     fingerprint = get_device_fingerprint(device)
+    vulnerability_override = get_vulnerability_override(device)
 
     return DeviceContext(
         device_id=device_id,
@@ -91,6 +108,7 @@ def create_device_context(device_id: str, device: dict) -> DeviceContext:
         ip_address=network.get("ipAddress", "10.0.0.1"),
         port=502,  # Default port, not used for discovery
         vendor_fingerprint=fingerprint,
+        vulnerability_override=vulnerability_override,
     )
 
 
@@ -111,32 +129,41 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
         src_network = source_device.get("network", {})
         dst_network = target_device.get("network", {})
 
-        # Get fingerprints for BOTH source and destination (for discovery)
+        # Get fingerprints and CVE overrides for BOTH source and destination
         # Fingerprints are already enriched by the backend with unique identifiers
         src_fingerprint = get_device_fingerprint(source_device)
         dst_fingerprint = get_device_fingerprint(target_device)
+        src_vulnerability = get_vulnerability_override(source_device)
+        dst_vulnerability = get_vulnerability_override(target_device)
 
-        # Create device contexts with vendor fingerprints for device identification
+        # Create device contexts with vendor fingerprints and CVE overrides
         source = DeviceContext(
             device_id=source_device.get("id", ""),
             mac_address=src_network.get("macAddress", "00:00:00:00:00:01"),
             ip_address=src_network.get("ipAddress", "10.0.0.1"),
             port=flow_def.get("protocolConfig", {}).get("sourcePort", 50000),
             vendor_fingerprint=src_fingerprint,
+            vulnerability_override=src_vulnerability,
         )
 
         # Get destination port based on protocol
         PROTOCOL_PORTS = {
             "modbus_tcp": 502,
+            "modbus": 502,
             "s7comm": 102,
             "s7comm_plus": 102,
             "ethernet_ip": 44818,
+            "cip": 44818,
+            "bacnet": 47808,
             "bacnet_ip": 47808,
+            "snmp": 161,
             "dnp3": 20000,
+            "opc_ua": 4840,
             "opcua": 4840,
             "iec104": 2404,
+            "iec_104": 2404,
         }
-        default_port = PROTOCOL_PORTS.get(protocol, 44818)
+        default_port = PROTOCOL_PORTS.get(protocol, 502)
 
         destination = DeviceContext(
             device_id=target_device.get("id", ""),
@@ -145,6 +172,7 @@ def create_flow_from_definition(flow_def: dict, devices: dict) -> FlowContext | 
             port=flow_def.get("protocolConfig", {}).get("port", default_port),
             unit_id=flow_def.get("protocolConfig", {}).get("unitId", 1),
             vendor_fingerprint=dst_fingerprint,
+            vulnerability_override=dst_vulnerability,
         )
 
         # Get timing

@@ -7,11 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from celery import Celery, Task
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.scenario import Scenario
+from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
 from app.traffic_generator.orchestrator import GenerationConfig, TrafficOrchestrator
@@ -37,37 +38,73 @@ celery_app.conf.update(
     task_soft_time_limit=3300,  # 55 minutes soft limit
 )
 
-# In-memory job storage (in production, use Redis or database)
-_job_store: dict[str, GenerationJob] = {}
+
+def _get_celery_session_maker():
+    """Get a session maker for use in Celery tasks.
+
+    Creates a new engine and session maker to avoid event loop conflicts.
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    engine = create_async_engine(
+        settings.async_database_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=3,
+    )
+    return async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
 
 
-def get_job(job_id: str) -> GenerationJob | None:
-    """Get job by ID.
+async def get_job_from_db(job_id: str) -> GenerationJobModel | None:
+    """Get job from database by ID.
 
     Args:
-        job_id: Job identifier
+        job_id: Job identifier (UUID string)
 
     Returns:
-        GenerationJob or None if not found
+        GenerationJobModel or None if not found
     """
-    return _job_store.get(job_id)
+    session_maker = _get_celery_session_maker()
+    async with session_maker() as session:
+        result = await session.execute(
+            select(GenerationJobModel).where(GenerationJobModel.id == uuid.UUID(job_id))
+        )
+        return result.scalar_one_or_none()
 
 
-def update_job(job: GenerationJob) -> None:
-    """Update job in store.
+async def update_job_in_db(
+    job_id: str,
+    **kwargs,
+) -> None:
+    """Update job in database.
 
     Args:
-        job: Job to update
+        job_id: Job identifier (UUID string)
+        **kwargs: Fields to update
     """
-    _job_store[job.job_id] = job
+    session_maker = _get_celery_session_maker()
+    async with session_maker() as session:
+        await session.execute(
+            update(GenerationJobModel)
+            .where(GenerationJobModel.id == uuid.UUID(job_id))
+            .values(**kwargs)
+        )
+        await session.commit()
 
 
-def create_job(
+async def create_job_in_db(
     scenario_id: uuid.UUID,
     user_id: uuid.UUID | None,
     total_duration_ms: int,
-) -> GenerationJob:
-    """Create a new generation job.
+) -> GenerationJobModel:
+    """Create a new generation job in database.
 
     Args:
         scenario_id: Scenario UUID
@@ -75,20 +112,125 @@ def create_job(
         total_duration_ms: Total duration in milliseconds
 
     Returns:
-        Created GenerationJob
+        Created GenerationJobModel
     """
-    job_id = str(uuid.uuid4())
+    session_maker = _get_celery_session_maker()
+    async with session_maker() as session:
+        job = GenerationJobModel(
+            scenario_id=scenario_id,
+            user_id=user_id,
+            status=GenerationJobStatus.PENDING.value,
+            total_duration_ms=total_duration_ms,
+        )
+        session.add(job)
+        await session.commit()
+        await session.refresh(job)
+        return job
 
-    job = GenerationJob(
-        job_id=job_id,
-        scenario_id=scenario_id,
-        user_id=user_id,
-        status=JobStatus.PENDING,
-        total_duration_ms=total_duration_ms,
+
+# Keep synchronous wrappers for backward compatibility with existing code
+def get_job(job_id: str) -> GenerationJob | None:
+    """Get job by ID (synchronous wrapper).
+
+    Args:
+        job_id: Job identifier
+
+    Returns:
+        GenerationJob dataclass or None if not found
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    db_job = loop.run_until_complete(get_job_from_db(job_id))
+    if not db_job:
+        return None
+
+    return GenerationJob(
+        job_id=str(db_job.id),
+        scenario_id=db_job.scenario_id,
+        user_id=db_job.user_id,
+        status=JobStatus(db_job.status),
+        progress=db_job.progress,
+        total_duration_ms=db_job.total_duration_ms,
+        output_path=db_job.output_path,
+        packets_generated=db_job.packets_generated,
+        file_size_bytes=db_job.file_size_bytes,
+        error_message=db_job.error_message,
+        started_at=db_job.started_at,
+        completed_at=db_job.completed_at,
     )
 
-    _job_store[job_id] = job
-    return job
+
+def update_job(job: GenerationJob) -> None:
+    """Update job in store (synchronous wrapper).
+
+    Args:
+        job: Job to update
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    # Extract filename from output_path
+    output_filename = None
+    if job.output_path:
+        output_filename = Path(job.output_path).name
+
+    loop.run_until_complete(update_job_in_db(
+        job.job_id,
+        status=job.status.value,
+        progress=job.progress,
+        packets_generated=job.packets_generated,
+        file_size_bytes=job.file_size_bytes,
+        output_filename=output_filename,
+        error_message=job.error_message,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+    ))
+
+
+def create_job(
+    scenario_id: uuid.UUID,
+    user_id: uuid.UUID | None,
+    total_duration_ms: int,
+) -> GenerationJob:
+    """Create a new generation job (synchronous wrapper).
+
+    Args:
+        scenario_id: Scenario UUID
+        user_id: User UUID
+        total_duration_ms: Total duration in milliseconds
+
+    Returns:
+        Created GenerationJob dataclass
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    db_job = loop.run_until_complete(create_job_in_db(
+        scenario_id=scenario_id,
+        user_id=user_id,
+        total_duration_ms=total_duration_ms,
+    ))
+
+    return GenerationJob(
+        job_id=str(db_job.id),
+        scenario_id=db_job.scenario_id,
+        user_id=db_job.user_id,
+        status=JobStatus(db_job.status),
+        total_duration_ms=db_job.total_duration_ms,
+    )
 
 
 class CallbackTask(Task):
@@ -96,29 +238,52 @@ class CallbackTask(Task):
 
     def on_success(self, retval, task_id, args, kwargs):
         """Handle successful task completion."""
+        import asyncio
+
         job_id = kwargs.get("job_id")
-        if job_id and job_id in _job_store:
-            job = _job_store[job_id]
-            job.status = JobStatus.COMPLETED
-            job.completed_at = datetime.utcnow()
+        if job_id:
+            # Always create a new event loop for callbacks
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-            if isinstance(retval, dict):
-                job.packets_generated = retval.get("packets_generated", 0)
-                job.file_size_bytes = retval.get("file_size_bytes", 0)
-                job.output_path = retval.get("pcap_path")
+            try:
+                update_data = {
+                    "status": GenerationJobStatus.COMPLETED.value,
+                    "completed_at": datetime.utcnow(),
+                    "progress": 100.0,
+                }
 
-            logger.info(f"Job {job_id} completed successfully")
+                if isinstance(retval, dict):
+                    update_data["packets_generated"] = retval.get("packets_generated", 0)
+                    update_data["file_size_bytes"] = retval.get("file_size_bytes", 0)
+                    if retval.get("pcap_path"):
+                        update_data["output_filename"] = Path(retval["pcap_path"]).name
+
+                loop.run_until_complete(update_job_in_db(job_id, **update_data))
+                logger.info(f"Job {job_id} completed successfully")
+            finally:
+                loop.close()
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
-        job_id = kwargs.get("job_id")
-        if job_id and job_id in _job_store:
-            job = _job_store[job_id]
-            job.status = JobStatus.FAILED
-            job.completed_at = datetime.utcnow()
-            job.error_message = str(exc)
+        import asyncio
 
-            logger.error(f"Job {job_id} failed: {exc}")
+        job_id = kwargs.get("job_id")
+        if job_id:
+            # Always create a new event loop for callbacks
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                loop.run_until_complete(update_job_in_db(
+                    job_id,
+                    status=GenerationJobStatus.FAILED.value,
+                    completed_at=datetime.utcnow(),
+                    error_message=str(exc),
+                ))
+                logger.error(f"Job {job_id} failed: {exc}")
+            finally:
+                loop.close()
 
 
 @celery_app.task(bind=True, base=CallbackTask, name="packetarch.generate_traffic")
@@ -138,17 +303,23 @@ def generate_traffic(self, job_id: str, scenario_id: str, duration_ms: int | Non
 
     logger.info(f"Starting traffic generation task for job {job_id}")
 
-    # Update job status
-    job = get_job(job_id)
-    if job:
-        job.status = JobStatus.RUNNING
-        job.started_at = datetime.utcnow()
-        update_job(job)
+    # Create new event loop for this task
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-    # Run async generation
-    result = asyncio.run(_generate_traffic_async(job_id, scenario_id, duration_ms))
+    try:
+        # Update job status to running
+        loop.run_until_complete(update_job_in_db(
+            job_id,
+            status=GenerationJobStatus.RUNNING.value,
+            started_at=datetime.utcnow(),
+        ))
 
-    return result
+        # Run async generation
+        result = loop.run_until_complete(_generate_traffic_async(job_id, scenario_id, duration_ms))
+        return result
+    finally:
+        loop.close()
 
 
 async def _generate_traffic_async(
@@ -167,8 +338,9 @@ async def _generate_traffic_async(
         Dictionary with generation results
     """
     try:
-        # Load scenario from database
-        async with async_session_maker() as session:
+        # Load scenario from database using Celery-safe session maker
+        session_maker = _get_celery_session_maker()
+        async with session_maker() as session:
             result = await session.execute(
                 select(Scenario).where(Scenario.id == uuid.UUID(scenario_id))
             )
@@ -209,14 +381,14 @@ async def _generate_traffic_async(
             logger.info(f"Starting traffic generation for {len(flow_contexts)} flows")
             generation_result = orchestrator.generate()
 
-            # Update job with results
-            job = get_job(job_id)
-            if job:
-                job.output_path = generation_result.pcap_path
-                job.packets_generated = generation_result.packets_generated
-                job.file_size_bytes = generation_result.file_size_bytes
-                job.progress = 100.0
-                update_job(job)
+            # Update job with results in database
+            await update_job_in_db(
+                job_id,
+                output_filename=Path(generation_result.pcap_path).name if generation_result.pcap_path else None,
+                packets_generated=generation_result.packets_generated,
+                file_size_bytes=generation_result.file_size_bytes,
+                progress=100.0,
+            )
 
             return {
                 "job_id": job_id,
@@ -280,7 +452,7 @@ def _build_flow_contexts(
     for flow in flows:
         # Support both naming conventions
         source_id = flow.get("source_device_id") or flow.get("sourceDeviceId") or flow.get("source")
-        destination_id = flow.get("destination_device_id") or flow.get("destinationDeviceId") or flow.get("target")
+        destination_id = flow.get("destination_device_id") or flow.get("destinationDeviceId") or flow.get("targetDeviceId") or flow.get("target")
 
         if not source_id or not destination_id:
             logger.warning(f"Flow missing source or destination: {flow}")
@@ -324,6 +496,18 @@ def _build_flow_contexts(
             """Get device name from device dict."""
             return device.get("name") or device.get("label")
 
+        def get_fingerprint_with_warning(device: dict, device_role: str) -> dict:
+            """Get vendor fingerprint from device, warn if empty."""
+            fp = device.get("vendor_fingerprint") or device.get("vendorFingerprint", {})
+            if not fp:
+                device_name = get_device_name(device) or device.get("id", "unknown")
+                logger.warning(
+                    f"Device '{device_name}' ({device_role}) has no vendor_fingerprint - "
+                    f"protocol identity responses will use generic defaults. "
+                    f"Ensure fingerprint_model is set and fingerprint data is passed from frontend."
+                )
+            return fp
+
         # Build device contexts with CVE vulnerability overrides and scenario_id
         # for unique serial number and identifier generation
         source_context = DeviceContext(
@@ -332,7 +516,7 @@ def _build_flow_contexts(
             ip_address=get_network_field(source_device, "ip_address", "192.168.1.1"),
             port=flow.get("source_port") or flow.get("sourcePort", 50000),
             unit_id=source_device.get("unit_id") or source_device.get("unitId"),
-            vendor_fingerprint=source_device.get("vendor_fingerprint") or source_device.get("vendorFingerprint", {}),
+            vendor_fingerprint=get_fingerprint_with_warning(source_device, "source"),
             # Pass CVE identity overrides for vulnerable firmware emulation
             vulnerability_override=get_cve_overrides(source_device),
             # Pass scenario_id for unique serial number generation
@@ -347,7 +531,7 @@ def _build_flow_contexts(
             ip_address=get_network_field(destination_device, "ip_address", "192.168.1.2"),
             port=flow.get("destination_port") or flow.get("destinationPort", 502),
             unit_id=destination_device.get("unit_id") or destination_device.get("unitId", 1),
-            vendor_fingerprint=destination_device.get("vendor_fingerprint") or destination_device.get("vendorFingerprint", {}),
+            vendor_fingerprint=get_fingerprint_with_warning(destination_device, "destination"),
             # Pass CVE identity overrides for vulnerable firmware emulation
             vulnerability_override=get_cve_overrides(destination_device),
             # Pass scenario_id for unique serial number generation

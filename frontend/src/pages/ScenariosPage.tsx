@@ -24,6 +24,7 @@ import {
   Popconfirm,
   App,
   Checkbox,
+  Divider,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -56,6 +57,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scenariosApi, type ScenarioFilters, type ScenarioSummary, type ScenarioCreate } from '../api/scenarios';
 import { templatesApi, type TemplateSummary, type CreateFromTemplateRequest } from '../api/templates';
 import { GenerateDescriptionModal } from '../components/ai';
+import GeneratePcapModal from '../components/GeneratePcapModal';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -94,6 +97,10 @@ const ScenariosPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const [selectedScenarioForDesc, setSelectedScenarioForDesc] = useState<ScenarioSummary | null>(null);
+  const [generatePcapModalOpen, setGeneratePcapModalOpen] = useState(false);
+  const [selectedScenarioForPcap, setSelectedScenarioForPcap] = useState<ScenarioSummary | null>(null);
+  const [useAINaming, setUseAINaming] = useState(false);
+  const [processContext, setProcessContext] = useState('');
   const [createForm] = Form.useForm();
   const [templateForm] = Form.useForm();
 
@@ -147,16 +154,48 @@ const ScenariosPage: React.FC = () => {
     },
   });
 
+  // State for force delete confirmation
+  const [forceDeleteModal, setForceDeleteModal] = useState<{
+    visible: boolean;
+    scenarioId: string | null;
+    scenarioName: string;
+    activeAgentDeployments: number;
+    activeDockerDeployments: number;
+  }>({
+    visible: false,
+    scenarioId: null,
+    scenarioName: '',
+    activeAgentDeployments: 0,
+    activeDockerDeployments: 0,
+  });
+
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => scenariosApi.delete(id),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => scenariosApi.delete(id, force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scenarios'] });
       message.success('Scenario deleted successfully');
+      setForceDeleteModal({ visible: false, scenarioId: null, scenarioName: '', activeAgentDeployments: 0, activeDockerDeployments: 0 });
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || error.message || 'Unknown error';
-      message.error(`Failed to delete scenario: ${detail}`);
+    onError: (error: any, variables) => {
+      const detail = error.response?.data?.detail;
+      const status = error.response?.status;
+
+      // Handle conflict (active deployments)
+      if (status === 409 && detail?.active_agent_deployments !== undefined) {
+        const scenario = scenarios?.items.find(s => s.id === variables.id);
+        setForceDeleteModal({
+          visible: true,
+          scenarioId: variables.id,
+          scenarioName: scenario?.name || 'Unknown',
+          activeAgentDeployments: detail.active_agent_deployments || 0,
+          activeDockerDeployments: detail.active_docker_deployments || 0,
+        });
+        return;
+      }
+
+      const errorMsg = typeof detail === 'string' ? detail : detail?.message || error.message || 'Unknown error';
+      message.error(`Failed to delete scenario: ${errorMsg}`);
     },
   });
 
@@ -165,13 +204,20 @@ const ScenariosPage: React.FC = () => {
     mutationFn: (data: CreateFromTemplateRequest) => templatesApi.createFromTemplate(data),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['scenarios'] });
-      const learnedInfo = result.learned_patterns_applied
-        ? ` (enhanced with learned patterns for ${result.protocols_enhanced?.join(', ') || 'all protocols'})`
-        : '';
-      message.success(`Scenario created with ${result.device_count} devices and ${result.flow_count} flows${learnedInfo}`);
+      const enhancements: string[] = [];
+      if (result.learned_patterns_applied) {
+        enhancements.push(`learned patterns for ${result.protocols_enhanced?.join(', ') || 'all protocols'}`);
+      }
+      if (result.ai_naming_applied) {
+        enhancements.push('AI-generated device names');
+      }
+      const enhancementInfo = enhancements.length > 0 ? ` (enhanced with ${enhancements.join(' and ')})` : '';
+      message.success(`Scenario created with ${result.device_count} devices and ${result.flow_count} flows${enhancementInfo}`);
       setTemplateModalOpen(false);
       setSelectedVertical(null);
       setSelectedTemplate(null);
+      setUseAINaming(false);
+      setProcessContext('');
       templateForm.resetFields();
       navigate(`/studio?scenario=${result.scenario_id}`);
     },
@@ -298,6 +344,8 @@ const ScenariosPage: React.FC = () => {
       auto_assign_addresses: true,
       phase_preset: 'standard',
       apply_learned_patterns: values.apply_learned_patterns ?? true,
+      use_ai_naming: useAINaming,
+      process_context: useAINaming ? processContext : undefined,
     });
   };
 
@@ -328,6 +376,11 @@ const ScenariosPage: React.FC = () => {
       key: 'open',
       icon: <EditOutlined />,
       label: 'Open in Studio',
+    },
+    {
+      key: 'generate-pcap',
+      icon: <FileAddOutlined />,
+      label: 'Generate PCAP',
     },
     {
       key: 'generate-description',
@@ -362,6 +415,10 @@ const ScenariosPage: React.FC = () => {
       case 'open':
         handleOpenScenario(scenario.id);
         break;
+      case 'generate-pcap':
+        setSelectedScenarioForPcap(scenario);
+        setGeneratePcapModalOpen(true);
+        break;
       case 'generate-description':
         setSelectedScenarioForDesc(scenario);
         setGenerateDescModalOpen(true);
@@ -379,7 +436,7 @@ const ScenariosPage: React.FC = () => {
           okText: 'Delete',
           okType: 'danger',
           centered: true,
-          onOk: () => deleteMutation.mutateAsync(scenario.id),
+          onOk: () => deleteMutation.mutateAsync({ id: scenario.id }),
         });
         break;
     }
@@ -533,7 +590,7 @@ const ScenariosPage: React.FC = () => {
           <Space size={4}>
             <ClockCircleOutlined style={{ color: '#6b6b8a', fontSize: 12 }} />
             <Text style={{ color: '#6b6b8a', fontSize: 11 }}>
-              Updated {new Date(scenario.updated_at).toLocaleDateString()}
+              Updated {formatRelativeTime(scenario.updated_at)}
             </Text>
           </Space>
           <Space size={4}>
@@ -848,6 +905,8 @@ const ScenariosPage: React.FC = () => {
           setTemplateModalOpen(false);
           setSelectedVertical(null);
           setSelectedTemplate(null);
+          setUseAINaming(false);
+          setProcessContext('');
           templateForm.resetFields();
         }}
         footer={null}
@@ -1039,6 +1098,44 @@ const ScenariosPage: React.FC = () => {
                 </Checkbox>
               </Form.Item>
 
+              <Divider style={{ borderColor: '#2d2d52', margin: '16px 0' }} />
+
+              <Form.Item style={{ marginBottom: useAINaming ? 12 : 0 }}>
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Templates include meaningful device names by default (e.g., "CNC_Machining_Main_PLC").
+                  </Text>
+                  <Checkbox
+                    checked={useAINaming}
+                    onChange={(e) => setUseAINaming(e.target.checked)}
+                    style={{ color: '#a8a8c0' }}
+                  >
+                    <Space>
+                      <span>Customize device names with AI</span>
+                      <Tooltip title="Use AI to generate device names based on your specific facility or process">
+                        <RobotOutlined style={{ color: '#5a9fd4' }} />
+                      </Tooltip>
+                    </Space>
+                  </Checkbox>
+                </Space>
+              </Form.Item>
+
+              {useAINaming && (
+                <Form.Item
+                  label={<Text style={{ color: '#a8a8c0' }}>Describe your facility or process</Text>}
+                  help="e.g., 'candy factory', 'dairy processing plant', 'solar panel manufacturing'"
+                >
+                  <Input.TextArea
+                    value={processContext}
+                    onChange={(e) => setProcessContext(e.target.value)}
+                    placeholder="Enter process description for AI to generate contextual device names"
+                    rows={2}
+                    maxLength={200}
+                    showCount
+                  />
+                </Form.Item>
+              )}
+
               <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
                 <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
                   <Button onClick={() => setTemplateModalOpen(false)}>Cancel</Button>
@@ -1192,6 +1289,73 @@ const ScenariosPage: React.FC = () => {
           currentDescription={selectedScenarioForDesc.description || undefined}
         />
       )}
+
+      {/* Generate PCAP Modal */}
+      {selectedScenarioForPcap && (
+        <GeneratePcapModal
+          open={generatePcapModalOpen}
+          onClose={() => {
+            setGeneratePcapModalOpen(false);
+            setSelectedScenarioForPcap(null);
+          }}
+          scenarioId={selectedScenarioForPcap.id}
+          scenarioName={selectedScenarioForPcap.name}
+          defaultDurationMs={selectedScenarioForPcap.total_duration_ms}
+        />
+      )}
+
+      {/* Force Delete Confirmation Modal */}
+      <Modal
+        title="Cannot Delete Scenario"
+        open={forceDeleteModal.visible}
+        onCancel={() => setForceDeleteModal({ visible: false, scenarioId: null, scenarioName: '', activeAgentDeployments: 0, activeDockerDeployments: 0 })}
+        footer={[
+          <Button key="cancel" onClick={() => setForceDeleteModal({ visible: false, scenarioId: null, scenarioName: '', activeAgentDeployments: 0, activeDockerDeployments: 0 })}>
+            Cancel
+          </Button>,
+          <Button
+            key="force"
+            danger
+            type="primary"
+            loading={deleteMutation.isPending}
+            onClick={() => {
+              if (forceDeleteModal.scenarioId) {
+                deleteMutation.mutate({ id: forceDeleteModal.scenarioId, force: true });
+              }
+            }}
+          >
+            Force Delete
+          </Button>,
+        ]}
+        styles={{
+          header: { background: '#141428', borderBottom: '1px solid #2d2d52' },
+          body: { background: '#1a1a2e', padding: 24 },
+          content: { background: '#141428' },
+        }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Text style={{ color: '#e6e6f0' }}>
+            The scenario "{forceDeleteModal.scenarioName}" has active dependencies:
+          </Text>
+          <div style={{ background: '#141428', padding: 16, borderRadius: 8 }}>
+            {forceDeleteModal.activeAgentDeployments > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <Tag color="blue">{forceDeleteModal.activeAgentDeployments}</Tag>
+                <Text style={{ color: '#a8a8c0' }}>active agent deployment(s)</Text>
+              </div>
+            )}
+            {forceDeleteModal.activeDockerDeployments > 0 && (
+              <div>
+                <Tag color="purple">{forceDeleteModal.activeDockerDeployments}</Tag>
+                <Text style={{ color: '#a8a8c0' }}>active Docker deployment(s)</Text>
+              </div>
+            )}
+          </div>
+          <Text type="warning" style={{ fontSize: 12 }}>
+            Force delete will stop all active deployments and remove all related records.
+          </Text>
+        </Space>
+      </Modal>
     </div>
   );
 };

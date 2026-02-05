@@ -15,6 +15,7 @@ from app.services.cve_data.transportation_cves import TRANSPORTATION_CVES
 from app.services.cve_data.building_automation_cves import BUILDING_AUTOMATION_CVES
 from app.services.cve_data.energy_cves import ENERGY_CVES
 from app.services.cve_data.oil_gas_cves import OIL_GAS_CVES
+from app.services.cve_data.microsoft_cves import MICROSOFT_CVES
 
 # Combined CVE data from all vendors
 ALL_CVES: list[dict] = [
@@ -28,6 +29,7 @@ ALL_CVES: list[dict] = [
     *BUILDING_AUTOMATION_CVES,
     *ENERGY_CVES,
     *OIL_GAS_CVES,
+    *MICROSOFT_CVES,
 ]
 
 # Index by CVE ID for quick lookup
@@ -64,6 +66,8 @@ CVES_BY_VENDOR: dict[str, list[dict]] = {
     "Yokogawa": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Yokogawa"],
     "Emerson": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Emerson"],
     "Endress+Hauser": [cve for cve in OIL_GAS_CVES if cve["vendor"] == "Endress+Hauser"],
+    # IT/OT Boundary - Jump Servers
+    "Microsoft": MICROSOFT_CVES,
 }
 
 
@@ -133,6 +137,7 @@ __all__ = [
     "BUILDING_AUTOMATION_CVES",
     "ENERGY_CVES",
     "OIL_GAS_CVES",
+    "MICROSOFT_CVES",
     "get_cve",
     "get_cves_for_vendor",
     "get_cves_for_product_family",

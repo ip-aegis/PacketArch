@@ -23,6 +23,11 @@ TEMPLATES = [
     {"vertical": "oil_gas", "template_name": "offshore_platform"},
     {"vertical": "oil_gas", "template_name": "refinery_unit"},
     {"vertical": "oil_gas", "template_name": "gas_gathering"},
+    # Distribution & Logistics (Mixed vendors)
+    {"vertical": "distribution_logistics", "template_name": "fulfillment_center"},
+    {"vertical": "distribution_logistics", "template_name": "distribution_center"},
+    {"vertical": "distribution_logistics", "template_name": "cold_chain_warehouse"},
+    {"vertical": "distribution_logistics", "template_name": "parcel_sorting_hub"},
 ]
 
 
@@ -30,7 +35,7 @@ def main():
     # Login
     login_resp = requests.post(
         f"{BASE_URL}/auth/login",
-        json={"username": "admin", "password": "changeme123"}
+        json={"username": "admin", "password": "C!sco123"}
     )
     if login_resp.status_code != 200:
         print(f"Login failed: {login_resp.json()}")

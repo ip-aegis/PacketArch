@@ -219,6 +219,47 @@ VERTICAL_PHASE_VARIATIONS: dict[str, dict[str, dict[str, Any]]] = {
             "duration_pct": 5,
         },
     },
+    "distribution_logistics": {
+        "startup": {
+            "duration_pct": 5,
+            "behaviors": [
+                "connection_establishment",
+                "agv_fleet_init",
+                "conveyor_startup_sequence",
+                "scanner_calibration",
+                "rfid_reader_init",
+            ],
+        },
+        "steady_state": {
+            "duration_pct": 85,
+            "behaviors": [
+                "agv_mission_dispatch",
+                "conveyor_transport",
+                "barcode_scanning",
+                "rfid_tracking",
+                "sortation_decisions",
+                "pick_to_light_operations",
+            ],
+        },
+        "maintenance": {
+            "duration_pct": 5,
+            "behaviors": [
+                "agv_charging",
+                "belt_calibration",
+                "scanner_cleaning_cycle",
+                "rfid_calibration",
+            ],
+        },
+        "shutdown": {
+            "duration_pct": 5,
+            "behaviors": [
+                "agv_return_to_home",
+                "conveyor_clear_sequence",
+                "system_park",
+                "inventory_checkpoint",
+            ],
+        },
+    },
 }
 
 # Preset phase sequences

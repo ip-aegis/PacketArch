@@ -1,585 +1,858 @@
-"""Transportation ITS scenario templates.
+"""Transportation and ITS (Intelligent Transportation Systems) industry scenario templates.
 
-Primary Vendors: Econolite, Siemens ITS, McCain, Wavetronix, Daktronics, Hikvision
-Protocol Focus: SNMP/NTCIP (all transportation devices)
+Primary Vendors: Siemens ITS, Econolite, McCain, Wavetronix, FLIR, Daktronics, Kapsch
+Protocol Focus: SNMP/NTCIP (primary), Modbus TCP (legacy), BACnet (tunnels), HTTPS (external)
 
-Scenarios:
-- Highway Corridor: Interstate management with DMS, ramp meters, weather stations
-- Urban Intersection: Coordinated traffic signals with detectors
-- Tunnel System: Tunnel management with lighting, ventilation, sensors
-- Toll Plaza: Electronic toll collection with RSUs, ANPR cameras
-- Network Infrastructure: ITS network backbone with switches, RTUs, NTCIP devices
-
-CVE Vulnerability mapping:
-- Traffic controllers: CVE-2020-16205 (Econolite), CVE-2023-28489 (Siemens CP-8000), CVE-2020-25230 (Siemens M60)
-- DMS controllers: CVE-2018-18472 (Daktronics)
-- Toll systems: CVE-2022-29885 (Kapsch), CVE-2022-30456 (Q-Free RSU)
-- Sensors: CVE-2021-38294 (Wavetronix), CVE-2021-27656 (FLIR)
-- Cameras: CVE-2021-31986 (Axis), CVE-2019-18230 (Pelco), CVE-2021-36260 (Hikvision ANPR)
-- RTUs: CVE-2020-7480 (Schneider SCADAPack), CVE-2021-22778 (Schneider TBox)
-- Network: CVE-2019-6569 (Siemens SCALANCE), CVE-2020-11896 (Treck Ripple20)
+Enhanced templates with:
+- 30-45+ devices per template
+- Realistic traffic flows based on NTCIP polling patterns
+- Proper fingerprinting with protocol identities
+- Multi-vendor architectures typical of real ITS deployments
+- Support for highway corridors, urban intersections, tunnels, and toll plazas
 """
 
 from typing import Any
 
 
 TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
-    "highway_corridor": {
-        "name": "Highway Corridor Management",
-        "description": "Interstate highway management system with dynamic message signs, "
-                       "ramp meters, traffic detection radars, weather stations, and a "
-                       "central traffic management center. Uses NTCIP/SNMP protocol for "
-                       "device communication.",
+    # ============================================================
+    # TEMPLATE 1: HIGHWAY CORRIDOR ITS (40 devices)
+    # Multi-segment highway with DMS, detection, weather, and CCTV
+    # ============================================================
+    "highway_corridor_its": {
+        "name": "Highway Corridor ITS",
+        "description": "Multi-segment highway corridor with dynamic message signs, radar detection, "
+                       "weather monitoring, and CCTV surveillance. Features Siemens central TMC "
+                       "with distributed field equipment from multiple ITS vendors including "
+                       "Daktronics DMS, Wavetronix radar, FLIR thermal, Vaisala weather stations, "
+                       "and Axis/Pelco cameras. 40 devices across TMC core, DMS corridor, "
+                       "detection zone, weather zone, and camera networks.",
         "vertical": "transportation",
+        "phase_preset": "with_maintenance",
         "devices": [
-            # Traffic Management Center
-            {"type": "master_station", "vendor": "siemens", "count": 1, "zone": "tmc",
-             "name_pattern": "TMC-{n:03d}", "protocols": ["snmp"],
+            # ============================================================
+            # TMC CORE ZONE (Level 3) - 4 devices
+            # Traffic Management Center servers, switches
+            # ============================================================
+            # Master Station - Siemens CP-8000
+            {"type": "master_station", "vendor": "siemens_its", "count": 2, "zone": "tmc_core",
+             "name_pattern": "TMC-CP8000-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
-             "role": "Traffic Management Center",
-             "cve_ids": ["CVE-2023-28489"]},
+             "role": "Traffic Management Center Master Station"},
 
-            # Dynamic Message Signs (Daktronics)
-            {"type": "dms", "vendor": "daktronics", "count": 8, "zone": "corridor",
-             "name_pattern": "DMS-MM{n:03d}", "protocols": ["snmp"],
+            # Core Switches - Siemens SCALANCE XM-400
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tmc_core",
+             "name_pattern": "SW-TMC-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SCALANCE XM-400",
+             "role": "TMC Core Network Switch"},
+
+            # ============================================================
+            # DMS CORRIDOR ZONE (Level 2) - 8 devices
+            # Dynamic Message Signs for traffic information
+            # ============================================================
+            # Large DMS - Daktronics Venus 7000
+            {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
+             "name_pattern": "DMS-V7K-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Venus 7000",
+             "role": "Dynamic Message Sign (Full Matrix)"},
+
+            # Smaller DMS - Daktronics Venus 1500
+            {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
+             "name_pattern": "DMS-V15-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "Venus 1500",
-             "role": "Dynamic Message Sign",
-             "cve_ids": ["CVE-2018-18472"]},
+             "role": "Dynamic Message Sign (Compact)"},
 
-            # Ramp Meter Controllers (Econolite)
-            {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "field",
-             "name_pattern": "RM-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Cobalt ATC",
-             "role": "Ramp Meter Controller",
-             "cve_ids": ["CVE-2020-16205"]},
-
-            # Traffic Detection Radars (Wavetronix)
-            {"type": "radar_sensor", "vendor": "wavetronix", "count": 12, "zone": "field",
-             "name_pattern": "RADAR-{n:03d}", "protocols": ["snmp"],
+            # ============================================================
+            # DETECTION ZONE (Level 2) - 12 devices
+            # Radar and thermal sensors for vehicle detection
+            # ============================================================
+            # Radar Sensors - Wavetronix SmartSensor HD
+            {"type": "radar_sensor", "vendor": "wavetronix", "count": 8, "zone": "detection_zone",
+             "name_pattern": "RAD-HD-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "SmartSensor HD",
-             "role": "Vehicle Detection Radar",
-             "cve_ids": ["CVE-2021-38294"]},
+             "role": "Radar Vehicle Detector (HD)"},
 
-            # Road Weather Information Systems
-            {"type": "weather_station", "vendor": "vaisala", "count": 4, "zone": "field",
-             "name_pattern": "RWIS-{n:03d}", "protocols": ["snmp"],
+            # Thermal Sensors - FLIR TrafiOne
+            {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
+             "name_pattern": "THERM-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "TrafiOne",
+             "role": "Thermal Incident Detector"},
+
+            # ============================================================
+            # WEATHER ZONE (Level 2) - 4 devices
+            # Environmental Sensor Stations (ESS)
+            # ============================================================
+            # Weather Stations - Vaisala RWIS500
+            {"type": "weather_station", "vendor": "vaisala", "count": 4, "zone": "weather_zone",
+             "name_pattern": "RWIS-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "RWIS500",
-             "role": "Road Weather Station"},
+             "role": "Road Weather Information Station"},
 
-            # CCTV Cameras (Axis)
-            {"type": "camera", "vendor": "axis", "count": 10, "zone": "field",
-             "name_pattern": "CAM-{n:03d}", "protocols": ["snmp"],
+            # ============================================================
+            # CAMERA ZONE (Level 1) - 10 devices
+            # CCTV for traffic monitoring
+            # ============================================================
+            # Fixed Cameras - Axis P1455-LE
+            {"type": "camera_fixed", "vendor": "axis", "count": 6, "zone": "camera_zone",
+             "name_pattern": "CAM-FIX-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "P1455-LE",
-             "role": "Traffic Camera",
-             "cve_ids": ["CVE-2021-31986"]},
+             "role": "Fixed ITS Camera"},
 
-            # RTU for Remote Sites
-            {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "field",
-             "name_pattern": "RTU-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "SCADAPack 350",
-             "role": "Remote Terminal Unit",
-             "cve_ids": ["CVE-2020-7480"]},
+            # PTZ Cameras - Pelco Spectra Enhanced
+            {"type": "camera_ptz", "vendor": "pelco", "count": 4, "zone": "camera_zone",
+             "name_pattern": "CAM-PTZ-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Spectra Enhanced",
+             "role": "PTZ Surveillance Camera"},
+
+            # ============================================================
+            # EXTERNAL ZONE (Level 4) - 2 devices
+            # Remote access and connectivity
+            # ============================================================
+            # Remote Access Gateway - HMS EWON Flexy
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "external",
+             "name_pattern": "EWON-HWY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # Roadside Unit - Q-Free RSU 5000
+            {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
+             "name_pattern": "RSU-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "RSU 5000",
+             "role": "V2X Roadside Unit"},
         ],
         "flows": [
-            # TMC polling DMS (10s interval)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["master_station"], "target_types": ["dms"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # TMC polling ramp meters (5s interval)
+            # ============================================================
+            # SNMP Polling - TMC to DMS (5s interval)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["master_station"], "target_types": ["traffic_controller"],
-             "jitter_ms": 250, "jitter_type": "uniform"},
-            # TMC polling radars (2s interval for detection data)
+             "source_types": ["master_station"], "target_types": ["dms_sign"],
+             "source_zones": ["tmc_core"], "target_zones": ["dms_corridor"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - TMC to Detection Sensors (2s interval)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["master_station"], "target_types": ["radar_sensor"],
-             "jitter_ms": 100, "jitter_type": "uniform"},
-            # TMC polling weather stations (60s interval)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["master_station"], "target_types": ["weather_station"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
-            # TMC polling cameras (30s interval)
+             "source_types": ["master_station"], "target_types": ["radar_sensor", "thermal_sensor"],
+             "source_zones": ["tmc_core"], "target_zones": ["detection_zone"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - TMC to Weather Stations (30s interval)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["master_station"], "target_types": ["camera"],
-             "jitter_ms": 1000, "jitter_type": "uniform"},
-            # RTU local polling of radars (500ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["rtu"], "target_types": ["radar_sensor"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
+             "source_types": ["master_station"], "target_types": ["weather_station"],
+             "source_zones": ["tmc_core"], "target_zones": ["weather_zone"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # SNMP Polling - TMC to Cameras (10s keepalive)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["master_station"], "target_types": ["camera_fixed", "camera_ptz"],
+             "source_zones": ["tmc_core"], "target_zones": ["camera_zone"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["master_station"], "target_types": ["switch", "remote_gateway", "rsu"],
+             "source_zones": ["tmc_core"], "target_zones": ["tmc_core", "external"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud (60s heartbeat)
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["external"], "target_zones": ["external"],
+             "external_ip": "13.56.142.1",
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
         ],
         "zones": [
-            {"id": "tmc", "name": "Traffic Management Center", "level": 4,
-             "subnet_offset": 0, "vlan": 10},
-            {"id": "corridor", "name": "Highway Corridor", "level": 2,
-             "subnet_offset": 1, "vlan": 20},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 2, "vlan": 30},
+            {"id": "tmc_core", "name": "TMC Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "dms_corridor", "name": "DMS Corridor Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "detection_zone", "name": "Detection Sensor Network", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+            {"id": "weather_zone", "name": "Weather Station Network", "level": 2,
+             "subnet_offset": 3, "vlan": 130, "security_level": "standard"},
+            {"id": "camera_zone", "name": "CCTV Network", "level": 1,
+             "subnet_offset": 4, "vlan": 140, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
         ],
         "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["snmp_error"],
-            "sequence": [],
-            "payload": ["value_spike"],
-            "network": ["packet_loss"],
-            "security": ["community_string_probe"],
+            "timing": ["delayed_response", "polling_gap", "timeout"],
+            "protocol": ["snmp_timeout", "snmp_error"],
+            "sequence": ["out_of_order", "duplicate"],
+            "payload": ["dms_message_change", "weather_alert", "speed_spike"],
+            "network": ["broadcast_storm"],
+            "security": ["unauthorized_remote_access", "snmp_community_scan"],
         },
         "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "ntcip_polling", "priority": "high",
-             "description": "Learn NTCIP 1202/1203 OID polling patterns"},
-            {"protocol": "snmp", "flow_type": "trap_notifications", "priority": "medium",
-             "description": "Capture trap events from field devices"},
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "NTCIP 1203 DMS polling patterns from TMC to signs"},
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "NTCIP 1204 ESS polling patterns from TMC to weather stations"},
+            {"protocol": "snmp", "flow_type": "detection", "priority": "high",
+             "description": "Vehicle detection sensor polling patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
         "total_duration_ms": 300000,  # 5 minutes
     },
 
-    "urban_intersection": {
-        "name": "Urban Traffic Signal System",
-        "description": "Coordinated urban traffic signal system with 8 intersections, "
-                       "actuated controllers, vehicle detection, pedestrian signals, "
-                       "and central coordination for adaptive timing.",
+    # ============================================================
+    # TEMPLATE 2: URBAN INTERSECTION NETWORK (35 devices)
+    # Multi-intersection urban traffic control with coordinated signals
+    # ============================================================
+    "urban_intersection_network": {
+        "name": "Urban Intersection Network",
+        "description": "Multi-intersection urban traffic control network with coordinated signal "
+                       "timing. Features Econolite and McCain controllers with Siemens coordination "
+                       "master, plus Wavetronix detection and Hikvision ANPR cameras. Multi-vendor "
+                       "architecture typical of modern urban ATMS deployments. 35 devices across "
+                       "ATMS core, main intersections, minor intersections, detection, and camera zones.",
         "vertical": "transportation",
+        "phase_preset": "with_maintenance",
         "devices": [
-            # Central Master Controller
-            {"type": "master_station", "vendor": "siemens", "count": 1, "zone": "tmc",
-             "name_pattern": "MASTER-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "M60",
-             "role": "Central Controller",
-             "cve_ids": ["CVE-2020-25230"]},
+            # ============================================================
+            # ATMS CORE ZONE (Level 3) - 4 devices
+            # Advanced Traffic Management System core
+            # ============================================================
+            # Coordination Master - Siemens CP-8000
+            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
+             "name_pattern": "ATMS-CP8000-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "CP-8000",
+             "role": "ATMS Coordination Master"},
 
-            # Intersection Controllers (Econolite Cobalt ATC)
-            {"type": "traffic_controller", "vendor": "econolite", "count": 8, "zone": "intersection",
-             "name_pattern": "INT-{n:03d}", "protocols": ["snmp"],
+            # Distribution Switches - Siemens SCALANCE X-200
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "atms_core",
+             "name_pattern": "SW-ATMS-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SCALANCE X-200",
+             "role": "ATMS Distribution Switch"},
+
+            # Remote Access Gateway - HMS EWON Flexy
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "atms_core",
+             "name_pattern": "EWON-ATMS-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # MAIN INTERSECTION ZONE (Level 2) - 12 devices
+            # Primary arterial traffic controllers
+            # ============================================================
+            # Econolite Cobalt ATC Controllers
+            {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "intersection_main",
+             "name_pattern": "INT-ECO-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "Cobalt ATC",
-             "role": "Actuated Signal Controller",
-             "cve_ids": ["CVE-2020-16205"]},
+             "role": "Traffic Signal Controller (Main)"},
 
-            # Thermal Detection Sensors (FLIR)
-            {"type": "thermal_sensor", "vendor": "flir", "count": 16, "zone": "intersection",
-             "name_pattern": "THERMAL-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "TrafiOne",
-             "role": "Thermal Detection",
-             "cve_ids": ["CVE-2021-27656"]},
+            # McCain 2070 ATC Controllers
+            {"type": "traffic_controller", "vendor": "mccain", "count": 3, "zone": "intersection_main",
+             "name_pattern": "INT-MCC-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "2070 ATC",
+             "role": "Traffic Signal Controller (Main)"},
 
-            # Video Detection Cameras
-            {"type": "video_detector", "vendor": "axis", "count": 16, "zone": "intersection",
-             "name_pattern": "VDET-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "P1448-LE",
-             "role": "Video Detection",
-             "cve_ids": ["CVE-2021-31986"]},
+            # Siemens M60 Controllers
+            {"type": "traffic_controller", "vendor": "siemens_its", "count": 3, "zone": "intersection_main",
+             "name_pattern": "INT-SIE-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "M60",
+             "role": "Traffic Signal Controller (Main)"},
 
-            # Loop Detector Cards (legacy - connects via controller)
-            {"type": "detector_rack", "vendor": "mccain", "count": 8, "zone": "intersection",
-             "name_pattern": "DET-{n:03d}", "protocols": ["snmp"],
+            # ============================================================
+            # MINOR INTERSECTION ZONE (Level 2) - 8 devices
+            # Secondary/local street controllers
+            # ============================================================
+            # McCain 170E Controllers
+            {"type": "traffic_controller", "vendor": "mccain", "count": 8, "zone": "intersection_minor",
+             "name_pattern": "INT-MIN-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "170E",
-             "role": "Detector Rack"},
+             "role": "Traffic Signal Controller (Minor)"},
+
+            # ============================================================
+            # DETECTION ZONE (Level 1) - 8 devices
+            # Vehicle and pedestrian detection
+            # ============================================================
+            # Wavetronix SmartSensor Advance
+            {"type": "radar_sensor", "vendor": "wavetronix", "count": 4, "zone": "detection_zone",
+             "name_pattern": "DET-RAD-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SmartSensor Advance",
+             "role": "Radar Vehicle Detector"},
+
+            # FLIR TrafiSense Thermal
+            {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
+             "name_pattern": "DET-THERM-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "TrafiSense",
+             "role": "Thermal Detection Sensor"},
+
+            # ============================================================
+            # CAMERA ZONE (Level 1) - 3 devices
+            # ANPR and PTZ surveillance
+            # ============================================================
+            # Hikvision ANPR Cameras
+            {"type": "camera_anpr", "vendor": "hikvision", "count": 2, "zone": "camera_zone",
+             "name_pattern": "CAM-ANPR-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "DS-2CD7A26G0/P",
+             "role": "ANPR Camera"},
+
+            # Bosch PTZ Camera
+            {"type": "camera_ptz", "vendor": "bosch", "count": 1, "zone": "camera_zone",
+             "name_pattern": "CAM-PTZ-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "MIC IP 7100i",
+             "role": "PTZ Surveillance Camera"},
         ],
         "flows": [
-            # Master polling controllers for phase status (1s)
+            # ============================================================
+            # SNMP Polling - ATMS to Main Controllers (1s interval)
+            # High-frequency coordination polling
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["master_station"], "target_types": ["traffic_controller"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            # Master polling thermal sensors (500ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["master_station"], "target_types": ["thermal_sensor"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Controller polling local detectors (250ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["traffic_controller"], "target_types": ["thermal_sensor", "video_detector", "detector_rack"],
-             "jitter_ms": 10, "jitter_type": "gaussian"},
-            # Master polling video detectors (2s)
+             "source_zones": ["atms_core"], "target_zones": ["intersection_main"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - ATMS to Minor Controllers (2s interval)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["master_station"], "target_types": ["video_detector"],
-             "jitter_ms": 100, "jitter_type": "uniform"},
-            # Coordination messages between controllers (100ms cycle)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 100,
-             "source_types": ["traffic_controller"], "target_types": ["traffic_controller"],
-             "jitter_ms": 5, "jitter_type": "gaussian"},
+             "source_types": ["master_station"], "target_types": ["traffic_controller"],
+             "source_zones": ["atms_core"], "target_zones": ["intersection_minor"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Controllers to Detectors (500ms interval)
+            # Fast detection polling for signal actuation
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["traffic_controller"], "target_types": ["radar_sensor", "thermal_sensor"],
+             "source_zones": ["intersection_main", "intersection_minor"], "target_zones": ["detection_zone"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - ATMS to Cameras (5s interval)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["master_station"], "target_types": ["camera_anpr", "camera_ptz"],
+             "source_zones": ["atms_core"], "target_zones": ["camera_zone"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["master_station"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["atms_core"], "target_zones": ["atms_core"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud (30s heartbeat)
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["atms_core"], "target_zones": ["external"],
+             "external_ip": "54.95.198.117",
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
         ],
         "zones": [
-            {"id": "tmc", "name": "Traffic Operations", "level": 3,
-             "subnet_offset": 0, "vlan": 10},
-            {"id": "intersection", "name": "Intersection Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 20},
+            {"id": "atms_core", "name": "ATMS Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 200, "security_level": "critical"},
+            {"id": "intersection_main", "name": "Main Intersection Network", "level": 2,
+             "subnet_offset": 1, "vlan": 210, "security_level": "high"},
+            {"id": "intersection_minor", "name": "Minor Intersection Network", "level": 2,
+             "subnet_offset": 2, "vlan": 220, "security_level": "standard"},
+            {"id": "detection_zone", "name": "Detection Sensor Network", "level": 1,
+             "subnet_offset": 3, "vlan": 230, "security_level": "standard"},
+            {"id": "camera_zone", "name": "Camera Network", "level": 1,
+             "subnet_offset": 4, "vlan": 240, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
         ],
         "suggested_anomalies": {
-            "timing": ["cycle_slip", "coordination_loss", "detector_stuck"],
-            "protocol": ["snmp_timeout"],
-            "sequence": [],
-            "payload": ["phase_conflict", "detector_failure"],
-            "network": [],
-            "security": [],
+            "timing": ["delayed_response", "polling_gap", "coordination_drift"],
+            "protocol": ["snmp_timeout", "snmp_error", "ntcip_reject"],
+            "sequence": ["phase_conflict", "detector_stuck"],
+            "payload": ["phase_timing_change", "detector_malfunction"],
+            "network": ["broadcast_storm", "controller_offline"],
+            "security": ["unauthorized_remote_access", "phase_manipulation"],
         },
         "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "phase_polling", "priority": "high",
-             "description": "Learn NTCIP 1202 phase status polling patterns"},
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "NTCIP 1202 ASC polling patterns from ATMS to controllers"},
             {"protocol": "snmp", "flow_type": "coordination", "priority": "high",
-             "description": "Capture coordination sync timing between controllers"},
+             "description": "Signal coordination sync patterns between controllers"},
+            {"protocol": "snmp", "flow_type": "detection", "priority": "medium",
+             "description": "Detector polling patterns from controllers"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
-        "total_duration_ms": 300000,
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["54.95.198.117", "51.38.74.240"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
+        "total_duration_ms": 300000,  # 5 minutes
     },
 
-    "tunnel_system": {
+    # ============================================================
+    # TEMPLATE 3: TUNNEL CONTROL SYSTEM (45 devices)
+    # Highway tunnel with ventilation, lighting, detection, safety
+    # ============================================================
+    "tunnel_control_system": {
         "name": "Tunnel Control System",
-        "description": "Highway tunnel management system with lighting control, "
-                       "ventilation fans, CO/NO2 sensors, fire detection, CCTV, "
-                       "and emergency systems. Critical safety infrastructure.",
+        "description": "Highway tunnel with integrated ventilation, lighting, incident detection, "
+                       "and emergency systems. Features Siemens tunnel control system with "
+                       "TCS-VENT ventilation controllers, Climatix C600 lighting controllers, "
+                       "and distributed Schneider SCADAPack RTUs. Includes fire detection, "
+                       "evacuation systems, and portal DMS/barriers. 45 devices across tunnel "
+                       "master, ventilation, lighting, detection, safety, and portal zones.",
         "vertical": "transportation",
+        "phase_preset": "full_lifecycle",
         "devices": [
-            # Tunnel Control Center
-            {"type": "master_station", "vendor": "siemens", "count": 1, "zone": "control_center",
-             "name_pattern": "TCC-{n:03d}", "protocols": ["snmp"],
+            # ============================================================
+            # TUNNEL MASTER ZONE (Level 3) - 5 devices
+            # Central control room and master station
+            # ============================================================
+            # Master Station - Siemens CP-8000
+            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
+             "name_pattern": "TUN-MASTER-{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
-             "role": "Tunnel Control Center",
-             "cve_ids": ["CVE-2023-28489"]},
+             "role": "Tunnel Master Control Station"},
 
-            # Lighting Controllers (Siemens Climatix for lighting zones)
-            {"type": "lighting_controller", "vendor": "siemens", "count": 6, "zone": "tunnel",
-             "name_pattern": "LIGHT-{n:03d}", "protocols": ["snmp", "bacnet"],
+            # Core Switches - Siemens SCALANCE XM-400
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
+             "name_pattern": "SW-TUN-CORE-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SCALANCE XM-400",
+             "role": "Tunnel Core Switch"},
+
+            # Distribution Switches - Siemens SCALANCE X-200
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
+             "name_pattern": "SW-TUN-DIST-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SCALANCE X-200",
+             "role": "Tunnel Distribution Switch"},
+
+            # ============================================================
+            # VENTILATION ZONE (Level 2) - 8 devices
+            # Jet fans and air quality monitoring
+            # ============================================================
+            # Ventilation Controllers - Siemens TCS-VENT
+            {"type": "ventilation_controller", "vendor": "siemens_its", "count": 4, "zone": "ventilation_zone",
+             "name_pattern": "VENT-CTRL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "TCS-VENT",
+             "role": "Tunnel Ventilation Controller"},
+
+            # Ventilation RTUs - Schneider SCADAPack 350
+            {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "ventilation_zone",
+             "name_pattern": "VENT-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "SCADAPack 350",
+             "role": "Ventilation Field RTU"},
+
+            # ============================================================
+            # LIGHTING ZONE (Level 2) - 6 devices
+            # Adaptive tunnel lighting
+            # ============================================================
+            # Lighting Controllers - Siemens Climatix C600
+            {"type": "lighting_controller", "vendor": "siemens", "count": 6, "zone": "lighting_zone",
+             "name_pattern": "LIGHT-CTRL-{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "C600",
-             "role": "Lighting Zone Controller"},
+             "role": "Tunnel Lighting Controller"},
 
-            # Ventilation Controllers (jet fans - Siemens DXR2 for HVAC/ventilation)
-            {"type": "ventilation_controller", "vendor": "siemens", "count": 4, "zone": "tunnel",
-             "name_pattern": "VENT-{n:03d}", "protocols": ["snmp", "bacnet"],
-             "fingerprint_model": "DXR2.E12",
-             "cve_ids": ["CVE-2022-31465"],
-             "role": "Ventilation Controller"},
+            # ============================================================
+            # DETECTION ZONE (Level 2) - 10 devices
+            # Incident and vehicle detection
+            # ============================================================
+            # Radar Sensors - Wavetronix SmartSensor HD
+            {"type": "radar_sensor", "vendor": "wavetronix", "count": 4, "zone": "detection_zone",
+             "name_pattern": "DET-RAD-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SmartSensor HD",
+             "role": "Radar Vehicle Detector"},
 
-            # Chemical Sensors (CO/NO2/Visibility)
-            {"type": "chem_sensor", "vendor": "vaisala", "count": 12, "zone": "tunnel",
-             "name_pattern": "CHEM-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "RWIS500",
-             "role": "Air Quality Sensor"},
+            # Thermal Sensors - FLIR TrafiOne
+            {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
+             "name_pattern": "DET-THERM-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "TrafiOne",
+             "role": "Thermal Incident Detector"},
 
-            # Fire Detection Panels (SCADAPack 350 with auth bypass)
-            {"type": "fire_panel", "vendor": "schneider", "count": 4, "zone": "tunnel",
-             "name_pattern": "FIRE-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
+            # Loop Detector RTUs - Schneider SCADAPack 350
+            {"type": "rtu", "vendor": "schneider", "count": 2, "zone": "detection_zone",
+             "name_pattern": "DET-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "SCADAPack 350",
-             "role": "Fire Detection Panel",
-             "cve_ids": ["CVE-2020-7480"]},
+             "role": "Loop Detector RTU"},
 
-            # Tunnel CCTV (Pelco PTZ)
-            {"type": "camera", "vendor": "pelco", "count": 20, "zone": "tunnel",
-             "name_pattern": "CAM-T{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Spectra Enhanced",
-             "role": "Tunnel Camera",
-             "cve_ids": ["CVE-2019-18230"]},
-
-            # Seismic/Stress Sensors (SCADAPack 350 with auth bypass)
-            {"type": "seismic_sensor", "vendor": "schneider", "count": 8, "zone": "tunnel",
-             "name_pattern": "SEISMIC-{n:03d}", "protocols": ["modbus_tcp"],
+            # ============================================================
+            # SAFETY ZONE (Level 2) - 8 devices
+            # Fire detection and evacuation
+            # ============================================================
+            # Fire Detection RTUs - Schneider SCADAPack 350
+            {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "safety_zone",
+             "name_pattern": "FIRE-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "SCADAPack 350",
-             "cve_ids": ["CVE-2020-7480"],
-             "role": "Structural Monitor"},
+             "role": "Fire Detection RTU"},
 
-            # Drainage Pump Controllers (SCADAPack 350 with auth bypass)
-            {"type": "pump_controller", "vendor": "schneider", "count": 4, "zone": "mechanical",
-             "name_pattern": "PUMP-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "SCADAPack 350",
-             "cve_ids": ["CVE-2020-7480"],
-             "role": "Pump Controller"},
+            # Evacuation Controllers - McCain 170E
+            {"type": "traffic_controller", "vendor": "mccain", "count": 4, "zone": "safety_zone",
+             "name_pattern": "EVAC-CTRL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "170E",
+             "role": "Evacuation Signal Controller"},
 
-            # DMS at Portal
-            {"type": "dms", "vendor": "daktronics", "count": 2, "zone": "portal",
-             "name_pattern": "DMS-PORTAL-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 7000",
-             "role": "Portal Message Sign",
-             "cve_ids": ["CVE-2018-18472"]},
+            # ============================================================
+            # PORTAL ZONE (Level 1) - 6 devices
+            # Entry/exit DMS and barriers
+            # ============================================================
+            # Portal DMS - Daktronics Venus 1500
+            {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "portal_zone",
+             "name_pattern": "DMS-PORTAL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Venus 1500",
+             "role": "Portal Message Sign"},
+
+            # Portal Controllers - McCain 170E
+            {"type": "traffic_controller", "vendor": "mccain", "count": 2, "zone": "portal_zone",
+             "name_pattern": "BARRIER-CTRL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "170E",
+             "role": "Portal Barrier Controller"},
+
+            # ============================================================
+            # EXTERNAL ZONE (Level 4) - 2 devices
+            # Remote monitoring
+            # ============================================================
+            # Remote Access Gateway - HMS EWON Cosy
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "external",
+             "name_pattern": "EWON-TUN-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Cosy 131",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # Roadside Unit - Q-Free RSU 5000
+            {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
+             "name_pattern": "RSU-TUN-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "RSU 5000",
+             "role": "Tunnel Entry RSU"},
         ],
         "flows": [
-            # TCC polling lighting (1s for dimming control)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["master_station"], "target_types": ["lighting_controller"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            # TCC polling ventilation (500ms for jet fan control)
+            # ============================================================
+            # SNMP Polling - Master to Ventilation (500ms - critical)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["master_station"], "target_types": ["ventilation_controller"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # TCC polling chemical sensors (2s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["master_station"], "target_types": ["chem_sensor"],
-             "jitter_ms": 100, "jitter_type": "uniform"},
-            # TCC polling fire panels (1s - safety critical)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["master_station"], "target_types": ["fire_panel"],
+             "source_zones": ["tunnel_master"], "target_zones": ["ventilation_zone"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
-            # TCC polling cameras (5s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["master_station"], "target_types": ["camera"],
-             "jitter_ms": 250, "jitter_type": "uniform"},
-            # TCC polling DMS (10s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["master_station"], "target_types": ["dms"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # Modbus polling for pumps and seismic (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["master_station"], "target_types": ["pump_controller", "seismic_sensor"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-        ],
-        "zones": [
-            {"id": "control_center", "name": "Tunnel Control Center", "level": 4,
-             "subnet_offset": 0, "vlan": 10},
-            {"id": "tunnel", "name": "Tunnel Zone", "level": 1,
-             "subnet_offset": 1, "vlan": 20},
-            {"id": "mechanical", "name": "Mechanical Room", "level": 1,
-             "subnet_offset": 2, "vlan": 30},
-            {"id": "portal", "name": "Portal Zone", "level": 2,
-             "subnet_offset": 3, "vlan": 40},
-        ],
-        "suggested_anomalies": {
-            "timing": ["ventilation_delay", "sensor_timeout"],
-            "protocol": ["snmp_error", "modbus_exception"],
-            "sequence": [],
-            "payload": ["co_spike", "visibility_drop"],
-            "network": [],
-            "security": ["fire_panel_tamper"],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "tunnel_monitoring", "priority": "high",
-             "description": "Learn tunnel sensor polling patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "pump_control", "priority": "medium",
-             "description": "Capture pump and seismic sensor polling"},
-        ],
-        "total_duration_ms": 300000,
-    },
 
-    "toll_plaza": {
-        "name": "Electronic Toll Collection Plaza",
-        "description": "Multi-lane toll plaza with RFID readers (RSUs), ANPR cameras, "
-                       "lane controllers, barrier gates, and central toll system. "
-                       "High-throughput transaction processing.",
-        "vertical": "transportation",
-        "devices": [
-            # Central Toll System
-            {"type": "toll_host", "vendor": "kapsch", "count": 1, "zone": "toll_center",
-             "name_pattern": "TOLL-HOST-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "TCS 2000",
-             "role": "Toll Host System",
-             "cve_ids": ["CVE-2022-29885"]},
+            # ============================================================
+            # Modbus Polling - Ventilation Controllers to RTUs (1s)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["ventilation_controller"], "target_types": ["rtu"],
+             "source_zones": ["ventilation_zone"], "target_zones": ["ventilation_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # Roadside Units (DSRC/RFID readers)
-            {"type": "rsu", "vendor": "q-free", "count": 12, "zone": "lanes",
-             "name_pattern": "RSU-L{n:02d}", "protocols": ["snmp"],
-             "fingerprint_model": "RSU 5000",
-             "role": "Roadside Unit",
-             "cve_ids": ["CVE-2022-30456"]},
+            # ============================================================
+            # BACnet Polling - Master to Lighting (1s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["master_station"], "target_types": ["lighting_controller"],
+             "source_zones": ["tunnel_master"], "target_zones": ["lighting_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # Lane Controllers (Kapsch)
-            {"type": "lane_controller", "vendor": "kapsch", "count": 12, "zone": "lanes",
-             "name_pattern": "LANE-{n:02d}", "protocols": ["snmp"],
-             "fingerprint_model": "TCS 2000",
-             "role": "Lane Controller",
-             "cve_ids": ["CVE-2022-29885"]},
-
-            # ANPR Cameras (Hikvision)
-            {"type": "anpr_camera", "vendor": "hikvision", "count": 24, "zone": "lanes",
-             "name_pattern": "ANPR-L{n:02d}-{dir}", "protocols": ["snmp"],
-             "fingerprint_model": "DS-2CD7A26G0/P",
-             "role": "ANPR Camera",
-             "cve_ids": ["CVE-2021-36260"]},
-
-            # Overview Cameras (Axis)
-            {"type": "camera", "vendor": "axis", "count": 8, "zone": "plaza",
-             "name_pattern": "CAM-OV-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "P1455-LE",
-             "role": "Overview Camera",
-             "cve_ids": ["CVE-2021-31986"]},
-
-            # DMS Signs (tolling info)
-            {"type": "dms", "vendor": "daktronics", "count": 4, "zone": "plaza",
-             "name_pattern": "DMS-TOLL-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 1500",
-             "role": "Toll Info Sign",
-             "cve_ids": ["CVE-2018-18472"]},
-
-            # Barrier Gate Controllers (SCADAPack 350 with auth bypass)
-            {"type": "barrier_controller", "vendor": "schneider", "count": 12, "zone": "lanes",
-             "name_pattern": "BARRIER-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "SCADAPack 350",
-             "cve_ids": ["CVE-2020-7480"],
-             "role": "Barrier Controller"},
-
-            # Vehicle Classification Sensors
-            {"type": "classification_sensor", "vendor": "wavetronix", "count": 12, "zone": "lanes",
-             "name_pattern": "CLASS-{n:02d}", "protocols": ["snmp"],
-             "fingerprint_model": "SmartSensor Advance",
-             "role": "Vehicle Classification",
-             "cve_ids": ["CVE-2021-38294"]},
-        ],
-        "flows": [
-            # Toll host polling RSUs (100ms for real-time transactions)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 100,
-             "source_types": ["toll_host"], "target_types": ["rsu"],
-             "jitter_ms": 5, "jitter_type": "gaussian"},
-            # Toll host polling lane controllers (200ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 200,
-             "source_types": ["toll_host"], "target_types": ["lane_controller"],
-             "jitter_ms": 10, "jitter_type": "gaussian"},
-            # Lane controllers polling classification (100ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 100,
-             "source_types": ["lane_controller"], "target_types": ["classification_sensor"],
-             "jitter_ms": 5, "jitter_type": "gaussian"},
-            # Toll host polling ANPR (500ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["toll_host"], "target_types": ["anpr_camera"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Toll host polling overview cameras (5s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["toll_host"], "target_types": ["camera"],
-             "jitter_ms": 250, "jitter_type": "uniform"},
-            # Toll host polling DMS (10s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["toll_host"], "target_types": ["dms"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # Lane controllers polling barriers (50ms - fast)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 50,
-             "source_types": ["lane_controller"], "target_types": ["barrier_controller"],
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-        ],
-        "zones": [
-            {"id": "toll_center", "name": "Toll Operations Center", "level": 4,
-             "subnet_offset": 0, "vlan": 10},
-            {"id": "plaza", "name": "Plaza Infrastructure", "level": 2,
-             "subnet_offset": 1, "vlan": 20},
-            {"id": "lanes", "name": "Toll Lanes", "level": 1,
-             "subnet_offset": 2, "vlan": 30},
-        ],
-        "suggested_anomalies": {
-            "timing": ["transaction_delay", "rsu_timeout"],
-            "protocol": ["snmp_error"],
-            "sequence": ["duplicate_transaction"],
-            "payload": ["tag_read_error", "classification_mismatch"],
-            "network": [],
-            "security": ["unauthorized_gate_open"],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "toll_transactions", "priority": "high",
-             "description": "Learn RSU polling and transaction patterns"},
-            {"protocol": "snmp", "flow_type": "anpr_polling", "priority": "high",
-             "description": "Capture ANPR camera image trigger patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "barrier_control", "priority": "medium",
-             "description": "Learn barrier gate control timing"},
-        ],
-        "total_duration_ms": 300000,
-    },
-
-    "traffic_network_infrastructure": {
-        "name": "ITS Network Infrastructure",
-        "description": "Traffic management network backbone with industrial switches, "
-                       "RTUs, and NTCIP devices. Includes network equipment commonly "
-                       "found in ITS cabinets connecting traffic controllers, sensors, "
-                       "and management systems. Focus on network layer vulnerabilities.",
-        "vertical": "transportation",
-        "devices": [
-            # Network Operations Center
-            {"type": "master_station", "vendor": "siemens", "count": 1, "zone": "noc",
-             "name_pattern": "NOC-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "CP-8000",
-             "role": "Network Operations Center",
-             "cve_ids": ["CVE-2023-28489"]},
-
-            # Core Network Switches (SCALANCE XM-400)
-            # Using "SCALANCE XM-400" to match CVE affected_models for Cyber Vision detection
-            {"type": "network_switch", "vendor": "siemens", "count": 2, "zone": "core",
-             "name_pattern": "CORE-SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE XM-400",
-             "role": "Core Switch",
-             "cve_ids": ["CVE-2019-6569"]},
-
-            # Field Cabinet Switches (SCALANCE X-200)
-            # Using "SCALANCE X-200" to match CVE affected_models for Cyber Vision detection
-            {"type": "network_switch", "vendor": "siemens", "count": 12, "zone": "field",
-             "name_pattern": "CAB-SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE X-200",
-             "role": "Cabinet Switch",
-             "cve_ids": ["CVE-2019-6569"]},
-
-            # Tunnel Monitoring RTUs (TBox with hardcoded creds)
-            # Using "TBox MS-CPU32" to match CVE affected_models for Cyber Vision detection
-            {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "tunnel",
-             "name_pattern": "TBOX-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "TBox MS-CPU32",
-             "role": "Tunnel RTU",
-             "cve_ids": ["CVE-2021-22778"]},
-
-            # Field RTUs (TBox LT2)
-            # Using "TBox LT2" to match CVE affected_models for Cyber Vision detection
-            {"type": "rtu", "vendor": "schneider", "count": 8, "zone": "field",
-             "name_pattern": "TBOX-LT-{n:03d}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "TBox LT2",
-             "role": "Field RTU",
-             "cve_ids": ["CVE-2021-22778"]},
-
-            # Traffic Controllers with Treck Stack (Ripple20)
-            {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "field",
-             "name_pattern": "TC-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Cobalt ATC",
-             "role": "Traffic Controller",
-             "cve_ids": ["CVE-2020-11896"]},
-
-            # DMS with Treck Stack
-            {"type": "dms", "vendor": "daktronics", "count": 4, "zone": "field",
-             "name_pattern": "DMS-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 1500",
-             "role": "Dynamic Message Sign",
-             "cve_ids": ["CVE-2020-11896", "CVE-2018-18472"]},
-
-            # Radar Sensors
-            {"type": "radar_sensor", "vendor": "wavetronix", "count": 8, "zone": "field",
-             "name_pattern": "RADAR-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "SmartSensor HD",
-             "role": "Vehicle Detection",
-             "cve_ids": ["CVE-2021-38294"]},
-        ],
-        "flows": [
-            # NOC polling core switches (5s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["master_station"], "target_types": ["network_switch"],
-             "jitter_ms": 250, "jitter_type": "uniform"},
-            # NOC polling RTUs (2s)
+            # ============================================================
+            # SNMP Polling - Master to Detection (2s)
+            # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["master_station"], "target_types": ["rtu"],
-             "jitter_ms": 100, "jitter_type": "uniform"},
-            # NOC polling traffic controllers (1s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["master_station"], "target_types": ["traffic_controller"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            # NOC polling DMS (10s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["master_station"], "target_types": ["dms"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # RTU polling radars (500ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["rtu"], "target_types": ["radar_sensor"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Modbus polling RTUs (1s)
+             "source_types": ["master_station"], "target_types": ["radar_sensor", "thermal_sensor"],
+             "source_zones": ["tunnel_master"], "target_zones": ["detection_zone"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus Polling - Master to Safety RTUs (1s - critical)
+            # ============================================================
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["master_station"], "target_types": ["rtu"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
+             "source_zones": ["tunnel_master"], "target_zones": ["safety_zone", "detection_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Master to Safety Controllers (2s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["master_station"], "target_types": ["traffic_controller"],
+             "source_zones": ["tunnel_master"], "target_zones": ["safety_zone"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Master to Portal (5s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["master_station"], "target_types": ["dms_sign", "traffic_controller"],
+             "source_zones": ["tunnel_master"], "target_zones": ["portal_zone"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["master_station"], "target_types": ["switch", "remote_gateway", "rsu"],
+             "source_zones": ["tunnel_master"], "target_zones": ["tunnel_master", "external"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud (30s heartbeat)
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["external"], "target_zones": ["external"],
+             "external_ip": "51.38.74.240",
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
         ],
         "zones": [
-            {"id": "noc", "name": "Network Operations Center", "level": 4,
-             "subnet_offset": 0, "vlan": 10},
-            {"id": "core", "name": "Core Network", "level": 3,
-             "subnet_offset": 1, "vlan": 20},
-            {"id": "tunnel", "name": "Tunnel Infrastructure", "level": 2,
-             "subnet_offset": 2, "vlan": 30},
-            {"id": "field", "name": "Field Cabinets", "level": 1,
-             "subnet_offset": 3, "vlan": 40},
+            {"id": "tunnel_master", "name": "Tunnel Master Control", "level": 3,
+             "subnet_offset": 0, "vlan": 300, "security_level": "critical"},
+            {"id": "ventilation_zone", "name": "Ventilation Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 310, "security_level": "critical"},
+            {"id": "lighting_zone", "name": "Lighting Control Network", "level": 2,
+             "subnet_offset": 2, "vlan": 320, "security_level": "high"},
+            {"id": "detection_zone", "name": "Detection Sensor Network", "level": 2,
+             "subnet_offset": 3, "vlan": 330, "security_level": "high"},
+            {"id": "safety_zone", "name": "Safety Systems Network", "level": 2,
+             "subnet_offset": 4, "vlan": 340, "security_level": "critical"},
+            {"id": "portal_zone", "name": "Portal Control Network", "level": 1,
+             "subnet_offset": 5, "vlan": 350, "security_level": "high"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
         ],
         "suggested_anomalies": {
-            "timing": ["switch_latency", "rtu_timeout"],
-            "protocol": ["snmp_error", "modbus_exception"],
-            "sequence": [],
-            "payload": ["switch_port_flap", "spanning_tree_event"],
-            "network": ["packet_loss", "duplicate_packets"],
-            "security": ["unauthorized_snmp_access", "port_scan"],
+            "timing": ["delayed_response", "polling_gap", "timeout"],
+            "protocol": ["snmp_timeout", "modbus_exception", "bacnet_reject"],
+            "sequence": ["ventilation_fault", "lighting_fault"],
+            "payload": ["co_level_spike", "temperature_spike", "fire_alarm"],
+            "network": ["controller_offline", "communication_loss"],
+            "security": ["unauthorized_remote_access", "safety_system_bypass"],
         },
         "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "network_monitoring", "priority": "high",
-             "description": "Learn SNMP polling patterns for network equipment"},
-            {"protocol": "modbus_tcp", "flow_type": "rtu_polling", "priority": "medium",
-             "description": "Capture RTU Modbus communication patterns"},
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "Ventilation controller polling patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
+             "description": "Safety system RTU polling patterns"},
+            {"protocol": "bacnet", "flow_type": "polling", "priority": "medium",
+             "description": "Lighting controller BACnet patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
-        "total_duration_ms": 300000,
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["51.38.74.240", "87.98.169.126"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
+        "total_duration_ms": 600000,  # 10 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 4: TOLL PLAZA OPERATIONS (30 devices)
+    # Multi-lane toll collection with ETC, ANPR, and manual lanes
+    # ============================================================
+    "toll_plaza_operations": {
+        "name": "Toll Plaza Operations",
+        "description": "Multi-lane toll collection facility with electronic toll collection (ETC), "
+                       "ANPR cameras, and manual/cash lanes. Features Kapsch toll systems with "
+                       "Q-Free RSUs, Hikvision ANPR cameras, and Daktronics lane status displays. "
+                       "Includes central toll processing, revenue audit, and barrier control. "
+                       "30 devices across toll center, ETC lanes, manual lanes, ANPR, and signage zones.",
+        "vertical": "transportation",
+        "phase_preset": "with_maintenance",
+        "devices": [
+            # ============================================================
+            # TOLL CENTER ZONE (Level 3) - 4 devices
+            # Central toll processing and audit
+            # ============================================================
+            # Toll Master Station - Siemens CP-8000
+            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "toll_center",
+             "name_pattern": "TOLL-MASTER-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "CP-8000",
+             "role": "Toll Plaza Master Station"},
+
+            # Distribution Switches - Siemens SCALANCE X-200
+            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "toll_center",
+             "name_pattern": "SW-TOLL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "SCALANCE X-200",
+             "role": "Toll Center Switch"},
+
+            # Remote Access Gateway - HMS EWON Flexy
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "toll_center",
+             "name_pattern": "EWON-TOLL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # ETC LANES ZONE (Level 2) - 10 devices
+            # Electronic Toll Collection lanes
+            # ============================================================
+            # Toll Controllers - Kapsch TCS 2000
+            {"type": "toll_controller", "vendor": "kapsch", "count": 6, "zone": "etc_lanes",
+             "name_pattern": "ETC-CTRL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "TCS 2000",
+             "role": "ETC Lane Controller"},
+
+            # Roadside Units - Q-Free RSU 5000
+            {"type": "rsu", "vendor": "q_free", "count": 4, "zone": "etc_lanes",
+             "name_pattern": "ETC-RSU-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "RSU 5000",
+             "role": "ETC Roadside Unit"},
+
+            # ============================================================
+            # MANUAL LANES ZONE (Level 2) - 6 devices
+            # Staffed and cash payment lanes
+            # ============================================================
+            # Manual Lane Controllers - McCain 170E
+            {"type": "traffic_controller", "vendor": "mccain", "count": 6, "zone": "manual_lanes",
+             "name_pattern": "MANUAL-CTRL-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "170E",
+             "role": "Manual Lane Controller"},
+
+            # ============================================================
+            # ANPR ZONE (Level 1) - 6 devices
+            # License plate recognition cameras
+            # ============================================================
+            # ANPR Cameras - Hikvision
+            {"type": "camera_anpr", "vendor": "hikvision", "count": 6, "zone": "anpr_zone",
+             "name_pattern": "ANPR-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "DS-2CD7A26G0/P",
+             "role": "ANPR Camera"},
+
+            # ============================================================
+            # SIGNAGE ZONE (Level 1) - 4 devices
+            # Lane status and pricing displays
+            # ============================================================
+            # Lane Status Signs - Daktronics Venus 1500
+            {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "signage_zone",
+             "name_pattern": "DMS-LANE-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Venus 1500",
+             "role": "Lane Status Display"},
+        ],
+        "flows": [
+            # ============================================================
+            # SNMP Polling - Toll Center to ETC Controllers (1s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["master_station"], "target_types": ["toll_controller", "rsu"],
+             "source_zones": ["toll_center"], "target_zones": ["etc_lanes"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Toll Center to Manual Lanes (2s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["master_station"], "target_types": ["traffic_controller"],
+             "source_zones": ["toll_center"], "target_zones": ["manual_lanes"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Toll Center to ANPR (500ms - fast)
+            # High-frequency for real-time plate capture
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["master_station"], "target_types": ["camera_anpr"],
+             "source_zones": ["toll_center"], "target_zones": ["anpr_zone"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Polling - Toll Center to Signs (5s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["master_station"], "target_types": ["dms_sign"],
+             "source_zones": ["toll_center"], "target_zones": ["signage_zone"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["master_station"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["toll_center"], "target_zones": ["toll_center"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud (30s - revenue sync)
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["toll_center"], "target_zones": ["external"],
+             "external_ip": "13.56.142.1",
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+        ],
+        "zones": [
+            {"id": "toll_center", "name": "Toll Center Network", "level": 3,
+             "subnet_offset": 0, "vlan": 400, "security_level": "critical"},
+            {"id": "etc_lanes", "name": "ETC Lanes Network", "level": 2,
+             "subnet_offset": 1, "vlan": 410, "security_level": "high"},
+            {"id": "manual_lanes", "name": "Manual Lanes Network", "level": 2,
+             "subnet_offset": 2, "vlan": 420, "security_level": "standard"},
+            {"id": "anpr_zone", "name": "ANPR Camera Network", "level": 1,
+             "subnet_offset": 3, "vlan": 430, "security_level": "high"},
+            {"id": "signage_zone", "name": "Signage Network", "level": 1,
+             "subnet_offset": 4, "vlan": 440, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap", "transaction_timeout"],
+            "protocol": ["snmp_timeout", "snmp_error"],
+            "sequence": ["lane_fault", "barrier_stuck"],
+            "payload": ["revenue_discrepancy", "plate_mismatch"],
+            "network": ["controller_offline", "camera_offline"],
+            "security": ["unauthorized_remote_access", "transaction_manipulation"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "ETC controller polling patterns for transactions"},
+            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
+             "description": "ANPR camera polling patterns for plate capture"},
+            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
+             "description": "Lane status and barrier monitoring patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "Revenue sync via EWON Talk2M cloud"},
+        ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
+        "total_duration_ms": 300000,  # 5 minutes
     },
 }

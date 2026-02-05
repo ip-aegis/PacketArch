@@ -5,14 +5,15 @@
 import { create } from 'zustand';
 import type {
   Deployment,
+  UnifiedDeployment,
   DeploymentRequest,
   DeploymentLogsResponse,
 } from '../types/docker';
 import { deploymentsApi, type DeploymentFilters } from '../api/deployments';
 
 interface DeploymentsState {
-  deployments: Deployment[];
-  activeDeployment: Deployment | null;
+  deployments: UnifiedDeployment[];
+  activeDeployment: UnifiedDeployment | null;
   logs: DeploymentLogsResponse | null;
   isLoading: boolean;
   error: string | null;
@@ -20,12 +21,12 @@ interface DeploymentsState {
 
   // Actions
   fetchDeployments: (filters?: DeploymentFilters) => Promise<void>;
-  fetchDeployment: (id: string) => Promise<Deployment>;
+  fetchDeployment: (id: string) => Promise<UnifiedDeployment>;
   startDeployment: (data: DeploymentRequest) => Promise<Deployment>;
   stopDeployment: (id: string) => Promise<Deployment>;
   removeDeployment: (id: string) => Promise<void>;
   fetchLogs: (id: string, tail?: number) => Promise<DeploymentLogsResponse>;
-  setActiveDeployment: (deployment: Deployment | null) => void;
+  setActiveDeployment: (deployment: UnifiedDeployment | null) => void;
   startPolling: (scenarioId?: string) => void;
   stopPolling: () => void;
   clearError: () => void;
@@ -149,7 +150,7 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
     }
   },
 
-  setActiveDeployment: (deployment: Deployment | null) => {
+  setActiveDeployment: (deployment: UnifiedDeployment | null) => {
     set({ activeDeployment: deployment, logs: null });
   },
 

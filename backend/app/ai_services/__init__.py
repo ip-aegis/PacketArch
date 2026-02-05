@@ -18,6 +18,10 @@ from app.ai_services.scenario_generator import (
     GeneratedDevice,
     GeneratedFlow,
 )
+from app.ai_services.device_namer import (
+    AIDeviceNamer,
+    DeviceNamingContext,
+)
 
 __all__ = [
     "PcapAnalyzer",
@@ -32,4 +36,6 @@ __all__ = [
     "GeneratedScenario",
     "GeneratedDevice",
     "GeneratedFlow",
+    "AIDeviceNamer",
+    "DeviceNamingContext",
 ]

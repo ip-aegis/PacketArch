@@ -1,4 +1,18 @@
-"""Vendor OUI (Organizationally Unique Identifier) database for realistic MAC generation."""
+"""Vendor OUI (Organizationally Unique Identifier) database for realistic MAC generation.
+
+IMPORTANT: OUI-based vendor detection is a FALLBACK method.
+Many OT and building automation devices use embedded NICs from other manufacturers
+(e.g., Cisco, Intel, Microchip). A Johnson Controls NAE55 might have a Cisco NIC.
+
+For reliable vendor identification, use protocol-based detection:
+- SNMP: sysDescr, sysObjectID (enterprise OID)
+- BACnet: vendor_id
+- Modbus: FC43 device identification
+- EtherNet/IP: vendor_id in CIP identity
+
+OUIs in this file are verified against the IEEE OUI registry where possible.
+To verify an OUI: https://maclookup.app/ or https://macaddress.io/
+"""
 
 import random
 from typing import Optional
@@ -6,6 +20,9 @@ from typing import Optional
 
 # OUI database: Vendor name -> list of OUI prefixes (first 3 bytes of MAC)
 # Based on IEEE OUI registry for major OT/industrial automation vendors
+#
+# NOTE: Empty lists indicate vendors that typically use generic NICs.
+# These are kept for device_type mapping but generate default OUIs.
 VENDOR_OUIS: dict[str, list[str]] = {
     # Major PLC/Industrial Automation Vendors
     "siemens": [
@@ -28,8 +45,8 @@ VENDOR_OUIS: dict[str, list[str]] = {
     "schneider": [
         "00:00:54",  # Schneider Electric (legacy Modicon)
         "00:80:F4",  # Schneider Electric
-        "00:04:A3",  # Schneider Electric
-        "00:1C:C4",  # Schneider Electric
+        # "00:04:A3" REMOVED - Actually Microchip Technology per IEEE registry
+        # "00:1C:C4" REMOVED - Actually Hewlett Packard per IEEE registry
         "00:04:74",  # Schneider Electric
         "64:3A:EA",  # Schneider Electric
     ],
@@ -41,17 +58,18 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "C4:93:00",  # ABB
     ],
     "emerson": [
-        "00:A0:F8",  # Emerson Process Management
-        "00:50:43",  # Fisher-Rosemount (Emerson)
-        "00:60:35",  # Emerson Electric
-        "00:0D:3A",  # Emerson Network Power
+        # NOTE: Emerson/Fisher-Rosemount often uses embedded NICs from other vendors.
+        # Protocol-based identification (Modbus FC43, EtherNet/IP identity) is more reliable.
+        "00:0D:3A",  # Emerson Network Power (verified IEEE)
+        # "00:A0:F8" REMOVED - Actually Zebra/Symbol Technologies per IEEE
+        # "00:50:43" REMOVED - Actually Marvell Semiconductor per IEEE
+        # "00:60:35" REMOVED - Actually Dallas Semiconductor per IEEE
     ],
     "honeywell": [
-        "00:00:8C",  # Honeywell (legacy)
-        "00:D0:34",  # Honeywell Industrial
-        "00:04:63",  # Honeywell Inc
-        "00:1A:64",  # Honeywell Life Safety
-        "F4:4E:05",  # Honeywell Connected
+        "00:40:84",  # Honeywell Inc (IEEE MA-L, 2000)
+        "00:22:6A",  # Honeywell (IEEE MA-L, 2008)
+        "C4:EF:DA",  # Honeywell (IEEE MA-L, 2022)
+        "58:FC:C8",  # Honeywell (IEEE MA-L, 2023)
     ],
     "ge": [
         "00:09:45",  # GE Fanuc Automation
@@ -124,6 +142,13 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:D0:C9",  # Advantech Co
         "00:20:18",  # Advantech
     ],
+    "hms": [
+        "00:03:27",  # HMS Industrial Networks
+        "00:05:94",  # HMS Industrial Networks
+        "00:30:11",  # HMS Industrial Networks
+        "00:30:56",  # HMS Industrial Networks
+        "9C:B2:06",  # HMS Industrial Networks (newer)
+    ],
     "cisco": [
         "00:00:0C",  # Cisco Systems
         "00:1A:A1",  # Cisco Systems
@@ -143,11 +168,15 @@ VENDOR_OUIS: dict[str, list[str]] = {
     "copadata": [
         "00:0C:46",  # Copa-Data
     ],
+    # NOTE: Kepware KEPServerEX is software running on host machine, uses host NIC
+    "kepware": [],
 
     # Building Automation / BMS Vendors
+    # NOTE: Many building automation devices use embedded NICs from other vendors
+    # (Cisco, Intel, Microchip). Protocol-based detection (SNMP, BACnet) is more reliable.
     "johnson_controls": [
         "00:1A:17",  # Johnson Controls
-        "00:16:C7",  # Johnson Controls Inc
+        # "00:16:C7" REMOVED - Actually Cisco Systems per IEEE registry
         "00:23:BE",  # Johnson Controls Systems
     ],
     "tridium": [
@@ -205,7 +234,9 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "64:00:6A",  # Siemens AG
     ],
     "econolite": [
-        "00:19:FA",  # Econolite Control Products
+        # "00:19:FA" REMOVED - Actually Cable Vision Electronics per IEEE registry
+        # NOTE: Econolite may use embedded NICs from other vendors.
+        # Traffic controllers are better identified via SNMP sysDescr/sysObjectID.
     ],
     "mccain": [
         "00:0D:56",  # McCain Traffic Supply
@@ -238,8 +269,8 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "B8:A4:4F",  # Axis Communications
     ],
     "pelco": [
-        "00:0C:CE",  # Pelco (Schneider)
-        "00:0F:FE",  # Pelco
+        "00:80:F4",  # Schneider Electric (Pelco parent company)
+        "64:3A:EA",  # Schneider Electric
     ],
     "bosch": [
         "00:04:13",  # Bosch Security Systems
@@ -252,6 +283,37 @@ VENDOR_OUIS: dict[str, list[str]] = {
     ],
     "vaisala": [
         "00:0C:D6",  # Vaisala
+    ],
+
+    # Logistics / AGV / Warehouse Automation Vendors
+    "kuka": [
+        "00:1A:28",  # KUKA Roboter GmbH
+        "00:1F:29",  # KUKA Roboter GmbH
+        "00:10:DC",  # KUKA Roboter GmbH (verified IEEE)
+    ],
+    "mir": [
+        "00:1E:06",  # Mobile Industrial Robots A/S
+    ],
+    "cognex": [
+        "00:04:3E",  # Cognex Corporation
+        "00:0D:88",  # Cognex Corporation
+    ],
+    "impinj": [
+        "00:16:25",  # Impinj Inc
+    ],
+    "zebra": [
+        "00:A0:F8",  # Zebra Technologies (Symbol legacy)
+        "00:23:68",  # Zebra Technologies
+        "AC:3F:A4",  # Zebra Technologies
+    ],
+    "dematic": [
+        "00:1C:34",  # Dematic (Kion Group)
+    ],
+    "swisslog": [
+        # Uses embedded NICs (Siemens, Intel) - identified via protocol
+    ],
+    "daifuku": [
+        "00:0E:C4",  # Daifuku Co Ltd
     ],
 }
 
@@ -343,6 +405,23 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
     "level_transmitter": ["emerson", "endress_hauser", "yokogawa", "siemens"],
     "temperature_transmitter": ["emerson", "endress_hauser", "yokogawa", "honeywell"],
     "dcs_controller": ["emerson", "honeywell", "yokogawa", "abb", "siemens"],  # DeltaV, Experion, CENTUM
+
+    # Distribution / Logistics / Warehouse Automation Device Types
+    "agv": ["kuka", "mir", "dematic", "daifuku"],  # Automated Guided Vehicles
+    "amr": ["mir", "kuka"],  # Autonomous Mobile Robots
+    "agv_controller": ["kuka", "mir", "dematic"],  # AGV onboard controllers
+    "fleet_manager": ["kuka", "mir", "dematic", "swisslog"],  # AGV fleet management
+    "conveyor_controller": ["siemens", "rockwell", "schneider"],  # Conveyor PLCs
+    "sortation_controller": ["siemens", "rockwell", "dematic"],  # Sortation system PLCs
+    "barcode_scanner": ["sick", "cognex", "honeywell", "zebra"],  # Fixed barcode readers
+    "vision_system": ["cognex", "sick"],  # Machine vision cameras
+    "rfid_reader": ["impinj", "zebra", "honeywell"],  # RFID readers
+    "rfid_gateway": ["impinj", "zebra"],  # RFID aggregation gateways
+    "pick_to_light": ["siemens", "rockwell", "honeywell"],  # Pick-to-light systems
+    "label_applicator": ["zebra", "honeywell"],  # Print-and-apply systems
+    "weigh_scale": ["honeywell", "emerson"],  # Weigh-in-motion / checkweighers
+    "temperature_controller": ["honeywell", "schneider", "emerson"],  # Cold chain controllers
+    "cold_storage_controller": ["honeywell", "schneider", "emerson"],  # Refrigeration systems
 }
 
 # Default OUI for unknown vendors (locally administered)
@@ -350,6 +429,79 @@ DEFAULT_OUIS = [
     "02:00:00",  # Locally administered
     "00:50:56",  # VMware (common in virtual OT labs)
 ]
+
+# Human-readable vendor names for display
+# Maps internal key -> display name
+VENDOR_DISPLAY_NAMES: dict[str, str] = {
+    "siemens": "Siemens",
+    "rockwell": "Rockwell Automation",
+    "schneider": "Schneider Electric",
+    "abb": "ABB",
+    "emerson": "Emerson",
+    "honeywell": "Honeywell",
+    "ge": "GE",
+    "sel": "Schweitzer Engineering (SEL)",
+    "basler": "Basler Electric",
+    "beckwith": "Beckwith Electric",
+    "phoenix_contact": "Phoenix Contact",
+    "beckhoff": "Beckhoff",
+    "wago": "WAGO",
+    "omron": "Omron",
+    "mitsubishi": "Mitsubishi Electric",
+    "b_and_r": "B&R Automation",
+    "pilz": "Pilz",
+    "sick": "SICK",
+    "turck": "Turck",
+    "ifm": "IFM Electronic",
+    "endress_hauser": "Endress+Hauser",
+    "yokogawa": "Yokogawa",
+    "moxa": "Moxa",
+    "advantech": "Advantech",
+    "hms": "HMS Industrial Networks",
+    "cisco": "Cisco",
+    "hirschmann": "Hirschmann",
+    "wonderware": "Wonderware",
+    "copadata": "Copa-Data",
+    "kepware": "Kepware",
+    "johnson_controls": "Johnson Controls",
+    "tridium": "Tridium",
+    "trane": "Trane",
+    "carrier": "Carrier",
+    "delta_controls": "Delta Controls",
+    "distech": "Distech Controls",
+    "carel": "Carel",
+    "automated_logic": "Automated Logic",
+    "kmc_controls": "KMC Controls",
+    "alerton": "Alerton",
+    "reliable_controls": "Reliable Controls",
+    "lennox": "Lennox",
+    "belden": "Belden",
+    "harting": "HARTING",
+    "siemens_its": "Siemens ITS",
+    "econolite": "Econolite",
+    "mccain": "McCain",
+    "wavetronix": "Wavetronix",
+    "flir": "FLIR Systems",
+    "daktronics": "Daktronics",
+    "kapsch": "Kapsch TrafficCom",
+    "qfree": "Q-Free",
+    "q_free": "Q-Free",
+    "q-free": "Q-Free",
+    "axis": "Axis Communications",
+    "pelco": "Pelco",
+    "bosch": "Bosch",
+    "hikvision": "Hikvision",
+    "vaisala": "Vaisala",
+    # Logistics / AGV / Warehouse Automation
+    "kuka": "KUKA",
+    "mir": "MiR (Mobile Industrial Robots)",
+    "cognex": "Cognex",
+    "impinj": "Impinj",
+    "zebra": "Zebra Technologies",
+    "dematic": "Dematic",
+    "swisslog": "Swisslog",
+    "daifuku": "Daifuku",
+}
 
 
 def get_oui_for_vendor(vendor: str) -> str:
@@ -364,7 +516,10 @@ def get_oui_for_vendor(vendor: str) -> str:
     vendor_lower = vendor.lower().replace(" ", "_").replace("-", "_")
 
     if vendor_lower in VENDOR_OUIS:
-        return random.choice(VENDOR_OUIS[vendor_lower])
+        oui_list = VENDOR_OUIS[vendor_lower]
+        if oui_list:  # Only use vendor OUIs if list is non-empty
+            return random.choice(oui_list)
+        # Empty list means software vendor - use default OUI
 
     return random.choice(DEFAULT_OUIS)
 
@@ -415,21 +570,25 @@ def generate_mac_address(vendor: Optional[str] = None, device_type: Optional[str
     return f"{oui}:{last_part}"
 
 
-def get_vendor_for_oui(oui: str) -> Optional[str]:
+def get_vendor_for_oui(oui: str, human_readable: bool = True) -> Optional[str]:
     """Look up vendor for a given OUI.
 
     Args:
         oui: OUI prefix (e.g., "00:0E:8C" or "00-0E-8C")
+        human_readable: If True, return display name (e.g., "Johnson Controls").
+                       If False, return internal key (e.g., "johnson_controls").
 
     Returns:
         Vendor name or None if not found
     """
     oui_normalized = oui.upper().replace("-", ":")
 
-    for vendor, ouis in VENDOR_OUIS.items():
+    for vendor_key, ouis in VENDOR_OUIS.items():
         for vendor_oui in ouis:
             if vendor_oui.upper() == oui_normalized:
-                return vendor
+                if human_readable:
+                    return VENDOR_DISPLAY_NAMES.get(vendor_key, vendor_key.replace("_", " ").title())
+                return vendor_key
 
     return None
 

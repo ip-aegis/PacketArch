@@ -116,16 +116,29 @@ export interface ProtocolPatternListResponse {
 export interface DeviceFingerprint {
   id: string;
   pcap_capture_id: string | null;
-  ip_address: string;
-  mac_address: string | null;
-  mac_oui: string | null;
+  // Vendor identification
   inferred_vendor: string | null;
+  device_type: string | null;
+  oui_patterns: string[] | null;
+  // TCP signature
   tcp_signature: Record<string, unknown> | null;
+  // Response timing distributions
   response_timings: Record<string, unknown> | null;
+  // Protocol identities (vendor, model, firmware from protocol messages)
   protocol_identities: Record<string, unknown> | null;
+  // Behavioral patterns
   role: string;
-  communication_partners: string[] | null;
   active_protocols: string[] | null;
+  typical_ports: Record<string, number[]> | null;
+  // Aggregation metadata
+  observation_count: number;
+  total_packets_analyzed: number;
+  // Quality metrics
+  confidence: number;
+  consistency_score: number;
+  // User metadata
+  name: string | null;
+  tags: string[] | null;
   created_at: string;
 }
 
@@ -191,9 +204,12 @@ export interface TcpSignatureModel {
   protocol: string | null;
   role: string | null;
   signatures: Array<{
-    source_ip: string;
+    fingerprint_id: string;
     signature: Record<string, unknown>;
     vendor: string | null;
+    device_type: string | null;
+    oui_patterns: string[] | null;
+    observation_count: number;
   }>;
   count: number;
 }
@@ -246,11 +262,13 @@ export interface PatternSuggestion {
     }>;
     fingerprints: Array<{
       id: string;
-      ip_address: string;
+      name: string | null;
       vendor: string | null;
+      device_type: string | null;
       role: string;
       has_tcp_signature: boolean;
       has_response_timings: boolean;
+      observation_count: number;
       confidence: number;
     }>;
     sequences: Array<{
@@ -389,6 +407,7 @@ export async function listDeviceFingerprints(options?: {
   page?: number;
   page_size?: number;
   vendor?: string;
+  device_type?: string;
   role?: string;
   protocol?: string;
   pcap_capture_id?: string;

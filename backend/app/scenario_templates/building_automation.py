@@ -1,392 +1,766 @@
-"""Building Automation / BMS scenario templates.
+"""Building automation and BMS industry scenario templates.
 
-Primary Vendors: Johnson Controls, Honeywell/Tridium, Trane, Carrier, Schneider Electric
-Protocol Focus: BACnet/IP (primary), SNMP (secondary), Modbus TCP (equipment)
+Primary Vendors: Johnson Controls, Honeywell, Trane, Schneider Electric, Siemens
+Protocol Focus: BACnet/IP (primary), Modbus TCP (power/HVAC), SNMP (infrastructure)
 
-Scenarios:
-- Commercial Building: Multi-floor office with central HVAC, VAV boxes, lighting
-- University Campus: Multiple buildings, central plant, energy management
-- Data Center: Precision cooling, power monitoring, environmental sensors
-
-CVE Vulnerability mapping:
-- Building controllers: CVE-2023-4804 (Johnson Controls), CVE-2022-30312 (Tridium)
-- HVAC controllers: CVE-2015-2867 (Trane), CVE-2021-42534 (Trane)
-- BMS servers: CVE-2021-35963 (Automated Logic), CVE-2020-7002 (Carrier)
+Enhanced templates with:
+- 30-45+ devices per template
+- Realistic traffic flows based on BACnet polling patterns
+- Proper fingerprinting with protocol identities
+- Multi-vendor architectures typical of real buildings
 """
 
 from typing import Any
 
 
 BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
-    "commercial_building": {
-        "name": "Commercial Office Building",
-        "description": "Multi-floor commercial office building (10 floors) with central "
-                       "HVAC system, VAV boxes for zone control, automated lighting, "
-                       "access control, and building automation server. Uses BACnet/IP "
-                       "for building automation communication.",
+    # ============================================================
+    # TEMPLATE 1: COMMERCIAL OFFICE BUILDING BMS (35 devices)
+    # Modern Class A office building with central BMS
+    # ============================================================
+    "commercial_office_bms": {
+        "name": "Commercial Office Building BMS",
+        "description": "Modern Class A office building with central BMS. Features WebCTRL server "
+                       "with Johnson Controls NAE55 supervisory controllers, Trane HVAC, and "
+                       "distributed Distech VAV and Siemens room controllers. Multi-vendor "
+                       "architecture typical of modern commercial buildings. 35 devices across "
+                       "BMS core, HVAC control, and floor zone networks.",
         "vertical": "building_automation",
+        "phase_preset": "with_maintenance",
         "devices": [
-            # Building Automation Server (Metasys)
-            {"type": "bac", "vendor": "johnson_controls", "count": 1, "zone": "control",
-             "name_pattern": "BAC-{n:03d}", "protocols": ["bacnet", "snmp"],
+            # ============================================================
+            # BMS CORE ZONE (Level 3) - 5 devices
+            # Central BMS server, supervisory controllers, infrastructure
+            # ============================================================
+            # BMS Server - Automated Logic WebCTRL
+            # Fingerprint has: bacnet_identity (NO modbus_identity despite declaring modbus)
+            {"type": "bms_server", "vendor": "automated_logic", "count": 1, "zone": "bms_core",
+             "name_pattern": "WEBCTRL-SVR-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "Server",
+             "role": "Central BMS Server"},
+
+            # Supervisory Controllers - Johnson Controls NAE55
+            # Fingerprint has: bacnet_identity, snmp_identity
+            {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "bms_core",
+             "name_pattern": "NAE55-{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "NAE55",
-             "role": "Building Automation Controller",
-             "cve_ids": ["CVE-2023-4804"]},
+             "role": "Supervisory Network Controller"},
 
-            # Air Handling Units (Trane)
-            # Using Tracer SC+ to match CVE affected_models for Cyber Vision detection
-            {"type": "ahu_controller", "vendor": "trane", "count": 4, "zone": "hvac",
-             "name_pattern": "AHU-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "Tracer SC+",
-             "role": "Air Handling Unit Controller",
-             "cve_ids": ["CVE-2021-42534"]},
+            # Industrial Switches with SNMP monitoring
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bms_core",
+             "name_pattern": "SW-BMS-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "BMS Network Switch"},
 
-            # Variable Air Volume Controllers (Distech)
-            # Using EC-BOS-8 to match CVE affected_models for Cyber Vision detection
-            {"type": "vav_controller", "vendor": "distech", "count": 40, "zone": "field",
-             "name_pattern": "VAV-{floor:02d}-{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "EC-BOS-8",
-             "role": "VAV Zone Controller",
-             "cve_ids": ["CVE-2020-9049"]},
+            # EWON Remote Access Gateway - Talk2M cloud connectivity
+            # Fingerprint has: modbus_identity, snmp_identity, external_communications
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "bms_core",
+             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
 
-            # Chiller Plant (Trane - hardcoded credentials vuln)
-            # Using ComfortLink II XL950 to match CVE affected_models for Cyber Vision detection
-            {"type": "chiller_controller", "vendor": "trane", "count": 2, "zone": "mechanical",
-             "name_pattern": "CHW-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "ComfortLink II XL950",
-             "cve_ids": ["CVE-2015-2867"],
+            # ============================================================
+            # HVAC CONTROL ZONE (Level 2) - 10 devices
+            # AHU controllers, chiller controllers, zone supervisors
+            # ============================================================
+            # HVAC Supervisory - Trane Tracer SC+
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "hvac_control",
+             "name_pattern": "TRACER-SC-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "SC+",
+             "role": "HVAC Supervisory Controller"},
+
+            # AHU Controllers - Johnson Controls FEC26
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "ahu_controller", "vendor": "johnson_controls", "count": 4, "zone": "hvac_control",
+             "name_pattern": "FEC-AHU-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "FEC26",
+             "role": "AHU Controller"},
+
+            # Chiller Controllers - Carel pCO5+
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "hvac_control",
+             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
-            # Boiler Plant (Honeywell)
-            {"type": "boiler_controller", "vendor": "honeywell", "count": 2, "zone": "mechanical",
-             "name_pattern": "HW-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "XL Web",
-             "role": "Boiler Controller"},
+            # Building Controllers - Schneider CX9680
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "hvac_control",
+             "name_pattern": "CX9680-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "fingerprint_model": "CX9680",
+             "role": "Building Controller"},
 
-            # Lighting Controllers (Johnson Controls)
-            {"type": "lighting_controller", "vendor": "johnson_controls", "count": 10, "zone": "field",
-             "name_pattern": "LTG-{floor:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "FEC26",
-             "role": "Lighting Controller"},
+            # ============================================================
+            # FLOOR ZONE (Level 1) - 20 devices
+            # VAV controllers, room controllers, field equipment
+            # ============================================================
+            # VAV Controllers - Distech ECY-VAV
+            # Fingerprint has: bacnet_identity ONLY (no modbus_identity despite declaring modbus)
+            {"type": "vav_controller", "vendor": "distech", "count": 8, "zone": "floor_zone",
+             "name_pattern": "ECY-VAV-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "ECY-VAV",
+             "role": "VAV Controller"},
 
-            # Energy Meters (Schneider)
-            {"type": "energy_meter", "vendor": "schneider", "count": 5, "zone": "field",
-             "name_pattern": "PWR-{n:03d}", "protocols": ["modbus_tcp", "bacnet"],
-             "fingerprint_model": "PM8000",
-             "role": "Power Meter"},
+            # Room Controllers - Siemens DXR2.E12
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "room_controller", "vendor": "siemens", "count": 6, "zone": "floor_zone",
+             "name_pattern": "DXR2-RM-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "DXR2.E12",
+             "role": "Room Automation Station"},
 
-            # Access Controllers (Honeywell)
-            {"type": "access_controller", "vendor": "honeywell", "count": 12, "zone": "security",
-             "name_pattern": "ACC-{floor:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "JACE 8000",
-             "role": "Access Control Panel",
-             "cve_ids": ["CVE-2022-30312"]},
+            # Field Controllers - Delta Controls eBCON
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "field_controller", "vendor": "delta_controls", "count": 4, "zone": "floor_zone",
+             "name_pattern": "EBCON-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "eBCON",
+             "role": "Field Controller"},
+
+            # Zone Controllers - Trane UC600
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "zone_controller", "vendor": "trane", "count": 2, "zone": "floor_zone",
+             "name_pattern": "UC600-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "UC600",
+             "role": "Unit Controller"},
         ],
         "flows": [
-            # BAC polling AHU controllers (15s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 15000,
-             "source_types": ["bac"], "target_types": ["ahu_controller"],
+            # ============================================================
+            # BACnet Subscription Flows - Server to Supervisory (5s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["bms_server"], "target_types": ["controller"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet Polling - Supervisory to HVAC Controllers (1s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["controller"], "target_types": ["hvac_controller", "ahu_controller", "chiller_controller", "building_controller"],
+             "source_zones": ["bms_core"], "target_zones": ["hvac_control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet Polling - HVAC to Field Controllers (500ms)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hvac_controller", "building_controller"], "target_types": ["vav_controller", "room_controller", "field_controller", "zone_controller"],
+             "source_zones": ["hvac_control"], "target_zones": ["floor_zone"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet COV - Change of Value Notifications (async, ~2s avg)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "cov", "interval_ms": 2000,
+             "source_types": ["vav_controller", "room_controller"], "target_types": ["controller"],
+             "source_zones": ["floor_zone"], "target_zones": ["bms_core"],
              "jitter_ms": 1000, "jitter_type": "uniform"},
-            # BAC polling VAV controllers (30s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["bac"], "target_types": ["vav_controller"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
-            # BAC polling chillers (10s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["bac"], "target_types": ["chiller_controller"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # BAC polling boilers (10s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["bac"], "target_types": ["boiler_controller"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # BAC polling lighting (60s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["bac"], "target_types": ["lighting_controller"],
+
+            # ============================================================
+            # Modbus TCP - Chiller/Building Controller polling (1s)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["controller"], "target_types": ["chiller_controller", "building_controller"],
+             "source_zones": ["bms_core"], "target_zones": ["hvac_control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP - Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["bms_server"], "target_types": ["switch", "controller", "remote_gateway"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
-            # BAC polling energy meters via Modbus (5s interval)
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
+            # Uses actual Talk2M public IPs for Cyber Vision external detection
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["bms_core"], "target_zones": ["external"],
+             "external_ip": "13.56.142.1",  # Talk2M US-West VPN server
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # EWON Modbus polling to HVAC controllers (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["bac"], "target_types": ["energy_meter"],
-             "jitter_ms": 250, "jitter_type": "gaussian"},
-            # BAC polling access controllers (30s interval)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["bac"], "target_types": ["access_controller"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
+             "source_types": ["remote_gateway"], "target_types": ["chiller_controller", "building_controller"],
+             "source_zones": ["bms_core"], "target_zones": ["hvac_control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "control", "name": "BMS Control Room", "level": 4,
-             "subnet_offset": 0, "vlan": 100},
-            {"id": "hvac", "name": "HVAC Zone", "level": 3,
-             "subnet_offset": 1, "vlan": 101},
-            {"id": "mechanical", "name": "Mechanical Room", "level": 3,
-             "subnet_offset": 2, "vlan": 102},
-            {"id": "field", "name": "Field Devices", "level": 2,
-             "subnet_offset": 3, "vlan": 103},
-            {"id": "security", "name": "Security Zone", "level": 3,
-             "subnet_offset": 4, "vlan": 104},
+            {"id": "bms_core", "name": "BMS Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "hvac_control", "name": "HVAC Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "standard"},
+            {"id": "floor_zone", "name": "Floor Zone Network", "level": 1,
+             "subnet_offset": 2, "vlan": 120, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
         ],
         "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["bacnet_error"],
-            "sequence": [],
-            "payload": ["temperature_spike", "setpoint_change"],
-            "network": ["packet_loss"],
-            "security": [],
+            "timing": ["delayed_response", "polling_gap", "subscription_timeout"],
+            "protocol": ["bacnet_reject", "bacnet_abort", "modbus_exception"],
+            "sequence": ["out_of_order", "duplicate_invoke_id"],
+            "payload": ["value_spike", "setpoint_change"],
+            "network": ["broadcast_storm"],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
+            {"protocol": "bacnet", "flow_type": "subscription", "priority": "high",
+             "description": "BACnet COV subscription patterns from NAE55 controllers"},
             {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
-             "description": "Learn BACnet ReadProperty polling patterns"},
-            {"protocol": "bacnet", "flow_type": "discovery", "priority": "high",
-             "description": "Capture BACnet Who-Is/I-Am discovery"},
+             "description": "BACnet ReadProperty polling patterns to VAV controllers"},
+            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "medium",
+             "description": "Modbus polling patterns to chiller controllers"},
+            {"protocol": "snmp", "flow_type": "monitoring", "priority": "low",
+             "description": "SNMP infrastructure monitoring patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],  # Talk2M VPN server IPs
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
         "total_duration_ms": 300000,  # 5 minutes
     },
 
-    "university_campus": {
-        "name": "University Campus",
-        "description": "Large university campus with 8 buildings, central chilled water "
-                       "plant, hot water plant, campus-wide energy management, and "
-                       "integrated access control. Uses BACnet/IP with distributed "
-                       "building controllers.",
+    # ============================================================
+    # TEMPLATE 2: DATA CENTER INFRASTRUCTURE (28 devices)
+    # Tier III data center with precision cooling and power monitoring
+    # ============================================================
+    "data_center_infrastructure": {
+        "name": "Data Center Infrastructure",
+        "description": "Tier III data center with precision cooling (CRAC units) and power "
+                       "monitoring (UPS, PDU). Features Schneider Electric cooling and power "
+                       "equipment with BACnet, Modbus TCP, and SNMP monitoring. Centralized "
+                       "DCIM integration via Automated Logic server. 28 devices across DCIM "
+                       "core, cooling zone, power zone, and rack-level monitoring.",
         "vertical": "building_automation",
+        "phase_preset": "with_maintenance",
         "devices": [
-            # Campus BMS Server (Automated Logic WebCTRL)
-            {"type": "bms_server", "vendor": "automated_logic", "count": 1, "zone": "noc",
-             "name_pattern": "WEBCTRL-{n:03d}", "protocols": ["bacnet", "snmp"],
+            # ============================================================
+            # DCIM CORE ZONE (Level 3) - 4 devices
+            # DCIM server, building controllers, infrastructure
+            # ============================================================
+            # DCIM Server - Automated Logic WebCTRL
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "dcim_server", "vendor": "automated_logic", "count": 1, "zone": "dcim_core",
+             "name_pattern": "DCIM-SVR-{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "Server",
-             "role": "Campus BMS Server",
-             "cve_ids": ["CVE-2021-35963"]},
+             "role": "DCIM Server"},
 
-            # Building Automation Controllers (Johnson Controls)
-            {"type": "bac", "vendor": "johnson_controls", "count": 8, "zone": "buildings",
-             "name_pattern": "NAE-BLD{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "NAE55",
-             "role": "Building Controller",
-             "cve_ids": ["CVE-2023-4804"]},
-
-            # AHU Controllers per building (Delta Controls - RCE vuln)
-            # Using enteliBUS Manager to match CVE affected_models for Cyber Vision detection
-            {"type": "ahu_controller", "vendor": "delta_controls", "count": 24, "zone": "buildings",
-             "name_pattern": "AHU-B{building:02d}-{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "enteliBUS Manager",
-             "cve_ids": ["CVE-2019-9569"],
-             "role": "Air Handling Unit"},
-
-            # VAV Controllers distributed across campus
-            # Using EC-BOS-8 to match CVE affected_models for Cyber Vision detection
-            {"type": "vav_controller", "vendor": "distech", "count": 200, "zone": "field",
-             "name_pattern": "VAV-B{building:02d}-{floor:02d}{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "EC-BOS-8",
-             "role": "VAV Zone Controller",
-             "cve_ids": ["CVE-2020-9049"]},
-
-            # Central Plant Chillers (Carrier)
-            # Using i-Vu Pro to match CVE affected_models for Cyber Vision detection
-            {"type": "chiller_controller", "vendor": "carrier", "count": 4, "zone": "plant",
-             "name_pattern": "CH-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "i-Vu Pro",
-             "role": "Chiller Controller",
-             "cve_ids": ["CVE-2020-7002"]},
-
-            # Central Plant Boilers (Siemens - Desigo privilege escalation)
-            # Using Desigo CC to match CVE affected_models for Cyber Vision detection
-            {"type": "boiler_controller", "vendor": "siemens", "count": 4, "zone": "plant",
-             "name_pattern": "BLR-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "Desigo CC",
-             "cve_ids": ["CVE-2022-31465"],
-             "role": "Boiler Controller"},
-
-            # Energy Meters campus-wide
-            {"type": "energy_meter", "vendor": "schneider", "count": 20, "zone": "field",
-             "name_pattern": "PWR-B{building:02d}-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "PM8000",
-             "role": "Building Power Meter"},
-
-            # Niagara JACE Controllers for legacy integration
-            {"type": "niagara_jace", "vendor": "honeywell", "count": 8, "zone": "buildings",
-             "name_pattern": "JACE-B{n:02d}", "protocols": ["bacnet"],
-             "fingerprint_model": "JACE 8000",
-             "role": "Integration Controller",
-             "cve_ids": ["CVE-2022-30312"]},
-        ],
-        "flows": [
-            # WebCTRL polling building controllers (30s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["bms_server"], "target_types": ["bac"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
-            # Building controllers polling AHUs (15s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 15000,
-             "source_types": ["bac"], "target_types": ["ahu_controller"],
-             "jitter_ms": 1000, "jitter_type": "uniform"},
-            # Building controllers polling VAVs (45s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 45000,
-             "source_types": ["bac"], "target_types": ["vav_controller"],
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            # WebCTRL polling central plant (10s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["bms_server"], "target_types": ["chiller_controller", "boiler_controller"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # Building controllers polling energy meters (60s)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["bac"], "target_types": ["energy_meter"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-            # WebCTRL polling JACEs (30s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["bms_server"], "target_types": ["niagara_jace"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
-        ],
-        "zones": [
-            {"id": "noc", "name": "Campus NOC", "level": 4,
-             "subnet_offset": 0, "vlan": 200},
-            {"id": "plant", "name": "Central Plant", "level": 3,
-             "subnet_offset": 1, "vlan": 201},
-            {"id": "buildings", "name": "Building Controllers", "level": 3,
-             "subnet_offset": 2, "vlan": 202},
-            {"id": "field", "name": "Field Devices", "level": 2,
-             "subnet_offset": 3, "vlan": 203},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "burst_traffic"],
-            "protocol": ["bacnet_error"],
-            "sequence": [],
-            "payload": ["temperature_spike"],
-            "network": ["packet_loss", "congestion"],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
-             "description": "Learn BACnet ReadPropertyMultiple patterns"},
-            {"protocol": "bacnet", "flow_type": "cov", "priority": "medium",
-             "description": "Capture COV subscription notifications"},
-        ],
-        "total_duration_ms": 600000,  # 10 minutes
-    },
-
-    "data_center": {
-        "name": "Data Center Facility",
-        "description": "Mission-critical data center with precision cooling (CRAC units), "
-                       "hot/cold aisle containment, UPS monitoring, power distribution, "
-                       "and environmental sensors. Uses BACnet/IP and Modbus for "
-                       "equipment monitoring.",
-        "vertical": "building_automation",
-        "devices": [
-            # Data Center BMS (Schneider Andover)
-            {"type": "bac", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "DCIM-{n:03d}", "protocols": ["bacnet", "snmp"],
+            # Building Controllers - Schneider CX9680
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "dcim_core",
+             "name_pattern": "CX9680-DC-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
-             "role": "Data Center Infrastructure Management",
-             "cve_ids": ["CVE-2019-6853"]},
+             "role": "Data Center Controller"},
 
-            # CRAC Units (Schneider)
-            {"type": "crac_unit", "vendor": "schneider", "count": 12, "zone": "cooling",
-             "name_pattern": "CRAC-{row:01d}{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+            # Core Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dcim_core",
+             "name_pattern": "SW-DCIM-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "DCIM Network Switch"},
+
+            # EWON Remote Access Gateway - Talk2M cloud connectivity for remote DCIM
+            # Fingerprint has: modbus_identity, snmp_identity, external_communications
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dcim_core",
+             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Cosy 131",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # COOLING ZONE (Level 2) - 8 devices
+            # CRAC units and chiller controllers
+            # ============================================================
+            # CRAC Units - Schneider InRow DX
+            # Fingerprint has: bacnet_identity, modbus_identity (no snmp_identity)
+            {"type": "crac_unit", "vendor": "schneider", "count": 6, "zone": "cooling_zone",
+             "name_pattern": "INROW-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "InRow DX",
-             "role": "Precision Cooling Unit"},
+             "role": "In-Row Cooling Unit"},
 
-            # Chiller Plant (Carrier)
-            # Using i-Vu Pro to match CVE affected_models for Cyber Vision detection
-            {"type": "chiller_controller", "vendor": "carrier", "count": 4, "zone": "plant",
-             "name_pattern": "CH-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "i-Vu Pro",
-             "role": "Chiller Controller",
-             "cve_ids": ["CVE-2020-7002"]},
+            # Chiller Controllers - Carel pCO5+
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "cooling_zone",
+             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "fingerprint_model": "pCO5+",
+             "role": "Chiller Controller"},
 
-            # UPS Monitoring (via Modbus)
-            {"type": "meter", "vendor": "schneider", "count": 8, "zone": "power",
-             "name_pattern": "UPS-{n:03d}", "protocols": ["modbus_tcp", "snmp"],
+            # ============================================================
+            # POWER ZONE (Level 2) - 6 devices
+            # UPS systems and main PDUs
+            # ============================================================
+            # UPS Systems - Schneider Galaxy VM
+            # Fingerprint has: modbus_identity, snmp_identity (NO bacnet_identity)
+            {"type": "ups", "vendor": "schneider", "count": 4, "zone": "power_zone",
+             "name_pattern": "GALAXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Galaxy VM",
              "role": "UPS System"},
 
-            # PDU Monitoring
-            {"type": "power_meter", "vendor": "schneider", "count": 48, "zone": "power",
-             "name_pattern": "PDU-{row:01d}{rack:02d}", "protocols": ["modbus_tcp", "snmp"],
+            # AHU/Cooling for electrical room - Trane UC600
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "ahu_controller", "vendor": "trane", "count": 2, "zone": "power_zone",
+             "name_pattern": "UC600-ELEC-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "UC600",
+             "role": "Electrical Room Cooling"},
+
+            # ============================================================
+            # RACK ZONE (Level 1) - 10 devices
+            # Rack PDUs and in-row monitoring
+            # ============================================================
+            # Rack PDUs - Schneider Rack PDU
+            # Fingerprint has: modbus_identity, snmp_identity (NO bacnet_identity)
+            {"type": "pdu", "vendor": "schneider", "count": 8, "zone": "rack_zone",
+             "name_pattern": "RPDU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Rack PDU",
-             "role": "Power Distribution Unit"},
+             "role": "Rack PDU"},
 
-            # Environmental Sensors (Carel)
-            {"type": "sensor", "vendor": "carel", "count": 60, "zone": "sensors",
-             "name_pattern": "ENV-{row:01d}{rack:02d}{pos:01d}", "protocols": ["bacnet"],
-             "fingerprint_model": "pCO5+",
-             "role": "Temperature/Humidity Sensor"},
-
-            # Building Controllers for support areas (Siemens Desigo vuln)
-            # Using Desigo CC to match CVE affected_models for Cyber Vision detection
-            {"type": "bac", "vendor": "siemens", "count": 2, "zone": "building",
-             "name_pattern": "BMS-{n:03d}", "protocols": ["bacnet"],
-             "fingerprint_model": "Desigo CC",
-             "cve_ids": ["CVE-2022-31465"],
-             "role": "Building Controller"},
+            # Switches for rack monitoring
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "rack_zone",
+             "name_pattern": "SW-RACK-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Rack Network Switch"},
         ],
         "flows": [
-            # DCIM polling CRAC units (5s - critical)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["bac"], "target_types": ["crac_unit"],
-             "jitter_ms": 250, "jitter_type": "gaussian"},
-            # DCIM polling chillers (10s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["bac"], "target_types": ["chiller_controller"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # DCIM polling UPS via Modbus (2s - critical)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["bac"], "target_types": ["meter"],
+            # ============================================================
+            # BACnet Polling - DCIM to Cooling Zone (1s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["dcim_server", "building_controller"],
+             "target_types": ["crac_unit", "chiller_controller"],
+             "source_zones": ["dcim_core"], "target_zones": ["cooling_zone"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
-            # DCIM polling PDUs via Modbus (10s)
+
+            # ============================================================
+            # BACnet Polling - Building Controller to AHU (1s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["building_controller"], "target_types": ["ahu_controller"],
+             "source_zones": ["dcim_core"], "target_zones": ["power_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus TCP - Power Monitoring (1s)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["building_controller"], "target_types": ["ups", "pdu"],
+             "source_zones": ["dcim_core"], "target_zones": ["power_zone", "rack_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus TCP - Precision Cooling (500ms)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["building_controller"], "target_types": ["crac_unit", "chiller_controller"],
+             "source_zones": ["dcim_core"], "target_zones": ["cooling_zone"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP - UPS and PDU Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["dcim_server"], "target_types": ["ups", "pdu", "switch", "remote_gateway"],
+             "source_zones": ["dcim_core"], "target_zones": ["power_zone", "rack_zone", "dcim_core"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
+            # Uses actual Talk2M public IPs for Cyber Vision external detection
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["dcim_core"], "target_zones": ["external"],
+             "external_ip": "54.95.198.117",  # Talk2M Asia-Pacific VPN server
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # EWON Modbus polling to UPS systems (10s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["bac"], "target_types": ["power_meter"],
-             "jitter_ms": 500, "jitter_type": "uniform"},
-            # DCIM polling environmental sensors (15s)
-            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 15000,
-             "source_types": ["bac"], "target_types": ["sensor"],
-             "jitter_ms": 1000, "jitter_type": "uniform"},
+             "source_types": ["remote_gateway"], "target_types": ["ups"],
+             "source_zones": ["dcim_core"], "target_zones": ["power_zone"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "control", "name": "DCIM Control Room", "level": 4,
-             "subnet_offset": 0, "vlan": 300},
-            {"id": "cooling", "name": "Cooling Systems", "level": 3,
-             "subnet_offset": 1, "vlan": 301},
-            {"id": "plant", "name": "Chiller Plant", "level": 3,
-             "subnet_offset": 2, "vlan": 302},
-            {"id": "power", "name": "Power Systems", "level": 3,
-             "subnet_offset": 3, "vlan": 303},
-            {"id": "sensors", "name": "Environmental Sensors", "level": 2,
-             "subnet_offset": 4, "vlan": 304},
-            {"id": "building", "name": "Building Systems", "level": 2,
-             "subnet_offset": 5, "vlan": 305},
+            {"id": "dcim_core", "name": "DCIM Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 200, "security_level": "critical"},
+            {"id": "cooling_zone", "name": "Cooling Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 210, "security_level": "high"},
+            {"id": "power_zone", "name": "Power Distribution Network", "level": 2,
+             "subnet_offset": 2, "vlan": 220, "security_level": "high"},
+            {"id": "rack_zone", "name": "Rack Monitoring Network", "level": 1,
+             "subnet_offset": 3, "vlan": 230, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
         ],
         "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["bacnet_error", "modbus_exception"],
-            "sequence": [],
-            "payload": ["temperature_alarm", "power_spike"],
-            "network": ["packet_loss"],
-            "security": [],
+            "timing": ["delayed_response", "polling_gap", "timeout"],
+            "protocol": ["bacnet_reject", "modbus_exception", "snmp_timeout"],
+            "sequence": ["out_of_order", "duplicate"],
+            "payload": ["temperature_spike", "power_alarm", "ups_transfer"],
+            "network": [],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
-            {"protocol": "bacnet", "flow_type": "high_frequency_polling", "priority": "high",
-             "description": "Learn critical cooling system polling patterns"},
+            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
+             "description": "BACnet polling patterns to InRow CRAC units"},
             {"protocol": "modbus_tcp", "flow_type": "power_monitoring", "priority": "high",
-             "description": "Capture UPS and PDU monitoring traffic"},
+             "description": "Modbus power monitoring from Galaxy UPS and Rack PDUs"},
+            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
+             "description": "SNMP monitoring patterns for UPS and PDU"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["54.95.198.117", "51.38.74.240"],  # Talk2M VPN server IPs
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
         "total_duration_ms": 300000,  # 5 minutes
     },
+
+    # ============================================================
+    # TEMPLATE 3: UNIVERSITY CAMPUS BMS (45 devices)
+    # Multi-building campus with distributed BMS architecture
+    # ============================================================
+    "university_campus_bms": {
+        "name": "University Campus BMS",
+        "description": "Multi-building university campus with distributed BMS architecture. "
+                       "Features central Honeywell JACE 8000 servers with multi-vendor building "
+                       "controllers including Johnson Controls, Trane, Schneider, and Siemens. "
+                       "Represents typical campus environment with legacy and modern equipment. "
+                       "45 devices across campus core, two academic buildings, central plant, "
+                       "and distributed field devices.",
+        "vertical": "building_automation",
+        "phase_preset": "full_lifecycle",
+        "devices": [
+            # ============================================================
+            # CAMPUS CORE (Level 3) - 5 devices
+            # Central BMS servers and campus-wide infrastructure
+            # ============================================================
+            # Campus BMS Servers - Honeywell JACE 8000
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "bms_server", "vendor": "honeywell", "count": 2, "zone": "campus_core",
+             "name_pattern": "JACE8000-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "JACE 8000",
+             "role": "Campus BMS Server"},
+
+            # Core Switches
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "campus_core",
+             "name_pattern": "SW-CAMPUS-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Campus Network Switch"},
+
+            # EWON Remote Access Gateway - Talk2M cloud connectivity
+            # Fingerprint has: modbus_identity, ethernet_ip_identity, snmp_identity
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "campus_core",
+             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Campus Remote Access Gateway",
+             "external_comms": True},
+
+            # Engineering Workstation - Honeywell XL Web
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "engineering_station", "vendor": "honeywell", "count": 1, "zone": "campus_core",
+             "name_pattern": "XLWEB-ENG-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "XL Web",
+             "role": "Engineering Workstation"},
+
+            # ============================================================
+            # BUILDING A - Academic Building (Level 2) - 10 devices
+            # Johnson Controls + Trane equipment
+            # ============================================================
+            # Building Supervisor - Johnson Controls NAE55
+            # Fingerprint has: bacnet_identity, snmp_identity
+            {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_a",
+             "name_pattern": "NAE55-BLDA-{n:02d}", "protocols": ["bacnet", "snmp"],
+             "fingerprint_model": "NAE55",
+             "role": "Building Supervisor"},
+
+            # AHU Controllers - Johnson Controls FEC26
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "ahu_controller", "vendor": "johnson_controls", "count": 3, "zone": "building_a",
+             "name_pattern": "FEC-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "FEC26",
+             "role": "AHU Controller"},
+
+            # Unit Controllers - Trane UC600
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "zone_controller", "vendor": "trane", "count": 3, "zone": "building_a",
+             "name_pattern": "UC600-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "UC600",
+             "role": "Unit Controller"},
+
+            # Building Controller - Distech EC-BOS-8
+            # Fingerprint has: bacnet_identity ONLY (no modbus_identity)
+            {"type": "building_controller", "vendor": "distech", "count": 2, "zone": "building_a",
+             "name_pattern": "ECBOS-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "EC-BOS-8",
+             "role": "Building Controller"},
+
+            # ============================================================
+            # BUILDING B - Research Building (Level 2) - 10 devices
+            # Siemens + Schneider equipment (different vendor ecosystem)
+            # ============================================================
+            # Building Supervisor - Johnson Controls SNC
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_b",
+             "name_pattern": "SNC-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "SNC",
+             "role": "Building Supervisor"},
+
+            # Room Controllers - Siemens DXR2.E12
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "room_controller", "vendor": "siemens", "count": 4, "zone": "building_b",
+             "name_pattern": "DXR2-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "DXR2.E12",
+             "role": "Room Automation Station"},
+
+            # Building Controllers - Siemens Climatix C600
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "building_controller", "vendor": "siemens", "count": 2, "zone": "building_b",
+             "name_pattern": "C600-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "C600",
+             "role": "Building Controller"},
+
+            # Zone Controller - Schneider CX9680
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "zone_controller", "vendor": "schneider", "count": 2, "zone": "building_b",
+             "name_pattern": "CX9680-BLDB-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "fingerprint_model": "CX9680",
+             "role": "Zone Controller"},
+
+            # ============================================================
+            # CENTRAL PLANT (Level 2) - 8 devices
+            # Chiller/boiler plant with multi-vendor controllers
+            # ============================================================
+            # Chiller Controllers - Carel pCO5+
+            # Fingerprint has: bacnet_identity, modbus_identity
+            {"type": "chiller_controller", "vendor": "carel", "count": 3, "zone": "central_plant",
+             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "fingerprint_model": "pCO5+",
+             "role": "Chiller Controller"},
+
+            # Boiler Controller - Carrier Pro Open
+            # Fingerprint has: bacnet_identity ONLY (no modbus_identity)
+            {"type": "boiler_controller", "vendor": "carrier", "count": 2, "zone": "central_plant",
+             "name_pattern": "CARRIER-BOIL-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "Pro Open",
+             "role": "Boiler Controller"},
+
+            # Plant Supervisor - Delta Controls Manager
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "plant_controller", "vendor": "delta_controls", "count": 1, "zone": "central_plant",
+             "name_pattern": "DELTA-MGR-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "Manager",
+             "role": "Central Plant Manager"},
+
+            # AHU for Central Plant - Trane SC+
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "central_plant",
+             "name_pattern": "TRACER-PLANT-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "SC+",
+             "role": "Plant HVAC Controller"},
+
+            # ============================================================
+            # FIELD DEVICES (Level 1) - 12 devices
+            # Distributed VAV, room controllers, and field equipment
+            # ============================================================
+            # VAV Controllers - Distech ECY-VAV
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "vav_controller", "vendor": "distech", "count": 4, "zone": "field_devices",
+             "name_pattern": "ECY-VAV-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "ECY-VAV",
+             "role": "VAV Controller"},
+
+            # Room Controllers - Siemens DXR2.E12
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "room_controller", "vendor": "siemens", "count": 2, "zone": "field_devices",
+             "name_pattern": "DXR2-FLD-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "DXR2.E12",
+             "role": "Room Controller"},
+
+            # Field Controllers - Delta Controls eBCON
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "field_controller", "vendor": "delta_controls", "count": 3, "zone": "field_devices",
+             "name_pattern": "EBCON-FLD-{n:02d}", "protocols": ["bacnet"],
+             "fingerprint_model": "eBCON",
+             "role": "Field Controller"},
+
+            # Distribution Switches
+            {"type": "switch", "vendor": "cisco", "count": 3, "zone": "field_devices",
+             "name_pattern": "SW-FLD-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Field Network Switch"},
+        ],
+        "flows": [
+            # ============================================================
+            # Campus Core Flows - Server to Building Supervisors
+            # ============================================================
+            # BACnet Subscription - Campus servers to building supervisors (5s)
+            {"protocol": "bacnet", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["bms_server"],
+             "target_types": ["controller"],
+             "source_zones": ["campus_core"],
+             "target_zones": ["building_a", "building_b"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Building A Flows - Johnson Controls / Trane
+            # ============================================================
+            # BACnet Polling - NAE55 to FEC/UC600 (1s)
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["controller"],
+             "target_types": ["ahu_controller", "zone_controller", "building_controller"],
+             "source_zones": ["building_a"], "target_zones": ["building_a"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Building B Flows - Siemens / Schneider
+            # ============================================================
+            # BACnet Polling - SNC to room/zone controllers (1s)
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["controller"],
+             "target_types": ["room_controller", "building_controller", "zone_controller"],
+             "source_zones": ["building_b"], "target_zones": ["building_b"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Modbus TCP - Schneider zone controllers (1s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["controller"],
+             "target_types": ["zone_controller"],
+             "source_zones": ["building_b"], "target_zones": ["building_b"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Central Plant Flows
+            # ============================================================
+            # BACnet Polling - Plant manager to chillers/boilers (1s)
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plant_controller"],
+             "target_types": ["chiller_controller", "boiler_controller", "hvac_controller"],
+             "source_zones": ["central_plant"], "target_zones": ["central_plant"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Modbus TCP - Chiller controllers (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plant_controller"],
+             "target_types": ["chiller_controller"],
+             "source_zones": ["central_plant"], "target_zones": ["central_plant"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Building to Field Device Flows
+            # ============================================================
+            # BACnet Polling - Building controllers to VAV/field (500ms)
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["building_controller", "zone_controller"],
+             "target_types": ["vav_controller", "room_controller", "field_controller"],
+             "source_zones": ["building_a", "building_b"],
+             "target_zones": ["field_devices"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet COV Notifications (async)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "cov", "interval_ms": 2000,
+             "source_types": ["vav_controller", "room_controller", "field_controller"],
+             "target_types": ["controller"],
+             "source_zones": ["field_devices"],
+             "target_zones": ["building_a", "building_b"],
+             "jitter_ms": 1000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # SNMP Infrastructure Monitoring (30s)
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["bms_server"],
+             "target_types": ["switch", "controller", "remote_gateway"],
+             "source_zones": ["campus_core"],
+             "target_zones": ["campus_core", "building_a", "field_devices"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
+            # Uses actual Talk2M public IPs for Cyber Vision external detection
+            # ============================================================
+            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["campus_core"], "target_zones": ["external"],
+             "external_ip": "51.38.74.240",  # Talk2M Europe VPN server
+             "external_port": 443,
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # EWON Modbus polling to central plant (5s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["chiller_controller"],
+             "source_zones": ["campus_core"], "target_zones": ["central_plant"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "campus_core", "name": "Campus Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 300, "security_level": "critical"},
+            {"id": "building_a", "name": "Building A - Academic", "level": 2,
+             "subnet_offset": 1, "vlan": 310, "security_level": "high"},
+            {"id": "building_b", "name": "Building B - Research", "level": 2,
+             "subnet_offset": 2, "vlan": 320, "security_level": "high"},
+            {"id": "central_plant", "name": "Central Plant", "level": 2,
+             "subnet_offset": 3, "vlan": 330, "security_level": "high"},
+            {"id": "field_devices", "name": "Field Device Network", "level": 1,
+             "subnet_offset": 4, "vlan": 340, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap", "subscription_timeout", "cov_flood"],
+            "protocol": ["bacnet_reject", "bacnet_abort", "modbus_exception"],
+            "sequence": ["out_of_order", "duplicate_invoke_id"],
+            "payload": ["value_spike", "setpoint_change", "alarm_storm"],
+            "network": ["broadcast_storm", "multicast_flood"],
+            "security": ["unauthorized_remote_access"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "bacnet", "flow_type": "subscription", "priority": "high",
+             "description": "BACnet COV subscription patterns from JACE 8000 to NAE55"},
+            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
+             "description": "BACnet ReadProperty polling from various vendors"},
+            {"protocol": "bacnet", "flow_type": "cov", "priority": "high",
+             "description": "BACnet Change-of-Value notification patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "medium",
+             "description": "Modbus polling to Carel chillers and Schneider controllers"},
+            {"protocol": "snmp", "flow_type": "monitoring", "priority": "low",
+             "description": "SNMP infrastructure monitoring from campus servers"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
+        ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["51.38.74.240", "87.98.169.126"],  # Talk2M VPN server IPs
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": False,
+            "enable_recon": False,
+        },
+        "total_duration_ms": 600000,  # 10 minutes
+    },
 }
-
-
-def get_building_automation_template(name: str) -> dict[str, Any] | None:
-    """Get a specific building automation template by name.
-
-    Args:
-        name: Template name (e.g., "commercial_building")
-
-    Returns:
-        Template dictionary or None if not found
-    """
-    return BUILDING_AUTOMATION_TEMPLATES.get(name)
-
-
-def list_building_automation_templates() -> list[str]:
-    """List all available building automation template names.
-
-    Returns:
-        List of template names
-    """
-    return list(BUILDING_AUTOMATION_TEMPLATES.keys())

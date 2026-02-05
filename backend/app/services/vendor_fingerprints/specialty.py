@@ -32,9 +32,10 @@ ENDRESS_HAUSER_OUI_PREFIXES = [
 ]
 
 HONEYWELL_OUI_PREFIXES = [
-    "00:60:35",  # Honeywell
-    "00:D0:36",  # Honeywell
-    "64:31:7E",  # Honeywell
+    "00:40:84",  # Honeywell Inc (IEEE MA-L, 2000)
+    "00:22:6A",  # Honeywell (IEEE MA-L, 2008)
+    "C4:EF:DA",  # Honeywell (IEEE MA-L, 2022)
+    "58:FC:C8",  # Honeywell (IEEE MA-L, 2023)
 ]
 
 ABB_OUI_PREFIXES = [
@@ -44,16 +45,20 @@ ABB_OUI_PREFIXES = [
 ]
 
 EMERSON_OUI_PREFIXES = [
-    "00:A0:F8",  # Emerson Network Power
-    "00:03:38",  # Emerson
-    "00:90:E8",  # Fisher-Rosemount (Emerson)
+    # NOTE: Emerson/Fisher-Rosemount often uses embedded NICs from other vendors.
+    # Protocol-based identification (Modbus FC43, EtherNet/IP identity) is more reliable.
+    "00:0D:3A",  # Emerson Network Power (verified IEEE)
+    # "00:A0:F8" REMOVED - Actually Zebra/Symbol per IEEE
+    # "00:03:38" REMOVED - Actually Oak Technology per IEEE
+    # "00:90:E8" REMOVED - Actually MOXA per IEEE
 ]
 
 GE_OUI_PREFIXES = [
-    "00:14:49",  # GE Fanuc Automation
-    "00:60:B0",  # GE Energy
-    "1C:39:47",  # GE
-    "00:1C:C4",  # GE Healthcare
+    "00:09:45",  # GE Fanuc Automation (verified IEEE)
+    "00:30:C1",  # GE Healthcare (verified IEEE)
+    "00:50:99",  # GE Industrial Systems (verified IEEE)
+    "00:22:52",  # GE Digital Energy (verified IEEE)
+    # "00:1C:C4" REMOVED - Actually Hewlett Packard per IEEE
 ]
 
 
@@ -1723,6 +1728,12 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "ROC800 Remote Operations Controller",
                 "model_name": "ROC RTU",
             },
+            "snmp_identity": {
+                "sys_descr": "Emerson ROC800 Remote Operations Controller v3.75",
+                "sys_object_id": "1.3.6.1.4.1.216.2.800",
+                "sys_name": "ROC800-RTU-001",
+                "sys_location": "Pump Station",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 16384,
@@ -1761,6 +1772,12 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "ROC800L Remote Operations Controller",
                 "model_name": "ROC RTU",
             },
+            "snmp_identity": {
+                "sys_descr": "Emerson ROC800L Remote Operations Controller v3.75",
+                "sys_object_id": "1.3.6.1.4.1.216.2.800",
+                "sys_name": "ROC800L-RTU-001",
+                "sys_location": "Remote Station",
+            },
             "tcp_stack": {
                 "ttl": 64,
                 "window_size": 8192,
@@ -1789,13 +1806,33 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
         # GE - PROFICY HISTORIAN
         # ============================================================
         # Proficy Historian Server (SQL injection vuln CVE-2022-46660)
+        # Major OPC UA server product - supports OPC UA, Modbus, SNMP, EtherNet/IP
         {
             "vendor": "GE",
             "vendor_family": "Proficy",
             "model": "Proficy Historian",
             "firmware_version": "8.0",
             "oui_prefixes": GE_OUI_PREFIXES,
-            "supported_protocols": ["modbus", "snmp"],
+            "supported_protocols": ["opc_ua", "modbus", "snmp", "ethernet_ip"],
+            "ethernet_ip_identity": {
+                "vendor_id": 82,  # GE
+                "device_type": 12,  # Communications Adapter
+                "product_code": 8000,
+                "revision_major": 8,
+                "revision_minor": 0,
+                "product_name": "Proficy Historian",
+                "state": 3,
+            },
+            "opc_ua_identity": {
+                "application_name": "GE Proficy Historian",
+                "application_uri": "urn:GE:Proficy:Historian",
+                "product_uri": "http://www.ge.com/digital/proficy-historian",
+                "manufacturer_name": "GE Digital",
+                "product_name": "Proficy Historian",
+                "software_version": "8.0.0",
+                "build_number": "8.0",
+                "build_date": "2022-09-01T12:00:00Z",
+            },
             "modbus_identity": {
                 "vendor_name": "GE Digital",
                 "product_code": "HISTORIAN",
@@ -1828,6 +1865,404 @@ def get_specialty_fingerprints() -> list[dict[str, Any]]:
             "error_behavior": {
                 "supported_exception_codes": [1, 2, 3],
                 "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # KEPWARE / PTC - OPC UA GATEWAYS
+        # ============================================================
+        # KEPServerEX OPC UA Gateway
+        {
+            "vendor": "Kepware",
+            "vendor_family": "KEPServerEX",
+            "model": "KEPServerEX",
+            "firmware_version": "6.14",
+            "oui_prefixes": [],  # Software runs on standard PCs
+            "supported_protocols": ["opc_ua", "modbus", "ethernet_ip", "s7comm"],
+            "opc_ua_identity": {
+                "application_name": "Kepware KEPServerEX",
+                "application_uri": "urn:localhost:KEPServerEX",
+                "product_uri": "http://www.kepware.com/kepserverex",
+                "manufacturer_name": "Kepware Technologies",
+                "product_name": "KEPServerEX",
+                "software_version": "6.14.263.0",
+                "build_number": "263",
+                "build_date": "2023-09-15T12:00:00Z",
+            },
+            "modbus_identity": {
+                "vendor_name": "Kepware Technologies",
+                "product_code": "KEPServerEX",
+                "major_minor_revision": "6.14",
+                "vendor_url": "http://www.kepware.com",
+                "product_name": "KEPServerEX OPC Server",
+                "model_name": "OPC UA Gateway",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 0x0001,  # Generic
+                "device_type": 12,  # Communications Adapter
+                "product_code": 614,
+                "revision_major": 6,
+                "revision_minor": 14,
+                "serial_number": 0x4B455001,  # KEP00001 in hex
+                "product_name": "KEPServerEX EtherNet/IP Driver",
+                "state": 3,
+            },
+            "s7_identity": {
+                "order_code": "KEPServerEX-S7",
+                "module_type": "Siemens S7 Driver",
+                "firmware_version": "6.14",
+                "hardware_version": "N/A",
+            },
+            "tcp_stack": {
+                "ttl": 128,  # Windows-based
+                "window_size": 65535,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+            },
+            "response_timing": {
+                "min_ms": 1.0,
+                "max_ms": 50.0,
+                "mean_ms": 10.0,
+                "std_dev_ms": 8.0,
+                "distribution": "lognormal",
+                "outlier_probability": 0.005,
+                "outlier_multiplier": 4.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # HMS INDUSTRIAL NETWORKS - PROTOCOL GATEWAYS
+        # ============================================================
+        # HMS Anybus X-gateway
+        {
+            "vendor": "HMS",
+            "vendor_family": "Anybus",
+            "model": "Anybus X-gateway",
+            "firmware_version": "2.30",
+            "oui_prefixes": ["00:30:11"],  # HMS Industrial Networks OUI
+            "supported_protocols": ["modbus", "ethernet_ip", "profinet"],
+            "modbus_identity": {
+                "vendor_name": "HMS Industrial Networks",
+                "product_code": "AB7634",
+                "major_minor_revision": "2.30",
+                "vendor_url": "http://www.anybus.com",
+                "product_name": "Anybus X-gateway Modbus TCP",
+                "model_name": "Protocol Gateway",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 283,  # HMS Industrial Networks ODVA ID
+                "device_type": 12,  # Communications Adapter
+                "product_code": 7634,
+                "revision_major": 2,
+                "revision_minor": 30,
+                "serial_number": 0x484D5301,  # HMS00001 in hex
+                "product_name": "Anybus X-gateway EtherNet/IP",
+                "state": 3,
+            },
+            "profinet_identity": {
+                "vendor_id": 0x0128,  # HMS PROFINET vendor ID
+                "device_id": 0x0100,
+                "device_type": "Anybus X-gateway PROFINET",
+                "station_name": "anybus-xgw",
+                "device_role": 1,
+                "im0_manufacturer": "HMS Industrial Networks",
+                "im0_order_id": "AB7634",
+                "im0_hw_revision": 1,
+                "im0_sw_revision": "V2.30",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 16384,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 2.0,
+                "max_ms": 30.0,
+                "mean_ms": 8.0,
+                "std_dev_ms": 5.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0002,
+            },
+            "is_builtin": True,
+        },
+        # HMS Anybus Communicator
+        {
+            "vendor": "HMS",
+            "vendor_family": "Anybus",
+            "model": "Anybus Communicator",
+            "firmware_version": "1.50",
+            "oui_prefixes": ["00:30:11"],
+            "supported_protocols": ["modbus", "ethernet_ip"],
+            "modbus_identity": {
+                "vendor_name": "HMS Industrial Networks",
+                "product_code": "AB7072",
+                "major_minor_revision": "1.50",
+                "vendor_url": "http://www.anybus.com",
+                "product_name": "Anybus Communicator EtherNet/IP",
+                "model_name": "Serial-to-EtherNet Gateway",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 283,
+                "device_type": 12,
+                "product_code": 7072,
+                "revision_major": 1,
+                "revision_minor": 50,
+                "serial_number": 0x484D5302,  # HMS00002 in hex
+                "product_name": "Anybus Communicator",
+                "state": 3,
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 3.0,
+                "max_ms": 40.0,
+                "mean_ms": 12.0,
+                "std_dev_ms": 7.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.004,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0005,
+                "timeout_probability": 0.00025,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # HMS EWON - INDUSTRIAL REMOTE ACCESS GATEWAYS
+        # Talk2M cloud connectivity for remote PLC access
+        # ============================================================
+        # EWON Flexy 205 - Industrial IoT Gateway
+        {
+            "vendor": "HMS",
+            "vendor_family": "EWON",
+            "model": "Flexy 205",
+            "firmware_version": "14.8s0",
+            "oui_prefixes": ["00:30:11"],  # HMS Industrial Networks OUI
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
+            "modbus_identity": {
+                "vendor_name": "HMS Industrial Networks - EWON",
+                "product_code": "EF205",
+                "major_minor_revision": "14.8",
+                "vendor_url": "https://www.ewon.biz",
+                "product_name": "EWON Flexy 205 Industrial IoT Gateway",
+                "model_name": "Remote Access Gateway",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 283,  # HMS Industrial Networks ODVA ID
+                "device_type": 12,  # Communications Adapter
+                "product_code": 205,
+                "revision_major": 14,
+                "revision_minor": 8,
+                "serial_number": 0x45574E01,  # EWN00001 in hex
+                "product_name": "EWON Flexy 205",
+                "state": 3,
+            },
+            "snmp_identity": {
+                "sys_descr": "EWON Flexy 205 Industrial IoT Gateway v14.8s0",
+                "sys_object_id": "1.3.6.1.4.1.8284.2.1",
+                "sys_name": "EWON-FLEXY-001",
+                "sys_location": "Industrial DMZ",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 32768,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+            },
+            "response_timing": {
+                "min_ms": 2.0,
+                "max_ms": 40.0,
+                "mean_ms": 10.0,
+                "std_dev_ms": 6.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+            "external_communications": {
+                "cloud_service": "Talk2M",
+                "cloud_domains": ["*.talk2m.com", "*.ewon.biz", "m2web.talk2m.com"],
+                "protocols": ["https"],
+                "ports": [443],
+                "connection_type": "outbound_persistent",
+                "heartbeat_interval_ms": 30000,
+            },
+            "is_builtin": True,
+        },
+        # EWON Cosy 131 - Simple Remote Access Router
+        {
+            "vendor": "HMS",
+            "vendor_family": "EWON",
+            "model": "Cosy 131",
+            "firmware_version": "14.8s0",
+            "oui_prefixes": ["00:30:11"],
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
+            "modbus_identity": {
+                "vendor_name": "HMS Industrial Networks - EWON",
+                "product_code": "EC131",
+                "major_minor_revision": "14.8",
+                "vendor_url": "https://www.ewon.biz",
+                "product_name": "EWON Cosy 131 Remote Access Router",
+                "model_name": "Remote Access Router",
+            },
+            "ethernet_ip_identity": {
+                "vendor_id": 283,  # HMS Industrial Networks
+                "device_type": 12,  # Communications Adapter
+                "product_code": 131,
+                "revision_major": 14,
+                "revision_minor": 8,
+                "serial_number": 0xEC131001,
+                "product_name": "EWON Cosy 131 Remote Access Router",
+                "state": 3,
+            },
+            "snmp_identity": {
+                "sys_descr": "EWON Cosy 131 Remote Access Router v14.8s0",
+                "sys_object_id": "1.3.6.1.4.1.8284.2.2",
+                "sys_name": "EWON-COSY-001",
+                "sys_location": "Control Room",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 16384,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 3.0,
+                "max_ms": 50.0,
+                "mean_ms": 15.0,
+                "std_dev_ms": 8.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.004,
+                "outlier_multiplier": 3.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0002,
+            },
+            "external_communications": {
+                "cloud_service": "Talk2M",
+                "cloud_domains": ["*.talk2m.com", "*.ewon.biz", "m2web.talk2m.com"],
+                "protocols": ["https"],
+                "ports": [443],
+                "connection_type": "outbound_persistent",
+                "heartbeat_interval_ms": 30000,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # CISCO - INDUSTRIAL NETWORK INFRASTRUCTURE
+        # ============================================================
+        # Cisco IE-4000 Industrial Switch
+        {
+            "vendor": "Cisco",
+            "vendor_family": "IE-4000",
+            "model": "IE-4000-8GT4G-E",
+            "firmware_version": "15.2(8)E",
+            "oui_prefixes": ["00:1B:0D", "00:1D:A1", "00:22:90"],  # Cisco OUIs
+            "supported_protocols": ["snmp"],
+            "snmp_identity": {
+                "sys_descr": "Cisco IOS Software, IE-4000 Industrial Ethernet Switch V15.2(8)E",
+                "sys_object_id": "1.3.6.1.4.1.9.1.2613",
+                "sys_name": "IE-4000-CORE",
+                "sys_location": "Industrial DMZ",
+            },
+            "tcp_stack": {
+                "ttl": 255,  # Cisco IOS
+                "window_size": 32768,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+            },
+            "response_timing": {
+                "min_ms": 1.0,
+                "max_ms": 20.0,
+                "mean_ms": 5.0,
+                "std_dev_ms": 3.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 4.0,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0001,
+                "timeout_probability": 0.00005,
+            },
+            "is_builtin": True,
+        },
+        # ============================================================
+        # HIRSCHMANN - INDUSTRIAL SWITCHES
+        # ============================================================
+        # Hirschmann RS20 Managed Switch
+        {
+            "vendor": "Hirschmann",
+            "vendor_family": "RS20",
+            "model": "RS20-0800M2M2SDAE",
+            "firmware_version": "09.1.00",
+            "oui_prefixes": ["00:80:63"],  # Hirschmann OUI
+            "supported_protocols": ["modbus", "snmp"],
+            "modbus_identity": {
+                "vendor_name": "Hirschmann Automation and Control",
+                "product_code": "RS20-0800M2M2SDAE",
+                "major_minor_revision": "09.1.00",
+                "vendor_url": "http://www.hirschmann.com",
+                "product_name": "RS20 Managed Industrial Switch",
+                "model_name": "Industrial Ethernet Switch",
+            },
+            "snmp_identity": {
+                "sys_descr": "Hirschmann Rail Switch RS20-0800M2M2SDAE HiOS-2A-09.1.00",
+                "sys_object_id": "1.3.6.1.4.1.248.14.2.1",
+                "sys_name": "RS20-SWITCH",
+                "sys_location": "Production Floor",
+            },
+            "tcp_stack": {
+                "ttl": 64,
+                "window_size": 16384,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+            "response_timing": {
+                "min_ms": 2.0,
+                "max_ms": 25.0,
+                "mean_ms": 6.0,
+                "std_dev_ms": 4.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 3.5,
+            },
+            "error_behavior": {
+                "supported_exception_codes": [1, 2, 3],
+                "exception_probability": 0.0002,
                 "timeout_probability": 0.0001,
             },
             "is_builtin": True,

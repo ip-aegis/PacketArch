@@ -22,6 +22,7 @@ import {
   BugOutlined,
   LockOutlined,
   EyeOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -90,6 +91,11 @@ const AppLayout: React.FC = () => {
       key: '/cyber-vision',
       icon: <EyeOutlined />,
       label: 'Cyber Vision',
+    },
+    {
+      key: '/fingerprints',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Fingerprinting Library',
     },
   ];
 

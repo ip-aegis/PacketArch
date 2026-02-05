@@ -189,7 +189,7 @@ Development and production run on the same server (10.10.20.231). "Production" i
 - **Server**: 10.10.20.231 (this machine)
 - **User**: rocsmith
 - **URL**: https://10.10.20.231
-- **Credentials**: admin / PacketArch_Admin!
+- **Credentials**: admin / C!sco123
 - **Working Directory**: `/home/rocsmith/packetarch`
 
 ### Architecture
@@ -261,7 +261,7 @@ Production `.env` file (`/home/rocsmith/packetarch/.env`):
 POSTGRES_PASSWORD=PacketArch_Prod_2024!
 SECRET_KEY=<generated-secret>
 ENCRYPTION_KEY=
-ADMIN_PASSWORD=PacketArch_Admin!
+ADMIN_PASSWORD=C!sco123
 DEBUG=false
 ```
 
@@ -269,40 +269,169 @@ DEBUG=false
 
 ## Remote Traffic Agent
 
-A separate traffic injection host runs scenario traffic on the network.
+Traffic agents connect to PacketArch via WebSocket and execute traffic generation commands. This "phone home" model requires no inbound ports on agent hosts.
 
-### Agent Details
-- **IP**: 10.10.20.113
-- **User**: cisco / cisco
-- **Docker Image**: `packetarch/traffic-generator:latest`
-- **Code Location**: `/home/cisco/traffic-generator/`
+### Architecture
 
-### How It Works
-1. PacketArch backend sends scenario data to the remote agent
-2. Agent launches a Docker container with `packetarch/traffic-generator:latest`
-3. Container runs `live_orchestrator.py` which injects packets onto the network interface
-4. Cisco Cyber Vision (or other sensors) see the traffic and detect devices/vulnerabilities
-
-### Updating the Agent
-
-After modifying `live_orchestrator.py`, rebuild the Docker image:
-
-```bash
-# SSH to remote agent
-ssh cisco@10.10.20.113
-
-# Rebuild image
-cd /home/cisco/traffic-generator
-docker build -t packetarch/traffic-generator:latest .
-
-# Restart any running containers (or restart scenario from PacketArch UI)
-docker stop $(docker ps -q --filter "name=packetarch-generator")
+```
+PacketArch Server (10.10.20.231)
+       ▲
+       │ WebSocket (wss://)
+       │ Agent initiates connection
+       ▼
+┌─────────────────┐
+│ Agent Host      │
+│ - packetarch-agent container
+│ - watchtower (auto-updates)
+└─────────────────┘
 ```
 
+### Deployed Agent Hosts
+
+| Agent Name | Host IP | SSH User | Notes |
+|------------|---------|----------|-------|
+| TrafficGen02 | 10.10.20.138 | cisco | Password: cisco, SSH key installed |
+
+**SSH Access:**
+```bash
+ssh cisco@10.10.20.138
+```
+
+### Installing an Agent
+
+One-command installation on any Linux host:
+
+```bash
+# Install with registration (creates new agent, returns token)
+curl -fsSL https://10.10.20.231/agent/install.sh | sudo bash -s -- \
+  --server https://10.10.20.231 --name "Agent-1" --register
+
+# Or install with existing token (from PacketArch UI)
+curl -fsSL https://10.10.20.231/agent/install.sh | sudo bash -s -- \
+  --server https://10.10.20.231 --token "your-agent-token" --interface eth0
+```
+
+### Agent Management
+
+```bash
+# View logs
+docker compose -f /opt/packetarch-agent/docker-compose.yml logs -f agent
+
+# Restart agent
+docker compose -f /opt/packetarch-agent/docker-compose.yml restart
+
+# Uninstall
+sudo /opt/packetarch-agent/install.sh --uninstall
+```
+
+### Agent Versioning
+
+Agents report their version via heartbeat messages. The UI shows version comparison to help identify outdated agents.
+
+**Version Format:** Semantic versioning (MAJOR.MINOR.PATCH)
+- **MAJOR**: Breaking changes to agent/server protocol
+- **MINOR**: New features, backward compatible
+- **PATCH**: Bug fixes, minor improvements
+
+**Version File:** `docker/packetarch-agent/app/version.py`
+```python
+VERSION = "1.1.0"
+```
+
+**UI Indicators:**
+- **Green "Latest" tag**: Agent matches the standard version
+- **Orange upgrade indicator**: Agent is outdated, shows target version
+- **Standard version badge**: Displayed in Agents tab header
+
+### Central Agent Updates
+
+Agents can be updated centrally from the PacketArch UI without SSH access to agent hosts.
+
+**Update Flow:**
+1. Click "Build Image" in Settings → Agents to build the latest agent Docker image
+2. The server saves the image as a tarball and records the version
+3. Open an online agent's details and click "Update"
+4. Server sends `UPDATE_AGENT` command via WebSocket
+5. Agent downloads the image tarball, loads it with `docker load`, and restarts
+
+**Requirements:**
+- Agent must have Docker socket mounted (`/var/run/docker.sock`)
+- Agent must be online (connected via WebSocket)
+- Image must be built first (via "Build Image" button)
+
+**API Endpoints for Updates:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/agents/build-image` | Build agent image (background task) |
+| GET | `/api/v1/agents/image-status` | Check if image is available + version |
+| GET | `/api/v1/agents/image` | Download agent image tarball |
+| POST | `/api/v1/agents/{id}/update` | Trigger update on connected agent |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/agents` | List all agents (includes `standard_version`) |
+| POST | `/api/v1/agents` | Register new agent (returns token) |
+| GET | `/api/v1/agents/{id}` | Get agent details |
+| DELETE | `/api/v1/agents/{id}` | Delete agent |
+| POST | `/api/v1/agents/{id}/token` | Regenerate token |
+| GET | `/api/v1/agents/{id}/interfaces` | List network interfaces |
+| POST | `/api/v1/agents/{id}/deploy` | Deploy scenario |
+| GET | `/api/v1/agents/{id}/deployments` | List agent deployments |
+| GET | `/api/v1/agents/connected` | List connected agents |
+| POST | `/api/v1/agents/build-image` | Build agent Docker image |
+| GET | `/api/v1/agents/image-status` | Get image availability and version |
+| GET | `/api/v1/agents/image` | Download agent image tarball |
+| POST | `/api/v1/agents/{id}/update` | Trigger agent update |
+
+### WebSocket Protocol
+
+Agents connect to `/ws/agent?token=<token>` and exchange JSON messages:
+
+**Server → Agent:**
+- `START_SCENARIO` - Start traffic generation
+- `STOP_SCENARIO` - Stop traffic generation
+- `UPDATE_SCENARIO` - Update running scenario
+- `LIST_INTERFACES` - Request interface list
+- `UPDATE_AGENT` - Trigger self-update (download new image and restart)
+- `PING` - Heartbeat
+
+**Agent → Server:**
+- `STATUS` - Scenario status (state, packets_sent)
+- `INTERFACES` - Interface list response
+- `ERROR` - Error report
+- `HEARTBEAT` - System stats (CPU, memory, hostname, platform, version)
+- `UPDATE_STATUS` - Update progress (downloading, loading, restarting, error)
+
 ### Key Files
-- `app/live_orchestrator.py` - Main traffic generation logic
-- `app/entrypoint.py` - Container entrypoint, receives scenario config
-- `Dockerfile` - Container build definition
+
+**Agent Container (`docker/packetarch-agent/`):**
+- `app/main.py` - Entry point, WebSocket connection, command handlers
+- `app/websocket_client.py` - WebSocket client with auto-reconnect
+- `app/orchestrator_pool.py` - Concurrent scenario management
+- `app/live_orchestrator.py` - Traffic generation logic
+- `app/version.py` - Agent version constant
+- `app/config.py` - Agent configuration from environment
+- `docker-compose.agent.yml` - Agent stack with Watchtower
+- `install.sh` - One-command installer
+
+**Backend:**
+- `backend/app/api/websocket/agent_hub.py` - WebSocket endpoint
+- `backend/app/services/agent_manager.py` - Agent tracking and command routing
+- `backend/app/api/routes/agents.py` - REST API including update endpoints
+- `backend/app/models/traffic_agent.py` - Database models
+- `backend/app/schemas/agent.py` - Pydantic schemas
+
+**Frontend:**
+- `frontend/src/components/admin/AgentsTab.tsx` - Agent list with version display
+- `frontend/src/components/admin/AgentDetailsDrawer.tsx` - Agent details with Update button
+- `frontend/src/stores/agentsStore.ts` - Zustand state including standardVersion
+- `frontend/src/api/agents.ts` - API client with update functions
+
+### Legacy Docker API Method (Deprecated)
+
+The old Docker API approach (`DockerHost` model) is still available but deprecated. New deployments should use the WebSocket agent model.
 
 ---
 
@@ -314,6 +443,60 @@ docker stop $(docker ps -q --filter "name=packetarch-generator")
 - Pydantic schemas for all request/response models
 - Zustand for frontend state management
 - SQLAlchemy 2.0 async patterns for database
+
+---
+
+## Error Handling
+
+PacketArch uses a unified error handling system across backend and frontend.
+
+### Backend Exception Hierarchy
+
+All custom exceptions extend `PacketArchError` in `backend/app/core/exceptions.py`:
+
+```python
+from app.core.exceptions import ValidationError, NotFoundError
+
+# Raise typed exceptions
+raise NotFoundError("Scenario not found", details={"id": scenario_id})
+raise ValidationError("Invalid protocol configuration", code="INVALID_PROTOCOL")
+```
+
+| Exception | HTTP Status | Use Case |
+|-----------|-------------|----------|
+| `PacketArchError` | 500 | Base class for all errors |
+| `ValidationError` | 400 | Invalid input data |
+| `NotFoundError` | 404 | Resource not found |
+| `ConflictError` | 409 | Duplicate or conflicting state |
+| `ExternalServiceError` | 502 | Docker, Cyber Vision, external API failures |
+| `PatternExtractionError` | 422 | PCAP analysis failures |
+| `TrafficGenerationError` | 500 | Traffic generation failures |
+
+### Frontend Error Utilities
+
+Use `extractErrorMessage()` from `frontend/src/utils/errorUtils.ts`:
+
+```typescript
+import { extractErrorMessage, createErrorHandler } from '@/utils/errorUtils';
+
+// In async operations
+try {
+  await api.createScenario(data);
+} catch (error) {
+  const message = extractErrorMessage(error, 'Failed to create scenario');
+  notification.error({ message });
+}
+
+// Or use the handler factory
+const handleError = createErrorHandler('Scenario', 'Operation failed', (msg) => {
+  notification.error({ message: msg });
+});
+```
+
+### Key Files
+- `backend/app/core/exceptions.py` - Exception class definitions
+- `backend/app/main.py` - Global exception handlers
+- `frontend/src/utils/errorUtils.ts` - Error extraction utilities
 
 ---
 
@@ -369,6 +552,7 @@ Centralized identity management for protocol-specific device identification resp
 - `ProtocolIdentityBuilder` - Base class for protocol-specific identity builders
 - Registry pattern with `@register_builder` decorator
 - Supports firmware version derivation across protocols
+- Centralized MAC address generation with vendor OUI support
 
 **Supported Protocols:**
 - Modbus: Device identification (MEI function 0x2B)
@@ -378,8 +562,21 @@ Centralized identity management for protocol-specific device identification resp
 - BACnet: Device object properties
 - SNMP: System MIB OIDs
 
+**MAC Address Generation:**
+```python
+from app.protocol_engines.identity import generate_mac, generate_mac_from_fingerprint
+
+# Generate MAC with vendor OUI
+mac = generate_mac(vendor="Siemens", device_type="PLC")
+# Returns: "00:1C:06:XX:XX:XX" (Siemens OUI + random suffix)
+
+# Generate from fingerprint/template
+mac = generate_mac_from_fingerprint(device.vendor_fingerprint)
+```
+
 **Key Files:**
 - `backend/app/protocol_engines/identity/` - Identity builder system
+- `backend/app/protocol_engines/identity/__init__.py` - Registry and MAC generation
 - `backend/app/protocol_engines/identity/base.py` - Base builder class
 - `backend/app/protocol_engines/identity/*_builder.py` - Protocol-specific builders
 
@@ -431,6 +628,50 @@ delay_ms = sample.delay_ms
 | DNP3 | 20000 | Future |
 | IEC 104 | 2404 | Future |
 
+### Frontend Protocol Types
+
+Type-safe protocol configuration types are available in `frontend/src/types/protocols/`:
+
+```typescript
+import { ProtocolConfig, isModbusConfig, getDefaultConfig } from '@/types/protocols';
+
+// Discriminated union for type-safe configs
+const config: ProtocolConfig = {
+  protocol: 'modbus_tcp',
+  config: {
+    unitId: 1,
+    functionCodes: [0x03, 0x04],
+    registerRanges: [{ start: 0, count: 10 }],
+    pollIntervalMs: 1000,
+  }
+};
+
+// Type guards for runtime checking
+if (isModbusConfig(config)) {
+  console.log(config.config.unitId); // TypeScript knows this is ModbusConfig
+}
+
+// Get default config for a protocol
+const defaultConfig = getDefaultConfig('ethernet_ip');
+```
+
+**Available Protocol Types:**
+- `ModbusConfig` - Modbus TCP configuration
+- `EtherNetIPConfig` - EtherNet/IP CIP configuration
+- `ProfinetConfig` - PROFINET RT/IRT configuration
+- `S7Config` - S7comm configuration
+- `BACnetConfig` - BACnet/IP configuration
+- `SNMPConfig` - SNMP/NTCIP configuration
+
+**Key Files:**
+- `frontend/src/types/protocols/index.ts` - Discriminated union and type guards
+- `frontend/src/types/protocols/modbus.ts` - Modbus types
+- `frontend/src/types/protocols/ethernet-ip.ts` - EtherNet/IP types
+- `frontend/src/types/protocols/profinet.ts` - PROFINET types
+- `frontend/src/types/protocols/s7.ts` - S7comm types
+- `frontend/src/types/protocols/bacnet.ts` - BACnet types
+- `frontend/src/types/protocols/snmp.ts` - SNMP types
+
 ---
 
 ## Industry Verticals
@@ -469,6 +710,44 @@ PacketArch automatically assigns unique `/16` IP ranges to each scenario to prev
 
 ---
 
+## Device Templates
+
+Device templates provide unified fingerprint/signature data for realistic traffic generation.
+
+### Template Sources
+- **VENDOR_BUILTIN**: Pre-packaged fingerprints for known vendors (Siemens, Rockwell, etc.)
+- **PCAP_LEARNED**: Templates learned from captured traffic analysis
+- **USER_CREATED**: Custom templates created/modified by users
+
+### Template Contents
+- **Network Signatures**: OUI patterns, TCP stack characteristics (TTL, window size, MSS)
+- **Protocol Identities**: Modbus, EtherNet/IP, PROFINET, S7comm, BACnet, SNMP identity data
+- **Response Timings**: Statistical distributions for realistic delay simulation
+- **Behavioral Patterns**: Device role, supported protocols, typical ports
+
+### Key Files
+- `backend/app/models/device_template.py` - Unified `DeviceTemplate` model
+- `backend/app/services/learned_pattern_service.py` - Template queries and matching
+
+### Usage
+```python
+from app.models.device_template import DeviceTemplate, TemplateSource
+
+# Query templates by vendor
+templates = await db.execute(
+    select(DeviceTemplate).where(
+        DeviceTemplate.vendor == "Siemens",
+        DeviceTemplate.source == TemplateSource.VENDOR_BUILTIN.value
+    )
+)
+
+# Get protocol identity
+identity = template.get_protocol_identity("modbus")
+timing = template.get_timing_for_protocol("modbus")
+```
+
+---
+
 ## PCAP Learning Pipeline
 
 Learn traffic patterns from existing PCAP files to create realistic scenarios.
@@ -479,13 +758,19 @@ Learn traffic patterns from existing PCAP files to create realistic scenarios.
 - Generate scenario templates from learned patterns
 - Support for Modbus, EtherNet/IP, PROFINET, S7comm, BACnet, and SNMP protocols
 
+### Learning Sessions
+Learning sessions track the analysis of uploaded PCAPs and manage the extracted patterns.
+
 ### API Endpoints
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/learning/upload` | Upload PCAP for analysis |
-| GET | `/api/v1/learning/sessions` | List learning sessions |
+| GET | `/api/v1/learning/sessions` | List learning sessions (paginated) |
+| POST | `/api/v1/learning/sessions` | Create new learning session |
 | GET | `/api/v1/learning/sessions/{id}` | Get session details |
-| POST | `/api/v1/learning/sessions/{id}/apply` | Apply learned patterns |
+| PUT | `/api/v1/learning/sessions/{id}` | Update session |
+| DELETE | `/api/v1/learning/sessions/{id}` | Delete session |
+| POST | `/api/v1/learning/sessions/{id}/apply` | Apply learned patterns to scenario |
 
 ---
 
@@ -654,32 +939,40 @@ Supported contexts:
 ## Project Structure
 
 ```
-/home/rocsmith/packetarch/
+/home/rocsmith/PacketArch/
 ├── backend/                    # FastAPI REST API
 │   ├── app/
 │   │   ├── api/routes/        # API endpoints
 │   │   │   ├── scenarios.py   # Scenario CRUD
 │   │   │   ├── templates.py   # Template creation
 │   │   │   ├── ip_management.py # IP range allocation
-│   │   │   ├── learning.py    # PCAP learning
+│   │   │   ├── learning.py    # PCAP learning + sessions
 │   │   │   ├── anomalies.py   # Anomaly injection
 │   │   │   ├── docker_hosts.py # Docker host management
 │   │   │   ├── cyber_vision.py # Cisco CV integration
-│   │   │   ├── ai.py          # AI assistant & help
+│   │   │   ├── ai.py          # AI assistant endpoints
+│   │   │   ├── ai_help.py     # AI-powered help system
 │   │   │   └── ...
 │   │   ├── core/              # Config, DB, security
+│   │   │   ├── config.py      # Application settings
+│   │   │   ├── database.py    # Async SQLAlchemy setup
+│   │   │   ├── exceptions.py  # Custom exception hierarchy
+│   │   │   └── security.py    # Auth utilities
 │   │   ├── models/            # SQLAlchemy models
 │   │   │   ├── scenario.py    # Scenario model
+│   │   │   ├── device_template.py # Unified device template
 │   │   │   ├── ip_range_allocation.py # IP allocation model
 │   │   │   ├── docker_host.py # Docker host model
+│   │   │   ├── learning_session.py # Learning session model
 │   │   │   └── ...
 │   │   ├── schemas/           # Pydantic schemas
 │   │   │   ├── cyber_vision.py # CV API schemas
 │   │   │   └── ...
 │   │   ├── services/          # Business logic
-│   │   │   ├── ip_management.py # IP allocation service
+│   │   │   ├── ip_management.py # IP allocation functions
 │   │   │   ├── docker_service.py # Docker API client
 │   │   │   ├── cyber_vision_service.py # CV API client
+│   │   │   ├── learned_pattern_service.py # Template service
 │   │   │   └── ...
 │   │   ├── scenario_templates/ # Industry vertical templates
 │   │   │   ├── manufacturing.py
@@ -696,7 +989,7 @@ Supported contexts:
 │   │   │   ├── s7/            # S7comm engine
 │   │   │   ├── bacnet/        # BACnet/IP engine
 │   │   │   ├── snmp/          # SNMP/NTCIP engine
-│   │   │   ├── identity/      # Protocol identity builders
+│   │   │   ├── identity/      # Protocol identity + MAC generation
 │   │   │   └── timing/        # Timing model system
 │   │   ├── traffic_generator/ # PCAP generation
 │   │   ├── ai_services/       # AI scenario generation
@@ -732,7 +1025,30 @@ Supported contexts:
 │       ├── stores/            # Zustand state
 │       │   ├── cyberVisionStore.ts # CV state management
 │       │   └── ...
-│       └── types/             # TypeScript types
+│       ├── types/             # TypeScript types
+│       │   ├── protocols/     # Protocol-specific types
+│       │   │   ├── index.ts   # Discriminated union + guards
+│       │   │   ├── modbus.ts  # Modbus config types
+│       │   │   ├── ethernet-ip.ts # EtherNet/IP types
+│       │   │   ├── profinet.ts # PROFINET types
+│       │   │   ├── s7.ts      # S7comm types
+│       │   │   ├── bacnet.ts  # BACnet types
+│       │   │   └── snmp.ts    # SNMP types
+│       │   └── index.ts       # Main type exports
+│       └── utils/             # Utility functions
+│           └── errorUtils.ts  # Error handling utilities
 ├── docker/                     # Docker Compose
+│   └── packetarch-agent/       # Remote traffic agent
+│       ├── app/
+│       │   ├── main.py         # Entry point, command handlers
+│       │   ├── websocket_client.py # WebSocket with auto-reconnect
+│       │   ├── orchestrator_pool.py # Scenario management
+│       │   ├── live_orchestrator.py # Traffic generation
+│       │   ├── version.py      # Agent version constant
+│       │   └── config.py       # Environment configuration
+│       ├── Dockerfile          # Agent container image
+│       ├── requirements.txt    # Python dependencies
+│       ├── docker-compose.agent.yml # Agent + Watchtower stack
+│       └── install.sh          # One-command installer
 └── docs/                       # Documentation
 ```

@@ -12,6 +12,8 @@ Usage:
 
 from typing import Any
 
+from app.protocol_engines.vendor_oui import VENDOR_OUIS
+
 from .rockwell import get_rockwell_fingerprints, ROCKWELL_OUI_PREFIXES
 from .siemens import get_siemens_fingerprints, SIEMENS_OUI_PREFIXES
 from .schneider import get_schneider_fingerprints, SCHNEIDER_OUI_PREFIXES
@@ -60,6 +62,16 @@ from .energy import (
     BASLER_OUI_PREFIXES,
 )
 from .ge import get_ge_fingerprints, GE_OUI_PREFIXES
+from .microsoft import get_microsoft_fingerprints, MICROSOFT_OUI_PREFIXES
+from .logistics import (
+    get_logistics_fingerprints,
+    KUKA_OUI_PREFIXES,
+    MIR_OUI_PREFIXES,
+    COGNEX_OUI_PREFIXES,
+    IMPINJ_OUI_PREFIXES,
+    ZEBRA_OUI_PREFIXES,
+    DEMATIC_OUI_PREFIXES,
+)
 
 # ODVA Vendor IDs (official registrations)
 ODVA_VENDOR_IDS = {
@@ -72,6 +84,9 @@ ODVA_VENDOR_IDS = {
     "ge": 82,  # General Electric
     "omron": 47,  # Omron
     "mitsubishi": 121,  # Mitsubishi
+    # Logistics / AGV vendors
+    "kuka": 368,  # KUKA Roboter GmbH
+    "cognex": 112,  # Cognex Corporation
 }
 
 # PROFINET Vendor IDs
@@ -83,44 +98,18 @@ PROFINET_VENDOR_IDS = {
     "phoenix_contact": 0x00B8,  # 184
 }
 
-# Aggregated OUI prefixes by vendor
-VENDOR_OUI_PREFIXES = {
-    "rockwell": ROCKWELL_OUI_PREFIXES,
-    "siemens": SIEMENS_OUI_PREFIXES,
-    "schneider": SCHNEIDER_OUI_PREFIXES,
-    "sick": SICK_OUI_PREFIXES,
-    "yokogawa": YOKOGAWA_OUI_PREFIXES,
+# Aggregated OUI prefixes by vendor.
+# Canonical source is VENDOR_OUIS from vendor_oui.py.
+# Sub-module constants add vendor division aliases not in the canonical source.
+VENDOR_OUI_PREFIXES: dict[str, list[str]] = {
+    **VENDOR_OUIS,
+    # Aliases / vendor divisions not in vendor_oui.py
     "endress+hauser": ENDRESS_HAUSER_OUI_PREFIXES,
-    "honeywell": HONEYWELL_OUI_PREFIXES,
-    "abb": ABB_OUI_PREFIXES,
-    "emerson": EMERSON_OUI_PREFIXES,
-    "ge": GE_OUI_PREFIXES,
-    # Transportation vendors
-    "econolite": ECONOLITE_OUI_PREFIXES,
-    "siemens_its": SIEMENS_ITS_OUI_PREFIXES,
-    "mccain": MCCAIN_OUI_PREFIXES,
-    "wavetronix": WAVETRONIX_OUI_PREFIXES,
-    "flir": FLIR_OUI_PREFIXES,
-    "daktronics": DAKTRONICS_OUI_PREFIXES,
-    "kapsch": KAPSCH_OUI_PREFIXES,
-    "q-free": QFREE_OUI_PREFIXES,
-    "axis": AXIS_OUI_PREFIXES,
-    "pelco": PELCO_OUI_PREFIXES,
-    "bosch": BOSCH_OUI_PREFIXES,
-    "hikvision": HIKVISION_OUI_PREFIXES,
-    # Building Automation / BMS vendors
-    "johnson_controls": JOHNSON_CONTROLS_OUI_PREFIXES,
-    "tridium": TRIDIUM_OUI_PREFIXES,
-    "trane": TRANE_OUI_PREFIXES,
-    "carrier": CARRIER_OUI_PREFIXES,
-    "delta_controls": DELTA_CONTROLS_OUI_PREFIXES,
-    "distech": DISTECH_OUI_PREFIXES,
-    "carel": CAREL_OUI_PREFIXES,
-    "automated_logic": AUTOMATED_LOGIC_OUI_PREFIXES,
-    # Energy / Protection Relay vendors
-    "sel": SEL_OUI_PREFIXES,
     "ge_multilin": GE_MULTILIN_OUI_PREFIXES,
-    "basler": BASLER_OUI_PREFIXES,
+    "siemens_building": SIEMENS_BUILDING_OUI_PREFIXES,
+    "schneider_bms": SCHNEIDER_BMS_OUI_PREFIXES,
+    "siemens_protection": SIEMENS_PROTECTION_OUI_PREFIXES,
+    "microsoft": MICROSOFT_OUI_PREFIXES,
 }
 
 
@@ -133,6 +122,8 @@ def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     - Transportation vendors: Econolite, McCain, Wavetronix, FLIR, Daktronics, etc.
     - Building Automation: Johnson Controls, Trane, Carrier, Delta Controls, etc.
     - Energy / Protection: SEL, GE Multilin, Siemens SIPROTEC, ABB Relion
+    - IT/OT Boundary: Microsoft Windows jump servers
+    - Logistics / Warehouse: KUKA, MiR, Cognex, Impinj, Zebra, Dematic
     """
     fingerprints = []
     fingerprints.extend(get_rockwell_fingerprints())
@@ -143,13 +134,17 @@ def get_all_vendor_fingerprints() -> list[dict[str, Any]]:
     fingerprints.extend(get_building_automation_fingerprints())
     fingerprints.extend(get_energy_fingerprints())
     fingerprints.extend(get_ge_fingerprints())
+    fingerprints.extend(get_microsoft_fingerprints())
+    fingerprints.extend(get_logistics_fingerprints())
     return fingerprints
 
 
 def get_fingerprint_by_vendor_model(vendor: str, model: str) -> dict[str, Any] | None:
-    """Find a fingerprint by vendor and model using O(1) cached lookup.
+    """Find a fingerprint by vendor and model.
 
-    Uses FingerprintCache for efficient lookups instead of O(n) scanning.
+    DEPRECATED: Use device_templates.get_fingerprint_by_vendor_model() instead.
+    This function is maintained for backwards compatibility and will be removed
+    in a future version.
 
     Matches against multiple fields for flexibility:
     - model (exact match, e.g., "6ES7 517-3AP00-0AB0")
@@ -158,16 +153,47 @@ def get_fingerprint_by_vendor_model(vendor: str, model: str) -> dict[str, Any] |
     - ethernet_ip_identity.product_name (e.g., "1756-L85E/B")
     - s7_identity.module_type (e.g., "CPU 1517-3 PN/DP")
     """
-    from app.services.fingerprint_cache import get_fingerprint_cache
+    import warnings
+    warnings.warn(
+        "vendor_fingerprints.get_fingerprint_by_vendor_model() is deprecated. "
+        "Use device_templates.get_fingerprint_by_vendor_model() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    # Try device templates first (new source of truth)
+    from app.services.device_templates import get_fingerprint_by_vendor_model as new_fn
+    result = new_fn(vendor, model)
+    if result:
+        return result
 
+    # Fall back to fingerprint cache for backwards compatibility
+    from app.services.fingerprint_cache import get_fingerprint_cache
     cache = get_fingerprint_cache()
     return cache.get_by_vendor_model(vendor, model)
 
 
 def get_fingerprints_by_vendor(vendor: str) -> list[dict[str, Any]]:
-    """Get all fingerprints for a vendor using cached lookup."""
-    from app.services.fingerprint_cache import get_fingerprint_cache
+    """Get all fingerprints for a vendor.
 
+    DEPRECATED: Use device_templates.get_fingerprints_by_vendor() instead.
+    This function is maintained for backwards compatibility and will be removed
+    in a future version.
+    """
+    import warnings
+    warnings.warn(
+        "vendor_fingerprints.get_fingerprints_by_vendor() is deprecated. "
+        "Use device_templates.get_fingerprints_by_vendor() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    # Try device templates first (new source of truth)
+    from app.services.device_templates import get_fingerprints_by_vendor as new_fn
+    results = new_fn(vendor)
+    if results:
+        return results
+
+    # Fall back to fingerprint cache for backwards compatibility
+    from app.services.fingerprint_cache import get_fingerprint_cache
     cache = get_fingerprint_cache()
     return cache.get_by_vendor(vendor)
 

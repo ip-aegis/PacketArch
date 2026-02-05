@@ -825,20 +825,26 @@ def get_schneider_fingerprints() -> list[dict[str, Any]]:
         # ============================================================
         # Network Infrastructure
         # ============================================================
-        # ConneXium Switch
+        # ConneXium Switch - Managed industrial Ethernet switch with SNMP support
         {
             "vendor": "Schneider",
             "vendor_family": "ConneXium",
             "model": "TCSESM083F2CU0",
             "firmware_version": "V6.2",
             "oui_prefixes": SCHNEIDER_OUI_PREFIXES,
-            "supported_protocols": ["modbus", "ethernet_ip"],
+            "supported_protocols": ["modbus", "ethernet_ip", "snmp"],
             "modbus_identity": {
                 "vendor_name": "Schneider Electric",
                 "product_code": "TCSESM083F2CU0",
                 "major_minor_revision": "V6.2",
                 "product_name": "ConneXium Managed Switch",
                 "model_name": "TCSESM083F2CU0",
+            },
+            "snmp_identity": {
+                "sys_descr": "Schneider Electric ConneXium TCSESM083F2CU0 Managed Switch V6.2",
+                "sys_object_id": "1.3.6.1.4.1.3833.1.7.255",
+                "sys_name": "CONNEXIUM-SW",
+                "sys_location": "Industrial Network",
             },
             "tcp_stack": {
                 "ttl": 64,

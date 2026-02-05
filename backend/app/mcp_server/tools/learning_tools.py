@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.scenario import Scenario
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint
+from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.learned_sequence import LearnedSequence
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
 from app.services.learned_pattern_service import LearnedPatternService
@@ -38,35 +38,38 @@ async def list_learned_fingerprints(
     Returns:
         JSON string with fingerprints list
     """
-    query = select(LearnedDeviceFingerprint)
+    query = select(DeviceTemplate).where(
+        DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+    )
 
     if protocol_filter:
         normalized = LearnedPatternService.normalize_protocol(protocol_filter)
         query = query.where(
-            LearnedDeviceFingerprint.active_protocols.contains([normalized])
+            DeviceTemplate.active_protocols.contains([normalized])
         )
 
     if vendor_filter:
         query = query.where(
-            LearnedDeviceFingerprint.inferred_vendor.ilike(f"%{vendor_filter}%")
+            DeviceTemplate.vendor.ilike(f"%{vendor_filter}%")
         )
 
-    query = query.order_by(LearnedDeviceFingerprint.confidence.desc())
+    query = query.order_by(DeviceTemplate.confidence.desc())
     result = await db.execute(query)
     fingerprints = list(result.scalars().all())
 
     fingerprint_list = [
         {
             "id": str(fp.id),
-            "ip_address": fp.ip_address,
-            "mac_address": fp.mac_address,
-            "inferred_vendor": fp.inferred_vendor,
+            "name": fp.name,
+            "inferred_vendor": fp.vendor,
+            "device_type": fp.device_type,
             "role": fp.role,
             "active_protocols": fp.active_protocols,
+            "oui_patterns": fp.oui_patterns,
+            "observation_count": fp.sample_count or 0,
             "confidence": fp.confidence,
             "has_tcp_signature": fp.tcp_signature is not None,
             "has_response_timings": fp.response_timings is not None,
-            "source_session_id": str(fp.learning_session_id) if fp.learning_session_id else None,
         }
         for fp in fingerprints
     ]
@@ -94,10 +97,11 @@ async def apply_learned_fingerprint_to_device(
     Returns:
         JSON string with result
     """
-    # Get the learned fingerprint
+    # Get the learned fingerprint (now stored as DeviceTemplate)
     fp_result = await db.execute(
-        select(LearnedDeviceFingerprint).where(
-            LearnedDeviceFingerprint.id == uuid.UUID(learned_fingerprint_id)
+        select(DeviceTemplate).where(
+            DeviceTemplate.id == uuid.UUID(learned_fingerprint_id),
+            DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
         )
     )
     fingerprint = fp_result.scalar_one_or_none()
@@ -120,12 +124,14 @@ async def apply_learned_fingerprint_to_device(
 
     device = devices[device_id].copy()
 
-    # Apply learned fingerprint data
+    # Apply learned fingerprint data (template, not specific device)
     device["learned_fingerprint"] = {
         "id": str(fingerprint.id),
-        "source_ip": fingerprint.ip_address,
-        "inferred_vendor": fingerprint.inferred_vendor,
+        "name": fingerprint.name,
+        "inferred_vendor": fingerprint.vendor,
+        "device_type": fingerprint.device_type,
         "confidence": fingerprint.confidence,
+        "oui_patterns": fingerprint.oui_patterns,
     }
 
     # Apply TCP signature if available
@@ -145,13 +151,6 @@ async def apply_learned_fingerprint_to_device(
             }
             break
 
-    # Apply OUI-based MAC if available
-    if fingerprint.mac_address and fingerprint.mac_address != "unknown":
-        if "network" not in device:
-            device["network"] = {}
-        if not device["network"].get("macAddress"):
-            device["network"]["macAddress"] = fingerprint.mac_address
-
     devices[device_id] = device
     definition["devices"] = devices
 
@@ -167,7 +166,7 @@ async def apply_learned_fingerprint_to_device(
         "device_id": device_id,
         "applied_fingerprint": {
             "id": str(fingerprint.id),
-            "inferred_vendor": fingerprint.inferred_vendor,
+            "inferred_vendor": fingerprint.vendor,
             "protocols": fingerprint.active_protocols,
         },
     })
@@ -211,7 +210,7 @@ async def list_learned_sequences(
             "average_duration_ms": seq.average_duration_ms,
             "repetition_interval_ms": seq.repetition_interval_ms,
             "confidence": seq.confidence,
-            "source_session_id": str(seq.learning_session_id) if seq.learning_session_id else None,
+            "pcap_capture_id": str(seq.pcap_capture_id) if seq.pcap_capture_id else None,
         }
         for seq in sequences
     ]
@@ -342,9 +341,10 @@ async def auto_apply_learned_patterns(
 
     # Get all learned fingerprints above threshold
     fp_result = await db.execute(
-        select(LearnedDeviceFingerprint).where(
-            LearnedDeviceFingerprint.confidence >= match_threshold
-        ).order_by(LearnedDeviceFingerprint.confidence.desc())
+        select(DeviceTemplate).where(
+            DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+            DeviceTemplate.confidence >= match_threshold,
+        ).order_by(DeviceTemplate.confidence.desc())
     )
     fingerprints = list(fp_result.scalars().all())
 
@@ -372,13 +372,15 @@ async def auto_apply_learned_patterns(
                 # Check for protocol overlap
                 matching_protocols = set(device_protocols) & set(fp.active_protocols)
                 if matching_protocols:
-                    # Apply fingerprint
+                    # Apply fingerprint template
                     device = device.copy()
                     device["learned_fingerprint"] = {
                         "id": str(fp.id),
-                        "source_ip": fp.ip_address,
-                        "inferred_vendor": fp.inferred_vendor,
+                        "name": fp.name,
+                        "inferred_vendor": fp.vendor,
+                        "device_type": fp.device_type,
                         "confidence": fp.confidence,
+                        "oui_patterns": fp.oui_patterns,
                     }
 
                     if fp.tcp_signature:

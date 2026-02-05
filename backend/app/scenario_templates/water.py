@@ -1,782 +1,1286 @@
 """Water and wastewater industry scenario templates.
 
-Enhanced with Sprint 1-6 capabilities:
-- Vendor fingerprint references for hyper-realistic device emulation
-- Suggested anomalies per template for testing scenarios
-- PCAP learning hints for pattern extraction
+Primary Vendors: Schneider Electric, Rockwell Automation, Honeywell, Emerson, ABB
+Supporting Vendors: Endress+Hauser, Yokogawa, HMS Networks, GE
+Protocol Focus: Modbus TCP (primary), EtherNet/IP (secondary), DNP3 (WAN SCADA)
 
-Primary Vendor: Schneider Electric
-- M580 ePAC for SCADA/high-performance applications
-- M340 PAC for process control
-- M251 Modicon for compact/RTU applications
-- Altivar drives for pumps/motors
-- Magelis HMIs for operator stations
-- Modbus TCP as primary protocol
+Templates cover:
+- Municipal water treatment plants (filtration, chlorination, distribution)
+- Regional pump station networks (WAN SCADA with RTUs)
+- Wastewater treatment facilities (activated sludge process)
+- Small utility SCADA (budget-constrained brownfield)
+
+Enhanced templates with:
+- CVE vulnerable firmware on appropriate devices
+- 25-60 devices per template with realistic zone architecture
+- Realistic traffic flows based on water/wastewater process timing
+- Proper fingerprinting with protocol identities
 """
 
 from typing import Any
 
 
 WATER_TEMPLATES: dict[str, dict[str, Any]] = {
-    "water_treatment": {
-        "name": "Water Treatment Plant",
-        "description": "Municipal water treatment facility with remote pumping stations, "
-                       "chemical dosing, and filtration. Schneider M580/M340/M251 control "
-                       "systems with Modbus TCP and DNP3 for SCADA.",
+    # ============================================================
+    # TEMPLATE 1: MUNICIPAL WATER TREATMENT PLANT (45 devices)
+    # Full treatment from intake through distribution
+    # ============================================================
+    "municipal_water_treatment": {
+        "name": "Municipal Water Treatment Plant",
+        "description": "Full municipal water treatment plant from intake through distribution. "
+                       "Features coagulation/flocculation, sedimentation, filtration, and chlorine "
+                       "disinfection processes. Schneider M580 PLCs for main control with Rockwell "
+                       "CompactLogix for field zones. Extensive water quality instrumentation from "
+                       "Endress+Hauser and Yokogawa. EWON remote access for vendor support. "
+                       "45 devices across SCADA, control, and field zones.",
         "vertical": "water_wastewater",
+        "phase_preset": "with_maintenance",
         "devices": [
-            # Central SCADA - Schneider M580 (Hot Standby pair) with CVE vulnerabilities
-            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
-            {"type": "scada_server", "vendor": "schneider", "count": 2, "zone": "enterprise",
-             "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "dnp3", "opc_ua"],
-             "fingerprint_model": "BMEP582040",
+            # ============================================================
+            # SCADA ZONE (Level 3) - 5 devices
+            # Centralized supervision, historian, OPC gateway
+            # ============================================================
+            # SCADA Server - Schneider ClearSCADA
+            {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "scada",
+             "name_pattern": "SCADA-WTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "SCADA Server"},
+
+            # Historian - GE Proficy (vulnerable)
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "scada",
+             "name_pattern": "HIST-WTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Process Historian"},
+
+            # OPC UA Gateway - Kepware KEPServerEX
+            {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "scada",
+             "name_pattern": "OPC-GW-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "KEPServerEX",
+             "role": "OPC UA Gateway"},
+
+            # Core Switch - Cisco IE-4000
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
+             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # EWON Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "scada",
+             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # CONTROL ZONE (Level 2) - 10 devices
+            # Main PLCs, safety, HMI, switches
+            # ============================================================
+            # Main PLCs - Schneider M580 BMEP586040 (vulnerable)
+            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "control",
+             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "BMEP586040",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2022-45789"]},
+
+            # Hot Standby PLC - Schneider M580 BMEH586040
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "control",
+             "name_pattern": "PLC-STBY-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "BMEH586040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "SCADA Master",
-             "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
+             "role": "Hot Standby Controller",
+             "cve_ids": ["CVE-2022-45789"]},
 
-            # Historian Server
-            {"type": "historian", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
-             "role": "Historian"},
-
-            # Treatment Process PLCs - Schneider M340 with CVE vulnerabilities
-            {"type": "plc", "vendor": "schneider", "count": 4, "zone": "process",
-             "name_pattern": "PLC-TREAT-{n:03d}", "protocols": ["modbus_tcp"],
+            # Auxiliary PLCs - Schneider M340 (vulnerable)
+            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "control",
+             "name_pattern": "PLC-AUX-{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "BMXP3420302",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2021-22779"]},
+
+            # Safety PLC - Schneider M580 Safety
+            {"type": "safety_plc", "vendor": "schneider", "count": 1, "zone": "control",
+             "name_pattern": "PLC-SAFETY-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "BMEP586040S",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-45789"]},
+
+            # HMI Panels - Schneider Magelis
+            {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "control",
+             "name_pattern": "HMI-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "Operator Interface"},
+
+            # Industrial Switches - Schneider ConneXium
+            {"type": "switch", "vendor": "schneider", "count": 2, "zone": "control",
+             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "TCSESM083F2CU0",
+             "role": "Control Zone Switch"},
+
+            # ============================================================
+            # INTAKE ZONE (Level 1) - 8 devices
+            # Raw water intake, screening, pumping
+            # ============================================================
+            # Field PLC - Rockwell CompactLogix
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "intake",
+             "name_pattern": "PLC-INTAKE-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Treatment Controller",
-             "cve_ids": ["CVE-2021-22779", "CVE-2019-6829"]},
+             "role": "Intake Controller"},
 
-            # Chemical Dosing - Schneider M251 (compact) with CVE vulnerabilities
-            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "process",
-             "name_pattern": "PLC-CHEM-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Chemical Dosing Controller",
-             "cve_ids": ["CVE-2020-7540"]},
+            # Flow Meters - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "intake",
+             "name_pattern": "FT-INTAKE-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Raw Water Flow Meter"},
 
-            # Remote Pumping Station RTUs - Schneider M251 with CVE vulnerabilities
-            {"type": "rtu", "vendor": "schneider", "count": 6, "zone": "remote",
-             "name_pattern": "RTU-PS-{n:03d}", "protocols": ["dnp3", "modbus_tcp"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
-             "role": "Remote Pump Station",
-             "cve_ids": ["CVE-2020-7540"]},
-
-            # VFDs for Pumps - Schneider Altivar ATV930
-            {"type": "drive", "vendor": "schneider", "count": 10, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930D15N4",
-             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
-             "role": "Pump Drive"},
-
-            # Distributed I/O - Schneider Advantys STB
-            {"type": "remote_io", "vendor": "schneider", "count": 8, "zone": "field",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "STBNIP2311",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Field I/O Module"},
-
-            # Flow Meters - Endress+Hauser (industry-standard instrumentation)
-            {"type": "sensor", "vendor": "endress_hauser", "count": 12, "zone": "field",
-             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Flow Transmitter"},
-
-            # Level Sensors - Endress+Hauser
-            {"type": "sensor", "vendor": "endress_hauser", "count": 8, "zone": "field",
-             "name_pattern": "LT-{n:03d}", "protocols": ["modbus_tcp"],
+            # Level Transmitters - E+H Levelflex
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "intake",
+             "name_pattern": "LT-INTAKE-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
              "role": "Level Transmitter"},
 
-            # Water Quality Analyzers - Yokogawa (industry-standard)
-            {"type": "sensor", "vendor": "yokogawa", "count": 6, "zone": "field",
-             "name_pattern": "AIT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Water Quality Analyzer"},
+            # VFD Drives - ABB ACS580
+            {"type": "drive", "vendor": "abb", "count": 3, "zone": "intake",
+             "name_pattern": "VFD-INTAKE-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS580",
+             "role": "Raw Water Pump VFD"},
 
-            # Operator Workstations - Schneider Magelis HMIST6700
-            {"type": "hmi", "vendor": "schneider", "count": 3, "zone": "process",
-             "name_pattern": "OWS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "HMIST6700",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Operator Workstation"},
+            # ============================================================
+            # TREATMENT ZONE (Level 1) - 12 devices
+            # Coagulation, flocculation, sedimentation, filtration
+            # ============================================================
+            # Remote I/O - Schneider Advantys STB
+            {"type": "io_module", "vendor": "schneider", "count": 4, "zone": "treatment",
+             "name_pattern": "RIO-TREAT-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
+             "role": "Treatment Remote I/O"},
 
-            # Network Switch - Schneider ConneXium
-            {"type": "switch", "vendor": "schneider", "count": 4, "zone": "process",
-             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "TCSESM083F2CU0",
-             "role": "Industrial Switch"},
+            # Water Quality Analyzers - E+H Liquiline
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "treatment",
+             "name_pattern": "AIT-TURB-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CM442",
+             "role": "Turbidity Analyzer"},
+
+            # pH/ORP Analyzers - Yokogawa FLXA402
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "treatment",
+             "name_pattern": "AIT-PH-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH/ORP Analyzer"},
+
+            # Turbidity Analyzers - Yokogawa SC450G
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "treatment",
+             "name_pattern": "AIT-FLT-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "SC450G",
+             "role": "Filter Turbidity Analyzer"},
+
+            # VFD Drives - Schneider Altivar ATV930
+            {"type": "drive", "vendor": "schneider", "count": 2, "zone": "treatment",
+             "name_pattern": "VFD-TREAT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Treatment Process VFD"},
+
+            # ============================================================
+            # DISTRIBUTION ZONE (Level 1) - 10 devices
+            # Clearwell, high service pumps, chlorination
+            # ============================================================
+            # Field PLC - Rockwell CompactLogix
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "distribution",
+             "name_pattern": "PLC-DIST-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Distribution Controller"},
+
+            # Chlorine Analyzers - Yokogawa RC400G
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "distribution",
+             "name_pattern": "AIT-CL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "RC400G",
+             "role": "Chlorine Analyzer"},
+
+            # Flow Meters - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
+             "name_pattern": "FT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Distribution Flow Meter"},
+
+            # Level Transmitters - E+H Prosonic
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
+             "name_pattern": "LT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Clearwell Level"},
+
+            # VFD Drives - ABB ACS880
+            {"type": "drive", "vendor": "abb", "count": 3, "zone": "distribution",
+             "name_pattern": "VFD-HS-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "High Service Pump VFD"},
         ],
         "flows": [
-            # DNP3 polling from SCADA to remote RTUs (5 second scan)
-            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["scada_server"], "target_types": ["rtu"],
-             "jitter_ms": 200, "jitter_type": "gaussian"},
-            # Modbus polling for treatment process (1 second)
+            # Main M580 PLCs polling field I/O (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["treatment"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # Main M580 PLCs polling VFDs (1000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["sensor", "drive", "remote_io"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            # SCADA to local PLCs (2 second)
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["control"], "target_zones": ["intake", "treatment", "distribution"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Main PLCs polling water quality analyzers (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["control"], "target_zones": ["intake", "treatment", "distribution"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Main PLCs to Field CompactLogix (EtherNet/IP, 1000ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["intake", "distribution"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # HMI polling main PLCs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # OPC Gateway to all PLCs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["gateway"], "target_types": ["plc"],
+             "source_zones": ["scada"], "target_zones": ["control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # SCADA server polling main PLCs (2000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["scada_server"], "target_types": ["plc"],
-             "jitter_ms": 100, "jitter_type": "gaussian"},
-            # HMI to PLC communication (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # OPC UA subscriptions (1 second)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["hmi"], "target_types": ["scada_server"]},
-            # Historian collection (10 seconds)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 10000,
-             "source_types": ["historian"], "target_types": ["scada_server"]},
-            # SNMP monitoring of switches (60 seconds)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["scada_server"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "Control Center", "level": 3,
-             "subnet_offset": 0, "vlan": 10, "security_level": "high"},
-            {"id": "process", "name": "Treatment Plant", "level": 2,
-             "subnet_offset": 1, "vlan": 20, "security_level": "standard"},
-            {"id": "field", "name": "Field Instruments", "level": 1,
-             "subnet_offset": 2, "vlan": 30, "security_level": "standard"},
-            {"id": "remote", "name": "Remote Stations", "level": 1,
-             "subnet_offset": 3, "vlan": 40, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["modbus_exception", "dnp3_internal_error"],
-            "sequence": ["unsolicited_event_storm"],
-            "payload": ["out_of_range_value"],
-            "network": ["packet_loss_wan"],
-            "security": ["unauthorized_write"],  # Critical for chemical dosing
-        },
-        "pcap_learning_hints": [
-            {"protocol": "dnp3", "flow_type": "scada_polling", "priority": "high",
-             "description": "Learn DNP3 polling patterns over WAN links"},
-            {"protocol": "modbus_tcp", "flow_type": "sensor_polling", "priority": "high",
-             "description": "Flow meter and analyzer communication patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "vfd_control", "priority": "medium",
-             "description": "Pump VFD speed control patterns"},
-        ],
-        "total_duration_ms": 600000,  # 10 minutes
-        # External communications for IDS testing - stealthy water utility profile
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "dns",  # DNS tunneling for stealth
-            "c2_pattern": "jittered_5m",  # Slow beaconing to avoid detection
-            "enable_exfil": True,
-            "exfil_protocol": "dns",  # DNS exfil common in water utility attacks
-            "exfil_data_size": 512,  # Small chunks via DNS
-            "enable_exploits": True,
-            "exploit_patterns": ["modbus_write_scan", "modbus_function_scan"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["historian", "rtu", "hmi"],
-        },
-    },
-
-    "wastewater_collection": {
-        "name": "Wastewater Collection System",
-        "description": "Distributed wastewater collection with lift stations, force mains, "
-                       "and central treatment. Schneider M580 master with M251 remote RTUs. "
-                       "Heavy DNP3 for remote monitoring over cellular/radio links.",
-        "vertical": "water_wastewater",
-        "devices": [
-            # Master Station - Schneider M580 with CVE vulnerabilities
-            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
-            {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "MASTER-{n:03d}", "protocols": ["dnp3", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEP582040",
-             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "SCADA Master",
-             "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
-
-            # Remote Lift Stations (many spread across service area) - Schneider M251 with CVE vulnerabilities
-            {"type": "rtu", "vendor": "schneider", "count": 25, "zone": "remote",
-             "name_pattern": "LS-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.002, "timeout_rate": 0.005},
-             "role": "Lift Station RTU",
-             "cve_ids": ["CVE-2020-7540"]},
-
-            # Main Pump Station PLCs - Schneider M340 with CVE vulnerabilities
-            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "process",
-             "name_pattern": "MPS-{n:03d}", "protocols": ["modbus_tcp", "dnp3"],
-             "fingerprint_model": "BMXP3420302",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Main Pump Station Controller",
-             "cve_ids": ["CVE-2021-22779", "CVE-2019-6829"]},
-
-            # Flow Monitoring Points - Schneider M251 with CVE vulnerabilities
-            {"type": "rtu", "vendor": "schneider", "count": 10, "zone": "remote",
-             "name_pattern": "FM-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.002, "timeout_rate": 0.004},
-             "role": "Flow Monitor RTU",
-             "cve_ids": ["CVE-2020-7540"]},
-
-            # Treatment Headworks - Schneider M340 with CVE vulnerabilities
-            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "process",
-             "name_pattern": "HW-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMXP3420302",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Headworks Controller",
-             "cve_ids": ["CVE-2021-22779", "CVE-2019-6829"]},
-
-            # Pump VFDs at Main Station - Schneider Altivar ATV930
-            {"type": "drive", "vendor": "schneider", "count": 6, "zone": "process",
-             "name_pattern": "VFD-MPS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930D15N4",
-             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
-             "role": "Main Pump Drive"},
-
-            # HMI at Main Station - Schneider Magelis
-            {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "HMIST6700",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Operator Station"},
-
-            # Remote I/O - Schneider TM3
-            {"type": "remote_io", "vendor": "schneider", "count": 4, "zone": "process",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "TM3DI32K",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Field I/O Module"},
-        ],
-        "flows": [
-            # Slow poll for remote stations (30 seconds, typical for large service area)
-            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["rtu"],
-             "jitter_ms": 2000, "jitter_type": "exponential"},
-            # Faster poll for main stations (5 seconds)
-            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["scada"], "target_zones": ["control"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
-            # Unsolicited events (on alarm)
-            {"protocol": "dnp3", "pattern": "unsolicited", "interval_ms": 0,
-             "source_types": ["rtu"], "target_types": ["scada_server"]},
-            # Local Modbus at main pump station (1 second)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["drive", "remote_io"]},
-            # HMI polling (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "Operations Center", "level": 3,
-             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
-            {"id": "process", "name": "Main Facility", "level": 2,
-             "subnet_offset": 1, "vlan": 200, "security_level": "standard"},
-            {"id": "remote", "name": "Remote Sites", "level": 1,
-             "subnet_offset": 2, "vlan": 300, "security_level": "minimal"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["timeout", "delayed_response"],
-            "protocol": ["dnp3_internal_error"],
-            "sequence": ["unsolicited_event_storm", "out_of_order"],
-            "payload": [],
-            "network": ["packet_loss_cellular", "jitter_spike"],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "dnp3", "flow_type": "slow_polling", "priority": "high",
-             "description": "Learn timing for slow cellular/radio polling"},
-            {"protocol": "dnp3", "flow_type": "unsolicited", "priority": "high",
-             "description": "Capture unsolicited event patterns"},
-        ],
-        "total_duration_ms": 900000,  # 15 minutes
-        # External communications for IDS testing - distributed collection profile
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "dns",  # DNS for cellular/radio resilience
-            "c2_pattern": "jittered_5m",
-            "enable_exfil": True,
-            "exfil_protocol": "dns",
-            "exfil_data_size": 256,  # Smaller chunks for remote sites
-            "enable_exploits": True,
-            "exploit_patterns": ["dnp3_control_relay", "modbus_write_scan"],
-            "enable_recon": False,  # Skip recon - too noisy for distributed
-            "scan_ot_ports": False,
-            "target_device_types": ["rtu", "hmi"],
-        },
-    },
 
-    "distribution_network": {
-        "name": "Water Distribution Network",
-        "description": "Drinking water distribution system with storage tanks, booster stations, "
-                       "and pressure monitoring. Schneider M580 SCADA with M340/M251 field controllers. "
-                       "Mix of DNP3 for remote and Modbus TCP for local.",
-        "vertical": "water_wastewater",
-        "devices": [
-            # SCADA Master - Schneider M580 with CVE vulnerabilities
-            # Using BMEP582040 to match CVE affected_models for Cyber Vision detection
-            {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "enterprise",
-             "name_pattern": "SCADA-{n:03d}", "protocols": ["dnp3", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMEP582040",
-             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "SCADA Master",
-             "cve_ids": ["CVE-2022-45789", "CVE-2022-37300"]},
-
-            # Storage Tank RTUs - Schneider M251 with CVE vulnerabilities
-            {"type": "rtu", "vendor": "schneider", "count": 8, "zone": "remote",
-             "name_pattern": "TANK-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
-             "role": "Tank Level RTU",
-             "cve_ids": ["CVE-2020-7540"]},
-
-            # Booster Stations - Schneider M340 with CVE vulnerabilities
-            {"type": "plc", "vendor": "schneider", "count": 6, "zone": "remote",
-             "name_pattern": "BOOST-{n:03d}", "protocols": ["modbus_tcp", "dnp3"],
-             "fingerprint_model": "BMXP3420302",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Booster Station Controller",
-             "cve_ids": ["CVE-2021-22779", "CVE-2019-6829"]},
-
-            # Pressure Monitoring Points - Schneider M251 with CVE vulnerabilities
-            {"type": "rtu", "vendor": "schneider", "count": 15, "zone": "remote",
-             "name_pattern": "PRV-{n:03d}", "protocols": ["dnp3"],
-             "fingerprint_model": "TM251MESE",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
-             "role": "Pressure Monitor RTU",
-             "cve_ids": ["CVE-2020-7540"]},
-
-            # Booster Pump VFDs - Schneider Altivar ATV320 (compact)
-            {"type": "drive", "vendor": "schneider", "count": 12, "zone": "remote",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV320U22N4C",
-             "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.0004},
-             "role": "Booster Pump Drive"},
-
-            # Water Quality Monitors - Yokogawa (industry-standard)
-            {"type": "sensor", "vendor": "yokogawa", "count": 10, "zone": "remote",
-             "name_pattern": "WQ-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Water Quality Analyzer"},
-
-            # Flow Meters at District Boundaries - Endress+Hauser
-            {"type": "sensor", "vendor": "endress_hauser", "count": 12, "zone": "remote",
-             "name_pattern": "DMA-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "District Meter"},
-
-            # Pressure Sensors - Schneider OsiSense
-            {"type": "sensor", "vendor": "schneider", "count": 20, "zone": "remote",
-             "name_pattern": "PT-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "STBNIP2311",
-             "role": "Pressure Transmitter"},
-
-            # Control Center HMI - Schneider Magelis
-            {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "enterprise",
-             "name_pattern": "OWS-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "HMIST6700",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Operator Workstation"},
-
-            # Remote HMI (compact) at Booster Stations - Schneider Magelis HMISTM6
-            {"type": "hmi", "vendor": "schneider", "count": 6, "zone": "remote",
-             "name_pattern": "HMI-BOOST-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "HMISTM6",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Local Operator Panel"},
-
-            # Network Switches - Schneider ConneXium
-            {"type": "switch", "vendor": "schneider", "count": 6, "zone": "remote",
-             "name_pattern": "SW-{n:03d}", "protocols": ["snmp"],
-             "fingerprint_model": "TCSESM083F2CU0",
-             "role": "Industrial Switch"},
-        ],
-        "flows": [
-            # Tank level polling (10 seconds)
-            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["scada_server"], "target_types": ["rtu"],
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            # Booster station polling (5 seconds)
-            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["scada_server"], "target_types": ["plc"],
-             "jitter_ms": 200, "jitter_type": "gaussian"},
-            # Local Modbus at booster stations (1 second)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["drive", "sensor"]},
-            # Water quality polling (60 seconds - slow changing)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["scada_server"], "target_types": ["sensor"],
-             "jitter_ms": 2000, "jitter_type": "uniform"},
-            # Event reporting
-            {"protocol": "dnp3", "pattern": "unsolicited", "interval_ms": 0,
-             "source_types": ["rtu", "plc"], "target_types": ["scada_server"]},
-            # HMI to SCADA
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["hmi"], "target_types": ["scada_server"]},
-            # Local HMI to PLC
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # SNMP monitoring of network switches (60 seconds)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["scada_server"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "Control Center", "level": 3,
-             "subnet_offset": 0, "vlan": 50, "security_level": "high"},
-            {"id": "remote", "name": "Distribution Sites", "level": 1,
-             "subnet_offset": 1, "vlan": 60, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["timeout", "delayed_response"],
-            "protocol": ["dnp3_internal_error", "modbus_exception"],
-            "sequence": [],
-            "payload": ["out_of_range_value", "sensor_drift"],
-            "network": ["packet_loss_wan"],
-            "security": ["unauthorized_read"],  # Reconnaissance detection
-        },
-        "pcap_learning_hints": [
-            {"protocol": "dnp3", "flow_type": "distributed_polling", "priority": "high",
-             "description": "Learn polling timing for geographically distributed sites"},
-            {"protocol": "modbus_tcp", "flow_type": "water_quality", "priority": "medium",
-             "description": "Water quality analyzer communication patterns"},
-        ],
-        "total_duration_ms": 1200000,  # 20 minutes
-        # External communications for IDS testing - distributed network profile
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "dns",  # DNS for geographically distributed sites
-            "c2_pattern": "jittered_10m",  # Very slow for large footprint
-            "enable_exfil": True,
-            "exfil_protocol": "dns",
-            "exfil_data_size": 512,
-            "enable_exploits": True,
-            "exploit_patterns": ["modbus_write_scan", "dnp3_control_relay"],
-            "enable_recon": True,  # Recon useful for distribution mapping
-            "scan_ot_ports": True,
-            "target_device_types": ["rtu", "plc", "hmi"],
-        },
-    },
-
-    # ============================================================
-    # HONEYWELL WATER/WASTEWATER TEMPLATES
-    # ============================================================
-
-    "honeywell_water_treatment": {
-        "name": "Honeywell Experion Water Treatment Plant",
-        "description": "Large municipal water treatment facility using Honeywell Experion PKS "
-                       "DCS for process control. Common in large utilities and industrial water "
-                       "systems. Contains critical vulnerabilities including CVSS 10.0 RCE.",
-        "vertical": "water_wastewater",
-        "devices": [
-            # Experion PKS C300 Controllers (with critical CVE vulnerabilities)
-            {"type": "dcs_controller", "vendor": "honeywell", "count": 4, "zone": "process",
-             "name_pattern": "C300-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "C300",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "DCS Controller",
-             "cve_ids": ["CVE-2020-10628", "CVE-2021-38397"]},
-
-            # Experion PKS C200 Controllers (backup/smaller processes)
-            {"type": "dcs_controller", "vendor": "honeywell", "count": 2, "zone": "process",
-             "name_pattern": "C200-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "C200",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Secondary Controller",
-             "cve_ids": ["CVE-2020-10628", "CVE-2020-6959"]},
-
-            # Experion Server
-            {"type": "scada_server", "vendor": "honeywell", "count": 2, "zone": "enterprise",
-             "name_pattern": "EXPERION-SVR-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
-             "fingerprint_model": "Experion Server",
-             "role": "SCADA Server",
-             "cve_ids": ["CVE-2023-25078"]},
-
-            # Honeywell Safety Manager
-            {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "process",
-             "name_pattern": "SAFETY-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "Safety Manager",
-             "role": "Safety Controller"},
-
-            # Field I/O - Honeywell Series C I/O
-            {"type": "remote_io", "vendor": "honeywell", "count": 12, "zone": "field",
-             "name_pattern": "FIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "Series C I/O",
-             "role": "Field I/O Module"},
-
-            # VFDs for Pumps - Generic Modbus drives
-            {"type": "drive", "vendor": "schneider", "count": 8, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930D15N4",
-             "role": "Pump Drive"},
-
-            # Flow Meters - Endress+Hauser
-            {"type": "sensor", "vendor": "endress_hauser", "count": 10, "zone": "field",
-             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Flow Transmitter"},
-
-            # Analyzers - Yokogawa
-            {"type": "sensor", "vendor": "yokogawa", "count": 6, "zone": "field",
-             "name_pattern": "AIT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Water Quality Analyzer"},
-
-            # Operator Workstations - Experion Station
-            {"type": "hmi", "vendor": "honeywell", "count": 4, "zone": "enterprise",
-             "name_pattern": "OWS-{n:03d}", "protocols": ["opc_ua"],
-             "fingerprint_model": "Experion Station",
-             "role": "Operator Workstation"},
-        ],
-        "flows": [
-            # DCS controller polling (250ms - fast DCS cycle)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["dcs_controller"], "target_types": ["remote_io", "sensor"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Server to controller (1 second)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["dcs_controller"]},
-            # HMI to server (500ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["scada_server"]},
-            # Drive control (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["dcs_controller"], "target_types": ["drive"]},
-            # Safety monitoring (100ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source_types": ["safety_plc"], "target_types": ["dcs_controller"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "Control Center", "level": 3,
-             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
-            {"id": "process", "name": "Treatment Process", "level": 2,
-             "subnet_offset": 1, "vlan": 200, "security_level": "standard"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 2, "vlan": 300, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["modbus_exception", "opc_ua_error"],
-            "sequence": ["out_of_order"],
-            "payload": ["out_of_range_value"],
-            "network": [],
-            "security": ["unauthorized_write", "file_upload_attempt"],  # CVE-2021-38397
-        },
-        "pcap_learning_hints": [
-            {"protocol": "opc_ua", "flow_type": "dcs_communication", "priority": "high",
-             "description": "Experion PKS OPC UA patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "field_io", "priority": "high",
-             "description": "DCS to field I/O communication patterns"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "https",
-            "c2_pattern": "jittered_5m",
-            "enable_exfil": True,
-            "exfil_protocol": "dns",
-            "exfil_data_size": 1024,
-            "enable_exploits": True,
-            "exploit_patterns": ["modbus_write_scan", "file_upload_exploit"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["dcs_controller", "scada_server", "hmi"],
-        },
-        "total_duration_ms": 600000,  # 10 minutes
-    },
-
-    # ============================================================
-    # ABB WATER/WASTEWATER TEMPLATES
-    # ============================================================
-
-    "abb_water_treatment": {
-        "name": "ABB AC500 Water Treatment Plant",
-        "description": "Water treatment facility using ABB AC500 PLCs for process control. "
-                       "Common in European water utilities and industrial applications. "
-                       "Contains authentication bypass and buffer overflow vulnerabilities.",
-        "vertical": "water_wastewater",
-        "devices": [
-            # ABB AC500 PM590 PLCs (main controllers with CVE vulnerabilities)
-            {"type": "plc", "vendor": "abb", "count": 4, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
-             "fingerprint_model": "PM590-ETH",
-             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2021-22285"]},
-
-            # ABB AC500 PM554 PLCs (compact/remote with buffer overflow CVE)
-            {"type": "plc", "vendor": "abb", "count": 6, "zone": "remote",
-             "name_pattern": "RTU-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "PM554-TP-ETH",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.002},
-             "role": "Remote RTU",
-             "cve_ids": ["CVE-2019-18253"]},
-
-            # ABB AC500 PM583 PLCs (chemical dosing)
-            {"type": "plc", "vendor": "abb", "count": 2, "zone": "process",
-             "name_pattern": "CHEM-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "PM583-ETH",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Chemical Controller",
-             "cve_ids": ["CVE-2021-22285"]},
-
-            # ABB CP600 HMI Panels
-            {"type": "hmi", "vendor": "abb", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "CP620",
-             "role": "Operator Panel"},
-
-            # ABB ACS580 Drives for pumps
-            {"type": "drive", "vendor": "abb", "count": 10, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ACS580",
-             "role": "Pump Drive"},
-
-            # ABB CI501 I/O Modules
-            {"type": "remote_io", "vendor": "abb", "count": 8, "zone": "field",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "CI501",
-             "role": "Remote I/O"},
-
-            # Flow Meters - Endress+Hauser
-            {"type": "sensor", "vendor": "endress_hauser", "count": 8, "zone": "field",
-             "name_pattern": "FT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Flow Transmitter"},
-
-            # Level Sensors
-            {"type": "sensor", "vendor": "endress_hauser", "count": 6, "zone": "field",
-             "name_pattern": "LT-{n:03d}", "protocols": ["modbus_tcp"],
-             "role": "Level Transmitter"},
-        ],
-        "flows": [
-            # PLC to field devices (1 second)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["drive", "remote_io", "sensor"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            # HMI to PLC (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # Remote RTU polling (5 seconds)
+            # Historian collection (5000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "jitter_ms": 500, "jitter_type": "exponential"},
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["scada"], "target_zones": ["control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # SNMP monitoring of switches (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["scada"], "target_zones": ["scada", "control"]},
+
+            # EWON polling PLCs for remote monitoring (5s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["scada"], "target_zones": ["control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "process", "name": "Treatment Plant", "level": 2,
-             "subnet_offset": 0, "vlan": 100, "security_level": "standard"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 200, "security_level": "standard"},
-            {"id": "remote", "name": "Remote Stations", "level": 1,
-             "subnet_offset": 2, "vlan": 300, "security_level": "minimal"},
+            {"id": "scada", "name": "SCADA Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "control", "name": "Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "intake", "name": "Intake Zone", "level": 1,
+             "subnet_offset": 2, "vlan": 121, "security_level": "standard"},
+            {"id": "treatment", "name": "Treatment Zone", "level": 1,
+             "subnet_offset": 3, "vlan": 122, "security_level": "standard"},
+            {"id": "distribution", "name": "Distribution Zone", "level": 1,
+             "subnet_offset": 4, "vlan": 123, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
-            "timing": ["timeout", "delayed_response"],
-            "protocol": ["modbus_exception"],
-            "sequence": ["out_of_order"],
-            "payload": ["buffer_overflow_attempt"],  # CVE-2019-18253
-            "network": ["packet_loss_wan"],
-            "security": ["auth_bypass_attempt"],  # CVE-2021-22285
+            "timing": ["delayed_response", "watchdog_timeout"],
+            "protocol": ["modbus_exception", "timeout"],
+            "sequence": ["duplicate", "out_of_order"],
+            "payload": ["value_spike", "chlorine_upset"],
+            "network": [],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
-            {"protocol": "modbus_tcp", "flow_type": "plc_polling", "priority": "high",
-             "description": "ABB AC500 Modbus communication patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "cip_messaging", "priority": "medium",
-             "description": "ABB EtherNet/IP patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
+             "description": "Modbus TCP polling patterns from M580 PLCs"},
+            {"protocol": "ethernet_ip", "flow_type": "polling", "priority": "medium",
+             "description": "EtherNet/IP communication with CompactLogix field PLCs"},
+            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "high",
+             "description": "Water quality analyzer communication patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
         "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "dns",
-            "c2_pattern": "jittered_5m",
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": False,
             "enable_exfil": False,
             "enable_exploits": True,
-            "exploit_patterns": ["modbus_write_scan", "buffer_overflow"],
+            "exploit_patterns": ["modbus_write_scan", "historian_sqli"],
+            "enable_recon": False,
+            "target_device_types": ["hmi", "plc"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 2: REGIONAL PUMP STATION NETWORK (52 devices)
+    # Central SCADA with 6 remote pump stations via WAN
+    # ============================================================
+    "regional_pump_station_network": {
+        "name": "Regional Pump Station Network",
+        "description": "Regional water distribution system with central SCADA and 6 remote pump stations "
+                       "connected via WAN. Features Honeywell Experion C300/C200 DCS at central control with "
+                       "Emerson ROC800 RTUs at remote stations. DNP3 for WAN SCADA polling with Modbus TCP "
+                       "for local control. Includes high-capacity, medium, and booster pump stations plus "
+                       "storage tank monitoring. 52 devices with realistic WAN-aware timing.",
+        "vertical": "water_wastewater",
+        "phase_preset": "with_maintenance",
+        "devices": [
+            # ============================================================
+            # CENTRAL CONTROL (Level 3) - 8 devices
+            # Honeywell Experion DCS, Historian, HMIs
+            # ============================================================
+            # DCS Controllers - Honeywell Experion C300
+            {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
+             "name_pattern": "C300-MAIN-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "C300",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Main DCS Controller"},
+
+            # Redundant DCS - Honeywell Experion C200
+            {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
+             "name_pattern": "C200-STBY-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "C200",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Standby DCS Controller"},
+
+            # Historian - GE Proficy (vulnerable)
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "central",
+             "name_pattern": "HIST-CENT-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Central Historian"},
+
+            # HMI Workstations - Honeywell Experion Station
+            {"type": "hmi", "vendor": "honeywell", "count": 2, "zone": "central",
+             "name_pattern": "HMI-CENT-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Workstation"},
+
+            # Core Switch - Cisco IE-4000
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "central",
+             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # EWON Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "central",
+             "name_pattern": "EWON-CENT-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Central Remote Access",
+             "external_comms": True},
+
+            # Jump Server (vulnerable to BlueKeep)
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "central",
+             "name_pattern": "JUMP-SVR-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2016 (Vulnerable)",
+             "role": "Remote Access Jump Server",
+             "cve_ids": ["CVE-2019-0708"],
+             "external_comms": True},
+
+            # ============================================================
+            # PUMP STATION 1 - HIGH CAPACITY (Level 1) - 8 devices
+            # Major lift station with ROC800 RTU
+            # ============================================================
+            # RTU - Emerson ROC800
+            {"type": "rtu", "vendor": "emerson", "count": 1, "zone": "station1",
+             "name_pattern": "RTU-PS1-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "ROC800",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Pump Station 1 RTU"},
+
+            # High-Power VFDs - ABB ACS880
+            {"type": "drive", "vendor": "abb", "count": 4, "zone": "station1",
+             "name_pattern": "VFD-PS1-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "High Capacity Pump VFD"},
+
+            # Flow Meter - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "station1",
+             "name_pattern": "FT-PS1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Station Flow Meter"},
+
+            # Level Transmitter - E+H Levelflex
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station1",
+             "name_pattern": "LT-PS1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Wet Well Level"},
+
+            # ============================================================
+            # PUMP STATIONS 2-4 - MEDIUM CAPACITY (Level 1) - 18 devices
+            # Standard pump stations with ROC800L RTUs
+            # ============================================================
+            # RTUs - Emerson ROC800L (3 stations)
+            {"type": "rtu", "vendor": "emerson", "count": 3, "zone": "station_medium",
+             "name_pattern": "RTU-PS-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "ROC800L",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Medium Station RTU"},
+
+            # VFDs - Schneider ATV320 (2 per station)
+            {"type": "drive", "vendor": "schneider", "count": 6, "zone": "station_medium",
+             "name_pattern": "VFD-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320",
+             "role": "Medium Pump VFD"},
+
+            # Flow Meters - E+H Promag 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 3, "zone": "station_medium",
+             "name_pattern": "FT-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Station Flow Meter"},
+
+            # Level Transmitters - E+H Prosonic
+            {"type": "sensor", "vendor": "endress_hauser", "count": 6, "zone": "station_medium",
+             "name_pattern": "LT-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Wet Well Level"},
+
+            # ============================================================
+            # PUMP STATIONS 5-6 - BOOSTER (Level 1) - 10 devices
+            # Small booster stations with Schneider M241 PLCs
+            # ============================================================
+            # PLCs - Schneider M241
+            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "station_booster",
+             "name_pattern": "PLC-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM241CE40R",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Booster Station PLC"},
+
+            # VFDs - Schneider ATV320
+            {"type": "drive", "vendor": "schneider", "count": 4, "zone": "station_booster",
+             "name_pattern": "VFD-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320",
+             "role": "Booster Pump VFD"},
+
+            # Flow Meters - E+H Promag 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station_booster",
+             "name_pattern": "FT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Booster Flow Meter"},
+
+            # Pressure Transmitters - E+H
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station_booster",
+             "name_pattern": "PT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Discharge Pressure"},
+
+            # ============================================================
+            # STORAGE TANKS (Level 1) - 8 devices
+            # Elevated and ground storage tank monitoring
+            # ============================================================
+            # RTUs - Emerson ROC800L (2 tanks)
+            {"type": "rtu", "vendor": "emerson", "count": 2, "zone": "storage",
+             "name_pattern": "RTU-TANK-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "ROC800L",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+             "role": "Storage Tank RTU"},
+
+            # Level Transmitters - E+H Levelflex (primary)
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
+             "name_pattern": "LT-TANK-PRI-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Primary Tank Level"},
+
+            # Level Transmitters - E+H Prosonic (backup)
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
+             "name_pattern": "LT-TANK-BAK-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Backup Tank Level"},
+
+            # Flow Meters - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
+             "name_pattern": "FT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Tank Inflow/Outflow"},
+        ],
+        "flows": [
+            # Central DCS polling RTUs via WAN (5000ms - WAN timing)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["rtu"],
+             "source_zones": ["central"], "target_zones": ["station1", "station_medium", "storage"],
+             "jitter_ms": 500, "jitter_type": "lognormal"},
+
+            # Central DCS polling booster PLCs (3000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 3000,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["central"], "target_zones": ["station_booster"],
+             "jitter_ms": 300, "jitter_type": "lognormal"},
+
+            # Local RTU polling VFDs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["drive"],
+             "source_zones": ["station1"], "target_zones": ["station1"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Local RTU polling sensors (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["sensor"],
+             "source_zones": ["station1", "station_medium", "storage"],
+             "target_zones": ["station1", "station_medium", "storage"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Medium station RTU polling VFDs (1500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1500,
+             "source_types": ["rtu"], "target_types": ["drive"],
+             "source_zones": ["station_medium"], "target_zones": ["station_medium"],
+             "jitter_ms": 150, "jitter_type": "gaussian"},
+
+            # Booster PLC polling VFDs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["station_booster"], "target_zones": ["station_booster"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Booster PLC polling sensors (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["station_booster"], "target_zones": ["station_booster"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # HMI polling DCS (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["central"], "target_zones": ["central"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # Historian collection (10000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["central"], "target_zones": ["central"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # SNMP monitoring of RTUs (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["plc"], "target_types": ["rtu"],
+             "source_zones": ["central"], "target_zones": ["station1", "station_medium", "storage"]},
+        ],
+        "zones": [
+            {"id": "central", "name": "Central Control", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "station1", "name": "Pump Station 1 (High Cap)", "level": 1,
+             "subnet_offset": 1, "vlan": 111, "security_level": "standard"},
+            {"id": "station_medium", "name": "Medium Pump Stations", "level": 1,
+             "subnet_offset": 2, "vlan": 112, "security_level": "standard"},
+            {"id": "station_booster", "name": "Booster Stations", "level": 1,
+             "subnet_offset": 3, "vlan": 113, "security_level": "standard"},
+            {"id": "storage", "name": "Storage Tanks", "level": 1,
+             "subnet_offset": 4, "vlan": 114, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-central",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["wan_latency_spike", "timeout", "watchdog_timeout"],
+            "protocol": ["modbus_exception", "dnp3_restart"],
+            "sequence": ["duplicate", "dropped_packet"],
+            "payload": ["level_spike", "pump_failure"],
+            "network": ["wan_outage"],
+            "security": ["unauthorized_remote_access", "rdp_bruteforce"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "modbus_tcp", "flow_type": "wan_scada", "priority": "high",
+             "description": "WAN SCADA polling patterns from Experion to RTUs"},
+            {"protocol": "modbus_tcp", "flow_type": "local_control", "priority": "high",
+             "description": "Local RTU to VFD control patterns"},
+            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
+             "description": "RTU health monitoring via SNMP"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M and TeamViewer cloud patterns"},
+        ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["54.95.198.117", "51.38.74.240", "185.188.32.1"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "rdp_bluekeep"],
             "enable_recon": True,
             "scan_ot_ports": True,
-            "target_device_types": ["plc", "hmi"],
+            "target_device_types": ["hmi", "rtu", "jump_server"],
         },
         "total_duration_ms": 600000,  # 10 minutes
     },
 
     # ============================================================
-    # SCHNEIDER LEGACY WATER/WASTEWATER TEMPLATES
+    # TEMPLATE 3: WASTEWATER TREATMENT FACILITY (58 devices)
+    # Activated sludge process with full treatment train
     # ============================================================
-
-    "schneider_legacy_water": {
-        "name": "Schneider Legacy Water System",
-        "description": "Older water/wastewater system using legacy Schneider Modicon Premium "
-                       "and Quantum PLCs. Common in facilities not yet upgraded to M580/M340. "
-                       "Contains hardcoded FTP credentials vulnerability (no patch available).",
+    "wastewater_treatment_facility": {
+        "name": "Wastewater Treatment Facility",
+        "description": "Full wastewater treatment facility with headworks, primary clarification, "
+                       "activated sludge secondary treatment, tertiary filtration, UV disinfection, "
+                       "and sludge processing. Rockwell ControlLogix L85E main controllers with "
+                       "GuardLogix safety PLCs. ABB drives for all major equipment. Extensive "
+                       "water quality instrumentation from Yokogawa and Endress+Hauser. "
+                       "58 devices across SCADA, control, and 5 process zones.",
         "vertical": "water_wastewater",
+        "phase_preset": "full_lifecycle",
         "devices": [
-            # Modicon Premium PLCs (legacy with hardcoded credentials - NO FIX)
-            {"type": "plc", "vendor": "schneider", "count": 3, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "TSXP57204M",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2018-7760"]},
+            # ============================================================
+            # SCADA/DMZ (Level 3.5) - 6 devices
+            # ============================================================
+            # Historian - GE Proficy (vulnerable)
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "dmz",
+             "name_pattern": "HIST-WWTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Process Historian"},
 
-            # Modicon Premium PLCs (remote pumping stations)
-            {"type": "rtu", "vendor": "schneider", "count": 8, "zone": "remote",
-             "name_pattern": "PS-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "TSXP57154M",
-             "error_config": {"exception_rate": 0.002, "timeout_rate": 0.003},
-             "role": "Pump Station RTU",
-             "cve_ids": ["CVE-2018-7760"]},
+            # OPC UA Gateway - Kepware KEPServerEX
+            {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "dmz",
+             "name_pattern": "OPC-GW-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "KEPServerEX",
+             "role": "OPC UA Gateway"},
 
-            # Older Magelis HMIs
-            {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "HMISTM6",
-             "role": "Operator Panel"},
+            # Central HMI - Rockwell PanelView Plus 7
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "dmz",
+             "name_pattern": "HMI-CENTRAL-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Central HMI"},
 
-            # Older Altivar drives
-            {"type": "drive", "vendor": "schneider", "count": 12, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV320U22N4C",
-             "role": "Pump Drive"},
+            # Core Switch - Rockwell Stratix 5700
+            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "dmz",
+             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Core Network Switch"},
 
-            # Advantys STB I/O
-            {"type": "remote_io", "vendor": "schneider", "count": 6, "zone": "field",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "STBNIP2311",
-             "role": "Field I/O Module"},
+            # EWON Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dmz",
+             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Cosy 131",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # Jump Server
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "dmz",
+             "name_pattern": "JUMP-SVR-{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2016 (Vulnerable)",
+             "role": "Vendor Remote Access",
+             "cve_ids": ["CVE-2019-0708"],
+             "external_comms": True},
+
+            # ============================================================
+            # CONTROL ZONE (Level 2) - 12 devices
+            # Main PLCs, safety, HMI, switches, I/O
+            # ============================================================
+            # Main PLCs - Rockwell ControlLogix L85E (vulnerable)
+            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
+             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L85E",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2022-1159", "CVE-2023-3595"]},
+
+            # Area PLCs - Rockwell ControlLogix L73
+            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
+             "name_pattern": "PLC-AREA-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L73",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Area Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+
+            # Safety PLC - Rockwell GuardLogix L83ES
+            {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name_pattern": "PLC-SAFETY-{n:02d}", "protocols": ["ethernet_ip", "cip_safety"],
+             "fingerprint_model": "1756-L83ES",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+
+            # Local HMI Panels - Rockwell PanelView Plus 7
+            {"type": "hmi", "vendor": "rockwell", "count": 3, "zone": "control",
+             "name_pattern": "HMI-LOCAL-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Local Operator Interface"},
+
+            # Industrial Switches - Rockwell Stratix 5700
+            {"type": "switch", "vendor": "rockwell", "count": 2, "zone": "control",
+             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Control Zone Switch"},
+
+            # FLEX 5000 Remote I/O
+            {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "control",
+             "name_pattern": "RIO-CTRL-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Control Room I/O"},
+
+            # ============================================================
+            # HEADWORKS ZONE (Level 1) - 8 devices
+            # Screening, grit removal, flow measurement
+            # ============================================================
+            # Field PLC - Rockwell CompactLogix
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "headworks",
+             "name_pattern": "PLC-HEAD-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Headworks Controller"},
+
+            # VFDs - ABB ACS580
+            {"type": "drive", "vendor": "abb", "count": 4, "zone": "headworks",
+             "name_pattern": "VFD-HEAD-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS580",
+             "role": "Screening/Grit VFD"},
+
+            # Flow Meters - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "headworks",
+             "name_pattern": "FT-HEAD-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Influent Flow Meter"},
+
+            # Level Transmitters - E+H Prosonic
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "headworks",
+             "name_pattern": "LT-HEAD-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Wet Well Level"},
+
+            # ============================================================
+            # PRIMARY ZONE (Level 1) - 6 devices
+            # Primary clarifiers
+            # ============================================================
+            # Point I/O - Rockwell 1734-AENT
+            {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "primary",
+             "name_pattern": "PIO-PRI-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Primary Clarifier I/O"},
+
+            # Clarifier Drives - ABB ACS880
+            {"type": "drive", "vendor": "abb", "count": 2, "zone": "primary",
+             "name_pattern": "VFD-CLAR-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Clarifier Drive"},
+
+            # Level/Sludge Blanket - E+H Levelflex
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "primary",
+             "name_pattern": "LT-PRI-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Sludge Blanket Level"},
+
+            # ============================================================
+            # SECONDARY ZONE (Level 1) - 12 devices
+            # Aeration basins, secondary clarifiers
+            # ============================================================
+            # Point I/O - Rockwell 1734-AENT
+            {"type": "io_module", "vendor": "rockwell", "count": 4, "zone": "secondary",
+             "name_pattern": "PIO-SEC-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Secondary Process I/O"},
+
+            # Blower VFDs - ABB ACS880 (high power)
+            {"type": "drive", "vendor": "abb", "count": 4, "zone": "secondary",
+             "name_pattern": "VFD-BLOW-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Blower VFD"},
+
+            # DO Analyzers - Yokogawa FLXA402
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "secondary",
+             "name_pattern": "AIT-DO-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "Dissolved Oxygen Analyzer"},
+
+            # pH Analyzers - Yokogawa FLXA402
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "secondary",
+             "name_pattern": "AIT-PH-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH Analyzer"},
+
+            # ============================================================
+            # TERTIARY/UV ZONE (Level 1) - 8 devices
+            # Tertiary filters, UV disinfection
+            # ============================================================
+            # Field PLC - Rockwell CompactLogix
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "tertiary",
+             "name_pattern": "PLC-TERT-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Tertiary Controller"},
+
+            # Filter VFDs - ABB ACS580
+            {"type": "drive", "vendor": "abb", "count": 3, "zone": "tertiary",
+             "name_pattern": "VFD-FILT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS580",
+             "role": "Filter Pump VFD"},
+
+            # Turbidity Analyzers - Yokogawa SC450G
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "tertiary",
+             "name_pattern": "AIT-TURB-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "SC450G",
+             "role": "Effluent Turbidity"},
+
+            # UV System I/O
+            {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "tertiary",
+             "name_pattern": "PIO-UV-{n:02d}", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "UV System I/O"},
+
+            # ============================================================
+            # SLUDGE ZONE (Level 1) - 6 devices
+            # Thickening, dewatering, digester
+            # ============================================================
+            # Field PLC - Rockwell CompactLogix
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "sludge",
+             "name_pattern": "PLC-SLUDGE-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Sludge Controller"},
+
+            # Dewatering VFDs - ABB ACS880
+            {"type": "drive", "vendor": "abb", "count": 3, "zone": "sludge",
+             "name_pattern": "VFD-DEWAT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Dewatering Press VFD"},
+
+            # Digester Level/Temp - E+H
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "sludge",
+             "name_pattern": "TT-DIG-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CM442",
+             "role": "Digester Monitoring"},
         ],
         "flows": [
-            # Modbus polling (2 seconds - slower legacy)
+            # EtherNet/IP implicit - Main PLC to Field PLCs (500ms)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["headworks", "tertiary", "sludge"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # EtherNet/IP implicit - Main PLC to Point I/O (100ms)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["control", "primary", "secondary", "tertiary"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+
+            # EtherNet/IP - PLCs to ABB Drives (500ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["control", "headworks", "tertiary", "sludge"],
+             "target_zones": ["headworks", "primary", "secondary", "tertiary", "sludge"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # CIP Safety communication (4ms)
+            {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
+             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
+             "source_zones": ["control"], "target_zones": ["control", "headworks"]},
+
+            # Modbus TCP - PLCs to analyzers (2000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["plc"], "target_types": ["drive", "remote_io"],
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["control", "headworks", "tertiary", "sludge"],
+             "target_zones": ["headworks", "primary", "secondary", "tertiary", "sludge"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
-            # HMI to PLC (1 second)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # Remote station polling (10 seconds)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["plc"], "target_types": ["rtu"],
-             "jitter_ms": 1000, "jitter_type": "exponential"},
+
+            # HMI polling PLCs (500ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["dmz", "control"], "target_zones": ["control"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # OPC Gateway polling (1000ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["gateway"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Historian collection (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # SNMP monitoring (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["gateway"], "target_types": ["switch"],
+             "source_zones": ["dmz"], "target_zones": ["dmz", "control"]},
+
+            # EWON polling PLCs (10s)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["control"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "process", "name": "Control Building", "level": 2,
-             "subnet_offset": 0, "vlan": 50, "security_level": "standard"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 60, "security_level": "standard"},
-            {"id": "remote", "name": "Pump Stations", "level": 1,
-             "subnet_offset": 2, "vlan": 70, "security_level": "minimal"},
+            {"id": "dmz", "name": "Industrial DMZ", "level": 3.5,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "control", "name": "Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "headworks", "name": "Headworks Zone", "level": 1,
+             "subnet_offset": 2, "vlan": 121, "security_level": "standard"},
+            {"id": "primary", "name": "Primary Treatment", "level": 1,
+             "subnet_offset": 3, "vlan": 122, "security_level": "standard"},
+            {"id": "secondary", "name": "Secondary Treatment", "level": 1,
+             "subnet_offset": 4, "vlan": 123, "security_level": "standard"},
+            {"id": "tertiary", "name": "Tertiary/UV", "level": 1,
+             "subnet_offset": 5, "vlan": 124, "security_level": "standard"},
+            {"id": "sludge", "name": "Sludge Processing", "level": 1,
+             "subnet_offset": 6, "vlan": 125, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
-            "timing": ["timeout", "delayed_response"],
-            "protocol": ["modbus_exception"],
-            "sequence": [],
-            "payload": [],
-            "network": ["packet_loss_wan"],
-            "security": ["ftp_login_attempt", "hardcoded_cred_exploit"],  # CVE-2018-7760
+            "timing": ["timeout", "rpi_violation", "watchdog_timeout"],
+            "protocol": ["cip_error", "cip_safety_fault", "modbus_exception"],
+            "sequence": ["dropped_packet", "out_of_order"],
+            "payload": ["do_upset", "ph_spike", "blower_failure"],
+            "network": ["jitter_spike"],
+            "security": ["unauthorized_remote_access", "cip_stop_plc"],
+        },
+        "pcap_learning_hints": [
+            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
+             "description": "EtherNet/IP implicit messaging from ControlLogix PLCs"},
+            {"protocol": "cip_safety", "flow_type": "safety", "priority": "high",
+             "description": "CIP Safety GuardLogix communication patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "high",
+             "description": "Water quality analyzer Modbus polling patterns"},
+            {"protocol": "ethernet_ip", "flow_type": "drive_control", "priority": "medium",
+             "description": "ABB ACS880/ACS580 EtherNet/IP control patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
+        ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117", "185.188.32.1"],
+            "enable_c2": False,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["cip_stop_plc", "modbus_write_scan", "rdp_bluekeep"],
+            "enable_recon": True,
+            "scan_ot_ports": True,
+            "target_device_types": ["hmi", "plc", "jump_server"],
+        },
+        "total_duration_ms": 900000,  # 15 minutes (full lifecycle)
+    },
+
+    # ============================================================
+    # TEMPLATE 4: SMALL UTILITY SCADA (26 devices)
+    # Budget-constrained municipality with legacy/modern mix
+    # ============================================================
+    "small_utility_scada": {
+        "name": "Small Utility SCADA",
+        "description": "Budget-constrained small municipality water system with 2 wells, elevated storage "
+                       "tank, and distribution network. Features mix of legacy Schneider Modicon Premium "
+                       "PLCs (CVE-vulnerable) and modern M241 controllers. Brownfield environment with "
+                       "older infrastructure still in service. Minimal redundancy, basic remote access. "
+                       "26 devices representing realistic small utility constraints.",
+        "vertical": "water_wastewater",
+        "phase_preset": "normal_operation",
+        "devices": [
+            # ============================================================
+            # CONTROL ROOM (Level 2-3) - 5 devices
+            # Combined SCADA/control room
+            # ============================================================
+            # Main PLC - Schneider Modicon Premium (legacy, vulnerable)
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "control_room",
+             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TSXP57204M",
+             "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.0004},
+             "role": "Main System Controller",
+             "cve_ids": ["CVE-2018-7760"]},
+
+            # HMI - Schneider Magelis
+            {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "control_room",
+             "name_pattern": "HMI-MAIN-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "Operator Interface"},
+
+            # Industrial Switch - Schneider ConneXium
+            {"type": "switch", "vendor": "schneider", "count": 1, "zone": "control_room",
+             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "TCSESM083F2CU0",
+             "role": "Control Room Switch"},
+
+            # SCADA PC (simple HMI/data collection)
+            {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "control_room",
+             "name_pattern": "SCADA-PC-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "SCADA Workstation"},
+
+            # EWON Remote Access - Cosy 131 (budget model)
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "control_room",
+             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Cosy 131",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # WELL 1 - LEGACY (Level 1) - 5 devices
+            # Older installation with Modicon Premium
+            # ============================================================
+            # Field PLC - Modicon Premium (legacy, vulnerable)
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "well1",
+             "name_pattern": "PLC-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TSXP57154M",
+             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
+             "role": "Well 1 Controller",
+             "cve_ids": ["CVE-2018-7760"]},
+
+            # VFD - Schneider ATV320
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "well1",
+             "name_pattern": "VFD-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320",
+             "role": "Well Pump VFD"},
+
+            # Flow Meter - E+H Promag 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
+             "name_pattern": "FT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Well Flow Meter"},
+
+            # Level Transmitter - E+H Levelflex
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
+             "name_pattern": "LT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Well Water Level"},
+
+            # Pressure Transmitter
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
+             "name_pattern": "PT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Discharge Pressure"},
+
+            # ============================================================
+            # WELL 2 - UPGRADED (Level 1) - 5 devices
+            # Recently upgraded with M241
+            # ============================================================
+            # Field PLC - Schneider M241 (modern)
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "well2",
+             "name_pattern": "PLC-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM241CE40R",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Well 2 Controller"},
+
+            # VFD - Schneider ATV320
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "well2",
+             "name_pattern": "VFD-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320",
+             "role": "Well Pump VFD"},
+
+            # Flow Meter - E+H Promag 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
+             "name_pattern": "FT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Well Flow Meter"},
+
+            # Level Transmitter - E+H Levelflex
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
+             "name_pattern": "LT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Well Water Level"},
+
+            # Pressure Transmitter
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
+             "name_pattern": "PT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Discharge Pressure"},
+
+            # ============================================================
+            # STORAGE TANK (Level 1) - 5 devices
+            # Elevated storage with booster pumps
+            # ============================================================
+            # Field PLC - Schneider M241
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "storage",
+             "name_pattern": "PLC-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM241CE40R",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Tank/Booster Controller"},
+
+            # Level Transmitter - E+H Prosonic
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "storage",
+             "name_pattern": "LT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Tank Level"},
+
+            # Booster Pump VFDs - Schneider ATV320
+            {"type": "drive", "vendor": "schneider", "count": 2, "zone": "storage",
+             "name_pattern": "VFD-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ATV320",
+             "role": "Booster Pump VFD"},
+
+            # Pressure Transmitter
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "storage",
+             "name_pattern": "PT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "System Pressure"},
+
+            # ============================================================
+            # DISTRIBUTION (Level 1) - 6 devices
+            # Distribution monitoring points
+            # ============================================================
+            # Chlorine Analyzers - Yokogawa RC400G
+            {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "distribution",
+             "name_pattern": "AIT-CL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "RC400G",
+             "role": "Distribution Chlorine"},
+
+            # Flow Meters - E+H Promag W 400
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
+             "name_pattern": "FT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag W 400",
+             "role": "Distribution Flow"},
+
+            # Pressure Transmitters
+            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
+             "name_pattern": "PT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Distribution Pressure"},
+        ],
+        "flows": [
+            # Main PLC polling remote PLCs (5000ms - slow WAN)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["control_room"], "target_zones": ["well1", "well2", "storage"],
+             "jitter_ms": 500, "jitter_type": "lognormal"},
+
+            # Main PLC polling distribution sensors (10000ms - very slow)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["control_room"], "target_zones": ["distribution"],
+             "jitter_ms": 1000, "jitter_type": "lognormal"},
+
+            # Well PLCs polling local VFDs (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["well1", "well2"], "target_zones": ["well1", "well2"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Well PLCs polling local sensors (3000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 3000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["well1", "well2", "storage"],
+             "target_zones": ["well1", "well2", "storage"],
+             "jitter_ms": 300, "jitter_type": "gaussian"},
+
+            # Storage PLC polling booster VFDs (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["storage"], "target_zones": ["storage"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # HMI polling main PLC (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["control_room"], "target_zones": ["control_room"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # SCADA PC polling main PLC (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["control_room"], "target_zones": ["control_room"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # EWON polling main PLC (10s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["control_room"], "target_zones": ["control_room"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "control_room", "name": "Control Room", "level": 2.5,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "well1", "name": "Well Station 1 (Legacy)", "level": 1,
+             "subnet_offset": 1, "vlan": 111, "security_level": "standard"},
+            {"id": "well2", "name": "Well Station 2 (Upgraded)", "level": 1,
+             "subnet_offset": 2, "vlan": 112, "security_level": "standard"},
+            {"id": "storage", "name": "Storage Tank/Boosters", "level": 1,
+             "subnet_offset": 3, "vlan": 113, "security_level": "standard"},
+            {"id": "distribution", "name": "Distribution Network", "level": 1,
+             "subnet_offset": 4, "vlan": 114, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-central",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 60000,  # Slower for budget
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["timeout", "slow_response", "watchdog_timeout"],
+            "protocol": ["modbus_exception", "legacy_device_error"],
+            "sequence": ["duplicate", "dropped_packet"],
+            "payload": ["pressure_drop", "well_failure", "chlorine_low"],
+            "network": ["wan_latency"],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
             {"protocol": "modbus_tcp", "flow_type": "legacy_polling", "priority": "high",
-             "description": "Legacy Modicon Premium communication patterns"},
+             "description": "Legacy Modicon Premium slow polling patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "modern_polling", "priority": "high",
+             "description": "M241 Modbus TCP polling patterns"},
+            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "medium",
+             "description": "Field instrument communication patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
         "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "ftp",  # FTP-based C2 exploiting hardcoded creds
-            "c2_pattern": "jittered_10m",
-            "enable_exfil": True,
-            "exfil_protocol": "ftp",
-            "exfil_data_size": 4096,
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["54.95.198.117"],
+            "enable_c2": False,
+            "enable_exfil": False,
             "enable_exploits": True,
-            "exploit_patterns": ["ftp_hardcoded_login", "modbus_write_scan"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["plc", "rtu"],
+            "exploit_patterns": ["modbus_write_scan", "legacy_device_exploit"],
+            "enable_recon": False,
+            "target_device_types": ["hmi", "plc"],
         },
-        "total_duration_ms": 600000,  # 10 minutes
+        "total_duration_ms": 300000,  # 5 minutes
     },
 }

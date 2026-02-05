@@ -7,13 +7,16 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from sqlalchemy import select
+
 from app.api.deps import CurrentUser, DBSession
+from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.scenario import Scenario
 from app.protocol_engines.vendor_oui import generate_mac_address
 from app.services.ip_management import IPManagementService
 from app.services.template_pattern_service import TemplatePatternService
 from app.services.cve_fingerprint_service import CVEFingerprintService
-from app.services.vendor_fingerprints import get_fingerprint_by_vendor_model
+from app.services.device_templates import get_fingerprint_by_vendor_model
 from app.traffic_generator.flow_generator import (
     DeviceSpec,
     FlowPattern,
@@ -30,8 +33,243 @@ from app.scenario_templates.phases import (
     get_default_phases,
     list_phase_presets,
 )
+from app.services.serial_number_generator import SerialNumberGenerator
+from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
+from app.mcp_server.ai_providers import AIProviderFactory
 
 logger = logging.getLogger(__name__)
+
+
+def _enrich_device_with_serial_numbers(
+    device: dict,
+    device_id: str,
+    scenario_id: str,
+) -> None:
+    """Add unique serial numbers to device's vendor fingerprint.
+
+    This ensures every device has a unique serial number for each protocol,
+    preventing Cyber Vision from merging devices.
+
+    Serial numbers are generated for any protocol identity that exists in the
+    fingerprint with proper vendor data. The device's protocols list is used
+    as a hint, but if the fingerprint has identity data for a protocol, we
+    enrich it regardless - the fingerprint defines what protocols the device
+    actually supports.
+
+    Args:
+        device: Device dictionary (modified in place)
+        device_id: Unique device identifier
+        scenario_id: Scenario UUID for deterministic serial generation
+    """
+    fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+    protocols = set(device.get("protocols", []) or [])
+
+    def identity_has_vendor_data(identity: dict | None, required_key: str) -> bool:
+        """Check if identity has real vendor data, not just a serial number placeholder."""
+        if not identity or not isinstance(identity, dict):
+            return False
+        # For EtherNet/IP, vendor_id is required to avoid defaulting to Rockwell
+        if required_key == "vendor_id":
+            return identity.get("vendor_id") is not None
+        # For other protocols, check for any key besides serial_number
+        return any(k != "serial_number" for k in identity.keys())
+
+    def should_enrich(protocol_names: list[str], identity_key: str, required_field: str) -> bool:
+        """Determine if we should enrich this protocol's serial number.
+
+        Enriches if EITHER:
+        1. Protocol is declared in device's protocols list, OR
+        2. Fingerprint has identity data for this protocol (infer protocol from fingerprint)
+
+        This fixes the issue where devices created from templates have empty
+        protocols lists but fingerprints with full identity data.
+        """
+        identity = fingerprint.get(identity_key)
+        has_identity = identity_has_vendor_data(identity, required_field)
+        protocol_declared = any(p in protocols for p in protocol_names)
+        # Enrich if fingerprint has identity data OR protocol is declared
+        return has_identity
+
+    # EtherNet/IP identity - enrich if fingerprint has vendor_id
+    existing_identity = fingerprint.get("ethernet_ip_identity")
+    if should_enrich(["ethernet_ip"], "ethernet_ip_identity", "vendor_id"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_ethernet_ip(device_id, scenario_id)
+
+    # S7comm identity - enrich if fingerprint has order_code
+    existing_identity = fingerprint.get("s7_identity")
+    if should_enrich(["s7comm", "s7comm_plus"], "s7_identity", "order_code"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+    # PROFINET identity - enrich if fingerprint has vendor_id
+    existing_identity = fingerprint.get("profinet_identity")
+    if should_enrich(["profinet", "profisafe"], "profinet_identity", "vendor_id"):
+        serial = SerialNumberGenerator.generate_profinet(device_id, scenario_id)
+        existing_identity["serial_number"] = serial
+        existing_identity["im0_serial_number"] = serial
+
+    # Modbus identity - enrich if fingerprint has vendor_name
+    existing_identity = fingerprint.get("modbus_identity")
+    if should_enrich(["modbus_tcp", "modbus"], "modbus_identity", "vendor_name"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+    # BACnet identity - enrich if fingerprint has vendor_id
+    existing_identity = fingerprint.get("bacnet_identity")
+    if should_enrich(["bacnet"], "bacnet_identity", "vendor_id"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+    # SNMP identity - enrich if fingerprint has sys_descr
+    existing_identity = fingerprint.get("snmp_identity")
+    if should_enrich(["snmp"], "snmp_identity", "sys_descr"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+    # OPC UA identity - enrich if fingerprint has manufacturer_name
+    existing_identity = fingerprint.get("opc_ua_identity")
+    if should_enrich(["opc_ua"], "opc_ua_identity", "manufacturer_name"):
+        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+    # Update both camelCase and snake_case versions for compatibility
+    device["vendorFingerprint"] = fingerprint
+    device["vendor_fingerprint"] = fingerprint
+
+    logger.debug(f"Enriched serial numbers for device {device_id}")
+
+
+def _enrich_device_with_unique_identifiers(
+    device: dict,
+    device_id: str,
+    scenario_id: str,
+) -> None:
+    """Add unique identifiers to device's protocol identities based on device name.
+
+    This ensures Cisco Cyber Vision displays meaningful device names instead of
+    generic model names. Uses the device's name (ideally AI-generated) to populate:
+    - EtherNet/IP: product_name
+    - PROFINET: station_name
+    - S7comm: plc_name
+    - Modbus: product_name
+    - SNMP: sys_name
+    - BACnet: object_name, device_instance
+
+    IMPORTANT: This should be called AFTER AI naming to use the contextual names.
+
+    Args:
+        device: Device dictionary (modified in place)
+        device_id: Unique device identifier
+        scenario_id: Scenario UUID
+    """
+    from app.services.unique_identifier_generator import UniqueIdentifierGenerator
+
+    device_name = device.get("name")
+    fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+    protocols = device.get("protocols", []) or []
+    model = fingerprint.get("model", "")
+    vendor_family = fingerprint.get("vendor_family", "")
+    vendor = fingerprint.get("vendor", "")
+
+    def identity_has_vendor_data(identity: dict | None) -> bool:
+        """Check if identity has real vendor data."""
+        if not identity or not isinstance(identity, dict):
+            return False
+        return len(identity) > 0
+
+    # EtherNet/IP identity - product_name (what CV displays for Rockwell devices)
+    if "ethernet_ip" in protocols:
+        existing_identity = fingerprint.get("ethernet_ip_identity")
+        if identity_has_vendor_data(existing_identity):
+            existing_identity["product_name"] = (
+                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+
+    # PROFINET identity - station_name (must be unique on PROFINET network)
+    if "profinet" in protocols or "profisafe" in protocols:
+        existing_identity = fingerprint.get("profinet_identity")
+        if identity_has_vendor_data(existing_identity):
+            existing_identity["station_name"] = (
+                UniqueIdentifierGenerator.generate_profinet_station_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+
+    # S7comm identity - plc_name (what CV displays for Siemens devices)
+    if "s7comm" in protocols or "s7comm_plus" in protocols:
+        existing_identity = fingerprint.get("s7_identity")
+        if identity_has_vendor_data(existing_identity):
+            existing_identity["plc_name"] = (
+                UniqueIdentifierGenerator.generate_s7_plc_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+
+    # Modbus identity - product_name (from FC43 MEI response)
+    if "modbus_tcp" in protocols or "modbus" in protocols:
+        existing_identity = fingerprint.get("modbus_identity")
+        if identity_has_vendor_data(existing_identity):
+            if device_name:
+                existing_identity["product_name"] = device_name
+            elif model:
+                hash_bytes = UniqueIdentifierGenerator._generate_hash(device_id, scenario_id)
+                hash_suffix = hash_bytes[:2].hex().upper()
+                existing_identity["product_name"] = f"{model}-{hash_suffix}"
+
+    # SNMP identity - sys_name (what CV displays for network devices)
+    if "snmp" in protocols:
+        existing_identity = fingerprint.get("snmp_identity")
+        if identity_has_vendor_data(existing_identity):
+            existing_identity["sys_name"] = (
+                UniqueIdentifierGenerator.generate_snmp_sys_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+
+    # BACnet identity - object_name and device_instance
+    if "bacnet" in protocols:
+        existing_identity = fingerprint.get("bacnet_identity")
+        if identity_has_vendor_data(existing_identity):
+            existing_identity["device_instance"] = (
+                UniqueIdentifierGenerator.generate_bacnet_device_instance(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                )
+            )
+            existing_identity["object_name"] = (
+                UniqueIdentifierGenerator.generate_bacnet_object_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+
+    # Update both camelCase and snake_case versions for compatibility
+    device["vendorFingerprint"] = fingerprint
+    device["vendor_fingerprint"] = fingerprint
+
+    logger.debug(f"Enriched unique identifiers for device {device_id}: name={device_name}")
+
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
@@ -115,6 +353,13 @@ class CreateFromTemplateRequest(BaseModel):
     # Learned pattern options
     apply_learned_patterns: bool = True
     learned_pattern_options: LearnedPatternOptions | None = None
+    # AI-enhanced device naming (enabled by default)
+    use_ai_naming: bool = False  # Templates have meaningful built-in names by default
+    process_context: str | None = Field(
+        None,
+        description="Optional additional context about the industrial process for AI naming",
+        max_length=500,
+    )
 
 
 class CreateFromTemplateResponse(BaseModel):
@@ -128,6 +373,7 @@ class CreateFromTemplateResponse(BaseModel):
     phase_count: int
     learned_patterns_applied: bool = False
     protocols_enhanced: list[str] = []
+    ai_naming_applied: bool = False
 
 
 @router.get("/verticals", response_model=list[VerticalResponse])
@@ -323,12 +569,17 @@ async def create_scenario_from_template(
             device_index += 1
             device_id = f"device_{device_index:03d}"
 
-            # Generate name from pattern
-            name_pattern = device_spec.get("name_pattern", "{type}-{n:03d}")
-            try:
-                name = name_pattern.format(n=device_index, **device_spec)
-            except KeyError:
-                name = f"{device_spec.get('type', 'device')}-{device_index:03d}"
+            # Generate name: prefer explicit name, fall back to pattern
+            if device_spec.get("name"):
+                # Template has explicit device name (new style)
+                name = device_spec.get("name")
+            else:
+                # Fall back to name_pattern for backward compatibility
+                name_pattern = device_spec.get("name_pattern", "{type}-{n:03d}")
+                try:
+                    name = name_pattern.format(n=device_index, **device_spec)
+                except KeyError:
+                    name = f"{device_spec.get('type', 'device')}-{device_index:03d}"
 
             # Build device
             device = {
@@ -394,7 +645,60 @@ async def create_scenario_from_template(
                     device_type=device_spec.get("type"),
                 )
 
+            # CRITICAL: Generate unique serial numbers for each device
+            # This prevents Cyber Vision from merging devices with same fingerprint
+            _enrich_device_with_serial_numbers(device, device_id, str(scenario.id))
+
             devices[device_id] = device
+
+    # STEP 4.5: AI-Enhanced Device Naming
+    # Generate meaningful, process-aware device names using AI
+    ai_naming_applied = False
+    if request.use_ai_naming:
+        try:
+            ai_provider = await AIProviderFactory.create(db)
+            namer = AIDeviceNamer()
+
+            context = DeviceNamingContext(
+                vertical=request.vertical,
+                template_name=request.template_name,
+                template_description=template.get("description", ""),
+                zones=zones,
+                process_context=request.process_context,
+            )
+
+            # Convert devices dict to list for AI processing
+            device_list = list(devices.values())
+
+            # Enhance names with AI
+            enhanced_devices = await namer.enhance_device_names(
+                devices=device_list,
+                context=context,
+                ai_provider=ai_provider,
+            )
+
+            # Rebuild devices dict with enhanced names
+            devices = {d["id"]: d for d in enhanced_devices}
+            ai_naming_applied = True
+
+            logger.info(
+                f"AI-enhanced naming applied to {len(devices)} devices"
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"AI naming failed, using generic names: {e}. "
+                "Check that AI provider is configured in Settings."
+            )
+            # Continue with generic names - don't fail scenario creation
+
+    # STEP 4.6: Enrich protocol identities with device names
+    # This ensures Cyber Vision displays the contextual device names (AI-generated or generic)
+    # in protocol responses (EtherNet/IP product_name, PROFINET station_name, etc.)
+    for device_id, device in devices.items():
+        _enrich_device_with_unique_identifiers(device, device_id, str(scenario.id))
+
+    logger.info(f"Enriched {len(devices)} devices with unique protocol identifiers")
 
     # STEP 5: Auto-assign IP addresses from allocated range
     if request.auto_assign_addresses and zones:
@@ -402,6 +706,7 @@ async def create_scenario_from_template(
 
     # Build flows - using SmartFlowGenerator for role-based generation
     flows = {}
+    cloud_service_links = []  # Will be populated from cloud_services template config
 
     if request.use_smart_flow_generation:
         # Use SmartFlowGenerator for role-based, realistic flow generation
@@ -453,6 +758,14 @@ async def create_scenario_from_template(
         logger.info(
             f"SmartFlowGenerator created {len(flows)} flows using '{request.flow_pattern}' pattern"
         )
+
+        # Create cloud service links from template (replaces legacy external flows)
+        cloud_service_links = await _create_cloud_service_links_from_template(
+            db, template, devices
+        )
+        if cloud_service_links:
+            logger.info(f"Added {len(cloud_service_links)} cloud service links")
+
     else:
         # Legacy flow generation (round-robin based on device types)
         flow_index = 0
@@ -501,6 +814,13 @@ async def create_scenario_from_template(
                                 "config": {},
                             }
 
+        # Also create cloud service links for legacy path
+        cloud_service_links = await _create_cloud_service_links_from_template(
+            db, template, devices
+        )
+        if cloud_service_links:
+            logger.info(f"Added {len(cloud_service_links)} cloud service links (legacy path)")
+
     # Generate phases
     phases = get_default_phases(
         total_duration_ms=total_duration_ms,
@@ -515,6 +835,10 @@ async def create_scenario_from_template(
         "zones": zones,
         "phases": phases,
     }
+
+    # Add cloud service links if any were created
+    if cloud_service_links:
+        definition["cloud_service_links"] = cloud_service_links
 
     # Add external communications config if present in template
     external_comms = template.get("external_comms")
@@ -564,7 +888,208 @@ async def create_scenario_from_template(
         phase_count=len(phases),
         learned_patterns_applied=learned_patterns_applied,
         protocols_enhanced=protocols_enhanced,
+        ai_naming_applied=ai_naming_applied,
     )
+
+
+async def _create_cloud_service_links_from_template(
+    db: Any,
+    template: dict,
+    devices: dict,
+) -> list[dict]:
+    """Create cloud service links from template cloud_services configuration.
+
+    Cloud service links connect devices to cloud service endpoints
+    (Talk2M, TeamViewer, etc.) for heartbeat traffic generation.
+    This replaces the legacy external flows approach.
+
+    Args:
+        db: Database session
+        template: Template dictionary
+        devices: Device dictionary
+
+    Returns:
+        List of cloud service link configurations
+    """
+    cloud_links = []
+    link_index = 0
+
+    # Get cloud_services configuration from template
+    cloud_services_config = template.get("cloud_services", [])
+
+    if not cloud_services_config:
+        # Check for legacy external flows and migrate them
+        cloud_links = await _migrate_external_flows_to_cloud_links(db, template, devices)
+        return cloud_links
+
+    for cloud_config in cloud_services_config:
+        provider = cloud_config.get("provider")
+        region = cloud_config.get("region")
+        device_types = cloud_config.get("device_types", [])
+        heartbeat_interval_ms = cloud_config.get("heartbeat_interval_ms", 30000)
+
+        if not provider:
+            continue
+
+        # Look up cloud service endpoint from database
+        query = select(CloudServiceEndpoint).where(
+            CloudServiceEndpoint.provider == CloudServiceProvider(provider),
+            CloudServiceEndpoint.is_active == True,
+        )
+        if region:
+            query = query.where(CloudServiceEndpoint.region == region)
+
+        result = await db.execute(query.limit(1))
+        cloud_service = result.scalar_one_or_none()
+
+        if not cloud_service:
+            logger.warning(
+                f"Cloud service not found for provider={provider}, region={region}"
+            )
+            continue
+
+        # Find devices matching the specified types
+        for device_id, device in devices.items():
+            device_type = device.get("type", "")
+            if device_type not in device_types:
+                continue
+
+            link_index += 1
+            link_id = f"csl_{link_index:03d}"
+
+            cloud_links.append({
+                "id": link_id,
+                "device_id": device_id,
+                "cloud_service_id": str(cloud_service.id),
+                "heartbeat_interval_ms": heartbeat_interval_ms,
+                "enabled": True,
+                # Include resolved cloud service data for agent consumption
+                "cloud_service": {
+                    "name": cloud_service.name,
+                    "provider": cloud_service.provider.value,
+                    "primary_ip": cloud_service.primary_ip,
+                    "port": cloud_service.port,
+                    "hostname": cloud_service.hostname,
+                    "tls_enabled": cloud_service.tls_enabled,
+                },
+            })
+
+            logger.debug(
+                f"Created cloud link {link_id}: {device_id} -> "
+                f"{cloud_service.name} ({cloud_service.primary_ip})"
+            )
+
+    return cloud_links
+
+
+async def _migrate_external_flows_to_cloud_links(
+    db: Any,
+    template: dict,
+    devices: dict,
+) -> list[dict]:
+    """Migrate legacy external flows to cloud service links.
+
+    This handles backward compatibility for templates that still use
+    the old external flow pattern (pattern="external", external_ip="...").
+
+    Args:
+        db: Database session
+        template: Template dictionary
+        devices: Device dictionary
+
+    Returns:
+        List of cloud service link configurations
+    """
+    # Known external IPs and their corresponding providers
+    KNOWN_EXTERNAL_IPS = {
+        "13.56.142.1": ("talk2m", "us-west"),
+        "54.95.198.117": ("talk2m", "us-east"),
+        "51.38.74.240": ("talk2m", "eu"),
+        "87.98.169.126": ("talk2m", "ap"),
+        "185.188.32.1": ("teamviewer", "global"),
+        "185.188.32.2": ("teamviewer", "eu"),
+    }
+
+    cloud_links = []
+    link_index = 0
+
+    # Find legacy external flow definitions in template
+    for flow_spec in template.get("flows", []):
+        if flow_spec.get("pattern") != "external":
+            continue
+
+        external_ip = flow_spec.get("external_ip")
+        external_port = flow_spec.get("external_port", 443)
+        interval_ms = flow_spec.get("interval_ms", 30000)
+
+        if not external_ip:
+            continue
+
+        # Look up provider from known IPs
+        provider_info = KNOWN_EXTERNAL_IPS.get(external_ip)
+
+        cloud_service = None
+        if provider_info:
+            provider, region = provider_info
+            query = select(CloudServiceEndpoint).where(
+                CloudServiceEndpoint.provider == CloudServiceProvider(provider),
+                CloudServiceEndpoint.region == region,
+                CloudServiceEndpoint.is_active == True,
+            )
+            result = await db.execute(query.limit(1))
+            cloud_service = result.scalar_one_or_none()
+
+        # Find source devices matching the type
+        source_types = flow_spec.get("source_types", [])
+        for device_id, device in devices.items():
+            device_type = device.get("type", "")
+            if device_type not in source_types:
+                continue
+
+            link_index += 1
+            link_id = f"migrated_csl_{link_index:03d}"
+
+            if cloud_service:
+                # Use matched cloud service endpoint
+                cloud_links.append({
+                    "id": link_id,
+                    "device_id": device_id,
+                    "cloud_service_id": str(cloud_service.id),
+                    "heartbeat_interval_ms": interval_ms,
+                    "enabled": True,
+                    "cloud_service": {
+                        "name": cloud_service.name,
+                        "provider": cloud_service.provider.value,
+                        "primary_ip": cloud_service.primary_ip,
+                        "port": cloud_service.port,
+                        "hostname": cloud_service.hostname,
+                        "tls_enabled": cloud_service.tls_enabled,
+                    },
+                })
+            else:
+                # Custom/unknown external IP - create inline config
+                cloud_links.append({
+                    "id": link_id,
+                    "device_id": device_id,
+                    "cloud_service_id": None,  # No matching endpoint
+                    "heartbeat_interval_ms": interval_ms,
+                    "enabled": True,
+                    "cloud_service": {
+                        "name": f"External ({external_ip})",
+                        "provider": "custom",
+                        "primary_ip": external_ip,
+                        "port": external_port,
+                        "hostname": None,
+                        "tls_enabled": True,
+                    },
+                })
+
+            logger.debug(
+                f"Migrated external flow to cloud link {link_id}: "
+                f"{device_id} -> {external_ip}:{external_port}"
+            )
+
+    return cloud_links
 
 
 def _build_zones_from_template(

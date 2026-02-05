@@ -8,6 +8,7 @@ from .energy import ENERGY_TEMPLATES
 from .oil_gas import OIL_GAS_TEMPLATES
 from .transportation import TRANSPORTATION_TEMPLATES
 from .building_automation import BUILDING_AUTOMATION_TEMPLATES
+from .distribution_logistics import DISTRIBUTION_LOGISTICS_TEMPLATES
 from .phases import PHASE_TEMPLATES, get_default_phases
 
 
@@ -19,6 +20,7 @@ VERTICAL_TEMPLATES: dict[str, dict[str, Any]] = {
     "oil_gas": OIL_GAS_TEMPLATES,
     "transportation": TRANSPORTATION_TEMPLATES,
     "building_automation": BUILDING_AUTOMATION_TEMPLATES,
+    "distribution_logistics": DISTRIBUTION_LOGISTICS_TEMPLATES,
 }
 
 

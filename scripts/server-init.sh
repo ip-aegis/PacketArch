@@ -110,7 +110,7 @@ if [ ! -f .env ]; then
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 SECRET_KEY=${SECRET_KEY}
 ENCRYPTION_KEY=
-ADMIN_PASSWORD=PacketArch_Admin!
+ADMIN_PASSWORD=C!sco123
 DEBUG=false
 ENVEOF
 
@@ -149,7 +149,7 @@ echo "  API Docs:  http://${SERVER_IP}:8001/api/docs"
 echo ""
 echo "Default Credentials:"
 echo "  Username:  admin"
-echo "  Password:  PacketArch_Admin!"
+echo "  Password:  C!sco123"
 echo ""
 echo "GitHub Actions Secrets Required:"
 echo "  SSH_HOST:          ${SERVER_IP}"
@@ -157,7 +157,7 @@ echo "  SSH_USER:          ${USER}"
 echo "  SSH_PRIVATE_KEY:   (your SSH private key)"
 echo "  POSTGRES_PASSWORD: (from .env file)"
 echo "  SECRET_KEY:        (from .env file)"
-echo "  ADMIN_PASSWORD:    PacketArch_Admin!"
+echo "  ADMIN_PASSWORD:    C!sco123"
 echo ""
 echo "To view .env values: cat $INSTALL_DIR/.env"
 echo ""

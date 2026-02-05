@@ -26,6 +26,9 @@ from app.protocol_engines.snmp.packets import (
     build_snmp_get_request_packet,
     build_snmp_get_response_packet,
     build_snmp_trap_packet,
+    build_snmpv3_get_request_packet,
+    build_snmpv3_get_response_packet,
+    generate_engine_id,
 )
 from app.protocol_engines.snmp.types import (
     SNMP_AGENT_PORT,
@@ -34,6 +37,10 @@ from app.protocol_engines.snmp.types import (
     SNMPState,
     SNMPVersion,
     VarBind,
+    SNMPv3Credentials,
+    SNMPv3SecurityLevel,
+    SNMPv3AuthProtocol,
+    SNMPv3PrivProtocol,
 )
 from app.protocol_engines.types import (
     ConversationState,
@@ -80,15 +87,80 @@ class SnmpEngine(ProtocolEngine):
     def _get_snmp_config(self, flow: FlowContext) -> SNMPFlowConfig:
         """Extract SNMP configuration from flow config."""
         config = flow.config
-        return SNMPFlowConfig(
+
+        # Handle version - accept both integer and string formats
+        version_raw = config.get("snmp_version", SNMPVersion.V2C)
+        if isinstance(version_raw, str):
+            version_map = {"v1": SNMPVersion.V1, "v2c": SNMPVersion.V2C, "v3": SNMPVersion.V3}
+            version = version_map.get(version_raw.lower(), SNMPVersion.V2C)
+        else:
+            version = SNMPVersion(version_raw)
+
+        flow_config = SNMPFlowConfig(
             community=config.get("community", "public"),
-            version=SNMPVersion(config.get("snmp_version", SNMPVersion.V2C)),
+            version=version,
             timeout_ms=config.get("timeout_ms", 5000),
             retries=config.get("retries", 2),
             poll_oids=config.get("poll_oids", DISCOVERY_OIDS),
             bulk_max_repetitions=config.get("bulk_max_repetitions", 10),
             trap_community=config.get("trap_community", "public"),
         )
+
+        # Handle SNMPv3 credentials
+        if version == SNMPVersion.V3:
+            v3_config = config.get("v3_credentials", {})
+            if v3_config:
+                # Map security level
+                sec_level_map = {
+                    "noAuthNoPriv": SNMPv3SecurityLevel.NO_AUTH_NO_PRIV,
+                    "authNoPriv": SNMPv3SecurityLevel.AUTH_NO_PRIV,
+                    "authPriv": SNMPv3SecurityLevel.AUTH_PRIV,
+                }
+                sec_level = sec_level_map.get(
+                    v3_config.get("security_level", "authNoPriv"),
+                    SNMPv3SecurityLevel.AUTH_NO_PRIV
+                )
+
+                # Map auth protocol
+                auth_proto_map = {
+                    "md5": SNMPv3AuthProtocol.MD5,
+                    "sha": SNMPv3AuthProtocol.SHA,
+                    "sha256": SNMPv3AuthProtocol.SHA256,
+                }
+                auth_proto = auth_proto_map.get(
+                    v3_config.get("auth_protocol", "sha").lower(),
+                    SNMPv3AuthProtocol.SHA
+                )
+
+                # Map priv protocol
+                priv_proto_map = {
+                    "des": SNMPv3PrivProtocol.DES,
+                    "aes": SNMPv3PrivProtocol.AES128,
+                    "aes128": SNMPv3PrivProtocol.AES128,
+                    "aes256": SNMPv3PrivProtocol.AES256,
+                }
+                priv_proto = priv_proto_map.get(
+                    v3_config.get("priv_protocol", "aes").lower(),
+                    SNMPv3PrivProtocol.AES128
+                )
+
+                # Generate engine ID for the destination device
+                engine_id = generate_engine_id(flow.destination.ip_address)
+
+                flow_config.v3_credentials = SNMPv3Credentials(
+                    username=v3_config.get("username", "admin"),
+                    security_level=sec_level,
+                    auth_protocol=auth_proto,
+                    auth_password=v3_config.get("auth_password"),
+                    priv_protocol=priv_proto,
+                    priv_password=v3_config.get("priv_password"),
+                    engine_id=engine_id,
+                    engine_boots=v3_config.get("engine_boots", 1),
+                    engine_time=v3_config.get("engine_time", 0),
+                    context_name=v3_config.get("context_name", ""),
+                )
+
+        return flow_config
 
     def _get_poll_oids(self, flow: FlowContext) -> list[str]:
         """Get appropriate poll OIDs based on device type."""
@@ -158,10 +230,15 @@ class SnmpEngine(ProtocolEngine):
             return VarBind(oid=oid, value=value, value_type="timeticks")
 
         elif oid == SystemOIDs.SYS_NAME.oid:
-            fp = flow.destination.vendor_fingerprint
-            value = fp.get("snmp_identity", {}).get(
-                "sys_name", f"device-{flow.destination.device_id[:8]}"
-            )
+            # Use device_name for unique sysName per device
+            # Fall back to fingerprint sys_name or device_id if not set
+            if flow.destination.device_name:
+                value = flow.destination.device_name
+            else:
+                fp = flow.destination.vendor_fingerprint
+                value = fp.get("snmp_identity", {}).get(
+                    "sys_name", f"device-{flow.destination.device_id[:8]}"
+                )
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_LOCATION.oid:
@@ -257,19 +334,33 @@ class SnmpEngine(ProtocolEngine):
         discovery_oids = DISCOVERY_OIDS
 
         for oid in discovery_oids:
-            # Build GetRequest
-            request_packet = build_snmp_get_request_packet(
-                src_mac=flow.source.mac_address,
-                dst_mac=flow.destination.mac_address,
-                src_ip=flow.source.ip_address,
-                dst_ip=flow.destination.ip_address,
-                src_port=random.randint(49152, 65535),
-                dst_port=SNMP_AGENT_PORT,
-                community=config.community,
-                request_id=state.transaction_id,
-                oids=[oid],
-                version=config.version,
-            )
+            # Build GetRequest - use v3 builder if SNMPv3
+            src_port = random.randint(49152, 65535)
+            if config.version == SNMPVersion.V3 and config.v3_credentials:
+                request_packet = build_snmpv3_get_request_packet(
+                    src_mac=flow.source.mac_address,
+                    dst_mac=flow.destination.mac_address,
+                    src_ip=flow.source.ip_address,
+                    dst_ip=flow.destination.ip_address,
+                    src_port=src_port,
+                    dst_port=SNMP_AGENT_PORT,
+                    credentials=config.v3_credentials,
+                    request_id=state.transaction_id,
+                    oids=[oid],
+                )
+            else:
+                request_packet = build_snmp_get_request_packet(
+                    src_mac=flow.source.mac_address,
+                    dst_mac=flow.destination.mac_address,
+                    src_ip=flow.source.ip_address,
+                    dst_ip=flow.destination.ip_address,
+                    src_port=src_port,
+                    dst_port=SNMP_AGENT_PORT,
+                    community=config.community,
+                    request_id=state.transaction_id,
+                    oids=[oid],
+                    version=config.version,
+                )
 
             yield PacketEvent(
                 timestamp_ms=current_time,
@@ -294,18 +385,32 @@ class SnmpEngine(ProtocolEngine):
             # Get value for this OID from fingerprint
             var_bind = self._generate_snmp_values(flow, state, oid)
 
-            response_packet = build_snmp_get_response_packet(
-                src_mac=flow.destination.mac_address,
-                dst_mac=flow.source.mac_address,
-                src_ip=flow.destination.ip_address,
-                dst_ip=flow.source.ip_address,
-                src_port=SNMP_AGENT_PORT,
-                dst_port=random.randint(49152, 65535),
-                community=config.community,
-                request_id=state.transaction_id,
-                var_binds=[var_bind],
-                version=config.version,
-            )
+            # Build response - use v3 builder if SNMPv3
+            if config.version == SNMPVersion.V3 and config.v3_credentials:
+                response_packet = build_snmpv3_get_response_packet(
+                    src_mac=flow.destination.mac_address,
+                    dst_mac=flow.source.mac_address,
+                    src_ip=flow.destination.ip_address,
+                    dst_ip=flow.source.ip_address,
+                    src_port=SNMP_AGENT_PORT,
+                    dst_port=random.randint(49152, 65535),
+                    credentials=config.v3_credentials,
+                    request_id=state.transaction_id,
+                    var_binds=[var_bind],
+                )
+            else:
+                response_packet = build_snmp_get_response_packet(
+                    src_mac=flow.destination.mac_address,
+                    dst_mac=flow.source.mac_address,
+                    src_ip=flow.destination.ip_address,
+                    dst_ip=flow.source.ip_address,
+                    src_port=SNMP_AGENT_PORT,
+                    dst_port=random.randint(49152, 65535),
+                    community=config.community,
+                    request_id=state.transaction_id,
+                    var_binds=[var_bind],
+                    version=config.version,
+                )
 
             yield PacketEvent(
                 timestamp_ms=response_time,
@@ -318,6 +423,7 @@ class SnmpEngine(ProtocolEngine):
                     "oid": oid,
                     "value": str(var_bind.value),
                     "operation": "discovery",
+                    "snmp_version": config.version.name,
                 },
             )
 
@@ -358,19 +464,32 @@ class SnmpEngine(ProtocolEngine):
         # Source port for this exchange
         src_port = random.randint(49152, 65535)
 
-        # Build GetRequest
-        request_packet = build_snmp_get_request_packet(
-            src_mac=flow.source.mac_address,
-            dst_mac=flow.destination.mac_address,
-            src_ip=flow.source.ip_address,
-            dst_ip=flow.destination.ip_address,
-            src_port=src_port,
-            dst_port=SNMP_AGENT_PORT,
-            community=config.community,
-            request_id=state.transaction_id,
-            oids=[oid],
-            version=config.version,
-        )
+        # Build GetRequest - use v3 builder if SNMPv3
+        if config.version == SNMPVersion.V3 and config.v3_credentials:
+            request_packet = build_snmpv3_get_request_packet(
+                src_mac=flow.source.mac_address,
+                dst_mac=flow.destination.mac_address,
+                src_ip=flow.source.ip_address,
+                dst_ip=flow.destination.ip_address,
+                src_port=src_port,
+                dst_port=SNMP_AGENT_PORT,
+                credentials=config.v3_credentials,
+                request_id=state.transaction_id,
+                oids=[oid],
+            )
+        else:
+            request_packet = build_snmp_get_request_packet(
+                src_mac=flow.source.mac_address,
+                dst_mac=flow.destination.mac_address,
+                src_ip=flow.source.ip_address,
+                dst_ip=flow.destination.ip_address,
+                src_port=src_port,
+                dst_port=SNMP_AGENT_PORT,
+                community=config.community,
+                request_id=state.transaction_id,
+                oids=[oid],
+                version=config.version,
+            )
 
         yield PacketEvent(
             timestamp_ms=cycle_time_ms,
@@ -417,18 +536,32 @@ class SnmpEngine(ProtocolEngine):
         # Get value for this OID
         var_bind = self._generate_snmp_values(flow, state, oid)
 
-        response_packet = build_snmp_get_response_packet(
-            src_mac=flow.destination.mac_address,
-            dst_mac=flow.source.mac_address,
-            src_ip=flow.destination.ip_address,
-            dst_ip=flow.source.ip_address,
-            src_port=SNMP_AGENT_PORT,
-            dst_port=src_port,
-            community=config.community,
-            request_id=state.transaction_id,
-            var_binds=[var_bind],
-            version=config.version,
-        )
+        # Build response - use v3 builder if SNMPv3
+        if config.version == SNMPVersion.V3 and config.v3_credentials:
+            response_packet = build_snmpv3_get_response_packet(
+                src_mac=flow.destination.mac_address,
+                dst_mac=flow.source.mac_address,
+                src_ip=flow.destination.ip_address,
+                dst_ip=flow.source.ip_address,
+                src_port=SNMP_AGENT_PORT,
+                dst_port=src_port,
+                credentials=config.v3_credentials,
+                request_id=state.transaction_id,
+                var_binds=[var_bind],
+            )
+        else:
+            response_packet = build_snmp_get_response_packet(
+                src_mac=flow.destination.mac_address,
+                dst_mac=flow.source.mac_address,
+                src_ip=flow.destination.ip_address,
+                dst_ip=flow.source.ip_address,
+                src_port=SNMP_AGENT_PORT,
+                dst_port=src_port,
+                community=config.community,
+                request_id=state.transaction_id,
+                var_binds=[var_bind],
+                version=config.version,
+            )
 
         yield PacketEvent(
             timestamp_ms=response_time,
@@ -442,6 +575,7 @@ class SnmpEngine(ProtocolEngine):
                 "value": str(var_bind.value),
                 "response_delay_ms": response_delay,
                 "poll_cycle": state.sequence_number,
+                "snmp_version": config.version.name,
             },
         )
 
@@ -524,7 +658,7 @@ class SnmpEngine(ProtocolEngine):
         """Validate SNMP flow configuration."""
         errors = []
 
-        # Validate community string
+        # Validate community string (required for v1/v2c)
         community = config.get("community")
         if community is not None and not isinstance(community, str):
             errors.append("community must be a string")
@@ -532,8 +666,51 @@ class SnmpEngine(ProtocolEngine):
         # Validate SNMP version
         snmp_version = config.get("snmp_version")
         if snmp_version is not None:
-            if snmp_version not in [0, 1]:  # SNMPv1=0, SNMPv2c=1
-                errors.append("snmp_version must be 0 (v1) or 1 (v2c)")
+            if isinstance(snmp_version, str):
+                if snmp_version.lower() not in ["v1", "v2c", "v3"]:
+                    errors.append("snmp_version must be 'v1', 'v2c', or 'v3'")
+            elif isinstance(snmp_version, int):
+                if snmp_version not in [0, 1, 3]:  # SNMPv1=0, SNMPv2c=1, SNMPv3=3
+                    errors.append("snmp_version must be 0 (v1), 1 (v2c), or 3 (v3)")
+            else:
+                errors.append("snmp_version must be a string or integer")
+
+        # Validate SNMPv3 credentials if version is v3
+        version_is_v3 = (
+            (isinstance(snmp_version, str) and snmp_version.lower() == "v3") or
+            (isinstance(snmp_version, int) and snmp_version == 3)
+        )
+
+        if version_is_v3:
+            v3_creds = config.get("v3_credentials")
+            if not v3_creds:
+                errors.append("v3_credentials required for SNMPv3")
+            elif isinstance(v3_creds, dict):
+                if not v3_creds.get("username"):
+                    errors.append("v3_credentials.username is required")
+
+                sec_level = v3_creds.get("security_level", "authNoPriv")
+                valid_levels = ["noAuthNoPriv", "authNoPriv", "authPriv"]
+                if sec_level not in valid_levels:
+                    errors.append(f"v3_credentials.security_level must be one of {valid_levels}")
+
+                if sec_level in ["authNoPriv", "authPriv"]:
+                    if not v3_creds.get("auth_password"):
+                        errors.append("v3_credentials.auth_password required for authentication")
+
+                    auth_proto = v3_creds.get("auth_protocol", "sha").lower()
+                    valid_auth = ["md5", "sha", "sha256"]
+                    if auth_proto not in valid_auth:
+                        errors.append(f"v3_credentials.auth_protocol must be one of {valid_auth}")
+
+                if sec_level == "authPriv":
+                    if not v3_creds.get("priv_password"):
+                        errors.append("v3_credentials.priv_password required for privacy")
+
+                    priv_proto = v3_creds.get("priv_protocol", "aes").lower()
+                    valid_priv = ["des", "aes", "aes128", "aes256"]
+                    if priv_proto not in valid_priv:
+                        errors.append(f"v3_credentials.priv_protocol must be one of {valid_priv}")
 
         # Validate timeout
         timeout = config.get("timeout_ms")

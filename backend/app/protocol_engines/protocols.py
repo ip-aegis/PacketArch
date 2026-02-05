@@ -38,13 +38,17 @@ class ProtocolType(str, Enum):
 # Maps protocol names to their corresponding fingerprint identity keys
 PROTOCOL_TO_IDENTITY_KEY: dict[str, str] = {
     "modbus": "modbus_identity",
+    "modbus_tcp": "modbus_identity",  # Alias used by scenario templates
     "ethernet_ip": "ethernet_ip_identity",
+    "enip": "ethernet_ip_identity",  # Alias used by learned patterns
     "cip": "cip_identity_object",
     "profinet": "profinet_identity",
     "profisafe": "profinet_identity",  # PROFIsafe uses PROFINET identity
     "s7comm": "s7_identity",
     "s7comm_plus": "s7_identity",  # S7comm+ uses same identity structure
+    "s7": "s7_identity",  # Alias used by learned patterns
     "bacnet": "bacnet_identity",
+    "bacnet_ip": "bacnet_identity",  # Alias used by learned patterns
     "snmp": "snmp_identity",
     "opc_ua": "opc_ua_identity",
     "dnp3": "dnp3_identity",

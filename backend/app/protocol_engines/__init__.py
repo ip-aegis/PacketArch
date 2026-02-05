@@ -56,14 +56,26 @@ def list_supported_protocols() -> list[ProtocolType]:
 
 # Import engines to register them
 from app.protocol_engines.modbus.engine import ModbusTcpEngine  # noqa: E402, F401
+from app.protocol_engines.modbus.rtu_engine import ModbusRtuEngine  # noqa: E402, F401
 from app.protocol_engines.ethernet_ip.engine import EtherNetIPEngine  # noqa: E402, F401
 from app.protocol_engines.profinet.engine import ProfinetEngine  # noqa: E402, F401
 from app.protocol_engines.s7.engine import S7Engine  # noqa: E402, F401
 from app.protocol_engines.opc_ua.engine import OpcUaEngine  # noqa: E402, F401
 from app.protocol_engines.dnp3.engine import Dnp3Engine  # noqa: E402, F401
 from app.protocol_engines.iec104.engine import Iec104Engine  # noqa: E402, F401
+from app.protocol_engines.iec61850.engine import IEC61850Engine  # noqa: E402, F401
+from app.protocol_engines.pccc.engine import PCCCEngine  # noqa: E402, F401
+from app.protocol_engines.codesys.engine import CodesysEngine  # noqa: E402, F401
+from app.protocol_engines.lldp.engine import LLDPEngine  # noqa: E402, F401
 from app.protocol_engines.snmp.engine import SnmpEngine  # noqa: E402, F401
 from app.protocol_engines.bacnet.engine import BACnetEngine  # noqa: E402, F401
+from app.protocol_engines.ethercat.engine import EtherCATEngine  # noqa: E402, F401
+from app.protocol_engines.fins.engine import FINSEngine  # noqa: E402, F401
+from app.protocol_engines.slmp.engine import SLMPEngine  # noqa: E402, F401
+from app.protocol_engines.cdp.engine import CDPEngine  # noqa: E402, F401
+from app.protocol_engines.wmi.engine import WMIEngine  # noqa: E402, F401
+from app.protocol_engines.fanuc.engine import FANUCEngine  # noqa: E402, F401
+from app.protocol_engines.dcs.engine import DCSEngine  # noqa: E402, F401
 
 # AI-enhanced engines
 from app.protocol_engines.ai_enhanced_base import (  # noqa: E402, F401
@@ -93,14 +105,26 @@ __all__ = [
     "get_engine",
     "list_supported_protocols",
     "ModbusTcpEngine",
+    "ModbusRtuEngine",
     "EtherNetIPEngine",
     "ProfinetEngine",
     "S7Engine",
     "OpcUaEngine",
     "Dnp3Engine",
     "Iec104Engine",
+    "IEC61850Engine",
+    "PCCCEngine",
+    "CodesysEngine",
+    "LLDPEngine",
     "SnmpEngine",
     "BACnetEngine",
+    "EtherCATEngine",
+    "FINSEngine",
+    "SLMPEngine",
+    "CDPEngine",
+    "WMIEngine",
+    "FANUCEngine",
+    "DCSEngine",
     # AI-enhanced
     "AIEnhancedProtocolEngine",
     "AIEnhancedEngineFactory",

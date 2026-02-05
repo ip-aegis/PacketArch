@@ -34,12 +34,16 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    group_add:
+      - "987"  # docker group GID for Docker socket access
+    security_opt:
+      - label:disable  # Disable SELinux label separation for Docker socket access
     environment:
       DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:-packetarch_dev}@postgres:5432/packetarch
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-C!sco123}
       DEBUG: ${DEBUG:-false}
     # Backend is only accessible via nginx proxy (not exposed to host)
     expose:
@@ -47,6 +51,8 @@ services:
     volumes:
       - pcap_uploads:/app/data/pcap_uploads
       - pcap_output:/app/output/pcap
+      - ./docker/packetarch-agent:/docker/packetarch-agent:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,6 +63,30 @@ services:
       interval: 30s
       timeout: 10s
       start_period: 10s
+      retries: 3
+
+  celery_worker:
+    build: ./backend
+    restart: unless-stopped
+    command: celery -A app.traffic_generator.tasks.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:-packetarch_dev}@postgres:5432/packetarch
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    volumes:
+      - pcap_output:/app/output/pcap
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Celery worker doesn't run a web server, so use celery inspect ping
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.traffic_generator.tasks.celery_app inspect ping --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
       retries: 3
 
   frontend:

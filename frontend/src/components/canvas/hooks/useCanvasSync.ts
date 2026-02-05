@@ -53,6 +53,8 @@ export const useCanvasSync = () => {
           protocols: device.protocols || [],
           isConfigured,
           ipAddress: device.network?.ipAddress,
+          cveIds: device.cveIds,
+          vendor: device.vendor,
         },
       };
     });

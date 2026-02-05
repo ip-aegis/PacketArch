@@ -56,6 +56,7 @@ ROLE_CONNECTIONS: dict[DeviceRole, list[DeviceRole]] = {
         DeviceRole.HMI,
         DeviceRole.GATEWAY,
         DeviceRole.HISTORIAN,
+        DeviceRole.FIELD_DEVICE,  # ITS/BMS: TMC/BMS server directly polls field equipment
     ],
     DeviceRole.HMI: [
         DeviceRole.CONTROLLER,
@@ -90,6 +91,7 @@ ROLE_CONNECTIONS: dict[DeviceRole, list[DeviceRole]] = {
 DEFAULT_POLL_RATES: dict[tuple[DeviceRole, DeviceRole], float] = {
     (DeviceRole.SCADA, DeviceRole.CONTROLLER): 6.0,  # 10-second poll
     (DeviceRole.SCADA, DeviceRole.HMI): 2.0,  # 30-second status
+    (DeviceRole.SCADA, DeviceRole.FIELD_DEVICE): 6.0,  # 10-second poll (ITS/BMS direct)
     (DeviceRole.HMI, DeviceRole.CONTROLLER): 12.0,  # 5-second refresh
     (DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 60.0,  # 1-second I/O
     (DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 2.0,  # Interlock check
@@ -133,10 +135,14 @@ class DeviceSpec:
         Returns:
             DeviceSpec instance
         """
-        role_str = data.get("role") or "field_device"
-        try:
-            role = DeviceRole(role_str.lower())
-        except ValueError:
+        role_str = data.get("role")
+        if role_str:
+            try:
+                role = DeviceRole(role_str.lower())
+            except ValueError:
+                role = cls._infer_role(data)
+        else:
+            # No explicit role - infer from device type
             role = cls._infer_role(data)
 
         return cls(
@@ -200,6 +206,19 @@ class DeviceSpec:
         if any(x in device_type for x in ["remote_io", "io_module", "io_rack", "distributed_io"]):
             return DeviceRole.FIELD_DEVICE
 
+        # Check for ITS/Transportation field devices (sensors, cameras, signs)
+        # These are polled directly by TMC (SCADA) without intermediate controller
+        if any(x in device_type for x in [
+            "dms", "sign", "sensor", "radar", "thermal", "detector",
+            "camera", "weather", "rwis", "toll", "rsu", "anpr",
+            "lighting", "ventilation", "ahu", "vav", "chiller",
+        ]):
+            return DeviceRole.FIELD_DEVICE
+
+        # Check for switches (treated as field devices for SNMP monitoring)
+        if "switch" in device_type:
+            return DeviceRole.FIELD_DEVICE
+
         # Default to field device
         return DeviceRole.FIELD_DEVICE
 
@@ -260,14 +279,14 @@ class SmartFlowGenerator:
     def __init__(
         self,
         min_flows_per_device: int = 1,
-        max_flows_per_device: int = 5,
+        max_flows_per_device: int = 20,
         default_protocol: str = "modbus_tcp",
     ):
         """Initialize the flow generator.
 
         Args:
             min_flows_per_device: Minimum flows for each device
-            max_flows_per_device: Maximum flows from each initiator
+            max_flows_per_device: Maximum flows from each initiator (20 for ITS/BMS scenarios)
             default_protocol: Default protocol when not specified
         """
         self.min_flows_per_device = min_flows_per_device
@@ -573,14 +592,15 @@ class SmartFlowGenerator:
 
             # For field devices, they should be targets, not sources
             if orphan.role == DeviceRole.FIELD_DEVICE:
-                # Find a controller to poll this device
-                controllers = [
+                # Find a controller or SCADA to poll this device
+                # SCADA is included for ITS/BMS scenarios where TMC directly polls field equipment
+                pollers = [
                     d for d in devices
-                    if d.role == DeviceRole.CONTROLLER
+                    if d.role in (DeviceRole.CONTROLLER, DeviceRole.SCADA)
                     and d.device_id != orphan.device_id
                 ]
-                if controllers:
-                    source = random.choice(controllers)
+                if pollers:
+                    source = random.choice(pollers)
                     protocol = self._select_protocol(source, orphan, protocols)
                     flow = self._create_flow(source, orphan, protocol)
                     flows.append(flow)
@@ -605,7 +625,7 @@ class SmartFlowGenerator:
     # Layer 2 protocols like PROFINET don't include IP addresses in packets
     TCP_UDP_PROTOCOLS = {
         "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
-        "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+        "bacnet", "bacnet_ip", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
     }
 
     def _select_protocol(

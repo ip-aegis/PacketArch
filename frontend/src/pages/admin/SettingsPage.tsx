@@ -28,10 +28,16 @@ import {
   TeamOutlined,
   RobotOutlined,
   EyeOutlined,
+  RocketOutlined,
+  DownloadOutlined,
+  FileOutlined,
 } from '@ant-design/icons';
 import DockerHostsTab from '../../components/admin/DockerHostsTab';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
+import AgentsTab from '../../components/admin/AgentsTab';
+import DownloadsTab from '../../components/admin/DownloadsTab';
+import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { SystemSetting } from '../../types';
 
@@ -476,6 +482,15 @@ const SettingsPage: React.FC = () => {
       children: <DockerHostsTab />,
     },
     {
+      key: 'agents',
+      label: (
+        <span>
+          <RocketOutlined /> Traffic Agents
+        </span>
+      ),
+      children: <AgentsTab />,
+    },
+    {
       key: 'cyber_vision',
       label: (
         <span>
@@ -492,6 +507,24 @@ const SettingsPage: React.FC = () => {
         </span>
       ),
       children: <UserManagementTab />,
+    },
+    {
+      key: 'downloads',
+      label: (
+        <span>
+          <DownloadOutlined /> Downloads
+        </span>
+      ),
+      children: <DownloadsTab />,
+    },
+    {
+      key: 'pcaps',
+      label: (
+        <span>
+          <FileOutlined /> Generated PCAPs
+        </span>
+      ),
+      children: <GeneratedPcapsTab />,
     },
     {
       key: 'seed',

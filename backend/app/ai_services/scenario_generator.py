@@ -16,12 +16,13 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
 from app.protocol_engines.vendor_oui import generate_mac_address, get_oui_for_vendor
-from app.services.vendor_fingerprint_data import (
+from app.services.device_templates import (
     get_fingerprint_by_vendor_model,
     get_fingerprints_by_vendor,
-    get_random_oui_for_vendor,
-    VENDOR_OUI_PREFIXES,
+    get_all_templates,
+    DEVICE_TEMPLATES,
 )
 from app.ai_services.nl_parser import extract_device_counts
 
@@ -66,7 +67,7 @@ VERTICAL_TEMPLATES = {
             "robot": {"count_range": (0, 5), "vendors": ["fanuc", "kuka", "abb"]},
             "sensor": {"count_range": (10, 50), "vendors": ["generic"]},
         },
-        "protocols": ["ethernet_ip", "profinet", "modbus_tcp"],
+        "protocols": ["ethernet_ip", "profinet", "modbus_tcp", "pccc", "codesys", "ethercat"],
         "zones": ["process_control", "safety", "enterprise"],
         "poll_intervals_ms": {"fast": 100, "normal": 500, "slow": 2000},
     },
@@ -134,7 +135,7 @@ VERTICAL_TEMPLATES = {
             "pmu": {"count_range": (2, 10), "vendors": ["sel", "ge"]},
             "meter": {"count_range": (10, 100), "vendors": ["generic"]},
         },
-        "protocols": ["iec_104", "dnp3", "modbus_tcp"],
+        "protocols": ["iec61850", "iec_104", "dnp3", "modbus_tcp"],
         "zones": ["substation", "control_center", "corporate"],
         "poll_intervals_ms": {"fast": 100, "normal": 1000, "slow": 5000},
     },
@@ -179,7 +180,7 @@ VERTICAL_TEMPLATES = {
                 },
             },
         },
-        "protocols": ["modbus_tcp", "opc_ua"],
+        "protocols": ["modbus_tcp", "opc_ua", "dcs"],
         "zones": ["wellhead", "pipeline", "refinery", "control_room"],
         "poll_intervals_ms": {"fast": 500, "normal": 2000, "slow": 10000},
     },
@@ -264,28 +265,106 @@ VERTICAL_TEMPLATES = {
         "zones": ["tmc", "field", "corridor", "tunnel"],
         "poll_intervals_ms": {"fast": 500, "normal": 2000, "slow": 10000},
     },
+    "building_automation": {
+        "name": "Building Automation",
+        "description": "Commercial buildings, campus BMS, data centers with HVAC, lighting, and metering",
+        "typical_devices": {
+            "bms_controller": {
+                "count_range": (1, 5),
+                "vendors": ["honeywell", "johnson_controls", "schneider", "siemens"],
+                "fingerprint_models": {
+                    "honeywell": "Spyder",
+                    "johnson_controls": "FEC",
+                    "schneider": "SmartStruxure",
+                    "siemens": "Desigo CC",
+                },
+                "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0002},
+            },
+            "vav_controller": {
+                "count_range": (5, 50),
+                "vendors": ["honeywell", "johnson_controls", "tridium"],
+                "fingerprint_models": {
+                    "honeywell": "Spyder",
+                    "johnson_controls": "VAV Controller",
+                    "tridium": "JACE 8000",
+                },
+                "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
+            },
+            "chiller_controller": {
+                "count_range": (1, 5),
+                "vendors": ["trane", "carrier", "york"],
+                "fingerprint_models": {
+                    "trane": "Tracer SC+",
+                    "carrier": "i-Vu",
+                    "york": "YorkWorks",
+                },
+                "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+            },
+            "lighting_controller": {
+                "count_range": (2, 20),
+                "vendors": ["lutron", "philips", "acuity"],
+                "fingerprint_models": {
+                    "lutron": "Quantum",
+                    "philips": "Dynalite",
+                    "acuity": "nLight",
+                },
+            },
+            "power_meter": {
+                "count_range": (5, 30),
+                "vendors": ["schneider", "siemens", "eaton"],
+                "fingerprint_models": {
+                    "schneider": "PM8000",
+                    "siemens": "SENTRON PAC",
+                    "eaton": "PXM",
+                },
+            },
+            "fire_panel": {
+                "count_range": (1, 3),
+                "vendors": ["notifier", "simplex", "est"],
+                "fingerprint_models": {
+                    "notifier": "NFS2-3030",
+                    "simplex": "4100ES",
+                    "est": "EST4",
+                },
+            },
+        },
+        "protocols": ["bacnet", "modbus_tcp"],
+        "zones": ["bms", "hvac", "lighting", "metering", "fire_life_safety"],
+        "poll_intervals_ms": {"fast": 1000, "normal": 5000, "slow": 30000},
+    },
 }
 
 # TCP/UDP protocols that generate IP traffic (required for Cyber Vision discovery)
 # Layer 2 protocols like PROFINET don't include IP addresses in packets
 TCP_UDP_PROTOCOLS = {
-    "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
-    "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+    # Core industrial
+    "modbus_tcp", "modbus", "modbus_rtu", "ethernet_ip", "s7comm", "s7comm_plus",
+    # Building automation and network management
+    "bacnet", "snmp", "ntcip",
+    # SCADA/utility
+    "opc_ua", "dnp3", "iec104", "iec_104", "iec61850",
+    # Vendor-specific
+    "fins", "slmp", "codesys", "pccc",
+    # Specialized
+    "fanuc", "wmi", "dcs",
 }
 
 # Device type to protocol mapping
 # IMPORTANT: First protocol in list should be TCP/UDP for flow generation
 # Layer 2 protocols (profinet) should come after TCP/UDP protocols
 DEVICE_PROTOCOL_MAP = {
+    # Core industrial PLCs
     "plc": ["modbus_tcp", "ethernet_ip", "profinet"],  # TCP/UDP first
     "rtu": ["modbus_tcp", "dnp3"],
     "hmi": ["modbus_tcp", "ethernet_ip"],  # TCP/UDP first
     "drive": ["modbus_tcp", "ethernet_ip", "profinet"],  # TCP/UDP first
     "robot": ["ethernet_ip", "profinet"],  # TCP/UDP first
-    "ied": ["iec_104", "dnp3"],
+    # Energy/utility devices
+    "ied": ["iec61850", "iec_104", "dnp3"],  # IEC 61850 for substations
     "pmu": ["iec_104"],
     "meter": ["modbus_tcp", "dnp3"],
     "sensor": ["modbus_tcp"],
+    # Process industry
     "pump_controller": ["modbus_tcp", "ethernet_ip"],
     "flow_meter": ["modbus_tcp"],
     "level_sensor": ["modbus_tcp"],
@@ -300,11 +379,34 @@ DEVICE_PROTOCOL_MAP = {
     "weather_station": ["snmp"],
     "camera": ["snmp"],
     "thermal_sensor": ["snmp"],
-    "lighting_controller": ["snmp"],
     "ventilation_controller": ["snmp"],
     "toll_controller": ["snmp"],
     "anpr_camera": ["snmp"],
     "video_detector": ["snmp"],
+    # Building Automation devices
+    "bms_controller": ["bacnet", "modbus_tcp"],
+    "vav_controller": ["bacnet", "modbus_tcp"],
+    "chiller_controller": ["bacnet", "modbus_tcp"],
+    "lighting_controller": ["bacnet", "modbus_tcp"],
+    "power_meter": ["modbus_tcp", "bacnet"],
+    "fire_panel": ["bacnet"],
+    # CNC and motion control
+    "cnc_machine": ["fanuc", "ethernet_ip"],
+    # DCS systems
+    "dcs_controller": ["dcs", "opc_ua", "modbus_tcp"],
+    # Safety systems
+    "safety_plc": ["iec61850", "profinet", "ethernet_ip"],
+    # Vendor-specific PLCs
+    "omron_plc": ["fins", "ethernet_ip"],
+    "mitsubishi_plc": ["slmp", "ethernet_ip"],
+    "rockwell_legacy_plc": ["pccc", "ethernet_ip"],
+    "codesys_plc": ["codesys", "modbus_tcp"],
+    "ethercat_slave": ["ethercat"],
+    # Remote access and cloud devices
+    "jump_server": ["https"],
+    "remote_gateway": ["https", "modbus_tcp"],
+    "cloud_connector": ["https"],
+    "ewon_gateway": ["https", "modbus_tcp"],
 }
 
 # Keywords for entity extraction
@@ -330,6 +432,23 @@ DEVICE_KEYWORDS = {
     "ventilation_controller": ["ventilation", "tunnel fan", "air handling"],
     "toll_controller": ["toll", "tolling", "etc", "electronic toll"],
     "anpr_camera": ["anpr", "lpr", "license plate", "plate reader"],
+    # Building Automation device types
+    "bms_controller": ["bms", "building management", "building controller", "bas", "building automation"],
+    "vav_controller": ["vav", "variable air volume", "air handler", "ahu"],
+    "chiller_controller": ["chiller", "chiller plant", "cooling tower"],
+    "power_meter": ["power meter", "energy meter", "electrical meter", "submeter"],
+    "fire_panel": ["fire panel", "fire alarm", "facp", "fire control panel"],
+    # CNC and motion control
+    "cnc_machine": ["cnc", "machining center", "lathe", "mill", "fanuc"],
+    # DCS controllers
+    "dcs_controller": ["dcs", "distributed control", "deltav", "experion", "centum"],
+    # Safety systems
+    "safety_plc": ["safety plc", "safety controller", "sis", "triconex", "tricon"],
+    # Remote access and cloud devices
+    "jump_server": ["jump server", "jump box", "bastion", "bastion host", "remote desktop server"],
+    "remote_gateway": ["remote gateway", "remote access gateway", "vpn gateway", "secure gateway", "industrial gateway"],
+    "cloud_connector": ["cloud connector", "iot gateway", "cloud gateway", "azure iot", "aws iot", "iot hub"],
+    "ewon_gateway": ["ewon", "talk2m", "hms ewon", "flexy", "cosy", "ewon flexy", "ewon cosy"],
 }
 
 VENDOR_KEYWORDS = {
@@ -354,16 +473,59 @@ VENDOR_KEYWORDS = {
     "bosch": ["bosch", "mic ip"],
     "kapsch": ["kapsch", "traffics", "tcs"],
     "q-free": ["q-free", "qfree", "tolling"],
+    # Building Automation vendors
+    "johnson_controls": ["johnson controls", "jci", "metasys"],
+    "tridium": ["tridium", "niagara", "jace"],
+    "trane": ["trane", "tracer"],
+    "carrier": ["carrier", "i-vu"],
+    "york": ["york", "yorkworks"],
+    "lutron": ["lutron", "quantum", "homeworks"],
+    "acuity": ["acuity", "nlight"],
+    "notifier": ["notifier", "nfs"],
+    "simplex": ["simplex", "simplex 4100"],
+    "est": ["edwards", "est", "est4"],
+    "eaton": ["eaton", "powerware"],
+    # Japanese/Asian PLC vendors
+    "omron": ["omron", "cj2", "nj", "nx", "sysmac"],
+    "mitsubishi": ["mitsubishi", "melsec", "iq-r", "iq-f", "fx5"],
+    # Motion control vendors
+    "beckhoff": ["beckhoff", "twincat", "ethercat"],
+    "fanuc": ["fanuc", "focas", "cnc"],
+    # DCS vendors
+    "yokogawa": ["yokogawa", "centum", "prosafe"],
+    # Remote access vendors
+    "hms": ["hms", "ewon", "talk2m", "anybus", "flexy", "cosy"],
+    "microsoft": ["microsoft", "windows server", "rdp", "remote desktop"],
+    "teamviewer": ["teamviewer", "team viewer"],
 }
 
 PROTOCOL_KEYWORDS = {
+    # Core industrial
     "modbus_tcp": ["modbus", "modbus tcp", "modbus/tcp"],
+    "modbus_rtu": ["modbus rtu", "serial modbus", "rs485 modbus"],
     "ethernet_ip": ["ethernet/ip", "ethernet-ip", "enip", "cip"],
     "profinet": ["profinet", "pn io", "profinet io"],
+    "s7comm": ["s7", "s7comm", "step 7", "simatic"],
+    # SCADA/utility
     "opc_ua": ["opc ua", "opc-ua", "opcua", "opc unified"],
     "dnp3": ["dnp3", "dnp 3", "distributed network protocol"],
     "iec_104": ["iec 104", "iec104", "iec 60870-5-104", "iec-104"],
+    "iec61850": ["iec 61850", "iec61850", "goose", "mms", "sampled values", "sv"],
+    # Building automation and network
+    "bacnet": ["bacnet", "bacnet/ip", "bacnet ip", "bac net"],
     "snmp": ["snmp", "ntcip", "mib", "simple network management"],
+    "lldp": ["lldp", "link layer discovery"],
+    "cdp": ["cdp", "cisco discovery"],
+    # Vendor-specific
+    "pccc": ["pccc", "df1", "allen-bradley legacy", "plc-5", "slc-500", "slc 500"],
+    "codesys": ["codesys", "codesys v3", "wago plc", "festo plc", "3s software"],
+    "fins": ["fins", "omron", "cj2", "nj", "nx", "sysmac"],
+    "slmp": ["slmp", "melsec", "mitsubishi plc", "iq-r", "iq-f", "melsoft"],
+    "ethercat": ["ethercat", "beckhoff", "motion control", "twincat"],
+    # DCS and specialized
+    "dcs": ["dcs", "deltav", "experion", "centum", "triconex", "distributed control system"],
+    "fanuc": ["fanuc", "focas", "cnc", "machining center"],
+    "wmi": ["wmi", "windows management", "wmic"],
 }
 
 VERTICAL_KEYWORDS = {
@@ -375,6 +537,11 @@ VERTICAL_KEYWORDS = {
         "transportation", "traffic", "highway", "freeway", "interstate", "toll", "tunnel", "bridge",
         "its", "intelligent transportation", "tmc", "traffic management", "intersection", "corridor",
         "roadway", "arterial", "signal", "dms", "ramp meter", "connected vehicle", "v2x",
+    ],
+    "building_automation": [
+        "building", "building automation", "bms", "bas", "hvac", "commercial building", "campus",
+        "data center", "facility", "smart building", "bacs", "bacnet", "chiller", "ahu", "vav",
+        "lighting control", "metering", "energy management",
     ],
 }
 
@@ -446,13 +613,77 @@ class ScenarioGenerator:
     3. Generates device topology
     4. Infers protocols from device types
     5. Creates flows with appropriate timing
-    6. Assigns IP/MAC addresses using zone scheme
+    6. Assigns IP/MAC addresses using zone scheme with proper /16 allocation
     """
 
-    def __init__(self):
-        """Initialize the scenario generator."""
-        self._ip_counter = 1
+    def __init__(self, range_index: int = 1):
+        """Initialize the scenario generator.
+
+        Args:
+            range_index: The scenario's /16 IP range index (1-254)
+        """
+        self.range_index = range_index
+        self._ip_counter = 10  # Start at .10 like templates do
         self._mac_counter = 1
+        self._zone_subnet_map: dict[str, int] = {}  # zone_name -> subnet_offset
+
+    def _filter_protocols_by_fingerprint(
+        self,
+        protocols: list[str],
+        fingerprint_data: dict | None,
+        device_name: str,
+    ) -> list[str]:
+        """Filter protocols to only those supported by the fingerprint identity data.
+
+        This prevents protocol_identity_mismatch validation errors at deploy time.
+
+        Args:
+            protocols: List of requested protocols
+            fingerprint_data: Device fingerprint data with identity fields
+            device_name: Device name for logging
+
+        Returns:
+            List of protocols that have valid identity support in the fingerprint
+        """
+        if not protocols:
+            return []
+
+        # If no fingerprint data at all, we cannot assign protocols that require identities
+        if not fingerprint_data:
+            logger.warning(
+                f"Device '{device_name}': No fingerprint data - device will have no protocols"
+            )
+            return []
+
+        validated = []
+        removed = []
+
+        for protocol in protocols:
+            identity_key = PROTOCOL_TO_IDENTITY_KEY.get(protocol)
+
+            if identity_key:
+                # Protocol requires identity - check if fingerprint has it
+                identity = fingerprint_data.get(identity_key)
+                if identity and isinstance(identity, dict) and len(identity) > 0:
+                    validated.append(protocol)
+                else:
+                    removed.append(protocol)
+            else:
+                # Protocol doesn't require identity (e.g., http, ssh) - allow it
+                validated.append(protocol)
+
+        # Always log the filtering result for debugging
+        if removed:
+            logger.info(
+                f"Device '{device_name}': Removed protocols {removed} (no identity in fingerprint). "
+                f"Kept: {validated}"
+            )
+        else:
+            logger.debug(
+                f"Device '{device_name}': All protocols validated: {validated}"
+            )
+
+        return validated
 
     def generate_from_description(
         self,
@@ -480,6 +711,10 @@ class ScenarioGenerator:
         Returns:
             Generated scenario
         """
+        # Reset counters for new scenario
+        self._ip_counter = 10
+        self._zone_subnet_map = {}
+
         # Extract entities
         entities = self._extract_entities(description)
 
@@ -555,6 +790,8 @@ class ScenarioGenerator:
                     for e in entities
                 ],
                 "template_used": determined_vertical,
+                "range_index": self.range_index,
+                "ip_range": f"10.{self.range_index}.0.0/16",
             },
         )
 
@@ -912,6 +1149,40 @@ class ScenarioGenerator:
             if fingerprint_model and vendor != "generic":
                 fingerprint_data = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
 
+            # Fallback: if no specific model, try to find ANY fingerprint for this vendor
+            # This ensures devices have protocol identity data for traffic generation
+            if not fingerprint_data and vendor and vendor != "generic":
+                vendor_fps = get_fingerprints_by_vendor(vendor)
+                if vendor_fps:
+                    # Pick first available fingerprint for this vendor
+                    fingerprint_data = vendor_fps[0]
+                    fingerprint_model = fingerprint_data.get("model")
+                    logger.debug(
+                        f"Using fallback fingerprint {fingerprint_model} for {vendor} {device_type}"
+                    )
+
+            # Final fallback for generic/unknown vendors: use a common modbus-capable device
+            # This ensures sensors and other generic devices can still generate traffic
+            if not fingerprint_data:
+                # Try Schneider for sensors/meters (good modbus support)
+                fallback_vendors = ["schneider", "siemens", "honeywell"]
+                for fallback_vendor in fallback_vendors:
+                    vendor_fps = get_fingerprints_by_vendor(fallback_vendor)
+                    if vendor_fps:
+                        # Find one with modbus_identity
+                        for fp in vendor_fps:
+                            if fp.get("modbus_identity"):
+                                fingerprint_data = fp
+                                fingerprint_model = fp.get("model")
+                                # Update vendor to match fingerprint
+                                vendor = fallback_vendor
+                                logger.info(
+                                    f"Using generic fallback fingerprint {fingerprint_model} ({fallback_vendor}) for {device_type}"
+                                )
+                                break
+                    if fingerprint_data:
+                        break
+
             # Get error config from template or fingerprint
             error_config = config.get("error_config")
             if not error_config and fingerprint_data:
@@ -921,6 +1192,16 @@ class ScenarioGenerator:
                         "exception_rate": error_behavior.get("exception_probability", 0.001),
                         "timeout_rate": error_behavior.get("timeout_probability", 0.0005),
                     }
+
+            # Filter protocols to only those supported by the fingerprint
+            # This prevents protocol_identity_mismatch validation errors
+            filtered_protocols = self._filter_protocols_by_fingerprint(
+                protocols, fingerprint_data, f"{device_type.upper()}"
+            )
+
+            # If no fingerprint data, clear the fingerprint_model to avoid validation errors
+            if not fingerprint_data:
+                fingerprint_model = None
 
             # Generate devices
             for i in range(count):
@@ -940,16 +1221,17 @@ class ScenarioGenerator:
                     ip_address=self._generate_ip(zone),
                     mac_address=mac_address,
                     zone=zone,
-                    protocols=protocols,
+                    protocols=filtered_protocols,
                     fingerprint_model=fingerprint_model,
                     error_config=error_config,
                     fingerprint_data=fingerprint_data,
                 )
                 devices.append(device)
 
-                logger.debug(
-                    f"Generated device {device.name} with fingerprint "
-                    f"{fingerprint_model or 'none'} (vendor={vendor})"
+                logger.info(
+                    f"Generated device {device.name}: vendor={vendor}, "
+                    f"fingerprint_model={fingerprint_model or 'NONE'}, "
+                    f"protocols={filtered_protocols}"
                 )
 
         # Ensure at least 1 controller (PLC/RTU) exists for flow generation
@@ -964,19 +1246,41 @@ class ScenarioGenerator:
             vendor = random.choice(vendors)
             protocols = template.get("protocols", ["modbus_tcp"])
 
+            # Look up fingerprint for the fallback PLC
+            fingerprint_models = plc_config.get("fingerprint_models", {})
+            fallback_fingerprint_model = fingerprint_models.get(vendor)
+            fallback_fingerprint_data = None
+
+            if fallback_fingerprint_model:
+                fallback_fingerprint_data = get_fingerprint_by_vendor_model(
+                    vendor, fallback_fingerprint_model
+                )
+
+            # Try to find any fingerprint for the vendor if specific one not found
+            if not fallback_fingerprint_data:
+                vendor_fps = get_fingerprints_by_vendor(vendor)
+                if vendor_fps:
+                    fallback_fingerprint_data = vendor_fps[0]
+                    fallback_fingerprint_model = fallback_fingerprint_data.get("model")
+
+            # Filter protocols for the fallback PLC
+            filtered_fallback_protocols = self._filter_protocols_by_fingerprint(
+                protocols, fallback_fingerprint_data, "PLC-MAIN-001"
+            )
+
             device = GeneratedDevice(
                 device_id=str(uuid.uuid4()),
                 device_type="plc",
                 name="PLC-MAIN-001",
                 vendor=vendor,
-                model=None,
+                model=fallback_fingerprint_model,
                 ip_address=self._generate_ip(template["zones"][0]),
                 mac_address=generate_mac_address(vendor=vendor, device_type="plc"),
                 zone=template["zones"][0],
-                protocols=protocols,
-                fingerprint_model=None,
+                protocols=filtered_fallback_protocols,
+                fingerprint_model=fallback_fingerprint_model,
                 error_config=plc_config.get("error_config"),
-                fingerprint_data=None,
+                fingerprint_data=fallback_fingerprint_data,
             )
             devices.insert(0, device)  # Add at beginning
 
@@ -987,21 +1291,32 @@ class ScenarioGenerator:
         template: dict[str, Any],
         devices: list[GeneratedDevice],
     ) -> list[dict[str, Any]]:
-        """Generate zone configurations.
+        """Generate zone configurations with proper subnet allocation.
+
+        Each zone gets a /24 subnet within the scenario's /16 range.
 
         Args:
             template: Vertical template
             devices: Generated devices
 
         Returns:
-            List of zone configurations
+            List of zone configurations with subnet info
         """
         zones = []
 
-        for zone_name in template["zones"]:
+        for i, zone_name in enumerate(template["zones"]):
             zone_devices = [d for d in devices if d.zone == zone_name]
+            subnet_offset = self._zone_subnet_map.get(zone_name, i)
             zones.append({
+                "id": zone_name.lower().replace(" ", "_"),
                 "name": zone_name,
+                "subnet_offset": subnet_offset,
+                "vlan": 100 + i * 10,
+                "network": {
+                    "subnet": f"10.{self.range_index}.{subnet_offset}.0/24",
+                    "gateway": f"10.{self.range_index}.{subnet_offset}.1",
+                    "subnet_offset": subnet_offset,
+                },
                 "device_count": len(zone_devices),
                 "device_ids": [d.device_id for d in zone_devices],
             })
@@ -1164,7 +1479,10 @@ class ScenarioGenerator:
         return flows
 
     def _generate_ip(self, zone: str) -> str:
-        """Generate an IP address for a zone.
+        """Generate an IP address within a zone's /24 subnet.
+
+        Uses the scenario's allocated /16 range and the zone's subnet_offset
+        to generate IPs in the format: 10.{range_index}.{subnet_offset}.{host}
 
         Args:
             zone: Zone name
@@ -1172,35 +1490,15 @@ class ScenarioGenerator:
         Returns:
             IP address string
         """
-        # Zone-based subnets
-        zone_subnets = {
-            # Manufacturing zones
-            "process_control": "10.10.1",
-            "safety": "10.10.2",
-            "enterprise": "10.10.100",
-            # Water/Wastewater zones
-            "scada": "10.20.1",
-            "field": "10.20.10",
-            "corporate": "10.20.100",
-            # Energy zones
-            "substation": "10.30.1",
-            "control_center": "10.30.100",
-            # Oil & Gas zones
-            "wellhead": "10.40.1",
-            "pipeline": "10.40.10",
-            "refinery": "10.40.20",
-            "control_room": "10.40.100",
-            # Transportation zones
-            "tmc": "10.50.1",  # Traffic Management Center
-            "corridor": "10.50.10",  # Highway/Arterial Corridor
-            "tunnel": "10.50.20",  # Tunnel/Bridge Infrastructure
-        }
+        # Get or assign subnet_offset for this zone
+        if zone not in self._zone_subnet_map:
+            self._zone_subnet_map[zone] = len(self._zone_subnet_map)
 
-        subnet = zone_subnets.get(zone, "192.168.1")
-        ip = f"{subnet}.{self._ip_counter}"
+        subnet_offset = self._zone_subnet_map[zone]
+        ip = f"10.{self.range_index}.{subnet_offset}.{self._ip_counter}"
         self._ip_counter += 1
         if self._ip_counter > 254:
-            self._ip_counter = 1
+            self._ip_counter = 10
 
         return ip
 
@@ -1218,10 +1516,10 @@ class ScenarioGenerator:
             "rockwell": "00:00:BC",
             "siemens": "00:0E:8C",
             "schneider": "00:00:54",
-            "abb": "00:20:99",
-            "honeywell": "00:60:35",
-            "emerson": "00:A0:F8",
-            "ge": "00:14:49",
+            "abb": "00:21:99",
+            "honeywell": "00:40:84",  # Honeywell Inc (verified IEEE)
+            "emerson": "00:0D:3A",  # Emerson Network Power (verified IEEE)
+            "ge": "00:09:45",  # GE Fanuc (verified IEEE)
         }
 
         oui = vendor_ouis.get(vendor, "00:00:00")

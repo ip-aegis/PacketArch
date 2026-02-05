@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint
+from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.learned_sequence import LearnedSequence
 
 
@@ -180,8 +180,8 @@ class LearnedPatternService:
         db: AsyncSession,
         protocol: str,
         role: str | None = None,
-    ) -> list[LearnedDeviceFingerprint]:
-        """Get device fingerprints that use a specific protocol.
+    ) -> list[DeviceTemplate]:
+        """Get learned device fingerprints that use a specific protocol.
 
         Args:
             db: Database session
@@ -189,16 +189,17 @@ class LearnedPatternService:
             role: Optional filter by device role (master, slave, both)
 
         Returns:
-            List of matching fingerprints
+            List of matching DeviceTemplate records (source=pcap_learned)
         """
-        query = select(LearnedDeviceFingerprint).where(
-            LearnedDeviceFingerprint.active_protocols.contains([protocol])
+        query = select(DeviceTemplate).where(
+            DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+            DeviceTemplate.active_protocols.contains([protocol]),
         )
 
         if role:
-            query = query.where(LearnedDeviceFingerprint.role == role)
+            query = query.where(DeviceTemplate.role == role)
 
-        query = query.order_by(LearnedDeviceFingerprint.confidence.desc())
+        query = query.order_by(DeviceTemplate.confidence.desc())
         result = await db.execute(query)
         return list(result.scalars().all())
 
@@ -218,33 +219,37 @@ class LearnedPatternService:
         Returns:
             TCP signature model or None
         """
-        query = select(LearnedDeviceFingerprint).where(
-            LearnedDeviceFingerprint.tcp_signature.isnot(None)
+        query = select(DeviceTemplate).where(
+            DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+            DeviceTemplate.tcp_signature.isnot(None),
         )
 
         if protocol:
             query = query.where(
-                LearnedDeviceFingerprint.active_protocols.contains([protocol])
+                DeviceTemplate.active_protocols.contains([protocol])
             )
 
         if role:
-            query = query.where(LearnedDeviceFingerprint.role == role)
+            query = query.where(DeviceTemplate.role == role)
 
-        query = query.order_by(LearnedDeviceFingerprint.confidence.desc()).limit(10)
+        query = query.order_by(DeviceTemplate.confidence.desc()).limit(10)
         result = await db.execute(query)
         fingerprints = list(result.scalars().all())
 
         if not fingerprints:
             return None
 
-        # Collect unique TCP signatures
+        # Collect unique TCP signatures from fingerprint templates
         signatures = []
         for fp in fingerprints:
             if fp.tcp_signature:
                 signatures.append({
-                    "source_ip": fp.ip_address,
+                    "fingerprint_id": str(fp.id),
                     "signature": fp.tcp_signature,
-                    "vendor": fp.inferred_vendor,
+                    "vendor": fp.vendor,
+                    "device_type": fp.device_type,
+                    "oui_patterns": fp.oui_patterns,
+                    "observation_count": fp.sample_count or 0,
                 })
 
         return {
@@ -277,12 +282,14 @@ class LearnedPatternService:
         if not fingerprints:
             return None
 
-        # Aggregate response timings
+        # Aggregate response timings from fingerprint templates
         all_timings = []
         for fp in fingerprints:
             if fp.response_timings and protocol in fp.response_timings:
-                timing = fp.response_timings[protocol]
-                timing["source_ip"] = fp.ip_address
+                timing = dict(fp.response_timings[protocol])  # Copy to avoid mutating
+                timing["fingerprint_id"] = str(fp.id)
+                timing["vendor"] = fp.inferred_vendor
+                timing["device_type"] = fp.device_type
                 all_timings.append(timing)
 
         if not all_timings:
@@ -468,11 +475,13 @@ class LearnedPatternService:
                 "fingerprints": [
                     {
                         "id": str(f.id),
-                        "ip_address": f.ip_address,
+                        "name": f.name,
                         "vendor": f.inferred_vendor,
+                        "device_type": f.device_type,
                         "role": f.role,
                         "has_tcp_signature": f.tcp_signature is not None,
                         "has_response_timings": f.response_timings is not None,
+                        "observation_count": f.observation_count,
                         "confidence": f.confidence,
                     }
                     for f in fingerprints[:5]
@@ -515,7 +524,9 @@ class LearnedPatternService:
 
         # Count fingerprints by protocol
         fingerprint_result = await db.execute(
-            select(LearnedDeviceFingerprint)
+            select(DeviceTemplate).where(
+                DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+            )
         )
         fingerprints = fingerprint_result.scalars().all()
 

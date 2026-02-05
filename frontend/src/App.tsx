@@ -13,6 +13,7 @@ import CVEBrowserPage from './pages/CVEBrowserPage';
 import HelpPage from './pages/HelpPage';
 import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
 import CyberVisionPage from './pages/CyberVisionPage';
+import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
 import SettingsPage from './pages/admin/SettingsPage';
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
         <Route path="cyber-vision" element={<CyberVisionPage />} />
+        <Route path="fingerprints" element={<FingerprintingLibraryPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="help/:articleId" element={<HelpPage />} />
 

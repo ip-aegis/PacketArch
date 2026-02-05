@@ -118,14 +118,20 @@ class BACnetEngine(ProtocolEngine):
         """Get default BACnet objects to poll.
 
         Returns common BMS object types for a typical controller:
+        - Device object (instance -1 = placeholder, replaced with actual device instance)
         - Zone temperature (Analog Input)
         - Supply air temp (Analog Input)
         - Cooling valve (Analog Output)
         - Heating valve (Analog Output)
         - Fan status (Binary Input)
         - Occupancy (Binary Input)
+
+        Note: Device object instance -1 is a sentinel value that gets replaced
+        with the actual device instance in generate_poll_cycle(). This ensures
+        VENDOR_NAME, MODEL_NAME, and FIRMWARE_REVISION are polled for CV detection.
         """
         return [
+            (BACnetObjectType.DEVICE, -1),        # Device Object - instance replaced dynamically
             (BACnetObjectType.ANALOG_INPUT, 1),   # Zone Temperature
             (BACnetObjectType.ANALOG_INPUT, 2),   # Supply Air Temperature
             (BACnetObjectType.ANALOG_OUTPUT, 1),  # Cooling Valve
@@ -474,6 +480,10 @@ class BACnetEngine(ProtocolEngine):
         poll_objects = config.poll_objects or self._get_default_poll_objects()
         obj_index = state.custom_data.get("poll_object_index", 0)
         obj_type, obj_instance = poll_objects[obj_index % len(poll_objects)]
+
+        # Handle Device object sentinel value (-1 means use actual device instance)
+        if obj_type == BACnetObjectType.DEVICE and obj_instance == -1:
+            obj_instance = identity["device_instance"]
 
         # Determine properties to read based on object type
         if obj_type == BACnetObjectType.DEVICE:

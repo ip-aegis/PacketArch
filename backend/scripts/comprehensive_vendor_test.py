@@ -12,7 +12,7 @@ import sys
 
 # PacketArch API configuration
 API_BASE = "https://10.10.20.231/api/v1"
-ADMIN_CREDS = {"username": "admin", "password": "PacketArch_Admin!"}
+ADMIN_CREDS = {"username": "admin", "password": "C!sco123"}
 
 # Docker host for traffic injection
 DOCKER_HOST_ID = "a4b1edd7-c926-475d-b990-9656c6b91af0"

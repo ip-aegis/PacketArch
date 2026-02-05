@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import async_session_maker
 from app.models.learned_pattern import LearnedPattern
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint
+from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.learned_sequence import LearnedSequence
 
 
@@ -181,7 +181,11 @@ async def get_protocol_patterns_by_protocol(db: AsyncSession) -> dict:
 
 async def get_fingerprint_stats(db: AsyncSession) -> dict:
     """Get device fingerprint statistics by protocol and role."""
-    result = await db.execute(select(LearnedDeviceFingerprint))
+    result = await db.execute(
+        select(DeviceTemplate).where(
+            DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
+        )
+    )
     fingerprints = result.scalars().all()
 
     stats = {}

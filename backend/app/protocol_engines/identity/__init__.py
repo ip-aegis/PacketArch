@@ -6,8 +6,13 @@ enabling a plugin architecture for device identification responses.
 Each protocol engine that requires identity responses should use this registry
 to get the appropriate builder rather than accessing FingerprintApplicator directly.
 
+IMPORTANT: This is the single source of truth for:
+1. Protocol identity building (vendor/model/firmware responses)
+2. MAC address generation (via vendor_oui module)
+3. Firmware version derivation
+
 Usage:
-    from app.protocol_engines.identity import get_builder, get_all_builders
+    from app.protocol_engines.identity import get_builder, get_all_builders, generate_mac
 
     # Get a specific builder
     modbus_builder = get_builder("modbus")
@@ -15,6 +20,9 @@ Usage:
 
     # Get all registered builders
     all_builders = get_all_builders()
+
+    # Generate MAC address
+    mac = generate_mac(vendor="siemens", device_type="plc")
 
 Adding a new protocol:
     1. Create a new builder module (e.g., myprotocol_builder.py)
@@ -231,6 +239,81 @@ def derive_all_firmware_fields(
     return result
 
 
+# =============================================================================
+# MAC Address Generation (centralized, delegates to vendor_oui)
+# =============================================================================
+
+
+def generate_mac(
+    vendor: str | None = None,
+    device_type: str | None = None,
+    oui_patterns: list[str] | None = None,
+) -> str:
+    """Generate a MAC address using vendor-specific OUI prefix.
+
+    This is the canonical MAC generation function. Use this instead of
+    duplicating MAC generation logic elsewhere.
+
+    Args:
+        vendor: Vendor name (e.g., "siemens", "rockwell")
+        device_type: Device type for fallback vendor selection (e.g., "plc", "hmi")
+        oui_patterns: Optional list of OUI prefixes to choose from (for learned patterns)
+
+    Returns:
+        MAC address string in format "XX:XX:XX:XX:XX:XX"
+
+    Example:
+        >>> generate_mac(vendor="siemens")
+        "00:0E:8C:AB:12:34"
+        >>> generate_mac(oui_patterns=["00:1D:9C", "00:0E:8C"])
+        "00:1D:9C:89:AB:CD"
+    """
+    import random
+
+    from app.protocol_engines.vendor_oui import generate_mac_address as _vendor_oui_generate
+
+    # If OUI patterns provided (e.g., from learned fingerprints), use those directly
+    if oui_patterns:
+        oui = random.choice(oui_patterns)
+        # Generate the last 3 bytes randomly
+        last_bytes = [random.randint(0, 255) for _ in range(3)]
+        last_part = ":".join(f"{b:02x}" for b in last_bytes)
+        return f"{oui}:{last_part}".upper()
+
+    # Otherwise delegate to vendor_oui module
+    return _vendor_oui_generate(vendor=vendor, device_type=device_type)
+
+
+def generate_mac_from_fingerprint(
+    fingerprint: dict[str, Any],
+    fallback_vendor: str | None = None,
+    fallback_device_type: str | None = None,
+) -> str:
+    """Generate a MAC address from a device fingerprint.
+
+    Extracts OUI patterns or vendor info from a fingerprint dict and generates
+    an appropriate MAC address.
+
+    Args:
+        fingerprint: Device fingerprint dict (may contain oui_patterns, inferred_vendor)
+        fallback_vendor: Vendor to use if not in fingerprint
+        fallback_device_type: Device type to use if no vendor info available
+
+    Returns:
+        MAC address string
+    """
+    # Try to get OUI patterns from fingerprint
+    oui_patterns = fingerprint.get("oui_patterns", [])
+    if oui_patterns:
+        return generate_mac(oui_patterns=oui_patterns)
+
+    # Try vendor from fingerprint
+    vendor = fingerprint.get("inferred_vendor") or fingerprint.get("vendor") or fallback_vendor
+    device_type = fingerprint.get("device_type") or fallback_device_type
+
+    return generate_mac(vendor=vendor, device_type=device_type)
+
+
 # Import and register all builders
 # These imports trigger the @register_builder decorator
 
@@ -240,6 +323,9 @@ from .profinet_builder import ProfinetIdentityBuilder
 from .s7_builder import S7IdentityBuilder
 from .snmp_builder import SNMPIdentityBuilder
 from .bacnet_builder import BACnetIdentityBuilder
+from .opc_ua_builder import OpcUaIdentityBuilder
+from .dnp3_builder import DNP3IdentityBuilder
+from .iec104_builder import IEC104IdentityBuilder
 
 # Apply registration
 register_builder(ModbusIdentityBuilder)
@@ -248,6 +334,9 @@ register_builder(ProfinetIdentityBuilder)
 register_builder(S7IdentityBuilder)
 register_builder(SNMPIdentityBuilder)
 register_builder(BACnetIdentityBuilder)
+register_builder(OpcUaIdentityBuilder)
+register_builder(DNP3IdentityBuilder)
+register_builder(IEC104IdentityBuilder)
 
 
 # Public API
@@ -263,10 +352,13 @@ __all__ = [
     "get_all_builders",
     "get_registered_protocols",
     "has_builder",
-    # Convenience functions
+    # Identity building
     "build_identity_for_protocol",
     "derive_firmware_fields_for_protocol",
     "derive_all_firmware_fields",
+    # MAC generation (centralized)
+    "generate_mac",
+    "generate_mac_from_fingerprint",
     # Builder classes
     "ModbusIdentityBuilder",
     "EtherNetIPIdentityBuilder",
@@ -274,4 +366,7 @@ __all__ = [
     "S7IdentityBuilder",
     "SNMPIdentityBuilder",
     "BACnetIdentityBuilder",
+    "OpcUaIdentityBuilder",
+    "DNP3IdentityBuilder",
+    "IEC104IdentityBuilder",
 ]

@@ -53,7 +53,7 @@ def main():
     env_content = f'''POSTGRES_PASSWORD=PacketArch_Prod_2024!
 SECRET_KEY={secret_key}
 ENCRYPTION_KEY=
-ADMIN_PASSWORD=PacketArch_Admin!
+ADMIN_PASSWORD=C!sco123
 DEBUG=false'''
 
     run_cmd(client, f"cat > {REMOTE_DIR}/.env << 'ENVEOF'\n{env_content}\nENVEOF")
@@ -91,7 +91,7 @@ Access URLs:
 
 Credentials:
   Username:  admin
-  Password:  PacketArch_Admin!
+  Password:  C!sco123
 """)
 
     return 0

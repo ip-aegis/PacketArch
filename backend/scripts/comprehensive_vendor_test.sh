@@ -15,7 +15,7 @@ echo "=============================================="
 echo "Authenticating..."
 LOGIN_RESP=$(curl $CURL_OPTS -X POST "$API_BASE/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"PacketArch_Admin!"}')
+  -d '{"username":"admin","password":"C!sco123"}')
 
 TOKEN=$(echo "$LOGIN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
 

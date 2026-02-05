@@ -71,8 +71,8 @@ AXIS_OUI_PREFIXES = [
 ]
 
 PELCO_OUI_PREFIXES = [
-    "00:0C:CE",  # Pelco (Schneider)
-    "00:0F:FE",  # Pelco
+    "00:80:F4",  # Schneider Electric (Pelco parent company)
+    "64:3A:EA",  # Schneider Electric
 ]
 
 BOSCH_OUI_PREFIXES = [

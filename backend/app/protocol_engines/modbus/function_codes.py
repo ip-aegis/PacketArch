@@ -494,28 +494,16 @@ class FC43ReadDeviceIdentification(FunctionCodeHandler):
         """
         device_id_code = config.get("device_id_code", 0x01)
 
-        # Try using the new identity builder system first
-        try:
-            identity_response = fingerprint_applicator.get_identity_response(
-                "modbus",
-                device_id_code=device_id_code,
-            )
+        identity_response = fingerprint_applicator.get_identity_response(
+            "modbus",
+            device_id_code=device_id_code,
+        )
 
-            if identity_response.raw_response:
-                # raw_response already includes MEI data, prepend function code
-                return struct.pack(">B", self.function_code) + identity_response.raw_response
-        except (KeyError, ImportError):
-            # Identity builder not available, fall back to legacy method
-            pass
+        if identity_response.raw_bytes:
+            return struct.pack(">B", self.function_code) + identity_response.raw_bytes
 
-        # Legacy fallback: use build_modbus_mei_response
-        mei_response = fingerprint_applicator.build_modbus_mei_response(device_id_code)
-
-        if mei_response:
-            return struct.pack(">B", self.function_code) + mei_response
-        else:
-            # Final fallback to generic response
-            return self.build_response(config, {})
+        # Fallback to generic response if identity builder returned no bytes
+        return self.build_response(config, {})
 
 
 # Registry of all function code handlers

@@ -24,8 +24,11 @@ from scapy.layers.inet import ICMP
 
 from app.models.learned_pattern import DistributionType, PatternType
 from app.ai_services.extractors import (
+    BACnetExtractor,
+    EtherNetIPExtractor,
     FingerprintExtractor,
     ModbusExtractor,
+    ProfinetExtractor,
     S7Extractor,
     SequenceLearner,
 )
@@ -38,6 +41,8 @@ OT_PROTOCOL_PORTS = {
     502: "modbus_tcp",
     44818: "ethernet_ip",
     2222: "ethernet_ip_io",
+    47808: "bacnet_ip",
+    34964: "profinet_dcp",
     4840: "opc_ua",
     20000: "dnp3",
     2404: "iec_104",
@@ -136,6 +141,9 @@ class PcapAnalyzer:
         self.fingerprint_extractor = FingerprintExtractor()
         self.modbus_extractor = ModbusExtractor()
         self.s7_extractor = S7Extractor()
+        self.bacnet_extractor = BACnetExtractor()
+        self.ethernet_ip_extractor = EtherNetIPExtractor()
+        self.profinet_extractor = ProfinetExtractor()
         self.sequence_learner = SequenceLearner()
 
     def analyze_file(self, file_path: str | Path, enhanced: bool = True) -> dict[str, Any]:
@@ -207,6 +215,9 @@ class PcapAnalyzer:
         self.fingerprint_extractor.reset()
         self.modbus_extractor.reset()
         self.s7_extractor.reset()
+        self.bacnet_extractor.reset()
+        self.ethernet_ip_extractor.reset()
+        self.profinet_extractor.reset()
         self.sequence_learner.reset()
 
     def _run_enhanced_analysis(self, packets) -> dict[str, Any]:
@@ -238,6 +249,27 @@ class PcapAnalyzer:
                 if packet_info:
                     self.sequence_learner.add_packet(packet_info)
 
+            # Try BACnet extractor
+            elif self.bacnet_extractor.can_handle(pkt):
+                protocol = "bacnet_ip"
+                packet_info = self.bacnet_extractor.extract_packet_info(pkt)
+                if packet_info:
+                    self.sequence_learner.add_packet(packet_info)
+
+            # Try EtherNet/IP extractor
+            elif self.ethernet_ip_extractor.can_handle(pkt):
+                protocol = "ethernet_ip"
+                packet_info = self.ethernet_ip_extractor.extract_packet_info(pkt)
+                if packet_info:
+                    self.sequence_learner.add_packet(packet_info)
+
+            # Try PROFINET extractor
+            elif self.profinet_extractor.can_handle(pkt):
+                protocol = "profinet"
+                packet_info = self.profinet_extractor.extract_packet_info(pkt)
+                if packet_info:
+                    self.sequence_learner.add_packet(packet_info)
+
             # Process through fingerprint extractor (all packets)
             self.fingerprint_extractor.process_packet(pkt, protocol=protocol)
 
@@ -257,6 +289,27 @@ class PcapAnalyzer:
             s7_patterns["protocol"] = "s7comm"
             s7_patterns["packet_count"] = s7_patterns.get("sample_count", 0)
             protocol_patterns.append(s7_patterns)
+
+        # BACnet patterns
+        bacnet_patterns = self.bacnet_extractor.build_patterns()
+        if bacnet_patterns and bacnet_patterns.get("sample_count", 0) > 0:
+            bacnet_patterns["protocol"] = "bacnet_ip"
+            bacnet_patterns["packet_count"] = bacnet_patterns.get("sample_count", 0)
+            protocol_patterns.append(bacnet_patterns)
+
+        # EtherNet/IP patterns
+        enip_patterns = self.ethernet_ip_extractor.build_patterns()
+        if enip_patterns and enip_patterns.get("sample_count", 0) > 0:
+            enip_patterns["protocol"] = "ethernet_ip"
+            enip_patterns["packet_count"] = enip_patterns.get("sample_count", 0)
+            protocol_patterns.append(enip_patterns)
+
+        # PROFINET patterns
+        profinet_patterns = self.profinet_extractor.build_patterns()
+        if profinet_patterns and profinet_patterns.get("sample_count", 0) > 0:
+            profinet_patterns["protocol"] = "profinet"
+            profinet_patterns["packet_count"] = profinet_patterns.get("sample_count", 0)
+            protocol_patterns.append(profinet_patterns)
 
         # Device fingerprints
         device_fingerprints = self.fingerprint_extractor.build_fingerprints()

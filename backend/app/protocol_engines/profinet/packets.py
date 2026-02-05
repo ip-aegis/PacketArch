@@ -23,13 +23,38 @@ VLAN_ETHERTYPE = 0x8100
 # PROFINET Frame IDs
 # RT Class 1 (unsynchronized): 0x8000-0xBFFF
 # RT Class 2 (synchronized): 0xC000-0xFBFF
-# RT Class 3 (isochronous): 0x0100-0x7FFF
+# RT Class 3 (IRT - isochronous): 0x0100-0x7FFF
 # DCP: 0xFEFC-0xFEFF
 FRAME_ID_DCP_HELLO = 0xFEFC
 FRAME_ID_DCP_GET_SET = 0xFEFD
 FRAME_ID_DCP_IDENTIFY_REQ = 0xFEFE
 FRAME_ID_DCP_IDENTIFY_RES = 0xFEFF
 FRAME_ID_RTA = 0xFC01  # Real-Time Acyclic
+
+# PROFINET Sync Frame IDs (for IRT)
+FRAME_ID_PTCP_SYNC = 0xFF00      # PTCP Sync (Precision Time Clock Protocol)
+FRAME_ID_PTCP_FOLLOWUP = 0xFF20  # PTCP FollowUp
+FRAME_ID_PTCP_DELAY_REQ = 0xFF40 # PTCP DelayReq
+FRAME_ID_PTCP_DELAY_RES = 0xFF41 # PTCP DelayRes
+
+# IRT Frame ID ranges
+IRT_FRAME_ID_MIN = 0x0100
+IRT_FRAME_ID_MAX = 0x7FFF
+
+# RT Class definitions
+class RTClass:
+    """PROFINET Real-Time classes."""
+    RT_CLASS_1 = 1   # Unsynchronized RT (UDP or VLAN, 1-10ms cycle)
+    RT_CLASS_2 = 2   # Synchronized RT (VLAN, 1-10ms cycle)
+    RT_CLASS_3 = 3   # IRT - Isochronous RT (<1ms cycle, deterministic)
+    RT_CLASS_UDP = 0 # RT over UDP (class 1 variant)
+
+
+class IRTPhase:
+    """PROFINET IRT phase types."""
+    RED_PHASE = 1    # Deterministic phase (IRT data only)
+    ORANGE_PHASE = 2 # Transition phase
+    GREEN_PHASE = 3  # Open phase (RT class 1/2 and best-effort)
 
 # DCP Service IDs
 DCP_SERVICE_GET = 0x03
@@ -781,3 +806,401 @@ def build_rta_alarm_ack_packet(
         eth_header = build_ethernet_header(src, dst, PROFINET_ETHERTYPE)
         frame_id = struct.pack(">H", FRAME_ID_RTA)
         return eth_header + frame_id + rta_pdu
+
+
+# =============================================================================
+# PROFINET IRT (Isochronous Real-Time) Functions
+# =============================================================================
+
+
+def validate_irt_frame_id(frame_id: int) -> bool:
+    """Validate that frame ID is in IRT range.
+
+    Args:
+        frame_id: Frame ID to validate
+
+    Returns:
+        True if frame ID is valid for IRT
+    """
+    return IRT_FRAME_ID_MIN <= frame_id <= IRT_FRAME_ID_MAX
+
+
+def allocate_irt_frame_id(slot: int, subslot: int, direction: str = "output") -> int:
+    """Allocate an IRT frame ID based on slot/subslot configuration.
+
+    IRT frame IDs are typically assigned based on:
+    - Slot number
+    - Subslot number
+    - Data direction (input/output)
+
+    Args:
+        slot: Slot number (0-255)
+        subslot: Subslot number (0-255)
+        direction: "output" (controller->device) or "input" (device->controller)
+
+    Returns:
+        IRT frame ID in range 0x0100-0x7FFF
+    """
+    # Simple allocation scheme: base + slot * 256 + subslot * 2 + direction
+    base = IRT_FRAME_ID_MIN
+    direction_offset = 0 if direction == "output" else 1
+
+    frame_id = base + (slot * 256) + (subslot * 2) + direction_offset
+
+    # Ensure within valid range
+    if frame_id > IRT_FRAME_ID_MAX:
+        frame_id = IRT_FRAME_ID_MIN + ((frame_id - IRT_FRAME_ID_MIN) % (IRT_FRAME_ID_MAX - IRT_FRAME_ID_MIN))
+
+    return frame_id
+
+
+def build_irt_frame(
+    frame_id: int,
+    data: bytes,
+    cycle_counter: int,
+    data_status: int = 0x35,  # Primary, Run, Valid
+    transfer_status: int = 0x00,
+) -> bytes:
+    """Build PROFINET IRT (RT Class 3) cyclic data frame.
+
+    IRT frames have the same structure as RT frames but use
+    frame IDs in the range 0x0100-0x7FFF and require precise timing.
+
+    Args:
+        frame_id: IRT Frame ID (0x0100-0x7FFF)
+        data: I/O data payload
+        cycle_counter: Cycle counter (0-65535)
+        data_status: Data status byte
+        transfer_status: Transfer status byte
+
+    Returns:
+        Complete IRT frame payload
+
+    Raises:
+        ValueError: If frame_id is not in IRT range
+    """
+    if not validate_irt_frame_id(frame_id):
+        raise ValueError(f"Invalid IRT frame ID: {frame_id:#06x}. Must be in range {IRT_FRAME_ID_MIN:#06x}-{IRT_FRAME_ID_MAX:#06x}")
+
+    return build_rt_frame(frame_id, data, cycle_counter, data_status, transfer_status)
+
+
+def build_irt_packet(
+    src: DeviceContext,
+    dst: DeviceContext,
+    frame_id: int,
+    data: bytes,
+    cycle_counter: int,
+    data_status: int = 0x35,
+    vlan_id: int = 0,
+    priority: int = 6,
+) -> bytes:
+    """Build complete PROFINET IRT packet with VLAN tag.
+
+    IRT packets require VLAN tagging with priority 6 for proper
+    switch handling in IRT-capable infrastructure.
+
+    Args:
+        src: Source device
+        dst: Destination device
+        frame_id: IRT Frame ID (0x0100-0x7FFF)
+        data: I/O data payload
+        cycle_counter: Cycle counter
+        data_status: Data status
+        vlan_id: VLAN ID (required for IRT)
+        priority: VLAN priority (default 6 for IRT)
+
+    Returns:
+        Complete Ethernet frame bytes
+    """
+    # IRT always uses VLAN tagging
+    eth_header = build_ethernet_header(src, dst, VLAN_ETHERTYPE)
+    vlan_tag = build_vlan_header(vlan_id, priority)
+    # Add PROFINET EtherType after VLAN
+    profinet_type = struct.pack(">H", PROFINET_ETHERTYPE)
+    irt_frame = build_irt_frame(frame_id, data, cycle_counter, data_status)
+
+    return eth_header + vlan_tag + profinet_type + irt_frame
+
+
+def build_ptcp_sync_frame(
+    src: DeviceContext,
+    dst: DeviceContext,
+    sequence_id: int,
+    delay_ns: int,
+    subdomain_uuid: bytes,
+    master_source_address: bytes | None = None,
+    vlan_id: int = 0,
+) -> bytes:
+    """Build PTCP (Precision Time Clock Protocol) Sync frame.
+
+    PTCP Sync frames are used to synchronize clocks in IRT networks.
+    They are sent by the sync master to all devices.
+
+    Args:
+        src: Source device (sync master)
+        dst: Destination device (multicast for sync)
+        sequence_id: Sync sequence ID (0-65535)
+        delay_ns: Current delay value in nanoseconds
+        subdomain_uuid: PTCP subdomain UUID (16 bytes)
+        master_source_address: Sync master source address (6 bytes)
+        vlan_id: VLAN ID
+
+    Returns:
+        Complete PTCP Sync frame bytes
+    """
+    # PTCP Sync destination is multicast: 01:0E:CF:00:04:40
+    dst_mac = bytes.fromhex("010ECF000440")
+    src_mac = bytes.fromhex(src.mac_address.replace(":", "").replace("-", ""))
+
+    # Ethernet header
+    eth_header = dst_mac + src_mac + struct.pack(">H", VLAN_ETHERTYPE)
+    vlan_tag = build_vlan_header(vlan_id, priority=6)
+    profinet_type = struct.pack(">H", PROFINET_ETHERTYPE)
+
+    # Frame ID for PTCP Sync
+    frame_id = struct.pack(">H", FRAME_ID_PTCP_SYNC)
+
+    # PTCP Sync PDU
+    # - Subdomain UUID (16 bytes)
+    # - Master Source Address (6 bytes)
+    # - Sequence ID (2 bytes)
+    # - Delay (8 bytes - nanoseconds)
+    # - Epoch Number (2 bytes)
+    # - Current UTC Offset (2 bytes)
+    # - Flags (1 byte)
+    # - Padding (1 byte)
+
+    if master_source_address is None:
+        master_source_address = src_mac
+
+    ptcp_pdu = subdomain_uuid[:16].ljust(16, b'\x00')
+    ptcp_pdu += master_source_address[:6].ljust(6, b'\x00')
+    ptcp_pdu += struct.pack(">H", sequence_id)
+    ptcp_pdu += struct.pack(">Q", delay_ns)  # 8-byte delay in ns
+    ptcp_pdu += struct.pack(">HHB", 0, 0, 0)  # Epoch, UTC offset, flags
+    ptcp_pdu += b'\x00'  # Padding
+
+    return eth_header + vlan_tag + profinet_type + frame_id + ptcp_pdu
+
+
+def build_ptcp_followup_frame(
+    src: DeviceContext,
+    dst: DeviceContext,
+    sequence_id: int,
+    precise_timestamp_ns: int,
+    subdomain_uuid: bytes,
+    vlan_id: int = 0,
+) -> bytes:
+    """Build PTCP FollowUp frame.
+
+    FollowUp frames contain the precise timestamp of when the
+    corresponding Sync frame was actually transmitted.
+
+    Args:
+        src: Source device (sync master)
+        dst: Destination device
+        sequence_id: Must match corresponding Sync frame
+        precise_timestamp_ns: Precise send time of Sync in nanoseconds
+        subdomain_uuid: PTCP subdomain UUID
+        vlan_id: VLAN ID
+
+    Returns:
+        Complete PTCP FollowUp frame bytes
+    """
+    # PTCP FollowUp destination is multicast
+    dst_mac = bytes.fromhex("010ECF000440")
+    src_mac = bytes.fromhex(src.mac_address.replace(":", "").replace("-", ""))
+
+    eth_header = dst_mac + src_mac + struct.pack(">H", VLAN_ETHERTYPE)
+    vlan_tag = build_vlan_header(vlan_id, priority=6)
+    profinet_type = struct.pack(">H", PROFINET_ETHERTYPE)
+
+    frame_id = struct.pack(">H", FRAME_ID_PTCP_FOLLOWUP)
+
+    # PTCP FollowUp PDU
+    ptcp_pdu = subdomain_uuid[:16].ljust(16, b'\x00')
+    ptcp_pdu += struct.pack(">H", sequence_id)
+    ptcp_pdu += struct.pack(">Q", precise_timestamp_ns)  # Precise timestamp
+    ptcp_pdu += struct.pack(">HH", 0, 0)  # Reserved fields
+
+    return eth_header + vlan_tag + profinet_type + frame_id + ptcp_pdu
+
+
+def build_ptcp_delay_request(
+    src: DeviceContext,
+    dst: DeviceContext,
+    sequence_id: int,
+    vlan_id: int = 0,
+) -> bytes:
+    """Build PTCP Delay Request frame.
+
+    Delay requests are sent from devices to the sync master to
+    measure the line delay.
+
+    Args:
+        src: Source device (requesting device)
+        dst: Destination device (sync master)
+        sequence_id: Request sequence ID
+        vlan_id: VLAN ID
+
+    Returns:
+        Complete PTCP Delay Request frame bytes
+    """
+    eth_header = build_ethernet_header(src, dst, VLAN_ETHERTYPE)
+    vlan_tag = build_vlan_header(vlan_id, priority=6)
+    profinet_type = struct.pack(">H", PROFINET_ETHERTYPE)
+
+    frame_id = struct.pack(">H", FRAME_ID_PTCP_DELAY_REQ)
+
+    # Minimal Delay Request PDU
+    ptcp_pdu = struct.pack(">H", sequence_id)
+    ptcp_pdu += bytes(14)  # Reserved/padding
+
+    return eth_header + vlan_tag + profinet_type + frame_id + ptcp_pdu
+
+
+def build_ptcp_delay_response(
+    src: DeviceContext,
+    dst: DeviceContext,
+    sequence_id: int,
+    request_receipt_timestamp_ns: int,
+    response_origin_timestamp_ns: int,
+    vlan_id: int = 0,
+) -> bytes:
+    """Build PTCP Delay Response frame.
+
+    Delay responses are sent by the sync master in response to
+    Delay Requests, containing timestamps for delay calculation.
+
+    Args:
+        src: Source device (sync master)
+        dst: Destination device (requesting device)
+        sequence_id: Must match Delay Request
+        request_receipt_timestamp_ns: When request was received
+        response_origin_timestamp_ns: When response is sent
+        vlan_id: VLAN ID
+
+    Returns:
+        Complete PTCP Delay Response frame bytes
+    """
+    eth_header = build_ethernet_header(src, dst, VLAN_ETHERTYPE)
+    vlan_tag = build_vlan_header(vlan_id, priority=6)
+    profinet_type = struct.pack(">H", PROFINET_ETHERTYPE)
+
+    frame_id = struct.pack(">H", FRAME_ID_PTCP_DELAY_RES)
+
+    # Delay Response PDU
+    ptcp_pdu = struct.pack(">H", sequence_id)
+    ptcp_pdu += struct.pack(">Q", request_receipt_timestamp_ns)
+    ptcp_pdu += struct.pack(">Q", response_origin_timestamp_ns)
+    ptcp_pdu += bytes(4)  # Padding
+
+    return eth_header + vlan_tag + profinet_type + frame_id + ptcp_pdu
+
+
+class IRTCycleState:
+    """Tracks IRT cycle state for a single connection.
+
+    Extends RTCycleState with IRT-specific timing information.
+    """
+
+    def __init__(
+        self,
+        frame_id_output: int,
+        frame_id_input: int,
+        output_data_size: int,
+        input_data_size: int,
+        cycle_time_us: int = 250,  # Cycle time in microseconds
+        send_clock_factor: int = 32,  # Send clock factor
+        reduction_ratio: int = 1,  # Reduction ratio
+        phase: int = 0,  # Phase within cycle
+    ):
+        """Initialize IRT cycle state.
+
+        Args:
+            frame_id_output: Frame ID for output (controller -> device)
+            frame_id_input: Frame ID for input (device -> controller)
+            output_data_size: Size of output data in bytes
+            input_data_size: Size of input data in bytes
+            cycle_time_us: Cycle time in microseconds (typical: 250, 500, 1000)
+            send_clock_factor: Clock multiplication factor (typical: 32)
+            reduction_ratio: Reduction ratio for slower devices
+            phase: Phase offset within cycle (0-based)
+        """
+        # Validate frame IDs are in IRT range
+        if not validate_irt_frame_id(frame_id_output):
+            raise ValueError(f"Output frame ID {frame_id_output:#06x} not in IRT range")
+        if not validate_irt_frame_id(frame_id_input):
+            raise ValueError(f"Input frame ID {frame_id_input:#06x} not in IRT range")
+
+        self.frame_id_output = frame_id_output
+        self.frame_id_input = frame_id_input
+        self.output_data_size = output_data_size
+        self.input_data_size = input_data_size
+        self.cycle_time_us = cycle_time_us
+        self.send_clock_factor = send_clock_factor
+        self.reduction_ratio = reduction_ratio
+        self.phase = phase
+
+        # State tracking
+        self.cycle_counter = 0
+        self.output_data: bytes = bytes(output_data_size)
+        self.input_data: bytes = bytes(input_data_size)
+        self.data_status = 0x35  # Valid, Run, Primary
+
+        # IRT-specific timing
+        self.sync_sequence_id = 0
+        self.last_sync_timestamp_ns = 0
+        self.is_synchronized = False
+
+    def increment_cycle(self) -> int:
+        """Increment cycle counter and return new value."""
+        self.cycle_counter = (self.cycle_counter + 1) % 65536
+        return self.cycle_counter
+
+    def get_cycle_time_ns(self) -> int:
+        """Get cycle time in nanoseconds."""
+        return self.cycle_time_us * 1000
+
+    def get_effective_cycle_time_ns(self) -> int:
+        """Get effective cycle time accounting for reduction ratio."""
+        return self.cycle_time_us * 1000 * self.reduction_ratio
+
+    def update_output_data(self, data: bytes) -> None:
+        """Update output data buffer."""
+        if len(data) == self.output_data_size:
+            self.output_data = data
+        else:
+            self.output_data = (data + bytes(self.output_data_size))[:self.output_data_size]
+
+    def update_input_data(self, data: bytes) -> None:
+        """Update input data buffer."""
+        if len(data) == self.input_data_size:
+            self.input_data = data
+        else:
+            self.input_data = (data + bytes(self.input_data_size))[:self.input_data_size]
+
+    def synchronize(self, sync_timestamp_ns: int, sequence_id: int) -> None:
+        """Update synchronization state from PTCP Sync.
+
+        Args:
+            sync_timestamp_ns: Timestamp from Sync frame
+            sequence_id: Sync sequence ID
+        """
+        self.last_sync_timestamp_ns = sync_timestamp_ns
+        self.sync_sequence_id = sequence_id
+        self.is_synchronized = True
+
+    def get_send_time_offset_ns(self) -> int:
+        """Get send time offset within cycle based on phase.
+
+        IRT frames are sent at precise times within the cycle.
+        The phase determines the offset from cycle start.
+
+        Returns:
+            Offset in nanoseconds from cycle start
+        """
+        # Simple linear phase offset within red phase
+        phase_duration_ns = self.get_cycle_time_ns() // 4  # Red phase is ~25% of cycle
+        return (self.phase * phase_duration_ns) // 256  # Phase is 0-255

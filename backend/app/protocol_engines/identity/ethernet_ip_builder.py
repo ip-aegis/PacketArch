@@ -117,7 +117,13 @@ class EtherNetIPIdentityBuilder(ProtocolIdentityBuilder):
         if not identity:
             return b""
 
-        vendor_id = identity.get("vendor_id", 1)
+        vendor_id = identity.get("vendor_id")
+        if vendor_id is None:
+            logger.warning(
+                "EtherNet/IP identity missing vendor_id - defaulting to 1 (Rockwell). "
+                "This may cause vendor misattribution in Cyber Vision."
+            )
+            vendor_id = 1
         device_type = identity.get("device_type", 14)
         product_code = identity.get("product_code", 1)
         revision_major = identity.get("revision_major", 1)

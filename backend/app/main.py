@@ -7,11 +7,14 @@ from typing import AsyncIterator
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import admin, ai, anomalies, auth, cve, cyber_vision, deployments, devices, docker_hosts, fingerprints, generation, health, ip_management, learning, protocols, scenarios, stats, templates, users
+from app.api.routes import admin, agent_install, agents, ai, anomalies, auth, cloud_services, cve, cyber_vision, deployments, devices, docker_hosts, downloads, fingerprints, generation, health, ip_management, learning, protocols, scenarios, stats, templates, users
+from app.api.websocket import agent_hub
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
+from app.core.exceptions import PacketArchError, ValidationError as AppValidationError
 from app.services.startup import run_startup_tasks
 
 # Configure logging
@@ -70,7 +73,49 @@ app.add_middleware(
 )
 
 
-# Global exception handler
+# Exception handlers for custom exceptions
+@app.exception_handler(PacketArchError)
+async def packetarch_exception_handler(request: Request, exc: PacketArchError) -> JSONResponse:
+    """Handle PacketArch custom exceptions with structured responses."""
+    logger.warning(
+        f"PacketArch error [{exc.code}]: {exc.message}",
+        extra={"details": exc.details, "path": request.url.path},
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.to_dict(),
+    )
+
+
+@app.exception_handler(PydanticValidationError)
+async def pydantic_validation_handler(request: Request, exc: PydanticValidationError) -> JSONResponse:
+    """Handle Pydantic validation errors with structured responses."""
+    errors = exc.errors()
+    logger.warning(f"Validation error: {errors}", extra={"path": request.url.path})
+
+    # Convert to our standard format
+    details = {
+        "validation_errors": [
+            {
+                "field": ".".join(str(loc) for loc in err.get("loc", [])),
+                "message": err.get("msg", "Unknown validation error"),
+                "type": err.get("type", "unknown"),
+            }
+            for err in errors
+        ]
+    }
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "VALIDATION_ERROR",
+            "message": "Request validation failed",
+            "details": details,
+        },
+    )
+
+
+# Global exception handler for uncaught exceptions
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle uncaught exceptions."""
@@ -78,7 +123,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "Internal server error",
+            "error": "INTERNAL_ERROR",
             "message": str(exc) if settings.debug else "An unexpected error occurred",
         },
     )
@@ -102,9 +147,18 @@ app.include_router(fingerprints.router, prefix=settings.api_prefix)
 app.include_router(ip_management.router, prefix=settings.api_prefix)
 app.include_router(stats.router, prefix=settings.api_prefix)
 app.include_router(cve.router, prefix=settings.api_prefix)
+app.include_router(cloud_services.router, prefix=settings.api_prefix)
 app.include_router(cyber_vision.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
+app.include_router(agents.router, prefix=settings.api_prefix)
+app.include_router(downloads.router, prefix=settings.api_prefix)
 app.include_router(http_sse.router, prefix=settings.api_prefix)
+
+# WebSocket routes (no prefix - mounted at root)
+app.include_router(agent_hub.router)
+
+# Agent installation resources (no prefix - served at /agent/*)
+app.include_router(agent_install.router)
 
 
 # Root endpoint

@@ -13,10 +13,15 @@ from app.models.learned_pattern import LearnedPattern, PatternType, Distribution
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
 from app.models.learned_device_fingerprint import LearnedDeviceFingerprint, DeviceRole
 from app.models.learned_sequence import LearnedSequence, SequenceType
+from app.models.device_template import DeviceTemplate, TemplateSource
+from app.models.learning_session import LearningSession, SessionStatus
 from app.models.anomaly_template import AnomalyTemplate, AnomalyCategory, AnomalySeverity
 from app.models.ip_range_allocation import IPRangeAllocation
 from app.models.cve_vulnerability import CVEVulnerability, CVESeverity
 from app.models.vulnerable_fingerprint import VulnerableFingerprintVariant
+from app.models.traffic_agent import TrafficAgent, AgentDeployment
+from app.models.generation_job import GenerationJob, GenerationJobStatus
+from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 
 __all__ = [
     "User",
@@ -38,6 +43,10 @@ __all__ = [
     "DeviceRole",
     "LearnedSequence",
     "SequenceType",
+    "DeviceTemplate",
+    "TemplateSource",
+    "LearningSession",
+    "SessionStatus",
     "AnomalyTemplate",
     "AnomalyCategory",
     "AnomalySeverity",
@@ -45,4 +54,10 @@ __all__ = [
     "CVEVulnerability",
     "CVESeverity",
     "VulnerableFingerprintVariant",
+    "TrafficAgent",
+    "AgentDeployment",
+    "GenerationJob",
+    "GenerationJobStatus",
+    "CloudServiceEndpoint",
+    "CloudServiceProvider",
 ]

@@ -12,12 +12,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser
-from app.services.vendor_fingerprint_data import (
-    VENDOR_OUI_PREFIXES,
-    get_all_vendor_fingerprints,
-    get_fingerprint_by_vendor_model,
-    get_fingerprints_by_vendor,
-)
+from app.services.vendor_fingerprints import VENDOR_OUI_PREFIXES
+from app.services.fingerprint_cache import get_fingerprint_cache
 from app.scenario_templates.base import (
     FINGERPRINT_MODEL_MAP,
     DEFAULT_ERROR_CONFIGS,
@@ -28,6 +24,19 @@ from app.protocol_engines.vendor_oui import (
     DEVICE_TYPE_VENDORS,
     list_vendors,
     list_vendors_for_device_type,
+)
+from app.services.device_templates import (
+    get_all_templates,
+    get_template_by_id,
+    get_templates_by_vendor,
+    get_templates_by_device_type,
+    get_templates_with_cves,
+    get_template_count,
+    get_total_firmware_variants,
+    get_total_cves,
+    generate_device_instance,
+    DeviceTemplate,
+    FirmwareVariant,
 )
 
 router = APIRouter(prefix="/fingerprints", tags=["Fingerprints"])
@@ -67,6 +76,10 @@ class FingerprintDetailResponse(BaseModel):
     modbus_identity: dict[str, Any] | None
     ethernet_ip_identity: dict[str, Any] | None
     profinet_identity: dict[str, Any] | None
+    s7_identity: dict[str, Any] | None
+    snmp_identity: dict[str, Any] | None
+    bacnet_identity: dict[str, Any] | None
+    opc_ua_identity: dict[str, Any] | None
     tcp_stack: dict[str, Any] | None
     response_timing: dict[str, Any] | None
     error_behavior: dict[str, Any] | None
@@ -105,27 +118,21 @@ async def list_fingerprint_vendors(
     Returns:
         List of vendors with fingerprint counts
     """
-    all_fingerprints = get_all_vendor_fingerprints()
-
-    # Group by vendor
+    cache = get_fingerprint_cache()
     vendors: dict[str, dict[str, Any]] = {}
-    for fp in all_fingerprints:
-        vendor = fp.get("vendor", "Unknown").lower()
-        if vendor not in vendors:
-            vendors[vendor] = {
-                "display_name": fp.get("vendor", "Unknown"),
-                "models": [],
-                "oui_prefixes": fp.get("oui_prefixes", []),
-            }
-        if fp.get("model"):
-            vendors[vendor]["models"].append(fp.get("model"))
 
-    # Add OUI prefixes from vendor_oui module
-    for vendor in vendors:
-        if vendor in VENDOR_OUIS:
-            vendors[vendor]["oui_prefixes"] = list(set(
-                vendors[vendor]["oui_prefixes"] + VENDOR_OUIS[vendor]
-            ))
+    for vendor_key in cache.get_vendors():
+        fps = cache.get_by_vendor(vendor_key)
+        if not fps:
+            continue
+        display_name = fps[0].get("vendor", vendor_key)
+        models = [fp.get("model") for fp in fps if fp.get("model")]
+        oui_prefixes = VENDOR_OUI_PREFIXES.get(vendor_key, [])
+        vendors[vendor_key] = {
+            "display_name": display_name,
+            "models": models,
+            "oui_prefixes": oui_prefixes,
+        }
 
     return [
         VendorSummaryResponse(
@@ -133,7 +140,7 @@ async def list_fingerprint_vendors(
             display_name=data["display_name"],
             fingerprint_count=len(data["models"]),
             models=data["models"],
-            oui_prefixes=data["oui_prefixes"][:5],  # Limit to 5
+            oui_prefixes=data["oui_prefixes"][:5],
         )
         for vendor, data in sorted(vendors.items())
     ]
@@ -152,10 +159,11 @@ async def list_fingerprints(
     Returns:
         List of fingerprint summaries
     """
+    cache = get_fingerprint_cache()
     if vendor:
-        fingerprints = get_fingerprints_by_vendor(vendor)
+        fingerprints = cache.get_by_vendor(vendor)
     else:
-        fingerprints = get_all_vendor_fingerprints()
+        fingerprints = cache.get_all()
 
     return [
         FingerprintSummaryResponse(
@@ -187,7 +195,7 @@ async def get_fingerprint_detail(
     Raises:
         HTTPException: If fingerprint not found
     """
-    fingerprint = get_fingerprint_by_vendor_model(vendor, model)
+    fingerprint = get_fingerprint_cache().get_by_vendor_model(vendor, model)
 
     if not fingerprint:
         raise HTTPException(
@@ -204,6 +212,10 @@ async def get_fingerprint_detail(
         modbus_identity=fingerprint.get("modbus_identity"),
         ethernet_ip_identity=fingerprint.get("ethernet_ip_identity"),
         profinet_identity=fingerprint.get("profinet_identity"),
+        s7_identity=fingerprint.get("s7_identity"),
+        snmp_identity=fingerprint.get("snmp_identity"),
+        bacnet_identity=fingerprint.get("bacnet_identity"),
+        opc_ua_identity=fingerprint.get("opc_ua_identity"),
         tcp_stack=fingerprint.get("tcp_stack"),
         response_timing=fingerprint.get("response_timing"),
         error_behavior=fingerprint.get("error_behavior"),
@@ -239,9 +251,10 @@ async def suggest_fingerprint_for_device(
         typical_vendors = [vendor.lower()] + [v for v in typical_vendors if v != vendor.lower()]
 
     # Get fingerprints for suggested vendors
+    cache = get_fingerprint_cache()
     suggested = []
     for v in typical_vendors[:4]:  # Top 4 vendors
-        fingerprints = get_fingerprints_by_vendor(v)
+        fingerprints = cache.get_by_vendor(v)
         for fp in fingerprints[:2]:  # Top 2 models per vendor
             suggested.append(FingerprintSummaryResponse(
                 vendor=fp.get("vendor", "Unknown"),
@@ -285,8 +298,8 @@ async def get_vendor_models(
     models = get_fingerprint_models_for_vendor(vendor)
 
     if not models:
-        # Fall back to fingerprint data
-        fingerprints = get_fingerprints_by_vendor(vendor)
+        # Fall back to cache
+        fingerprints = get_fingerprint_cache().get_by_vendor(vendor)
         models = [fp.get("model") for fp in fingerprints if fp.get("model")]
 
     return models
@@ -307,15 +320,11 @@ async def get_vendor_oui_prefixes(
     """
     vendor_lower = vendor.lower()
 
-    # Check vendor_oui module
-    if vendor_lower in VENDOR_OUIS:
-        return VENDOR_OUIS[vendor_lower]
-
-    # Check fingerprint data
+    # VENDOR_OUI_PREFIXES includes all entries from VENDOR_OUIS (canonical)
+    # plus vendor division aliases from fingerprint sub-modules
     if vendor_lower in VENDOR_OUI_PREFIXES:
         return VENDOR_OUI_PREFIXES[vendor_lower]
 
-    # Return empty list if not found
     return []
 
 
@@ -398,3 +407,778 @@ def _get_protocols_from_fingerprint(fp: dict[str, Any]) -> list[str]:
         protocols.append("profinet")
 
     return protocols if protocols else ["modbus_tcp"]  # Default
+
+
+# ========== Protocol Library Models ==========
+
+
+class ProtocolInfoResponse(BaseModel):
+    """Information about a supported protocol."""
+
+    id: str
+    name: str
+    category: str
+    port: int | None
+    layer: str
+    has_identity_builder: bool
+    description: str
+
+
+class ProtocolDetailResponse(ProtocolInfoResponse):
+    """Detailed protocol information."""
+
+    identity_fields: list[str] | None
+    typical_devices: list[str]
+    typical_vendors: list[str]
+
+
+class VendorCompleteResponse(BaseModel):
+    """Complete vendor information with OUI data."""
+
+    id: str
+    display_name: str
+    oui_prefixes: list[str]
+    device_types: list[str]
+    protocols: list[str]
+    fingerprint_count: int
+
+
+class FingerprintStatsResponse(BaseModel):
+    """Fingerprinting library statistics."""
+
+    total_protocols: int
+    total_vendors: int
+    total_oui_prefixes: int
+    total_fingerprints: int
+    total_device_types: int
+    identity_builders: int
+    protocols_by_category: dict[str, int]
+    # New template-based stats
+    total_device_templates: int
+    total_firmware_variants: int
+    total_cves: int
+
+
+# ========== Device Template Models ==========
+
+
+class FirmwareVariantResponse(BaseModel):
+    """Firmware variant information."""
+
+    version: str
+    release_date: str
+    is_latest: bool
+    is_default: bool
+    cves: list[str]
+    notes: str | None
+
+
+class DeviceTemplateSummaryResponse(BaseModel):
+    """Summary of a device template."""
+
+    id: str
+    vendor: str
+    vendor_family: str
+    model: str
+    model_name: str
+    device_type: str
+    description: str
+    supported_protocols: list[str]
+    firmware_count: int
+    vulnerable_firmware_count: int
+    has_cves: bool
+
+
+class DeviceTemplateDetailResponse(BaseModel):
+    """Full device template details."""
+
+    id: str
+    vendor: str
+    vendor_family: str
+    model: str
+    model_name: str
+    device_type: str
+    description: str
+    oui_prefixes: list[str]
+    tcp_stack: dict[str, Any]
+    response_timing: dict[str, Any]
+    error_behavior: dict[str, Any]
+    supported_protocols: list[str]
+    firmware_variants: list[FirmwareVariantResponse]
+    instance_rules: dict[str, str] | None
+    modbus_identity: dict[str, Any] | None
+    ethernet_ip_identity: dict[str, Any] | None
+    profinet_identity: dict[str, Any] | None
+    s7_identity: dict[str, Any] | None
+    bacnet_identity: dict[str, Any] | None
+    snmp_identity: dict[str, Any] | None
+    protocol_quirks: dict[str, Any]
+    is_builtin: bool
+
+
+class GenerateInstanceRequest(BaseModel):
+    """Request to generate a device instance."""
+
+    template_id: str
+    firmware_version: str | None = None
+    station_name: str | None = None
+    serial_number: str | None = None
+    mac_address: str | None = None
+    ip_address: str | None = None
+    location: str | None = None
+    sequence: int = 1
+
+
+class DeviceInstanceResponse(BaseModel):
+    """Generated device instance."""
+
+    template_id: str
+    firmware_version: str
+    serial_number: str
+    station_name: str
+    mac_address: str
+    ip_address: str
+    cves: list[str]
+    merged_identities: dict[str, dict[str, Any]]
+
+
+# Protocol metadata - comprehensive list of all 21 supported protocols
+PROTOCOL_DATA: dict[str, dict[str, Any]] = {
+    "modbus_tcp": {
+        "name": "Modbus TCP",
+        "category": "Core Industrial",
+        "port": 502,
+        "layer": "TCP",
+        "has_identity_builder": True,
+        "description": "Industrial protocol for PLCs, RTUs, and SCADA systems. Widely used in manufacturing and process industries.",
+        "identity_fields": ["vendor_name", "product_code", "revision", "vendor_url", "product_name", "model_name", "user_application_name"],
+        "typical_devices": ["plc", "rtu", "hmi", "scada_server", "gateway"],
+        "typical_vendors": ["siemens", "schneider", "rockwell", "abb", "emerson"],
+    },
+    "ethernet_ip": {
+        "name": "EtherNet/IP",
+        "category": "Core Industrial",
+        "port": 44818,
+        "layer": "TCP/UDP",
+        "has_identity_builder": True,
+        "description": "ODVA standard protocol for Rockwell/Allen-Bradley PLCs and CIP-based devices.",
+        "identity_fields": ["vendor_id", "device_type", "product_code", "revision", "serial_number", "product_name"],
+        "typical_devices": ["plc", "hmi", "drive", "io_module"],
+        "typical_vendors": ["rockwell", "omron", "schneider", "abb"],
+    },
+    "profinet": {
+        "name": "PROFINET",
+        "category": "Core Industrial",
+        "port": None,
+        "layer": "Layer2",
+        "has_identity_builder": True,
+        "description": "Siemens-originated real-time Ethernet protocol for factory automation.",
+        "identity_fields": ["device_vendor", "device_name", "device_id", "station_name", "ip_address"],
+        "typical_devices": ["plc", "io_module", "drive", "hmi"],
+        "typical_vendors": ["siemens", "phoenix_contact", "wago", "beckhoff"],
+    },
+    "s7comm": {
+        "name": "S7comm",
+        "category": "Core Industrial",
+        "port": 102,
+        "layer": "TCP",
+        "has_identity_builder": True,
+        "description": "Siemens proprietary protocol for S7 PLC communication.",
+        "identity_fields": ["module_type", "serial_number", "plant_id", "copyright", "module_name"],
+        "typical_devices": ["plc", "hmi", "engineering_station"],
+        "typical_vendors": ["siemens"],
+    },
+    "bacnet": {
+        "name": "BACnet/IP",
+        "category": "Building Automation",
+        "port": 47808,
+        "layer": "UDP",
+        "has_identity_builder": True,
+        "description": "Building automation and control protocol for HVAC, lighting, and access control.",
+        "identity_fields": ["device_instance", "vendor_id", "model_name", "firmware_revision", "application_software_version"],
+        "typical_devices": ["bac", "ahu_controller", "vav_controller", "chiller_controller", "thermostat"],
+        "typical_vendors": ["johnson_controls", "honeywell", "siemens", "trane", "carrier"],
+    },
+    "snmp": {
+        "name": "SNMP/NTCIP",
+        "category": "Network Management",
+        "port": 161,
+        "layer": "UDP",
+        "has_identity_builder": True,
+        "description": "Network management protocol used in ITS/transportation and network devices.",
+        "identity_fields": ["sys_descr", "sys_object_id", "sys_name", "sys_location", "sys_contact"],
+        "typical_devices": ["traffic_controller", "dms", "switch", "gateway", "router"],
+        "typical_vendors": ["cisco", "econolite", "mccain", "siemens_its", "daktronics"],
+    },
+    "opc_ua": {
+        "name": "OPC UA",
+        "category": "SCADA/Utility",
+        "port": 4840,
+        "layer": "TCP",
+        "has_identity_builder": True,
+        "description": "Platform-independent industrial communication standard for secure data exchange.",
+        "identity_fields": ["application_uri", "product_uri", "application_name", "application_type"],
+        "typical_devices": ["plc", "scada_server", "historian", "gateway"],
+        "typical_vendors": ["siemens", "rockwell", "schneider", "honeywell", "ge"],
+    },
+    "dnp3": {
+        "name": "DNP3",
+        "category": "SCADA/Utility",
+        "port": 20000,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Distributed Network Protocol for SCADA communications in utilities and water.",
+        "identity_fields": None,
+        "typical_devices": ["rtu", "ied", "scada_server"],
+        "typical_vendors": ["schneider", "ge", "abb", "sel"],
+    },
+    "iec104": {
+        "name": "IEC 104",
+        "category": "SCADA/Utility",
+        "port": 2404,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Telecontrol protocol for power system SCADA (IEC 60870-5-104).",
+        "identity_fields": None,
+        "typical_devices": ["rtu", "ied", "scada_server"],
+        "typical_vendors": ["abb", "siemens", "ge", "schneider"],
+    },
+    "iec61850": {
+        "name": "IEC 61850",
+        "category": "Power/Energy",
+        "port": None,
+        "layer": "TCP/Layer2",
+        "has_identity_builder": False,
+        "description": "Substation automation standard with MMS, GOOSE, and Sampled Values.",
+        "identity_fields": None,
+        "typical_devices": ["protection_relay", "ied", "merging_unit"],
+        "typical_vendors": ["sel", "ge", "abb", "siemens", "schneider"],
+    },
+    "pccc": {
+        "name": "PCCC",
+        "category": "Vendor-Specific",
+        "port": 44818,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Allen-Bradley legacy protocol for PLC-5, SLC-500, and MicroLogix.",
+        "identity_fields": None,
+        "typical_devices": ["plc", "hmi"],
+        "typical_vendors": ["rockwell"],
+    },
+    "codesys": {
+        "name": "Codesys",
+        "category": "Vendor-Specific",
+        "port": 11740,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "IEC 61131-3 runtime protocol used by 500+ PLC vendors.",
+        "identity_fields": None,
+        "typical_devices": ["plc", "hmi", "motion_controller"],
+        "typical_vendors": ["wago", "beckhoff", "schneider", "b_and_r"],
+    },
+    "fins": {
+        "name": "FINS",
+        "category": "Vendor-Specific",
+        "port": 9600,
+        "layer": "TCP/UDP",
+        "has_identity_builder": False,
+        "description": "Omron Factory Interface Network Service for CJ/NJ series PLCs.",
+        "identity_fields": None,
+        "typical_devices": ["plc", "hmi"],
+        "typical_vendors": ["omron"],
+    },
+    "slmp": {
+        "name": "SLMP",
+        "category": "Vendor-Specific",
+        "port": 5007,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Seamless Message Protocol for Mitsubishi MELSEC PLCs.",
+        "identity_fields": None,
+        "typical_devices": ["plc", "hmi"],
+        "typical_vendors": ["mitsubishi"],
+    },
+    "ethercat": {
+        "name": "EtherCAT",
+        "category": "Vendor-Specific",
+        "port": None,
+        "layer": "Layer2",
+        "has_identity_builder": False,
+        "description": "High-speed real-time Ethernet for motion control and servo drives.",
+        "identity_fields": None,
+        "typical_devices": ["plc", "drive", "servo", "io_module"],
+        "typical_vendors": ["beckhoff", "omron", "b_and_r"],
+    },
+    "lldp": {
+        "name": "LLDP",
+        "category": "Network Management",
+        "port": None,
+        "layer": "Layer2",
+        "has_identity_builder": False,
+        "description": "Link Layer Discovery Protocol for network topology discovery.",
+        "identity_fields": None,
+        "typical_devices": ["switch", "gateway", "plc"],
+        "typical_vendors": ["cisco", "hirschmann", "moxa", "phoenix_contact"],
+    },
+    "cdp": {
+        "name": "CDP",
+        "category": "Network Management",
+        "port": None,
+        "layer": "Layer2",
+        "has_identity_builder": False,
+        "description": "Cisco Discovery Protocol for network device discovery.",
+        "identity_fields": None,
+        "typical_devices": ["switch", "router", "gateway"],
+        "typical_vendors": ["cisco"],
+    },
+    "dcs": {
+        "name": "DCS",
+        "category": "DCS Systems",
+        "port": None,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Distributed Control System protocols (DeltaV, Experion, Vnet/IP, Triconex).",
+        "identity_fields": None,
+        "typical_devices": ["dcs_controller", "io_module", "engineering_station"],
+        "typical_vendors": ["emerson", "honeywell", "yokogawa", "schneider"],
+    },
+    "wmi": {
+        "name": "WMI",
+        "category": "Specialized",
+        "port": 135,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "Windows Management Instrumentation for Windows-based HMI/SCADA servers.",
+        "identity_fields": None,
+        "typical_devices": ["hmi", "scada_server", "engineering_station"],
+        "typical_vendors": ["wonderware", "ge", "honeywell"],
+    },
+    "fanuc": {
+        "name": "FANUC FOCAS",
+        "category": "Specialized",
+        "port": 8193,
+        "layer": "TCP",
+        "has_identity_builder": False,
+        "description": "FANUC CNC machine protocol for machining centers and robots.",
+        "identity_fields": None,
+        "typical_devices": ["cnc_machine", "robot_controller"],
+        "typical_vendors": ["ge"],  # GE Fanuc
+    },
+    "external": {
+        "name": "External/Docker",
+        "category": "Specialized",
+        "port": None,
+        "layer": "Variable",
+        "has_identity_builder": False,
+        "description": "External protocol simulation via Docker containers.",
+        "identity_fields": None,
+        "typical_devices": [],
+        "typical_vendors": [],
+    },
+}
+
+
+@router.get("/protocols", response_model=list[ProtocolInfoResponse])
+async def list_protocols(
+    _current_user: CurrentUser,
+    category: str | None = Query(None, description="Filter by category"),
+) -> list[ProtocolInfoResponse]:
+    """List all supported protocols.
+
+    Args:
+        category: Optional filter by protocol category
+
+    Returns:
+        List of protocol information
+    """
+    from app.protocol_engines.identity import has_builder
+
+    protocols = []
+    for protocol_id, data in PROTOCOL_DATA.items():
+        if category and data["category"] != category:
+            continue
+
+        protocols.append(
+            ProtocolInfoResponse(
+                id=protocol_id,
+                name=data["name"],
+                category=data["category"],
+                port=data["port"],
+                layer=data["layer"],
+                has_identity_builder=has_builder(protocol_id.replace("_tcp", "").replace("comm", "")),
+                description=data["description"],
+            )
+        )
+
+    return sorted(protocols, key=lambda p: (p.category, p.name))
+
+
+@router.get("/protocols/{protocol_id}", response_model=ProtocolDetailResponse)
+async def get_protocol_detail(
+    protocol_id: str,
+    _current_user: CurrentUser,
+) -> ProtocolDetailResponse:
+    """Get detailed protocol information.
+
+    Args:
+        protocol_id: Protocol identifier (e.g., modbus_tcp, ethernet_ip)
+
+    Returns:
+        Detailed protocol information
+
+    Raises:
+        HTTPException: If protocol not found
+    """
+    from app.protocol_engines.identity import has_builder
+
+    if protocol_id not in PROTOCOL_DATA:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Protocol '{protocol_id}' not found",
+        )
+
+    data = PROTOCOL_DATA[protocol_id]
+
+    return ProtocolDetailResponse(
+        id=protocol_id,
+        name=data["name"],
+        category=data["category"],
+        port=data["port"],
+        layer=data["layer"],
+        has_identity_builder=has_builder(protocol_id.replace("_tcp", "").replace("comm", "")),
+        description=data["description"],
+        identity_fields=data.get("identity_fields"),
+        typical_devices=data.get("typical_devices", []),
+        typical_vendors=data.get("typical_vendors", []),
+    )
+
+
+@router.get("/vendors/complete", response_model=list[VendorCompleteResponse])
+async def list_vendors_complete(
+    _current_user: CurrentUser,
+    device_type: str | None = Query(None, description="Filter by device type support"),
+) -> list[VendorCompleteResponse]:
+    """List all vendors with complete OUI and capability data.
+
+    Args:
+        device_type: Optional filter by device type support
+
+    Returns:
+        List of complete vendor information
+    """
+    cache = get_fingerprint_cache()
+
+    # Build vendor data
+    vendor_data: dict[str, dict[str, Any]] = {}
+
+    # First, add all vendors from OUI database
+    for vendor_id, oui_list in VENDOR_OUIS.items():
+        vendor_data[vendor_id] = {
+            "display_name": vendor_id.replace("_", " ").title(),
+            "oui_prefixes": oui_list,
+            "device_types": [],
+            "protocols": [],
+            "fingerprint_count": 0,
+        }
+
+    # Add device types from DEVICE_TYPE_VENDORS
+    for dev_type, vendors in DEVICE_TYPE_VENDORS.items():
+        for vendor in vendors:
+            if vendor in vendor_data:
+                if dev_type not in vendor_data[vendor]["device_types"]:
+                    vendor_data[vendor]["device_types"].append(dev_type)
+
+    # Add fingerprint data from cache (indexed by vendor for O(1) grouping)
+    for vendor_key in cache.get_vendors():
+        fps = cache.get_by_vendor(vendor_key)
+        if vendor_key in vendor_data:
+            vendor_data[vendor_key]["fingerprint_count"] = len(fps)
+            if fps:
+                vendor_data[vendor_key]["display_name"] = fps[0].get("vendor", vendor_key)
+            for fp in fps:
+                fp_protocols = _get_protocols_from_fingerprint(fp)
+                for proto in fp_protocols:
+                    if proto not in vendor_data[vendor_key]["protocols"]:
+                        vendor_data[vendor_key]["protocols"].append(proto)
+
+    # Infer protocols from typical vendors in PROTOCOL_DATA
+    for protocol_id, proto_data in PROTOCOL_DATA.items():
+        for vendor in proto_data.get("typical_vendors", []):
+            if vendor in vendor_data:
+                if protocol_id not in vendor_data[vendor]["protocols"]:
+                    vendor_data[vendor]["protocols"].append(protocol_id)
+
+    # Filter by device type if requested
+    if device_type:
+        vendor_data = {
+            k: v for k, v in vendor_data.items()
+            if device_type in v["device_types"]
+        }
+
+    return [
+        VendorCompleteResponse(
+            id=vendor_id,
+            display_name=data["display_name"],
+            oui_prefixes=data["oui_prefixes"][:10],  # Limit to 10
+            device_types=sorted(data["device_types"])[:15],  # Limit to 15
+            protocols=sorted(data["protocols"]),
+            fingerprint_count=data["fingerprint_count"],
+        )
+        for vendor_id, data in sorted(vendor_data.items())
+    ]
+
+
+@router.get("/stats", response_model=FingerprintStatsResponse)
+async def get_fingerprint_stats(
+    _current_user: CurrentUser,
+) -> FingerprintStatsResponse:
+    """Get fingerprinting library statistics.
+
+    Returns:
+        Library statistics including protocol, vendor, and OUI counts
+    """
+    from app.protocol_engines.identity import get_registered_protocols
+
+    cache = get_fingerprint_cache()
+
+    # Count OUI prefixes
+    total_ouis = sum(len(ouis) for ouis in VENDOR_OUIS.values())
+
+    # Count unique device types
+    all_device_types = set()
+    for device_types in DEVICE_TYPE_VENDORS.values():
+        all_device_types.update(device_types)
+
+    # Count protocols by category
+    protocols_by_category: dict[str, int] = {}
+    for data in PROTOCOL_DATA.values():
+        category = data["category"]
+        protocols_by_category[category] = protocols_by_category.get(category, 0) + 1
+
+    return FingerprintStatsResponse(
+        total_protocols=len(PROTOCOL_DATA),
+        total_vendors=len(VENDOR_OUIS),
+        total_oui_prefixes=total_ouis,
+        total_fingerprints=cache.get_count(),
+        total_device_types=len(all_device_types),
+        identity_builders=len(get_registered_protocols()),
+        protocols_by_category=protocols_by_category,
+        total_device_templates=get_template_count(),
+        total_firmware_variants=get_total_firmware_variants(),
+        total_cves=get_total_cves(),
+    )
+
+
+# ========== Device Template Endpoints ==========
+
+
+def _template_to_summary(template: DeviceTemplate) -> DeviceTemplateSummaryResponse:
+    """Convert a DeviceTemplate to a summary response."""
+    vulnerable_count = len(template.get_vulnerable_firmwares())
+    return DeviceTemplateSummaryResponse(
+        id=template.id,
+        vendor=template.vendor,
+        vendor_family=template.vendor_family,
+        model=template.model,
+        model_name=template.model_name,
+        device_type=template.device_type,
+        description=template.description,
+        supported_protocols=template.supported_protocols,
+        firmware_count=len(template.firmware_variants),
+        vulnerable_firmware_count=vulnerable_count,
+        has_cves=vulnerable_count > 0,
+    )
+
+
+def _firmware_to_response(fw: FirmwareVariant) -> FirmwareVariantResponse:
+    """Convert a FirmwareVariant to a response."""
+    return FirmwareVariantResponse(
+        version=fw.version,
+        release_date=fw.release_date.isoformat(),
+        is_latest=fw.is_latest,
+        is_default=fw.is_default,
+        cves=fw.cves,
+        notes=fw.notes,
+    )
+
+
+def _template_to_detail(template: DeviceTemplate) -> DeviceTemplateDetailResponse:
+    """Convert a DeviceTemplate to a detail response."""
+    instance_rules = None
+    if template.instance_rules:
+        instance_rules = {
+            "serial_format": template.instance_rules.serial_format,
+            "station_name_pattern": template.instance_rules.station_name_pattern,
+            "vendor_short": template.instance_rules.vendor_short,
+            "model_short": template.instance_rules.model_short,
+        }
+
+    return DeviceTemplateDetailResponse(
+        id=template.id,
+        vendor=template.vendor,
+        vendor_family=template.vendor_family,
+        model=template.model,
+        model_name=template.model_name,
+        device_type=template.device_type,
+        description=template.description,
+        oui_prefixes=template.oui_prefixes,
+        tcp_stack=template.tcp_stack,
+        response_timing=template.response_timing,
+        error_behavior=template.error_behavior,
+        supported_protocols=template.supported_protocols,
+        firmware_variants=[_firmware_to_response(fw) for fw in template.firmware_variants],
+        instance_rules=instance_rules,
+        modbus_identity=template.modbus_identity,
+        ethernet_ip_identity=template.ethernet_ip_identity,
+        profinet_identity=template.profinet_identity,
+        s7_identity=template.s7_identity,
+        bacnet_identity=template.bacnet_identity,
+        snmp_identity=template.snmp_identity,
+        protocol_quirks=template.protocol_quirks,
+        is_builtin=template.is_builtin,
+    )
+
+
+@router.get("/device-templates", response_model=list[DeviceTemplateSummaryResponse])
+async def list_device_templates(
+    _current_user: CurrentUser,
+    vendor: str | None = Query(None, description="Filter by vendor"),
+    device_type: str | None = Query(None, description="Filter by device type"),
+    has_cves: bool | None = Query(None, description="Filter by CVE presence"),
+) -> list[DeviceTemplateSummaryResponse]:
+    """List all device templates with firmware variants.
+
+    Args:
+        vendor: Optional filter by vendor
+        device_type: Optional filter by device type
+        has_cves: Optional filter for templates with vulnerable firmwares
+
+    Returns:
+        List of device template summaries
+    """
+    if vendor:
+        templates = get_templates_by_vendor(vendor)
+    elif device_type:
+        templates = get_templates_by_device_type(device_type)
+    elif has_cves:
+        templates = get_templates_with_cves()
+    else:
+        templates = get_all_templates()
+
+    # Additional filtering
+    if has_cves is not None and vendor:
+        if has_cves:
+            templates = [t for t in templates if t.get_vulnerable_firmwares()]
+        else:
+            templates = [t for t in templates if not t.get_vulnerable_firmwares()]
+
+    return [_template_to_summary(t) for t in templates]
+
+
+@router.get("/device-templates/{template_id:path}", response_model=DeviceTemplateDetailResponse)
+async def get_device_template_detail(
+    template_id: str,
+    _current_user: CurrentUser,
+) -> DeviceTemplateDetailResponse:
+    """Get detailed device template information.
+
+    Args:
+        template_id: Template identifier (e.g., siemens/s7-1500/cpu-1516-3)
+
+    Returns:
+        Full template details including firmware variants
+
+    Raises:
+        HTTPException: If template not found
+    """
+    template = get_template_by_id(template_id)
+
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device template '{template_id}' not found",
+        )
+
+    return _template_to_detail(template)
+
+
+@router.post("/device-templates/instance", response_model=DeviceInstanceResponse)
+async def generate_device_instance_endpoint(
+    request: GenerateInstanceRequest,
+    _current_user: CurrentUser,
+) -> DeviceInstanceResponse:
+    """Generate a device instance from a template.
+
+    This generates unique serial numbers, station names, and merges
+    protocol identities based on the selected firmware version.
+
+    Args:
+        request: Instance generation parameters
+
+    Returns:
+        Generated device instance with unique values
+
+    Raises:
+        HTTPException: If template or firmware not found
+    """
+    instance = generate_device_instance(
+        template_id=request.template_id,
+        firmware_version=request.firmware_version,
+        station_name=request.station_name,
+        serial_number=request.serial_number,
+        mac_address=request.mac_address,
+        ip_address=request.ip_address,
+        location=request.location,
+        sequence=request.sequence,
+    )
+
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device template '{request.template_id}' not found or firmware version invalid",
+        )
+
+    return DeviceInstanceResponse(
+        template_id=instance.template_id,
+        firmware_version=instance.firmware_version,
+        serial_number=instance.serial_number,
+        station_name=instance.station_name,
+        mac_address=instance.mac_address,
+        ip_address=instance.ip_address,
+        cves=instance.cves,
+        merged_identities=instance.merged_identities,
+    )
+
+
+@router.get("/device-templates/{template_id:path}/firmwares", response_model=list[FirmwareVariantResponse])
+async def list_template_firmwares(
+    template_id: str,
+    _current_user: CurrentUser,
+    vulnerable_only: bool = Query(False, description="Only show vulnerable firmwares"),
+) -> list[FirmwareVariantResponse]:
+    """List firmware variants for a device template.
+
+    Args:
+        template_id: Template identifier
+        vulnerable_only: Only return firmwares with CVEs
+
+    Returns:
+        List of firmware variants
+
+    Raises:
+        HTTPException: If template not found
+    """
+    template = get_template_by_id(template_id)
+
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device template '{template_id}' not found",
+        )
+
+    if vulnerable_only:
+        firmwares = template.get_vulnerable_firmwares()
+    else:
+        firmwares = template.firmware_variants
+
+    return [_firmware_to_response(fw) for fw in firmwares]

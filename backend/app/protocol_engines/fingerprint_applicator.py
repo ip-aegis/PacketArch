@@ -4,17 +4,9 @@ This module provides functions to apply vendor-specific fingerprints
 during packet generation, including:
 - TCP/IP stack characteristics (TTL, window size, MSS, etc.)
 - Response timing with realistic distributions
-- Protocol-specific identity responses (Modbus FC 43, EtherNet/IP ListIdentity,
-  PROFINET DCP, S7comm SZL, SNMP sysDescr, BACnet I-Am)
+- Protocol identity responses via the identity builder plugin system
 - Error injection based on vendor behavior
-
-Supported protocols:
-- Modbus TCP (FC 43 Read Device Identification)
-- EtherNet/IP (ListIdentity, CIP Identity Object)
-- PROFINET (DCP Identify)
-- S7comm (SZL System Status List)
-- SNMP (MIB-II System group)
-- BACnet/IP (I-Am for building automation)
+- Vulnerability override support for CVE simulation
 """
 
 import logging
@@ -85,33 +77,127 @@ class FingerprintApplicator:
                         station_name, SNMP sys_name).
         """
         self.fingerprint = fingerprint
-        self.vulnerability_override = vulnerability_override or {}
+        self._vulnerability_override = vulnerability_override or {}
         self.device_id = device_id
         self.scenario_id = scenario_id
         self.device_name = device_name
         self.tcp_stack = fingerprint.get("tcp_stack", {})
         self.response_timing = fingerprint.get("response_timing", {})
         self.error_behavior = fingerprint.get("error_behavior", {})
-        self.modbus_identity = dict(fingerprint.get("modbus_identity", {}))
-        self.ethernet_ip_identity = dict(fingerprint.get("ethernet_ip_identity", {}))
-        self.profinet_identity = dict(fingerprint.get("profinet_identity", {}))
-        self.s7_identity = dict(fingerprint.get("protocol_quirks", {}).get("s7_identity", {}))
-        self.snmp_identity = dict(fingerprint.get("snmp_identity", {}))
-        self.bacnet_identity = dict(fingerprint.get("bacnet_identity", {}))
         self.protocol_quirks = fingerprint.get("protocol_quirks", {})
 
-        # Apply vulnerability overrides if provided
-        if vulnerability_override:
-            self._apply_vulnerability_overrides()
-
-        # Auto-generate unique identifiers if device_id provided
-        # This prevents Cisco Cyber Vision from merging devices with same fingerprint
-        if device_id:
-            self._apply_unique_serials()
-            self._apply_unique_identifiers()
+        # Protocol identities are lazily initialized on first access.
+        # This avoids computing all 9 identities + vulnerability overrides +
+        # unique serial generation when devices typically use only 1-2 protocols.
+        # Access to any identity attribute triggers _init_identities() via __getattr__.
+        self.__dict__["_identities_initialized"] = False
 
         # Initialize RNG for reproducibility if needed
         self._rng = np.random.default_rng()
+
+    # Identity attribute names that trigger lazy initialization
+    _IDENTITY_ATTRS = frozenset({
+        "modbus_identity", "ethernet_ip_identity", "profinet_identity",
+        "s7_identity", "snmp_identity", "bacnet_identity",
+        "opc_ua_identity", "dnp3_identity", "iec104_identity",
+    })
+
+    def __getattr__(self, name: str) -> Any:
+        """Lazy initialization of protocol identity attributes.
+
+        When any identity attribute is accessed before initialization,
+        this triggers full identity setup (extract, overrides, serials).
+        """
+        if name in self._IDENTITY_ATTRS and not self.__dict__.get("_identities_initialized"):
+            self._init_identities()
+            return self.__dict__[name]
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def _init_identities(self) -> None:
+        """Initialize all protocol identities, apply overrides and unique serials.
+
+        Called lazily on first access to any identity attribute.
+        """
+        self._identities_initialized = True
+
+        fingerprint = self.fingerprint
+        self.modbus_identity = dict(fingerprint.get("modbus_identity", {}))
+        self.ethernet_ip_identity = dict(fingerprint.get("ethernet_ip_identity", {}))
+        self.profinet_identity = dict(fingerprint.get("profinet_identity", {}))
+        # S7 identity: use top-level only (legacy protocol_quirks location is deprecated)
+        self.s7_identity = dict(fingerprint.get("s7_identity", {}))
+        # Warn if legacy location is used
+        if not self.s7_identity and fingerprint.get("protocol_quirks", {}).get("s7_identity"):
+            logger.warning(
+                f"Fingerprint has s7_identity in protocol_quirks (deprecated). "
+                f"Move s7_identity to top level. Vendor: {fingerprint.get('vendor')}, "
+                f"Model: {fingerprint.get('model')}"
+            )
+            self.s7_identity = dict(fingerprint.get("protocol_quirks", {}).get("s7_identity", {}))
+        self.snmp_identity = dict(fingerprint.get("snmp_identity", {}))
+        self.bacnet_identity = dict(fingerprint.get("bacnet_identity", {}))
+        self.opc_ua_identity = dict(fingerprint.get("opc_ua_identity", {}))
+        self.dnp3_identity = dict(fingerprint.get("dnp3_identity", {}))
+        self.iec104_identity = dict(fingerprint.get("iec104_identity", {}))
+
+        # Apply vulnerability overrides if provided
+        if self._vulnerability_override:
+            self._apply_vulnerability_overrides()
+
+        # Auto-generate unique identifiers if device_id provided
+        if self.device_id:
+            self._apply_unique_serials()
+            self._apply_unique_identifiers()
+
+    def validate_identity_for_protocols(
+        self,
+        protocols: list[str],
+        device_name: str | None = None,
+    ) -> list[str]:
+        """Validate that fingerprint has identity data for declared protocols.
+
+        This method checks if the fingerprint has the required identity fields
+        for each protocol the device claims to support. Missing identities will
+        result in generic/default responses which may not be detected correctly
+        by security scanners like Cisco Cyber Vision.
+
+        Args:
+            protocols: List of protocol names (e.g., ["modbus_tcp", "profinet"])
+            device_name: Optional device name for logging
+
+        Returns:
+            List of protocols that are missing identity data
+        """
+        # Protocol to identity mapping
+        protocol_identity_map = {
+            "modbus_tcp": ("modbus_identity", self.modbus_identity),
+            "modbus": ("modbus_identity", self.modbus_identity),
+            "ethernet_ip": ("ethernet_ip_identity", self.ethernet_ip_identity),
+            "cip": ("ethernet_ip_identity", self.ethernet_ip_identity),
+            "profinet": ("profinet_identity", self.profinet_identity),
+            "s7comm": ("s7_identity", self.s7_identity),
+            "s7comm_plus": ("s7_identity", self.s7_identity),
+            "snmp": ("snmp_identity", self.snmp_identity),
+            "bacnet": ("bacnet_identity", self.bacnet_identity),
+            "opc_ua": ("opc_ua_identity", self.opc_ua_identity),
+            "dnp3": ("dnp3_identity", self.dnp3_identity),
+            "iec104": ("iec104_identity", self.iec104_identity),
+        }
+
+        missing = []
+        for protocol in protocols:
+            protocol_lower = protocol.lower()
+            if protocol_lower in protocol_identity_map:
+                identity_key, identity_data = protocol_identity_map[protocol_lower]
+                if not identity_data:
+                    missing.append(protocol)
+                    device_desc = f"Device '{device_name}'" if device_name else "Device"
+                    logger.warning(
+                        f"{device_desc}: Protocol '{protocol}' declared but no {identity_key} "
+                        f"in fingerprint. Identity responses will use defaults."
+                    )
+
+        return missing
 
     def _apply_vulnerability_overrides(self) -> None:
         """Apply CVE-specific firmware version overrides to protocol identities.
@@ -127,7 +213,7 @@ class FingerprintApplicator:
         - With _override suffix: modbus_identity_override (from DB model)
         - Without suffix: modbus_identity (from extract_identity_overrides)
         """
-        override = self.vulnerability_override
+        override = self._vulnerability_override
         firmware_version = override.get("firmware_version")
 
         # STEP 1: If firmware_version is provided, auto-derive all firmware fields
@@ -167,14 +253,30 @@ class FingerprintApplicator:
 
         # STEP 2: Apply explicit overrides for non-firmware fields (on top of derived)
 
+        # Fields to PRESERVE from base identity (device-specific, not CVE-related)
+        # These are unique per device and should not be overwritten by CVE templates
+        preserve_fields = {
+            "product_name",      # Device name shown in Cyber Vision
+            "serial_number",     # Unique device serial
+            "object_name",       # BACnet object name
+            "station_name",      # PROFINET station name
+            "sys_name",          # SNMP system name
+            "plc_name",          # S7 PLC name
+        }
+
+        def filter_override(ovr: dict) -> dict:
+            """Filter out device-specific fields that should be preserved."""
+            return {k: v for k, v in ovr.items() if k not in preserve_fields}
+
         # Apply Modbus identity overrides (support both key formats)
         modbus_override = (
             override.get("modbus_identity_override") or
             override.get("modbus_identity")
         )
         if modbus_override:
-            self.modbus_identity.update(modbus_override)
-            logger.debug(f"Applied Modbus vulnerability override: {modbus_override}")
+            filtered = filter_override(modbus_override)
+            self.modbus_identity.update(filtered)
+            logger.debug(f"Applied Modbus vulnerability override: {filtered}")
 
         # Apply EtherNet/IP identity overrides (support both key formats)
         eip_override = (
@@ -182,8 +284,9 @@ class FingerprintApplicator:
             override.get("ethernet_ip_identity")
         )
         if eip_override:
-            self.ethernet_ip_identity.update(eip_override)
-            logger.debug(f"Applied EtherNet/IP vulnerability override: {eip_override}")
+            filtered = filter_override(eip_override)
+            self.ethernet_ip_identity.update(filtered)
+            logger.debug(f"Applied EtherNet/IP vulnerability override: {filtered}")
 
         # Apply PROFINET identity overrides (support both key formats)
         pn_override = (
@@ -191,8 +294,9 @@ class FingerprintApplicator:
             override.get("profinet_identity")
         )
         if pn_override:
-            self.profinet_identity.update(pn_override)
-            logger.debug(f"Applied PROFINET vulnerability override: {pn_override}")
+            filtered = filter_override(pn_override)
+            self.profinet_identity.update(filtered)
+            logger.debug(f"Applied PROFINET vulnerability override: {filtered}")
 
         # Apply S7 identity overrides (support both key formats)
         s7_override = (
@@ -200,8 +304,9 @@ class FingerprintApplicator:
             override.get("s7_identity")
         )
         if s7_override:
-            self.s7_identity.update(s7_override)
-            logger.debug(f"Applied S7 vulnerability override: {s7_override}")
+            filtered = filter_override(s7_override)
+            self.s7_identity.update(filtered)
+            logger.debug(f"Applied S7 vulnerability override: {filtered}")
 
         # Apply SNMP identity overrides (support both key formats)
         # Used for transportation systems (traffic controllers, DMS, etc.)
@@ -210,8 +315,9 @@ class FingerprintApplicator:
             override.get("snmp_identity")
         )
         if snmp_override:
-            self.snmp_identity.update(snmp_override)
-            logger.debug(f"Applied SNMP vulnerability override: {snmp_override}")
+            filtered = filter_override(snmp_override)
+            self.snmp_identity.update(filtered)
+            logger.debug(f"Applied SNMP vulnerability override: {filtered}")
 
         # Apply BACnet identity overrides (support both key formats)
         # Used for building automation / BMS devices
@@ -220,8 +326,9 @@ class FingerprintApplicator:
             override.get("bacnet_identity")
         )
         if bacnet_override:
-            self.bacnet_identity.update(bacnet_override)
-            logger.debug(f"Applied BACnet vulnerability override: {bacnet_override}")
+            filtered = filter_override(bacnet_override)
+            self.bacnet_identity.update(filtered)
+            logger.debug(f"Applied BACnet vulnerability override: {filtered}")
 
     def _apply_unique_serials(self) -> None:
         """Generate unique serial numbers for all protocols.
@@ -277,11 +384,16 @@ class FingerprintApplicator:
         """Generate unique network identifiers for all protocols.
 
         This method generates unique identifiers for protocols that require
-        network-unique values:
+        network-unique values. These identifiers are what Cisco Cyber Vision
+        uses to display device names:
+
         - BACnet: device_instance (must be unique on BACnet network)
-        - BACnet: object_name (should be unique for device identification)
-        - PROFINET: station_name (must be unique on PROFINET network)
-        - SNMP: sys_name (should be unique, typically hostname)
+        - BACnet: object_name (CV displays this as device name)
+        - PROFINET: station_name (must be unique, CV displays this)
+        - SNMP: sys_name (CV displays this as device name)
+        - S7comm: plc_name (CV displays this for Siemens devices)
+        - EtherNet/IP: product_name (CV displays this from ListIdentity)
+        - Modbus: product_name (CV displays this from FC43 MEI response)
 
         Identifiers are deterministic - same device_id + scenario_id always
         produces the same values.
@@ -355,20 +467,72 @@ class FingerprintApplicator:
                 f"Generated unique SNMP sys_name: {self.snmp_identity['sys_name']}"
             )
 
+        # S7 identity: plc_name (for Siemens device naming in Cyber Vision)
+        if self.s7_identity:
+            self.s7_identity["plc_name"] = (
+                UniqueIdentifierGenerator.generate_s7_plc_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+            logger.debug(
+                f"Generated unique S7 plc_name: {self.s7_identity['plc_name']}"
+            )
+
+        # EtherNet/IP identity: product_name (for Rockwell/AB device naming in Cyber Vision)
+        # This is what CV displays as the device name from ListIdentity responses
+        if self.ethernet_ip_identity:
+            self.ethernet_ip_identity["product_name"] = (
+                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
+                )
+            )
+            logger.debug(
+                f"Generated unique EtherNet/IP product_name: "
+                f"{self.ethernet_ip_identity['product_name']}"
+            )
+
+        # Modbus identity: product_name (for Modbus FC43 Device Identification)
+        # CV uses this from MEI responses for device naming
+        if self.modbus_identity:
+            # Use device_name for the product_name field in Modbus identity
+            if self.device_name:
+                self.modbus_identity["product_name"] = self.device_name
+            elif model:
+                # Fallback to model with hash suffix
+                hash_bytes = UniqueIdentifierGenerator._generate_hash(
+                    self.device_id, self.scenario_id
+                )
+                hash_suffix = hash_bytes[:2].hex().upper()
+                self.modbus_identity["product_name"] = f"{model}-{hash_suffix}"
+            logger.debug(
+                f"Generated unique Modbus product_name: "
+                f"{self.modbus_identity.get('product_name')}"
+            )
+
     @property
     def is_vulnerable(self) -> bool:
         """Check if vulnerability overrides are active."""
-        return bool(self.vulnerability_override)
+        return bool(self._vulnerability_override)
 
     @property
     def cve_id(self) -> str | None:
         """Get the CVE ID if vulnerability overrides are active."""
-        return self.vulnerability_override.get("cve_id")
+        return self._vulnerability_override.get("cve_id")
 
     @property
     def vulnerable_firmware_version(self) -> str | None:
         """Get the vulnerable firmware version if overrides are active."""
-        return self.vulnerability_override.get("firmware_version")
+        return self._vulnerability_override.get("firmware_version")
 
     def get_tcp_options(self) -> TcpOptions:
         """Get TCP options based on the fingerprint.
@@ -488,139 +652,6 @@ class FingerprintApplicator:
         """
         return self.error_behavior.get("max_retries", 3)
 
-    # ========== Modbus Identity (FC 43) ==========
-
-    def build_modbus_mei_response(self, device_id_code: int = 1) -> bytes:
-        """Build a Modbus FC 43 Read Device Identification response.
-
-        Args:
-            device_id_code: 1=basic, 2=regular, 3=extended, 4=specific
-
-        Returns:
-            MEI response payload bytes
-        """
-        identity = self.modbus_identity
-        if not identity:
-            return b""
-
-        # Object definitions based on Modbus spec
-        objects = []
-
-        if device_id_code >= 1:  # Basic
-            if "vendor_name" in identity:
-                objects.append((0x00, identity["vendor_name"]))
-            if "product_code" in identity:
-                objects.append((0x01, identity["product_code"]))
-            if "major_minor_revision" in identity:
-                objects.append((0x02, identity["major_minor_revision"]))
-
-        if device_id_code >= 2:  # Regular
-            if "vendor_url" in identity:
-                objects.append((0x03, identity["vendor_url"]))
-            if "product_name" in identity:
-                objects.append((0x04, identity["product_name"]))
-            if "model_name" in identity:
-                objects.append((0x05, identity["model_name"]))
-
-        if device_id_code >= 3:  # Extended
-            if "user_application_name" in identity:
-                objects.append((0x06, identity["user_application_name"]))
-
-        # Build response bytes
-        # Format: MEI type (0x0E) + Read Device ID code + Conformity Level +
-        #         More Follows + Next Object ID + Number of Objects + Object data
-        mei_type = 0x0E
-        conformity = 0x03 if device_id_code >= 3 else (0x02 if device_id_code >= 2 else 0x01)
-        more_follows = 0x00
-        next_object_id = 0x00
-        num_objects = len(objects)
-
-        response = bytes([mei_type, device_id_code, conformity, more_follows, next_object_id, num_objects])
-
-        for obj_id, obj_value in objects:
-            obj_bytes = obj_value.encode("utf-8") if isinstance(obj_value, str) else bytes(obj_value)
-            response += bytes([obj_id, len(obj_bytes)]) + obj_bytes
-
-        return response
-
-    def get_modbus_vendor_name(self) -> str:
-        """Get vendor name for Modbus identity."""
-        return self.modbus_identity.get("vendor_name", "Unknown Vendor")
-
-    def get_modbus_product_code(self) -> str:
-        """Get product code for Modbus identity."""
-        return self.modbus_identity.get("product_code", "Unknown")
-
-    # ========== EtherNet/IP Identity ==========
-
-    def build_enip_list_identity_response(self, socket_addr: tuple[str, int] | None = None) -> bytes:
-        """Build an EtherNet/IP ListIdentity response CPF item.
-
-        Args:
-            socket_addr: Optional (IP, port) tuple for response
-
-        Returns:
-            CPF item bytes for ListIdentity response
-        """
-        identity = self.ethernet_ip_identity
-        if not identity:
-            return b""
-
-        import struct
-
-        vendor_id = identity.get("vendor_id", 1)
-        device_type = identity.get("device_type", 14)
-        product_code = identity.get("product_code", 1)
-        revision_major = identity.get("revision_major", 1)
-        revision_minor = identity.get("revision_minor", 0)
-        serial_number = identity.get("serial_number", 0x12345678)
-        product_name = identity.get("product_name", "Unknown Device")
-        state = identity.get("state", 3)
-
-        # Encode product name (length-prefixed string)
-        product_name_bytes = product_name.encode("utf-8")[:32]
-        product_name_len = len(product_name_bytes)
-
-        # Socket address info
-        if socket_addr:
-            ip_str, port = socket_addr
-            ip_parts = [int(x) for x in ip_str.split(".")]
-        else:
-            ip_parts = [192, 168, 1, 100]
-            port = 44818
-
-        # Build identity item
-        # Type ID: 0x000C (ListIdentity response)
-        # Length: varies
-        identity_data = struct.pack(
-            "<HHHHBBIHB",
-            identity.get("encap_protocol_version", 1),  # Encap version
-            identity.get("sin_family", 2),  # Socket family
-            port,  # Port (big endian in struct)
-            (ip_parts[0] << 24) | (ip_parts[1] << 16) | (ip_parts[2] << 8) | ip_parts[3],  # IP
-            0,  # Sin zero (8 bytes padding follows in full struct)
-            0,
-            vendor_id,  # Vendor ID
-            device_type,  # Device Type
-            product_code,  # Product Code
-        )
-
-        # Add revision and status
-        identity_data += struct.pack("<BBH", revision_major, revision_minor, 0x0030)  # Status
-        identity_data += struct.pack("<I", serial_number)
-        identity_data += struct.pack("<B", product_name_len) + product_name_bytes
-        identity_data += struct.pack("<B", state)
-
-        return identity_data
-
-    def get_enip_vendor_id(self) -> int:
-        """Get ODVA Vendor ID."""
-        return self.ethernet_ip_identity.get("vendor_id", 1)
-
-    def get_enip_device_type(self) -> int:
-        """Get CIP Device Type."""
-        return self.ethernet_ip_identity.get("device_type", 14)
-
     # ========== CIP Identity Object (Deep Fingerprinting) ==========
 
     def get_cip_identity_object(self) -> dict[str, Any]:
@@ -632,9 +663,18 @@ class FingerprintApplicator:
         Returns:
             Dictionary with all CIP Identity Object attributes
         """
+        # Get vendor_id with warning if missing
+        vendor_id = self.ethernet_ip_identity.get("vendor_id")
+        if vendor_id is None:
+            logger.warning(
+                "CIP Identity Object missing vendor_id - defaulting to 1 (Rockwell). "
+                "Device may be misidentified in Cyber Vision."
+            )
+            vendor_id = 1
+
         # Start with basic identity data
         identity = {
-            "vendor_id": self.ethernet_ip_identity.get("vendor_id", 1),
+            "vendor_id": vendor_id,
             "device_type": self.ethernet_ip_identity.get("device_type", 14),
             "product_code": self.ethernet_ip_identity.get("product_code", 1),
             "revision": {
@@ -663,56 +703,12 @@ class FingerprintApplicator:
             })
 
         # Apply vulnerability overrides if present
-        cip_override = self.vulnerability_override.get("cip_identity_override", {})
+        cip_override = self._vulnerability_override.get("cip_identity_override", {})
         if cip_override:
             identity.update(cip_override)
             logger.debug(f"Applied CIP Identity vulnerability override: {cip_override}")
 
         return identity
-
-    def get_connection_manager_object(self) -> dict[str, Any]:
-        """Get Connection Manager Object (Class 0x06) attributes.
-
-        Returns connection parameters used by Cyber Vision for capability detection.
-
-        Returns:
-            Dictionary with Connection Manager attributes
-        """
-        default = {
-            "max_connections": 32,
-            "connection_timeout_multiplier": 32,
-            "transport_class_trigger": 0xA3,
-            "supported_connection_types": ["implicit", "explicit"],
-        }
-
-        cm_object = self.fingerprint.get("connection_manager_object", {})
-        return {**default, **cm_object}
-
-    def get_assembly_objects(self) -> dict[str, Any]:
-        """Get Assembly Object (Class 0x04) configurations.
-
-        Returns I/O assembly configurations for device capability fingerprinting.
-
-        Returns:
-            Dictionary with assembly configurations (input, output, config, safety)
-        """
-        default = {
-            "input": {"instance": 100, "size_bytes": 128},
-            "output": {"instance": 101, "size_bytes": 128},
-        }
-
-        assembly_objects = self.fingerprint.get("assembly_objects", {})
-        return {**default, **assembly_objects}
-
-    def get_cip_safety_info(self) -> dict[str, Any] | None:
-        """Get CIP Safety information for GuardLogix/safety devices.
-
-        Returns safety network configuration for CIP Safety fingerprinting.
-
-        Returns:
-            Dictionary with CIP Safety attributes, or None if not a safety device
-        """
-        return self.fingerprint.get("cip_safety")
 
     def get_list_services(self) -> list[dict[str, Any]]:
         """Get ListServices response data for EtherNet/IP capability advertising.
@@ -735,381 +731,6 @@ class FingerprintApplicator:
             }]
 
         return services
-
-    def is_safety_device(self) -> bool:
-        """Check if this device supports CIP Safety protocol.
-
-        Returns:
-            True if device has CIP Safety configuration
-        """
-        return (
-            self.fingerprint.get("cip_safety") is not None or
-            self.fingerprint.get("protocol_quirks", {}).get("cip_safety_enabled", False)
-        )
-
-    # ========== PROFINET Identity ==========
-
-    def build_profinet_dcp_identify_response(self) -> bytes:
-        """Build a PROFINET DCP Identify response.
-
-        Returns:
-            DCP block data for identify response
-        """
-        identity = self.profinet_identity
-        if not identity:
-            return b""
-
-        import struct
-
-        blocks = []
-
-        # Device/Vendor block (option 0x02, suboption 0x01)
-        vendor_id = identity.get("vendor_id", 0x002A)
-        device_id = identity.get("device_id", 0x0001)
-        blocks.append(
-            struct.pack(">BBHH", 0x02, 0x01, 4, 0) +
-            struct.pack(">HH", vendor_id, device_id)
-        )
-
-        # NameOfStation block (option 0x02, suboption 0x02)
-        station_name = identity.get("station_name", "device")
-        station_bytes = station_name.encode("ascii")
-        # Pad to even length
-        if len(station_bytes) % 2:
-            station_bytes += b"\x00"
-        blocks.append(
-            struct.pack(">BBH", 0x02, 0x02, len(station_bytes)) +
-            station_bytes
-        )
-
-        # Device role block (option 0x02, suboption 0x04)
-        device_role = identity.get("device_role", 1)
-        blocks.append(
-            struct.pack(">BBHBB", 0x02, 0x04, 2, device_role, 0)
-        )
-
-        # Concatenate all blocks
-        return b"".join(blocks)
-
-    def get_profinet_station_name(self) -> str:
-        """Get PROFINET station name."""
-        return self.profinet_identity.get("station_name", "device")
-
-    def get_profinet_vendor_id(self) -> int:
-        """Get PROFINET vendor ID."""
-        return self.profinet_identity.get("vendor_id", 0x002A)
-
-    # ========== S7comm/S7comm-Plus Identity ==========
-
-    def build_s7_szl_response(self, szl_id: int = 0x0011) -> bytes:
-        """Build an S7comm SZL (System Status List) response.
-
-        The SZL contains system information including module identification,
-        firmware versions, and order codes that vulnerability scanners examine.
-
-        Args:
-            szl_id: SZL ID to build response for
-                   0x0011 - Module identification
-                   0x001C - Component identification
-
-        Returns:
-            SZL response data bytes
-        """
-        identity = self.s7_identity
-        if not identity:
-            return b""
-
-        import struct
-
-        if szl_id == 0x0011:
-            # Module identification SZL
-            order_code = identity.get("order_code", "6ES7 516-3AN01-0AB0").encode("ascii")[:20]
-            serial_number = identity.get("serial_number", "S V-P92001234").encode("ascii")[:12]
-            firmware_version = identity.get("firmware_version", "V3.0.0").encode("ascii")[:8]
-            module_type = identity.get("module_type", "CPU 1516-3 PN/DP").encode("ascii")[:24]
-
-            # Pad strings to fixed lengths
-            order_code = order_code.ljust(20, b"\x00")
-            serial_number = serial_number.ljust(12, b"\x00")
-            firmware_version = firmware_version.ljust(8, b"\x00")
-            module_type = module_type.ljust(24, b"\x00")
-
-            # Build SZL 0x0011 response
-            szl_data = struct.pack(">HH", szl_id, 0x0000)  # SZL ID, Index
-            szl_data += struct.pack(">HH", 64, 1)  # Data length, Element count
-            szl_data += order_code
-            szl_data += serial_number
-            szl_data += firmware_version
-            szl_data += module_type
-
-            return szl_data
-
-        elif szl_id == 0x001C:
-            # Component identification SZL
-            # Contains module name and version info
-            component_name = identity.get("module_type", "CPU 1516-3 PN/DP").encode("ascii")[:32]
-            copyright_info = b"SIEMENS AG".ljust(26, b"\x00")
-
-            component_name = component_name.ljust(32, b"\x00")
-
-            szl_data = struct.pack(">HH", szl_id, 0x0000)
-            szl_data += struct.pack(">HH", 58, 1)
-            szl_data += component_name
-            szl_data += copyright_info
-
-            return szl_data
-
-        return b""
-
-    def get_s7_order_code(self) -> str:
-        """Get S7 order code (MLFB)."""
-        return self.s7_identity.get("order_code", "6ES7 516-3AN01-0AB0")
-
-    def get_s7_firmware_version(self) -> str:
-        """Get S7 firmware version."""
-        return self.s7_identity.get("firmware_version", "V3.0.0")
-
-    def get_s7_serial_number(self) -> str:
-        """Get S7 serial number."""
-        return self.s7_identity.get("serial_number", "S V-P92001234")
-
-    # ========== MAC Address Generation ==========
-
-    def generate_mac_address(self) -> str:
-        """Generate a MAC address using vendor OUI prefix.
-
-        Returns:
-            MAC address string (e.g., "00:00:BC:12:34:56")
-        """
-        oui_prefixes = self.fingerprint.get("oui_prefixes", [])
-        if oui_prefixes:
-            oui = random.choice(oui_prefixes)
-        else:
-            # Default OUI for unknown vendors
-            oui = "00:00:00"
-
-        # Generate random NIC portion
-        nic = [random.randint(0, 255) for _ in range(3)]
-        return f"{oui}:{nic[0]:02X}:{nic[1]:02X}:{nic[2]:02X}"
-
-    # ========== Protocol Quirks ==========
-
-    def get_quirk(self, key: str, default: Any = None) -> Any:
-        """Get a protocol-specific quirk value.
-
-        Args:
-            key: Quirk key name
-            default: Default value if not found
-
-        Returns:
-            Quirk value or default
-        """
-        return self.protocol_quirks.get(key, default)
-
-    def get_modbus_max_registers(self) -> int:
-        """Get maximum registers per Modbus request."""
-        return self.get_quirk("modbus_max_registers", 125)
-
-    def get_modbus_max_coils(self) -> int:
-        """Get maximum coils per Modbus request."""
-        return self.get_quirk("modbus_max_coils", 2000)
-
-    def get_enip_connection_timeout_multiplier(self) -> int:
-        """Get EtherNet/IP connection timeout multiplier."""
-        return self.get_quirk("cip_connection_timeout_multiplier", 32)
-
-    def get_profinet_cycle_time_us(self) -> int:
-        """Get PROFINET cycle time in microseconds."""
-        return self.get_quirk("profinet_cycle_time_us", 1000)
-
-    # ========== SNMP Identity (Transportation/NTCIP) ==========
-
-    def get_sys_descr(self) -> str:
-        """Get SNMP sysDescr value.
-
-        This is the primary field used by Cisco Cyber Vision for device
-        identification and vulnerability detection. Contains vendor name,
-        model, and firmware version information.
-
-        Returns:
-            sysDescr string (e.g., "Econolite Cobalt ATC V2.1.4")
-        """
-        return self.snmp_identity.get("sys_descr", "Unknown Device")
-
-    def get_sys_object_id(self) -> str:
-        """Get SNMP sysObjectID value.
-
-        The authoritative OID identifying the device type/vendor.
-
-        Returns:
-            sysObjectID string (e.g., "1.3.6.1.4.1.1206.4.2.1.1")
-        """
-        return self.snmp_identity.get("sys_object_id", "1.3.6.1.4.1.9999.1.1")
-
-    def get_sys_name(self) -> str:
-        """Get SNMP sysName value.
-
-        Returns:
-            sysName string (e.g., "INT-MAIN-5TH")
-        """
-        return self.snmp_identity.get("sys_name", "unknown-device")
-
-    def get_sys_location(self) -> str:
-        """Get SNMP sysLocation value.
-
-        Returns:
-            sysLocation string (e.g., "Main St & 5th Ave")
-        """
-        return self.snmp_identity.get("sys_location", "Unknown Location")
-
-    def get_sys_contact(self) -> str:
-        """Get SNMP sysContact value.
-
-        Returns:
-            sysContact string (e.g., "admin@example.gov")
-        """
-        return self.snmp_identity.get("sys_contact", "admin@local")
-
-    def build_snmp_identity_response(self) -> dict[str, Any]:
-        """Build complete SNMP identity for Cyber Vision detection.
-
-        Returns a dictionary with all system MIB-II identity fields
-        that Cyber Vision parses for device identification.
-
-        Returns:
-            Dictionary with sysDescr, sysObjectID, sysName, etc.
-        """
-        return {
-            "sysDescr": self.get_sys_descr(),
-            "sysObjectID": self.get_sys_object_id(),
-            "sysName": self.get_sys_name(),
-            "sysLocation": self.get_sys_location(),
-            "sysContact": self.get_sys_contact(),
-            "sysServices": self.snmp_identity.get("sys_services", 72),
-        }
-
-    def get_ntcip_device_type(self) -> str:
-        """Get NTCIP device type (asc, dms, ess, etc.).
-
-        Returns:
-            Device type string for NTCIP categorization
-        """
-        return self.snmp_identity.get("ntcip_device_type", "generic")
-
-    def get_max_phases(self) -> int:
-        """Get maximum phases for traffic controller.
-
-        Returns:
-            Maximum phase count (default 8)
-        """
-        return self.snmp_identity.get("max_phases", 8)
-
-    def get_max_detectors(self) -> int:
-        """Get maximum detectors for traffic controller.
-
-        Returns:
-            Maximum detector count (default 64)
-        """
-        return self.snmp_identity.get("max_detectors", 64)
-
-    # ========== BACnet Identity (Building Automation) ==========
-
-    def get_bacnet_vendor_id(self) -> int:
-        """Get BACnet vendor ID (ASHRAE registered).
-
-        Returns:
-            Vendor ID integer (e.g., 5 for Johnson Controls, 17 for Honeywell)
-        """
-        return self.bacnet_identity.get("vendor_id", 0)
-
-    def get_bacnet_vendor_name(self) -> str:
-        """Get BACnet vendor name.
-
-        Returns:
-            Vendor name string (e.g., "Johnson Controls")
-        """
-        return self.bacnet_identity.get("vendor_name", "Unknown Vendor")
-
-    def get_bacnet_model_name(self) -> str:
-        """Get BACnet model name.
-
-        This is the primary field for device identification by Cyber Vision.
-
-        Returns:
-            Model name string (e.g., "NAE55 Network Automation Engine")
-        """
-        return self.bacnet_identity.get("model_name", "BACnet Device")
-
-    def get_bacnet_firmware_revision(self) -> str:
-        """Get BACnet firmware revision.
-
-        This is critical for CVE vulnerability matching.
-
-        Returns:
-            Firmware revision string (e.g., "12.0.3")
-        """
-        return self.bacnet_identity.get("firmware_revision", "1.0")
-
-    def get_bacnet_device_instance(self) -> int:
-        """Get BACnet device instance number.
-
-        Returns:
-            Device instance (1 to 4194302)
-        """
-        return self.bacnet_identity.get("device_instance", 1)
-
-    def get_bacnet_max_apdu_length(self) -> int:
-        """Get BACnet maximum APDU length accepted.
-
-        Returns:
-            Max APDU length in bytes (typically 480, 1024, or 1476)
-        """
-        return self.bacnet_identity.get("max_apdu_length", 1476)
-
-    def get_bacnet_segmentation_supported(self) -> int:
-        """Get BACnet segmentation support.
-
-        Returns:
-            Segmentation enum (0=both, 1=transmit, 2=receive, 3=none)
-        """
-        return self.bacnet_identity.get("segmentation_supported", 3)
-
-    def build_bacnet_i_am_response(self) -> dict[str, Any]:
-        """Build complete BACnet I-Am identity for Cyber Vision detection.
-
-        Returns a dictionary with all I-Am response fields that Cyber Vision
-        parses for device identification and CVE matching.
-
-        Returns:
-            Dictionary with vendor_id, vendor_name, model_name, firmware_revision, etc.
-        """
-        return {
-            "vendor_id": self.get_bacnet_vendor_id(),
-            "vendor_name": self.get_bacnet_vendor_name(),
-            "model_name": self.get_bacnet_model_name(),
-            "firmware_revision": self.get_bacnet_firmware_revision(),
-            "application_software_version": self.bacnet_identity.get(
-                "application_software_version", self.get_bacnet_firmware_revision()
-            ),
-            "device_instance": self.get_bacnet_device_instance(),
-            "max_apdu_length": self.get_bacnet_max_apdu_length(),
-            "segmentation_supported": self.get_bacnet_segmentation_supported(),
-            "protocol_version": self.bacnet_identity.get("protocol_version", 1),
-            "protocol_revision": self.bacnet_identity.get("protocol_revision", 19),
-            "system_status": self.bacnet_identity.get("system_status", 0),  # Operational
-            "object_name": self.bacnet_identity.get("object_name", "BACnet-Device"),
-            "description": self.bacnet_identity.get("description", ""),
-        }
-
-    def get_bacnet_object_types_supported(self) -> list[int]:
-        """Get list of supported BACnet object types.
-
-        Returns:
-            List of object type integers (e.g., [0, 1, 2, 3, 4, 5, 8])
-        """
-        return self.bacnet_identity.get("object_types_supported", [
-            0, 1, 2, 3, 4, 5, 8  # AI, AO, AV, BI, BO, BV, Device
-        ])
 
     # ========== Identity Builder Integration ==========
 
@@ -1141,10 +762,10 @@ class FingerprintApplicator:
 
         # Get vulnerability override for this protocol
         override_key = builder.override_key
-        protocol_override = self.vulnerability_override.get(override_key)
+        protocol_override = self._vulnerability_override.get(override_key)
 
         # Get firmware version if available
-        firmware_version = self.vulnerability_override.get("firmware_version")
+        firmware_version = self._vulnerability_override.get("firmware_version")
 
         return builder.build_identity_response(
             base_identity=base_identity,

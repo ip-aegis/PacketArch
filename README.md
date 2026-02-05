@@ -10,11 +10,14 @@ PacketArch is a web-based platform for creating and deploying OT (Operational Te
 
 - **Visual Scenario Studio** - Drag-and-drop canvas for designing OT networks with devices and protocol flows
 - **AI-Powered Design** - Natural language scenario generation using Claude AI
-- **Protocol Engines** - Modbus TCP, EtherNet/IP, PROFINET with realistic timing and state machines
+- **Protocol Engines** - Modbus TCP, EtherNet/IP, PROFINET, S7comm, BACnet, SNMP with realistic timing and state machines
+- **Device Templates** - Unified fingerprint system for vendor-accurate device emulation
 - **PCAP Learning** - Analyze existing captures to extract device fingerprints and traffic patterns
-- **Live Traffic Injection** - Deploy scenarios to remote Docker hosts for real network testing
-- **Industry Templates** - Pre-built scenarios for Manufacturing, Water/Wastewater, Energy, and Oil & Gas
+- **Live Traffic Injection** - Deploy scenarios to remote traffic agents via WebSocket for real network testing
+- **Remote Agent Management** - Central versioning, updates, and monitoring of distributed traffic agents
+- **Industry Templates** - Pre-built scenarios for Manufacturing, Water/Wastewater, Energy, Oil & Gas, Building Automation, and Transportation
 - **Anomaly Injection** - Add protocol violations and timing anomalies for security testing
+- **Cisco Cyber Vision Integration** - Compare simulated devices against real-world discoveries
 
 ## Quick Start
 
@@ -28,7 +31,7 @@ PacketArch is a web-based platform for creating and deploying OT (Operational Te
 
 ```bash
 # Clone the repository
-git clone git@github.com:kingsmanrocky-max/PacketArch.git
+git clone git@github.com:ip-aegis/PacketArch.git
 cd PacketArch
 
 # Start database and Redis
@@ -71,25 +74,46 @@ docker compose up -d --build
 ┌─────────────────────────────────────────────────────────────┐
 │                   Backend (FastAPI)                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  Protocol   │  │   Traffic   │  │   Docker Host       │  │
-│  │  Engines    │  │  Generator  │  │   Management        │  │
+│  │  Protocol   │  │   Traffic   │  │   Agent Manager     │  │
+│  │  Engines    │  │  Generator  │  │   (WebSocket Hub)   │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
-        ┌──────────┐   ┌──────────┐   ┌──────────────┐
-        │PostgreSQL│   │  Redis   │   │ Docker Hosts │
-        └──────────┘   └──────────┘   └──────────────┘
+        ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+        │PostgreSQL│   │  Redis   │   │  Traffic Agents  │
+        └──────────┘   └──────────┘   │  (WebSocket)     │
+                                      └──────────────────┘
+```
+
+### Traffic Agent Architecture
+
+Remote traffic agents connect to PacketArch via WebSocket (no inbound ports required on agent hosts):
+
+```
+PacketArch Server
+       ▲
+       │ WebSocket (wss://)
+       │ Agent initiates connection
+       ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Agent Host 1   │     │  Agent Host N   │
+│  - agent        │ ... │  - agent        │
+│  - watchtower   │     │  - watchtower   │
+└─────────────────┘     └─────────────────┘
 ```
 
 ## Supported Protocols
 
 | Protocol | Port | Status |
 |----------|------|--------|
-| Modbus TCP | 502 | Implemented |
-| EtherNet/IP | 44818 | Implemented |
-| PROFINET | Layer 2 | Implemented |
+| Modbus TCP | 502 | Production |
+| EtherNet/IP | 44818 | Production |
+| PROFINET | Layer 2 | Production |
+| S7comm | 102 | Production |
+| BACnet/IP | 47808 | Production |
+| SNMP/NTCIP | 161 | Production |
 | OPC UA | 4840 | Planned |
 | DNP3 | 20000 | Planned |
 | IEC 104 | 2404 | Planned |
@@ -104,10 +128,17 @@ Interactive API documentation is available at `/api/docs` when the backend is ru
 |----------|-------------|
 | `/api/v1/scenarios` | Scenario CRUD operations |
 | `/api/v1/templates` | Industry templates |
-| `/api/v1/docker-hosts` | Remote Docker host management |
+| `/api/v1/agents` | Traffic agent management |
+| `/api/v1/agents/build-image` | Build agent Docker image |
+| `/api/v1/agents/{id}/update` | Trigger remote agent update |
+| `/api/v1/docker-hosts` | Remote Docker host management (legacy) |
 | `/api/v1/ai/chat` | AI-powered scenario design |
+| `/api/v1/ai/help` | AI-powered help system |
 | `/api/v1/learning` | PCAP analysis and learning |
+| `/api/v1/learning/sessions` | Learning session management |
 | `/api/v1/ip-management` | IP range allocation |
+| `/api/v1/cyber-vision` | Cisco Cyber Vision integration |
+| `/ws/agent` | WebSocket endpoint for traffic agents |
 
 ## Configuration
 
@@ -119,11 +150,28 @@ Interactive API documentation is available at `/api/docs` when the backend is ru
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `SECRET_KEY` | JWT signing key | (generate for production) |
 | `ENCRYPTION_KEY` | Key for encrypting stored secrets | (auto-generated) |
-| `FIRST_USER_PASSWORD` | Initial admin password | `changeme123` |
+| `FIRST_USER_PASSWORD` | Initial admin password | `C!sco123` |
 
-### Docker Host Setup
+### Traffic Agent Setup (Recommended)
 
-To deploy traffic generators to remote hosts:
+Deploy traffic agents to remote hosts with one command:
+
+```bash
+curl -fsSLk https://your-server/agent/install.sh | sudo bash -s -- \
+  --server https://your-server --token "your-agent-token" --insecure
+```
+
+**Features:**
+- No inbound ports required (agent initiates WebSocket connection)
+- Central versioning and updates from PacketArch UI
+- Auto-updates via Watchtower
+- Real-time status and metrics
+
+See **Settings > Agents** in the UI for detailed instructions.
+
+### Docker Host Setup (Legacy)
+
+To deploy traffic generators via Docker API:
 
 1. Install Docker Engine on the target host
 2. Configure TLS certificates for secure API access
@@ -139,8 +187,10 @@ PacketArch/
 ├── backend/                 # FastAPI REST API
 │   ├── app/
 │   │   ├── api/routes/     # API endpoints
+│   │   ├── api/websocket/  # WebSocket endpoints (agent hub)
 │   │   ├── protocol_engines/ # OT protocol implementations
 │   │   ├── traffic_generator/ # PCAP generation
+│   │   ├── services/       # Business logic (agent_manager, etc.)
 │   │   ├── ai_services/    # AI scenario generation
 │   │   └── mcp_server/     # AI tool integration
 │   └── alembic/            # Database migrations
@@ -150,6 +200,10 @@ PacketArch/
 │       ├── pages/          # Route pages
 │       └── stores/         # Zustand state management
 ├── docker/                 # Docker Compose configs
+│   └── packetarch-agent/   # Remote traffic agent
+│       ├── app/            # Agent Python code
+│       ├── Dockerfile      # Agent container image
+│       └── install.sh      # One-command installer
 └── docs/                   # Documentation
 ```
 
@@ -169,4 +223,4 @@ Proprietary - All rights reserved.
 
 ## Support
 
-For issues and feature requests, please use the [GitHub Issues](https://github.com/kingsmanrocky-max/PacketArch/issues) page.
+For issues and feature requests, please use the [GitHub Issues](https://github.com/ip-aegis/PacketArch/issues) page.

@@ -110,8 +110,14 @@ export interface ScenarioDevice {
   timing?: TimingConfig;
   vendor?: string;
   fingerprintModel?: string;
+  // Device template-based fingerprinting
+  templateId?: string;
+  firmwareVersion?: string;
   // CVE vulnerability simulation
+  cveIds?: string[];
   vulnerableCve?: string;
+  vulnerableFirmware?: string;
+  cveIdentityOverrides?: Record<string, unknown>;
   vulnerabilityOverride?: {
     modbus_identity_override?: Record<string, unknown>;
     ethernet_ip_identity_override?: Record<string, unknown>;

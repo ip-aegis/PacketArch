@@ -40,15 +40,15 @@ from typing import Any
 #   backend/app/protocol_engines/vendor_oui.py (VENDOR_OUIS dict)
 JOHNSON_CONTROLS_OUI_PREFIXES = [
     "00:1A:17",  # Johnson Controls
-    "00:16:C7",  # Johnson Controls Inc
+    # "00:16:C7" REMOVED - Actually Cisco Systems per IEEE registry
     "00:23:BE",  # Johnson Controls Systems
 ]
 
 HONEYWELL_OUI_PREFIXES = [
-    "00:00:8C",  # Honeywell (legacy)
-    "00:D0:34",  # Honeywell Industrial
-    "00:04:63",  # Honeywell Inc
-    "00:1A:64",  # Honeywell Life Safety
+    "00:40:84",  # Honeywell Inc (IEEE MA-L, 2000)
+    "00:22:6A",  # Honeywell (IEEE MA-L, 2008)
+    "C4:EF:DA",  # Honeywell (IEEE MA-L, 2022)
+    "58:FC:C8",  # Honeywell (IEEE MA-L, 2023)
 ]
 
 TRIDIUM_OUI_PREFIXES = [

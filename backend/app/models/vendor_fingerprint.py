@@ -1,4 +1,19 @@
-"""Vendor fingerprint model for storing detailed device emulation profiles."""
+"""Vendor fingerprint model for storing detailed device emulation profiles.
+
+.. deprecated::
+    This model is DEPRECATED. Use DeviceTemplate instead.
+
+    The VendorFingerprint table has been superseded by the DeviceTemplate table,
+    which consolidates built-in vendor fingerprints, PCAP-learned fingerprints,
+    and user-created fingerprints into a single unified model.
+
+    Migration path:
+    - New code should use DeviceTemplate queries
+    - Use template_db_to_fingerprint_dict() for backward-compatible dicts
+    - This table is retained for rollback capability during transition
+
+    See: backend/app/models/device_template.py
+"""
 
 import uuid
 from datetime import datetime
@@ -12,6 +27,10 @@ from app.core.database import Base
 
 class VendorFingerprint(Base):
     """Vendor fingerprint model for hyper-realistic device emulation.
+
+    .. deprecated::
+        This model is deprecated. Use DeviceTemplate instead.
+        See backend/app/models/device_template.py for the new unified model.
 
     This table stores comprehensive device fingerprints that enable
     accurate emulation of vendor-specific network behavior, protocol

@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import get_password_hash
+from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.pcap_capture import PcapCapture, ProcessingStatus
 from app.models.settings import DEFAULT_SETTINGS, SystemSetting
+from app.models.traffic_agent import TrafficAgent, AgentDeployment
 from app.models.user import User
+from app.services.cloud_service_data import BUILTIN_CLOUD_SERVICES
 from app.services.seed_data import run_seed_data
 
 
@@ -84,6 +87,83 @@ async def recover_stuck_pcap_processing(db: AsyncSession) -> int:
     return len(stuck_captures)
 
 
+async def seed_cloud_services(db: AsyncSession) -> int:
+    """Seed builtin cloud service endpoints.
+
+    These are pre-configured cloud services like Talk2M and TeamViewer
+    that OT devices commonly connect to for remote access.
+
+    Returns:
+        Number of cloud services created
+    """
+    created = 0
+
+    for service_data in BUILTIN_CLOUD_SERVICES:
+        # Check if service already exists by name
+        result = await db.execute(
+            select(CloudServiceEndpoint).where(
+                CloudServiceEndpoint.name == service_data["name"],
+                CloudServiceEndpoint.is_builtin == True,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing is None:
+            service = CloudServiceEndpoint(
+                name=service_data["name"],
+                provider=CloudServiceProvider(service_data["provider"]),
+                ip_addresses=service_data["ip_addresses"],
+                primary_ip=service_data["primary_ip"],
+                port=service_data.get("port", 443),
+                hostname=service_data.get("hostname"),
+                tls_enabled=service_data.get("tls_enabled", True),
+                heartbeat_interval_ms=service_data.get("heartbeat_interval_ms", 30000),
+                region=service_data.get("region"),
+                description=service_data.get("description"),
+                is_builtin=True,
+                is_active=True,
+            )
+            db.add(service)
+            created += 1
+
+    if created > 0:
+        await db.commit()
+
+    return created
+
+
+async def reconcile_agent_statuses(db: AsyncSession) -> int:
+    """Reset all agent statuses to offline on startup.
+
+    When the backend restarts, all WebSocket connections are lost but the database
+    may still show agents as 'online'. This creates a mismatch where the UI shows
+    agents as online but they can't receive commands.
+
+    By resetting all agents to offline on startup, we ensure the status is accurate.
+    Agents will reconnect and be marked online again via the WebSocket handler.
+    """
+    # Reset all online agents to offline
+    result = await db.execute(
+        update(TrafficAgent)
+        .where(TrafficAgent.status == "online")
+        .values(status="offline")
+    )
+    agents_reset = result.rowcount
+
+    # Also reset any running/stopping deployments to disconnected
+    result = await db.execute(
+        update(AgentDeployment)
+        .where(AgentDeployment.state.in_(["running", "starting", "stopping"]))
+        .values(state="disconnected")
+    )
+    deployments_reset = result.rowcount
+
+    if agents_reset > 0 or deployments_reset > 0:
+        await db.commit()
+
+    return agents_reset
+
+
 async def run_startup_tasks(db: AsyncSession) -> dict:
     """Run all startup tasks."""
     results = {}
@@ -103,11 +183,22 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     seed_results = await run_seed_data(db)
     results.update(seed_results)
 
+    # Seed cloud service endpoints
+    cloud_services_created = await seed_cloud_services(db)
+    results["cloud_services"] = f"Seeded {cloud_services_created} cloud service endpoints"
+
     # Recover any stuck PCAP processing jobs
     stuck_count = await recover_stuck_pcap_processing(db)
     if stuck_count > 0:
         results["pcap_recovery"] = f"Reset {stuck_count} stuck PCAP processing job(s)"
     else:
         results["pcap_recovery"] = "No stuck PCAP jobs found"
+
+    # Reconcile agent statuses (reset all to offline since no agents connected at startup)
+    agents_reset = await reconcile_agent_statuses(db)
+    if agents_reset > 0:
+        results["agent_reconcile"] = f"Reset {agents_reset} stale 'online' agent(s) to offline"
+    else:
+        results["agent_reconcile"] = "No stale agent statuses found"
 
     return results

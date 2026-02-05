@@ -80,8 +80,11 @@ def build_list_identity_response(
     Returns:
         Complete ListIdentity response payload
     """
-    # Get identity data from fingerprint
-    identity_data = fingerprint_applicator.build_enip_list_identity_response(socket_addr)
+    # Get identity data from fingerprint via identity builder
+    response = fingerprint_applicator.get_identity_response(
+        "ethernet_ip", socket_addr=socket_addr
+    )
+    identity_data = response.raw_bytes
 
     # Build CPF (Common Packet Format) structure
     # Item count: 1
@@ -298,7 +301,7 @@ def build_cip_forward_open_request(
 
     # Build ForwardOpen data (simplified version)
     forward_open = struct.pack(
-        "<BBIIHHIBIIIHB",
+        "<BBIIHHIBIIHIHB",
         priority_tick_time,
         timeout_ticks,
         o_to_t_connection_id,

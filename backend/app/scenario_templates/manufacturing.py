@@ -1,136 +1,309 @@
 """Manufacturing industry scenario templates.
 
-Primary Vendors: Siemens, Rockwell Automation
-Protocol Focus: PROFINET (Siemens), EtherNet/IP (Rockwell)
+Primary Vendors: Siemens, Rockwell Automation, Schneider, ABB
+Protocol Focus: PROFINET (Siemens), EtherNet/IP (Rockwell), Modbus TCP (Schneider/ABB)
 
-Enhanced with Sprint 1-6 capabilities:
-- Vendor fingerprint references for hyper-realistic device emulation
-- Suggested anomalies per template for testing scenarios
-- PCAP learning hints for pattern extraction
-- CVE vulnerability mapping for security testing
+Enhanced templates with:
+- CVE vulnerable firmware on all appropriate devices
+- 25-30+ devices minimum per template (one with 100+ devices)
+- Realistic traffic flows based on Purdue model timing
+- Proper fingerprinting with protocol identities
+- Unique, meaningful device names (not generic patterns)
 """
 
 from typing import Any
 
 
 MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
-    "discrete_manufacturing": {
-        "name": "Discrete Manufacturing Plant",
-        "description": "Typical discrete manufacturing facility with Siemens S7-1500 PLCs, "
-                       "SINAMICS drives, ET 200 I/O, and Comfort HMI panels. "
-                       "Uses PROFINET for high-speed IO with Modbus for legacy devices.",
+    # ============================================================
+    # TEMPLATE 1: SIEMENS DISCRETE MANUFACTURING (35 devices)
+    # CNC machining and assembly cell with S7-1500 PLCs
+    # ============================================================
+    "siemens_discrete_manufacturing": {
+        "name": "Siemens Discrete Manufacturing",
+        "description": "CNC machining and assembly cell with Siemens S7-1500 PLCs, SINAMICS drives, "
+                       "and distributed I/O. Features S7-1500F safety PLCs with PROFIsafe for machine "
+                       "guarding. Typical cell-level manufacturing with fast PROFINET cyclic I/O and "
+                       "S7comm+ HMI connectivity. 35 devices across control, cell, and field zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
         "devices": [
-            # Control Layer - Siemens S7-1500 PLCs (with CVE vulnerabilities)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+            # ============================================================
+            # CONTROL ZONE (Level 2) - 11 devices
+            # Main controllers, safety, HMI, and infrastructure
+            # ============================================================
+            # Main PLCs - S7-1517-3 PN/DP (high performance)
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "CNC_Machining_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
+             "role": "Line Controller",
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Assembly_Line_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "PLC-AUX-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+             "role": "Line Controller",
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+
+            # Auxiliary PLCs - S7-1511-1 PN
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Material_Handling_PLC", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+             "cve_ids": ["CVE-2019-13945"]},
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Quality_Inspection_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "6ES7 511-1AK02-0AB0",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2019-13945"]},
 
-            # HMI Layer - Siemens Comfort and Basic Panels
-            {"type": "hmi", "vendor": "siemens", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "TP1200 Comfort",
+            # Safety PLC - S7-1516F-3 PN/DP with PROFIsafe
+            {"type": "safety_plc", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Machine_Safety_Controller", "protocols": ["profinet", "profisafe", "s7comm_plus"],
+             "fingerprint_model": "6ES7 516-3FN02-0AB0",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2019-13945"]},
+
+            # HMI Panels - TP1200 Comfort
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "CNC_Cell_Operator_HMI", "protocols": ["profinet"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
              "role": "Operator Interface"},
-            {"type": "hmi", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "HMI-BASIC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "KTP900 Basic",
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Assembly_Station_HMI", "protocols": ["profinet"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "role": "Operator Interface"},
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Packaging_Area_HMI", "protocols": ["profinet"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
              "role": "Operator Interface"},
 
-            # Drives - Siemens SINAMICS
-            {"type": "drive", "vendor": "siemens", "count": 12, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G120C",
-             "role": "Variable Frequency Drive"},
-
-            # Distributed I/O - Siemens ET 200SP
-            {"type": "io_module", "vendor": "siemens", "count": 18, "zone": "field",
-             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
-             "role": "Distributed I/O"},
-
-            # Network Infrastructure - Siemens SCALANCE
-            {"type": "switch", "vendor": "siemens", "count": 3, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "SCALANCE XB208",
+            # Industrial Switches - SCALANCE XB208
+            {"type": "switch", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Control_Room_Switch", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "6GK5 208-0BA00-2AB2",
+             "role": "Industrial Switch"},
+            {"type": "switch", "vendor": "siemens", "count": 1, "zone": "control",
+             "name": "Cell_Network_Switch", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "6GK5 208-0BA00-2AB2",
              "role": "Industrial Switch"},
 
-            # Enterprise Layer
-            {"type": "engineering_station", "vendor": "siemens", "count": 2, "zone": "enterprise",
-             "name_pattern": "ENG-{n:03d}", "protocols": ["profinet", "s7comm_plus", "opc_ua"],
-             "role": "Engineering Workstation"},
-            {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "enterprise",
-             "name_pattern": "SCADA-{n:03d}", "protocols": ["opc_ua", "s7comm_plus"],
-             "role": "SCADA Server"},
-            {"type": "historian", "vendor": "siemens", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua"],
-             "role": "Process Historian"},
+            # EWON Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "control",
+             "name": "Plant_Remote_Gateway", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # CELL ZONE (Level 1) - 22 devices
+            # VFDs, servo drives, and I/O modules
+            # ============================================================
+            # VFD Drives - SINAMICS G120C (PE21 frame)
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Spindle_Motor_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Coolant_Pump_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Main_Conveyor_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Infeed_Conveyor_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Outfeed_Conveyor_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Hydraulic_Pump_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Exhaust_Fan_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Coolant_Fan_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            # Servo Drives - SINAMICS S120 for motion control
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "X_Axis_Servo_Drive", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Y_Axis_Servo_Drive", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Z_Axis_Servo_Drive", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Tool_Changer_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Rotary_Table_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Gripper_Actuator_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+
+            # Distributed I/O - ET 200SP IM155-6 PN
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "CNC_Cell_1_IO_Module", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "CNC_Cell_2_IO_Module", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Assembly_Station_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Packaging_Zone_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Safety_Light_Curtain_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Conveyor_Sensors_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Robot_Interface_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell",
+             "name": "Quality_Station_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
+            # ============================================================
+            # FIELD ZONE (Level 0) - 3 devices
+            # Remote field I/O
+            # ============================================================
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field",
+             "name": "Raw_Material_Storage_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field",
+             "name": "Finished_Goods_Area_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field",
+             "name": "Shipping_Dock_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
         ],
         "flows": [
-            # PROFINET cyclic IO (fast - 4ms)
+            # PROFINET cyclic IO - Main PLC to Servo Drives (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "source_types": ["plc"], "target_types": ["servo"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+
+            # PROFINET cyclic IO - Main PLC to VFDs (8ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["drive"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
+
+            # PROFINET cyclic IO - Main PLC to I/O Modules (4ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+
+            # PROFIsafe safety communication (4ms)
+            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
+             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"]},
+
             # HMI polling via S7comm+ (500ms)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "jitter_ms": 50, "jitter_type": "uniform"},
-            # SCADA polling via OPC UA (1000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["plc"]},
-            # Historian collection (5000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
-             "source_types": ["historian"], "target_types": ["scada_server"]},
-            # Engineering station connections (on-demand)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["engineering_station"], "target_types": ["plc"]},
-            # SNMP monitoring of network infrastructure (30s)
+
+            # Aux PLC to Main PLC coordination (32ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 32,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "jitter_ms": 4, "jitter_type": "gaussian"},
+
+            # Main PLC to Field I/O (16ms)
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 16,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["field"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+
+            # SNMP monitoring of switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server", "engineering_station"], "target_types": ["switch"]},
+             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"]},
+
+            # EWON Modbus polling to drives (5s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["drive", "servo"],
+             "source_zones": ["control"], "target_zones": ["cell"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "enterprise", "name": "Enterprise Zone", "level": 4,
-             "subnet_offset": 0, "vlan": 10, "security_level": "standard"},
-            {"id": "dmz", "name": "Industrial DMZ", "level": 3.5,
-             "subnet_offset": 1, "vlan": 20, "security_level": "high"},
-            {"id": "process", "name": "Process Control Zone", "level": 2,
-             "subnet_offset": 2, "vlan": 30, "security_level": "high"},
-            {"id": "field", "name": "Field Device Zone", "level": 1,
-             "subnet_offset": 3, "vlan": 40, "security_level": "standard"},
+            {"id": "control", "name": "Control Network", "level": 2,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "cell", "name": "Cell Network", "level": 1,
+             "subnet_offset": 1, "vlan": 110, "security_level": "standard"},
+            {"id": "field", "name": "Field Network", "level": 0,
+             "subnet_offset": 2, "vlan": 120, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-west",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["delayed_response", "jitter_spike", "watchdog_timeout"],
-            "protocol": ["profinet_alarm", "s7comm_error"],
+            "protocol": ["profinet_alarm", "s7comm_error", "profisafe_error"],
             "sequence": ["duplicate", "out_of_order"],
-            "payload": ["value_spike"],
+            "payload": ["value_spike", "encoder_fault"],
             "network": [],
-            "security": [],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
             {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Learn actual PROFINET RT cycle timing from S7-1500 PLCs"},
+             "description": "Learn PROFINET RT cycle timing from S7-1500 PLCs"},
             {"protocol": "s7comm_plus", "flow_type": "hmi_polling", "priority": "high",
-             "description": "Capture Siemens S7comm+ communication patterns"},
-            {"protocol": "profinet", "flow_type": "drive_control", "priority": "medium",
-             "description": "SINAMICS drive telegram timing patterns"},
+             "description": "Capture S7comm+ HMI communication patterns"},
+            {"protocol": "profisafe", "flow_type": "safety", "priority": "high",
+             "description": "PROFIsafe safety communication patterns"},
+            {"protocol": "profinet", "flow_type": "servo_control", "priority": "medium",
+             "description": "SINAMICS S120 servo telegram timing patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
         "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
             "enable_c2": True,
             "c2_protocol": "http",
             "c2_pattern": "jittered_30s",
@@ -139,490 +312,303 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "exploit_patterns": ["s7_stop_cpu", "s7_unauthorized_read"],
             "enable_recon": True,
             "scan_ot_ports": True,
-            "target_device_types": ["hmi", "engineering_station"],
+            "target_device_types": ["hmi", "plc"],
         },
-        "total_duration_ms": 300000,  # 5 minutes
-    },
-
-    "automotive_assembly": {
-        "name": "Automotive Assembly Line",
-        "description": "High-speed automotive assembly with Siemens S7-1500 robot controllers, "
-                       "S7-1500F safety PLCs with PROFIsafe, and SINAMICS S120 servo drives. "
-                       "Heavy use of PROFINET IRT for deterministic motion control.",
-        "vertical": "manufacturing",
-        "phase_preset": "with_maintenance",
-        "devices": [
-            # Robot controllers - Siemens S7-1500 high-performance (with CVE vulnerabilities)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
-            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "RC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 517-3AP00-0AB0",
-             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "Robot Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "RC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
-             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "Robot Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-
-            # Safety PLCs - Siemens S7-1500F with PROFIsafe (with CVE vulnerabilities)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
-            {"type": "safety_plc", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "SAFETY-{n:03d}", "protocols": ["profinet", "profisafe", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
-             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
-             "role": "Safety Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-
-            # Vision systems - Keep SICK (specialty vendor)
-            {"type": "sensor", "vendor": "sick", "count": 6, "zone": "field",
-             "name_pattern": "CAM-{n:03d}", "protocols": ["profinet", "ethernet_ip"],
-             "role": "Vision System"},
-
-            # Servo drives - Siemens SINAMICS S120 for motion control
-            {"type": "servo", "vendor": "siemens", "count": 16, "zone": "field",
-             "name_pattern": "SERVO-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS S120",
-             "role": "Servo Drive"},
-
-            # Conveyor drives - Siemens SINAMICS G115D distributed
-            {"type": "drive", "vendor": "siemens", "count": 8, "zone": "field",
-             "name_pattern": "CONV-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G115D",
-             "role": "Distributed Drive"},
-
-            # Robot IO modules - Siemens ET 200SP
-            {"type": "io_module", "vendor": "siemens", "count": 24, "zone": "field",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
-             "role": "Robot I/O"},
-
-            # Central HMI - Siemens Comfort Panels
-            {"type": "hmi", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "TP1200 Comfort",
-             "role": "Operator Interface"},
-
-            # Line controller - MES interface
-            {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "enterprise",
-             "name_pattern": "MES-{n:03d}", "protocols": ["opc_ua", "s7comm_plus"],
-             "role": "MES Gateway"},
-        ],
-        "flows": [
-            # High-speed cyclic (1ms) for motion control - PROFINET IRT
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 1,
-             "source_types": ["plc"], "target_types": ["servo"],
-             "jitter_ms": 0.1, "jitter_type": "gaussian"},
-            # Conveyor control (4ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            # Safety communication via PROFIsafe (4ms)
-            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"]},
-            # Vision data (100ms)
-            {"protocol": "profinet", "pattern": "acyclic", "interval_ms": 100,
-             "source_types": ["sensor"], "target_types": ["plc"]},
-            # HMI updates (250ms)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # MES/SCADA data collection (1000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["plc"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "MES Zone", "level": 3,
-             "subnet_offset": 0, "vlan": 100, "security_level": "standard"},
-            {"id": "process", "name": "Line Control", "level": 2,
-             "subnet_offset": 1, "vlan": 200, "security_level": "high"},
-            {"id": "field", "name": "Cell Level", "level": 1,
-             "subnet_offset": 2, "vlan": 300, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["timeout", "watchdog_timeout", "sync_loss"],
-            "protocol": ["profinet_alarm", "profisafe_error"],
-            "sequence": ["dropped_packet", "out_of_order"],
-            "payload": [],
-            "network": ["jitter_spike"],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Critical: Capture 1ms PROFINET IRT motion control timing"},
-            {"protocol": "profisafe", "flow_type": "safety", "priority": "high",
-             "description": "PROFIsafe safety PLC communication patterns"},
-            {"protocol": "profinet", "flow_type": "servo_control", "priority": "high",
-             "description": "SINAMICS S120 servo telegram timing"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "https",
-            "c2_pattern": "jittered_1m",
-            "enable_exfil": True,
-            "exfil_protocol": "http",
-            "enable_exploits": True,
-            "exploit_patterns": ["s7_stop_cpu", "modbus_write_scan"],
-            "enable_recon": False,
-            "target_device_types": ["hmi", "scada_server"],
-        },
-        "total_duration_ms": 600000,  # 10 minutes
-    },
-
-    "packaging_line": {
-        "name": "Packaging and Palletizing Line",
-        "description": "High-speed packaging with Siemens S7-1500 motion controllers, "
-                       "SINAMICS S120 servo drives for synchronized motion, "
-                       "and integrated barcode scanning.",
-        "vertical": "manufacturing",
-        "phase_preset": "standard",
-        "devices": [
-            # Motion controllers - Siemens S7-1500 with Technology CPU (with CVE vulnerabilities)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "MC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 517-3AP00-0AB0",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Motion Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "MC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Motion Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
-
-            # Palletizing controllers - Siemens S7-1500 (with CVE vulnerabilities)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "PALLET-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 511-1AK02-0AB0",
-             "role": "Palletizing Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
-
-            # Servo drives - Siemens SINAMICS S120 for motion
-            {"type": "servo", "vendor": "siemens", "count": 12, "zone": "field",
-             "name_pattern": "SERVO-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS S120",
-             "role": "Servo Drive"},
-
-            # Barcode scanners - Keep SICK (specialty vendor)
-            {"type": "sensor", "vendor": "sick", "count": 8, "zone": "field",
-             "name_pattern": "SCAN-{n:03d}", "protocols": ["profinet", "ethernet_ip"],
-             "role": "Barcode Scanner"},
-
-            # Label printers - Siemens I/O controlled
-            {"type": "actuator", "vendor": "siemens", "count": 4, "zone": "field",
-             "name_pattern": "PRINT-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "role": "Label Printer"},
-
-            # Distributed I/O - Siemens ET 200SP
-            {"type": "io_module", "vendor": "siemens", "count": 10, "zone": "field",
-             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
-             "role": "Distributed I/O"},
-
-            # HMI panels - Siemens Basic Panels
-            {"type": "hmi", "vendor": "siemens", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "KTP900 Basic",
-             "role": "Operator Interface"},
-
-            # Network switches - Siemens SCALANCE
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "SCALANCE XB208",
-             "role": "Industrial Switch"},
-        ],
-        "flows": [
-            # Motion synchronization (2ms) - PROFINET IRT
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 2,
-             "source_types": ["plc"], "target_types": ["servo"],
-             "jitter_ms": 0.2, "jitter_type": "gaussian"},
-            # I/O polling (4ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["io_module", "actuator"]},
-            # Scanner data (50ms)
-            {"protocol": "profinet", "pattern": "acyclic", "interval_ms": 50,
-             "source_types": ["sensor"], "target_types": ["plc"]},
-            # HMI update (250ms)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # SNMP monitoring of switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "process", "name": "Line Control", "level": 2,
-             "subnet_offset": 0, "vlan": 50, "security_level": "high"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 51, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "motion_sync_error"],
-            "protocol": ["profinet_alarm", "dcp_error"],
-            "sequence": ["duplicate"],
-            "payload": ["encoder_fault"],
-            "network": [],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Capture SINAMICS S120 motion control timing patterns"},
-            {"protocol": "profinet", "flow_type": "scanner_data", "priority": "medium",
-             "description": "Scanner data transfer patterns via acyclic PROFINET"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_1m",
-            "enable_exfil": False,
-            "enable_exploits": True,
-            "exploit_patterns": ["s7_stop_cpu"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["hmi"],
-        },
-        "total_duration_ms": 180000,  # 3 minutes
+        "total_duration_ms": 300000,
     },
 
     # ============================================================
-    # ROCKWELL AUTOMATION TEMPLATES
+    # TEMPLATE 2: ROCKWELL AUTOMOTIVE ASSEMBLY (41 devices)
+    # Body shop welding cells with ControlLogix PLCs
     # ============================================================
-
-    "rockwell_discrete_manufacturing": {
-        "name": "Rockwell Discrete Manufacturing Plant",
-        "description": "Discrete manufacturing facility with Rockwell ControlLogix L85E PLCs, "
-                       "PowerFlex 525/753 drives, Point I/O distributed modules, and PanelView HMIs. "
-                       "Uses EtherNet/IP for high-speed I/O with Modbus TCP for legacy integration.",
+    "rockwell_automotive_assembly": {
+        "name": "Rockwell Automotive Assembly",
+        "description": "Body shop welding cells with ControlLogix L85E PLCs, GuardLogix L83ES safety "
+                       "controllers with CIP Safety, Kinetix servo drives, and PowerFlex VFDs. Heavy use "
+                       "of EtherNet/IP implicit messaging for deterministic motion control. 41 devices "
+                       "across control, cell, and field zones with robust safety infrastructure.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
         "devices": [
-            # Control Layer - ControlLogix PLCs (with CVE vulnerabilities)
-            {"type": "plc", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+            # ============================================================
+            # CONTROL ZONE (Level 2) - 16 devices
+            # ============================================================
+            # Line PLCs - ControlLogix L85E
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Body_Shop_Line_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Line Controller",
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161", "CVE-2023-3595"]},
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Paint_Shop_Line_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L85E",
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Line Controller",
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161", "CVE-2023-3595"]},
+
+            # Cell PLCs - ControlLogix L84E
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_1_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L84E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2022-1159", "CVE-2023-3595"]},
-            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "process",
-             "name_pattern": "PLC-AUX-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "1756-L73",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Auxiliary Controller",
+             "role": "Cell Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_2_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L84E",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Cell Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Material_Transfer_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L84E",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Cell Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Quality_Inspection_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L84E",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Cell Controller",
              "cve_ids": ["CVE-2022-1159"]},
 
-            # HMI Layer - Rockwell PanelView
-            {"type": "hmi", "vendor": "rockwell", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2711P-T10C22D9P",
-             "role": "Operator Interface"},
-            {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "process",
-             "name_pattern": "HMI-BASIC-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2711R-T7T",
-             "role": "Operator Interface"},
-
-            # Drives - Rockwell PowerFlex
-            {"type": "drive", "vendor": "rockwell", "count": 8, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "25B-D030N104",
-             "role": "Variable Frequency Drive"},
-            {"type": "drive", "vendor": "rockwell", "count": 4, "zone": "field",
-             "name_pattern": "VFD-HP-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "20F-D052N103",
-             "role": "High-Power Drive"},
-
-            # Distributed I/O - Point I/O
-            {"type": "io_module", "vendor": "rockwell", "count": 18, "zone": "field",
-             "name_pattern": "PIO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1734-AENT",
-             "role": "Distributed I/O"},
-
-            # Network Infrastructure - Stratix Switches
-            {"type": "switch", "vendor": "rockwell", "count": 3, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "1783-BMS10CGL",
-             "role": "Industrial Switch"},
-
-            # Enterprise Layer
-            {"type": "engineering_station", "vendor": "rockwell", "count": 2, "zone": "enterprise",
-             "name_pattern": "ENG-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
-             "role": "Engineering Workstation"},
-            {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "enterprise",
-             "name_pattern": "SCADA-{n:03d}", "protocols": ["opc_ua", "ethernet_ip"],
-             "role": "SCADA Server"},
-            {"type": "historian", "vendor": "rockwell", "count": 1, "zone": "enterprise",
-             "name_pattern": "HIST-{n:03d}", "protocols": ["opc_ua"],
-             "role": "Process Historian"},
-        ],
-        "flows": [
-            # EtherNet/IP implicit messaging (fast - 10ms RPI)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            # HMI polling via EtherNet/IP explicit messaging (500ms)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            # Modbus polling for legacy drives (1000ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["drive"],
-             "jitter_ms": 100, "jitter_type": "gaussian"},
-            # SCADA polling via OPC UA (1000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["plc"]},
-            # Historian collection (5000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
-             "source_types": ["historian"], "target_types": ["scada_server"]},
-            # Engineering station connections (on-demand)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["engineering_station"], "target_types": ["plc"]},
-            # SNMP monitoring of network infrastructure (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server", "engineering_station"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "Enterprise Zone", "level": 4,
-             "subnet_offset": 0, "vlan": 10, "security_level": "standard"},
-            {"id": "dmz", "name": "Industrial DMZ", "level": 3.5,
-             "subnet_offset": 1, "vlan": 20, "security_level": "high"},
-            {"id": "process", "name": "Process Control Zone", "level": 2,
-             "subnet_offset": 2, "vlan": 30, "security_level": "high"},
-            {"id": "field", "name": "Field Device Zone", "level": 1,
-             "subnet_offset": 3, "vlan": 40, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "jitter_spike", "connection_timeout"],
-            "protocol": ["cip_error", "modbus_exception"],
-            "sequence": ["duplicate", "out_of_order"],
-            "payload": ["value_spike"],
-            "network": [],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
-             "description": "Learn actual EtherNet/IP RPI timing from ControlLogix PLCs"},
-            {"protocol": "ethernet_ip", "flow_type": "explicit_messaging", "priority": "high",
-             "description": "Capture CIP explicit messaging patterns for HMI polling"},
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "medium",
-             "description": "PowerFlex drive Modbus communication patterns"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_30s",
-            "enable_exfil": False,
-            "enable_exploits": True,
-            "exploit_patterns": ["cip_stop_plc", "modbus_write_scan"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["hmi", "engineering_station"],
-        },
-        "total_duration_ms": 300000,  # 5 minutes
-    },
-
-    "rockwell_automotive_assembly": {
-        "name": "Rockwell Automotive Assembly Line",
-        "description": "High-speed automotive assembly with ControlLogix L85E robot controllers, "
-                       "GuardLogix L83ES safety PLCs with CIP Safety, and Kinetix 5500 servo drives. "
-                       "Heavy use of EtherNet/IP implicit messaging for deterministic motion control.",
-        "vertical": "manufacturing",
-        "phase_preset": "with_maintenance",
-        "devices": [
-            # Robot controllers - ControlLogix high-performance (with CVE vulnerabilities)
-            {"type": "plc", "vendor": "rockwell", "count": 8, "zone": "process",
-             "name_pattern": "RC-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1756-L85E",
-             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
-             "role": "Robot Controller",
-             "cve_ids": ["CVE-2022-1159", "CVE-2023-3595", "CVE-2022-1161"]},
-
-            # Safety PLCs - GuardLogix with CIP Safety (with CVE vulnerabilities)
-            {"type": "safety_plc", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "SAFETY-{n:03d}", "protocols": ["ethernet_ip", "cip_safety"],
+            # Safety PLCs - GuardLogix L83ES
+            {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_Safety_PLC", "protocols": ["ethernet_ip", "cip_safety"],
+             "fingerprint_model": "1756-L83ES",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+            {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Paint_Booth_Safety_PLC", "protocols": ["ethernet_ip", "cip_safety"],
              "fingerprint_model": "1756-L83ES",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-1159"]},
 
-            # Compact GuardLogix for cell-level safety
-            {"type": "safety_plc", "vendor": "rockwell", "count": 2, "zone": "process",
-             "name_pattern": "CELL-SAFETY-{n:03d}", "protocols": ["ethernet_ip", "cip_safety"],
-             "fingerprint_model": "1769-L33ERMS",
-             "role": "Cell Safety Controller"},
-
-            # Vision systems - Keep SICK/Cognex (specialty vendor)
-            {"type": "sensor", "vendor": "sick", "count": 6, "zone": "field",
-             "name_pattern": "CAM-{n:03d}", "protocols": ["ethernet_ip"],
-             "role": "Vision System"},
-
-            # Servo drives - Kinetix 5500 for motion control
-            {"type": "servo", "vendor": "rockwell", "count": 16, "zone": "field",
-             "name_pattern": "SERVO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2198-D012-ERS3",
-             "role": "Servo Drive"},
-
-            # Conveyor drives - PowerFlex 753
-            {"type": "drive", "vendor": "rockwell", "count": 8, "zone": "field",
-             "name_pattern": "CONV-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "20F-D052N103",
-             "role": "Conveyor Drive"},
-
-            # Robot IO modules - FLEX 5000
-            {"type": "io_module", "vendor": "rockwell", "count": 24, "zone": "field",
-             "name_pattern": "RIO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "5094-AEN2TR",
-             "role": "Robot I/O"},
-
-            # Central HMI - PanelView Plus 7
-            {"type": "hmi", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip"],
+            # HMI Panels - PanelView Plus 7
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Body_Shop_Main_HMI", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_1_HMI", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_2_HMI", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Paint_Shop_HMI", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Operator Interface"},
 
-            # Line controller - MES interface
-            {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "enterprise",
-             "name_pattern": "MES-{n:03d}", "protocols": ["opc_ua", "ethernet_ip"],
-             "role": "MES Gateway"},
+            # Industrial Switches - Stratix 5700
+            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Body_Shop_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Industrial Switch"},
+            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Weld_Cell_Network_Switch", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Industrial Switch"},
+            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "control",
+             "name": "Paint_Shop_Switch", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Industrial Switch"},
+
+            # EWON Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "control",
+             "name": "Body_Shop_Remote_Gateway", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # CELL ZONE (Level 1) - 25 devices
+            # ============================================================
+            # Servo Drives - Kinetix 5500
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_1_X_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_1_Y_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_1_Z_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_2_X_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_2_Y_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Robot_2_Z_Axis_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Positioner_Turntable_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Weld_Gun_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+
+            # VFD Drives - PowerFlex 525
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Transfer_Conveyor_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Infeed_Conveyor_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Outfeed_Conveyor_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Lift_Table_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Ventilation_Fan_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Cooling_Pump_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+
+            # High-Power VFD Drives - PowerFlex 753
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Main_Air_Handler_VFD", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "High-Power Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Paint_Booth_Exhaust_VFD", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "High-Power Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Chiller_Compressor_VFD", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "High-Power Drive"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Process_Water_Pump_VFD", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "High-Power Drive"},
+
+            # Remote I/O - FLEX 5000
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Weld_Cell_1_Remote_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Weld_Cell_2_Remote_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Transfer_Station_Remote_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Paint_Prep_Remote_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+
+            # Point I/O - 1734-AENT
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Safety_Gate_Point_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Point I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "E_Stop_Panel_Point_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Point I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
+             "name": "Light_Curtain_Point_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Point I/O"},
         ],
         "flows": [
-            # High-speed cyclic (2ms RPI) for motion control
+            # EtherNet/IP implicit - Line PLC to Servo Drives (2ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
              "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 0.2, "jitter_type": "gaussian"},
-            # Conveyor control (10ms RPI)
+
+            # EtherNet/IP implicit - Line PLC to Cell PLCs (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "source_types": ["plc"], "target_types": ["plc"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
+
+            # EtherNet/IP implicit - Cell PLC to VFDs (10ms RPI)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+
             # CIP Safety communication (4ms Safety RPI)
             {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"]},
-            # Vision data (100ms)
-            {"protocol": "ethernet_ip", "pattern": "explicit", "interval_ms": 100,
-             "source_types": ["sensor"], "target_types": ["plc"]},
-            # HMI updates (250ms)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # MES/SCADA data collection (1000ms)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["plc"]},
+             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"]},
+
+            # HMI polling via EtherNet/IP explicit (500ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # Cell PLC to Remote I/O (10ms RPI)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+
+            # Cell PLC to Point I/O (20ms RPI)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+
+            # SNMP monitoring of switches (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"]},
+
+            # EWON EtherNet/IP polling to PLCs (10s)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
         ],
         "zones": [
-            {"id": "enterprise", "name": "MES Zone", "level": 3,
-             "subnet_offset": 0, "vlan": 100, "security_level": "standard"},
-            {"id": "process", "name": "Line Control", "level": 2,
-             "subnet_offset": 1, "vlan": 200, "security_level": "high"},
-            {"id": "field", "name": "Cell Level", "level": 1,
-             "subnet_offset": 2, "vlan": 300, "security_level": "standard"},
+            {"id": "control", "name": "Control Network", "level": 2,
+             "subnet_offset": 0, "vlan": 200, "security_level": "high"},
+            {"id": "cell", "name": "Cell Network", "level": 1,
+             "subnet_offset": 1, "vlan": 210, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["timeout", "connection_timeout", "rpi_violation"],
-            "protocol": ["cip_error", "cip_safety_fault"],
+            "protocol": ["cip_error", "cip_safety_fault", "list_identity_timeout"],
             "sequence": ["dropped_packet", "out_of_order"],
-            "payload": [],
+            "payload": ["encoder_fault"],
             "network": ["jitter_spike"],
-            "security": [],
+            "security": ["unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
             {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
@@ -631,8 +617,16 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "description": "CIP Safety GuardLogix communication patterns"},
             {"protocol": "ethernet_ip", "flow_type": "servo_control", "priority": "high",
              "description": "Kinetix 5500 servo drive CIP motion timing"},
+            {"protocol": "ethernet_ip", "flow_type": "explicit_messaging", "priority": "medium",
+             "description": "HMI explicit messaging patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
         ],
         "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["54.95.198.117", "51.38.74.240"],
             "enable_c2": True,
             "c2_protocol": "https",
             "c2_pattern": "jittered_1m",
@@ -641,982 +635,850 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "exploit_patterns": ["cip_stop_plc", "cip_unauthorized_write"],
             "enable_recon": False,
-            "target_device_types": ["hmi", "scada_server"],
+            "target_device_types": ["hmi", "plc"],
         },
-        "total_duration_ms": 600000,  # 10 minutes
-    },
-
-    "rockwell_packaging_line": {
-        "name": "Rockwell Packaging and Palletizing Line",
-        "description": "High-speed packaging with CompactLogix L33ER motion controllers, "
-                       "Kinetix 5500 servo drives for synchronized motion, "
-                       "and integrated barcode scanning via Point I/O.",
-        "vertical": "manufacturing",
-        "phase_preset": "standard",
-        "devices": [
-            # Motion controllers - CompactLogix (with CVE vulnerabilities)
-            {"type": "plc", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "MC-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1769-L33ER",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Motion Controller",
-             "cve_ids": ["CVE-2021-22681", "CVE-2022-1161"]},
-
-            # Palletizing controllers - CompactLogix (with CVE vulnerabilities)
-            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "process",
-             "name_pattern": "PALLET-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1769-L24ER-QB1B",
-             "role": "Palletizing Controller",
-             "cve_ids": ["CVE-2021-22681", "CVE-2022-1161"]},
-
-            # Servo drives - Kinetix 5500 for motion
-            {"type": "servo", "vendor": "rockwell", "count": 12, "zone": "field",
-             "name_pattern": "SERVO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2198-D012-ERS3",
-             "role": "Servo Drive"},
-
-            # Barcode scanners - Keep SICK (specialty vendor)
-            {"type": "sensor", "vendor": "sick", "count": 8, "zone": "field",
-             "name_pattern": "SCAN-{n:03d}", "protocols": ["ethernet_ip"],
-             "role": "Barcode Scanner"},
-
-            # Conveyor drives - PowerFlex 525
-            {"type": "drive", "vendor": "rockwell", "count": 6, "zone": "field",
-             "name_pattern": "CONV-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "25B-D030N104",
-             "role": "Conveyor Drive"},
-
-            # Distributed I/O - Point I/O
-            {"type": "io_module", "vendor": "rockwell", "count": 10, "zone": "field",
-             "name_pattern": "PIO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1734-AENT",
-             "role": "Distributed I/O"},
-
-            # HMI panels - PanelView 800
-            {"type": "hmi", "vendor": "rockwell", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2711R-T7T",
-             "role": "Operator Interface"},
-
-            # Network switches - Stratix
-            {"type": "switch", "vendor": "rockwell", "count": 2, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "1783-BMS10CGL",
-             "role": "Industrial Switch"},
-        ],
-        "flows": [
-            # Motion synchronization (4ms RPI)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["servo"],
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            # I/O polling (10ms RPI)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source_types": ["plc"], "target_types": ["io_module", "drive"]},
-            # Scanner data (50ms)
-            {"protocol": "ethernet_ip", "pattern": "explicit", "interval_ms": 50,
-             "source_types": ["sensor"], "target_types": ["plc"]},
-            # HMI update (250ms)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # SNMP monitoring of switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "process", "name": "Line Control", "level": 2,
-             "subnet_offset": 0, "vlan": 50, "security_level": "high"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 51, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "motion_sync_error"],
-            "protocol": ["cip_error", "list_identity_timeout"],
-            "sequence": ["duplicate"],
-            "payload": ["encoder_fault"],
-            "network": [],
-            "security": [],
-        },
-        "pcap_learning_hints": [
-            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
-             "description": "Capture Kinetix 5500 motion control timing patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "scanner_data", "priority": "medium",
-             "description": "Scanner data transfer patterns via explicit messaging"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_1m",
-            "enable_exfil": False,
-            "enable_exploits": True,
-            "exploit_patterns": ["cip_stop_plc"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["hmi"],
-        },
-        "total_duration_ms": 180000,  # 3 minutes
-    },
-
-    "rockwell_micrologix_legacy": {
-        "name": "Rockwell MicroLogix Legacy System",
-        "description": "Legacy manufacturing cell with MicroLogix 1400 PLCs for machine control. "
-                       "Uses Modbus TCP for SCADA integration and EtherNet/IP for local HMI. "
-                       "Contains devices with known unpatched vulnerabilities (CVE-2019-10954).",
-        "vertical": "manufacturing",
-        "phase_preset": "standard",
-        "devices": [
-            # MicroLogix PLCs (legacy, CVE vulnerabilities - no patch available)
-            {"type": "plc", "vendor": "rockwell", "count": 6, "zone": "process",
-             "name_pattern": "ML-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "1766-L32BWA",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
-             "role": "Machine Controller",
-             "cve_ids": ["CVE-2019-10954"]},
-
-            # Older CompactLogix for coordination
-            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "process",
-             "name_pattern": "CL-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "1769-L24ER-QB1B",
-             "role": "Cell Coordinator"},
-
-            # PowerFlex 525 drives
-            {"type": "drive", "vendor": "rockwell", "count": 8, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
-             "fingerprint_model": "25B-D030N104",
-             "role": "Variable Frequency Drive"},
-
-            # Point I/O modules
-            {"type": "io_module", "vendor": "rockwell", "count": 12, "zone": "field",
-             "name_pattern": "PIO-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1734-AENT",
-             "role": "Distributed I/O"},
-
-            # PanelView 800 HMIs
-            {"type": "hmi", "vendor": "rockwell", "count": 4, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2711R-T7T",
-             "role": "Operator Interface"},
-
-            # SCADA server for Modbus polling (GE Proficy Historian with SQL Injection vuln)
-            {"type": "scada_server", "vendor": "ge", "count": 1, "zone": "enterprise",
-             "name_pattern": "SCADA-{n:03d}", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
-             "role": "SCADA Server"},
-        ],
-        "flows": [
-            # EtherNet/IP polling (100ms - slower legacy)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "jitter_ms": 10, "jitter_type": "gaussian"},
-            # Modbus polling for MicroLogix (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["scada_server"], "target_types": ["plc"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            # HMI updates (500ms)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"]},
-            # Drive status via Modbus (1000ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["plc"], "target_types": ["drive"]},
-        ],
-        "zones": [
-            {"id": "enterprise", "name": "SCADA Zone", "level": 3,
-             "subnet_offset": 0, "vlan": 10, "security_level": "standard"},
-            {"id": "process", "name": "Control Zone", "level": 2,
-             "subnet_offset": 1, "vlan": 20, "security_level": "high"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 2, "vlan": 30, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["modbus_exception", "cip_error"],
-            "sequence": ["duplicate"],
-            "payload": ["value_spike"],
-            "network": [],
-            "security": ["unauthorized_access"],  # CVE-2019-10954 exploitation
-        },
-        "pcap_learning_hints": [
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
-             "description": "MicroLogix Modbus polling patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "explicit_messaging", "priority": "medium",
-             "description": "Legacy EtherNet/IP communication patterns"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_30s",
-            "enable_exfil": True,
-            "exfil_protocol": "dns",  # DNS exfil for stealth
-            "enable_exploits": True,
-            "exploit_patterns": ["modbus_unauthorized_write", "cip_auth_bypass"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["plc", "hmi"],
-        },
-        "total_duration_ms": 300000,  # 5 minutes
+        "total_duration_ms": 600000,
     },
 
     # ============================================================
-    # SIEMENS LEGACY AND BUDGET TEMPLATES
+    # TEMPLATE 3: MULTI-VENDOR ENTERPRISE MANUFACTURING (119 devices)
+    # Large multi-zone facility with Siemens, Rockwell, Schneider, ABB
     # ============================================================
-
-    "siemens_legacy_manufacturing": {
-        "name": "Siemens Legacy Manufacturing Cell",
-        "description": "Brownfield manufacturing cell with legacy Siemens S7-300 and S7-400 PLCs. "
-                       "Common in older facilities not yet upgraded to S7-1500. "
-                       "Contains devices with known DoS vulnerability (CVE-2019-13103).",
-        "vertical": "manufacturing",
-        "phase_preset": "standard",
-        "devices": [
-            # Legacy S7-300 PLCs (with CVE vulnerability)
-            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm"],
-             "fingerprint_model": "CPU 315-2 PN/DP",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
-             "role": "Process Controller",
-             "cve_ids": ["CVE-2019-13103"]},
-
-            # Legacy S7-400 PLCs for coordination (with CVE vulnerability)
-            {"type": "plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "PLC-MAIN-{n:03d}", "protocols": ["profinet", "s7comm"],
-             "fingerprint_model": "CPU 416-3 PN/DP",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
-             "role": "Main Controller",
-             "cve_ids": ["CVE-2019-13103"]},
-
-            # Older HMI panels - Siemens Basic Panels
-            {"type": "hmi", "vendor": "siemens", "count": 3, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm"],
-             "fingerprint_model": "KTP900 Basic",
-             "role": "Operator Interface"},
-
-            # Older SINAMICS drives
-            {"type": "drive", "vendor": "siemens", "count": 8, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G120C",
-             "role": "Variable Frequency Drive"},
-
-            # Distributed I/O - ET 200MP (older than SP)
-            {"type": "io_module", "vendor": "siemens", "count": 12, "zone": "field",
-             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200MP IM155-5 PN",
-             "role": "Distributed I/O"},
-
-            # Network Infrastructure - Siemens SCALANCE
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "SCALANCE XB208",
-             "role": "Industrial Switch"},
-        ],
-        "flows": [
-            # PROFINET cyclic IO (slower for legacy - 8ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            # HMI polling via S7comm (1000ms)
-            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["hmi"], "target_types": ["plc"],
-             "jitter_ms": 100, "jitter_type": "uniform"},
-            # SNMP monitoring (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "process", "name": "Process Control Zone", "level": 2,
-             "subnet_offset": 0, "vlan": 30, "security_level": "high"},
-            {"id": "field", "name": "Field Device Zone", "level": 1,
-             "subnet_offset": 1, "vlan": 40, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout", "watchdog_timeout"],
-            "protocol": ["profinet_alarm", "s7comm_error"],
-            "sequence": ["duplicate", "out_of_order"],
-            "payload": ["value_spike"],
-            "network": [],
-            "security": ["dos_attack"],  # CVE-2019-13103 exploitation
-        },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Learn PROFINET RT cycle timing from legacy S7-300/400"},
-            {"protocol": "s7comm", "flow_type": "hmi_polling", "priority": "high",
-             "description": "Capture S7comm communication patterns (legacy protocol)"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_30s",
-            "enable_exfil": False,
-            "enable_exploits": True,
-            "exploit_patterns": ["s7_stop_cpu", "s7_dos"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["plc", "hmi"],
-        },
-        "total_duration_ms": 300000,  # 5 minutes
-    },
-
-    "siemens_small_manufacturing": {
-        "name": "Siemens Small Manufacturing Cell",
-        "description": "Budget-friendly manufacturing cell with Siemens S7-1200 PLCs. "
-                       "Common in smaller facilities or machine-level applications. "
-                       "Contains devices with known web server vulnerability (CVE-2019-10929).",
-        "vertical": "manufacturing",
-        "phase_preset": "standard",
-        "devices": [
-            # S7-1200 PLCs (with CVE vulnerability)
-            {"type": "plc", "vendor": "siemens", "count": 4, "zone": "process",
-             "name_pattern": "PLC-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "CPU 1214C DC/DC/DC",
-             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0003},
-             "role": "Machine Controller",
-             "cve_ids": ["CVE-2019-10929"]},
-
-            # S7-1200F Safety PLCs
-            {"type": "safety_plc", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "SAFETY-{n:03d}", "protocols": ["profinet", "profisafe", "s7comm_plus"],
-             "fingerprint_model": "CPU 1214FC DC/DC/DC",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Safety Controller",
-             "cve_ids": ["CVE-2019-10929"]},
-
-            # Basic HMI panels
-            {"type": "hmi", "vendor": "siemens", "count": 2, "zone": "process",
-             "name_pattern": "HMI-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "KTP900 Basic",
-             "role": "Operator Interface"},
-
-            # Small drives
-            {"type": "drive", "vendor": "siemens", "count": 6, "zone": "field",
-             "name_pattern": "VFD-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G120C",
-             "role": "Variable Frequency Drive"},
-
-            # Distributed I/O - Siemens ET 200SP
-            {"type": "io_module", "vendor": "siemens", "count": 8, "zone": "field",
-             "name_pattern": "ET200-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
-             "role": "Distributed I/O"},
-
-            # Network switch
-            {"type": "switch", "vendor": "siemens", "count": 1, "zone": "field",
-             "name_pattern": "SW-{n:03d}", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "SCALANCE XB208",
-             "role": "Industrial Switch"},
-        ],
-        "flows": [
-            # PROFINET cyclic IO (4ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            # Safety communication via PROFIsafe (8ms)
-            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 8,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"]},
-            # HMI polling via S7comm+ (500ms)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["hmi"], "target_types": ["plc"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            # SNMP monitoring (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"]},
-        ],
-        "zones": [
-            {"id": "process", "name": "Cell Control Zone", "level": 2,
-             "subnet_offset": 0, "vlan": 50, "security_level": "high"},
-            {"id": "field", "name": "Field Devices", "level": 1,
-             "subnet_offset": 1, "vlan": 51, "security_level": "standard"},
-        ],
-        "suggested_anomalies": {
-            "timing": ["delayed_response", "timeout"],
-            "protocol": ["profinet_alarm", "s7comm_error", "profisafe_error"],
-            "sequence": ["duplicate"],
-            "payload": ["value_spike"],
-            "network": [],
-            "security": ["web_server_dos"],  # CVE-2019-10929 exploitation
-        },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Capture S7-1200 PROFINET communication patterns"},
-            {"protocol": "s7comm_plus", "flow_type": "hmi_polling", "priority": "medium",
-             "description": "S7-1200 HMI polling patterns"},
-        ],
-        "external_comms": {
-            "enable_c2": True,
-            "c2_protocol": "http",
-            "c2_pattern": "jittered_1m",
-            "enable_exfil": False,
-            "enable_exploits": True,
-            "exploit_patterns": ["s7_stop_cpu", "web_server_dos"],
-            "enable_recon": True,
-            "scan_ot_ports": True,
-            "target_device_types": ["plc", "hmi"],
-        },
-        "total_duration_ms": 180000,  # 3 minutes
-    },
-
-    # ============================================================
-    # SUPER MANUFACTURING - MULTI-VENDOR MULTI-ZONE
-    # ============================================================
-
-    "super_manufacturing": {
-        "name": "Super Manufacturing - Multi-Vendor Multi-Zone",
-        "description": "Comprehensive multi-vendor, multi-zone manufacturing facility demonstrating "
-                       "complex OT network architecture. Features 9 Purdue-level zones with Siemens, "
-                       "Rockwell, Schneider, and ABB vendor ecosystems. Includes cross-zone material "
-                       "handoff coordination, centralized SCADA/historian, and safety systems across "
-                       "all production areas. Ideal for Cisco Cyber Vision grouping demonstrations "
-                       "and inter-zone communication pattern analysis.",
+    "multi_vendor_enterprise_manufacturing": {
+        "name": "Multi-Vendor Enterprise Manufacturing",
+        "description": "Large multi-zone manufacturing facility demonstrating complex OT network architecture "
+                       "based on the Purdue model. Features 9 zones with Siemens, Rockwell, Schneider, and ABB "
+                       "vendor ecosystems. Includes centralized DMZ with SCADA/Historian, Windows jump server "
+                       "(vulnerable to BlueKeep CVE-2019-0708), 4 production zones (one per vendor), and "
+                       "corresponding field zones. Cross-zone material handoff coordination via Modbus TCP. "
+                       "119 devices with 20+ CVE-affected devices across all major vendors including IT/OT "
+                       "boundary jump server. Ideal for Cisco Cyber Vision grouping and vulnerability detection demos.",
         "vertical": "manufacturing",
         "phase_preset": "full_lifecycle",
         "devices": [
             # ============================================================
-            # INDUSTRIAL DMZ (Level 3.5) - 8 devices
-            # Centralized supervision, historians, and gateways
+            # INDUSTRIAL DMZ (Level 3.5) - 11 devices
             # ============================================================
-            # SCADA Server - Siemens WinCC
             {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "dmz",
-             "name_pattern": "SCADA-S7-DMZ-{n:03d}", "protocols": ["opc_ua", "s7comm_plus", "modbus_tcp"],
+             "name": "Central_SCADA_Server", "protocols": ["opc_ua", "s7comm", "modbus_tcp"],
              "fingerprint_model": "WinCC Professional",
              "role": "Central SCADA Server"},
 
-            # Historian - GE Proficy (with CVE-2022-46660)
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dmz",
-             "name_pattern": "HIST-GE-DMZ-{n:03d}", "protocols": ["opc_ua", "modbus_tcp"],
+             "name": "Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "cve_ids": ["CVE-2022-46660"],
              "role": "Process Historian"},
 
-            # OPC UA Gateway - Kepware (multi-protocol translation)
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "dmz",
-             "name_pattern": "GW-OPC-DMZ-{n:03d}", "protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "s7comm_plus"],
-             "role": "Protocol Gateway"},
+             "name": "OPC_UA_Gateway", "protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "s7comm"],
+             "fingerprint_model": "KEPServerEX",
+             "role": "OPC UA Gateway"},
 
-            # Engineering Stations - Siemens TIA Portal
             {"type": "engineering_station", "vendor": "siemens", "count": 1, "zone": "dmz",
-             "name_pattern": "ENG-S7-DMZ-{n:03d}", "protocols": ["s7comm_plus", "profinet", "opc_ua"],
+             "name": "Siemens_Eng_Workstation", "protocols": ["s7comm", "profinet"],
+             "fingerprint_model": "TIA Portal",
              "role": "Siemens Engineering Workstation"},
 
-            # Engineering Station - Rockwell Studio 5000
             {"type": "engineering_station", "vendor": "rockwell", "count": 1, "zone": "dmz",
-             "name_pattern": "ENG-AB-DMZ-{n:03d}", "protocols": ["ethernet_ip", "opc_ua"],
+             "name": "Rockwell_Eng_Workstation", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1756-L85E",
              "role": "Rockwell Engineering Workstation"},
 
-            # Protocol Gateway - Anybus (Modbus/EtherNet/IP translation)
             {"type": "gateway", "vendor": "hms", "count": 1, "zone": "dmz",
-             "name_pattern": "GW-ANYBUS-DMZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
-             "role": "Anybus Protocol Gateway"},
+             "name": "Protocol_Gateway", "protocols": ["modbus_tcp", "ethernet_ip", "profinet"],
+             "fingerprint_model": "Anybus X-gateway",
+             "role": "Protocol Gateway"},
 
-            # Centralized HMI - Multi-protocol Siemens TP1200
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "dmz",
-             "name_pattern": "HMI-CENTRAL-DMZ-{n:03d}", "protocols": ["s7comm_plus", "ethernet_ip", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "TP1200 Comfort",
+             "name": "Central_Overview_HMI", "protocols": ["s7comm", "opc_ua"],
+             "fingerprint_model": "WinCC Unified",
              "role": "Central Multi-Protocol HMI"},
 
-            # DMZ Switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dmz",
-             "name_pattern": "SW-CISCO-DMZ-{n:03d}", "protocols": ["snmp"],
-             "role": "DMZ Network Switch"},
+             "name": "DMZ_Core_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dmz",
+             "name": "Primary_Remote_Gateway", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dmz",
+             "name": "Backup_Remote_Gateway", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "dmz",
+             "name": "IT_OT_Jump_Server", "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2016 (Vulnerable)",
+             "role": "Remote Access Jump Server",
+             "cve_ids": ["CVE-2019-0708"],
+             "external_comms": True},
 
             # ============================================================
-            # SIEMENS PRODUCTION ZONE (Level 2) - 13 devices
-            # S7-1500 PLCs, Safety, HMI for Siemens production area
+            # SIEMENS PRODUCTION ZONE (Level 2) - 25 devices
             # ============================================================
-            # Main PLCs - S7-1517-3 PN/DP (high performance)
-            # Using order codes to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "PLC-S7-SZ-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Siemens_Line_1_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "PLC-S7-SZ-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
+             "name": "Siemens_Line_2_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
+             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
 
-            # Auxiliary PLC - S7-1511-1 PN
-            # Using order codes to match CVE affected_models for Cyber Vision detection
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "PLC-S7-SZ-AUX-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Siemens_Material_Handling_PLC", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
+             "cve_ids": ["CVE-2019-13945"]},
 
-            # Safety PLC - S7-1516F-3 PN/DP with PROFIsafe
-            # Using order codes to match CVE affected_models for Cyber Vision detection
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Packaging_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "fingerprint_model": "6ES7 511-1AK02-0AB0",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2019-13945"]},
+
             {"type": "safety_plc", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "SAFETY-S7-SZ-{n:03d}", "protocols": ["profinet", "profisafe", "s7comm_plus"],
-             "fingerprint_model": "6ES7 516-3AN01-0AB0",
+             "name": "Siemens_Safety_Controller", "protocols": ["profinet", "profisafe", "s7comm_plus"],
+             "fingerprint_model": "6ES7 516-3FN02-0AB0",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
-             "cve_ids": ["CVE-2019-13945", "CVE-2020-15782", "CVE-2022-38465"]},
+             "cve_ids": ["CVE-2019-13945"]},
 
-            # HMI - TP1200 Comfort Panel
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "HMI-S7-SZ-{n:03d}", "protocols": ["profinet", "s7comm_plus"],
-             "fingerprint_model": "TP1200 Comfort",
+             "name": "Siemens_Line_1_HMI", "protocols": ["profinet"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
              "role": "Operator Interface"},
 
-            # VFD Drives - SINAMICS G120C
-            {"type": "drive", "vendor": "siemens", "count": 6, "zone": "siemens_zone",
-             "name_pattern": "VFD-S7-SZ-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G120C",
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Line_2_HMI", "protocols": ["profinet"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "role": "Operator Interface"},
+
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Spindle_VFD_1", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
              "role": "Variable Frequency Drive"},
 
-            # Servo Drives - SINAMICS S120
-            {"type": "servo", "vendor": "siemens", "count": 4, "zone": "siemens_zone",
-             "name_pattern": "SERVO-S7-SZ-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS S120",
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Spindle_VFD_2", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Conveyor_VFD_1", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Conveyor_VFD_2", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Pump_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Fan_VFD", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1KE21-7UF1",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_X_Axis_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
              "role": "Servo Drive"},
 
-            # Distributed I/O - ET 200SP
-            {"type": "io_module", "vendor": "siemens", "count": 6, "zone": "siemens_zone",
-             "name_pattern": "IO-S7-SZ-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Y_Axis_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Z_Axis_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Rotary_Servo", "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3130-7TE25-5AA3",
+             "role": "Servo Drive"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Cell_1_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
              "role": "Distributed I/O"},
 
-            # Switch - SCALANCE XB208
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Cell_2_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Assembly_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Packaging_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Safety_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Utility_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+
             {"type": "switch", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
-             "name_pattern": "SW-S7-SZ-{n:03d}", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "SCALANCE XB208",
+             "name": "Siemens_Zone_Switch_1", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "6GK5 208-0BA00-2AB2",
+             "role": "Industrial Switch"},
+
+            {"type": "switch", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
+             "name": "Siemens_Zone_Switch_2", "protocols": ["profinet", "snmp"],
+             "fingerprint_model": "6GK5 208-0BA00-2AB2",
              "role": "Industrial Switch"},
 
             # ============================================================
-            # ROCKWELL PRODUCTION ZONE (Level 2) - 13 devices
-            # ControlLogix/GuardLogix PLCs for Rockwell production area
+            # ROCKWELL PRODUCTION ZONE (Level 2) - 25 devices
             # ============================================================
-            # Main PLCs - ControlLogix L85E
-            {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "rockwell_zone",
-             "name_pattern": "PLC-AB-RZ-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Line_1_Main_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
-             "cve_ids": ["CVE-2022-1159", "CVE-2023-3595"]},
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
 
-            # Auxiliary PLC - ControlLogix L73
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
-             "name_pattern": "PLC-AB-RZ-AUX-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Rockwell_Line_2_Main_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L85E",
+             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2022-1159", "CVE-2022-1161"]},
+
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Material_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L73",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
              "cve_ids": ["CVE-2022-1159"]},
 
-            # Safety PLC - GuardLogix L83ES with CIP Safety
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_QC_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L73",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2022-1159"]},
+
             {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
-             "name_pattern": "SAFETY-AB-RZ-{n:03d}", "protocols": ["ethernet_ip", "cip_safety"],
+             "name": "Rockwell_Safety_Controller", "protocols": ["ethernet_ip", "cip_safety"],
              "fingerprint_model": "1756-L83ES",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-1159"]},
 
-            # HMI - PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
-             "name_pattern": "HMI-AB-RZ-{n:03d}", "protocols": ["ethernet_ip"],
+             "name": "Rockwell_Line_1_HMI", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Operator Interface"},
 
-            # VFD Drives - PowerFlex 525
-            {"type": "drive", "vendor": "rockwell", "count": 4, "zone": "rockwell_zone",
-             "name_pattern": "VFD-AB-RZ-{n:03d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Line_2_HMI", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Conveyor_VFD_1", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "25B-D030N104",
              "role": "Variable Frequency Drive"},
 
-            # High-Power Drives - PowerFlex 753
-            {"type": "drive", "vendor": "rockwell", "count": 2, "zone": "rockwell_zone",
-             "name_pattern": "VFD-HP-AB-RZ-{n:03d}", "protocols": ["ethernet_ip"],
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Conveyor_VFD_2", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Pump_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Lift_VFD", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "25B-D030N104",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Air_Handler_VFD", "protocols": ["ethernet_ip"],
              "fingerprint_model": "20F-D052N103",
              "role": "High-Power Drive"},
 
-            # Servo Drives - Kinetix 5500
-            {"type": "servo", "vendor": "rockwell", "count": 4, "zone": "rockwell_zone",
-             "name_pattern": "SERVO-AB-RZ-{n:03d}", "protocols": ["ethernet_ip"],
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Exhaust_VFD", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "High-Power Drive"},
+
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Robot_X_Servo", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2198-D012-ERS3",
              "role": "Servo Drive"},
 
-            # Distributed I/O - Point I/O 1734-AENT
-            {"type": "io_module", "vendor": "rockwell", "count": 6, "zone": "rockwell_zone",
-             "name_pattern": "IO-AB-RZ-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "1734-AENT",
-             "role": "Distributed I/O"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Robot_Y_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
 
-            # Switch - Stratix 5700
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Robot_Z_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Positioner_Servo", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Servo Drive"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Cell_1_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Cell_2_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Assembly_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Transfer_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Safety_Gate_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Point I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_E_Stop_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Point I/O"},
+
             {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
-             "name_pattern": "SW-AB-RZ-{n:03d}", "protocols": ["ethernet_ip", "snmp"],
+             "name": "Rockwell_Zone_Switch_1", "protocols": ["ethernet_ip", "snmp"],
+             "fingerprint_model": "1783-BMS10CGL",
+             "role": "Industrial Switch"},
+
+            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
+             "name": "Rockwell_Zone_Switch_2", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1783-BMS10CGL",
              "role": "Industrial Switch"},
 
             # ============================================================
-            # SCHNEIDER PRODUCTION ZONE (Level 2) - 11 devices
-            # M580/M340 PLCs for Schneider production area
+            # SCHNEIDER PRODUCTION ZONE (Level 2) - 22 devices
             # ============================================================
-            # Main PLCs - M580 BMEH586040 (Hot Standby capable)
-            {"type": "plc", "vendor": "schneider", "count": 2, "zone": "schneider_zone",
-             "name_pattern": "PLC-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
-             "fingerprint_model": "BMEH586040",
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Process_1_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "BMEP586040",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
-             "cve_ids": ["CVE-2021-22779", "CVE-2020-7540"]},
+             "cve_ids": ["CVE-2022-45789"]},
 
-            # Auxiliary PLC - M340
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
-             "name_pattern": "PLC-SE-SCZ-AUX-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "BMXP342020",
+             "name": "Schneider_Process_2_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "BMEP586040",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0001},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2022-45789"]},
+
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Utility_PLC", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "BMXP3420302",
              "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
              "cve_ids": ["CVE-2021-22779"]},
 
-            # Safety PLC - M580 Safety BMEP586040S
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Batch_PLC", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "BMXP3420302",
+             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0002},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2021-22779"]},
+
             {"type": "safety_plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
-             "name_pattern": "SAFETY-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Schneider_Safety_Controller", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "BMEP586040S",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
-             "role": "Safety Controller"},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-45789"]},
 
-            # HMI - Magelis HMIST6700
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
-             "name_pattern": "HMI-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "HMIST6700",
+             "name": "Schneider_Process_HMI", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
              "role": "Operator Interface"},
 
-            # VFD Drives - Altivar ATV930
-            {"type": "drive", "vendor": "schneider", "count": 5, "zone": "schneider_zone",
-             "name_pattern": "VFD-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
-             "fingerprint_model": "ATV930",
+            {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Utility_HMI", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "Operator Interface"},
+
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Mixer_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930D15N4",
              "role": "Variable Frequency Drive"},
 
-            # Servo Drives - Lexium LXM32
-            {"type": "servo", "vendor": "schneider", "count": 3, "zone": "schneider_zone",
-             "name_pattern": "SERVO-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "LXM32MD18N4",
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Pump_1_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Pump_2_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Agitator_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Variable Frequency Drive"},
+
+            {"type": "servo", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Fill_Servo", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "LXM32MD18M2",
              "role": "Servo Drive"},
 
-            # Distributed I/O - TM3DI32K
-            {"type": "io_module", "vendor": "schneider", "count": 4, "zone": "schneider_zone",
-             "name_pattern": "IO-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "TM3DI32K",
+            {"type": "servo", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Cap_Servo", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "LXM32MD18M2",
+             "role": "Servo Drive"},
+
+            {"type": "servo", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Label_Servo", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "LXM32MD18M2",
+             "role": "Servo Drive"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Tank_1_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
              "role": "Distributed I/O"},
 
-            # Switch - ConneXium TCSESM
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Tank_2_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Fill_Station_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Pack_Station_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STBNIP2311",
+             "role": "Distributed I/O"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Valve_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "I/O Module"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Sensor_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "I/O Module"},
+
             {"type": "switch", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
-             "name_pattern": "SW-SE-SCZ-{n:03d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Schneider_Zone_Switch_1", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "TCSESM083F2CU0",
+             "role": "Industrial Switch"},
+
+            {"type": "switch", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
+             "name": "Schneider_Zone_Switch_2", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Industrial Switch"},
 
             # ============================================================
-            # MIXED/SPECIALTY ZONE (Level 2) - 12 devices
-            # ABB PLCs, specialty sensors, instrumentation
+            # ABB/MIXED PRODUCTION ZONE (Level 2) - 20 devices
             # ============================================================
-            # ABB PLCs - PM590-ETH
-            {"type": "plc", "vendor": "abb", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "PLC-ABB-MZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Process_1_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "PM590-ETH",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
-             "role": "Process Controller"},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2021-22285"]},
 
-            # ABB Compact PLC - PM583-ETH
-            {"type": "plc", "vendor": "abb", "count": 1, "zone": "mixed_zone",
-             "name_pattern": "PLC-ABB-MZ-AUX-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Process_2_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "PM590-ETH",
+             "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
+             "role": "Main Process Controller",
+             "cve_ids": ["CVE-2021-22285"]},
+
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Utility_PLC", "protocols": ["modbus_tcp"],
              "fingerprint_model": "PM583-ETH",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.00025},
-             "role": "Auxiliary Controller"},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2021-22285"]},
 
-            # ABB HMI - CP620
-            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "mixed_zone",
-             "name_pattern": "HMI-ABB-MZ-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Warehouse_PLC", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM583-ETH",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.00025},
+             "role": "Auxiliary Controller",
+             "cve_ids": ["CVE-2021-22285"]},
+
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Process_HMI", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CP620",
              "role": "Operator Interface"},
 
-            # ABB Drives - ACS880 (Industrial)
-            {"type": "drive", "vendor": "abb", "count": 4, "zone": "mixed_zone",
-             "name_pattern": "VFD-ABB-MZ-{n:03d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Warehouse_HMI", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Operator Interface"},
+
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Motor_1_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "Industrial Drive"},
 
-            # ABB Drives - ACS580 (General Purpose)
-            {"type": "drive", "vendor": "abb", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "VFD-GP-ABB-MZ-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Motor_2_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Industrial Drive"},
+
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Crane_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Industrial Drive"},
+
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Hoist_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Industrial Drive"},
+
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Conveyor_1_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS580",
              "role": "General Purpose Drive"},
 
-            # SICK Vision Systems - Inspector P631
-            {"type": "sensor", "vendor": "sick", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "CAM-SICK-MZ-{n:03d}", "protocols": ["ethernet_ip"],
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Conveyor_2_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS580",
+             "role": "General Purpose Drive"},
+
+            {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
+             "name": "Vision_Inspection_Camera", "protocols": ["ethernet_ip"],
              "fingerprint_model": "Inspector P631",
              "role": "Vision System"},
 
-            # SICK Barcode Scanners - CLV650
-            {"type": "sensor", "vendor": "sick", "count": 3, "zone": "mixed_zone",
-             "name_pattern": "SCAN-SICK-MZ-{n:03d}", "protocols": ["ethernet_ip"],
+            {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
+             "name": "Quality_Check_Camera", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "Inspector P631",
+             "role": "Vision System"},
+
+            {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
+             "name": "Pallet_Barcode_Scanner", "protocols": ["ethernet_ip"],
              "fingerprint_model": "CLV650-0120",
              "role": "Barcode Scanner"},
 
-            # Endress+Hauser Flow Meters - Promag 400
-            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "FLOW-EH-MZ-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
+             "name": "Product_Barcode_Scanner", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "CLV650-0120",
+             "role": "Barcode Scanner"},
+
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "abb_zone",
+             "name": "Process_Water_Flowmeter", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag 400",
              "role": "Electromagnetic Flowmeter"},
 
-            # Endress+Hauser Level Transmitters - FMP50
-            {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "LEVEL-EH-MZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "FMP50",
-             "role": "Level Transmitter"},
+            {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "abb_zone",
+             "name": "Cooling_Loop_Flowmeter", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Electromagnetic Flowmeter"},
 
-            # ABB I/O - CI501
-            {"type": "io_module", "vendor": "abb", "count": 2, "zone": "mixed_zone",
-             "name_pattern": "IO-ABB-MZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "CI501",
-             "role": "Distributed I/O"},
+            {"type": "switch", "vendor": "hirschmann", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Zone_Switch_1", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "RS20-0800M2M2SDAE",
+             "role": "Industrial Switch"},
+
+            {"type": "switch", "vendor": "hirschmann", "count": 1, "zone": "abb_zone",
+             "name": "ABB_Zone_Switch_2", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "RS20-0800M2M2SDAE",
+             "role": "Industrial Switch"},
 
             # ============================================================
-            # SIEMENS FIELD ZONE (Level 1) - 4 devices
-            # Field devices for Siemens production area
+            # FIELD ZONES (Level 1) - 16 devices total
             # ============================================================
-            # Additional VFDs for field level
-            {"type": "drive", "vendor": "siemens", "count": 2, "zone": "field_siemens",
-             "name_pattern": "VFD-S7-FSZ-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "SINAMICS G120C",
-             "role": "Field VFD"},
-
-            # Additional I/O modules
-            {"type": "io_module", "vendor": "siemens", "count": 2, "zone": "field_siemens",
-             "name_pattern": "IO-S7-FSZ-{n:03d}", "protocols": ["profinet", "modbus_tcp"],
-             "fingerprint_model": "ET 200SP IM155-6 PN",
+            # Siemens Field Zone
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field_siemens",
+             "name": "Siemens_Raw_Material_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
              "role": "Field I/O"},
 
-            # ============================================================
-            # ROCKWELL FIELD ZONE (Level 1) - 4 devices
-            # Field devices for Rockwell production area
-            # ============================================================
-            # Additional VFDs for field level
-            {"type": "drive", "vendor": "rockwell", "count": 2, "zone": "field_rockwell",
-             "name_pattern": "VFD-AB-FRZ-{n:03d}", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "25B-D030N104",
-             "role": "Field VFD"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field_siemens",
+             "name": "Siemens_Storage_Area_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
 
-            # Additional I/O modules
-            {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "field_rockwell",
-             "name_pattern": "IO-AB-FRZ-{n:03d}", "protocols": ["ethernet_ip"],
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field_siemens",
+             "name": "Siemens_Shipping_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "field_siemens",
+             "name": "Siemens_Dock_Door_IO", "protocols": ["profinet"],
+             "fingerprint_model": "6ES7 155-6AU01-0BN0",
+             "role": "Field I/O"},
+
+            # Rockwell Field Zone
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
+             "name": "Rockwell_Raw_Material_IO", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
              "role": "Field I/O"},
 
-            # ============================================================
-            # SCHNEIDER FIELD ZONE (Level 1) - 4 devices
-            # Field devices for Schneider production area
-            # ============================================================
-            # Additional VFDs for field level
-            {"type": "drive", "vendor": "schneider", "count": 2, "zone": "field_schneider",
-             "name_pattern": "VFD-SE-FSCZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ATV930",
-             "role": "Field VFD"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
+             "name": "Rockwell_Storage_Area_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Field I/O"},
 
-            # Additional I/O modules
-            {"type": "io_module", "vendor": "schneider", "count": 2, "zone": "field_schneider",
-             "name_pattern": "IO-SE-FSCZ-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
+             "name": "Rockwell_Shipping_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
+             "name": "Rockwell_Dock_Door_IO", "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Field I/O"},
+
+            # Schneider Field Zone
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "field_schneider",
+             "name": "Schneider_Tank_Farm_IO", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM3DI32K",
              "role": "Field I/O"},
 
-            # ============================================================
-            # MIXED FIELD ZONE (Level 1) - 4 devices
-            # Field devices for mixed/specialty area
-            # ============================================================
-            # Additional ABB drives
-            {"type": "drive", "vendor": "abb", "count": 2, "zone": "field_mixed",
-             "name_pattern": "VFD-ABB-FMZ-{n:03d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "ACS580",
-             "role": "Field VFD"},
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "field_schneider",
+             "name": "Schneider_Loading_Dock_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "Field I/O"},
 
-            # Additional ABB I/O modules
-            {"type": "io_module", "vendor": "abb", "count": 2, "zone": "field_mixed",
-             "name_pattern": "IO-ABB-FMZ-{n:03d}", "protocols": ["modbus_tcp"],
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "field_schneider",
+             "name": "Schneider_CIP_System_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "field_schneider",
+             "name": "Schneider_Waste_Treatment_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "Field I/O"},
+
+            # ABB Field Zone
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "field_abb",
+             "name": "ABB_Warehouse_Aisle_1_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "field_abb",
+             "name": "ABB_Warehouse_Aisle_2_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "field_abb",
+             "name": "ABB_Outbound_Staging_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Field I/O"},
+
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "field_abb",
+             "name": "ABB_Inbound_Receiving_IO", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CI501",
              "role": "Field I/O"},
         ],
         "flows": [
-            # ============================================================
             # INTRA-ZONE FLOWS - Siemens Zone
-            # ============================================================
-            # PROFINET cyclic IO (2-4ms) - Siemens PLCs to drives/I/O
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "source_types": ["plc"], "target_types": ["drive", "io_module", "servo"],
              "source_zones": ["siemens_zone"], "target_zones": ["siemens_zone", "field_siemens"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
-            # PROFIsafe safety communication (4ms)
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
              "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
              "source_zones": ["siemens_zone"], "target_zones": ["siemens_zone", "field_siemens"]},
 
-            # Siemens HMI polling via S7comm+ (250ms)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 250,
+            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["siemens_zone"], "target_zones": ["siemens_zone"],
-             "jitter_ms": 25, "jitter_type": "uniform"},
+             "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # ============================================================
             # INTRA-ZONE FLOWS - Rockwell Zone
-            # ============================================================
-            # EtherNet/IP implicit messaging (4-10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["drive", "io_module", "servo"],
              "source_zones": ["rockwell_zone"], "target_zones": ["rockwell_zone", "field_rockwell"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
-            # CIP Safety communication (4ms Safety RPI)
             {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
              "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
              "source_zones": ["rockwell_zone"], "target_zones": ["rockwell_zone", "field_rockwell"]},
 
-            # Rockwell HMI polling via EtherNet/IP (500ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["rockwell_zone"], "target_zones": ["rockwell_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # ============================================================
             # INTRA-ZONE FLOWS - Schneider Zone
-            # ============================================================
-            # Modbus TCP polling (50-100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["plc"], "target_types": ["drive", "io_module", "servo"],
              "source_zones": ["schneider_zone"], "target_zones": ["schneider_zone", "field_schneider"],
              "jitter_ms": 20, "jitter_type": "gaussian"},
 
-            # Schneider HMI polling (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["schneider_zone"], "target_zones": ["schneider_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # ============================================================
-            # INTRA-ZONE FLOWS - Mixed Zone
-            # ============================================================
-            # ABB Modbus TCP polling (100ms)
+            # INTRA-ZONE FLOWS - ABB/Mixed Zone
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["plc"], "target_types": ["drive", "io_module"],
-             "source_zones": ["mixed_zone"], "target_zones": ["mixed_zone", "field_mixed"],
+             "source_zones": ["abb_zone"], "target_zones": ["abb_zone", "field_abb"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
-            # Specialty sensor polling (200ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
              "source_types": ["plc"], "target_types": ["sensor"],
-             "source_zones": ["mixed_zone"], "target_zones": ["mixed_zone"],
+             "source_zones": ["abb_zone"], "target_zones": ["abb_zone"],
              "jitter_ms": 30, "jitter_type": "gaussian"},
 
-            # Instrumentation polling via Modbus (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
              "source_types": ["plc"], "target_types": ["sensor"],
-             "source_zones": ["mixed_zone"], "target_zones": ["mixed_zone"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
+             "source_zones": ["abb_zone"], "target_zones": ["abb_zone"],
+             "jitter_ms": 25, "jitter_type": "uniform"},
 
-            # ABB HMI polling (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
-             "source_zones": ["mixed_zone"], "target_zones": ["mixed_zone"],
+             "source_zones": ["abb_zone"], "target_zones": ["abb_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # ============================================================
-            # ZONE-TO-DMZ FLOWS (Supervision/Data Collection)
-            # ============================================================
-            # OPC UA subscriptions - SCADA to all zone PLCs (1000ms)
+            # DMZ FLOWS (Supervisory)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
              "source_types": ["scada_server"], "target_types": ["plc", "safety_plc"],
-             "source_zones": ["dmz"], "target_zones": ["siemens_zone", "rockwell_zone", "schneider_zone", "mixed_zone"]},
+             "source_zones": ["dmz"], "target_zones": ["siemens_zone", "rockwell_zone", "schneider_zone", "abb_zone"]},
 
-            # Historian collection via OPC UA (5000ms)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
              "source_types": ["historian"], "target_types": ["plc"],
-             "source_zones": ["dmz"], "target_zones": ["siemens_zone", "rockwell_zone", "schneider_zone", "mixed_zone"]},
+             "source_zones": ["dmz"], "target_zones": ["siemens_zone", "rockwell_zone", "schneider_zone", "abb_zone"]},
 
-            # Engineering access - Siemens (2000ms)
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["engineering_station"], "target_types": ["plc"],
-             "source_zones": ["dmz"], "target_zones": ["siemens_zone"]},
-
-            # Engineering access - Rockwell (2000ms)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 2000,
-             "source_types": ["engineering_station"], "target_types": ["plc"],
-             "source_zones": ["dmz"], "target_zones": ["rockwell_zone"]},
-
-            # Central HMI multi-protocol polling (1000ms)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["siemens_zone"]},
+
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["rockwell_zone"]},
+
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
-             "source_zones": ["dmz"], "target_zones": ["schneider_zone", "mixed_zone"]},
+             "source_zones": ["dmz"], "target_zones": ["schneider_zone", "abb_zone"]},
 
-            # Gateway protocol translation (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["gateway"], "target_types": ["plc"],
-             "source_zones": ["dmz"], "target_zones": ["schneider_zone", "mixed_zone"]},
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["dmz"], "target_zones": ["dmz", "siemens_zone", "rockwell_zone", "schneider_zone", "abb_zone"]},
 
-            # ============================================================
-            # CROSS-ZONE FLOWS (Material Handoff Coordination)
-            # ============================================================
-            # Siemens → Rockwell handoff via Modbus TCP (500ms)
+            # CROSS-ZONE FLOWS (Material Handoff)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["plc"], "target_types": ["plc"],
              "source_zones": ["siemens_zone"], "target_zones": ["rockwell_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # Rockwell → Schneider handoff via Modbus TCP (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["plc"], "target_types": ["plc"],
              "source_zones": ["rockwell_zone"], "target_zones": ["schneider_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # Schneider → Mixed zone handoff via Modbus TCP (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["schneider_zone"], "target_zones": ["mixed_zone"],
+             "source_zones": ["schneider_zone"], "target_zones": ["abb_zone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # ============================================================
-            # INFRASTRUCTURE MONITORING
-            # ============================================================
-            # SNMP polling of all switches (30000ms)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
-             "source_zones": ["dmz"], "target_zones": ["dmz", "siemens_zone", "rockwell_zone", "schneider_zone"]},
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["dmz"], "target_zones": ["siemens_zone", "rockwell_zone", "schneider_zone", "abb_zone"],
+             "jitter_ms": 10000, "jitter_type": "uniform"},
+
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["rockwell_zone"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["schneider_zone", "abb_zone"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
         ],
         "zones": [
-            # DMZ - Level 3.5
             {"id": "dmz", "name": "Industrial DMZ", "level": 3.5,
              "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
-
-            # Production Zones - Level 2
             {"id": "siemens_zone", "name": "Siemens Production", "level": 2,
              "subnet_offset": 1, "vlan": 210, "security_level": "high"},
             {"id": "rockwell_zone", "name": "Rockwell Production", "level": 2,
              "subnet_offset": 2, "vlan": 220, "security_level": "high"},
             {"id": "schneider_zone", "name": "Schneider Production", "level": 2,
              "subnet_offset": 3, "vlan": 230, "security_level": "high"},
-            {"id": "mixed_zone", "name": "Mixed/Specialty Production", "level": 2,
+            {"id": "abb_zone", "name": "ABB/Mixed Production", "level": 2,
              "subnet_offset": 4, "vlan": 240, "security_level": "high"},
-
-            # Field Zones - Level 1
             {"id": "field_siemens", "name": "Siemens Field", "level": 1,
              "subnet_offset": 5, "vlan": 211, "security_level": "standard"},
             {"id": "field_rockwell", "name": "Rockwell Field", "level": 1,
              "subnet_offset": 6, "vlan": 221, "security_level": "standard"},
             {"id": "field_schneider", "name": "Schneider Field", "level": 1,
              "subnet_offset": 7, "vlan": 231, "security_level": "standard"},
-            {"id": "field_mixed", "name": "Mixed Field", "level": 1,
+            {"id": "field_abb", "name": "ABB Field", "level": 1,
              "subnet_offset": 8, "vlan": 241, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "eu",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["delayed_response", "jitter_spike", "watchdog_timeout", "rpi_violation"],
-            "protocol": ["profinet_alarm", "cip_error", "modbus_exception", "profisafe_error"],
+            "protocol": ["profinet_alarm", "cip_error", "modbus_exception", "profisafe_error", "cip_safety_fault"],
             "sequence": ["duplicate", "out_of_order", "dropped_packet"],
             "payload": ["value_spike", "encoder_fault"],
             "network": ["broadcast_storm"],
-            "security": ["unauthorized_access", "scan_activity", "replay_attack"],
+            "security": ["unauthorized_access", "scan_activity", "replay_attack", "unauthorized_remote_access"],
         },
         "pcap_learning_hints": [
             {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
@@ -1631,23 +1493,29 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "description": "Modbus TCP polling patterns from Schneider/ABB PLCs"},
             {"protocol": "opc_ua", "flow_type": "subscription", "priority": "medium",
              "description": "OPC UA subscription patterns for SCADA/Historian"},
-            {"protocol": "s7comm_plus", "flow_type": "hmi_polling", "priority": "medium",
-             "description": "S7comm+ HMI polling patterns"},
             {"protocol": "modbus_tcp", "flow_type": "cross_zone", "priority": "high",
              "description": "Cross-zone Modbus handoff coordination traffic"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "EWON Talk2M cloud communication patterns"},
+            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
+             "description": "Windows Jump Server TeamViewer relay communication"},
         ],
         "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["51.38.74.240", "87.98.169.126", "185.188.32.1"],
             "enable_c2": True,
             "c2_protocol": "https",
             "c2_pattern": "jittered_1m",
             "enable_exfil": True,
             "exfil_protocol": "http",
             "enable_exploits": True,
-            "exploit_patterns": ["s7_stop_cpu", "cip_stop_plc", "modbus_write_scan", "historian_sqli"],
+            "exploit_patterns": ["s7_stop_cpu", "cip_stop_plc", "modbus_write_scan", "historian_sqli", "rdp_bluekeep"],
             "enable_recon": True,
             "scan_ot_ports": True,
-            "target_device_types": ["hmi", "engineering_station", "scada_server", "historian"],
+            "target_device_types": ["hmi", "engineering_station", "scada_server", "historian", "jump_server"],
         },
-        "total_duration_ms": 900000,  # 15 minutes (full lifecycle)
+        "total_duration_ms": 900000,
     },
 }

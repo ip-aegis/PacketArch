@@ -91,16 +91,21 @@ async def get_scenario_summary(db: AsyncSession, scenario_id: str) -> str:
 
 
 async def add_zone(db: AsyncSession, scenario_id: str, zone_data: dict[str, Any]) -> str:
-    """Add a zone to a scenario.
+    """Add a zone to a scenario with proper subnet allocation.
+
+    Automatically assigns a subnet_offset if not provided, ensuring each zone
+    gets its own /24 subnet within the scenario's /16 range.
 
     Args:
         db: Database session
         scenario_id: Scenario UUID
-        zone_data: Zone configuration
+        zone_data: Zone configuration (may include subnet_offset, level, vlan)
 
     Returns:
-        JSON string with zone ID
+        JSON string with zone ID and subnet info
     """
+    from app.services.ip_management import get_ip_allocation
+
     result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
     scenario = result.scalar_one_or_none()
 
@@ -114,8 +119,50 @@ async def add_zone(db: AsyncSession, scenario_id: str, zone_data: dict[str, Any]
     definition = scenario.definition.copy()
     zones = definition.get("zones", {})
 
+    # Get scenario's IP allocation for subnet derivation
+    ip_allocation = await get_ip_allocation(db, uuid.UUID(scenario_id))
+    range_index = ip_allocation.range_index if ip_allocation else 1
+
+    # Auto-assign subnet_offset if not provided
+    subnet_offset = zone_data.get("subnet_offset")
+    if subnet_offset is None:
+        # Find next available offset by looking at existing zones
+        used_offsets = set()
+        for existing_zone in zones.values():
+            offset = existing_zone.get("subnet_offset")
+            if offset is not None:
+                used_offsets.add(offset)
+            # Also check nested network config
+            network = existing_zone.get("network", {})
+            offset = network.get("subnet_offset")
+            if offset is not None:
+                used_offsets.add(offset)
+        # Find first unused offset
+        subnet_offset = 0
+        while subnet_offset in used_offsets:
+            subnet_offset += 1
+
+    # Build network config for the zone
+    network_config = {
+        "subnet": f"10.{range_index}.{subnet_offset}.0/24",
+        "gateway": f"10.{range_index}.{subnet_offset}.1",
+        "subnet_offset": subnet_offset,
+    }
+
+    # Build complete zone config
+    zone_config = {
+        "id": zone_id,
+        "name": zone_data.get("name", zone_id.replace("_", " ").title()),
+        "subnet_offset": subnet_offset,
+        "level": zone_data.get("level"),
+        "vlan": zone_data.get("vlan", 100 + subnet_offset * 10),
+        "network": network_config,
+        "deviceIds": zone_data.get("deviceIds", []),
+        **{k: v for k, v in zone_data.items() if k not in ["id", "name", "subnet_offset", "level", "vlan", "network", "deviceIds"]},
+    }
+
     # Add zone
-    zones[zone_id] = zone_data
+    zones[zone_id] = zone_config
     definition["zones"] = zones
 
     # Update scenario - use flag_modified to ensure JSONB change is detected
@@ -126,7 +173,14 @@ async def add_zone(db: AsyncSession, scenario_id: str, zone_data: dict[str, Any]
     await db.commit()
     await db.refresh(scenario)
 
-    return json.dumps({"success": True, "zone_id": zone_id})
+    return json.dumps({
+        "success": True,
+        "zone_id": zone_id,
+        "subnet_offset": subnet_offset,
+        "subnet": network_config["subnet"],
+        "gateway": network_config["gateway"],
+        "range_index": range_index,
+    })
 
 
 async def update_zone(

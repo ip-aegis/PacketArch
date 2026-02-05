@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.scenario import Scenario
-from app.services.vendor_fingerprint_data import (
-    get_all_vendor_fingerprints,
+from app.services.device_templates import (
+    get_all_fingerprints,
     get_fingerprint_by_vendor_model,
     get_fingerprints_by_vendor,
 )
@@ -52,7 +52,7 @@ async def list_vendor_fingerprints(vendor: str | None = None) -> str:
     if vendor:
         fingerprints = get_fingerprints_by_vendor(vendor)
     else:
-        fingerprints = get_all_vendor_fingerprints()
+        fingerprints = get_all_fingerprints()
 
     # Extract relevant fields
     result = [

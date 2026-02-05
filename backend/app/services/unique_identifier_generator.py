@@ -316,6 +316,131 @@ class UniqueIdentifierGenerator:
         return f"{base_name}-{hash_suffix}"
 
     @classmethod
+    def generate_s7_plc_name(
+        cls,
+        device_id: str,
+        scenario_id: str | None = None,
+        device_name: str | None = None,
+        model: str | None = None,
+        vendor_family: str | None = None,
+        vendor: str | None = None,
+    ) -> str:
+        """Generate a unique S7comm PLC name.
+
+        Siemens PLC names are used in S7 SZL responses for device identification.
+        Format: {BASE-NAME}-{4-CHAR-HASH}
+        Example: "PLC-S7-1500-A7B3"
+
+        Args:
+            device_id: Unique device identifier
+            scenario_id: Scenario identifier
+            device_name: Explicit device name (highest priority)
+            model: Device model (fallback)
+            vendor_family: Vendor family (fallback)
+            vendor: Vendor name (fallback)
+
+        Returns:
+            Unique S7 PLC name string
+
+        Examples:
+            >>> UniqueIdentifierGenerator.generate_s7_plc_name(
+            ...     "dev-001", "scenario-123", device_name="SIEMENS-PLC-01"
+            ... )
+            'SIEMENS-PLC-01-A7B3'
+        """
+        hash_bytes = cls._generate_hash(device_id, scenario_id)
+        hash_suffix = hash_bytes[:2].hex().upper()
+
+        base_name = cls._get_device_name_fallback(
+            device_name, model, vendor_family, vendor
+        )
+
+        # Clean up base name - convert to uppercase, allow alphanumeric and hyphens
+        base_name = base_name.upper()
+        base_name = re.sub(r"[^A-Z0-9-]", "-", base_name)
+        base_name = re.sub(r"-+", "-", base_name)
+        base_name = base_name.strip("-")
+
+        if not base_name:
+            base_name = "PLC"
+
+        # Remove existing hash-like suffixes
+        base_name = re.sub(r"-[A-F0-9]{4}$", "", base_name)
+
+        # Truncate if too long (Siemens PLC names typically max ~24 chars)
+        max_base_len = 19  # Leave room for -XXXX suffix
+        if len(base_name) > max_base_len:
+            base_name = base_name[:max_base_len]
+
+        return f"{base_name}-{hash_suffix}"
+
+    @classmethod
+    def generate_ethernet_ip_product_name(
+        cls,
+        device_id: str,
+        scenario_id: str | None = None,
+        device_name: str | None = None,
+        model: str | None = None,
+        vendor_family: str | None = None,
+        vendor: str | None = None,
+    ) -> str:
+        """Generate a unique EtherNet/IP product name.
+
+        EtherNet/IP ListIdentity product_name is what Cisco Cyber Vision
+        uses to display device names. This generates a unique name that
+        includes the device's contextual name for identification.
+
+        Format: {DEVICE_NAME} or {MODEL}-{4-CHAR-HASH} if no device_name
+        Example: "CNC_Cell_1_IO_Rack" or "1734-AENT-A7B3"
+
+        Args:
+            device_id: Unique device identifier
+            scenario_id: Scenario identifier
+            device_name: Explicit device name (highest priority)
+            model: Device model (fallback)
+            vendor_family: Vendor family (fallback)
+            vendor: Vendor name (fallback)
+
+        Returns:
+            Unique EtherNet/IP product name string
+        """
+        # Include BOTH model (for CVE matching) and device_name (for identification)
+        # Format: "MODEL DEVICE_NAME" - Cyber Vision uses product_name for model-ref
+        if device_name and device_name.strip():
+            clean_name = device_name.strip()
+
+            # If we have a model, prepend it so Cyber Vision can identify the device type
+            # Format: "1756-L85E Rockwell_Line_1_Main_PLC"
+            if model and model.strip():
+                combined = f"{model.strip()} {clean_name}"
+                # Truncate if too long (EtherNet/IP product_name max is typically 32 chars)
+                if len(combined) > 32:
+                    # Prioritize model, truncate device name
+                    model_part = model.strip()[:15]
+                    remaining = 32 - len(model_part) - 1  # -1 for space
+                    name_part = clean_name[:remaining] if remaining > 0 else ""
+                    combined = f"{model_part} {name_part}".strip()
+                return combined
+
+            # No model - just use device name (truncated)
+            if len(clean_name) > 32:
+                clean_name = clean_name[:32]
+            return clean_name
+
+        # Fallback: use model with hash suffix for uniqueness
+        hash_bytes = cls._generate_hash(device_id, scenario_id)
+        hash_suffix = hash_bytes[:2].hex().upper()
+
+        base_name = cls._get_device_name_fallback(None, model, vendor_family, vendor)
+
+        # Truncate base name if too long
+        max_base_len = 27  # Leave room for -XXXX suffix
+        if len(base_name) > max_base_len:
+            base_name = base_name[:max_base_len]
+
+        return f"{base_name}-{hash_suffix}"
+
+    @classmethod
     def generate(
         cls,
         identifier_type: Literal[
@@ -323,6 +448,8 @@ class UniqueIdentifierGenerator:
             "bacnet_object_name",
             "profinet_station_name",
             "snmp_sys_name",
+            "s7_plc_name",
+            "ethernet_ip_product_name",
         ],
         device_id: str,
         scenario_id: str | None = None,
@@ -365,6 +492,16 @@ class UniqueIdentifierGenerator:
 
         elif identifier_type == "snmp_sys_name":
             return cls.generate_snmp_sys_name(
+                device_id, scenario_id, device_name, model, vendor_family, vendor
+            )
+
+        elif identifier_type == "s7_plc_name":
+            return cls.generate_s7_plc_name(
+                device_id, scenario_id, device_name, model, vendor_family, vendor
+            )
+
+        elif identifier_type == "ethernet_ip_product_name":
+            return cls.generate_ethernet_ip_product_name(
                 device_id, scenario_id, device_name, model, vendor_family, vendor
             )
 

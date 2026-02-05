@@ -3,6 +3,7 @@
 import heapq
 import logging
 import random
+import re
 import struct
 import time
 from dataclasses import dataclass, field
@@ -300,6 +301,42 @@ PROFINET_OUI = bytes([0x00, 0x0E, 0xCF])
 # Siemens OUI for organization-specific TLVs
 SIEMENS_OUI = bytes([0x00, 0x0E, 0x8C])
 
+# Cisco OUI for LLDP organization-specific TLVs
+CISCO_OUI = bytes([0x00, 0x00, 0x0C])
+
+# CDP (Cisco Discovery Protocol) constants
+CDP_MULTICAST_MAC = "01:00:0C:CC:CC:CC"
+CDP_LLC_DSAP = 0xAA
+CDP_LLC_SSAP = 0xAA
+CDP_LLC_CTRL = 0x03
+CDP_SNAP_OUI = bytes([0x00, 0x00, 0x0C])  # Cisco OUI
+CDP_SNAP_PID = 0x2000  # CDP Protocol ID
+
+# CDP TLV Types
+CDP_TLV_DEVICE_ID = 0x0001
+CDP_TLV_ADDRESSES = 0x0002
+CDP_TLV_PORT_ID = 0x0003
+CDP_TLV_CAPABILITIES = 0x0004
+CDP_TLV_VERSION = 0x0005
+CDP_TLV_PLATFORM = 0x0006
+CDP_TLV_IP_PREFIX = 0x0007
+CDP_TLV_VTP_DOMAIN = 0x0009
+CDP_TLV_NATIVE_VLAN = 0x000A
+CDP_TLV_DUPLEX = 0x000B
+CDP_TLV_TRUST_BITMAP = 0x0012
+CDP_TLV_UNTRUSTED_COS = 0x0013
+CDP_TLV_MGMT_ADDR = 0x0016
+CDP_TLV_POWER_AVAILABLE = 0x001A
+
+# CDP Capabilities bitmap
+CDP_CAP_ROUTER = 0x01
+CDP_CAP_TRANSPARENT_BRIDGE = 0x02
+CDP_CAP_SOURCE_ROUTE_BRIDGE = 0x04
+CDP_CAP_SWITCH = 0x08
+CDP_CAP_HOST = 0x10
+CDP_CAP_IGMP = 0x20
+CDP_CAP_REPEATER = 0x40
+
 logger = logging.getLogger(__name__)
 
 
@@ -370,6 +407,10 @@ class DeviceContext:
     unit_id: int = 1
     vendor_fingerprint: dict[str, Any] = field(default_factory=dict)
     vulnerability_override: dict[str, Any] | None = None
+    # Device name for unique network identifiers (PROFINET station_name, S7 plc_name, etc.)
+    device_name: str | None = None
+    # Scenario ID for deterministic unique identifier generation
+    scenario_id: str | None = None
 
     def get_effective_identity(self, identity_type: str) -> dict[str, Any]:
         """Get effective protocol identity with vulnerability overrides applied.
@@ -428,17 +469,26 @@ class FlowState:
     custom_data: dict[str, Any] = field(default_factory=dict)
 
 
-# Protocol to identity key mapping (local copy for traffic generator)
+# Protocol to identity key mapping (local copy - must match backend/app/protocol_engines/protocols.py)
 PROTOCOL_TO_IDENTITY_KEY: dict[str, str] = {
     "modbus": "modbus_identity",
+    "modbus_tcp": "modbus_identity",
     "ethernet_ip": "ethernet_ip_identity",
+    "enip": "ethernet_ip_identity",
     "cip": "cip_identity_object",
     "profinet": "profinet_identity",
     "profisafe": "profinet_identity",
     "s7comm": "s7_identity",
     "s7comm_plus": "s7_identity",
+    "s7": "s7_identity",
     "bacnet": "bacnet_identity",
+    "bacnet_ip": "bacnet_identity",
     "snmp": "snmp_identity",
+    "opc_ua": "opc_ua_identity",
+    "dnp3": "dnp3_identity",
+    "iec104": "iec104_identity",
+    "lldp": "lldp_identity",
+    "cdp": "cdp_identity",
 }
 
 
@@ -1506,6 +1556,78 @@ class LiveTrafficOrchestrator:
         return apci + asdu
 
     # =========================================================================
+    # Protocol Identity Helper Methods
+    # =========================================================================
+
+    def _get_opcua_server_identity(self, device: DeviceContext) -> dict[str, Any]:
+        """Get OPC UA server identity from device fingerprint.
+
+        Args:
+            device: Server device context
+
+        Returns:
+            Dictionary with OPC UA identity fields
+        """
+        opc_identity = device.get_effective_identity("opc_ua_identity")
+
+        # Default values based on device info
+        default_app_name = device.device_name or "OPC UA Server"
+        default_app_uri = f"urn:{device.ip_address}:OPCUA:Server"
+        default_product_uri = "urn:PacketArch:OPCUAServer"
+
+        return {
+            "application_name": opc_identity.get("application_name", default_app_name),
+            "application_uri": opc_identity.get("application_uri", default_app_uri),
+            "product_uri": opc_identity.get("product_uri", default_product_uri),
+            "manufacturer_name": opc_identity.get("manufacturer_name", "Unknown"),
+            "product_name": opc_identity.get("product_name", "OPC UA Server"),
+            "software_version": opc_identity.get("software_version", "1.0.0"),
+            "build_number": opc_identity.get("build_number", "0"),
+            "build_date": opc_identity.get("build_date", "2024-01-01"),
+        }
+
+    def _get_iec104_station_identity(self, device: DeviceContext) -> dict[str, Any]:
+        """Get IEC 104 station identity from device fingerprint.
+
+        Args:
+            device: Station device context
+
+        Returns:
+            Dictionary with IEC 104 identity fields
+        """
+        iec104_identity = device.get_effective_identity("iec104_identity")
+
+        # Default values
+        default_station_name = device.device_name or "IEC104-Station"
+
+        return {
+            "station_name": iec104_identity.get("station_name", default_station_name),
+            "common_address": iec104_identity.get("common_address", 1),
+        }
+
+    def _get_dnp3_outstation_identity(self, device: DeviceContext) -> dict[str, Any]:
+        """Get DNP3 outstation identity from device fingerprint.
+
+        Args:
+            device: Outstation device context
+
+        Returns:
+            Dictionary with DNP3 identity fields
+        """
+        dnp3_identity = device.get_effective_identity("dnp3_identity")
+
+        # Default values
+        default_vendor = "Unknown Vendor"
+
+        return {
+            "vendor_name": dnp3_identity.get("vendor_name", default_vendor),
+            "device_serial": dnp3_identity.get("device_serial", "000000"),
+            "hardware_version": dnp3_identity.get("hardware_version", "1.0"),
+            "software_version": dnp3_identity.get("software_version", "1.0"),
+            "outstation_address": dnp3_identity.get("outstation_address"),
+        }
+
+    # =========================================================================
     # OPC UA Packet Building Methods
     # =========================================================================
 
@@ -2028,7 +2150,11 @@ class LiveTrafficOrchestrator:
         # 8-bit fields
         revision_major = _validate_uint8(eip_identity.get("revision_major", 1), "revision_major", 1)
         revision_minor = _validate_uint8(eip_identity.get("revision_minor", 0), "revision_minor", 0)
-        serial_number = eip_identity.get("serial_number", 0x12345678)
+        # Serial number must be unique per device - generate from device_id if not provided
+        serial_number = eip_identity.get("serial_number")
+        if serial_number is None:
+            import hashlib
+            serial_number = int.from_bytes(hashlib.sha256(f"{src.device_id}:enip".encode()).digest()[:4], "big")
         product_name = eip_identity.get("product_name", "Unknown Device")[:32]
         state = _validate_uint8(eip_identity.get("state", 3), "state", 3)
 
@@ -2096,7 +2222,11 @@ class LiveTrafficOrchestrator:
         product_code = _validate_uint16(eip_identity.get("product_code", 1), "product_code", 1)
         revision_major = _validate_uint8(eip_identity.get("revision_major", 1), "revision_major", 1)
         revision_minor = _validate_uint8(eip_identity.get("revision_minor", 0), "revision_minor", 0)
-        serial_number = eip_identity.get("serial_number", 0x12345678)
+        # Serial number must be unique per device - generate from device_id if not provided
+        serial_number = eip_identity.get("serial_number")
+        if serial_number is None:
+            import hashlib
+            serial_number = int.from_bytes(hashlib.sha256(f"{src.device_id}:enip".encode()).digest()[:4], "big")
         product_name = eip_identity.get("product_name", "Unknown")[:32]
         state = _validate_uint8(eip_identity.get("state", 3), "state", 3)
 
@@ -2280,7 +2410,12 @@ class LiveTrafficOrchestrator:
         # Extract identity values
         order_code = s7_identity.get("order_code", "6ES7 516-3AN01-0AB0")
         firmware_version = s7_identity.get("firmware_version", "V2.8.0")
-        serial_number = s7_identity.get("serial_number", "S V-P92001234")
+        # Serial number must be unique per device - generate from device_id if not provided
+        serial_number = s7_identity.get("serial_number")
+        if serial_number is None:
+            import hashlib
+            hex_portion = hashlib.sha256(f"{device.device_id}:s7".encode()).digest()[:4].hex().upper()
+            serial_number = f"S V-{hex_portion}"
         module_type = s7_identity.get("module_type", "CPU 1516-3 PN/DP")
         hw_version = s7_identity.get("hardware_version", "1")
 
@@ -2508,7 +2643,16 @@ class LiveTrafficOrchestrator:
 
         # Get identity values (support multiple key formats)
         # Validate 16-bit fields to prevent struct.pack overflow
-        station_name = pn_identity.get("station_name", f"device-{src.device_id[:8]}")
+        # Use device_name if available for unique station names, otherwise fallback
+        if src.device_name:
+            # Generate unique station_name from device_name (lowercase, alphanumeric + hyphen)
+            station_name = src.device_name.lower()
+            station_name = re.sub(r"[^a-z0-9-]", "-", station_name)
+            station_name = re.sub(r"-+", "-", station_name).strip("-")
+            if not station_name:
+                station_name = f"device-{src.device_id[:8]}"
+        else:
+            station_name = pn_identity.get("station_name", f"device-{src.device_id[:8]}")
         vendor_id = _validate_uint16(pn_identity.get("vendor_id", 0x002A), "profinet_vendor_id", 0x002A)
         device_id = _validate_uint16(pn_identity.get("device_id", 0x0001), "profinet_device_id", 0x0001)
 
@@ -2529,7 +2673,11 @@ class LiveTrafficOrchestrator:
         hw_revision = pn_identity.get("hardware_revision") or pn_identity.get("im0_hw_revision", "1.0")
         if isinstance(hw_revision, int):
             hw_revision = str(hw_revision)
-        serial_number = pn_identity.get("serial_number") or pn_identity.get("im0_serial_number", "")
+        # Serial number must be unique per device - generate from device_id if not provided
+        serial_number = pn_identity.get("serial_number") or pn_identity.get("im0_serial_number")
+        if not serial_number:
+            import hashlib
+            serial_number = hashlib.sha256(f"{src.device_id}:profinet".encode()).digest()[:8].hex().upper()[:16]
         device_type = pn_identity.get("device_type", "")
 
         # Build DCP blocks
@@ -2726,6 +2874,260 @@ class LiveTrafficOrchestrator:
         )
 
         return bytes(frame)
+
+    def _build_lldp_packet_generic(self, src: DeviceContext) -> bytes:
+        """Build generic LLDP packet for network switches and infrastructure devices.
+
+        Uses lldp_identity from fingerprint if available, otherwise generates
+        reasonable defaults from device context and snmp_identity.
+
+        Args:
+            src: Source device context with fingerprint data
+
+        Returns:
+            Complete LLDP Ethernet frame
+        """
+        # Get LLDP identity from fingerprint, fall back to SNMP identity
+        lldp_identity = src.get_effective_identity("lldp_identity")
+        snmp_identity = src.get_effective_identity("snmp_identity")
+
+        # System name: prefer lldp_identity, then snmp sysName, then device_id
+        system_name = (
+            lldp_identity.get("system_name") or
+            snmp_identity.get("sys_name") or
+            f"device-{src.device_id[:8]}"
+        )
+
+        # System description: prefer lldp_identity, then snmp sysDescr
+        system_desc = (
+            lldp_identity.get("system_description") or
+            snmp_identity.get("sys_descr") or
+            "Network Device"
+        )
+
+        # Port description
+        port_desc = lldp_identity.get("port_description", "GigabitEthernet0/1")
+        port_name = lldp_identity.get("port_id", "Gi0/1")
+
+        # Chassis ID subtype and Port ID subtype
+        chassis_subtype = lldp_identity.get("chassis_id_subtype", LLDP_CHASSIS_SUBTYPE_MAC)
+        port_subtype = lldp_identity.get("port_id_subtype", LLDP_PORT_SUBTYPE_INTERFACE_NAME)
+
+        # Capabilities - default to switch
+        capabilities = lldp_identity.get("capabilities", 0x0028)  # Switch + Bridge
+        enabled_cap = lldp_identity.get("enabled_capabilities", capabilities)
+
+        tlvs = b""
+
+        # Chassis ID TLV (required) - MAC address
+        chassis_data = struct.pack("B", chassis_subtype)
+        chassis_data += bytes.fromhex(src.mac_address.replace(":", ""))
+        tlvs += self._build_lldp_tlv(LLDP_TLV_CHASSIS_ID, chassis_data)
+
+        # Port ID TLV (required)
+        port_data = struct.pack("B", port_subtype)
+        port_data += port_name.encode("ascii")[:255]
+        tlvs += self._build_lldp_tlv(LLDP_TLV_PORT_ID, port_data)
+
+        # TTL TLV (required) - 120 seconds
+        ttl_data = struct.pack(">H", 120)
+        tlvs += self._build_lldp_tlv(LLDP_TLV_TTL, ttl_data)
+
+        # Port Description TLV (optional)
+        tlvs += self._build_lldp_tlv(LLDP_TLV_PORT_DESC, port_desc.encode("ascii")[:255])
+
+        # System Name TLV
+        tlvs += self._build_lldp_tlv(LLDP_TLV_SYSTEM_NAME, system_name.encode("ascii")[:255])
+
+        # System Description TLV - KEY for firmware version extraction!
+        tlvs += self._build_lldp_tlv(LLDP_TLV_SYSTEM_DESC, system_desc.encode("ascii")[:255])
+
+        # System Capabilities TLV
+        cap_data = struct.pack(">HH", capabilities, enabled_cap)
+        tlvs += self._build_lldp_tlv(LLDP_TLV_SYSTEM_CAP, cap_data)
+
+        # Management Address TLV - IP address
+        ip_bytes = bytes([int(x) for x in src.ip_address.split(".")])
+        mgmt_data = struct.pack("B", 5)  # Address string length
+        mgmt_data += struct.pack("B", 1)  # Address subtype: IPv4
+        mgmt_data += ip_bytes
+        mgmt_data += struct.pack("B", 2)  # Interface numbering subtype: ifIndex
+        mgmt_data += struct.pack(">I", 1)  # Interface number
+        mgmt_data += struct.pack("B", 0)  # OID string length
+        tlvs += self._build_lldp_tlv(LLDP_TLV_MGMT_ADDR, mgmt_data)
+
+        # End of LLDPDU TLV
+        tlvs += self._build_lldp_tlv(LLDP_TLV_END, b"")
+
+        # Build Ethernet frame
+        frame = (
+            Ether(src=src.mac_address, dst=LLDP_MULTICAST_MAC, type=LLDP_ETHERTYPE)
+            / Raw(load=tlvs)
+        )
+
+        return bytes(frame)
+
+    def _build_cdp_tlv(self, tlv_type: int, data: bytes) -> bytes:
+        """Build a single CDP TLV (Type-Length-Value).
+
+        CDP TLVs have a 4-byte header: 2-byte type + 2-byte length (includes header).
+        """
+        length = len(data) + 4  # Length includes type (2) + length (2) + data
+        return struct.pack(">HH", tlv_type, length) + data
+
+    def _build_cdp_packet(self, src: DeviceContext) -> bytes:
+        """Build CDP (Cisco Discovery Protocol) packet for Cisco device discovery.
+
+        CDP is Cisco's proprietary Layer 2 discovery protocol. It provides
+        device identification including platform, version, and capabilities.
+
+        Args:
+            src: Source device context with fingerprint data
+
+        Returns:
+            Complete CDP Ethernet frame with LLC/SNAP header
+        """
+        # Get CDP identity from fingerprint, fall back to SNMP/LLDP identity
+        cdp_identity = src.get_effective_identity("cdp_identity")
+        snmp_identity = src.get_effective_identity("snmp_identity")
+        lldp_identity = src.get_effective_identity("lldp_identity")
+
+        # Device ID (hostname)
+        device_id = (
+            cdp_identity.get("device_id") or
+            lldp_identity.get("system_name") or
+            snmp_identity.get("sys_name") or
+            f"Switch-{src.device_id[:8]}"
+        )
+
+        # Software version
+        version = (
+            cdp_identity.get("software_version") or
+            snmp_identity.get("sys_descr") or
+            "Cisco IOS Software"
+        )
+
+        # Platform (hardware model)
+        platform = (
+            cdp_identity.get("platform") or
+            cdp_identity.get("model") or
+            "cisco IE-3500-8P3S"
+        )
+
+        # Port ID
+        port_id = cdp_identity.get("port_id", "GigabitEthernet0/1")
+
+        # Capabilities (default: Switch + IGMP)
+        capabilities = cdp_identity.get("capabilities", CDP_CAP_SWITCH | CDP_CAP_IGMP)
+
+        # Native VLAN
+        native_vlan = cdp_identity.get("native_vlan", 1)
+
+        # VTP Domain
+        vtp_domain = cdp_identity.get("vtp_domain", "")
+
+        # Duplex (1 = full)
+        duplex = cdp_identity.get("duplex", 1)
+
+        # Build TLVs
+        tlvs = b""
+
+        # Device ID TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_DEVICE_ID, device_id.encode("ascii")[:255])
+
+        # Addresses TLV (IPv4)
+        ip_bytes = bytes([int(x) for x in src.ip_address.split(".")])
+        addr_data = struct.pack(">I", 1)  # Number of addresses
+        addr_data += struct.pack("B", 1)  # Protocol type: NLPID
+        addr_data += struct.pack("B", 1)  # Protocol length
+        addr_data += struct.pack("B", 0xCC)  # NLPID for IP
+        addr_data += struct.pack(">H", 4)  # Address length
+        addr_data += ip_bytes
+        tlvs += self._build_cdp_tlv(CDP_TLV_ADDRESSES, addr_data)
+
+        # Port ID TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_PORT_ID, port_id.encode("ascii")[:255])
+
+        # Capabilities TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_CAPABILITIES, struct.pack(">I", capabilities))
+
+        # Software Version TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_VERSION, version.encode("ascii")[:512])
+
+        # Platform TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_PLATFORM, platform.encode("ascii")[:255])
+
+        # Native VLAN TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_NATIVE_VLAN, struct.pack(">H", native_vlan))
+
+        # VTP Domain TLV (if set)
+        if vtp_domain:
+            tlvs += self._build_cdp_tlv(CDP_TLV_VTP_DOMAIN, vtp_domain.encode("ascii")[:32])
+
+        # Duplex TLV
+        tlvs += self._build_cdp_tlv(CDP_TLV_DUPLEX, struct.pack("B", duplex))
+
+        # Management Address TLV
+        mgmt_addr_data = struct.pack(">I", 1)  # Number of addresses
+        mgmt_addr_data += struct.pack("B", 1)  # Protocol type: NLPID
+        mgmt_addr_data += struct.pack("B", 1)  # Protocol length
+        mgmt_addr_data += struct.pack("B", 0xCC)  # NLPID for IP
+        mgmt_addr_data += struct.pack(">H", 4)  # Address length
+        mgmt_addr_data += ip_bytes
+        tlvs += self._build_cdp_tlv(CDP_TLV_MGMT_ADDR, mgmt_addr_data)
+
+        # Build CDP header: Version (1) + TTL (1) + Checksum (2)
+        cdp_version = 2  # CDP version 2
+        cdp_ttl = 180  # 180 seconds
+        cdp_header = struct.pack("BB", cdp_version, cdp_ttl)
+
+        # Calculate checksum (over header + TLVs, with checksum field as 0)
+        checksum_data = cdp_header + struct.pack(">H", 0) + tlvs
+        checksum = self._calculate_cdp_checksum(checksum_data)
+        cdp_header += struct.pack(">H", checksum)
+
+        cdp_payload = cdp_header + tlvs
+
+        # Build LLC/SNAP header for CDP
+        # LLC: DSAP=0xAA, SSAP=0xAA, Control=0x03
+        # SNAP: OUI=00:00:0C, Protocol=0x2000
+        llc_snap = struct.pack("BBB", CDP_LLC_DSAP, CDP_LLC_SSAP, CDP_LLC_CTRL)
+        llc_snap += CDP_SNAP_OUI
+        llc_snap += struct.pack(">H", CDP_SNAP_PID)
+
+        # Build Ethernet frame (802.3 with LLC/SNAP)
+        # Length field instead of EtherType for 802.3
+        frame_length = len(llc_snap) + len(cdp_payload)
+
+        frame = (
+            Ether(src=src.mac_address, dst=CDP_MULTICAST_MAC, type=frame_length)
+            / Raw(load=llc_snap + cdp_payload)
+        )
+
+        return bytes(frame)
+
+    def _calculate_cdp_checksum(self, data: bytes) -> int:
+        """Calculate CDP checksum (same as IP checksum).
+
+        Args:
+            data: CDP packet data to checksum
+
+        Returns:
+            16-bit checksum value
+        """
+        if len(data) % 2 == 1:
+            data += b'\x00'
+
+        total = 0
+        for i in range(0, len(data), 2):
+            word = (data[i] << 8) + data[i + 1]
+            total += word
+
+        # Fold 32-bit sum to 16 bits
+        while total >> 16:
+            total = (total & 0xFFFF) + (total >> 16)
+
+        return (~total) & 0xFFFF
 
     def _build_gratuitous_arp(self, device: DeviceContext) -> bytes:
         """Build a Gratuitous ARP packet for IP-to-MAC discovery.
@@ -3032,7 +3434,7 @@ class LiveTrafficOrchestrator:
                             f"(sysDescr={sys_descr[:50]})"
                         )
 
-            elif protocol == "bacnet":
+            elif protocol in ("bacnet", "bacnet_ip"):
                 # BACnet I-Am discovery - CRITICAL for Cyber Vision BMS device detection
                 for device in [dst, src]:
                     # Gate by supported_protocols (authoritative) rather than identity existence
@@ -3322,6 +3724,78 @@ class LiveTrafficOrchestrator:
         logger.info(f"Scheduled gratuitous ARP for {len(arp_sent)} devices")
 
         # ==================================================================
+        # Universal LLDP/CDP Discovery - For network switches and infrastructure
+        # Cisco switches use CDP and LLDP for discovery. These Layer 2 protocols
+        # provide device identity, platform, and version information to Cyber Vision.
+        # ==================================================================
+        lldp_cdp_sent: set[str] = set()
+
+        for flow_state in self.flows:
+            flow = flow_state.flow
+            for device in [flow.destination, flow.source]:
+                if device.device_id in lldp_cdp_sent:
+                    continue
+
+                # Check if device supports LLDP or CDP
+                supports_lldp = device_supports_protocol(device, "lldp")
+                supports_cdp = device_supports_protocol(device, "cdp")
+
+                if supports_lldp or supports_cdp:
+                    lldp_cdp_sent.add(device.device_id)
+
+                    if supports_cdp:
+                        # CDP packet for Cisco devices
+                        cdp_pkt = self._build_cdp_packet(device)
+                        self._schedule_event(current_time, ("packet", cdp_pkt))
+                        current_time += 10
+
+                        cdp_identity = device.get_effective_identity("cdp_identity")
+                        platform = cdp_identity.get("platform", "Unknown")
+                        logger.info(
+                            f"Scheduled CDP discovery for {device.ip_address} "
+                            f"(platform={platform})"
+                        )
+
+                    if supports_lldp:
+                        # Generic LLDP packet
+                        lldp_pkt = self._build_lldp_packet_generic(device)
+                        self._schedule_event(current_time, ("packet", lldp_pkt))
+                        current_time += 10
+
+                        lldp_identity = device.get_effective_identity("lldp_identity")
+                        system_name = lldp_identity.get("system_name", "Unknown")
+                        logger.info(
+                            f"Scheduled LLDP discovery for {device.ip_address} "
+                            f"(system_name={system_name})"
+                        )
+
+        # Also check all_devices for LLDP/CDP support
+        for device in self.all_devices:
+            if device.device_id in lldp_cdp_sent:
+                continue
+
+            supports_lldp = device_supports_protocol(device, "lldp")
+            supports_cdp = device_supports_protocol(device, "cdp")
+
+            if supports_lldp or supports_cdp:
+                lldp_cdp_sent.add(device.device_id)
+
+                if supports_cdp:
+                    cdp_pkt = self._build_cdp_packet(device)
+                    self._schedule_event(current_time, ("packet", cdp_pkt))
+                    current_time += 10
+                    logger.debug(f"Scheduled CDP for registered device {device.ip_address}")
+
+                if supports_lldp:
+                    lldp_pkt = self._build_lldp_packet_generic(device)
+                    self._schedule_event(current_time, ("packet", lldp_pkt))
+                    current_time += 10
+                    logger.debug(f"Scheduled LLDP for registered device {device.ip_address}")
+
+        if lldp_cdp_sent:
+            logger.info(f"Scheduled LLDP/CDP discovery for {len(lldp_cdp_sent)} network devices")
+
+        # ==================================================================
         # Orphan Device Discovery - For devices NOT in any flow
         # Some devices may be defined in the scenario but never used as
         # source or destination in any flow. These still need discovery.
@@ -3517,7 +3991,7 @@ class LiveTrafficOrchestrator:
             return
 
         # BACnet uses UDP - no TCP handshake needed
-        if flow.protocol == "bacnet":
+        if flow.protocol in ("bacnet", "bacnet_ip"):
             flow_state.is_started = True
             logger.debug(f"BACnet flow {flow.flow_id} initialized (UDP, no handshake)")
             return
@@ -3836,7 +4310,7 @@ class LiveTrafficOrchestrator:
             response_pkt = self._build_udp_packet(agent, manager, response)
             self._schedule_event(time_ms + response_delay, ("packet", response_pkt))
 
-        elif flow.protocol == "bacnet":
+        elif flow.protocol in ("bacnet", "bacnet_ip"):
             # BACnet ReadProperty request/response for BMS devices
             # Uses UDP, no TCP sequence tracking needed
             config = flow.config
@@ -3917,9 +4391,12 @@ class LiveTrafficOrchestrator:
             # Uses TCP on port 20000
             config = flow.config
 
-            # DNP3 addresses (typically master=1-10, outstation=1-1000)
+            # DNP3 addresses - check fingerprint identity first, fall back to config
+            # Master address typically comes from config (the SCADA master)
             master_address = config.get("master_address", 1)
-            outstation_address = config.get("outstation_address", 10)
+            # Outstation address may come from fingerprint (the device being polled)
+            dnp3_identity = dst.get_effective_identity("dnp3_identity")
+            outstation_address = dnp3_identity.get("outstation_address") or config.get("outstation_address", 10)
             sequence = flow_state.transaction_id & 0x0F  # DNP3 sequence is 0-15
 
             # Determine what objects to poll
@@ -3999,8 +4476,9 @@ class LiveTrafficOrchestrator:
             # Uses TCP on port 2404
             config = flow.config
 
-            # IEC 104 addresses
-            common_address = config.get("common_address", 1)
+            # IEC 104 addresses - check fingerprint identity first, fall back to config
+            iec104_identity = dst.get_effective_identity("iec104_identity")
+            common_address = iec104_identity.get("common_address") or config.get("common_address", 1)
 
             # IEC 104 sequence numbers (send/recv)
             send_seq = flow_state.transaction_id & 0x7FFF
@@ -4329,7 +4807,7 @@ class LiveTrafficOrchestrator:
             return
 
         # BACnet uses UDP - no teardown needed
-        if flow.protocol == "bacnet":
+        if flow.protocol in ("bacnet", "bacnet_ip"):
             logger.debug(f"BACnet flow {flow.flow_id} shutdown (UDP, no teardown)")
             return
 

@@ -29,13 +29,15 @@ import {
   ReloadOutlined,
   LinkOutlined,
   DownloadOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { useDockerHostsStore } from '../stores/dockerHostsStore';
+import { useAgentsStore } from '../stores/agentsStore';
 import { deploymentsApi } from '../api/deployments';
-import type { Deployment, DeploymentStatus } from '../types/docker';
+import type { UnifiedDeployment, DeploymentStatus, DeploymentType } from '../types/docker';
 
 const { Title, Text } = Typography;
 
@@ -73,14 +75,25 @@ const statusConfig: Record<
     icon: <CloseCircleOutlined />,
     label: 'Failed',
   },
+  error: {
+    color: 'error',
+    icon: <CloseCircleOutlined />,
+    label: 'Error',
+  },
+  disconnected: {
+    color: 'warning',
+    icon: <CloseCircleOutlined />,
+    label: 'Disconnected',
+  },
 };
 
 const DeploymentsPage: React.FC = () => {
   const navigate = useNavigate();
   const [logsModalVisible, setLogsModalVisible] = useState(false);
-  const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
+  const [selectedDeployment, setSelectedDeployment] = useState<UnifiedDeployment | null>(null);
   const [statusFilter, setStatusFilter] = useState<DeploymentStatus | undefined>();
   const [hostFilter, setHostFilter] = useState<string | undefined>();
+  const [typeFilter, setTypeFilter] = useState<DeploymentType | undefined>();
   const [pcapModalVisible, setPcapModalVisible] = useState(false);
   const [pcapFiles, setPcapFiles] = useState<string[]>([]);
   const [pcapLoading, setPcapLoading] = useState(false);
@@ -96,22 +109,44 @@ const DeploymentsPage: React.FC = () => {
   } = useDeploymentsStore();
 
   const { hosts, fetchHosts } = useDockerHostsStore();
+  const { agents, fetchAgents } = useAgentsStore();
 
-  // Fetch all deployments and hosts on mount
+  // Fetch all deployments, hosts, and agents on mount
   useEffect(() => {
     fetchDeployments();
     fetchHosts();
-  }, [fetchDeployments, fetchHosts]);
+    fetchAgents();
+  }, [fetchDeployments, fetchHosts, fetchAgents]);
 
   // Refetch with filters
   useEffect(() => {
     fetchDeployments({
       status: statusFilter,
       docker_host_id: hostFilter,
+      deployment_type: typeFilter,
     });
-  }, [statusFilter, hostFilter, fetchDeployments]);
+  }, [statusFilter, hostFilter, typeFilter, fetchDeployments]);
 
-  const handleViewLogs = async (deployment: Deployment) => {
+  // Poll for updates when there are active deployments (running, starting, stopping, disconnected)
+  useEffect(() => {
+    const hasActiveDeployments = deployments.some(
+      (d) => ['running', 'starting', 'stopping', 'disconnected'].includes(d.status)
+    );
+
+    if (!hasActiveDeployments) return;
+
+    const pollInterval = setInterval(() => {
+      fetchDeployments({
+        status: statusFilter,
+        docker_host_id: hostFilter,
+        deployment_type: typeFilter,
+      });
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [deployments, statusFilter, hostFilter, typeFilter, fetchDeployments]);
+
+  const handleViewLogs = async (deployment: UnifiedDeployment) => {
     setSelectedDeployment(deployment);
     setLogsModalVisible(true);
     try {
@@ -131,10 +166,20 @@ const DeploymentsPage: React.FC = () => {
     }
   };
 
-  const handleStop = async (id: string) => {
+  const handleStop = async (deployment: UnifiedDeployment) => {
     try {
-      await stopDeployment(id);
-      message.success('Deployment stopped');
+      if (deployment.deployment_type === 'agent' && deployment.agent_id) {
+        // Agent deployment - use agents API
+        const { stopDeployment: stopAgentDeployment } = useAgentsStore.getState();
+        await stopAgentDeployment(deployment.agent_id, deployment.scenario_id);
+        message.success('Stop command sent to agent');
+        // Refresh deployments list
+        await fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter });
+      } else {
+        // Docker deployment - use deployments API
+        await stopDeployment(deployment.id);
+        message.success('Deployment stopped');
+      }
     } catch {
       message.error('Failed to stop deployment');
     }
@@ -149,7 +194,35 @@ const DeploymentsPage: React.FC = () => {
     }
   };
 
-  const handleViewPcap = async (deployment: Deployment) => {
+  const handleRestart = async (deployment: UnifiedDeployment) => {
+    if (deployment.deployment_type !== 'agent' || !deployment.agent_id) {
+      message.error('Restart only available for agent deployments');
+      return;
+    }
+
+    try {
+      const { deployScenario } = useAgentsStore.getState();
+      await deployScenario(
+        deployment.agent_id,
+        deployment.scenario_id,
+        deployment.network_interface || 'eth0'
+      );
+      message.success('Scenario restarted on agent');
+      // Remove the old disconnected deployment
+      await removeDeployment(deployment.id);
+      // Refresh deployments list
+      await fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter });
+    } catch {
+      message.error('Failed to restart deployment');
+    }
+  };
+
+  const handleViewPcap = async (deployment: UnifiedDeployment) => {
+    // PCAP download only available for Docker deployments
+    if (deployment.deployment_type !== 'docker') {
+      message.info('PCAP download not available for agent deployments');
+      return;
+    }
     setSelectedDeployment(deployment);
     setPcapModalVisible(true);
     setPcapLoading(true);
@@ -228,7 +301,7 @@ const DeploymentsPage: React.FC = () => {
     return `${seconds}s`;
   };
 
-  const columns: ColumnsType<Deployment> = [
+  const columns: ColumnsType<UnifiedDeployment> = [
     {
       title: 'Status',
       dataIndex: 'status',
@@ -244,10 +317,23 @@ const DeploymentsPage: React.FC = () => {
       },
     },
     {
+      title: 'Type',
+      dataIndex: 'deployment_type',
+      key: 'deployment_type',
+      width: 100,
+      render: (type: string) => (
+        type === 'agent' ? (
+          <Tag color="blue" icon={<RocketOutlined />}>Agent</Tag>
+        ) : (
+          <Tag color="default" icon={<CloudServerOutlined />}>Docker</Tag>
+        )
+      ),
+    },
+    {
       title: 'Scenario',
       dataIndex: 'scenario_name',
       key: 'scenario_name',
-      render: (name: string, record: Deployment) => (
+      render: (name: string, record: UnifiedDeployment) => (
         <Button
           type="link"
           size="small"
@@ -260,13 +346,21 @@ const DeploymentsPage: React.FC = () => {
       ),
     },
     {
-      title: 'Host',
-      dataIndex: 'docker_host_name',
-      key: 'docker_host_name',
-      render: (name: string) => (
+      title: 'Target',
+      key: 'target',
+      render: (_: unknown, record: UnifiedDeployment) => (
         <Space>
-          <CloudServerOutlined />
-          <span>{name || 'Unknown'}</span>
+          {record.deployment_type === 'agent' ? (
+            <>
+              <RocketOutlined />
+              <span>{record.agent_name || 'Unknown Agent'}</span>
+            </>
+          ) : (
+            <>
+              <CloudServerOutlined />
+              <span>{record.docker_host_name || 'Unknown Host'}</span>
+            </>
+          )}
         </Space>
       ),
     },
@@ -280,7 +374,7 @@ const DeploymentsPage: React.FC = () => {
       title: 'Mode',
       key: 'run_mode',
       width: 100,
-      render: (_: unknown, record: Deployment) => (
+      render: (_: unknown, record: UnifiedDeployment) => (
         record.run_mode === 'perpetual' ? (
           <Tag color="purple">Perpetual</Tag>
         ) : (
@@ -292,7 +386,7 @@ const DeploymentsPage: React.FC = () => {
       title: 'Runtime',
       key: 'runtime',
       width: 100,
-      render: (_: unknown, record: Deployment) => (
+      render: (_: unknown, record: UnifiedDeployment) => (
         <Text style={{ color: '#8aa4bc' }}>
           {formatElapsedTime(record.started_at, record.stopped_at)}
         </Text>
@@ -318,48 +412,72 @@ const DeploymentsPage: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
-      render: (_: unknown, record: Deployment) => {
-        const isRunning = ['running', 'starting', 'stopping'].includes(record.status);
+      width: 180,
+      render: (_: unknown, record: UnifiedDeployment) => {
+        // Only truly running states can be stopped
+        const canStop = ['running', 'starting', 'stopping'].includes(record.status);
+        // Disconnected deployments are stale - allow delete and optionally restart
+        const isDisconnected = record.status === 'disconnected';
+        const isDocker = record.deployment_type === 'docker';
+
+        // Check if agent is online for restart option
+        const agent = record.deployment_type === 'agent' && record.agent_id
+          ? agents.find(a => a.id === record.agent_id)
+          : null;
+        const agentOnline = agent?.status === 'online';
+
         return (
           <Space size="small">
-            <Tooltip title="View Logs">
+            <Tooltip title={isDocker ? 'View Logs' : 'Logs not available for agent deployments'}>
               <Button
                 type="text"
                 size="small"
                 icon={<FileTextOutlined />}
                 onClick={() => handleViewLogs(record)}
-                disabled={!record.container_id}
+                disabled={!isDocker || !record.container_id}
               />
             </Tooltip>
-            <Tooltip title="Download PCAP">
+            <Tooltip title={isDocker ? 'Download PCAP' : 'PCAP not available for agent deployments'}>
               <Button
                 type="text"
                 size="small"
                 icon={<DownloadOutlined />}
                 onClick={() => handleViewPcap(record)}
-                disabled={!record.container_id}
+                disabled={!isDocker || !record.container_id}
               />
             </Tooltip>
-            {isRunning ? (
+            {canStop ? (
               <Tooltip title="Stop">
                 <Button
                   type="text"
                   size="small"
                   danger
                   icon={<StopOutlined />}
-                  onClick={() => handleStop(record.id)}
+                  onClick={() => handleStop(record)}
                 />
               </Tooltip>
             ) : (
-              <Tooltip title="Remove">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleRemove(record.id)}
-                />
-              </Tooltip>
+              <>
+                {isDisconnected && agentOnline && (
+                  <Tooltip title="Restart on agent">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => handleRestart(record)}
+                      style={{ color: '#52c41a' }}
+                    />
+                  </Tooltip>
+                )}
+                <Tooltip title="Remove">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleRemove(record.id)}
+                  />
+                </Tooltip>
+              </>
             )}
           </Space>
         );
@@ -384,7 +502,18 @@ const DeploymentsPage: React.FC = () => {
         styles={{ body: { padding: '16px 24px' } }}
       >
         {/* Filters */}
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Select
+            placeholder="Filter by type"
+            allowClear
+            style={{ width: 140 }}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { value: 'docker', label: 'Docker' },
+              { value: 'agent', label: 'Agent' },
+            ]}
+          />
           <Select
             placeholder="Filter by status"
             allowClear
@@ -393,6 +522,7 @@ const DeploymentsPage: React.FC = () => {
             onChange={setStatusFilter}
             options={[
               { value: 'running', label: 'Running' },
+              { value: 'disconnected', label: 'Disconnected' },
               { value: 'stopped', label: 'Stopped' },
               { value: 'failed', label: 'Failed' },
               { value: 'pending', label: 'Pending' },
@@ -404,11 +534,12 @@ const DeploymentsPage: React.FC = () => {
             style={{ width: 200 }}
             value={hostFilter}
             onChange={setHostFilter}
+            disabled={typeFilter === 'agent'}
             options={hosts.map((h) => ({ value: h.id, label: h.name }))}
           />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => fetchDeployments({ status: statusFilter, docker_host_id: hostFilter })}
+            onClick={() => fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter })}
           >
             Refresh
           </Button>
@@ -443,9 +574,11 @@ const DeploymentsPage: React.FC = () => {
                   </div>
                 )}
                 <Space size="large">
-                  <Text style={{ color: '#6a8caf', fontSize: 12 }}>
-                    <strong>Container:</strong> {record.container_name || record.container_id || 'N/A'}
-                  </Text>
+                  {record.deployment_type === 'docker' && (
+                    <Text style={{ color: '#6a8caf', fontSize: 12 }}>
+                      <strong>Container:</strong> {record.container_name || record.container_id || 'N/A'}
+                    </Text>
+                  )}
                   <Text style={{ color: '#6a8caf', fontSize: 12 }}>
                     <strong>Packets:</strong> {record.packets_injected.toLocaleString()}
                   </Text>
@@ -460,7 +593,7 @@ const DeploymentsPage: React.FC = () => {
                 </Space>
               </div>
             ),
-            rowExpandable: (record) => !!record.error_message || !!record.container_id,
+            rowExpandable: (record) => !!record.error_message || record.deployment_type === 'docker',
           }}
         />
       </Card>

@@ -78,6 +78,8 @@ export type DeploymentStatus =
 
 export type RunMode = 'timed' | 'perpetual';
 
+export type DeploymentType = 'docker' | 'agent';
+
 export interface Deployment {
   id: string;
   scenario_id: string;
@@ -97,6 +99,34 @@ export interface Deployment {
   created_at: string;
 }
 
+/**
+ * Unified deployment that can represent both Docker and Agent deployments
+ */
+export interface UnifiedDeployment {
+  id: string;
+  deployment_type: DeploymentType;
+  scenario_id: string;
+  scenario_name: string | null;
+  // Docker-specific fields (null for agent deployments)
+  docker_host_id: string | null;
+  docker_host_name: string | null;
+  container_id: string | null;
+  container_name: string | null;
+  // Agent-specific fields (null for docker deployments)
+  agent_id: string | null;
+  agent_name: string | null;
+  // Common fields
+  network_interface: string;
+  status: string;  // Can be DeploymentStatus or agent state
+  run_mode: RunMode;
+  duration_ms: number | null;
+  packets_injected: number;
+  error_message: string | null;
+  started_at: string | null;
+  stopped_at: string | null;
+  created_at: string;
+}
+
 export interface DeploymentRequest {
   scenario_id: string;
   docker_host_id: string;
@@ -106,7 +136,7 @@ export interface DeploymentRequest {
 }
 
 export interface DeploymentListResponse {
-  items: Deployment[];
+  items: UnifiedDeployment[];
   total: number;
 }
 

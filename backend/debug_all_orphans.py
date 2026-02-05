@@ -21,7 +21,7 @@ def main():
     # Login
     login_resp = requests.post(
         f"{BASE_URL}/auth/login",
-        json={"username": "admin", "password": "changeme123"}
+        json={"username": "admin", "password": "C!sco123"}
     )
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

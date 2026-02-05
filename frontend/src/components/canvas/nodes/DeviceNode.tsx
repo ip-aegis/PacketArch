@@ -17,6 +17,7 @@ import {
   DatabaseOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 import { Tag, Tooltip } from 'antd';
 import type { DeviceType, ProtocolType } from '../../../types';
@@ -29,6 +30,8 @@ export interface DeviceNodeData extends Record<string, unknown> {
   protocols: ProtocolType[];
   isConfigured: boolean;
   ipAddress?: string;
+  cveIds?: string[];
+  vendor?: string;
 }
 
 // Device type configuration with colors matching Device Library
@@ -155,6 +158,33 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = (props) => {
         )}
       </div>
 
+      {/* CVE indicator */}
+      {nodeData.cveIds && nodeData.cveIds.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+          }}
+        >
+          <Tooltip title={`Vulnerable: ${nodeData.cveIds.join(', ')}`}>
+            <Tag
+              color="error"
+              icon={<BugOutlined />}
+              style={{
+                fontSize: '9px',
+                margin: 0,
+                lineHeight: '16px',
+                padding: '0 4px',
+                borderRadius: '3px',
+              }}
+            >
+              {nodeData.cveIds.length}
+            </Tag>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Large centered icon with colored background */}
       <div
         style={{
@@ -202,6 +232,20 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = (props) => {
         >
           {nodeData.name}
         </div>
+        {nodeData.vendor && (
+          <div
+            style={{
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.6)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              marginTop: '2px',
+            }}
+          >
+            {nodeData.vendor}
+          </div>
+        )}
         {nodeData.role && (
           <div
             style={{

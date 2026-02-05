@@ -618,3 +618,968 @@ async def configure_s7_communication(
         "flow_id": flow_id,
         "s7_config": flow.get("s7_config"),
     })
+
+
+# =============================================================================
+# DNP3 Tools
+# =============================================================================
+
+
+async def configure_dnp3_device(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    master_address: int | None = None,
+    outstation_address: int | None = None,
+    data_link_config: dict[str, Any] | None = None,
+    application_config: dict[str, Any] | None = None,
+) -> str:
+    """Configure DNP3 device parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        master_address: DNP3 master address (0-65519)
+        outstation_address: DNP3 outstation address (0-65519)
+        data_link_config: Data link layer config {confirm_timeout_ms, max_retries}
+        application_config: Application layer config {response_timeout_ms, event_buffer_size}
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize dnp3_config if not present
+    if "dnp3_config" not in device:
+        device["dnp3_config"] = {}
+
+    if master_address is not None:
+        device["dnp3_config"]["master_address"] = max(0, min(65519, master_address))
+
+    if outstation_address is not None:
+        device["dnp3_config"]["outstation_address"] = max(0, min(65519, outstation_address))
+
+    if data_link_config is not None:
+        device["dnp3_config"]["data_link_config"] = data_link_config
+
+    if application_config is not None:
+        device["dnp3_config"]["application_config"] = application_config
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "dnp3_config": device.get("dnp3_config"),
+    })
+
+
+async def configure_dnp3_flow(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    polling_classes: list[int] | None = None,
+    integrity_poll_interval_ms: int | None = None,
+    unsolicited_responses: bool | None = None,
+    event_config: dict[str, Any] | None = None,
+) -> str:
+    """Configure DNP3 flow polling patterns.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        polling_classes: Classes to poll (0=static, 1/2/3=events)
+        integrity_poll_interval_ms: Interval for integrity polls
+        unsolicited_responses: Enable unsolicited response mode
+        event_config: Event configuration {class1_buffer, class2_buffer, class3_buffer}
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize dnp3_config if not present
+    if "dnp3_config" not in flow:
+        flow["dnp3_config"] = {}
+
+    if polling_classes is not None:
+        # Validate classes (0, 1, 2, 3)
+        flow["dnp3_config"]["polling_classes"] = [c for c in polling_classes if 0 <= c <= 3]
+
+    if integrity_poll_interval_ms is not None:
+        flow["dnp3_config"]["integrity_poll_interval_ms"] = max(1000, integrity_poll_interval_ms)
+
+    if unsolicited_responses is not None:
+        flow["dnp3_config"]["unsolicited_responses"] = unsolicited_responses
+
+    if event_config is not None:
+        flow["dnp3_config"]["event_config"] = event_config
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "dnp3_config": flow.get("dnp3_config"),
+    })
+
+
+# =============================================================================
+# IEC 104 Tools
+# =============================================================================
+
+
+async def configure_iec104_device(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    originator_address: int | None = None,
+    common_address: int | None = None,
+    k_value: int | None = None,
+    w_value: int | None = None,
+    t1_timeout_ms: int | None = None,
+    t2_timeout_ms: int | None = None,
+    t3_timeout_ms: int | None = None,
+) -> str:
+    """Configure IEC 60870-5-104 device parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        originator_address: Originator address (OA)
+        common_address: Common Address of ASDU (CA)
+        k_value: Max unconfirmed I-format APDUs (1-32767)
+        w_value: Latest ack threshold (1-32767)
+        t1_timeout_ms: Send/receive timeout
+        t2_timeout_ms: Ack timeout
+        t3_timeout_ms: Test frame timeout
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize iec104_config if not present
+    if "iec104_config" not in device:
+        device["iec104_config"] = {}
+
+    if originator_address is not None:
+        device["iec104_config"]["originator_address"] = max(0, min(255, originator_address))
+
+    if common_address is not None:
+        device["iec104_config"]["common_address"] = max(1, min(65534, common_address))
+
+    if k_value is not None:
+        device["iec104_config"]["k_value"] = max(1, min(32767, k_value))
+
+    if w_value is not None:
+        device["iec104_config"]["w_value"] = max(1, min(32767, w_value))
+
+    if t1_timeout_ms is not None:
+        device["iec104_config"]["t1_timeout_ms"] = max(1000, t1_timeout_ms)
+
+    if t2_timeout_ms is not None:
+        device["iec104_config"]["t2_timeout_ms"] = max(1000, t2_timeout_ms)
+
+    if t3_timeout_ms is not None:
+        device["iec104_config"]["t3_timeout_ms"] = max(1000, t3_timeout_ms)
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "iec104_config": device.get("iec104_config"),
+    })
+
+
+async def configure_iec104_flow(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    general_interrogation: bool | None = None,
+    interrogation_interval_ms: int | None = None,
+    spontaneous_events: list[dict[str, Any]] | None = None,
+    time_sync: bool | None = None,
+) -> str:
+    """Configure IEC 104 flow polling patterns.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        general_interrogation: Enable general interrogation
+        interrogation_interval_ms: Interval between interrogation requests
+        spontaneous_events: Spontaneous event config [{type_id, ioa_range, interval_ms}]
+        time_sync: Enable time synchronization
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize iec104_config if not present
+    if "iec104_config" not in flow:
+        flow["iec104_config"] = {}
+
+    if general_interrogation is not None:
+        flow["iec104_config"]["general_interrogation"] = general_interrogation
+
+    if interrogation_interval_ms is not None:
+        flow["iec104_config"]["interrogation_interval_ms"] = max(1000, interrogation_interval_ms)
+
+    if spontaneous_events is not None:
+        flow["iec104_config"]["spontaneous_events"] = spontaneous_events
+
+    if time_sync is not None:
+        flow["iec104_config"]["time_sync"] = time_sync
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "iec104_config": flow.get("iec104_config"),
+    })
+
+
+# =============================================================================
+# BACnet Tools
+# =============================================================================
+
+
+async def configure_bacnet_device(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    device_instance: int | None = None,
+    vendor_id: int | None = None,
+    max_apdu_length: int | None = None,
+    segmentation_support: str | None = None,
+    object_list: list[dict[str, Any]] | None = None,
+) -> str:
+    """Configure BACnet device parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        device_instance: BACnet device instance (0-4194302)
+        vendor_id: BACnet vendor ID
+        max_apdu_length: Maximum APDU length (50-1476)
+        segmentation_support: Segmentation ('both', 'transmit', 'receive', 'none')
+        object_list: List of BACnet objects [{type, instance, name}]
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize bacnet_config if not present
+    if "bacnet_config" not in device:
+        device["bacnet_config"] = {}
+
+    if device_instance is not None:
+        device["bacnet_config"]["device_instance"] = max(0, min(4194302, device_instance))
+
+    if vendor_id is not None:
+        device["bacnet_config"]["vendor_id"] = vendor_id
+
+    if max_apdu_length is not None:
+        device["bacnet_config"]["max_apdu_length"] = max(50, min(1476, max_apdu_length))
+
+    if segmentation_support is not None:
+        valid_segmentation = ("both", "transmit", "receive", "none")
+        if segmentation_support in valid_segmentation:
+            device["bacnet_config"]["segmentation_support"] = segmentation_support
+        else:
+            return json.dumps({
+                "error": f"Invalid segmentation support: {segmentation_support}. Valid: {valid_segmentation}"
+            })
+
+    if object_list is not None:
+        device["bacnet_config"]["object_list"] = object_list
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "bacnet_config": device.get("bacnet_config"),
+    })
+
+
+async def configure_bacnet_polling(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    read_property_multiple: list[dict[str, Any]] | None = None,
+    cov_subscriptions: list[dict[str, Any]] | None = None,
+    poll_interval_ms: int | None = None,
+) -> str:
+    """Configure BACnet flow polling patterns.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        read_property_multiple: RPM config [{object_type, object_instance, properties[]}]
+        cov_subscriptions: COV subscription config [{object_type, object_instance, lifetime}]
+        poll_interval_ms: Polling interval for ReadProperty operations
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize bacnet_config if not present
+    if "bacnet_config" not in flow:
+        flow["bacnet_config"] = {}
+
+    if read_property_multiple is not None:
+        flow["bacnet_config"]["read_property_multiple"] = read_property_multiple
+
+    if cov_subscriptions is not None:
+        flow["bacnet_config"]["cov_subscriptions"] = cov_subscriptions
+
+    if poll_interval_ms is not None:
+        flow["bacnet_config"]["poll_interval_ms"] = max(100, poll_interval_ms)
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "bacnet_config": flow.get("bacnet_config"),
+    })
+
+
+# =============================================================================
+# SNMP Tools
+# =============================================================================
+
+
+async def configure_snmp_device(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    snmp_version: str | None = None,
+    community_read: str | None = None,
+    community_write: str | None = None,
+    sys_descr: str | None = None,
+    sys_object_id: str | None = None,
+    sys_name: str | None = None,
+    sys_location: str | None = None,
+    supported_mibs: list[str] | None = None,
+) -> str:
+    """Configure SNMP device parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        snmp_version: SNMP version ('v1', 'v2c', 'v3')
+        community_read: Read community string
+        community_write: Write community string
+        sys_descr: System description
+        sys_object_id: System OID
+        sys_name: System name
+        sys_location: System location
+        supported_mibs: List of supported MIBs
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize snmp_config if not present
+    if "snmp_config" not in device:
+        device["snmp_config"] = {}
+
+    if snmp_version is not None:
+        valid_versions = ("v1", "v2c", "v3")
+        if snmp_version in valid_versions:
+            device["snmp_config"]["snmp_version"] = snmp_version
+        else:
+            return json.dumps({
+                "error": f"Invalid SNMP version: {snmp_version}. Valid: {valid_versions}"
+            })
+
+    if community_read is not None:
+        device["snmp_config"]["community_read"] = community_read
+
+    if community_write is not None:
+        device["snmp_config"]["community_write"] = community_write
+
+    if sys_descr is not None:
+        device["snmp_config"]["sys_descr"] = sys_descr
+
+    if sys_object_id is not None:
+        device["snmp_config"]["sys_object_id"] = sys_object_id
+
+    if sys_name is not None:
+        device["snmp_config"]["sys_name"] = sys_name
+
+    if sys_location is not None:
+        device["snmp_config"]["sys_location"] = sys_location
+
+    if supported_mibs is not None:
+        device["snmp_config"]["supported_mibs"] = supported_mibs
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "snmp_config": device.get("snmp_config"),
+    })
+
+
+async def configure_snmp_polling(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    oid_list: list[str] | None = None,
+    poll_interval_ms: int | None = None,
+    use_get_bulk: bool | None = None,
+    max_repetitions: int | None = None,
+    trap_config: dict[str, Any] | None = None,
+) -> str:
+    """Configure SNMP flow polling patterns.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        oid_list: List of OIDs to poll
+        poll_interval_ms: Polling interval
+        use_get_bulk: Use GetBulk requests (SNMPv2c/v3)
+        max_repetitions: Max repetitions for GetBulk
+        trap_config: Trap configuration {enabled, trap_oids[], interval_ms}
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize snmp_config if not present
+    if "snmp_config" not in flow:
+        flow["snmp_config"] = {}
+
+    if oid_list is not None:
+        flow["snmp_config"]["oid_list"] = oid_list
+
+    if poll_interval_ms is not None:
+        flow["snmp_config"]["poll_interval_ms"] = max(100, poll_interval_ms)
+
+    if use_get_bulk is not None:
+        flow["snmp_config"]["use_get_bulk"] = use_get_bulk
+
+    if max_repetitions is not None:
+        flow["snmp_config"]["max_repetitions"] = max(1, min(100, max_repetitions))
+
+    if trap_config is not None:
+        flow["snmp_config"]["trap_config"] = trap_config
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "snmp_config": flow.get("snmp_config"),
+    })
+
+
+# =============================================================================
+# OPC UA Tools
+# =============================================================================
+
+
+async def configure_opcua_device(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    application_uri: str | None = None,
+    product_uri: str | None = None,
+    application_name: str | None = None,
+    security_mode: str | None = None,
+    security_policy: str | None = None,
+    namespace_uris: list[str] | None = None,
+) -> str:
+    """Configure OPC UA device parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        application_uri: Application URI
+        product_uri: Product URI
+        application_name: Application name
+        security_mode: Security mode ('None', 'Sign', 'SignAndEncrypt')
+        security_policy: Security policy ('None', 'Basic128Rsa15', 'Basic256', 'Basic256Sha256')
+        namespace_uris: List of namespace URIs
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize opcua_config if not present
+    if "opcua_config" not in device:
+        device["opcua_config"] = {}
+
+    if application_uri is not None:
+        device["opcua_config"]["application_uri"] = application_uri
+
+    if product_uri is not None:
+        device["opcua_config"]["product_uri"] = product_uri
+
+    if application_name is not None:
+        device["opcua_config"]["application_name"] = application_name
+
+    if security_mode is not None:
+        valid_modes = ("None", "Sign", "SignAndEncrypt")
+        if security_mode in valid_modes:
+            device["opcua_config"]["security_mode"] = security_mode
+        else:
+            return json.dumps({
+                "error": f"Invalid security mode: {security_mode}. Valid: {valid_modes}"
+            })
+
+    if security_policy is not None:
+        valid_policies = ("None", "Basic128Rsa15", "Basic256", "Basic256Sha256", "Aes128_Sha256_RsaOaep", "Aes256_Sha256_RsaPss")
+        if security_policy in valid_policies:
+            device["opcua_config"]["security_policy"] = security_policy
+        else:
+            return json.dumps({
+                "error": f"Invalid security policy: {security_policy}. Valid: {valid_policies}"
+            })
+
+    if namespace_uris is not None:
+        device["opcua_config"]["namespace_uris"] = namespace_uris
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "opcua_config": device.get("opcua_config"),
+    })
+
+
+async def configure_opcua_subscription(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    node_ids: list[str] | None = None,
+    publishing_interval_ms: int | None = None,
+    lifetime_count: int | None = None,
+    max_keepalive_count: int | None = None,
+    sampling_interval_ms: int | None = None,
+) -> str:
+    """Configure OPC UA subscription parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        node_ids: List of node IDs to subscribe to
+        publishing_interval_ms: Publishing interval
+        lifetime_count: Subscription lifetime count
+        max_keepalive_count: Max keepalive count
+        sampling_interval_ms: Sampling interval for monitored items
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize opcua_config if not present
+    if "opcua_config" not in flow:
+        flow["opcua_config"] = {}
+
+    if node_ids is not None:
+        flow["opcua_config"]["node_ids"] = node_ids
+
+    if publishing_interval_ms is not None:
+        flow["opcua_config"]["publishing_interval_ms"] = max(100, publishing_interval_ms)
+
+    if lifetime_count is not None:
+        flow["opcua_config"]["lifetime_count"] = max(3, lifetime_count)
+
+    if max_keepalive_count is not None:
+        flow["opcua_config"]["max_keepalive_count"] = max(1, max_keepalive_count)
+
+    if sampling_interval_ms is not None:
+        flow["opcua_config"]["sampling_interval_ms"] = max(0, sampling_interval_ms)
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "opcua_config": flow.get("opcua_config"),
+    })
+
+
+# =============================================================================
+# IEC 61850 Tools
+# =============================================================================
+
+
+async def configure_iec61850_ied(
+    db: AsyncSession,
+    scenario_id: str,
+    device_id: str,
+    ied_name: str | None = None,
+    manufacturer: str | None = None,
+    model: str | None = None,
+    logical_devices: list[dict[str, Any]] | None = None,
+    goose_config: dict[str, Any] | None = None,
+) -> str:
+    """Configure IEC 61850 IED parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        device_id: Device ID
+        ied_name: IED name (used in SCL)
+        manufacturer: Manufacturer name
+        model: Model number
+        logical_devices: List of logical devices [{name, logical_nodes[]}]
+        goose_config: GOOSE configuration {enabled, gocb_ref, dataset, app_id}
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    devices = definition.get("devices", {})
+
+    if device_id not in devices:
+        return json.dumps({"error": f"Device {device_id} not found"})
+
+    device = devices[device_id].copy()
+
+    # Initialize iec61850_config if not present
+    if "iec61850_config" not in device:
+        device["iec61850_config"] = {}
+
+    if ied_name is not None:
+        device["iec61850_config"]["ied_name"] = ied_name
+
+    if manufacturer is not None:
+        device["iec61850_config"]["manufacturer"] = manufacturer
+
+    if model is not None:
+        device["iec61850_config"]["model"] = model
+
+    if logical_devices is not None:
+        device["iec61850_config"]["logical_devices"] = logical_devices
+
+    if goose_config is not None:
+        device["iec61850_config"]["goose_config"] = goose_config
+
+    devices[device_id] = device
+    definition["devices"] = devices
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "device_id": device_id,
+        "iec61850_config": device.get("iec61850_config"),
+    })
+
+
+async def configure_goose_publisher(
+    db: AsyncSession,
+    scenario_id: str,
+    flow_id: str,
+    gocb_ref: str | None = None,
+    dataset: str | None = None,
+    app_id: int | None = None,
+    conf_rev: int | None = None,
+    min_time_ms: int | None = None,
+    max_time_ms: int | None = None,
+) -> str:
+    """Configure GOOSE publishing parameters.
+
+    Args:
+        db: Database session
+        scenario_id: Scenario UUID
+        flow_id: Flow ID
+        gocb_ref: GOOSE control block reference
+        dataset: Dataset reference
+        app_id: Application ID
+        conf_rev: Configuration revision
+        min_time_ms: Minimum time between GOOSE frames
+        max_time_ms: Maximum time between GOOSE frames
+
+    Returns:
+        JSON string with result
+    """
+    result = await db.execute(select(Scenario).where(Scenario.id == uuid.UUID(scenario_id)))
+    scenario = result.scalar_one_or_none()
+
+    if not scenario:
+        return json.dumps({"error": "Scenario not found"})
+
+    definition = scenario.definition.copy()
+    flows = definition.get("flows", {})
+
+    if flow_id not in flows:
+        return json.dumps({"error": f"Flow {flow_id} not found"})
+
+    flow = flows[flow_id].copy()
+
+    # Initialize iec61850_config if not present
+    if "iec61850_config" not in flow:
+        flow["iec61850_config"] = {}
+
+    if gocb_ref is not None:
+        flow["iec61850_config"]["gocb_ref"] = gocb_ref
+
+    if dataset is not None:
+        flow["iec61850_config"]["dataset"] = dataset
+
+    if app_id is not None:
+        flow["iec61850_config"]["app_id"] = max(0, min(65535, app_id))
+
+    if conf_rev is not None:
+        flow["iec61850_config"]["conf_rev"] = max(1, conf_rev)
+
+    if min_time_ms is not None:
+        flow["iec61850_config"]["min_time_ms"] = max(1, min_time_ms)
+
+    if max_time_ms is not None:
+        flow["iec61850_config"]["max_time_ms"] = max(1, max_time_ms)
+
+    flows[flow_id] = flow
+    definition["flows"] = flows
+
+    scenario.definition = definition
+    flag_modified(scenario, "definition")
+    scenario.version += 1
+
+    await db.commit()
+    await db.refresh(scenario)
+
+    return json.dumps({
+        "success": True,
+        "flow_id": flow_id,
+        "iec61850_config": flow.get("iec61850_config"),
+    })

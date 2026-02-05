@@ -1150,6 +1150,12 @@ def get_rockwell_fingerprints() -> list[dict[str, Any]]:
                 "product_name": "STRATIX 5700",
                 "state": 3,
             },
+            "snmp_identity": {
+                "sys_descr": "Allen-Bradley Stratix 5700 Industrial Ethernet Switch, IOS 16.03.07",
+                "sys_object_id": "1.3.6.1.4.1.9.1.1227",
+                "sys_name": "STRATIX-5700",
+                "sys_location": "Industrial Network",
+            },
             "tcp_stack": {
                 "ttl": 64,  # Cisco IOS-based
                 "window_size": 4128,

@@ -88,8 +88,8 @@ class EtherNetIPEngine(ProtocolEngine):
         current_time = start_time_ms
 
         # Get TCP sequence numbers from state
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # === TCP Three-Way Handshake ===
 
@@ -166,7 +166,7 @@ class EtherNetIPEngine(ProtocolEngine):
         current_time += response_delay
 
         session_handle = random.randint(1, 0xFFFFFFFF)
-        state.custom_data["session_handle"] = session_handle
+        state.session_handle = session_handle
 
         register_response = build_register_session_response(session_handle)
         response_packet = build_enip_packet(
@@ -220,7 +220,7 @@ class EtherNetIPEngine(ProtocolEngine):
             current_time += response_delay
 
             connection_id = random.randint(1, 0xFFFFFFFF)
-            state.custom_data["connection_id"] = connection_id
+            state.connection_id = connection_id
 
             forward_open_response = build_cip_forward_open_response(success=True)
             response_packet = build_enip_packet(
@@ -246,10 +246,10 @@ class EtherNetIPEngine(ProtocolEngine):
             server_seq += len(forward_open_response)
 
         # Update state
-        state.custom_data["tcp_seq_client"] = client_seq
-        state.custom_data["tcp_seq_server"] = server_seq
-        state.custom_data["tcp_ack_client"] = server_seq
-        state.custom_data["tcp_ack_server"] = client_seq
+        state.tcp_seq_client = client_seq
+        state.tcp_seq_server = server_seq
+        state.tcp_ack_client = server_seq
+        state.tcp_ack_server = client_seq
         state.state_name = "io_active"
 
     def generate_poll_cycle(
@@ -271,12 +271,12 @@ class EtherNetIPEngine(ProtocolEngine):
         io_data = flow.payload_template.get("io_data", b"\x00" * io_data_size) if flow.payload_template else b"\x00" * io_data_size
 
         # Build I/O data packet
-        state.custom_data["io_sequence"] = (state.custom_data["io_sequence"] + 1) % 65536
+        state.io_sequence = (state.io_sequence + 1) % 65536
         io_packet_data = build_cip_io_data(io_data)
 
         # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # I/O request (O->T direction) - using fingerprinted packet
         request_packet = build_enip_packet_fingerprinted(
@@ -295,7 +295,7 @@ class EtherNetIPEngine(ProtocolEngine):
             direction="request",
             metadata={
                 "type": "enip_io_data",
-                "io_sequence": state.custom_data["io_sequence"],
+                "io_sequence": state.io_sequence,
             },
         )
 
@@ -305,7 +305,7 @@ class EtherNetIPEngine(ProtocolEngine):
         # Check for timeout (no response)
         if applicator.should_timeout():
             # No response - simulate connection timeout
-            retry_count = state.custom_data.get("retry_count", 0)
+            retry_count = state.retry_count
 
             # Yield timeout metadata event
             yield PacketEvent(
@@ -315,20 +315,20 @@ class EtherNetIPEngine(ProtocolEngine):
                 direction="timeout",
                 metadata={
                     "type": "enip_io_timeout",
-                    "io_sequence": state.custom_data["io_sequence"],
+                    "io_sequence": state.io_sequence,
                     "retry_count": retry_count,
                 },
             )
 
             # Track connection issue
-            state.custom_data["consecutive_timeouts"] = state.custom_data.get("consecutive_timeouts", 0) + 1
+            state.consecutive_timeouts = state.consecutive_timeouts + 1
 
             # Update sequence (client sent data but no response)
-            state.custom_data["tcp_seq_client"] = client_seq + len(io_packet_data)
+            state.tcp_seq_client = client_seq + len(io_packet_data)
             return
 
         # Reset consecutive timeouts on successful response
-        state.custom_data["consecutive_timeouts"] = 0
+        state.consecutive_timeouts = 0
 
         # Get response delay from fingerprint timing distribution
         timing_sample = applicator.get_response_delay()
@@ -359,17 +359,17 @@ class EtherNetIPEngine(ProtocolEngine):
                 metadata={
                     "type": "enip_cip_error",
                     "cip_status": error_status,
-                    "io_sequence": state.custom_data["io_sequence"],
+                    "io_sequence": state.io_sequence,
                     "is_outlier": timing_sample.is_outlier,
                 },
             )
 
             # Track connection issue
-            state.custom_data["error_count"] = state.custom_data.get("error_count", 0) + 1
+            state.error_count = state.error_count + 1
 
             # Update sequence numbers
-            state.custom_data["tcp_seq_client"] = client_seq + len(io_packet_data)
-            state.custom_data["tcp_seq_server"] = server_seq + len(error_data)
+            state.tcp_seq_client = client_seq + len(io_packet_data)
+            state.tcp_seq_server = server_seq + len(error_data)
             return
 
         # Normal I/O response (T->O direction)
@@ -389,17 +389,17 @@ class EtherNetIPEngine(ProtocolEngine):
             direction="response",
             metadata={
                 "type": "enip_io_data_response",
-                "io_sequence": state.custom_data["io_sequence"],
+                "io_sequence": state.io_sequence,
                 "response_delay_ms": timing_sample.delay_ms,
                 "is_outlier": timing_sample.is_outlier,
             },
         )
 
         # Update sequence numbers
-        state.custom_data["tcp_seq_client"] = client_seq + len(io_packet_data)
-        state.custom_data["tcp_seq_server"] = server_seq + len(io_packet_data)
-        state.custom_data["tcp_ack_client"] = server_seq + len(io_packet_data)
-        state.custom_data["tcp_ack_server"] = client_seq + len(io_packet_data)
+        state.tcp_seq_client = client_seq + len(io_packet_data)
+        state.tcp_seq_server = server_seq + len(io_packet_data)
+        state.tcp_ack_client = server_seq + len(io_packet_data)
+        state.tcp_ack_server = client_seq + len(io_packet_data)
 
     def generate_connection_recovery(
         self,
@@ -423,20 +423,20 @@ class EtherNetIPEngine(ProtocolEngine):
         applicator = flow.destination.fingerprint_applicator
 
         # Check if recovery is needed
-        consecutive_timeouts = state.custom_data.get("consecutive_timeouts", 0)
-        error_count = state.custom_data.get("error_count", 0)
+        consecutive_timeouts = state.consecutive_timeouts
+        error_count = state.error_count
 
         # Only attempt recovery if we have significant issues
         if consecutive_timeouts < 3 and error_count < 5:
             return
 
         # Reset counters
-        state.custom_data["consecutive_timeouts"] = 0
-        state.custom_data["error_count"] = 0
+        state.consecutive_timeouts = 0
+        state.error_count = 0
 
         # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # ForwardOpen to re-establish connection
         forward_open_request = build_cip_forward_open_request()
@@ -464,7 +464,7 @@ class EtherNetIPEngine(ProtocolEngine):
         # Generate success or failure response
         if random.random() < 0.9:  # 90% success rate for recovery
             connection_id = random.randint(1, 0xFFFFFFFF)
-            state.custom_data["connection_id"] = connection_id
+            state.connection_id = connection_id
 
             forward_open_response = build_cip_forward_open_response(success=True)
             response_packet = build_enip_packet_fingerprinted(
@@ -511,8 +511,8 @@ class EtherNetIPEngine(ProtocolEngine):
             state.state_name = "connection_failed"
 
         # Update sequence numbers
-        state.custom_data["tcp_seq_client"] = client_seq + len(forward_open_request)
-        state.custom_data["tcp_seq_server"] = server_seq + len(forward_open_response if random.random() < 0.9 else forward_open_error)
+        state.tcp_seq_client = client_seq + len(forward_open_request)
+        state.tcp_seq_server = server_seq + len(forward_open_response if random.random() < 0.9 else forward_open_error)
 
     def generate_discovery_sequence(
         self,
@@ -627,11 +627,11 @@ class EtherNetIPEngine(ProtocolEngine):
         """
         current_time = start_time_ms
         applicator = flow.destination.fingerprint_applicator
-        session_handle = state.custom_data.get("session_handle", 1)
+        session_handle = state.session_handle or 1
 
         # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # Generate sender context
         sender_context = bytes([random.randint(0, 255) for _ in range(8)])
@@ -851,8 +851,8 @@ class EtherNetIPEngine(ProtocolEngine):
         )
 
         # Update state
-        state.custom_data["tcp_seq_client"] = client_seq + len(list_services_request)
-        state.custom_data["tcp_seq_server"] = server_seq + len(list_services_response_payload)
+        state.tcp_seq_client = client_seq + len(list_services_request)
+        state.tcp_seq_server = server_seq + len(list_services_response_payload)
 
     def generate_shutdown_sequence(
         self,
@@ -862,8 +862,8 @@ class EtherNetIPEngine(ProtocolEngine):
     ) -> Iterator[PacketEvent]:
         """Generate TCP FIN handshake for connection termination."""
         # Get TCP sequence numbers
-        client_seq = state.custom_data["tcp_seq_client"]
-        server_seq = state.custom_data["tcp_seq_server"]
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
 
         # FIN from client
         fin_packet = build_tcp_fin(

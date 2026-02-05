@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
+from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
 from app.mcp_server.ai_providers import AIProvider, AIProviderFactory
 from app.mcp_server.sanitization.sanitizer import DataSanitizer
 from app.mcp_server.server import mcp_server
@@ -38,9 +39,10 @@ from app.services.ip_management import IPManagementService
 from app.services.vendor_fingerprints import (
     get_fingerprint_by_vendor_model,
     get_fingerprints_by_vendor,
-    VENDOR_OUI_PREFIXES,
 )
 from app.ai_services.nl_parser import extract_device_counts, format_device_counts_for_prompt, get_device_limit_warning
+from app.protocol_engines.identity import generate_mac
+from app.services.serial_number_generator import SerialNumberGenerator
 import random
 
 logger = logging.getLogger(__name__)
@@ -49,50 +51,85 @@ logger = logging.getLogger(__name__)
 MAX_DEVICES_PER_SCENARIO = 100
 
 
-def _generate_vendor_mac(vendor: str, device_type: str) -> str:
-    """Generate a MAC address using vendor-specific OUI prefix.
+def _enrich_devices_with_serial_numbers(devices: dict, scenario_id: str) -> None:
+    """Enrich all devices with unique serial numbers for each protocol.
+
+    This is critical for Cyber Vision to correctly identify distinct devices.
+    Serial numbers are generated deterministically based on device_id + scenario_id.
+
+    Serial numbers are generated for any protocol identity that exists in the
+    fingerprint with proper vendor data. The device's protocols list is used
+    as a hint, but if the fingerprint has identity data for a protocol, we
+    enrich it regardless - the fingerprint defines what protocols the device
+    actually supports.
 
     Args:
-        vendor: Vendor name (e.g., 'rockwell', 'siemens')
-        device_type: Device type for fallback vendor selection
-
-    Returns:
-        MAC address string in format XX:XX:XX:XX:XX:XX
+        devices: Dictionary of device definitions (modified in place)
+        scenario_id: Scenario UUID for deterministic generation
     """
-    # Get vendor OUI prefixes
-    vendor_lower = vendor.lower() if vendor else ""
-    oui_prefixes = VENDOR_OUI_PREFIXES.get(vendor_lower)
+    def identity_has_vendor_data(identity: dict | None, required_key: str) -> bool:
+        """Check if identity has real vendor data, not just a serial number placeholder."""
+        if not identity or not isinstance(identity, dict):
+            return False
+        # For EtherNet/IP, vendor_id is required to avoid defaulting to Rockwell
+        if required_key == "vendor_id":
+            return identity.get("vendor_id") is not None
+        # For other protocols, check for any key besides serial_number
+        return any(k != "serial_number" for k in identity.keys())
 
-    if not oui_prefixes:
-        # Fallback: try to find OUI by device type typical vendors
-        device_type_vendors = {
-            "plc": ["siemens", "rockwell", "schneider"],
-            "hmi": ["siemens", "rockwell"],
-            "rtu": ["schneider", "abb"],
-            "drive": ["siemens", "abb", "schneider"],
-            "sensor": ["sick", "endress+hauser"],
-        }
-        fallback_vendors = device_type_vendors.get(device_type.lower(), ["siemens"])
-        for fb_vendor in fallback_vendors:
-            oui_prefixes = VENDOR_OUI_PREFIXES.get(fb_vendor)
-            if oui_prefixes:
-                break
+    for device_id, device in devices.items():
+        fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
 
-    if not oui_prefixes:
-        # Ultimate fallback - generic OUI
-        oui_prefixes = ["00:00:00"]
+        # EtherNet/IP - enrich if fingerprint has vendor_id (regardless of protocols list)
+        existing_identity = fingerprint.get("ethernet_ip_identity")
+        if identity_has_vendor_data(existing_identity, "vendor_id"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_ethernet_ip(
+                device_id, scenario_id
+            )
 
-    # Select random OUI from vendor's prefixes
-    oui = random.choice(oui_prefixes)
+        # S7comm - enrich if fingerprint has order_code
+        existing_identity = fingerprint.get("s7_identity")
+        if identity_has_vendor_data(existing_identity, "order_code"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
 
-    # Generate random NIC portion (last 3 octets)
-    nic = [random.randint(0, 255) for _ in range(3)]
+        # PROFINET - enrich if fingerprint has vendor_id
+        existing_identity = fingerprint.get("profinet_identity")
+        if identity_has_vendor_data(existing_identity, "vendor_id"):
+            serial = SerialNumberGenerator.generate_profinet(device_id, scenario_id)
+            existing_identity["serial_number"] = serial
+            existing_identity["im0_serial_number"] = serial
 
-    return f"{oui}:{nic[0]:02X}:{nic[1]:02X}:{nic[2]:02X}"
+        # Modbus - enrich if fingerprint has vendor_name
+        existing_identity = fingerprint.get("modbus_identity")
+        if identity_has_vendor_data(existing_identity, "vendor_name"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+        # BACnet - enrich if fingerprint has vendor_id
+        existing_identity = fingerprint.get("bacnet_identity")
+        if identity_has_vendor_data(existing_identity, "vendor_id"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+        # SNMP - enrich if fingerprint has sys_descr
+        existing_identity = fingerprint.get("snmp_identity")
+        if identity_has_vendor_data(existing_identity, "sys_descr"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+        # OPC UA - enrich if fingerprint has manufacturer_name
+        existing_identity = fingerprint.get("opc_ua_identity")
+        if identity_has_vendor_data(existing_identity, "manufacturer_name"):
+            existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
+
+        # Update both camelCase and snake_case versions
+        device["vendorFingerprint"] = fingerprint
+        device["vendor_fingerprint"] = fingerprint
 
 
 def _generate_serial_number(vendor: str, fingerprint_data: dict) -> str:
     """Generate a realistic serial number based on vendor patterns.
+
+    NOTE: This function generates random serial numbers for display purposes.
+    For protocol-specific serial numbers used by Cyber Vision, use
+    _enrich_devices_with_serial_numbers() which uses deterministic generation.
 
     Args:
         vendor: Vendor name
@@ -902,6 +939,345 @@ def _register_mcp_tools(db: DBSession, user_id: str | None = None) -> None:
         },
         handler=lambda scenario_id, flow_id, read_areas=None, write_areas=None: protocol_tools.configure_s7_communication(
             db, scenario_id, flow_id, read_areas, write_areas
+        ),
+    )
+
+    # Protocol-specific tools - DNP3
+    mcp_server.register_tool(
+        name="configure_dnp3_device",
+        description="Configure DNP3 device parameters including master/outstation addresses and data link layer settings.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "master_address": {"type": "integer", "description": "DNP3 master address (0-65519)"},
+                "outstation_address": {"type": "integer", "description": "DNP3 outstation address (0-65519)"},
+                "data_link_config": {
+                    "type": "object",
+                    "properties": {
+                        "confirm_timeout_ms": {"type": "integer"},
+                        "max_retries": {"type": "integer"},
+                    },
+                    "description": "Data link layer configuration",
+                },
+                "application_config": {
+                    "type": "object",
+                    "properties": {
+                        "response_timeout_ms": {"type": "integer"},
+                        "event_buffer_size": {"type": "integer"},
+                    },
+                    "description": "Application layer configuration",
+                },
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, master_address=None, outstation_address=None, data_link_config=None, application_config=None: protocol_tools.configure_dnp3_device(
+            db, scenario_id, device_id, master_address, outstation_address, data_link_config, application_config
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_dnp3_flow",
+        description="Configure DNP3 flow polling patterns including class polling and unsolicited responses.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "polling_classes": {
+                    "type": "array",
+                    "items": {"type": "integer", "enum": [0, 1, 2, 3]},
+                    "description": "Classes to poll (0=static, 1/2/3=events)",
+                },
+                "integrity_poll_interval_ms": {"type": "integer", "description": "Interval for integrity polls"},
+                "unsolicited_responses": {"type": "boolean", "description": "Enable unsolicited response mode"},
+                "event_config": {
+                    "type": "object",
+                    "description": "Event buffer configuration",
+                },
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, polling_classes=None, integrity_poll_interval_ms=None, unsolicited_responses=None, event_config=None: protocol_tools.configure_dnp3_flow(
+            db, scenario_id, flow_id, polling_classes, integrity_poll_interval_ms, unsolicited_responses, event_config
+        ),
+    )
+
+    # Protocol-specific tools - IEC 104
+    mcp_server.register_tool(
+        name="configure_iec104_device",
+        description="Configure IEC 60870-5-104 device parameters including addresses and timeout values.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "originator_address": {"type": "integer", "description": "Originator address (OA)"},
+                "common_address": {"type": "integer", "description": "Common Address of ASDU (CA)"},
+                "k_value": {"type": "integer", "description": "Max unconfirmed I-format APDUs (1-32767)"},
+                "w_value": {"type": "integer", "description": "Latest ack threshold (1-32767)"},
+                "t1_timeout_ms": {"type": "integer", "description": "Send/receive timeout"},
+                "t2_timeout_ms": {"type": "integer", "description": "Ack timeout"},
+                "t3_timeout_ms": {"type": "integer", "description": "Test frame timeout"},
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, originator_address=None, common_address=None, k_value=None, w_value=None, t1_timeout_ms=None, t2_timeout_ms=None, t3_timeout_ms=None: protocol_tools.configure_iec104_device(
+            db, scenario_id, device_id, originator_address, common_address, k_value, w_value, t1_timeout_ms, t2_timeout_ms, t3_timeout_ms
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_iec104_flow",
+        description="Configure IEC 104 flow polling patterns including general interrogation and spontaneous events.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "general_interrogation": {"type": "boolean", "description": "Enable general interrogation"},
+                "interrogation_interval_ms": {"type": "integer", "description": "Interval between interrogation requests"},
+                "spontaneous_events": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Spontaneous event configuration",
+                },
+                "time_sync": {"type": "boolean", "description": "Enable time synchronization"},
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, general_interrogation=None, interrogation_interval_ms=None, spontaneous_events=None, time_sync=None: protocol_tools.configure_iec104_flow(
+            db, scenario_id, flow_id, general_interrogation, interrogation_interval_ms, spontaneous_events, time_sync
+        ),
+    )
+
+    # Protocol-specific tools - BACnet
+    mcp_server.register_tool(
+        name="configure_bacnet_device",
+        description="Configure BACnet device parameters including device instance, vendor ID, and object list.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "device_instance": {"type": "integer", "description": "BACnet device instance (0-4194302)"},
+                "vendor_id": {"type": "integer", "description": "BACnet vendor ID"},
+                "max_apdu_length": {"type": "integer", "description": "Maximum APDU length (50-1476)"},
+                "segmentation_support": {
+                    "type": "string",
+                    "enum": ["both", "transmit", "receive", "none"],
+                    "description": "Segmentation support",
+                },
+                "object_list": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of BACnet objects",
+                },
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, device_instance=None, vendor_id=None, max_apdu_length=None, segmentation_support=None, object_list=None: protocol_tools.configure_bacnet_device(
+            db, scenario_id, device_id, device_instance, vendor_id, max_apdu_length, segmentation_support, object_list
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_bacnet_polling",
+        description="Configure BACnet flow polling patterns including ReadPropertyMultiple and COV subscriptions.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "read_property_multiple": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "ReadPropertyMultiple configuration",
+                },
+                "cov_subscriptions": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "COV subscription configuration",
+                },
+                "poll_interval_ms": {"type": "integer", "description": "Polling interval for ReadProperty operations"},
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, read_property_multiple=None, cov_subscriptions=None, poll_interval_ms=None: protocol_tools.configure_bacnet_polling(
+            db, scenario_id, flow_id, read_property_multiple, cov_subscriptions, poll_interval_ms
+        ),
+    )
+
+    # Protocol-specific tools - SNMP
+    mcp_server.register_tool(
+        name="configure_snmp_device",
+        description="Configure SNMP device parameters including version, community strings, and system information.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "snmp_version": {
+                    "type": "string",
+                    "enum": ["v1", "v2c", "v3"],
+                    "description": "SNMP version",
+                },
+                "community_read": {"type": "string", "description": "Read community string"},
+                "community_write": {"type": "string", "description": "Write community string"},
+                "sys_descr": {"type": "string", "description": "System description"},
+                "sys_object_id": {"type": "string", "description": "System OID"},
+                "sys_name": {"type": "string", "description": "System name"},
+                "sys_location": {"type": "string", "description": "System location"},
+                "supported_mibs": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of supported MIBs",
+                },
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, snmp_version=None, community_read=None, community_write=None, sys_descr=None, sys_object_id=None, sys_name=None, sys_location=None, supported_mibs=None: protocol_tools.configure_snmp_device(
+            db, scenario_id, device_id, snmp_version, community_read, community_write, sys_descr, sys_object_id, sys_name, sys_location, supported_mibs
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_snmp_polling",
+        description="Configure SNMP flow polling patterns including OID list, GetBulk, and trap configuration.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "oid_list": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of OIDs to poll",
+                },
+                "poll_interval_ms": {"type": "integer", "description": "Polling interval"},
+                "use_get_bulk": {"type": "boolean", "description": "Use GetBulk requests (SNMPv2c/v3)"},
+                "max_repetitions": {"type": "integer", "description": "Max repetitions for GetBulk"},
+                "trap_config": {
+                    "type": "object",
+                    "description": "Trap configuration",
+                },
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, oid_list=None, poll_interval_ms=None, use_get_bulk=None, max_repetitions=None, trap_config=None: protocol_tools.configure_snmp_polling(
+            db, scenario_id, flow_id, oid_list, poll_interval_ms, use_get_bulk, max_repetitions, trap_config
+        ),
+    )
+
+    # Protocol-specific tools - OPC UA
+    mcp_server.register_tool(
+        name="configure_opcua_device",
+        description="Configure OPC UA device parameters including application URIs, security settings, and namespaces.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "application_uri": {"type": "string", "description": "Application URI"},
+                "product_uri": {"type": "string", "description": "Product URI"},
+                "application_name": {"type": "string", "description": "Application name"},
+                "security_mode": {
+                    "type": "string",
+                    "enum": ["None", "Sign", "SignAndEncrypt"],
+                    "description": "Security mode",
+                },
+                "security_policy": {
+                    "type": "string",
+                    "enum": ["None", "Basic128Rsa15", "Basic256", "Basic256Sha256"],
+                    "description": "Security policy",
+                },
+                "namespace_uris": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of namespace URIs",
+                },
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, application_uri=None, product_uri=None, application_name=None, security_mode=None, security_policy=None, namespace_uris=None: protocol_tools.configure_opcua_device(
+            db, scenario_id, device_id, application_uri, product_uri, application_name, security_mode, security_policy, namespace_uris
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_opcua_subscription",
+        description="Configure OPC UA subscription parameters including node IDs and publishing intervals.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "node_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of node IDs to subscribe to",
+                },
+                "publishing_interval_ms": {"type": "integer", "description": "Publishing interval"},
+                "lifetime_count": {"type": "integer", "description": "Subscription lifetime count"},
+                "max_keepalive_count": {"type": "integer", "description": "Max keepalive count"},
+                "sampling_interval_ms": {"type": "integer", "description": "Sampling interval for monitored items"},
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, node_ids=None, publishing_interval_ms=None, lifetime_count=None, max_keepalive_count=None, sampling_interval_ms=None: protocol_tools.configure_opcua_subscription(
+            db, scenario_id, flow_id, node_ids, publishing_interval_ms, lifetime_count, max_keepalive_count, sampling_interval_ms
+        ),
+    )
+
+    # Protocol-specific tools - IEC 61850
+    mcp_server.register_tool(
+        name="configure_iec61850_ied",
+        description="Configure IEC 61850 IED parameters including IED name, logical devices, and GOOSE settings.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "device_id": {"type": "string", "description": "Device ID"},
+                "ied_name": {"type": "string", "description": "IED name (used in SCL)"},
+                "manufacturer": {"type": "string", "description": "Manufacturer name"},
+                "model": {"type": "string", "description": "Model number"},
+                "logical_devices": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of logical devices",
+                },
+                "goose_config": {
+                    "type": "object",
+                    "description": "GOOSE configuration",
+                },
+            },
+            "required": ["scenario_id", "device_id"],
+        },
+        handler=lambda scenario_id, device_id, ied_name=None, manufacturer=None, model=None, logical_devices=None, goose_config=None: protocol_tools.configure_iec61850_ied(
+            db, scenario_id, device_id, ied_name, manufacturer, model, logical_devices, goose_config
+        ),
+    )
+
+    mcp_server.register_tool(
+        name="configure_goose_publisher",
+        description="Configure GOOSE publishing parameters for IEC 61850 protection messaging.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "flow_id": {"type": "string", "description": "Flow ID"},
+                "gocb_ref": {"type": "string", "description": "GOOSE control block reference"},
+                "dataset": {"type": "string", "description": "Dataset reference"},
+                "app_id": {"type": "integer", "description": "Application ID"},
+                "conf_rev": {"type": "integer", "description": "Configuration revision"},
+                "min_time_ms": {"type": "integer", "description": "Minimum time between GOOSE frames"},
+                "max_time_ms": {"type": "integer", "description": "Maximum time between GOOSE frames"},
+            },
+            "required": ["scenario_id", "flow_id"],
+        },
+        handler=lambda scenario_id, flow_id, gocb_ref=None, dataset=None, app_id=None, conf_rev=None, min_time_ms=None, max_time_ms=None: protocol_tools.configure_goose_publisher(
+            db, scenario_id, flow_id, gocb_ref, dataset, app_id, conf_rev, min_time_ms, max_time_ms
         ),
     )
 
@@ -1997,11 +2373,25 @@ async def chat_with_ai(
 {constraints_section}
 
 ## Your Expertise
-- **Industrial Protocols**: Modbus TCP, EtherNet/IP, PROFINET, S7/Siemens, OPC UA, DNP3, IEC 104, BACnet
-- **OT Device Types**: PLCs, HMIs, RTUs, VFDs/drives, sensors, protective relays, historians, engineering workstations
+- **Industrial Protocols**:
+  - Core: Modbus TCP/RTU, EtherNet/IP, PROFINET, S7comm, OPC UA
+  - SCADA/Utility: DNP3, IEC 104, IEC 61850 (MMS/GOOSE/SV)
+  - Building Automation: BACnet/IP
+  - Network: SNMP/NTCIP, LLDP, CDP
+  - Vendor-Specific: PCCC (Allen-Bradley), Codesys, FINS (Omron), SLMP (Mitsubishi), EtherCAT (Beckhoff)
+  - DCS: Emerson DeltaV, Honeywell Experion, Yokogawa Vnet/IP, Schneider Triconex
+  - Specialized: FANUC FOCAS, WMI
+- **OT Device Types**: PLCs, HMIs, RTUs, VFDs/drives, sensors, protective relays, IEDs, historians, engineering workstations, DCS controllers, CNCs, BMS controllers
 - **Network Architecture**: Purdue model (Levels 0-5), zone segmentation, DMZ design, industrial firewalls
 - **Security**: ICS/SCADA vulnerabilities, CVEs, MITRE ATT&CK for ICS (T0800 series techniques)
-- **Vendors**: Siemens, Rockwell/Allen-Bradley, Schneider Electric, ABB, Honeywell, Emerson, GE
+- **Vendors**: Siemens, Rockwell/Allen-Bradley, Schneider Electric, ABB, Honeywell, Emerson, GE, Omron, Mitsubishi, Beckhoff, FANUC, Yokogawa
+
+## Protocol Selection by Vertical
+- **Manufacturing**: EtherNet/IP, PROFINET, Modbus TCP, PCCC (Rockwell legacy), Codesys, EtherCAT (motion control)
+- **Process Industries**: DCS (DeltaV, Experion), OPC UA, Modbus TCP
+- **Power/Energy**: IEC 61850 (substations), IEC 104, DNP3
+- **Building Automation**: BACnet/IP, Modbus TCP
+- **Transportation/ITS**: SNMP/NTCIP
 
 ## Current Scenario Context
 - **Scenario**: {scenario.name}
@@ -2043,8 +2433,15 @@ async def chat_with_ai(
 2. Suggest relevant CVEs based on device vendor, model, and firmware when asked
 3. Use learned patterns when available to match real-world traffic captures
 4. Validate topology before deployment to catch configuration issues
-5. Prefer specific vendors (Siemens, Rockwell, Schneider) over generic types
-6. For manufacturing: use EtherNet/IP or PROFINET; for utilities: use Modbus TCP or DNP3
+5. Prefer specific vendors (Siemens, Rockwell, Schneider, Omron, Mitsubishi) over generic types
+6. Protocol selection by context:
+   - Manufacturing: EtherNet/IP (Rockwell), PROFINET (Siemens), PCCC (legacy AB), Codesys (WAGO/Beckhoff)
+   - Utilities (Water/Gas): Modbus TCP, DNP3
+   - Power substations: IEC 61850 (protection relays), IEC 104 (telecontrol)
+   - Buildings: BACnet/IP (HVAC), Modbus TCP (meters)
+   - Process/Oil&Gas: DCS protocols, OPC UA, Modbus TCP
+   - Japanese/Asian PLCs: FINS (Omron), SLMP (Mitsubishi)
+   - Transportation/ITS: SNMP/NTCIP (traffic controllers, DMS signs)
 
 ## When You're Done
 Stop calling tools and provide a summary of what was created. Do not continue adding devices beyond the requested count.
@@ -2743,7 +3140,11 @@ class AIScenarioPreviewDevice(BaseModel):
     device_type: str
     vendor: str | None = None
     ip_address: str | None = None
+    mac_address: str | None = None
+    zone: str | None = None
     protocols: list[str] = Field(default_factory=list)
+    # Fingerprint data for proper protocol identity lookup
+    fingerprint_model: str | None = None
     # CVE vulnerability info
     cve_ids: list[str] = Field(default_factory=list)
     is_vulnerable: bool = False
@@ -2808,7 +3209,8 @@ async def generate_scenario_preview(
     from app.ai_services.ai_scenario_designer import AIScenarioDesigner
 
     # Use AI-enhanced scenario designer (with rule-based fallback)
-    designer = AIScenarioDesigner(db)
+    # Use a placeholder range_index for preview - actual IPs will be assigned during create-from-preview
+    designer = AIScenarioDesigner(db, range_index=1)
 
     try:
         result = await designer.design_scenario(
@@ -2851,7 +3253,10 @@ async def generate_scenario_preview(
             device_type=d.device_type,
             vendor=d.vendor,
             ip_address=d.ip_address,
+            mac_address=d.mac_address,
+            zone=d.zone,
             protocols=d.protocols,
+            fingerprint_model=d.fingerprint_model,
         )
         for d in scenario.devices
     ]
@@ -2981,9 +3386,10 @@ async def create_scenario_from_preview(
         )
 
     # Convert preview to database format
-    # First, build zones with proper layout
+    # First, build zones with proper layout and subnet configuration
     zones = {}
     zone_device_map = {}  # device_id -> zone_name mapping
+    zone_ip_counters = {}  # zone_name -> next host number for that zone
     preview_zones = preview.get("zones", [])
 
     # Layout zones in a grid (2 columns)
@@ -2994,20 +3400,30 @@ async def create_scenario_from_preview(
 
     for idx, z in enumerate(preview_zones):
         zone_name = z.get("name", f"zone_{idx}")
+        zone_id = z.get("id", zone_name.lower().replace(" ", "_"))
         row = idx // zones_per_row
         col = idx % zones_per_row
 
         zone_x = zone_margin + col * (zone_width + zone_margin)
         zone_y = zone_margin + row * (zone_height + zone_margin)
 
+        # Preserve subnet_offset from preview or assign sequentially
+        subnet_offset = z.get("subnet_offset", idx)
+
         zones[zone_name] = {
-            "id": zone_name,
+            "id": zone_id,
             "name": zone_name.replace("_", " ").title(),
             "type": "network",
             "position": {"x": zone_x, "y": zone_y},
             "dimensions": {"width": zone_width, "height": zone_height},
             "deviceIds": z.get("device_ids", []),
+            "subnet_offset": subnet_offset,
+            "level": z.get("level"),
+            "vlan": z.get("vlan", 100 + idx * 10),
         }
+
+        # Initialize IP counter for this zone (start at .10)
+        zone_ip_counters[zone_name] = 10
 
         # Map devices to their zone
         for device_id in z.get("device_ids", []):
@@ -3077,22 +3493,45 @@ async def create_scenario_from_preview(
             device_x = 100 + (len(devices) % 5) * 150
             device_y = 100 + (len(devices) // 5) * 120
 
-        # Get IP from management pool
-        try:
-            ip_info = await IPManagementService.get_next_ip(db, db_scenario.id)
-            ip_address = ip_info["ip_address"]
-            subnet_mask = ip_info["subnet_mask"]
-            gateway = ip_info["gateway"]
-            logger.debug(f"Assigned IP {ip_address} to device {device_id}")
-        except ValueError as e:
-            # Fallback if IP exhausted - should not happen normally
-            logger.warning(f"IP allocation failed for device {device_id}: {e}. Using fallback.")
-            ip_address = d.get("ip_address", "10.0.0.10")
-            subnet_mask = "255.255.255.0"
-            gateway = "10.0.0.1"
+        # Get IP based on zone's /24 subnet
+        # Each zone has its own subnet: 10.{range_index}.{subnet_offset}.0/24
+        range_index = ip_allocation.range_index
+        if zone_name and zone_name in zones:
+            zone_config = zones[zone_name]
+            subnet_offset = zone_config.get("subnet_offset", 0)
+            host_num = zone_ip_counters.get(zone_name, 10)
+            zone_ip_counters[zone_name] = host_num + 1
+            if host_num > 254:
+                host_num = 10  # Wrap around if zone has too many devices
 
-        # Generate MAC address using vendor OUI
-        mac_address = _generate_vendor_mac(vendor, device_type)
+            ip_address = f"10.{range_index}.{subnet_offset}.{host_num}"
+            gateway = f"10.{range_index}.{subnet_offset}.1"
+            subnet_mask = "255.255.255.0"
+
+            # Update zone's network config
+            if "network" not in zone_config:
+                zone_config["network"] = {}
+            zone_config["network"]["subnet"] = f"10.{range_index}.{subnet_offset}.0/24"
+            zone_config["network"]["gateway"] = gateway
+            zone_config["network"]["subnet_offset"] = subnet_offset
+
+            logger.debug(f"Assigned IP {ip_address} to device {device_id} in zone {zone_name}")
+        else:
+            # Fallback for devices without zones - use sequential IP from range
+            try:
+                ip_info = await IPManagementService.get_next_ip(db, db_scenario.id)
+                ip_address = ip_info["ip_address"]
+                subnet_mask = ip_info["subnet_mask"]
+                gateway = ip_info["gateway"]
+                logger.debug(f"Assigned fallback IP {ip_address} to device {device_id} (no zone)")
+            except ValueError as e:
+                logger.warning(f"IP allocation failed for device {device_id}: {e}. Using fallback.")
+                ip_address = d.get("ip_address", "10.0.0.10")
+                subnet_mask = "255.255.255.0"
+                gateway = "10.0.0.1"
+
+        # Generate MAC address using vendor OUI (via centralized identity registry)
+        mac_address = generate_mac(vendor=vendor, device_type=device_type)
 
         # Get fingerprint data for deep fingerprinting
         fingerprint_data = None
@@ -3119,16 +3558,44 @@ async def create_scenario_from_preview(
             "gateway": gateway,
         }
 
+        # Filter protocols to only those supported by the fingerprint
+        # This is the CRITICAL validation step that prevents protocol_identity_mismatch
+        requested_protocols = d.get("protocols", [])
+        validated_protocols = []
+
+        if fingerprint_data:
+            for proto in requested_protocols:
+                identity_key = PROTOCOL_TO_IDENTITY_KEY.get(proto)
+                if identity_key:
+                    identity = fingerprint_data.get(identity_key)
+                    if identity and isinstance(identity, dict) and len(identity) > 0:
+                        validated_protocols.append(proto)
+                    else:
+                        logger.warning(
+                            f"Device '{d['name']}': Removed protocol '{proto}' "
+                            f"(no {identity_key} in fingerprint)"
+                        )
+                else:
+                    # Protocol doesn't require identity (http, ssh, etc.)
+                    validated_protocols.append(proto)
+        else:
+            # No fingerprint - device will have no protocols
+            if requested_protocols:
+                logger.warning(
+                    f"Device '{d['name']}': No fingerprint data - removed all protocols {requested_protocols}"
+                )
+
         # Build device with fingerprint data
         device_def = {
             "id": device_id,
             "name": d["name"],
-            "type": device_type,
-            "protocols": d.get("protocols", []),
+            "device_type": device_type,  # Fixed: was 'type', should be 'device_type'
+            "protocols": validated_protocols,  # Use validated protocols
             "position": {"x": device_x, "y": device_y},
             "zoneId": zone_name,
             "network": network_config,
             "vendor": d.get("vendor"),
+            "fingerprint_model": fingerprint_model,  # CRITICAL: Store fingerprint_model
         }
 
         # Apply deep fingerprint data if available
@@ -3141,13 +3608,21 @@ async def create_scenario_from_preview(
                 "serial_number": _generate_serial_number(vendor, fingerprint_data),
             }
 
-            # Protocol-specific identity data
+            # Protocol-specific identity data (all 7 protocols)
             if fingerprint_data.get("modbus_identity"):
                 device_def["fingerprint"]["modbus_identity"] = fingerprint_data["modbus_identity"]
             if fingerprint_data.get("ethernet_ip_identity"):
                 device_def["fingerprint"]["ethernet_ip_identity"] = fingerprint_data["ethernet_ip_identity"]
             if fingerprint_data.get("profinet_identity"):
                 device_def["fingerprint"]["profinet_identity"] = fingerprint_data["profinet_identity"]
+            if fingerprint_data.get("s7_identity"):
+                device_def["fingerprint"]["s7_identity"] = fingerprint_data["s7_identity"]
+            if fingerprint_data.get("snmp_identity"):
+                device_def["fingerprint"]["snmp_identity"] = fingerprint_data["snmp_identity"]
+            if fingerprint_data.get("bacnet_identity"):
+                device_def["fingerprint"]["bacnet_identity"] = fingerprint_data["bacnet_identity"]
+            if fingerprint_data.get("opc_ua_identity"):
+                device_def["fingerprint"]["opc_ua_identity"] = fingerprint_data["opc_ua_identity"]
 
             # TCP stack characteristics
             if fingerprint_data.get("tcp_stack"):
@@ -3209,6 +3684,17 @@ async def create_scenario_from_preview(
         "phases": [],
         "events": [],
     }
+
+    # Set addressing config to track the IP allocation
+    db_scenario.addressing_config = {
+        "ip_range": ip_allocation.cidr_range,
+        "range_index": ip_allocation.range_index,
+        "auto_assign_enabled": True,
+    }
+
+    # CRITICAL: Ensure all devices have unique serial numbers for each protocol
+    # This prevents Cyber Vision from merging devices with identical fingerprints
+    _enrich_devices_with_serial_numbers(devices, str(db_scenario.id))
 
     await db.commit()
     await db.refresh(db_scenario)
@@ -3362,144 +3848,6 @@ Write ONLY the description text. Do not include any preamble, labels, or formatt
     )
 
 
-class HelpChatRequest(BaseModel):
-    """Request for help chat (non-scenario context)."""
-
-    question: str = Field(..., description="User's help question")
-    context: str = Field(
-        default="general",
-        description="Help context: docker_host_setup, deployment, general",
-    )
-
-
-class HelpChatResponse(BaseModel):
-    """Response from help chat."""
-
-    response: str
-
-
-# Context-specific system prompts for help
-HELP_CONTEXTS = {
-    "docker_host_setup": """You are a helpful technical assistant specializing in Docker configuration for OT (Operational Technology) traffic simulation.
-
-Your expertise includes:
-- Docker Engine installation on Linux (Ubuntu, Debian, RHEL, CentOS)
-- Docker TLS certificate generation and configuration
-- Docker daemon configuration (daemon.json)
-- SystemD service configuration for Docker
-- Firewall configuration (UFW, firewalld, iptables)
-- Network interface management for traffic injection
-- Troubleshooting Docker connectivity issues
-
-When answering questions:
-1. Provide clear, step-by-step instructions when appropriate
-2. Include relevant command examples
-3. Mention security best practices (always recommend TLS for remote access)
-4. If the user asks about PacketArch-specific features, explain how Docker hosts integrate with the traffic generation system
-
-Important context:
-- PacketArch uses remote Docker hosts to run traffic generator containers
-- The Docker API needs to be exposed on port 2376 with TLS
-- Containers need access to network interfaces for packet injection
-- The traffic generator image is called 'packetarch/traffic-generator:latest'
-""",
-    "deployment": """You are a helpful technical assistant for PacketArch deployment operations.
-
-Your expertise includes:
-- Deploying scenarios to Docker hosts
-- Configuring network interfaces for traffic injection
-- Understanding deployment modes (timed vs perpetual)
-- Troubleshooting deployment issues
-- Container management and logs
-- PCAP file generation and download
-""",
-    "general": """You are a helpful technical assistant for PacketArch, an OT Traffic Simulation Platform.
-
-PacketArch helps security teams generate realistic OT (Operational Technology) network traffic for:
-- Security testing and validation
-- Network monitoring tool testing
-- Training and demonstration
-- Research and development
-
-You can help with questions about:
-- Creating and managing scenarios
-- Device configuration and protocols (Modbus, EtherNet/IP, PROFINET)
-- Traffic generation and deployment
-- Docker host setup
-- System administration
-""",
-}
-
-
-@router.post("/help", response_model=HelpChatResponse)
-async def help_chat(
-    request: HelpChatRequest,
-    current_user: CurrentUser,
-    db: DBSession,
-) -> HelpChatResponse:
-    """Answer help questions using AI without scenario context.
-
-    This endpoint provides AI-powered help for topics like Docker host setup,
-    deployment troubleshooting, and general PacketArch usage.
-
-    Args:
-        request: Help question and context
-        current_user: Authenticated user
-        db: Database session
-
-    Returns:
-        AI-generated response to the help question
-    """
-    # Get context-specific system prompt
-    system_prompt = HELP_CONTEXTS.get(request.context, HELP_CONTEXTS["general"])
-
-    # Build the prompt - prepend system context to user message
-    combined_message = f"""You are a helpful technical assistant. Here is your context and expertise:
-
-{system_prompt}
-
----
-
-User question: {request.question}
-
-Please provide a helpful, clear answer to the user's question."""
-
-    messages = [
-        {"role": "user", "content": combined_message},
-    ]
-
-    try:
-        provider = await _get_ai_provider(db)
-
-        response = await provider.chat(
-            messages=messages,
-            max_tokens=2000,
-        )
-
-        # Extract text from response
-        response_text = ""
-        if isinstance(response, dict):
-            content = response.get("content", [])
-            if isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        response_text = block.get("text", "").strip()
-                        break
-            elif isinstance(content, str):
-                response_text = content.strip()
-        else:
-            response_text = str(response).strip()
-
-        if not response_text:
-            response_text = "I apologize, but I couldn't generate a response. Please try rephrasing your question."
-
-        return HelpChatResponse(response=response_text)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Help chat error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process help request. Please ensure AI provider is configured.",
-        )
+# Include help router from separate module
+from app.api.routes.ai_help import router as help_router
+router.include_router(help_router)

@@ -1,5 +1,5 @@
 /**
- * Deployment Panel - Deploy scenarios to remote Docker hosts
+ * Deployment Panel - Deploy scenarios to remote Docker hosts or traffic agents
  */
 
 import React, { useEffect, useState } from 'react';
@@ -19,6 +19,8 @@ import {
   Spin,
   Empty,
   Modal,
+  Radio,
+  message,
 } from 'antd';
 import {
   CloudServerOutlined,
@@ -33,11 +35,16 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   WarningOutlined,
+  RocketOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useDockerHostsStore } from '../../stores/dockerHostsStore';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
+import { useAgentsStore } from '../../stores/agentsStore';
 import { scenariosApi, type ScenarioValidationResponse } from '../../api/scenarios';
-import type { Deployment, DeploymentRequest, NetworkInterface, RunMode } from '../../types/docker';
+import type { UnifiedDeployment, DeploymentRequest, NetworkInterface, RunMode } from '../../types/docker';
+import type { AgentInterface } from '../../types/agent';
+import { formatElapsedTime } from '../../utils/dateUtils';
 
 const { Text, Title } = Typography;
 
@@ -81,14 +88,19 @@ const statusConfig: Record<
   },
 };
 
+type TargetType = 'docker' | 'agent';
+
 const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
   const [form] = Form.useForm();
+  const [targetType, setTargetType] = useState<TargetType>('agent');
   const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
+  const [agentInterfaces, setAgentInterfaces] = useState<AgentInterface[]>([]);
   const [loadingInterfaces, setLoadingInterfaces] = useState(false);
   const [logsModalVisible, setLogsModalVisible] = useState(false);
   const [validationModalVisible, setValidationModalVisible] = useState(false);
   const [validationResult, setValidationResult] = useState<ScenarioValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   const [pendingDeployData, setPendingDeployData] = useState<DeploymentRequest | null>(null);
 
   const {
@@ -97,6 +109,14 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
     fetchInterfaces,
     isLoading: hostsLoading,
   } = useDockerHostsStore();
+
+  const {
+    agents,
+    fetchAgents,
+    fetchInterfaces: fetchAgentInterfaces,
+    deployScenario: deployToAgent,
+    isLoading: agentsLoading,
+  } = useAgentsStore();
 
   const {
     deployments,
@@ -114,21 +134,47 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
     stopPolling,
   } = useDeploymentsStore();
 
-  // Fetch hosts and deployments on mount
+  // Filter deployments for current scenario
+  const scenarioDeployments = deployments.filter(
+    (d) => d.scenario_id === scenarioId
+  );
+
+  // Fetch hosts, agents, and deployments on mount
   useEffect(() => {
     fetchHosts();
+    fetchAgents();
     if (scenarioId) {
       fetchDeployments({ scenario_id: scenarioId });
     }
     return () => {
       stopPolling();
     };
-  }, [fetchHosts, fetchDeployments, scenarioId, stopPolling]);
+  }, [fetchHosts, fetchAgents, fetchDeployments, scenarioId, stopPolling]);
 
-  // Filter deployments for current scenario
-  const scenarioDeployments = deployments.filter(
-    (d) => d.scenario_id === scenarioId
-  );
+  // Poll for deployment status updates when there are active deployments
+  useEffect(() => {
+    const hasActiveDeployments = scenarioDeployments.some(
+      (d) => ['running', 'starting', 'stopping'].includes(d.status)
+    );
+
+    if (!hasActiveDeployments || !scenarioId) return;
+
+    const pollInterval = setInterval(() => {
+      fetchDeployments({ scenario_id: scenarioId });
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [scenarioDeployments, scenarioId, fetchDeployments]);
+
+  // Handle target type change
+  const handleTargetTypeChange = (type: TargetType) => {
+    setTargetType(type);
+    setInterfaces([]);
+    setAgentInterfaces([]);
+    form.setFieldValue('docker_host_id', undefined);
+    form.setFieldValue('agent_id', undefined);
+    form.setFieldValue('network_interface', undefined);
+  };
 
   // Handle host selection - load interfaces
   const handleHostChange = async (hostId: string) => {
@@ -151,6 +197,32 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
       }
     } catch (err) {
       // Error already handled in store
+    } finally {
+      setLoadingInterfaces(false);
+    }
+  };
+
+  // Handle agent selection - load interfaces
+  const handleAgentChange = async (agentId: string) => {
+    setLoadingInterfaces(true);
+    setAgentInterfaces([]);
+    form.setFieldValue('network_interface', undefined);
+
+    try {
+      const result = await fetchAgentInterfaces(agentId);
+      setAgentInterfaces(result);
+      // Set default if agent has a default interface
+      const agent = agents.find((a) => a.id === agentId);
+      if (agent?.default_interface) {
+        const hasDefault = result.some(
+          (i) => i.name === agent.default_interface
+        );
+        if (hasDefault) {
+          form.setFieldValue('network_interface', agent.default_interface);
+        }
+      }
+    } catch (err) {
+      // Error already handled in store - agent might be offline
     } finally {
       setLoadingInterfaces(false);
     }
@@ -186,39 +258,76 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
 
   // Handle deploy - validate first
   const handleDeploy = async (values: {
-    docker_host_id: string;
+    docker_host_id?: string;
+    agent_id?: string;
     network_interface: string;
     run_mode: RunMode;
     duration_minutes?: number;
   }) => {
     if (!scenarioId) return;
 
-    const data: DeploymentRequest = {
-      scenario_id: scenarioId,
-      docker_host_id: values.docker_host_id,
-      network_interface: values.network_interface,
-      run_mode: values.run_mode,
-      duration_ms: values.run_mode === 'perpetual' ? undefined : (values.duration_minutes ?? 5) * 60 * 1000,
-    };
-
     // Validate scenario first
     const validation = await validateScenario();
 
-    if (!validation) {
-      // Validation request failed, proceed anyway
-      await executeDeployment(data);
-      return;
-    }
+    if (targetType === 'agent') {
+      // Deploy to traffic agent
+      if (!values.agent_id) return;
 
-    // Check if there are any issues
-    if (validation.warnings.length > 0) {
-      // Store pending deploy data and show validation modal
-      setPendingDeployData(data);
-      setValidationResult(validation);
-      setValidationModalVisible(true);
+      const agentDeployData = {
+        scenario_id: scenarioId,
+        agent_id: values.agent_id,
+        interface: values.network_interface,
+      };
+
+      if (!validation || validation.warnings.length === 0) {
+        // No issues, deploy directly
+        try {
+          await deployToAgent(values.agent_id, {
+            scenario_id: scenarioId,
+            interface: values.network_interface,
+          });
+          message.success('Scenario deployed to agent successfully! Traffic generation started.');
+          form.resetFields(['agent_id', 'network_interface']);
+          setAgentInterfaces([]);
+          // Refresh deployments list to show the new agent deployment
+          await fetchDeployments({ scenario_id: scenarioId });
+        } catch (err: any) {
+          message.error(err?.message || 'Failed to deploy scenario to agent');
+        }
+      } else {
+        // Show validation modal - store pending data for agent deploy
+        setPendingDeployData({ ...agentDeployData, docker_host_id: '', run_mode: 'perpetual' } as any);
+        setValidationResult(validation);
+        setValidationModalVisible(true);
+      }
     } else {
-      // No issues, deploy directly
-      await executeDeployment(data);
+      // Deploy to Docker host (legacy)
+      if (!values.docker_host_id) return;
+
+      const data: DeploymentRequest = {
+        scenario_id: scenarioId,
+        docker_host_id: values.docker_host_id,
+        network_interface: values.network_interface,
+        run_mode: values.run_mode,
+        duration_ms: values.run_mode === 'perpetual' ? undefined : (values.duration_minutes ?? 5) * 60 * 1000,
+      };
+
+      if (!validation) {
+        // Validation request failed, proceed anyway
+        await executeDeployment(data);
+        return;
+      }
+
+      // Check if there are any issues
+      if (validation.warnings.length > 0) {
+        // Store pending deploy data and show validation modal
+        setPendingDeployData(data);
+        setValidationResult(validation);
+        setValidationModalVisible(true);
+      } else {
+        // No issues, deploy directly
+        await executeDeployment(data);
+      }
     }
   };
 
@@ -230,12 +339,57 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
     }
   };
 
-  // Handle stop
-  const handleStop = async (deploymentId: string) => {
+  // Handle repair protocols - fixes protocol_identity_mismatch errors
+  const handleRepairProtocols = async () => {
+    if (!scenarioId) return;
+
+    setRepairing(true);
     try {
-      await stopDeployment(deploymentId);
-    } catch {
-      // Error handled in store
+      const result = await scenariosApi.repairProtocols(scenarioId);
+      message.success(result.message);
+
+      // Re-validate after repair
+      setValidating(true);
+      const validation = await scenariosApi.validate(scenarioId);
+      setValidationResult(validation);
+
+      // If no more warnings, close modal
+      if (validation.warnings.length === 0) {
+        setValidationModalVisible(false);
+        message.success('All issues fixed! You can now deploy.');
+      }
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.detail || error?.message || 'Failed to repair protocols';
+      message.error(errorMsg);
+    } finally {
+      setRepairing(false);
+      setValidating(false);
+    }
+  };
+
+  // Check if there are protocol_identity_mismatch warnings
+  const hasProtocolMismatchWarnings = validationResult?.warnings.some(
+    (w) => w.code === 'protocol_identity_mismatch'
+  );
+
+  // Handle stop - routes to correct API based on deployment type
+  const handleStop = async (deployment: UnifiedDeployment) => {
+    try {
+      if (deployment.deployment_type === 'agent' && deployment.agent_id) {
+        // Agent deployment - use agents API
+        const { stopDeployment: stopAgentDeployment } = useAgentsStore.getState();
+        await stopAgentDeployment(deployment.agent_id, deployment.scenario_id);
+        message.success('Stop command sent to agent');
+        // Refresh deployments list
+        await fetchDeployments({ scenario_id: scenarioId! });
+      } else {
+        // Docker deployment - use deployments API
+        await stopDeployment(deployment.id);
+        message.success('Deployment stopped');
+      }
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.detail || error?.message || 'Failed to stop deployment';
+      message.error(errorMsg);
     }
   };
 
@@ -249,7 +403,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
   };
 
   // Handle view logs
-  const handleViewLogs = async (deployment: Deployment) => {
+  const handleViewLogs = async (deployment: UnifiedDeployment) => {
     setActiveDeployment(deployment);
     setLogsModalVisible(true);
     try {
@@ -286,6 +440,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
   }
 
   const activeHosts = hosts.filter((h) => h.is_active);
+  const onlineAgents = agents.filter((a) => a.status === 'online' && a.is_active);
+  const hasTargets = onlineAgents.length > 0 || activeHosts.length > 0;
 
   return (
     <div
@@ -320,10 +476,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
         style={{ background: '#1a2734' }}
         styles={{ body: { padding: '12px' } }}
       >
-        {activeHosts.length === 0 ? (
+        {!hasTargets ? (
           <Alert
-            message="No Docker hosts available"
-            description="Configure Docker hosts in Settings > Docker Hosts"
+            message="No deployment targets available"
+            description="Configure traffic agents in Settings > Traffic Agents, or Docker hosts in Settings > Docker Hosts"
             type="warning"
             showIcon
           />
@@ -335,22 +491,92 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
             initialValues={{ duration_minutes: 5, run_mode: 'timed' }}
             size="small"
           >
-            <Form.Item
-              name="docker_host_id"
-              label="Docker Host"
-              rules={[{ required: true, message: 'Select a host' }]}
-            >
-              <Select
-                placeholder="Select host"
-                loading={hostsLoading}
-                onChange={handleHostChange}
-                options={activeHosts.map((h) => ({
-                  value: h.id,
-                  label: h.name,
-                }))}
-              />
+            {/* Target Type Selector */}
+            <Form.Item label="Deploy To" style={{ marginBottom: 12 }}>
+              <Radio.Group
+                value={targetType}
+                onChange={(e) => handleTargetTypeChange(e.target.value)}
+                size="small"
+                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+              >
+                <Radio value="agent" disabled={onlineAgents.length === 0}>
+                  <Space size={4}>
+                    <RocketOutlined />
+                    <span>Traffic Agent</span>
+                    {onlineAgents.length > 0 ? (
+                      <Tag color="green" style={{ fontSize: 10, marginLeft: 4 }}>
+                        {onlineAgents.length} online
+                      </Tag>
+                    ) : (
+                      <Tag color="default" style={{ fontSize: 10, marginLeft: 4 }}>
+                        none online
+                      </Tag>
+                    )}
+                  </Space>
+                </Radio>
+                <Radio value="docker" disabled={activeHosts.length === 0}>
+                  <Space size={4}>
+                    <CloudServerOutlined />
+                    <span>Docker Host (Legacy)</span>
+                    {activeHosts.length === 0 && (
+                      <Tag color="default" style={{ fontSize: 10, marginLeft: 4 }}>
+                        none configured
+                      </Tag>
+                    )}
+                  </Space>
+                </Radio>
+              </Radio.Group>
             </Form.Item>
 
+            {/* Agent Selection (when targetType === 'agent') */}
+            {targetType === 'agent' && (
+              <Form.Item
+                name="agent_id"
+                label="Traffic Agent"
+                rules={[{ required: true, message: 'Select an agent' }]}
+              >
+                <Select
+                  placeholder="Select agent"
+                  loading={agentsLoading}
+                  onChange={handleAgentChange}
+                  options={onlineAgents.map((a) => ({
+                    value: a.id,
+                    label: (
+                      <Space>
+                        <span>{a.name}</span>
+                        <Tag color="green" style={{ fontSize: 10 }}>Online</Tag>
+                        {a.hostname && (
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            ({a.hostname})
+                          </Text>
+                        )}
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+            )}
+
+            {/* Docker Host Selection (when targetType === 'docker') */}
+            {targetType === 'docker' && (
+              <Form.Item
+                name="docker_host_id"
+                label="Docker Host"
+                rules={[{ required: true, message: 'Select a host' }]}
+              >
+                <Select
+                  placeholder="Select host"
+                  loading={hostsLoading}
+                  onChange={handleHostChange}
+                  options={activeHosts.map((h) => ({
+                    value: h.id,
+                    label: h.name,
+                  }))}
+                />
+              </Form.Item>
+            )}
+
+            {/* Network Interface */}
             <Form.Item
               name="network_interface"
               label="Network Interface"
@@ -361,52 +587,73 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
                   loadingInterfaces ? 'Loading interfaces...' : 'Select interface'
                 }
                 loading={loadingInterfaces}
-                disabled={interfaces.length === 0}
-                options={interfaces.map((i) => ({
-                  value: i.name,
-                  label: (
-                    <Space>
-                      <span>{i.name}</span>
-                      {i.is_up ? (
-                        <Tag color="green" style={{ fontSize: 10 }}>
-                          UP
-                        </Tag>
-                      ) : (
-                        <Tag color="default" style={{ fontSize: 10 }}>
-                          DOWN
-                        </Tag>
-                      )}
-                    </Space>
-                  ),
-                }))}
+                disabled={targetType === 'agent' ? agentInterfaces.length === 0 : interfaces.length === 0}
+                options={
+                  targetType === 'agent'
+                    ? agentInterfaces.map((i) => ({
+                        value: i.name,
+                        label: (
+                          <Space>
+                            <span>{i.name}</span>
+                            {i.mac && (
+                              <Text type="secondary" style={{ fontSize: 10 }}>
+                                {i.mac}
+                              </Text>
+                            )}
+                          </Space>
+                        ),
+                      }))
+                    : interfaces.map((i) => ({
+                        value: i.name,
+                        label: (
+                          <Space>
+                            <span>{i.name}</span>
+                            {i.is_up ? (
+                              <Tag color="green" style={{ fontSize: 10 }}>
+                                UP
+                              </Tag>
+                            ) : (
+                              <Tag color="default" style={{ fontSize: 10 }}>
+                                DOWN
+                              </Tag>
+                            )}
+                          </Space>
+                        ),
+                      }))
+                }
               />
             </Form.Item>
 
-            <Form.Item
-              name="run_mode"
-              label="Run Mode"
-            >
-              <Select
-                options={[
-                  { value: 'timed', label: 'Timed (stops after duration)' },
-                  { value: 'perpetual', label: 'Perpetual (runs until stopped)' },
-                ]}
-              />
-            </Form.Item>
+            {/* Run Mode - only for Docker hosts */}
+            {targetType === 'docker' && (
+              <>
+                <Form.Item
+                  name="run_mode"
+                  label="Run Mode"
+                >
+                  <Select
+                    options={[
+                      { value: 'timed', label: 'Timed (stops after duration)' },
+                      { value: 'perpetual', label: 'Perpetual (runs until stopped)' },
+                    ]}
+                  />
+                </Form.Item>
 
-            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.run_mode !== curr.run_mode}>
-              {({ getFieldValue }) =>
-                getFieldValue('run_mode') !== 'perpetual' && (
-                  <Form.Item
-                    name="duration_minutes"
-                    label="Duration (minutes)"
-                    rules={[{ required: true }]}
-                  >
-                    <InputNumber min={1} max={1440} style={{ width: '100%' }} />
-                  </Form.Item>
-                )
-              }
-            </Form.Item>
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.run_mode !== curr.run_mode}>
+                  {({ getFieldValue }) =>
+                    getFieldValue('run_mode') !== 'perpetual' && (
+                      <Form.Item
+                        name="duration_minutes"
+                        label="Duration (minutes)"
+                        rules={[{ required: true }]}
+                      >
+                        <InputNumber min={1} max={1440} style={{ width: '100%' }} />
+                      </Form.Item>
+                    )
+                  }
+                </Form.Item>
+              </>
+            )}
 
             <Form.Item style={{ marginBottom: 0 }}>
               <Button
@@ -520,6 +767,15 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
             >
               Cancel
             </Button>
+            {hasProtocolMismatchWarnings && (
+              <Button
+                icon={<ToolOutlined />}
+                onClick={handleRepairProtocols}
+                loading={repairing}
+              >
+                Repair Protocols
+              </Button>
+            )}
             {validationResult?.is_valid && (
               <Button
                 type="primary"
@@ -620,31 +876,20 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({ scenarioId }) => {
   );
 };
 
-// Helper function to format elapsed time
-const formatElapsedTime = (startedAt: string | null): string => {
-  if (!startedAt) return '0s';
-  const elapsed = Date.now() - new Date(startedAt).getTime();
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
-
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-};
-
 // Deployment Card Component
 const DeploymentCard: React.FC<{
-  deployment: Deployment;
-  onStop: (id: string) => void;
+  deployment: UnifiedDeployment;
+  onStop: (deployment: UnifiedDeployment) => void;
   onRemove: (id: string) => void;
-  onViewLogs: (deployment: Deployment) => void;
+  onViewLogs: (deployment: UnifiedDeployment) => void;
 }> = ({ deployment, onStop, onRemove, onViewLogs }) => {
   const config = statusConfig[deployment.status] || statusConfig.pending;
   const isRunning = ['running', 'starting', 'stopping'].includes(deployment.status);
   const isPerpetual = (deployment.run_mode ?? 'timed') === 'perpetual';
+  const isAgent = deployment.deployment_type === 'agent';
+  const targetName = isAgent ? deployment.agent_name : deployment.docker_host_name;
 
-  // Calculate progress if we have start time and duration (only for timed mode)
+  // Calculate progress if we have start time and duration (only for timed mode Docker deployments)
   let progress = 0;
   if (deployment.started_at && deployment.status === 'running' && !isPerpetual && deployment.duration_ms) {
     const startTime = new Date(deployment.started_at).getTime();
@@ -662,25 +907,41 @@ const DeploymentCard: React.FC<{
       styles={{ body: { padding: '8px 12px' } }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <Space>
-            <Tag color={config.color} icon={config.icon}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Target name on top */}
+          <div style={{ marginBottom: 4 }}>
+            <Text strong style={{ color: '#e6f1ff', fontSize: 13 }}>
+              {targetName || 'Unknown'}
+            </Text>
+          </div>
+
+          {/* Status tags */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            <Tag color={config.color} icon={config.icon} style={{ margin: 0 }}>
               {config.label}
             </Tag>
+            {isAgent && (
+              <Tag color="blue" icon={<RocketOutlined />} style={{ margin: 0 }}>
+                Agent
+              </Tag>
+            )}
             {isPerpetual && (
-              <Tag color="purple">
+              <Tag color="purple" style={{ margin: 0 }}>
                 Perpetual
               </Tag>
             )}
-            <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
-              {deployment.docker_host_name}
-            </Text>
-          </Space>
+          </div>
 
+          {/* Interface and packets */}
           <div style={{ marginTop: 4 }}>
             <Text style={{ color: '#6a8caf', fontSize: 11 }}>
               Interface: <Text code style={{ fontSize: 10 }}>{deployment.network_interface}</Text>
             </Text>
+            {deployment.packets_injected > 0 && (
+              <Text style={{ color: '#6a8caf', fontSize: 11, marginLeft: 12 }}>
+                Packets: {deployment.packets_injected.toLocaleString()}
+              </Text>
+            )}
           </div>
 
           {deployment.error_message && (
@@ -692,7 +953,7 @@ const DeploymentCard: React.FC<{
           )}
 
           {deployment.status === 'running' && (
-            isPerpetual ? (
+            isPerpetual || isAgent ? (
               <div style={{ marginTop: 8 }}>
                 <Text style={{ color: '#6a8caf', fontSize: 11 }}>
                   Running for {formatElapsedTime(deployment.started_at)}
@@ -709,16 +970,17 @@ const DeploymentCard: React.FC<{
           )}
         </div>
 
-        <Space size="small">
-          <Tooltip title="View Logs">
-            <Button
-              type="text"
-              size="small"
-              icon={<FileTextOutlined />}
-              onClick={() => onViewLogs(deployment)}
-              disabled={!deployment.container_id}
-            />
-          </Tooltip>
+        <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
+          {!isAgent && deployment.container_id && (
+            <Tooltip title="View Logs">
+              <Button
+                type="text"
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => onViewLogs(deployment)}
+              />
+            </Tooltip>
+          )}
 
           {isRunning ? (
             <Tooltip title="Stop">
@@ -727,7 +989,7 @@ const DeploymentCard: React.FC<{
                 size="small"
                 danger
                 icon={<StopOutlined />}
-                onClick={() => onStop(deployment.id)}
+                onClick={() => onStop(deployment)}
               />
             </Tooltip>
           ) : (
@@ -740,7 +1002,7 @@ const DeploymentCard: React.FC<{
               />
             </Tooltip>
           )}
-        </Space>
+        </div>
       </div>
     </Card>
   );

@@ -508,9 +508,10 @@ class S7Engine(ProtocolEngine):
         # This includes vulnerability overrides if set
         applicator = flow.destination.fingerprint_applicator
 
-        # Build SZL data using the fingerprint applicator
+        # Build SZL data using the identity builder system
         # This will include vulnerable firmware versions from CVE overrides
-        szl_data = applicator.build_s7_szl_response(szl_id)
+        response = applicator.get_identity_response("s7", szl_id=szl_id)
+        szl_data = response.raw_bytes
 
         szl_response_payload = build_s7_szl_response(
             pdu_ref=pdu_ref,
@@ -538,8 +539,8 @@ class S7Engine(ProtocolEngine):
                 "szl_id": szl_id,
                 "pdu_ref": pdu_ref,
                 "has_vulnerability_override": applicator._vulnerability_override is not None,
-                "firmware_version": applicator.get_s7_firmware_version(),
-                "order_code": applicator.get_s7_order_code(),
+                "firmware_version": applicator.s7_identity.get("firmware_version", ""),
+                "order_code": applicator.s7_identity.get("order_code", ""),
             },
         )
 

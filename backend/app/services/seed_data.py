@@ -4,9 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.device_profile import DeviceProfile
+from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.protocol_template import ProtocolTemplate
-from app.models.vendor_fingerprint import VendorFingerprint
-from app.services.vendor_fingerprints import get_all_vendor_fingerprints
+from app.services.device_templates import DEVICE_TEMPLATES
 from app.services.device_profiles import get_all_vendor_profiles
 
 # Built-in device profiles for OT/ICS environments
@@ -249,7 +249,7 @@ DEVICE_PROFILES = [
             "unsolicited_responses": True,
         },
         "vendor_fingerprint": {
-            "oui_prefix": "00:60:35",
+            "oui_prefix": "00:40:84",  # Honeywell (verified IEEE)
             "vendor_family": "RTU Controller A",
         },
         "vertical_hints": ["water", "oil_gas", "power"],
@@ -1025,54 +1025,88 @@ async def seed_protocol_templates(db: AsyncSession) -> int:
     return created
 
 
-async def seed_vendor_fingerprints(db: AsyncSession) -> int:
-    """Seed built-in vendor fingerprints for hyper-realistic device emulation.
+async def seed_device_templates_db(db: AsyncSession) -> int:
+    """Seed built-in device templates to the DeviceTemplate DB table.
 
-    This seeds fingerprints for major OT vendors including:
-    - Rockwell Automation (ControlLogix, CompactLogix, PanelView)
-    - Siemens (S7-1500, S7-1200, HMI)
-    - Schneider Electric (M580, M241, Altivar)
-    - ABB (AC500)
-    - Honeywell (ControlEdge)
-    - Emerson (DeltaV, ROC)
-    - GE (PACSystems, Mark VIe)
+    This is the NEW authoritative source for vendor fingerprints.
+    Seeds from the Python dataclass library (device_templates.py) into the
+    DeviceTemplate DB table with source=VENDOR_BUILTIN.
+
+    The DeviceTemplate table consolidates:
+    - VendorFingerprint (legacy, built-in fingerprints)
+    - LearnedDeviceFingerprint (PCAP-learned fingerprints)
+    - User-created fingerprints
+
+    Returns:
+        Number of templates created
     """
-    created = 0
+    from app.services.device_templates import get_fingerprint_from_template
 
-    for fp_data in get_all_vendor_fingerprints():
-        # Check if fingerprint already exists by vendor and model
-        result = await db.execute(
-            select(VendorFingerprint).where(
-                VendorFingerprint.vendor == fp_data["vendor"],
-                VendorFingerprint.model == fp_data.get("model"),
-                VendorFingerprint.is_builtin == True,
-            )
+    # Pre-load all existing builtin (vendor, model) combos in a single query
+    result = await db.execute(
+        select(DeviceTemplate.vendor, DeviceTemplate.model).where(
+            DeviceTemplate.source == TemplateSource.VENDOR_BUILTIN.value,
         )
-        existing = result.scalar_one_or_none()
+    )
+    existing_combos = {
+        (row[0].lower(), row[1]) for row in result.all()
+    }
 
-        if existing is None:
-            fingerprint = VendorFingerprint(
-                vendor=fp_data["vendor"],
-                vendor_family=fp_data.get("vendor_family"),
-                model=fp_data.get("model"),
-                firmware_version=fp_data.get("firmware_version"),
-                oui_prefixes=fp_data.get("oui_prefixes", []),
-                modbus_identity=fp_data.get("modbus_identity"),
-                ethernet_ip_identity=fp_data.get("ethernet_ip_identity"),
-                profinet_identity=fp_data.get("profinet_identity"),
-                tcp_stack=fp_data.get("tcp_stack", {}),
-                response_timing=fp_data.get("response_timing", {}),
-                error_behavior=fp_data.get("error_behavior"),
-                protocol_quirks=fp_data.get("protocol_quirks"),
-                is_builtin=fp_data.get("is_builtin", True),
-            )
-            db.add(fingerprint)
-            created += 1
+    # Track combos from the Python library to avoid duplicates
+    # (some templates share vendor/model with different IDs)
+    seen_combos = set()
+    new_templates = []
 
-    if created > 0:
+    for template_id, template in DEVICE_TEMPLATES.items():
+        combo_key = (template.vendor.lower(), template.model)
+
+        # Skip duplicates within the library and already-seeded entries
+        if combo_key in seen_combos or combo_key in existing_combos:
+            continue
+        seen_combos.add(combo_key)
+
+        fp_dict = get_fingerprint_from_template(template_id)
+        if not fp_dict:
+            continue
+
+        new_templates.append(DeviceTemplate(
+            source=TemplateSource.VENDOR_BUILTIN.value,
+            vendor=template.vendor,
+            vendor_family=template.vendor_family,
+            model=template.model,
+            firmware_version=fp_dict.get("firmware_version"),
+            device_type=template.device_type,
+            oui_patterns=template.oui_prefixes,
+            tcp_signature=template.tcp_stack,
+            # Legacy per-protocol identity columns (for backward compatibility)
+            modbus_identity=fp_dict.get("modbus_identity"),
+            ethernet_ip_identity=fp_dict.get("ethernet_ip_identity"),
+            profinet_identity=fp_dict.get("profinet_identity"),
+            s7_identity=fp_dict.get("s7_identity"),
+            snmp_identity=fp_dict.get("snmp_identity"),
+            bacnet_identity=fp_dict.get("bacnet_identity"),
+            opc_ua_identity=fp_dict.get("opc_ua_identity"),
+            # Response timing
+            response_timings={"default": template.response_timing} if template.response_timing else None,
+            # Behavioral patterns
+            active_protocols=template.supported_protocols,
+            protocol_quirks=template.protocol_quirks if template.protocol_quirks else None,
+            error_behavior=template.error_behavior if template.error_behavior else None,
+            # Quality metrics (builtin = high confidence)
+            confidence=1.0,
+            sample_count=1,
+            consistency_score=1.0,
+            # Metadata
+            name=f"{template.vendor} {template.model_name}",
+            description=template.description,
+            is_active=True,
+        ))
+
+    if new_templates:
+        db.add_all(new_templates)
         await db.commit()
 
-    return created
+    return len(new_templates)
 
 
 async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
@@ -1084,61 +1118,53 @@ async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
     from app.models.cve_vulnerability import CVESeverity, CVEVulnerability
     from app.services.cve_data import ALL_CVES
 
-    created = 0
-    # Track CVE IDs already processed in this batch to avoid duplicates
-    processed_cve_ids: set[str] = set()
+    # Pre-load all existing CVE IDs in a single query
+    result = await db.execute(select(CVEVulnerability.cve_id))
+    existing_cve_ids = {row[0] for row in result.all()}
+
+    new_cves = []
+    seen_cve_ids: set[str] = set()
 
     for cve_data in ALL_CVES:
         cve_id = cve_data["cve_id"]
 
-        # Skip if we've already processed this CVE ID in this batch
-        if cve_id in processed_cve_ids:
+        # Skip duplicates within the batch and already-seeded entries
+        if cve_id in seen_cve_ids or cve_id in existing_cve_ids:
             continue
-        processed_cve_ids.add(cve_id)
+        seen_cve_ids.add(cve_id)
 
-        # Check if CVE already exists in database
-        result = await db.execute(
-            select(CVEVulnerability).where(
-                CVEVulnerability.cve_id == cve_id
-            )
-        )
-        existing = result.scalar_one_or_none()
+        severity_str = cve_data.get("severity", "medium").lower()
+        severity = CVESeverity(severity_str)
 
-        if existing is None:
-            # Map severity string to enum
-            severity_str = cve_data.get("severity", "medium").lower()
-            severity = CVESeverity(severity_str)
+        new_cves.append(CVEVulnerability(
+            cve_id=cve_data["cve_id"],
+            title=cve_data["title"],
+            description=cve_data.get("description"),
+            severity=severity,
+            cvss_score=cve_data.get("cvss_score"),
+            cvss_vector=cve_data.get("cvss_vector"),
+            vendor=cve_data["vendor"],
+            product_family=cve_data["product_family"],
+            affected_models=cve_data.get("affected_models"),
+            affected_firmware_min=cve_data.get("affected_firmware_min"),
+            affected_firmware_max=cve_data.get("affected_firmware_max", "unknown"),
+            fixed_firmware_version=cve_data.get("fixed_firmware_version"),
+            cyber_vision_detectable=cve_data.get("cyber_vision_detectable", True),
+            detection_method=cve_data.get("detection_method"),
+            advisory_url=cve_data.get("advisory_url"),
+            references=cve_data.get("references"),
+            mitre_techniques=cve_data.get("mitre_techniques"),
+            exploit_available=cve_data.get("exploit_available", False),
+            exploit_complexity=cve_data.get("exploit_complexity"),
+            published_date=cve_data.get("published_date"),
+            is_builtin=True,
+        ))
 
-            cve = CVEVulnerability(
-                cve_id=cve_data["cve_id"],
-                title=cve_data["title"],
-                description=cve_data.get("description"),
-                severity=severity,
-                cvss_score=cve_data.get("cvss_score"),
-                cvss_vector=cve_data.get("cvss_vector"),
-                vendor=cve_data["vendor"],
-                product_family=cve_data["product_family"],
-                affected_models=cve_data.get("affected_models"),
-                affected_firmware_min=cve_data.get("affected_firmware_min"),
-                affected_firmware_max=cve_data.get("affected_firmware_max", "unknown"),
-                fixed_firmware_version=cve_data.get("fixed_firmware_version"),
-                cyber_vision_detectable=cve_data.get("cyber_vision_detectable", True),
-                detection_method=cve_data.get("detection_method"),
-                advisory_url=cve_data.get("advisory_url"),
-                references=cve_data.get("references"),
-                mitre_techniques=cve_data.get("mitre_techniques"),
-                exploit_available=cve_data.get("exploit_available", False),
-                exploit_complexity=cve_data.get("exploit_complexity"),
-                published_date=cve_data.get("published_date"),
-                is_builtin=True,
-            )
-            db.add(cve)
-            created += 1
-
-    if created > 0:
+    if new_cves:
+        db.add_all(new_cves)
         await db.commit()
 
-    return created
+    return len(new_cves)
 
 
 async def seed_vulnerable_variants(db: AsyncSession) -> int:
@@ -1151,63 +1177,61 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
     from app.models.vulnerable_fingerprint import VulnerableFingerprintVariant
     from app.services.cve_data import ALL_CVES
 
-    created = 0
+    # Pre-load all CVE records (cve_id -> DB id) in a single query
+    result = await db.execute(
+        select(CVEVulnerability.cve_id, CVEVulnerability.id)
+    )
+    cve_id_to_db_id = {row[0]: row[1] for row in result.all()}
+
+    # Pre-load all existing variant keys (cve_id, display_name) in a single query
+    result = await db.execute(
+        select(
+            VulnerableFingerprintVariant.cve_vulnerability_id,
+            VulnerableFingerprintVariant.display_name,
+        )
+    )
+    existing_variants = {(row[0], row[1]) for row in result.all()}
+
+    new_variants = []
 
     for cve_data in ALL_CVES:
-        # Get the CVE record we just created
-        result = await db.execute(
-            select(CVEVulnerability).where(
-                CVEVulnerability.cve_id == cve_data["cve_id"]
-            )
-        )
-        cve_record = result.scalar_one_or_none()
-
-        if not cve_record:
+        cve_db_id = cve_id_to_db_id.get(cve_data["cve_id"])
+        if not cve_db_id:
             continue
 
-        # Create variants from CVE's vulnerable_variants list
         for variant_data in cve_data.get("vulnerable_variants", []):
-            # Check if variant already exists (by display_name to allow multiple models)
-            result = await db.execute(
-                select(VulnerableFingerprintVariant).where(
-                    VulnerableFingerprintVariant.cve_vulnerability_id == cve_record.id,
-                    VulnerableFingerprintVariant.display_name
-                    == variant_data["display_name"],
-                )
-            )
-            existing = result.scalar_one_or_none()
+            variant_key = (cve_db_id, variant_data["display_name"])
+            if variant_key in existing_variants:
+                continue
 
-            if existing is None:
-                variant = VulnerableFingerprintVariant(
-                    cve_vulnerability_id=cve_record.id,
-                    display_name=variant_data["display_name"],
-                    firmware_version=variant_data["firmware_version"],
-                    modbus_identity_override=variant_data.get("modbus_identity_override"),
-                    ethernet_ip_identity_override=variant_data.get(
-                        "ethernet_ip_identity_override"
-                    ),
-                    profinet_identity_override=variant_data.get(
-                        "profinet_identity_override"
-                    ),
-                    s7_identity_override=variant_data.get("s7_identity_override"),
-                    cip_identity_override=variant_data.get("cip_identity_override"),
-                    snmp_identity_override=variant_data.get("snmp_identity_override"),
-                    bacnet_identity_override=variant_data.get("bacnet_identity_override"),
-                    # SNMP sys_descr template for auto-derivation
-                    snmp_sys_descr_template=variant_data.get("snmp_sys_descr_template"),
-                    target_vendor=cve_data["vendor"],
-                    target_product_family=cve_data.get("product_family"),
-                    target_models=cve_data.get("affected_models"),
-                    is_builtin=True,
-                    is_active=True,
-                )
-                db.add(variant)
-                created += 1
+            new_variants.append(VulnerableFingerprintVariant(
+                cve_vulnerability_id=cve_db_id,
+                display_name=variant_data["display_name"],
+                firmware_version=variant_data["firmware_version"],
+                modbus_identity_override=variant_data.get("modbus_identity_override"),
+                ethernet_ip_identity_override=variant_data.get(
+                    "ethernet_ip_identity_override"
+                ),
+                profinet_identity_override=variant_data.get(
+                    "profinet_identity_override"
+                ),
+                s7_identity_override=variant_data.get("s7_identity_override"),
+                cip_identity_override=variant_data.get("cip_identity_override"),
+                snmp_identity_override=variant_data.get("snmp_identity_override"),
+                bacnet_identity_override=variant_data.get("bacnet_identity_override"),
+                snmp_sys_descr_template=variant_data.get("snmp_sys_descr_template"),
+                target_vendor=cve_data["vendor"],
+                target_product_family=cve_data.get("product_family"),
+                target_models=cve_data.get("affected_models"),
+                is_builtin=True,
+                is_active=True,
+            ))
 
-    if created > 0:
+    if new_variants:
+        db.add_all(new_variants)
         await db.commit()
 
-    return created
+    return len(new_variants)
 
 
 async def run_seed_data(db: AsyncSession) -> dict:
@@ -1220,8 +1244,9 @@ async def run_seed_data(db: AsyncSession) -> dict:
     templates_created = await seed_protocol_templates(db)
     results["protocol_templates"] = f"Seeded {templates_created} protocol templates"
 
-    fingerprints_created = await seed_vendor_fingerprints(db)
-    results["vendor_fingerprints"] = f"Seeded {fingerprints_created} vendor fingerprints"
+    # Seed DeviceTemplate DB table (NEW authoritative source)
+    device_templates_created = await seed_device_templates_db(db)
+    results["device_templates"] = f"Seeded {device_templates_created} device templates (new)"
 
     # Seed CVE vulnerabilities and vulnerable variants
     cve_count = await seed_cve_vulnerabilities(db)

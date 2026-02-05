@@ -8,6 +8,8 @@ import random
 from dataclasses import dataclass
 from typing import Any
 
+from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
+
 
 @dataclass
 class LearnedTimingConfig:
@@ -152,6 +154,8 @@ class LearnedPatternIntegrator:
     ) -> LearnedFunctionCodeConfig | None:
         """Extract function code distribution from learned pattern.
 
+        Uses standardized normalization to handle various input formats.
+
         Args:
             learned_pattern: Protocol pattern with function code data
 
@@ -165,20 +169,10 @@ class LearnedPatternIntegrator:
         if not function_codes:
             return None
 
-        # Build distribution from frequency data
-        distribution = {}
+        # Use standardized normalization
+        from app.ai_services.pattern_normalizers import extract_function_code_probabilities
 
-        # Handle frequency dict format: {fc: count, ...}
-        if isinstance(function_codes, dict):
-            frequency = function_codes.get("frequency", function_codes)
-            total = sum(frequency.values()) if isinstance(frequency, dict) else 1
-
-            for fc, count in (frequency if isinstance(frequency, dict) else {}).items():
-                try:
-                    fc_int = int(fc)
-                    distribution[fc_int] = count / total if total > 0 else 0
-                except (ValueError, TypeError):
-                    continue
+        distribution = extract_function_code_probabilities(function_codes)
 
         if not distribution:
             return None
@@ -337,12 +331,22 @@ class LearnedPatternIntegrator:
     ) -> dict:
         """Build vendor fingerprint using learned data.
 
+        Merges learned fingerprint data including:
+        - TCP stack signature (TTL, window size, MSS, options)
+        - Response timing distributions
+        - Vendor information
+        - Protocol-specific identities (firmware, model, serial, etc.)
+
+        The protocol_identities from PCAP learning are mapped to the identity
+        builder keys (e.g., modbus_identity, s7_identity) so they can be used
+        when generating protocol-level identification responses.
+
         Args:
             base_fingerprint: Base vendor fingerprint
             learned_fingerprint: Learned device fingerprint
 
         Returns:
-            Enhanced vendor fingerprint
+            Enhanced vendor fingerprint with learned data merged
         """
         fingerprint = dict(base_fingerprint)
 
@@ -369,5 +373,28 @@ class LearnedPatternIntegrator:
         vendor = learned_fingerprint.get("inferred_vendor")
         if vendor:
             fingerprint["vendor"] = vendor
+
+        # Merge protocol identities for identity builders
+        # This enables learned firmware/model/serial from PCAPs to flow
+        # into traffic generation for protocol-level identification responses
+        protocol_identities = learned_fingerprint.get("protocol_identities", {})
+        if protocol_identities:
+            for proto_name, identity_data in protocol_identities.items():
+                if not identity_data:
+                    continue
+
+                # Map protocol name to identity builder key
+                identity_key = PROTOCOL_TO_IDENTITY_KEY.get(
+                    proto_name.lower()
+                )
+
+                if identity_key:
+                    # Merge with existing identity data (learned data takes precedence)
+                    existing = fingerprint.get(identity_key, {})
+                    fingerprint[identity_key] = {
+                        **existing,
+                        **identity_data,
+                        "_source": "learned_pcap",  # Mark as learned for debugging
+                    }
 
         return fingerprint

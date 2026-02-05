@@ -19,6 +19,8 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
+
 from app.ai_services.scenario_generator import (
     GeneratedDevice,
     GeneratedFlow,
@@ -29,8 +31,8 @@ from app.ai_services.scenario_generator import (
 )
 from app.mcp_server.ai_providers import AIProviderFactory
 from app.protocol_engines.vendor_oui import generate_mac_address
-from app.services.vendor_fingerprint_data import (
-    get_all_vendor_fingerprints,
+from app.services.device_templates import (
+    get_all_fingerprints,
     get_fingerprint_by_vendor_model,
 )
 
@@ -45,6 +47,9 @@ class AIZoneDesign(BaseModel):
     id: str
     name: str
     description: str | None = None
+    subnet_offset: int | None = None  # 0-99 for third octet in /24 subnet
+    level: int | None = None          # Purdue model level (0-5)
+    vlan: int | None = None           # VLAN ID
 
 
 class AIDeviceDesign(BaseModel):
@@ -121,47 +126,19 @@ class AIScenarioDesigner:
     4. Fills gaps in AI responses with sensible defaults
     """
 
-    # Zone-based IP subnet mapping
-    ZONE_SUBNETS = {
-        # Manufacturing zones
-        "process_control": "10.10.1",
-        "safety": "10.10.2",
-        "enterprise": "10.10.100",
-        "production": "10.10.50",
-        "packaging": "10.10.60",
-        "quality_control": "10.10.70",
-        "utilities": "10.10.80",
-        # Water/Wastewater zones
-        "scada": "10.20.1",
-        "field": "10.20.10",
-        "corporate": "10.20.100",
-        # Energy zones
-        "substation": "10.30.1",
-        "control_center": "10.30.100",
-        # Oil & Gas zones
-        "wellhead": "10.40.1",
-        "pipeline": "10.40.10",
-        "refinery": "10.40.20",
-        "control_room": "10.40.100",
-        # Transportation zones
-        "tmc": "10.50.1",  # Traffic Management Center
-        "corridor": "10.50.10",  # Highway/Arterial Corridor
-        "tunnel": "10.50.20",  # Tunnel/Bridge Infrastructure
-        "toll_plaza": "10.50.30",  # Toll Collection Area
-        "intersection": "10.50.40",  # Urban Intersection Network
-        "freeway": "10.50.50",  # Freeway Management
-    }
-
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, range_index: int = 1):
         """Initialize the AI scenario designer.
 
         Args:
             db: Database session for loading AI provider config
+            range_index: The scenario's /16 IP range index (1-254)
         """
         self.db = db
-        self._rule_generator = ScenarioGenerator()
+        self.range_index = range_index
+        self._rule_generator = ScenarioGenerator(range_index=range_index)
         self._ip_counter = 10
         self._mac_counter = 1
+        self._zone_subnet_map: dict[str, int] = {}  # zone_id -> subnet_offset
 
     async def design_scenario(
         self,
@@ -219,6 +196,10 @@ class AIScenarioDesigner:
             device_counts=device_counts,
         )
 
+        # Use maximum tokens for all scenarios to prevent truncation
+        # Claude Opus 4.5 supports up to 16384 output tokens
+        max_tokens = 16384
+
         # Call Claude with timeout (2 minutes to allow for complex scenarios)
         try:
             response = await asyncio.wait_for(
@@ -226,35 +207,32 @@ class AIScenarioDesigner:
                     messages=[
                         {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}
                     ],
-                    max_tokens=8192,
+                    max_tokens=max_tokens,
                 ),
-                timeout=120.0,
+                timeout=180.0,  # Increase timeout for large scenarios
             )
         except asyncio.TimeoutError:
-            logger.warning("AI design timed out after 120 seconds")
-            return self._fallback_to_rules(
-                description=description,
-                name=name,
-                duration_ms=duration_ms,
-                vertical=vertical,
-                preferred_vendors=preferred_vendors,
-                preferred_protocols=preferred_protocols,
-                total_device_count=total_device_count,
-                device_counts=device_counts,
-                reason="AI timeout (>120s)",
+            logger.warning("AI design timed out after 180 seconds")
+            raise RuntimeError(
+                "AI scenario generation timed out. Try reducing the number of devices "
+                "or simplifying the scenario description."
             )
         except Exception as e:
             logger.error(f"AI API call failed: {e}")
-            return self._fallback_to_rules(
-                description=description,
-                name=name,
-                duration_ms=duration_ms,
-                vertical=vertical,
-                preferred_vendors=preferred_vendors,
-                preferred_protocols=preferred_protocols,
-                total_device_count=total_device_count,
-                device_counts=device_counts,
-                reason=f"AI error: {str(e)}",
+            raise RuntimeError(f"AI scenario generation failed: {e}") from e
+
+        # Check for truncation - stop_reason will be "max_tokens" if response was cut off
+        stop_reason = response.get("stop_reason")
+        if stop_reason == "max_tokens":
+            output_tokens = response.get("usage", {}).get("output_tokens", 0)
+            logger.error(
+                f"AI response was truncated (stop_reason=max_tokens, output_tokens={output_tokens}). "
+                f"Requested max_tokens={max_tokens}."
+            )
+            raise RuntimeError(
+                f"AI response was truncated after {output_tokens} tokens. "
+                f"Try reducing the number of devices (currently {total_device_count or 'unspecified'}) "
+                "or simplifying the scenario description."
             )
 
         # Parse AI response
@@ -262,17 +240,7 @@ class AIScenarioDesigner:
             ai_design = self._parse_ai_response(response)
         except Exception as e:
             logger.error(f"Failed to parse AI response: {e}")
-            return self._fallback_to_rules(
-                description=description,
-                name=name,
-                duration_ms=duration_ms,
-                vertical=vertical,
-                preferred_vendors=preferred_vendors,
-                preferred_protocols=preferred_protocols,
-                total_device_count=total_device_count,
-                device_counts=device_counts,
-                reason=f"AI response parse error: {str(e)}",
-            )
+            raise RuntimeError(f"AI returned invalid response: {e}") from e
 
         # Build scenario from AI design
         try:
@@ -292,38 +260,80 @@ class AIScenarioDesigner:
             )
         except Exception as e:
             logger.error(f"Failed to build scenario from AI design: {e}")
-            return self._fallback_to_rules(
-                description=description,
-                name=name,
-                duration_ms=duration_ms,
-                vertical=vertical,
-                preferred_vendors=preferred_vendors,
-                preferred_protocols=preferred_protocols,
-                total_device_count=total_device_count,
-                device_counts=device_counts,
-                reason=f"Scenario build error: {str(e)}",
-            )
+            raise RuntimeError(f"Failed to build scenario from AI design: {e}") from e
 
     def _get_system_prompt(self) -> str:
         """Get the system prompt for Claude."""
-        # Get available fingerprints
-        fingerprints = get_all_vendor_fingerprints()
-        fingerprint_summary = []
+        # Get available fingerprints with complete protocol identity data
+        fingerprints = get_all_fingerprints()
+
+        # Group fingerprints by vendor, showing model and supported protocols
+        vendor_fingerprints: dict[str, list[str]] = {}
         for fp in fingerprints:
             vendor = fp.get("vendor", "Unknown")
             model = fp.get("model", "Unknown")
             family = fp.get("vendor_family", "")
-            fingerprint_summary.append(f"- {vendor}: {model} ({family})")
+            supported_protocols = fp.get("supported_protocols", [])
 
-        fingerprint_list = "\n".join(fingerprint_summary[:20])  # Limit to avoid token overflow
+            # Determine actual protocols this fingerprint has identity data for
+            available_protocols = []
+            if fp.get("modbus_identity"):
+                available_protocols.append("modbus_tcp")
+            if fp.get("ethernet_ip_identity"):
+                available_protocols.append("ethernet_ip")
+            if fp.get("profinet_identity"):
+                available_protocols.append("profinet")
+            if fp.get("s7_identity"):
+                available_protocols.append("s7comm")
+            if fp.get("snmp_identity"):
+                available_protocols.append("snmp")
+            if fp.get("bacnet_identity"):
+                available_protocols.append("bacnet")
+
+            # Skip fingerprints with no protocol identities
+            if not available_protocols:
+                continue
+
+            if vendor not in vendor_fingerprints:
+                vendor_fingerprints[vendor] = []
+
+            # Format: model (family) → protocols
+            protocols_str = ", ".join(available_protocols)
+            if family:
+                entry = f"{model} ({family}) → {protocols_str}"
+            else:
+                entry = f"{model} → {protocols_str}"
+            vendor_fingerprints[vendor].append(entry)
+
+        # Format as organized list with protocols shown
+        fingerprint_lines = []
+        for vendor in sorted(vendor_fingerprints.keys()):
+            models = vendor_fingerprints[vendor][:10]  # Limit to 10 models per vendor
+            if len(vendor_fingerprints[vendor]) > 10:
+                models.append("... (more available)")
+            fingerprint_lines.append(f"**{vendor}**:")
+            for m in models:
+                fingerprint_lines.append(f"  - {m}")
+
+        fingerprint_list = "\n".join(fingerprint_lines)
 
         return f"""You are an expert OT (Operational Technology) network architect designing realistic industrial control system scenarios for PacketArch, a traffic simulation platform used for security testing.
 
 ## Your Task
 Design a complete OT network scenario with devices, communication flows, and network zones based on the user's description. Generate REALISTIC, CONTEXTUAL names and configurations.
 
-## Available Vendor Fingerprints (use these for fingerprint_model field)
+## Available Vendor Fingerprints (MUST use for fingerprint_model field)
+Each model shows its supported protocols after the arrow (→). ONLY use protocols listed for that model.
+
 {fingerprint_list}
+
+## Protocol Selection Rules (CRITICAL)
+- fingerprint_model MUST be an EXACT model from the list above (e.g., "6ES7 517-3AP00-0AB0", "1756-L85E")
+- ONLY assign protocols that appear after the → for your chosen model
+- If you need ethernet_ip, select a Rockwell model (1756-L85E, 1769-L33ER, etc.)
+- If you need profinet/s7comm, select a Siemens model (6ES7 517-3AP00-0AB0, etc.)
+- modbus_tcp is supported by most models
+- Do NOT invent model names or use "Generic" - only use exact models from the list
 
 ## Industry Verticals
 - manufacturing: PLCs, HMIs, drives, robots, sensors (Rockwell, Siemens, Schneider)
@@ -332,20 +342,19 @@ Design a complete OT network scenario with devices, communication flows, and net
 - oil_gas: RTUs, PLCs, flow computers, compressor controllers (Emerson, Honeywell, ABB)
 - transportation: Traffic controllers, DMS, radars, cameras, RSUs, weather stations (Econolite, Siemens ITS, McCain, Wavetronix, Axis, FLIR)
 
-## Vendor-Protocol Matching
-- Rockwell/Allen-Bradley → ethernet_ip (EtherNet/IP)
-- Siemens → profinet or modbus_tcp
-- Schneider/Modicon → modbus_tcp
-- ABB → modbus_tcp or profinet
-- Honeywell → modbus_tcp
-- Emerson → modbus_tcp
-- GE → modbus_tcp or ethernet_ip
-- Transportation ITS vendors → snmp (NTCIP)
-  - Econolite, Siemens ITS, McCain → snmp (traffic controllers)
-  - Wavetronix, FLIR → snmp (detection sensors)
-  - Axis, Pelco, Hikvision → snmp (ITS cameras)
-  - Daktronics → snmp (DMS/message signs)
-  - Kapsch, Q-Free → snmp (tolling/RSU)
+## Vendor Selection Guidelines
+- Rockwell: Best for EtherNet/IP scenarios (Allen-Bradley PLCs, drives)
+- Siemens: Best for PROFINET/S7comm scenarios (S7-1500, S7-1200, SINAMICS)
+- Schneider: Best for Modbus TCP scenarios (Modicon M580, M340)
+- GE: Good for hybrid EtherNet/IP and Modbus scenarios (PACSystems)
+- Transportation ITS vendors: Use for SNMP/NTCIP traffic scenarios
+
+## Zone and IP Address Rules
+- Each zone MUST have a unique subnet_offset (0, 1, 2, etc.)
+- Zone subnet_offset determines the third octet: 10.X.{{subnet_offset}}.0/24
+- Assign Purdue model level to each zone: 0=Field, 1=Control, 2=Supervisory, 3=Operations
+- Device IPs are auto-assigned within their zone's /24 subnet
+- Do NOT hardcode specific IP addresses - they will be auto-assigned
 
 ## Output Format
 Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
@@ -354,14 +363,14 @@ Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
   "recommended_vendors": ["vendor1", "vendor2"],
   "recommended_protocols": ["protocol1", "protocol2"],
   "zones": [
-    {{"id": "zone_1", "name": "Descriptive_Zone_Name", "description": "Purpose of this zone"}}
+    {{"id": "zone_1", "name": "Descriptive_Zone_Name", "description": "Purpose of this zone", "subnet_offset": 0, "level": 2, "vlan": 100}}
   ],
   "devices": [
     {{
       "name": "Descriptive_Device_Name",
-      "device_type": "plc|hmi|rtu|drive|sensor|robot|ied|meter|pump_controller|flow_meter|level_sensor|flow_computer|traffic_controller|dms|rsu|radar_sensor|lidar_sensor|weather_station|camera|thermal_sensor|lighting_controller|ventilation_controller|toll_controller|anpr_camera",
-      "vendor": "rockwell|siemens|schneider|abb|honeywell|emerson|ge|econolite|siemens_its|mccain|wavetronix|flir|vaisala|daktronics|axis|pelco|hikvision|bosch|kapsch|q-free",
-      "fingerprint_model": "model from fingerprint list or null",
+      "device_type": "plc|hmi|rtu|drive|sensor|robot|ied|meter|pump_controller|flow_meter|level_sensor|flow_computer|traffic_controller|dms|rsu|radar_sensor|lidar_sensor|weather_station|camera|thermal_sensor|lighting_controller|ventilation_controller|toll_controller|anpr_camera|jump_server|remote_gateway|cloud_connector|ewon_gateway",
+      "vendor": "rockwell|siemens|schneider|abb|honeywell|emerson|ge|econolite|siemens_its|mccain|wavetronix|flir|vaisala|daktronics|axis|pelco|hikvision|bosch|kapsch|q-free|hms|microsoft|teamviewer",
+      "fingerprint_model": "REQUIRED: EXACT model from fingerprint list (e.g., '6ES7 517-3AP00-0AB0', '1756-L85E')",
       "zone_id": "zone_1",
       "role": "Brief description of device's role in the scenario",
       "protocols": ["modbus_tcp"]
@@ -470,6 +479,13 @@ Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
         constraints.append("Maximum devices: 100")
         constraints.append("Minimum devices: 5")
 
+        # For large scenarios, instruct AI to be concise to avoid token limits
+        if total_device_count and total_device_count > 20:
+            constraints.append(
+                "IMPORTANT: Keep descriptions SHORT (max 10 words) - "
+                "this is a large scenario"
+            )
+
         constraints_text = "\n- ".join(constraints)
 
         return f"""Design an OT network scenario for the following description:
@@ -481,6 +497,41 @@ Constraints:
 
 Generate the JSON response with realistic device names, appropriate vendors/protocols, meaningful zones, and contextual flow descriptions."""
 
+    def _repair_json(self, json_str: str) -> str:
+        """Attempt to repair common JSON issues from AI responses.
+
+        Fixes:
+        - Trailing commas in arrays and objects
+        - Missing commas between elements (common AI mistake)
+        - Control characters in strings
+        """
+        # Remove trailing commas before ] or }
+        json_str = re.sub(r',(\s*[\]}])', r'\1', json_str)
+
+        # Fix missing commas between array elements (e.g., "}" followed by "{" without comma)
+        # This handles: }{ -> },{
+        json_str = re.sub(r'\}(\s*)\{', r'},\1{', json_str)
+
+        # Fix missing commas between string values and objects
+        # e.g., "value" { -> "value", {
+        json_str = re.sub(r'\"(\s*)\{', r'",\1{', json_str)
+
+        # Fix missing commas between } and "
+        # e.g., } "key" -> }, "key"
+        json_str = re.sub(r'\}(\s*)\"', r'},\1"', json_str)
+
+        # Fix missing commas between ] and "
+        json_str = re.sub(r'\](\s*)\"', r'],\1"', json_str)
+
+        # Fix missing commas between ] and {
+        json_str = re.sub(r'\](\s*)\{', r'],\1{', json_str)
+
+        # Fix missing commas between numbers/booleans and "
+        json_str = re.sub(r'(\d)(\s*)\"', r'\1,\2"', json_str)
+        json_str = re.sub(r'(true|false|null)(\s*)\"', r'\1,\2"', json_str)
+
+        return json_str
+
     def _parse_ai_response(self, response: dict[str, Any]) -> AIScenarioDesign:
         """Parse and validate AI response."""
         # Extract text content from response
@@ -489,6 +540,8 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         for block in content:
             if block.get("type") == "text":
                 text += block.get("text", "")
+
+        logger.debug(f"Raw AI response length: {len(text)} chars")
 
         # Try to extract JSON from the response
         # Handle cases where AI might wrap JSON in markdown code blocks
@@ -499,21 +552,41 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
             # Try to find raw JSON
             json_str = text.strip()
 
-        # Parse JSON
-        try:
-            data = json.loads(json_str)
-        except json.JSONDecodeError as e:
-            # Try to find JSON object in the text
-            start = text.find('{')
-            end = text.rfind('}') + 1
-            if start >= 0 and end > start:
-                json_str = text[start:end]
-                data = json.loads(json_str)
-            else:
-                raise ValueError(f"No valid JSON found in response: {e}")
+        # Parse JSON with repair attempts
+        parse_attempts = [
+            ("direct", json_str),
+            ("repaired", self._repair_json(json_str)),
+        ]
 
-        # Validate with Pydantic
-        return AIScenarioDesign.model_validate(data)
+        # Also try extracting just the JSON object if wrapped in text
+        start = text.find('{')
+        end = text.rfind('}') + 1
+        if start >= 0 and end > start:
+            extracted = text[start:end]
+            parse_attempts.extend([
+                ("extracted", extracted),
+                ("extracted_repaired", self._repair_json(extracted)),
+            ])
+
+        last_error = None
+        for attempt_name, json_to_try in parse_attempts:
+            try:
+                data = json.loads(json_to_try)
+                if attempt_name != "direct":
+                    logger.info(f"JSON parsed successfully using '{attempt_name}' method")
+                return AIScenarioDesign.model_validate(data)
+            except json.JSONDecodeError as e:
+                last_error = e
+                logger.debug(f"JSON parse attempt '{attempt_name}' failed: {e}")
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Validation attempt '{attempt_name}' failed: {e}")
+
+        # All attempts failed - log context for debugging
+        logger.error(f"All JSON parse attempts failed. Last error: {last_error}")
+        logger.error(f"JSON string around error (chars 24000-25500): {json_str[24000:25500] if len(json_str) > 25500 else json_str[-1500:]}")
+
+        raise ValueError(f"Could not parse AI JSON response: {last_error}")
 
     def _build_scenario_from_ai_design(
         self,
@@ -527,28 +600,55 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         # Reset counters
         self._ip_counter = 10
         self._mac_counter = 1
+        self._zone_subnet_map = {}  # Reset zone subnet mapping
 
-        # Build zone mapping
-        zone_map = {}
+        # Build zone mapping with subnet_offset
+        zone_map = {}  # zone_id -> zone_name
+        zone_id_map = {}  # zone_name -> zone_id (for IP generation)
         zones = []
-        for zone in ai_design.zones:
+        for i, zone in enumerate(ai_design.zones):
             zone_map[zone.id] = zone.name
+            zone_id_map[zone.name] = zone.id
+            # Use AI-provided subnet_offset or assign sequentially
+            subnet_offset = zone.subnet_offset if zone.subnet_offset is not None else i
+            self._zone_subnet_map[zone.id] = subnet_offset
             zones.append({
+                "id": zone.id,
                 "name": zone.name,
                 "description": zone.description,
+                "subnet_offset": subnet_offset,
+                "level": zone.level,
+                "vlan": zone.vlan or (100 + i * 10),
+                "network": {
+                    "subnet": f"10.{self.range_index}.{subnet_offset}.0/24",
+                    "gateway": f"10.{self.range_index}.{subnet_offset}.1",
+                    "subnet_offset": subnet_offset,
+                },
                 "device_count": 0,
                 "device_ids": [],
             })
 
         # Default zone if none specified
         if not zones:
+            default_id = "default"
+            self._zone_subnet_map[default_id] = 0
             zones.append({
+                "id": default_id,
                 "name": "Process_Control",
                 "description": "Main process control zone",
+                "subnet_offset": 0,
+                "level": 2,
+                "vlan": 100,
+                "network": {
+                    "subnet": f"10.{self.range_index}.0.0/24",
+                    "gateway": f"10.{self.range_index}.0.1",
+                    "subnet_offset": 0,
+                },
                 "device_count": 0,
                 "device_ids": [],
             })
             zone_map["default"] = "Process_Control"
+            zone_id_map["Process_Control"] = default_id
 
         # Build devices
         devices = []
@@ -558,15 +658,81 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
             device_id = str(uuid.uuid4())
             device_name_to_id[ai_device.name] = device_id
 
-            # Get zone name
-            zone_name = zone_map.get(ai_device.zone_id, zones[0]["name"])
+            # Get zone info - use zone_id for IP generation, zone_name for display
+            device_zone_id = ai_device.zone_id or zones[0]["id"]
+            zone_name = zone_map.get(device_zone_id, zones[0]["name"])
 
             # Get fingerprint data if model specified
             fingerprint_data = None
+            # Track the actual fingerprint model to use
+            actual_fingerprint_model = ai_device.fingerprint_model
+
             if ai_device.fingerprint_model and ai_device.vendor:
                 fingerprint_data = get_fingerprint_by_vendor_model(
                     ai_device.vendor, ai_device.fingerprint_model
                 )
+
+                # If specific model not found, try to find a compatible fingerprint
+                # from the same vendor for the same device type
+                if not fingerprint_data:
+                    logger.info(
+                        f"Device '{ai_device.name}': Fingerprint '{ai_device.fingerprint_model}' "
+                        f"not found for {ai_device.vendor}, searching for compatible fingerprint..."
+                    )
+                    from app.services.fingerprint_cache import get_fingerprints_by_vendor
+                    vendor_fps = get_fingerprints_by_vendor(ai_device.vendor)
+
+                    # Try to find a fingerprint matching the device type
+                    device_type_lower = ai_device.device_type.lower()
+                    for fp in vendor_fps:
+                        fp_model = fp.get("model", "")
+                        fp_family = (fp.get("vendor_family") or "").lower()
+
+                        # Match HMIs to HMI fingerprints, PLCs to PLC fingerprints, etc.
+                        if device_type_lower in ["hmi", "panel", "display"]:
+                            if "hmi" in fp_family or "panel" in fp_family or "comfort" in fp_family:
+                                fingerprint_data = fp
+                                actual_fingerprint_model = fp_model
+                                logger.info(
+                                    f"Device '{ai_device.name}': Using fallback fingerprint "
+                                    f"'{fp_model}' (matched device type: {ai_device.device_type})"
+                                )
+                                break
+                        elif device_type_lower in ["plc", "controller", "cpu"]:
+                            if any(k in fp_family for k in ["plc", "cpu", "controller", "s7"]):
+                                fingerprint_data = fp
+                                actual_fingerprint_model = fp_model
+                                logger.info(
+                                    f"Device '{ai_device.name}': Using fallback fingerprint "
+                                    f"'{fp_model}' (matched device type: {ai_device.device_type})"
+                                )
+                                break
+                        elif device_type_lower in ["vfd", "drive", "motor"]:
+                            if any(k in fp_family for k in ["drive", "vfd", "powerflex", "acs"]):
+                                fingerprint_data = fp
+                                actual_fingerprint_model = fp_model
+                                logger.info(
+                                    f"Device '{ai_device.name}': Using fallback fingerprint "
+                                    f"'{fp_model}' (matched device type: {ai_device.device_type})"
+                                )
+                                break
+
+                    # If still no match, use first available fingerprint from vendor
+                    if not fingerprint_data and vendor_fps:
+                        fingerprint_data = vendor_fps[0]
+                        actual_fingerprint_model = fingerprint_data.get("model")
+                        logger.info(
+                            f"Device '{ai_device.name}': Using generic vendor fingerprint "
+                            f"'{actual_fingerprint_model}' from {ai_device.vendor}"
+                        )
+
+                    # If still nothing, clear the fingerprint model
+                    if not fingerprint_data:
+                        actual_fingerprint_model = None
+                        logger.warning(
+                            f"Device '{ai_device.name}': No fingerprints available for "
+                            f"{ai_device.vendor}, device will have no protocols"
+                        )
 
             # Generate MAC address
             if fingerprint_data and fingerprint_data.get("oui_prefixes"):
@@ -603,17 +769,25 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
                     f"Added {fallback_protocol} to {ai_device.name} (had only Layer 2 protocols)"
                 )
 
+            # Filter protocols to only those supported by the fingerprint identity data
+            # This prevents protocol_identity_mismatch validation errors at deploy time
+            # Note: fingerprint_data already contains proper identity from vendor fingerprints
+            # (with fallback to vendor's generic fingerprint if no specific model match)
+            device_protocols = self._filter_protocols_by_fingerprint(
+                device_protocols, fingerprint_data, ai_device.name
+            )
+
             device = GeneratedDevice(
                 device_id=device_id,
                 device_type=ai_device.device_type,
                 name=ai_device.name,
                 vendor=ai_device.vendor,
-                model=ai_device.fingerprint_model,
-                ip_address=self._generate_ip(zone_name),
+                model=actual_fingerprint_model,
+                ip_address=self._generate_ip(device_zone_id),
                 mac_address=mac_address,
                 zone=zone_name,
                 protocols=device_protocols,
-                fingerprint_model=ai_device.fingerprint_model,
+                fingerprint_model=actual_fingerprint_model,
                 error_config=error_config,
                 fingerprint_data=fingerprint_data,
             )
@@ -621,7 +795,7 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
 
             # Update zone device count
             for zone in zones:
-                if zone["name"] == zone_name:
+                if zone.get("id") == device_zone_id or zone["name"] == zone_name:
                     zone["device_count"] += 1
                     zone["device_ids"].append(device_id)
                     break
@@ -671,6 +845,8 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
                 "ai_design_rationale": ai_design.design_rationale,
                 "recommended_vendors": ai_design.recommended_vendors,
                 "recommended_protocols": ai_design.recommended_protocols,
+                "range_index": self.range_index,
+                "ip_range": f"10.{self.range_index}.0.0/16",
             },
         )
 
@@ -680,24 +856,24 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         )
         return scenario
 
-    def _generate_ip(self, zone: str) -> str:
-        """Generate an IP address for a zone."""
-        # Normalize zone name for lookup
-        zone_key = zone.lower().replace(" ", "_").replace("-", "_")
+    def _generate_ip(self, zone_id: str) -> str:
+        """Generate an IP address within a zone's /24 subnet.
 
-        # Try to find matching subnet
-        subnet = self.ZONE_SUBNETS.get(zone_key)
-        if not subnet:
-            # Try partial match
-            for key, value in self.ZONE_SUBNETS.items():
-                if key in zone_key or zone_key in key:
-                    subnet = value
-                    break
+        Uses the scenario's allocated /16 range and the zone's subnet_offset
+        to generate IPs in the format: 10.{range_index}.{subnet_offset}.{host}
 
-        if not subnet:
-            subnet = "10.100.1"  # Default subnet
+        Args:
+            zone_id: The zone identifier to get subnet_offset from
 
-        ip = f"{subnet}.{self._ip_counter}"
+        Returns:
+            IP address string
+        """
+        # Get or assign subnet_offset for this zone
+        if zone_id not in self._zone_subnet_map:
+            self._zone_subnet_map[zone_id] = len(self._zone_subnet_map)
+
+        subnet_offset = self._zone_subnet_map[zone_id]
+        ip = f"10.{self.range_index}.{subnet_offset}.{self._ip_counter}"
         self._ip_counter += 1
         if self._ip_counter > 254:
             self._ip_counter = 10
@@ -746,6 +922,136 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         # Universal fallback
         return "modbus_tcp"
 
+    # Required fields for each identity type to be considered valid
+    IDENTITY_REQUIRED_FIELDS: dict[str, str] = {
+        "ethernet_ip_identity": "vendor_id",
+        "profinet_identity": "vendor_id",
+        "s7_identity": "order_code",
+        "modbus_identity": "vendor_name",
+        "bacnet_identity": "vendor_id",
+        "snmp_identity": "sys_descr",
+        "opc_ua_identity": "manufacturer_name",
+        "dnp3_identity": "vendor_name",
+        "iec104_identity": "vendor_name",
+    }
+
+    def _filter_protocols_by_fingerprint(
+        self,
+        protocols: list[str],
+        fingerprint_data: dict | None,
+        device_name: str,
+    ) -> list[str]:
+        """Filter protocols to only those supported by the fingerprint identity data.
+
+        This prevents protocol_identity_mismatch validation errors at deploy time.
+        The fingerprint_data should already contain proper identity from vendor fingerprints
+        (with fallback to vendor's generic fingerprint handled by get_fingerprint_by_vendor_model).
+
+        Per protocol_validator.py design principle:
+        "Identity blocks should not be created from nothing - they must come from
+        proper vendor fingerprint data."
+
+        Args:
+            protocols: List of requested protocols
+            fingerprint_data: Device fingerprint data (should have proper identity)
+            device_name: Device name for logging
+
+        Returns:
+            List of protocols that have valid identity support in the fingerprint
+        """
+        if not protocols:
+            return ["modbus_tcp"]
+
+        # If no fingerprint data at all, we cannot assign protocols that require identities
+        # because there's no identity data to use. Return empty list - device will be
+        # excluded from protocol traffic (but can still be in scenario for display).
+        if not fingerprint_data:
+            logger.warning(
+                f"Device '{device_name}': No fingerprint data available - "
+                "device will have no protocols (no identity data for traffic generation)."
+            )
+            return []
+
+        validated = []
+        removed = []
+
+        for protocol in protocols:
+            identity_key = PROTOCOL_TO_IDENTITY_KEY.get(protocol)
+
+            if identity_key:
+                # Protocol requires identity - check if fingerprint has it
+                identity = fingerprint_data.get(identity_key)
+                if self._identity_has_vendor_data(identity, identity_key):
+                    validated.append(protocol)
+                else:
+                    removed.append(protocol)
+            else:
+                # Protocol doesn't require identity mapping (future protocols, raw TCP, etc.)
+                validated.append(protocol)
+
+        if removed:
+            logger.info(
+                f"Device '{device_name}': Removed protocols {removed} "
+                f"(no identity data in fingerprint), keeping {validated}"
+            )
+
+        # If no protocols validated, fall back to protocols the fingerprint supports
+        if not validated:
+            # Check what identities the fingerprint actually has
+            available_protocols = []
+            for proto, identity_key in PROTOCOL_TO_IDENTITY_KEY.items():
+                identity = fingerprint_data.get(identity_key)
+                if self._identity_has_vendor_data(identity, identity_key):
+                    available_protocols.append(proto)
+
+            if available_protocols:
+                # Prefer modbus_tcp if available, otherwise take first available
+                if "modbus_tcp" in available_protocols:
+                    validated = ["modbus_tcp"]
+                else:
+                    validated = [available_protocols[0]]
+                logger.info(
+                    f"Device '{device_name}': No requested protocols valid, "
+                    f"using fingerprint's supported protocols: {validated}"
+                )
+            else:
+                logger.warning(
+                    f"Device '{device_name}': Fingerprint has no protocol identities. "
+                    "Device may fail validation at deploy time."
+                )
+                # Return modbus_tcp anyway - validation will catch this if it's a problem
+                validated = ["modbus_tcp"]
+
+        return validated
+
+    def _identity_has_vendor_data(
+        self,
+        identity: dict | None,
+        identity_key: str,
+    ) -> bool:
+        """Check if an identity dictionary has real vendor data.
+
+        Args:
+            identity: The identity dictionary to check
+            identity_key: The identity key (e.g., "ethernet_ip_identity")
+
+        Returns:
+            True if identity has meaningful vendor data, False otherwise
+        """
+        if not identity or not isinstance(identity, dict):
+            return False
+
+        # Get the required field for this identity type
+        required_field = self.IDENTITY_REQUIRED_FIELDS.get(identity_key)
+        if required_field:
+            # Check for the specific required field
+            if identity.get(required_field) is not None:
+                return True
+
+        # Fallback: check if there's any field besides serial_number
+        meaningful_keys = [k for k in identity.keys() if k not in ("serial_number", "im0_serial_number")]
+        return len(meaningful_keys) > 0
+
     # ==================== Connectivity & Hierarchy Validation ====================
 
     # Device type classifications for OT hierarchy
@@ -760,13 +1066,14 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         "camera", "video_detector", "anpr_camera", "dms", "rsu",
         "lighting_controller", "ventilation_controller",
     }
-    SUPERVISORY_TYPES = {"hmi", "scada_server", "historian", "engineering_station", "tmc"}
+    SUPERVISORY_TYPES = {"hmi", "scada_server", "historian", "engineering_station", "tmc",
+                          "jump_server", "remote_gateway", "cloud_connector", "ewon_gateway"}
 
     # TCP/UDP protocols that generate IP traffic (required for Cyber Vision discovery)
     # Layer 2 protocols like PROFINET don't include IP addresses in packets
     TCP_UDP_PROTOCOLS = {
         "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
-        "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
+        "bacnet", "snmp", "opc_ua", "dnp3", "iec104", "iec_104", "https",
     }
     # Layer 2 only protocols (no IP in packets)
     LAYER2_ONLY_PROTOCOLS = {"profinet", "profisafe"}
@@ -1045,6 +1352,19 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
             total_device_count=total_device_count,
             device_counts=device_counts,
         )
+
+        # Apply protocol filtering to fallback devices (same as AI-generated)
+        # This ensures devices only have protocols for which they have identities
+        for device in scenario.devices:
+            fingerprint_data = None
+            if device.fingerprint_model and device.vendor:
+                fingerprint_data = get_fingerprint_by_vendor_model(
+                    device.vendor, device.fingerprint_model
+                )
+            # Filter protocols using same logic as AI path
+            device.protocols = self._filter_protocols_by_fingerprint(
+                device.protocols, fingerprint_data, device.name
+            )
 
         # Apply same connectivity and hierarchy validation to fallback scenarios
         scenario.flows = self._ensure_connectivity(scenario.devices, scenario.flows)

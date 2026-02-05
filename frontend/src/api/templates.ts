@@ -82,6 +82,9 @@ export interface CreateFromTemplateRequest {
   // Learned pattern options
   apply_learned_patterns?: boolean;
   learned_pattern_options?: LearnedPatternOptions;
+  // AI device naming options
+  use_ai_naming?: boolean;  // Default false - templates have meaningful built-in names
+  process_context?: string; // User description for AI naming (e.g., "candy factory")
 }
 
 export interface CreateFromTemplateResponse {
@@ -93,6 +96,7 @@ export interface CreateFromTemplateResponse {
   phase_count: number;
   learned_patterns_applied: boolean;
   protocols_enhanced: string[];
+  ai_naming_applied?: boolean;  // True if AI naming was used
 }
 
 export const templatesApi = {

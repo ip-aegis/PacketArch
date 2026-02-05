@@ -32,6 +32,7 @@ class GenerationJobResponse(BaseModel):
 
     job_id: str = Field(..., description="Unique job identifier")
     scenario_id: UUID = Field(..., description="Scenario UUID")
+    scenario_name: str | None = Field(None, description="Scenario name for display")
     status: str = Field(..., description="Job status (pending, running, completed, failed, cancelled)")
     progress: float = Field(0.0, description="Generation progress (0-100)", ge=0, le=100)
     total_duration_ms: int = Field(..., description="Total duration in milliseconds")
@@ -39,6 +40,7 @@ class GenerationJobResponse(BaseModel):
     packets_generated: int = Field(0, description="Number of packets generated")
     file_size_bytes: int = Field(0, description="Output file size in bytes")
     error_message: str | None = Field(None, description="Error message if failed")
+    created_at: datetime | None = Field(None, description="Job creation timestamp")
     started_at: datetime | None = Field(None, description="Job start timestamp")
     completed_at: datetime | None = Field(None, description="Job completion timestamp")
 

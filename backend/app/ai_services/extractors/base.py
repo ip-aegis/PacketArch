@@ -127,6 +127,8 @@ class ProtocolExtractor(ABC):
     def calculate_confidence(self, sample_count: int, pattern_consistency: float = 1.0) -> float:
         """Calculate confidence score based on sample size and consistency.
 
+        Uses the standardized confidence calculation from app.ai_services.confidence.
+
         Args:
             sample_count: Number of samples analyzed
             pattern_consistency: How consistent the patterns are (0-1)
@@ -134,14 +136,13 @@ class ProtocolExtractor(ABC):
         Returns:
             Confidence score between 0 and 1
         """
-        # Base confidence from sample size (logarithmic scale)
-        if sample_count <= 0:
-            return 0.0
+        from app.ai_services.confidence import (
+            ConfidenceFactors,
+            calculate_confidence as calc_conf,
+        )
 
-        # Confidence grows with sample size but with diminishing returns
-        import math
-
-        size_confidence = min(1.0, math.log10(sample_count + 1) / 4)  # ~1.0 at 10000 samples
-
-        # Combined confidence
-        return size_confidence * pattern_consistency
+        factors = ConfidenceFactors(
+            sample_count=sample_count,
+            pattern_consistency=pattern_consistency,
+        )
+        return calc_conf(factors)

@@ -14,7 +14,7 @@ class SNMPVersion(IntEnum):
 
     V1 = 0      # SNMPv1 - most common in legacy traffic systems
     V2C = 1     # SNMPv2c - community-based, most common in ITS
-    # V3 = 3    # SNMPv3 - authenticated/encrypted (future)
+    V3 = 3      # SNMPv3 - authenticated/encrypted
 
 
 class SNMPOperation(IntEnum):
@@ -150,6 +150,70 @@ class SNMPRequest:
     retries: int = 0
 
 
+class SNMPv3SecurityLevel(IntEnum):
+    """SNMPv3 security levels."""
+
+    NO_AUTH_NO_PRIV = 1     # noAuthNoPriv - no authentication, no privacy
+    AUTH_NO_PRIV = 2        # authNoPriv - authentication only
+    AUTH_PRIV = 3           # authPriv - authentication + privacy (encryption)
+
+
+class SNMPv3AuthProtocol(str, Enum):
+    """SNMPv3 authentication protocols."""
+
+    NONE = "none"
+    MD5 = "md5"             # HMAC-MD5-96 (deprecated but still used)
+    SHA = "sha"             # HMAC-SHA-96 (recommended)
+    SHA224 = "sha224"       # HMAC-SHA-224
+    SHA256 = "sha256"       # HMAC-SHA-256
+    SHA384 = "sha384"       # HMAC-SHA-384
+    SHA512 = "sha512"       # HMAC-SHA-512
+
+
+class SNMPv3PrivProtocol(str, Enum):
+    """SNMPv3 privacy (encryption) protocols."""
+
+    NONE = "none"
+    DES = "des"             # CBC-DES (deprecated but still used)
+    AES128 = "aes128"       # AES-128-CFB (recommended)
+    AES192 = "aes192"       # AES-192-CFB
+    AES256 = "aes256"       # AES-256-CFB
+
+
+@dataclass
+class SNMPv3Credentials:
+    """SNMPv3 USM (User-based Security Model) credentials."""
+
+    username: str
+    security_level: SNMPv3SecurityLevel = SNMPv3SecurityLevel.AUTH_NO_PRIV
+    auth_protocol: SNMPv3AuthProtocol = SNMPv3AuthProtocol.SHA
+    auth_password: str | None = None
+    priv_protocol: SNMPv3PrivProtocol = SNMPv3PrivProtocol.NONE
+    priv_password: str | None = None
+    # Engine discovery data (populated during discovery)
+    engine_id: bytes | None = None
+    engine_boots: int = 0
+    engine_time: int = 0
+    context_name: str = ""
+
+    def validate(self) -> list[str]:
+        """Validate credentials configuration."""
+        errors = []
+        if not self.username:
+            errors.append("username is required for SNMPv3")
+        if self.security_level >= SNMPv3SecurityLevel.AUTH_NO_PRIV:
+            if not self.auth_password:
+                errors.append("auth_password required for authentication")
+            if self.auth_protocol == SNMPv3AuthProtocol.NONE:
+                errors.append("auth_protocol required for authentication")
+        if self.security_level >= SNMPv3SecurityLevel.AUTH_PRIV:
+            if not self.priv_password:
+                errors.append("priv_password required for privacy")
+            if self.priv_protocol == SNMPv3PrivProtocol.NONE:
+                errors.append("priv_protocol required for privacy")
+        return errors
+
+
 @dataclass
 class SNMPFlowConfig:
     """Configuration for an SNMP flow."""
@@ -162,6 +226,8 @@ class SNMPFlowConfig:
     bulk_max_repetitions: int = 10  # For GetBulk
     trap_community: str = "public"
     trap_destination: str | None = None
+    # SNMPv3-specific configuration
+    v3_credentials: SNMPv3Credentials | None = None
 
 
 # ASN.1 BER Tag Constants

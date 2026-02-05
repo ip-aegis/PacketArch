@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # First user (created on startup if no users exist)
     # Note: ADMIN_PASSWORD env var is mapped to FIRST_USER_PASSWORD in docker-compose.yml
     first_user_username: str = "admin"
-    first_user_password: str = "changeme123"
+    first_user_password: str = "C!sco123"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

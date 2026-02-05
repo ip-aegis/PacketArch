@@ -4,13 +4,15 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
+from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
 from app.models.scenario import Scenario
 from app.models.user import User
 from app.protocol_engines import list_supported_protocols
@@ -20,11 +22,79 @@ from app.schemas.generation import (
     JobListResponse,
     SupportedProtocolsResponse,
 )
-from app.traffic_generator.tasks import create_job, generate_traffic, get_job
+from app.traffic_generator.tasks import create_job_in_db, generate_traffic, celery_app
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/generation", tags=["generation"])
+
+
+def _job_model_to_response(job: GenerationJobModel) -> GenerationJobResponse:
+    """Convert database model to response schema."""
+    return GenerationJobResponse(
+        job_id=str(job.id),
+        scenario_id=job.scenario_id,
+        scenario_name=job.scenario.name if job.scenario else None,
+        status=job.status,
+        progress=job.progress,
+        total_duration_ms=job.total_duration_ms,
+        output_path=job.output_path,
+        packets_generated=job.packets_generated,
+        file_size_bytes=job.file_size_bytes,
+        error_message=job.error_message,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+    )
+
+
+@router.get("", response_model=JobListResponse)
+async def list_jobs(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    status_filter: str | None = Query(None, alias="status", description="Filter by job status"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of jobs to return"),
+    offset: int = Query(0, ge=0, description="Number of jobs to skip"),
+) -> JobListResponse:
+    """List generation jobs for the current user.
+
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        status_filter: Optional status filter
+        limit: Maximum number of jobs to return
+        offset: Number of jobs to skip
+
+    Returns:
+        Paginated list of generation jobs
+    """
+    # Build query
+    query = select(GenerationJobModel).options(selectinload(GenerationJobModel.scenario))
+
+    # Filter by user (unless admin)
+    if not current_user.is_admin:
+        query = query.where(GenerationJobModel.user_id == current_user.id)
+
+    # Filter by status
+    if status_filter:
+        query = query.where(GenerationJobModel.status == status_filter)
+
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Add pagination and ordering
+    query = query.order_by(GenerationJobModel.created_at.desc()).offset(offset).limit(limit)
+
+    # Execute query
+    result = await db.execute(query)
+    jobs = result.scalars().all()
+
+    return JobListResponse(
+        jobs=[_job_model_to_response(job) for job in jobs],
+        total=total,
+    )
 
 
 @router.post("", response_model=GenerationJobResponse, status_code=status.HTTP_201_CREATED)
@@ -75,8 +145,8 @@ async def start_generation(
             detail=f"Duration exceeds maximum of {settings.max_simulation_duration_ms}ms",
         )
 
-    # Create job
-    job = create_job(
+    # Create job in database
+    job = await create_job_in_db(
         scenario_id=scenario.id,
         user_id=current_user.id,
         total_duration_ms=duration_ms,
@@ -86,12 +156,16 @@ async def start_generation(
     try:
         task = generate_traffic.apply_async(
             kwargs={
-                "job_id": job.job_id,
+                "job_id": str(job.id),
                 "scenario_id": str(scenario.id),
                 "duration_ms": duration_ms,
             }
         )
-        logger.info(f"Started generation task {task.id} for job {job.job_id}")
+        logger.info(f"Started generation task {task.id} for job {job.id}")
+
+        # Store the celery task ID in the job
+        job.celery_task_id = task.id
+        await db.flush()
 
     except Exception as e:
         logger.error(f"Failed to start generation task: {e}", exc_info=True)
@@ -101,15 +175,17 @@ async def start_generation(
         )
 
     return GenerationJobResponse(
-        job_id=job.job_id,
+        job_id=str(job.id),
         scenario_id=job.scenario_id,
-        status=job.status.value,
+        scenario_name=scenario.name,
+        status=job.status,
         progress=job.progress,
         total_duration_ms=job.total_duration_ms,
         output_path=job.output_path,
         packets_generated=job.packets_generated,
         file_size_bytes=job.file_size_bytes,
         error_message=job.error_message,
+        created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
     )
@@ -119,12 +195,14 @@ async def start_generation(
 async def get_generation_status(
     job_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> GenerationJobResponse:
     """Get status of a generation job.
 
     Args:
         job_id: Job identifier
         current_user: Current authenticated user
+        db: Database session
 
     Returns:
         Job status and details
@@ -132,7 +210,20 @@ async def get_generation_status(
     Raises:
         HTTPException: If job not found
     """
-    job = get_job(job_id)
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job ID format",
+        )
+
+    result = await db.execute(
+        select(GenerationJobModel)
+        .options(selectinload(GenerationJobModel.scenario))
+        .where(GenerationJobModel.id == job_uuid)
+    )
+    job = result.scalar_one_or_none()
 
     if not job:
         raise HTTPException(
@@ -147,31 +238,21 @@ async def get_generation_status(
             detail="Access denied to this job",
         )
 
-    return GenerationJobResponse(
-        job_id=job.job_id,
-        scenario_id=job.scenario_id,
-        status=job.status.value,
-        progress=job.progress,
-        total_duration_ms=job.total_duration_ms,
-        output_path=job.output_path,
-        packets_generated=job.packets_generated,
-        file_size_bytes=job.file_size_bytes,
-        error_message=job.error_message,
-        started_at=job.started_at,
-        completed_at=job.completed_at,
-    )
+    return _job_model_to_response(job)
 
 
 @router.get("/{job_id}/download")
 async def download_pcap(
     job_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
     """Download the generated PCAP file.
 
     Args:
         job_id: Job identifier
         current_user: Current authenticated user
+        db: Database session
 
     Returns:
         PCAP file download
@@ -179,7 +260,18 @@ async def download_pcap(
     Raises:
         HTTPException: If job not found, not completed, or file missing
     """
-    job = get_job(job_id)
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job ID format",
+        )
+
+    result = await db.execute(
+        select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
+    )
+    job = result.scalar_one_or_none()
 
     if not job:
         raise HTTPException(
@@ -195,21 +287,22 @@ async def download_pcap(
         )
 
     # Check job is completed
-    if job.status.value != "completed":
+    if job.status != GenerationJobStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Job is not completed (status: {job.status.value})",
+            detail=f"Job is not completed (status: {job.status})",
         )
 
     # Check output file exists
-    if not job.output_path:
+    output_path = job.output_path
+    if not output_path:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Output file path not available",
         )
 
-    output_path = Path(job.output_path)
-    if not output_path.exists():
+    output_path_obj = Path(output_path)
+    if not output_path_obj.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Output file not found",
@@ -217,9 +310,9 @@ async def download_pcap(
 
     # Return file
     return FileResponse(
-        path=str(output_path),
+        path=str(output_path_obj),
         media_type="application/vnd.tcpdump.pcap",
-        filename=output_path.name,
+        filename=output_path_obj.name,
     )
 
 
@@ -227,17 +320,30 @@ async def download_pcap(
 async def cancel_generation(
     job_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """Cancel a running generation job.
 
     Args:
         job_id: Job identifier
         current_user: Current authenticated user
+        db: Database session
 
     Raises:
         HTTPException: If job not found or cannot be cancelled
     """
-    job = get_job(job_id)
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job ID format",
+        )
+
+    result = await db.execute(
+        select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
+    )
+    job = result.scalar_one_or_none()
 
     if not job:
         raise HTTPException(
@@ -253,32 +359,97 @@ async def cancel_generation(
         )
 
     # Check if job can be cancelled
-    if job.status.value in ["completed", "failed", "cancelled"]:
+    terminal_statuses = [
+        GenerationJobStatus.COMPLETED.value,
+        GenerationJobStatus.FAILED.value,
+        GenerationJobStatus.CANCELLED.value,
+    ]
+    if job.status in terminal_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot cancel job in {job.status.value} state",
+            detail=f"Cannot cancel job in {job.status} state",
         )
 
-    # Implement Celery task cancellation
-    from celery.result import AsyncResult
-    from app.traffic_generator.models import JobStatus
-    from app.traffic_generator.tasks import update_job, celery_app
-
     # Try to revoke the Celery task if we have a task ID
-    task_id = job.custom_data.get("celery_task_id") if hasattr(job, "custom_data") else None
-    if task_id:
+    if job.celery_task_id:
         try:
             # Revoke the task - terminate=True will kill running tasks
-            celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
-            logger.info(f"Revoked Celery task {task_id} for job {job_id}")
+            celery_app.control.revoke(job.celery_task_id, terminate=True, signal="SIGTERM")
+            logger.info(f"Revoked Celery task {job.celery_task_id} for job {job_id}")
         except Exception as e:
             logger.warning(f"Failed to revoke Celery task: {e}")
 
     # Mark job as cancelled
-    job.status = JobStatus.CANCELLED
-    update_job(job)
+    job.status = GenerationJobStatus.CANCELLED.value
+    await db.flush()
 
     logger.info(f"Cancelled job {job_id}")
+
+
+@router.delete("/{job_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a generation job record (and optionally the PCAP file).
+
+    Args:
+        job_id: Job identifier
+        current_user: Current authenticated user
+        db: Database session
+
+    Raises:
+        HTTPException: If job not found or still running
+    """
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job ID format",
+        )
+
+    result = await db.execute(
+        select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
+    )
+    job = result.scalar_one_or_none()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job {job_id} not found",
+        )
+
+    # Check user access
+    if job.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this job",
+        )
+
+    # Can only delete jobs that are not running
+    if job.status in [GenerationJobStatus.PENDING.value, GenerationJobStatus.RUNNING.value]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete job in {job.status} state. Cancel it first.",
+        )
+
+    # Optionally delete the PCAP file
+    if job.output_path:
+        output_path = Path(job.output_path)
+        if output_path.exists():
+            try:
+                output_path.unlink()
+                logger.info(f"Deleted PCAP file: {output_path}")
+            except Exception as e:
+                logger.warning(f"Failed to delete PCAP file: {e}")
+
+    # Delete the job record
+    await db.delete(job)
+    await db.flush()
+
+    logger.info(f"Deleted job {job_id}")
 
 
 @router.get("/protocols/supported", response_model=SupportedProtocolsResponse)

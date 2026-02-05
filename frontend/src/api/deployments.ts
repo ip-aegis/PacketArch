@@ -5,10 +5,12 @@
 import apiClient from './client';
 import type {
   Deployment,
+  UnifiedDeployment,
   DeploymentRequest,
   DeploymentListResponse,
   DeploymentLogsResponse,
   DeploymentStatus,
+  DeploymentType,
 } from '../types/docker';
 
 const DEPLOYMENTS_PREFIX = '/api/v1/deployments';
@@ -16,19 +18,23 @@ const DEPLOYMENTS_PREFIX = '/api/v1/deployments';
 export interface DeploymentFilters {
   scenario_id?: string;
   docker_host_id?: string;
-  status?: DeploymentStatus;
+  agent_id?: string;
+  status?: DeploymentStatus | string;
+  deployment_type?: DeploymentType;
 }
 
 export const deploymentsApi = {
   /**
-   * List all deployments with optional filters
+   * List all deployments (Docker and Agent) with optional filters
    */
   async list(filters: DeploymentFilters = {}): Promise<DeploymentListResponse> {
     const params = new URLSearchParams();
 
     if (filters.scenario_id) params.append('scenario_id', filters.scenario_id);
     if (filters.docker_host_id) params.append('docker_host_id', filters.docker_host_id);
+    if (filters.agent_id) params.append('agent_id', filters.agent_id);
     if (filters.status) params.append('status_filter', filters.status);
+    if (filters.deployment_type) params.append('deployment_type', filters.deployment_type);
 
     const url = params.toString()
       ? `${DEPLOYMENTS_PREFIX}?${params.toString()}`
@@ -40,8 +46,8 @@ export const deploymentsApi = {
   /**
    * Get a single deployment by ID
    */
-  async get(id: string): Promise<Deployment> {
-    const response = await apiClient.get<Deployment>(`${DEPLOYMENTS_PREFIX}/${id}`);
+  async get(id: string): Promise<UnifiedDeployment> {
+    const response = await apiClient.get<UnifiedDeployment>(`${DEPLOYMENTS_PREFIX}/${id}`);
     return response.data;
   },
 

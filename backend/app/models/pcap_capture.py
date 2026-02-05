@@ -130,6 +130,15 @@ class PcapCapture(Base):
         nullable=True,
     )
 
+    # Learning session grouping
+    learning_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("learning_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Optional learning session this capture belongs to",
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -157,10 +166,21 @@ class PcapCapture(Base):
         back_populates="pcap_capture",
         cascade="all, delete-orphan",
     )
+    # Learned templates (new unified model, replaces device_fingerprints)
+    # No cascade - DeviceTemplate FK uses SET NULL. Cleanup handled explicitly.
+    learned_templates: Mapped[list["DeviceTemplate"]] = relationship(
+        "DeviceTemplate",
+        foreign_keys="[DeviceTemplate.source_pcap_id]",
+        passive_deletes=True,
+    )
     learned_sequences: Mapped[list["LearnedSequence"]] = relationship(
         "LearnedSequence",
         back_populates="pcap_capture",
         cascade="all, delete-orphan",
+    )
+    learning_session: Mapped["LearningSession | None"] = relationship(
+        "LearningSession",
+        back_populates="pcap_captures",
     )
 
     def __repr__(self) -> str:
@@ -171,4 +191,6 @@ class PcapCapture(Base):
 from app.models.learned_pattern import LearnedPattern  # noqa: E402, F401
 from app.models.learned_protocol_pattern import LearnedProtocolPattern  # noqa: E402, F401
 from app.models.learned_device_fingerprint import LearnedDeviceFingerprint  # noqa: E402, F401
+from app.models.device_template import DeviceTemplate  # noqa: E402, F401
 from app.models.learned_sequence import LearnedSequence  # noqa: E402, F401
+from app.models.learning_session import LearningSession  # noqa: E402, F401

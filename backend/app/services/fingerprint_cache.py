@@ -9,6 +9,14 @@ Index types:
 - Alt model: protocol identity fields -> fingerprint
 
 This service is thread-safe and uses a singleton pattern.
+
+Data Sources (in priority order):
+1. vendor_fingerprints module (AUTHORITATIVE SOURCE for protocol identities)
+2. DeviceTemplate DB table (enhancement layer: CVE data, firmware variants, learned patterns)
+
+The vendor_fingerprints module is the single source of truth for protocol identity data.
+DeviceTemplate DB can ENHANCE fingerprints (add CVE tracking, firmware variants) but
+NEVER overrides protocol identity fields from vendor_fingerprints.
 """
 
 import logging
@@ -16,46 +24,9 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.core.vendor_normalize import normalize_vendor  # noqa: F401 - re-exported for backwards compat
+
 logger = logging.getLogger(__name__)
-
-# Vendor name normalization mapping
-VENDOR_NAME_ALIASES: dict[str, str] = {
-    # Full names -> short names (for fingerprint indexing)
-    "johnson controls": "johnson_controls",
-    "schneider electric": "schneider",
-    "delta controls": "delta_controls",
-    "distech controls": "distech",
-    "automated logic": "automated_logic",
-    "endress+hauser": "endress_hauser",
-    "endress hauser": "endress_hauser",
-    "ge multilin": "ge_multilin",
-    # Handle underscores in lookups
-    "johnson_controls": "johnson_controls",
-    "schneider_electric": "schneider",
-    "delta_controls": "delta_controls",
-    "distech_controls": "distech",
-    "automated_logic": "automated_logic",
-    "endress_hauser": "endress_hauser",
-    "ge_multilin": "ge_multilin",
-}
-
-
-def normalize_vendor(vendor: str) -> str:
-    """Normalize vendor name for consistent lookups.
-
-    Handles variations like:
-    - "Johnson Controls" -> "johnson_controls"
-    - "Schneider Electric" -> "schneider"
-    - "johnson_controls" -> "johnson_controls"
-
-    Args:
-        vendor: Raw vendor name
-
-    Returns:
-        Normalized lowercase vendor name
-    """
-    lower = vendor.lower()
-    return VENDOR_NAME_ALIASES.get(lower, lower)
 
 
 @dataclass
@@ -111,6 +82,109 @@ class FingerprintCache:
                     cls._instance = cls()
         return cls._instance
 
+    def _load_db_enhancements(self) -> dict[tuple[str, str], dict[str, Any]]:
+        """Load enhancement data from DeviceTemplate DB table.
+
+        Returns enhancement data keyed by (vendor, model) that can be merged
+        into vendor_fingerprints. This includes CVE data, firmware variants,
+        learned patterns, and other DB-specific enhancements.
+
+        Returns:
+            Dict mapping (vendor, model) to enhancement data, or empty dict if DB unavailable.
+        """
+        try:
+            from app.core.database import get_sync_session
+            from app.models.device_template import DeviceTemplate
+
+            enhancements: dict[tuple[str, str], dict[str, Any]] = {}
+            with get_sync_session() as db:
+                templates = db.query(DeviceTemplate).filter(
+                    DeviceTemplate.is_active == True  # noqa: E712
+                ).all()
+
+                for template in templates:
+                    vendor = normalize_vendor(template.vendor or "")
+                    model = template.model or ""
+                    if not vendor or not model:
+                        continue
+
+                    # Extract enhancement fields (non-protocol-identity data)
+                    enhancement = {
+                        "firmware_variants": getattr(template, "firmware_variants", None),
+                        "cve_data": getattr(template, "cve_data", None),
+                        "instance_rules": getattr(template, "instance_rules", None),
+                        "quality_metrics": {
+                            "confidence": getattr(template, "confidence", None),
+                            "sample_count": getattr(template, "sample_count", None),
+                        },
+                        "source": template.source,
+                        "is_learned": template.source == "pcap_learned",
+                    }
+
+                    # For learned patterns (pcap_learned source), include protocol identities
+                    # These are unique to the DB and should be added, not merged
+                    if template.source == "pcap_learned":
+                        enhancement["_is_db_only"] = True
+                        enhancement["_full_fingerprint"] = self._template_to_fingerprint_dict(template)
+
+                    key = (vendor, model)
+                    enhancements[key] = enhancement
+
+            if enhancements:
+                logger.info(f"Loaded {len(enhancements)} DB enhancements for fingerprints")
+            return enhancements
+
+        except Exception as e:
+            logger.warning(f"Could not load DB enhancements: {e}")
+            return {}
+
+    def _template_to_fingerprint_dict(self, template) -> dict[str, Any] | None:
+        """Convert a DeviceTemplate DB record to a fingerprint dictionary.
+
+        Args:
+            template: DeviceTemplate DB model instance
+
+        Returns:
+            Fingerprint dictionary compatible with FingerprintApplicator
+        """
+        try:
+            fp = {
+                "vendor": template.vendor,
+                "vendor_family": template.vendor_family,
+                "model": template.model,
+                "firmware_version": template.firmware_version,
+                "oui_prefixes": list(template.oui_patterns or []),
+                "tcp_stack": dict(template.tcp_signature or {}),
+                "is_builtin": template.source == "vendor_builtin",
+            }
+
+            # Extract response timing from the response_timings dict
+            if template.response_timings:
+                # Use "default" timing if available, otherwise use first available
+                fp["response_timing"] = template.response_timings.get(
+                    "default",
+                    next(iter(template.response_timings.values()), {})
+                )
+            else:
+                fp["response_timing"] = {}
+
+            # Error behavior
+            fp["error_behavior"] = dict(template.error_behavior or {})
+
+            # Protocol quirks
+            fp["protocol_quirks"] = dict(template.protocol_quirks or {})
+
+            # Protocol identities (check both unified and legacy columns)
+            for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet"]:
+                identity = template.get_protocol_identity(protocol)
+                fp[f"{protocol}_identity"] = dict(identity) if identity else None
+
+            return fp
+
+        except Exception as e:
+            logger.warning(f"Could not convert template {template.id} to fingerprint: {e}")
+            return None
+
     @property
     def index(self) -> FingerprintIndex:
         """Get the fingerprint index, building if necessary.
@@ -126,16 +200,89 @@ class FingerprintCache:
                     self._build_index()
         return self._index  # type: ignore
 
+    def _merge_enhancements(
+        self,
+        fingerprints: list[dict[str, Any]],
+        enhancements: dict[tuple[str, str], dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Merge DB enhancements into vendor_fingerprints.
+
+        IMPORTANT: This method NEVER overrides protocol identity fields.
+        It only adds enhancement data (CVE, firmware variants, etc.) from the DB.
+
+        For learned patterns (pcap_learned), these are added as separate entries
+        since they don't exist in vendor_fingerprints.
+
+        Args:
+            fingerprints: List of fingerprints from vendor_fingerprints (source of truth)
+            enhancements: Dict of (vendor, model) -> enhancement data from DB
+
+        Returns:
+            Enhanced fingerprints list
+        """
+        # Track which DB entries were merged (to find DB-only entries later)
+        merged_keys: set[tuple[str, str]] = set()
+
+        # Enhance existing fingerprints
+        for fp in fingerprints:
+            vendor = normalize_vendor(fp.get("vendor", ""))
+            model = fp.get("model", "")
+            key = (vendor, model)
+
+            if key in enhancements:
+                enhancement = enhancements[key]
+                merged_keys.add(key)
+
+                # Add enhancement fields (NEVER override protocol identities)
+                if enhancement.get("firmware_variants"):
+                    fp["firmware_variants"] = enhancement["firmware_variants"]
+                if enhancement.get("cve_data"):
+                    fp["cve_data"] = enhancement["cve_data"]
+                if enhancement.get("instance_rules"):
+                    fp["instance_rules"] = enhancement["instance_rules"]
+
+                # Add quality metrics if available
+                metrics = enhancement.get("quality_metrics", {})
+                if metrics.get("confidence") is not None:
+                    fp["confidence"] = metrics["confidence"]
+                if metrics.get("sample_count") is not None:
+                    fp["sample_count"] = metrics["sample_count"]
+
+        # Add DB-only entries (learned patterns that don't exist in vendor_fingerprints)
+        db_only_count = 0
+        for key, enhancement in enhancements.items():
+            if key not in merged_keys and enhancement.get("_is_db_only"):
+                full_fp = enhancement.get("_full_fingerprint")
+                if full_fp:
+                    fingerprints.append(full_fp)
+                    db_only_count += 1
+
+        if db_only_count > 0:
+            logger.info(f"Added {db_only_count} learned patterns from DB")
+
+        return fingerprints
+
     def _build_index(self) -> None:
-        """Build the fingerprint index from all vendor fingerprints.
+        """Build the fingerprint index with vendor_fingerprints as source of truth.
 
         Called lazily on first access.
-        """
-        from app.services.vendor_fingerprints import get_all_vendor_fingerprints
 
+        Data sources (in priority order):
+        1. vendor_fingerprints module (AUTHORITATIVE SOURCE for protocol identities)
+        2. DeviceTemplate DB table (enhancement layer for CVE, variants, learned patterns)
+        """
         logger.info("Building fingerprint cache index...")
 
+        # STEP 1: Load from vendor_fingerprints (authoritative source for protocol identities)
+        from app.services.vendor_fingerprints import get_all_vendor_fingerprints
         all_fps = get_all_vendor_fingerprints()
+        logger.info(f"Loaded {len(all_fps)} fingerprints from vendor_fingerprints (source of truth)")
+
+        # STEP 2: Enhance with DeviceTemplate DB data (additive only, never override identities)
+        db_enhancements = self._load_db_enhancements()
+        if db_enhancements:
+            all_fps = self._merge_enhancements(all_fps, db_enhancements)
+
         self._index = FingerprintIndex(all_fingerprints=all_fps)
 
         # Build primary index: (vendor, model) -> fingerprint
