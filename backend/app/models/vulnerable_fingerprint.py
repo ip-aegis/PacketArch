@@ -39,14 +39,6 @@ class VulnerableFingerprintVariant(Base):
         index=True,
     )
 
-    # Base fingerprint this variant modifies (optional - can be standalone)
-    base_fingerprint_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("vendor_fingerprints.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
     # Identification
     display_name: Mapped[str] = mapped_column(
         String(200),
@@ -214,12 +206,6 @@ class VulnerableFingerprintVariant(Base):
         backref="fingerprint_variants",
         lazy="joined",
     )
-    base_fingerprint = relationship(
-        "VendorFingerprint",
-        backref="vulnerable_variants",
-        lazy="joined",
-    )
-
     def __repr__(self) -> str:
         return f"<VulnerableFingerprintVariant {self.display_name}>"
 

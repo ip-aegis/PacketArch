@@ -24,7 +24,6 @@ from app.learning.tasks import (
 from app.models.learned_pattern import DistributionType, LearnedPattern, PatternType
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
 from app.models.device_template import DeviceTemplate, TemplateSource
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint  # for retry delete
 from app.models.learned_sequence import LearnedSequence, SequenceType
 from app.models.pcap_capture import PcapCapture, ProcessingStatus
 from app.services.learned_pattern_service import LearnedPatternService
@@ -617,12 +616,6 @@ async def retry_pcap_processing(
         DeviceTemplate.__table__.delete().where(
             DeviceTemplate.source_pcap_id == capture.id,
             DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
-        )
-    )
-    # Also clean legacy table for records created before migration
-    await db.execute(
-        LearnedDeviceFingerprint.__table__.delete().where(
-            LearnedDeviceFingerprint.pcap_capture_id == capture.id
         )
     )
     await db.execute(

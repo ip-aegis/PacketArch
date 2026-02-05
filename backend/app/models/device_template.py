@@ -341,68 +341,7 @@ class DeviceTemplate(Base):
         sig_str = json.dumps(sig_data, sort_keys=True)
         return hashlib.sha256(sig_str.encode()).hexdigest()[:16]
 
-    @classmethod
-    def from_vendor_fingerprint(cls, fp: "VendorFingerprint") -> "DeviceTemplate":
-        """Create a DeviceTemplate from a VendorFingerprint record.
-
-        For migration purposes.
-        """
-        return cls(
-            id=fp.id,
-            source=TemplateSource.VENDOR_BUILTIN.value,
-            vendor=fp.vendor,
-            vendor_family=fp.vendor_family,
-            model=fp.model,
-            firmware_version=fp.firmware_version,
-            oui_patterns=fp.oui_prefixes,
-            tcp_signature=fp.tcp_stack,
-            modbus_identity=fp.modbus_identity,
-            ethernet_ip_identity=fp.ethernet_ip_identity,
-            profinet_identity=fp.profinet_identity,
-            s7_identity=fp.s7_identity,
-            snmp_identity=fp.snmp_identity,
-            bacnet_identity=fp.bacnet_identity,
-            response_timings={"default": fp.response_timing} if fp.response_timing else None,
-            protocol_quirks=fp.protocol_quirks,
-            error_behavior=fp.error_behavior,
-            confidence=1.0,
-            sample_count=1,
-            is_active=True,
-            created_at=fp.created_at,
-            updated_at=fp.updated_at,
-        )
-
-    @classmethod
-    def from_learned_fingerprint(cls, fp: "LearnedDeviceFingerprint") -> "DeviceTemplate":
-        """Create a DeviceTemplate from a LearnedDeviceFingerprint record.
-
-        For migration purposes.
-        """
-        return cls(
-            id=fp.id,
-            source=TemplateSource.PCAP_LEARNED.value,
-            source_pcap_id=fp.pcap_capture_id,
-            vendor=fp.inferred_vendor,
-            device_type=fp.device_type,
-            oui_patterns=fp.oui_patterns,
-            tcp_signature=fp.tcp_signature,
-            protocol_identities=fp.protocol_identities,
-            response_timings=fp.response_timings,
-            role=fp.role,
-            active_protocols=fp.active_protocols,
-            typical_ports=fp.typical_ports,
-            confidence=fp.confidence,
-            sample_count=fp.observation_count,
-            consistency_score=fp.consistency_score,
-            name=fp.name,
-            tags=fp.tags,
-            is_active=True,
-            created_at=fp.created_at,
-            updated_at=fp.updated_at,
-        )
 
 
-# Forward references for relationships and migration helpers
+# Forward references for relationships
 from app.models.pcap_capture import PcapCapture  # noqa: E402, F401
-from app.models.vendor_fingerprint import VendorFingerprint  # noqa: E402, F401
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint  # noqa: E402, F401

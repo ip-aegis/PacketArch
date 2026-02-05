@@ -161,12 +161,7 @@ class PcapCapture(Base):
         back_populates="pcap_capture",
         cascade="all, delete-orphan",
     )
-    device_fingerprints: Mapped[list["LearnedDeviceFingerprint"]] = relationship(
-        "LearnedDeviceFingerprint",
-        back_populates="pcap_capture",
-        cascade="all, delete-orphan",
-    )
-    # Learned templates (new unified model, replaces device_fingerprints)
+    # Learned templates (unified DeviceTemplate model)
     # No cascade - DeviceTemplate FK uses SET NULL. Cleanup handled explicitly.
     learned_templates: Mapped[list["DeviceTemplate"]] = relationship(
         "DeviceTemplate",
@@ -190,7 +185,6 @@ class PcapCapture(Base):
 # Forward references for relationships
 from app.models.learned_pattern import LearnedPattern  # noqa: E402, F401
 from app.models.learned_protocol_pattern import LearnedProtocolPattern  # noqa: E402, F401
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint  # noqa: E402, F401
 from app.models.device_template import DeviceTemplate  # noqa: E402, F401
 from app.models.learned_sequence import LearnedSequence  # noqa: E402, F401
 from app.models.learning_session import LearningSession  # noqa: E402, F401

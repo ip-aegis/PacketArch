@@ -21,7 +21,6 @@ from app.services.device_templates import (
     get_all_fingerprints,
     get_fingerprint_by_vendor_model,
 )
-from app.services.vendor_fingerprints import get_all_vendor_fingerprints
 
 logging.basicConfig(
     level=logging.INFO,

@@ -11,12 +11,12 @@ Index types:
 This service is thread-safe and uses a singleton pattern.
 
 Data Sources (in priority order):
-1. vendor_fingerprints module (AUTHORITATIVE SOURCE for protocol identities)
+1. device_templates module (AUTHORITATIVE SOURCE for all fingerprint data)
 2. DeviceTemplate DB table (enhancement layer: CVE data, firmware variants, learned patterns)
 
-The vendor_fingerprints module is the single source of truth for protocol identity data.
+The device_templates module is the single source of truth for protocol identity data.
 DeviceTemplate DB can ENHANCE fingerprints (add CVE tracking, firmware variants) but
-NEVER overrides protocol identity fields from vendor_fingerprints.
+NEVER overrides protocol identity fields from device_templates.
 """
 
 import logging
@@ -263,20 +263,20 @@ class FingerprintCache:
         return fingerprints
 
     def _build_index(self) -> None:
-        """Build the fingerprint index with vendor_fingerprints as source of truth.
+        """Build the fingerprint index from device_templates (single source of truth).
 
         Called lazily on first access.
 
         Data sources (in priority order):
-        1. vendor_fingerprints module (AUTHORITATIVE SOURCE for protocol identities)
+        1. device_templates module (AUTHORITATIVE SOURCE for all fingerprint data)
         2. DeviceTemplate DB table (enhancement layer for CVE, variants, learned patterns)
         """
         logger.info("Building fingerprint cache index...")
 
-        # STEP 1: Load from vendor_fingerprints (authoritative source for protocol identities)
-        from app.services.vendor_fingerprints import get_all_vendor_fingerprints
-        all_fps = get_all_vendor_fingerprints()
-        logger.info(f"Loaded {len(all_fps)} fingerprints from vendor_fingerprints (source of truth)")
+        # STEP 1: Load from device_templates (authoritative source)
+        from app.services.device_templates import get_all_fingerprints
+        all_fps = get_all_fingerprints()
+        logger.info(f"Loaded {len(all_fps)} fingerprints from device_templates (source of truth)")
 
         # STEP 2: Enhance with DeviceTemplate DB data (additive only, never override identities)
         db_enhancements = self._load_db_enhancements()

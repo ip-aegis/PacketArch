@@ -36,10 +36,7 @@ from app.services.ai_session_service import AISessionService
 from app.services.ai_scenario_preview_service import AIScenarioPreviewService
 from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.ip_management import IPManagementService
-from app.services.vendor_fingerprints import (
-    get_fingerprint_by_vendor_model,
-    get_fingerprints_by_vendor,
-)
+from app.services.fingerprint_cache import get_fingerprint_cache
 from app.ai_services.nl_parser import extract_device_counts, format_device_counts_for_prompt, get_device_limit_warning
 from app.protocol_engines.identity import generate_mac
 from app.services.serial_number_generator import SerialNumberGenerator
@@ -3535,11 +3532,12 @@ async def create_scenario_from_preview(
 
         # Get fingerprint data for deep fingerprinting
         fingerprint_data = None
+        cache = get_fingerprint_cache()
         if vendor and fingerprint_model:
-            fingerprint_data = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
+            fingerprint_data = cache.get_by_vendor_model(vendor, fingerprint_model)
         elif vendor:
             # Try to get a fingerprint for this vendor
-            vendor_fps = get_fingerprints_by_vendor(vendor)
+            vendor_fps = cache.get_by_vendor(vendor)
             if vendor_fps:
                 # Pick one appropriate for device type if possible
                 for fp in vendor_fps:

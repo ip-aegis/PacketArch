@@ -504,6 +504,53 @@ VENDOR_DISPLAY_NAMES: dict[str, str] = {
 }
 
 
+# ODVA (CIP/EtherNet/IP) Vendor IDs - official ODVA registrations
+ODVA_VENDOR_IDS: dict[str, int] = {
+    "rockwell": 1,  # Allen-Bradley (Rockwell Automation)
+    "schneider": 67,  # Schneider Electric
+    "siemens": 285,  # Siemens
+    "abb": 285,  # ABB also uses 285 in some products
+    "honeywell": 50,  # Honeywell
+    "emerson": 90,  # Emerson
+    "ge": 82,  # General Electric
+    "omron": 47,  # Omron
+    "mitsubishi": 121,  # Mitsubishi
+    "kuka": 368,  # KUKA Roboter GmbH
+    "cognex": 112,  # Cognex Corporation
+}
+
+# PROFINET Vendor IDs
+PROFINET_VENDOR_IDS: dict[str, int] = {
+    "siemens": 0x002A,  # 42
+    "schneider": 0x0095,  # 149
+    "rockwell": 0x0001,  # 1
+    "abb": 0x0037,  # 55
+    "phoenix_contact": 0x00B8,  # 184
+}
+
+# Vendor division OUI aliases — keys not in VENDOR_OUIS that map to
+# subdivision-specific OUI prefixes used by fingerprinting.
+_VENDOR_DIVISION_OUIS: dict[str, list[str]] = {
+    "endress+hauser": ["00:0B:CD", "00:80:A3"],  # Endress+Hauser (alt spelling)
+    "ge_multilin": ["00:22:52", "00:04:A5"],  # GE Digital Energy / Multilin
+    "siemens_building": ["00:1B:1B", "00:0E:8C"],  # Siemens Building Technologies
+    "schneider_bms": ["00:80:F4", "00:04:A3"],  # Schneider Electric BMS
+    "siemens_protection": ["00:0E:8C", "00:1C:06", "74:DA:EA"],  # Siemens SIPROTEC
+    "microsoft": ["00:15:5D", "00:1D:D8", "00:50:F2"],  # Microsoft Corporation
+}
+
+# Aggregated OUI prefixes: canonical VENDOR_OUIS + vendor division aliases.
+# Use this when you need ALL known OUI mappings for MAC-based vendor lookup.
+VENDOR_OUI_PREFIXES: dict[str, list[str]] = {**VENDOR_OUIS, **_VENDOR_DIVISION_OUIS}
+
+
+def get_random_oui_for_vendor(vendor: str) -> str | None:
+    """Get a random OUI prefix for a vendor from the full OUI database."""
+    import random as _rand
+    ouis = VENDOR_OUI_PREFIXES.get(vendor.lower(), [])
+    return _rand.choice(ouis) if ouis else None
+
+
 def get_oui_for_vendor(vendor: str) -> str:
     """Get a random OUI for a specific vendor.
 

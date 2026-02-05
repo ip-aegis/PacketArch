@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser
-from app.services.vendor_fingerprints import VENDOR_OUI_PREFIXES
+from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
 from app.services.fingerprint_cache import get_fingerprint_cache
 from app.scenario_templates.base import (
     FINGERPRINT_MODEL_MAP,

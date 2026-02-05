@@ -787,7 +787,7 @@ async def repair_scenario_protocols(
     Returns:
         Summary of repairs made
     """
-    from app.services.vendor_fingerprints import get_fingerprint_by_vendor_model
+    from app.services.fingerprint_cache import get_fingerprint_cache
     from app.services.protocol_validator import (
         get_protocol_identity_key,
         identity_has_vendor_data,
@@ -833,7 +833,8 @@ async def repair_scenario_protocols(
 
         # If no fingerprint in device, try to look it up
         if not fingerprint and vendor and fingerprint_model:
-            fingerprint = get_fingerprint_by_vendor_model(vendor, fingerprint_model) or {}
+            cache = get_fingerprint_cache()
+            fingerprint = cache.get_by_vendor_model(vendor, fingerprint_model) or {}
 
         # Filter protocols
         validated_protocols = []

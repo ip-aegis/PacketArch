@@ -26,7 +26,7 @@ from app.services.cve_data import (
     get_cves_for_vendor,
     get_cves_for_product_family,
 )
-from app.services.vendor_fingerprints.vulnerable_variants import (
+from app.services.vulnerable_variants import (
     get_all_vulnerable_variants,
     get_vulnerable_variants_for_cve,
     get_vulnerable_variants_for_vendor,

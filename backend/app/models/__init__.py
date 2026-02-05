@@ -7,11 +7,9 @@ from app.models.device_profile import DeviceProfile
 from app.models.protocol_template import ProtocolTemplate
 from app.models.docker_host import DockerHost
 from app.models.remote_deployment import RemoteDeployment, DeploymentStatus
-from app.models.vendor_fingerprint import VendorFingerprint
 from app.models.pcap_capture import PcapCapture, ProcessingStatus
 from app.models.learned_pattern import LearnedPattern, PatternType, DistributionType
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
-from app.models.learned_device_fingerprint import LearnedDeviceFingerprint, DeviceRole
 from app.models.learned_sequence import LearnedSequence, SequenceType
 from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.learning_session import LearningSession, SessionStatus
@@ -32,15 +30,12 @@ __all__ = [
     "DockerHost",
     "RemoteDeployment",
     "DeploymentStatus",
-    "VendorFingerprint",
     "PcapCapture",
     "ProcessingStatus",
     "LearnedPattern",
     "PatternType",
     "DistributionType",
     "LearnedProtocolPattern",
-    "LearnedDeviceFingerprint",
-    "DeviceRole",
     "LearnedSequence",
     "SequenceType",
     "DeviceTemplate",
