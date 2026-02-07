@@ -36,6 +36,7 @@ scipy = "^1.16.3"
 pytest = "^7.4.4"
 pytest-asyncio = "^0.23.3"
 pytest-cov = "^4.1.0"
+aiosqlite = "^0.19.0"
 black = "^23.12.1"
 ruff = "^0.1.11"
 mypy = "^1.8.0"
@@ -60,6 +61,10 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow-running",
+]
 
 [build-system]
 requires = ["poetry-core"]

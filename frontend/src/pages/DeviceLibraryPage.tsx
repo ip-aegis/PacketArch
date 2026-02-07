@@ -52,34 +52,28 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { devicesApi, type DeviceProfileFilters } from '../api/devices';
 import type { DeviceProfile, DeviceProfileCreate, DeviceType, ProtocolType, VerticalType } from '../types';
+import { extractErrorMessage } from '../utils/errorUtils';
+import { PROTOCOL_COLORS, DEVICE_TYPE_COLORS_EXTENDED } from '../constants/protocols';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-// Device type icons and colors
+// Device type icons and colors - colors sourced from constants
 const deviceTypeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  plc: { icon: <ControlOutlined />, color: '#049FD9', label: 'PLC' },
-  hmi: { icon: <DesktopOutlined />, color: '#6CC04A', label: 'HMI' },
-  rtu: { icon: <CloudServerOutlined />, color: '#FBAB18', label: 'RTU' },
-  drive: { icon: <ThunderboltOutlined />, color: '#FF7043', label: 'Drive' },
-  sensor: { icon: <DashboardOutlined />, color: '#00BCEB', label: 'Sensor' },
-  relay: { icon: <SafetyCertificateOutlined />, color: '#E53935', label: 'Relay' },
-  ews: { icon: <SettingOutlined />, color: '#9C27B0', label: 'EWS' },
-  historian: { icon: <DatabaseOutlined />, color: '#607D8B', label: 'Historian' },
-  network: { icon: <NodeIndexOutlined />, color: '#00BCD4', label: 'Network' },
-  gateway: { icon: <GlobalOutlined />, color: '#795548', label: 'Gateway' },
+  plc: { icon: <ControlOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.plc, label: 'PLC' },
+  hmi: { icon: <DesktopOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.hmi, label: 'HMI' },
+  rtu: { icon: <CloudServerOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.rtu, label: 'RTU' },
+  drive: { icon: <ThunderboltOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.drive, label: 'Drive' },
+  sensor: { icon: <DashboardOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.sensor, label: 'Sensor' },
+  relay: { icon: <SafetyCertificateOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.relay, label: 'Relay' },
+  ews: { icon: <SettingOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.ews, label: 'EWS' },
+  historian: { icon: <DatabaseOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.historian, label: 'Historian' },
+  network: { icon: <NodeIndexOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.network, label: 'Network' },
+  gateway: { icon: <GlobalOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.gateway, label: 'Gateway' },
 };
 
-// Protocol colors
-const protocolColors: Record<string, string> = {
-  modbus_tcp: '#049FD9',
-  ethernet_ip: '#6CC04A',
-  profinet: '#FBAB18',
-  opc_ua: '#9C27B0',
-  dnp3: '#FF5722',
-  iec104: '#E91E63',
-  bacnet: '#00BCD4',
-};
+// Protocol colors - sourced from constants
+const protocolColors: Record<string, string> = { ...PROTOCOL_COLORS };
 
 // Vertical colors
 const verticalColors: Record<string, string> = {
@@ -117,9 +111,8 @@ const DeviceLibraryPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['deviceProfiles'] });
       antMessage.success('Device profile duplicated successfully');
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || error.message || 'Unknown error';
-      antMessage.error(`Failed to duplicate device profile: ${detail}`);
+    onError: (error: unknown) => {
+      antMessage.error(`Failed to duplicate device profile: ${extractErrorMessage(error, 'Unknown error')}`);
     },
   });
 
@@ -132,9 +125,8 @@ const DeviceLibraryPage: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || error.message || 'Unknown error';
-      antMessage.error(`Failed to create device profile: ${detail}`);
+    onError: (error: unknown) => {
+      antMessage.error(`Failed to create device profile: ${extractErrorMessage(error, 'Unknown error')}`);
     },
   });
 
@@ -163,7 +155,7 @@ const DeviceLibraryPage: React.FC = () => {
     duplicateMutation.mutate(id);
   };
 
-  const handleCreateDevice = (values: any) => {
+  const handleCreateDevice = (values: DeviceProfileCreate & { timing_model?: { polling_interval_ms?: number; jitter_type?: string; jitter_min_ms?: number; jitter_max_ms?: number; burst_enabled?: boolean } }) => {
     const data: DeviceProfileCreate = {
       name: values.name,
       device_type: values.device_type,

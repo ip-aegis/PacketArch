@@ -5,7 +5,8 @@
 import React, { useEffect } from 'react';
 import { Form, Input, Select, InputNumber, Checkbox, Divider, Typography, Card } from 'antd';
 import { useScenarioStore } from '../../stores/scenarioStore';
-import type { ProtocolType } from '../../types';
+import type { ProtocolType, ScenarioFlow } from '../../types';
+import { PROTOCOL_OPTIONS } from '../../constants/protocols';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -13,16 +14,6 @@ const { Option } = Select;
 interface FlowPropertyFormProps {
   flowId: string;
 }
-
-const PROTOCOLS: { value: ProtocolType; label: string }[] = [
-  { value: 'modbus_tcp', label: 'Modbus TCP' },
-  { value: 'ethernet_ip', label: 'EtherNet/IP' },
-  { value: 'profinet', label: 'PROFINET' },
-  { value: 'opc_ua', label: 'OPC UA' },
-  { value: 'dnp3', label: 'DNP3' },
-  { value: 'iec104', label: 'IEC 60870-5-104' },
-  { value: 'bacnet', label: 'BACnet' },
-];
 
 const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
   const [form] = Form.useForm();
@@ -66,18 +57,18 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
   const sourceDevice = devices[flow.sourceDeviceId];
   const targetDevice = devices[flow.targetDeviceId];
 
-  const handleValuesChange = (changedValues: any) => {
-    const updates: any = {};
+  const handleValuesChange = (changedValues: Partial<Record<string, unknown>>) => {
+    const updates: Partial<ScenarioFlow> = {};
 
-    if ('name' in changedValues) updates.name = changedValues.name;
-    if ('protocol' in changedValues) updates.protocol = changedValues.protocol;
+    if ('name' in changedValues) updates.name = changedValues.name as string;
+    if ('protocol' in changedValues) updates.protocol = changedValues.protocol as ProtocolType;
 
     // Timing updates
-    const timingUpdates: any = {};
-    if ('intervalMs' in changedValues) timingUpdates.intervalMs = changedValues.intervalMs;
-    if ('jitterMs' in changedValues) timingUpdates.jitterMs = changedValues.jitterMs;
-    if ('burstSize' in changedValues) timingUpdates.burstSize = changedValues.burstSize;
-    if ('burstIntervalMs' in changedValues) timingUpdates.burstIntervalMs = changedValues.burstIntervalMs;
+    const timingUpdates: Partial<ScenarioFlow['timing']> = {};
+    if ('intervalMs' in changedValues) timingUpdates.intervalMs = changedValues.intervalMs as number;
+    if ('jitterMs' in changedValues) timingUpdates.jitterMs = changedValues.jitterMs as number;
+    if ('burstSize' in changedValues) timingUpdates.burstSize = changedValues.burstSize as number;
+    if ('burstIntervalMs' in changedValues) timingUpdates.burstIntervalMs = changedValues.burstIntervalMs as number;
 
     if (Object.keys(timingUpdates).length > 0) {
       const currentTiming = flow.timing || {
@@ -88,11 +79,11 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
     }
 
     // Phase updates
-    const phaseUpdates: any = {};
-    if ('phaseStartup' in changedValues) phaseUpdates.startup = changedValues.phaseStartup;
-    if ('phaseSteadyState' in changedValues) phaseUpdates.steadyState = changedValues.phaseSteadyState;
-    if ('phaseMaintenance' in changedValues) phaseUpdates.maintenance = changedValues.phaseMaintenance;
-    if ('phaseShutdown' in changedValues) phaseUpdates.shutdown = changedValues.phaseShutdown;
+    const phaseUpdates: Partial<ScenarioFlow['phases']> = {};
+    if ('phaseStartup' in changedValues) phaseUpdates.startup = changedValues.phaseStartup as boolean;
+    if ('phaseSteadyState' in changedValues) phaseUpdates.steadyState = changedValues.phaseSteadyState as boolean;
+    if ('phaseMaintenance' in changedValues) phaseUpdates.maintenance = changedValues.phaseMaintenance as boolean;
+    if ('phaseShutdown' in changedValues) phaseUpdates.shutdown = changedValues.phaseShutdown as boolean;
 
     if (Object.keys(phaseUpdates).length > 0) {
       const currentPhases = flow.phases || {
@@ -139,7 +130,7 @@ const FlowPropertyForm: React.FC<FlowPropertyFormProps> = ({ flowId }) => {
 
       <Form.Item label="Protocol" name="protocol" rules={[{ required: true }]}>
         <Select>
-          {PROTOCOLS.map((protocol) => (
+          {PROTOCOL_OPTIONS.map((protocol) => (
             <Option key={protocol.value} value={protocol.value}>
               {protocol.label}
             </Option>

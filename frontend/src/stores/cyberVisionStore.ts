@@ -16,6 +16,7 @@ import {
   type CVEnrichmentRequest,
   type CVEnrichmentResult,
 } from '../api/cyberVision';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface CyberVisionState {
   // Connection state
@@ -77,8 +78,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const status = await cyberVisionApi.getStatus();
       set({ connectionStatus: status, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to fetch CV status';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch CV status');
       set({
         error: message,
         isLoading: false,
@@ -92,8 +93,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const settings = await cyberVisionApi.getSettings();
       set({ settings, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to fetch CV settings';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch CV settings');
       set({ error: message, isLoading: false });
     }
   },
@@ -103,8 +104,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const settings = await cyberVisionApi.updateSettings(settingsUpdate);
       set({ settings, isLoading: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to update CV settings';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to update CV settings');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -116,8 +117,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
       const result = await cyberVisionApi.testConnection(request);
       set({ isTesting: false });
       return result;
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Connection test failed';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Connection test failed');
       set({ isTesting: false });
       return { success: false, message };
     }
@@ -128,8 +129,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const response = await cyberVisionApi.getDevices(params);
       set({ devices: response.items, isLoadingDevices: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to fetch CV devices';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch CV devices');
       set({ error: message, isLoadingDevices: false });
     }
   },
@@ -139,8 +140,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const response = await cyberVisionApi.getVulnerabilities(params);
       set({ vulnerabilities: response.items, isLoadingVulnerabilities: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to fetch CV vulnerabilities';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch CV vulnerabilities');
       set({ error: message, isLoadingVulnerabilities: false });
     }
   },
@@ -150,8 +151,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const response = await cyberVisionApi.getPresets();
       set({ presets: response.items, isLoadingPresets: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to fetch CV presets';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch CV presets');
       set({ error: message, isLoadingPresets: false });
     }
   },
@@ -161,8 +162,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     try {
       const result = await cyberVisionApi.compareScenario(scenarioId, presetId);
       set({ comparisonResult: result, isComparing: false });
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to compare scenario';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to compare scenario');
       set({ error: message, isComparing: false });
     }
   },
@@ -181,8 +182,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
       const result = await cyberVisionApi.enrichDevices(request);
       set({ enrichmentResult: result, isEnriching: false });
       return result;
-    } catch (error: any) {
-      const message = error.response?.data?.detail || error.message || 'Failed to enrich CV devices';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to enrich CV devices');
       set({ error: message, isEnriching: false });
       return null;
     }

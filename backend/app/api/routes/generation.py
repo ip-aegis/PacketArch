@@ -6,6 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
+
+from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -123,10 +125,7 @@ async def start_generation(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Scenario {request.scenario_id} not found",
-        )
+        raise NotFoundError("Scenario", str(request.scenario_id))
 
     # Check user access (if scenario has user_id, must match current user or be admin)
     if scenario.user_id and scenario.user_id != current_user.id and not current_user.is_admin:
@@ -140,10 +139,7 @@ async def start_generation(
 
     # Validate duration
     if duration_ms > settings.max_simulation_duration_ms:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Duration exceeds maximum of {settings.max_simulation_duration_ms}ms",
-        )
+        raise ValidationError(f"Duration exceeds maximum of {settings.max_simulation_duration_ms}ms")
 
     # Create job in database
     job = await create_job_in_db(
@@ -169,10 +165,7 @@ async def start_generation(
 
     except Exception as e:
         logger.error(f"Failed to start generation task: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to start generation task",
-        )
+        raise ExternalServiceError(service="celery", message="Failed to start generation task", original_error=e)
 
     return GenerationJobResponse(
         job_id=str(job.id),
@@ -213,10 +206,7 @@ async def get_generation_status(
     try:
         job_uuid = UUID(job_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid job ID format",
-        )
+        raise ValidationError("Invalid job ID format")
 
     result = await db.execute(
         select(GenerationJobModel)
@@ -226,10 +216,7 @@ async def get_generation_status(
     job = result.scalar_one_or_none()
 
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job {job_id} not found",
-        )
+        raise NotFoundError("Generation job", job_id)
 
     # Check user access (user must own job or be admin)
     if job.user_id != current_user.id and not current_user.is_admin:
@@ -263,10 +250,7 @@ async def download_pcap(
     try:
         job_uuid = UUID(job_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid job ID format",
-        )
+        raise ValidationError("Invalid job ID format")
 
     result = await db.execute(
         select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
@@ -274,10 +258,7 @@ async def download_pcap(
     job = result.scalar_one_or_none()
 
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job {job_id} not found",
-        )
+        raise NotFoundError("Generation job", job_id)
 
     # Check user access
     if job.user_id != current_user.id and not current_user.is_admin:
@@ -288,25 +269,16 @@ async def download_pcap(
 
     # Check job is completed
     if job.status != GenerationJobStatus.COMPLETED.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Job is not completed (status: {job.status})",
-        )
+        raise ValidationError(f"Job is not completed (status: {job.status})")
 
     # Check output file exists
     output_path = job.output_path
     if not output_path:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Output file path not available",
-        )
+        raise NotFoundError("Output file path")
 
     output_path_obj = Path(output_path)
     if not output_path_obj.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Output file not found",
-        )
+        raise NotFoundError("Output file")
 
     # Return file
     return FileResponse(
@@ -335,10 +307,7 @@ async def cancel_generation(
     try:
         job_uuid = UUID(job_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid job ID format",
-        )
+        raise ValidationError("Invalid job ID format")
 
     result = await db.execute(
         select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
@@ -346,10 +315,7 @@ async def cancel_generation(
     job = result.scalar_one_or_none()
 
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job {job_id} not found",
-        )
+        raise NotFoundError("Generation job", job_id)
 
     # Check user access
     if job.user_id != current_user.id and not current_user.is_admin:
@@ -365,10 +331,7 @@ async def cancel_generation(
         GenerationJobStatus.CANCELLED.value,
     ]
     if job.status in terminal_statuses:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot cancel job in {job.status} state",
-        )
+        raise ValidationError(f"Cannot cancel job in {job.status} state")
 
     # Try to revoke the Celery task if we have a task ID
     if job.celery_task_id:
@@ -405,10 +368,7 @@ async def delete_job(
     try:
         job_uuid = UUID(job_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid job ID format",
-        )
+        raise ValidationError("Invalid job ID format")
 
     result = await db.execute(
         select(GenerationJobModel).where(GenerationJobModel.id == job_uuid)
@@ -416,10 +376,7 @@ async def delete_job(
     job = result.scalar_one_or_none()
 
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job {job_id} not found",
-        )
+        raise NotFoundError("Generation job", job_id)
 
     # Check user access
     if job.user_id != current_user.id and not current_user.is_admin:
@@ -430,10 +387,7 @@ async def delete_job(
 
     # Can only delete jobs that are not running
     if job.status in [GenerationJobStatus.PENDING.value, GenerationJobStatus.RUNNING.value]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot delete job in {job.status} state. Cancel it first.",
-        )
+        raise ValidationError(f"Cannot delete job in {job.status} state. Cancel it first.")
 
     # Optionally delete the PCAP file
     if job.output_path:

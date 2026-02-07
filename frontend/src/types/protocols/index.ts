@@ -34,13 +34,13 @@ export * from './s7';
 export * from './bacnet';
 export * from './snmp';
 
-// Import config types for the discriminated union
-import type { ModbusConfig, DEFAULT_MODBUS_CONFIG } from './modbus';
-import type { EtherNetIPConfig, DEFAULT_ETHERNET_IP_CONFIG } from './ethernet-ip';
-import type { ProfinetConfig, DEFAULT_PROFINET_CONFIG } from './profinet';
-import type { S7Config, DEFAULT_S7_CONFIG } from './s7';
-import type { BACnetConfig, DEFAULT_BACNET_CONFIG } from './bacnet';
-import type { SNMPConfig, DEFAULT_SNMP_CONFIG } from './snmp';
+// Import config types and default constants for the discriminated union
+import { type ModbusConfig, DEFAULT_MODBUS_CONFIG } from './modbus';
+import { type EtherNetIPConfig, DEFAULT_ETHERNET_IP_CONFIG } from './ethernet-ip';
+import { type ProfinetConfig, DEFAULT_PROFINET_CONFIG } from './profinet';
+import { type S7Config, DEFAULT_S7_CONFIG } from './s7';
+import { type BACnetConfig, DEFAULT_BACNET_CONFIG } from './bacnet';
+import { type SNMPConfig, DEFAULT_SNMP_CONFIG } from './snmp';
 
 /**
  * Protocol type literals for type-safe protocol identification.

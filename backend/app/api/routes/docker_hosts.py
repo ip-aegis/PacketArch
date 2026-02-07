@@ -2,11 +2,12 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.api.deps import AdminUser, DBSession
 from app.core.encryption import decrypt_value, encrypt_value
+from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.docker_host import DockerHost
 from app.schemas.docker_host import (
     DockerHostCreate,
@@ -50,9 +51,9 @@ async def create_docker_host(
         select(DockerHost).where(DockerHost.name == data.name)
     )
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Docker host with name '{data.name}' already exists",
+        raise ConflictError(
+            f"Docker host with name '{data.name}' already exists",
+            resource="DockerHost",
         )
 
     # Encrypt client key if provided
@@ -93,10 +94,7 @@ async def get_docker_host(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host")
 
     return DockerHostResponse.from_model(host)
 
@@ -115,10 +113,7 @@ async def update_docker_host(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host")
 
     # Check for duplicate name if changing
     if data.name and data.name != host.name:
@@ -126,9 +121,9 @@ async def update_docker_host(
             select(DockerHost).where(DockerHost.name == data.name)
         )
         if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Docker host with name '{data.name}' already exists",
+            raise ConflictError(
+                f"Docker host with name '{data.name}' already exists",
+                resource="DockerHost",
             )
 
     # Update fields
@@ -160,10 +155,7 @@ async def delete_docker_host(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host")
 
     await db.delete(host)
     await db.commit()
@@ -182,10 +174,7 @@ async def test_docker_host_connection(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host")
 
     # Decrypt client key for connection - store in temp var to avoid modifying model
     decrypted_key = decrypt_value(host.client_key) if host.client_key else None
@@ -232,10 +221,7 @@ async def list_docker_host_interfaces(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host")
 
     # Decrypt client key for connection - store in temp var to avoid modifying model
     decrypted_key = decrypt_value(host.client_key) if host.client_key else None
@@ -250,9 +236,10 @@ async def list_docker_host_interfaces(
     try:
         interfaces = docker_service.list_interfaces(host)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list interfaces: {str(e)}",
+        raise ExternalServiceError(
+            service="docker",
+            message=f"Failed to list interfaces: {str(e)}",
+            original_error=str(e),
         )
 
     return DockerHostInterfaceList(

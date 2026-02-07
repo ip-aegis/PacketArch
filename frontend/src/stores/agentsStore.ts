@@ -88,7 +88,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         standardVersion: response.standard_version,
         isLoading: false,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to fetch agents');
       set({ error: message, isLoading: false });
       throw error;
@@ -105,7 +105,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         isLoading: false,
       }));
       return agent;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to fetch agent');
       set({ error: message, isLoading: false });
       throw error;
@@ -122,7 +122,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         isLoading: false,
       }));
       return agentWithToken;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to create agent');
       set({ error: message, isLoading: false });
       throw error;
@@ -139,7 +139,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         isLoading: false,
       }));
       return agent;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to update agent');
       set({ error: message, isLoading: false });
       throw error;
@@ -156,7 +156,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         total: state.total - 1,
         isLoading: false,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to delete agent');
       set({ error: message, isLoading: false });
       throw error;
@@ -173,7 +173,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         isLoading: false,
       }));
       return agentWithToken;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to regenerate token');
       set({ error: message, isLoading: false });
       throw error;
@@ -186,7 +186,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
       const info = await agentsApi.getConnection(id);
       set({ connectionInfo: info, isLoadingConnection: false });
       return info;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Agent might be offline, not an error
       set({ connectionInfo: null, isLoadingConnection: false });
       return null;
@@ -199,7 +199,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
       const response = await agentsApi.getInterfaces(id);
       set({ interfaces: response.interfaces, isLoadingInterfaces: false });
       return response.interfaces;
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ interfaces: [], isLoadingInterfaces: false });
       throw error;
     }
@@ -211,7 +211,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
       const deployments = await agentsApi.listDeployments(id, activeOnly);
       set({ deployments, isLoadingDeployments: false });
       return deployments;
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ deployments: [], isLoadingDeployments: false });
       throw error;
     }
@@ -221,7 +221,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
     try {
       const connected = await agentsApi.listConnected();
       set({ connectedAgents: connected });
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({ connectedAgents: [] });
     }
   },
@@ -235,7 +235,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         isLoading: false,
       }));
       return deployment;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to deploy scenario');
       set({ error: message, isLoading: false });
       throw error;
@@ -250,7 +250,7 @@ export const useAgentsStore = create<AgentsState>()((set, get) => ({
         deployments: state.deployments.filter((d) => d.scenario_id !== scenarioId),
         isLoading: false,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to stop deployment');
       set({ error: message, isLoading: false });
       throw error;

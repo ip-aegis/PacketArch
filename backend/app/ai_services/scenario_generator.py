@@ -1511,20 +1511,9 @@ class ScenarioGenerator:
         Returns:
             MAC address string
         """
-        # Vendor OUI prefixes
-        vendor_ouis = {
-            "rockwell": "00:00:BC",
-            "siemens": "00:0E:8C",
-            "schneider": "00:00:54",
-            "abb": "00:21:99",
-            "honeywell": "00:40:84",  # Honeywell Inc (verified IEEE)
-            "emerson": "00:0D:3A",  # Emerson Network Power (verified IEEE)
-            "ge": "00:09:45",  # GE Fanuc (verified IEEE)
-        }
+        oui = get_oui_for_vendor(vendor) if vendor else "02:00:00"
 
-        oui = vendor_ouis.get(vendor, "00:00:00")
-
-        # Generate NIC portion
+        # Generate NIC portion using counter for deterministic uniqueness
         nic = [
             (self._mac_counter >> 16) & 0xFF,
             (self._mac_counter >> 8) & 0xFF,

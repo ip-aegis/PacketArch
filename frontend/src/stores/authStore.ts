@@ -7,6 +7,7 @@ import { persist } from 'zustand/middleware';
 import type { User, LoginCredentials } from '../types';
 import { authApi } from '../api/auth';
 import { clearTokens, getAccessToken } from '../api/client';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface AuthState {
   user: User | null;
@@ -35,9 +36,8 @@ export const useAuthStore = create<AuthState>()(
           await authApi.login(credentials);
           const user = await authApi.getCurrentUser();
           set({ user, isAuthenticated: true, isLoading: false });
-        } catch (error: any) {
-          const message =
-            error.response?.data?.detail || error.message || 'Login failed';
+        } catch (error: unknown) {
+          const message = extractErrorMessage(error, 'Login failed');
           set({ error: message, isLoading: false });
           throw error;
         }

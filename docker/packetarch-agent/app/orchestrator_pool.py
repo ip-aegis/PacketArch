@@ -344,7 +344,7 @@ class OrchestratorPool:
             self._notify_status_change(ctx)
 
         except Exception as e:
-            logger.error(f"Scenario {ctx.scenario_id} failed: {e}")
+            logger.error(f"Scenario {ctx.scenario_id} failed: {e}", exc_info=True)
             ctx.status.state = ScenarioState.ERROR
             ctx.status.error_message = str(e)
             ctx.status.stopped_at = time.time()
@@ -395,6 +395,7 @@ class OrchestratorPool:
                 "bacnet_ip": 47808,
                 "dnp3": 20000,
                 "opcua": 4840,
+                "opc_ua": 4840,
                 "iec104": 2404,
                 "https": 443,
             }

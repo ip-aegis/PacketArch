@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
 from app.models.scenario import Scenario
 from app.schemas.agent import (
@@ -152,10 +152,7 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
 
     # Verify source exists
     if not AGENT_SOURCE_PATH.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent source not found at {AGENT_SOURCE_PATH}",
-        )
+        raise NotFoundError("Agent source", str(AGENT_SOURCE_PATH))
 
     # Ensure static directory exists
     AGENT_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -340,10 +337,7 @@ async def download_agent_image():
     The X-Checksum-SHA256 header contains the expected checksum for verification.
     """
     if not AGENT_IMAGE_PATH.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent image not available. Build it first with POST /api/v1/agents/build-image",
-        )
+        raise NotFoundError("Agent image", "packetarch-agent.tar.gz")
 
     # Read checksum for header
     checksum = None
@@ -617,10 +611,7 @@ async def get_agent_connection(agent_id: UUID) -> AgentConnectionInfo:
     conn = agent_manager.get_connection(agent_id)
 
     if not conn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not connected",
-        )
+        raise NotFoundError("Agent connection")
 
     return AgentConnectionInfo(
         agent_id=conn.agent_id,
@@ -639,10 +630,7 @@ async def get_agent_connection(agent_id: UUID) -> AgentConnectionInfo:
 async def get_agent_interfaces(agent_id: UUID) -> AgentInterfacesResponse:
     """Get network interfaces from a connected agent."""
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not connected",
-        )
+        raise NotFoundError("Agent connection")
 
     try:
         interfaces = await agent_manager.list_interfaces(agent_id)
@@ -651,14 +639,15 @@ async def get_agent_interfaces(agent_id: UUID) -> AgentInterfacesResponse:
             interfaces=[InterfaceInfo(**iface) for iface in interfaces],
         )
     except TimeoutError:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Agent did not respond in time",
+        raise ExternalServiceError(
+            service="agent",
+            message="Agent did not respond in time",
         )
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e),
+        raise ExternalServiceError(
+            service="agent",
+            message=str(e),
+            original_error=str(e),
         )
 
 
@@ -677,16 +666,10 @@ async def deploy_scenario_to_agent(
         raise NotFoundError("Agent not found", details={"id": str(agent_id)})
 
     if not agent.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent is not active",
-        )
+        raise ValidationError("Agent is not active")
 
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent is not connected",
-        )
+        raise ValidationError("Agent is not connected")
 
     # Get scenario
     result = await db.execute(
@@ -739,9 +722,9 @@ async def deploy_scenario_to_agent(
         agent_deployment.state = "error"
         agent_deployment.error_message = "Failed to send deployment command"
         await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to send deployment command to agent",
+        raise ExternalServiceError(
+            service="agent",
+            message="Failed to send deployment command to agent",
         )
 
     logger.info(
@@ -800,18 +783,15 @@ async def stop_orphan_scenario(
     """
     # Verify agent is connected
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Agent is not connected",
+        raise ExternalServiceError(
+            service="agent",
+            message="Agent is not connected",
         )
 
     # Send stop command directly
     success = await agent_manager.stop_scenario(str(scenario_id))
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found on any connected agent",
-        )
+        raise NotFoundError("Running scenario on agent", str(scenario_id))
 
     logger.info(f"Stopped orphan scenario {scenario_id} on agent {agent_id}")
 
@@ -856,17 +836,11 @@ async def trigger_agent_update(
         raise NotFoundError("Agent not found", details={"id": str(agent_id)})
 
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent is not connected",
-        )
+        raise ValidationError("Agent is not connected")
 
     # Check image is available
     if not AGENT_IMAGE_PATH.exists():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent image not available. Build it first with POST /api/v1/agents/build-image",
-        )
+        raise ValidationError("Agent image not available. Build it first with POST /api/v1/agents/build-image")
 
     # Get target version
     target_version = get_standard_agent_version()
@@ -875,9 +849,9 @@ async def trigger_agent_update(
     success = await agent_manager.send_update_command(agent_id, target_version)
 
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to send update command to agent",
+        raise ExternalServiceError(
+            service="agent",
+            message="Failed to send update command to agent",
         )
 
     logger.info(f"Sent update command to agent {agent.name}")
@@ -931,10 +905,7 @@ async def get_agent_logs(
     Requires the agent to be online and connected.
     """
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not connected",
-        )
+        raise NotFoundError("Agent connection")
 
     try:
         logs = await agent_manager.request_logs(agent_id, lines=lines)
@@ -944,14 +915,15 @@ async def get_agent_logs(
             "count": len(logs),
         }
     except TimeoutError:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Agent did not respond in time",
+        raise ExternalServiceError(
+            service="agent",
+            message="Agent did not respond in time",
         )
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e),
+        raise ExternalServiceError(
+            service="agent",
+            message=str(e),
+            original_error=str(e),
         )
 
 
@@ -963,10 +935,7 @@ async def ping_agent_test(agent_id: UUID) -> dict:
     Useful for diagnosing connectivity issues.
     """
     if not agent_manager.is_connected(agent_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not connected",
-        )
+        raise NotFoundError("Agent connection")
 
     try:
         timing = await agent_manager.ping_with_timing(agent_id)
@@ -983,7 +952,8 @@ async def ping_agent_test(agent_id: UUID) -> dict:
             detail="Agent did not respond to ping",
         )
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e),
+        raise ExternalServiceError(
+            service="agent",
+            message=str(e),
+            original_error=str(e),
         )

@@ -187,6 +187,13 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     cloud_services_created = await seed_cloud_services(db)
     results["cloud_services"] = f"Seeded {cloud_services_created} cloud service endpoints"
 
+    # Pre-warm fingerprint cache (uses sync DB, safe here since no event loop contention)
+    from app.services.fingerprint_cache import get_fingerprint_cache
+    cache = get_fingerprint_cache()
+    cache.refresh()
+    fp_count = len(cache.index.all_fingerprints)
+    results["fingerprint_cache"] = f"Pre-warmed fingerprint cache with {fp_count} fingerprints"
+
     # Recover any stuck PCAP processing jobs
     stuck_count = await recover_stuck_pcap_processing(db)
     if stuck_count > 0:

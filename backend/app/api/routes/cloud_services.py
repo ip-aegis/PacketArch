@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ConflictError, NotFoundError
+
 from app.api.deps import CurrentUser, DBSession
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.schemas.cloud_service import (
@@ -76,10 +78,7 @@ async def get_cloud_service(
     service = result.scalar_one_or_none()
 
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Cloud service endpoint not found: {service_id}",
-        )
+        raise NotFoundError("Cloud service endpoint", str(service_id))
 
     return CloudServiceEndpointResponse.model_validate(service)
 
@@ -105,10 +104,7 @@ async def create_cloud_service(
     existing = result.scalar_one_or_none()
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cloud service endpoint with name '{request.name}' already exists",
-        )
+        raise ConflictError(f"Cloud service endpoint with name '{request.name}' already exists", resource="Cloud service endpoint")
 
     service = CloudServiceEndpoint(
         name=request.name,
@@ -155,10 +151,7 @@ async def update_cloud_service(
     service = result.scalar_one_or_none()
 
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Cloud service endpoint not found: {service_id}",
-        )
+        raise NotFoundError("Cloud service endpoint", str(service_id))
 
     # Prevent modification of builtin services (except is_active)
     if service.is_builtin:
@@ -180,10 +173,7 @@ async def update_cloud_service(
         existing = result.scalar_one_or_none()
 
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cloud service endpoint with name '{request.name}' already exists",
-            )
+            raise ConflictError(f"Cloud service endpoint with name '{request.name}' already exists", resource="Cloud service endpoint")
 
     # Apply updates
     update_data = request.model_dump(exclude_unset=True)
@@ -217,10 +207,7 @@ async def delete_cloud_service(
     service = result.scalar_one_or_none()
 
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Cloud service endpoint not found: {service_id}",
-        )
+        raise NotFoundError("Cloud service endpoint", str(service_id))
 
     if service.is_builtin:
         raise HTTPException(

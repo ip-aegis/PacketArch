@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
+from app.core.exceptions import NotFoundError, ValidationError
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 from app.schemas.password import (
@@ -33,17 +34,11 @@ async def change_own_password(
     """
     # Verify current password
     if not verify_password(request.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
+        raise ValidationError("Current password is incorrect")
 
     # Check new password is different
     if request.current_password == request.new_password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from current password",
-        )
+        raise ValidationError("New password must be different from current password")
 
     # Update password
     current_user.password_hash = get_password_hash(request.new_password)
@@ -72,10 +67,7 @@ async def admin_reset_password(
     target_user = result.scalar_one_or_none()
 
     if target_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        raise NotFoundError("User")
 
     # Update password
     target_user.password_hash = get_password_hash(request.new_password)
@@ -113,10 +105,7 @@ async def get_user(
     user = result.scalar_one_or_none()
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        raise NotFoundError("User")
 
     return user
 
@@ -133,19 +122,13 @@ async def toggle_user_active(
     Cannot deactivate yourself.
     """
     if user_id == admin.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot deactivate your own account",
-        )
+        raise ValidationError("Cannot deactivate your own account")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        raise NotFoundError("User")
 
     user.is_active = not user.is_active
     await db.commit()

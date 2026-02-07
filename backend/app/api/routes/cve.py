@@ -10,8 +10,10 @@ This module provides REST API endpoints for:
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
+
+from app.core.exceptions import NotFoundError
 
 from app.api.deps import CurrentUser
 from app.services.cve_data import (
@@ -186,10 +188,7 @@ async def get_cve_detail(
     cve = get_cve(cve_id)
 
     if not cve:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"CVE '{cve_id}' not found",
-        )
+        raise NotFoundError("CVE", cve_id)
 
     # Count variants
     variants = get_vulnerable_variants_for_cve(cve_id)
@@ -415,18 +414,12 @@ async def get_variants_for_cve(
     """
     cve = get_cve(cve_id)
     if not cve:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"CVE '{cve_id}' not found",
-        )
+        raise NotFoundError("CVE", cve_id)
 
     variants = get_vulnerable_variants_for_cve(cve_id)
 
     if not variants:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No vulnerable variants found for CVE '{cve_id}'",
-        )
+        raise NotFoundError("Vulnerable variants for CVE", cve_id)
 
     return [
         VulnerableVariantDetailResponse(
@@ -486,7 +479,4 @@ async def get_variant_detail(
                 cve_cvss_score=v.get("_cve_cvss_score"),
             )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Variant '{variant_id}' not found",
-    )
+    raise NotFoundError("Vulnerable variant", variant_id)

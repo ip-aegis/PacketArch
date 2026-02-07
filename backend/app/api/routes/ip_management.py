@@ -2,10 +2,11 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.scenario import Scenario
 from app.schemas.ip_management import (
     IPRangeAllocationResponse,
@@ -64,18 +65,12 @@ async def get_scenario_ip_info(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", str(scenario_id))
 
     allocation = await IPManagementService.get_allocation(db, scenario_id)
 
     if not allocation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No IP range allocated for this scenario",
-        )
+        raise NotFoundError("IP range allocation", str(scenario_id))
 
     # Count devices with IPs
     devices = scenario.definition.get("devices", {})
@@ -127,17 +122,11 @@ async def get_next_ip(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", str(scenario_id))
 
     try:
         next_ip = await IPManagementService.get_next_ip(db, scenario_id)
         await db.commit()  # Commit the offset increment
         return NextIPResponse(**next_ip)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        raise ValidationError(str(e))

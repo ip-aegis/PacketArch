@@ -27,28 +27,18 @@ import { useNodeDrag } from './hooks/useNodeDrag';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
-import type { ScenarioFlow, DeviceType } from '../../types';
-
-// Device type colors for minimap - matching DeviceNode
-const DEVICE_TYPE_COLORS: Record<DeviceType, string> = {
-  plc: '#049FD9',
-  hmi: '#6CC04A',
-  rtu: '#FBAB18',
-  drive: '#FF7043',
-  sensor: '#00BCEB',
-  relay: '#E53935',
-  ews: '#9C27B0',
-  historian: '#607D8B',
-};
+import type { ScenarioFlow } from '../../types';
+import type { DeviceNodeData } from './nodes/DeviceNode';
+import { DEVICE_TYPE_COLORS } from '../../constants/protocols';
 
 const nodeTypes = {
-  deviceNode: DeviceNode as any,
-  zoneNode: ZoneNode as any,
-};
+  deviceNode: DeviceNode,
+  zoneNode: ZoneNode,
+} as const satisfies Record<string, React.ComponentType<unknown>>;
 
 const edgeTypes = {
-  flowEdge: FlowEdge as any,
-};
+  flowEdge: FlowEdge,
+} as const satisfies Record<string, React.ComponentType<unknown>>;
 
 interface ScenarioCanvasProps {
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -191,7 +181,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
   // Handle node selection
   const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: any) => {
+    (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'deviceNode') {
         setPropertyContext('device', [node.id]);
         setSelection([node.id], []);
@@ -205,7 +195,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
   // Handle edge selection
   const onEdgeClick = useCallback(
-    (_event: React.MouseEvent, edge: any) => {
+    (_event: React.MouseEvent, edge: Edge) => {
       setPropertyContext('flow', [edge.id]);
       setSelection([], [edge.id]);
     },
@@ -220,7 +210,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
   // Handle delete key
   const onNodesDelete = useCallback(
-    (nodesToDelete: any[]) => {
+    (nodesToDelete: Node[]) => {
       nodesToDelete.forEach((node) => {
         if (node.type === 'deviceNode') {
           const device = useScenarioStore.getState().devices[node.id];
@@ -307,7 +297,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const getNodeColor = useCallback((node: Node) => {
     if (node.type === 'zoneNode') return 'rgba(255,255,255,0.2)';
     if (node.type === 'deviceNode' && node.data) {
-      const deviceType = (node.data as any).type as DeviceType;
+      const deviceType = (node.data as DeviceNodeData).type;
       return DEVICE_TYPE_COLORS[deviceType] || '#6a9fd4';
     }
     return '#6a9fd4';

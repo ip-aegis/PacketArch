@@ -33,6 +33,7 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:1F:F8",  # Siemens AG Automation
         "74:DA:EA",  # Siemens Industrial
         "64:6E:97",  # Siemens AG
+        "AC:64:17",  # Siemens AG (Amberg, IEEE 2017)
     ],
     "rockwell": [
         "00:00:BC",  # Allen-Bradley (legacy)
@@ -509,7 +510,7 @@ ODVA_VENDOR_IDS: dict[str, int] = {
     "rockwell": 1,  # Allen-Bradley (Rockwell Automation)
     "schneider": 67,  # Schneider Electric
     "siemens": 285,  # Siemens
-    "abb": 285,  # ABB also uses 285 in some products
+    "abb": 75,  # ABB (ODVA Licensed Vendor)
     "honeywell": 50,  # Honeywell
     "emerson": 90,  # Emerson
     "ge": 82,  # General Electric

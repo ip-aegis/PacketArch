@@ -257,108 +257,37 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # FLEET MANAGEMENT FLOWS
             # ============================================================
-            # KUKA Fleet Manager to KUKA AGVs - PROFINET cyclic (8ms) - native KUKA protocol
+            # KUKA Fleet Manager to KUKA AGVs - PROFINET cyclic (8ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_01",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_02",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_03",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_04",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_05",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_06",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_07",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "KUKA_Fleet_Manager", "target": "AGV_KUKA_08",
+             "source_types": ["fleet_manager"], "target_types": ["agv"],
+             "source_zones": ["fleet_mgmt"], "target_zones": ["agv_zone"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
-            # MiR Fleet Controller to MiR AMRs - mission commands (250ms)
+            # MiR Fleet Controller to MiR AMRs - Modbus mission commands (250ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_01",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_02",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_03",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_04",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_05",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "MiR_Fleet_Controller", "target": "AMR_MiR_06",
+             "source_types": ["fleet_manager"], "target_types": ["amr"],
+             "source_zones": ["fleet_mgmt"], "target_zones": ["agv_zone"],
              "jitter_ms": 30, "jitter_type": "gaussian"},
 
             # ============================================================
             # CONVEYOR ZONE FLOWS
             # ============================================================
-            # Main Conveyor PLC to VFDs - cyclic I/O (10ms)
+            # Conveyor PLCs and Sortation to VFDs - cyclic I/O (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Conveyor_Main_PLC", "target": "Main_Takeaway_VFD",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Conveyor_Main_PLC", "target": "Merge_Line_VFD",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Conveyor_Main_PLC", "target": "Accumulation_VFD",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-
-            # Sortation PLC to Divert VFD
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sortation_Master_PLC", "target": "Divert_Gate_VFD",
+             "source_types": ["plc", "sortation_controller"], "target_types": ["drive"],
+             "source_zones": ["conveyor_zone"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # Inter-PLC communication - zone coordination (50ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Main_PLC", "target": "Inbound_Conveyor_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Main_PLC", "target": "Outbound_Conveyor_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Main_PLC", "target": "Sortation_Master_PLC",
+             "source_types": ["plc"], "target_types": ["plc", "sortation_controller"],
+             "source_zones": ["conveyor_zone"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
-            # Safety PLC to conveyor PLCs - safety interlock (20ms)
+            # Safety PLC to conveyor PLCs and VFDs - safety interlock (20ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Conveyor_Main_PLC",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Inbound_Conveyor_PLC",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Outbound_Conveyor_PLC",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Sortation_Master_PLC",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-
-            # Safety PLC to VFDs - E-stop interlock (20ms)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Main_Takeaway_VFD",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Merge_Line_VFD",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Accumulation_VFD",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Conveyor_Safety_PLC", "target": "Divert_Gate_VFD",
+             "source_types": ["safety_plc"], "target_types": ["plc", "sortation_controller", "drive"],
+             "source_zones": ["conveyor_zone"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -366,90 +295,59 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Pick Station PLC to I/O modules - pick-to-light (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_1_IO",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_2_IO",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_3_IO",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_4_IO",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_5_IO",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Pick_Station_Master_PLC", "target": "Pick_Station_6_IO",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["pick_zone"], "target_zones": ["pick_zone"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # Pick PLC to barcode scanners (100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Pick_Station_Master_PLC", "target": "Inbound_Scanner_1",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Pick_Station_Master_PLC", "target": "Inbound_Scanner_2",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Pick_Station_Master_PLC", "target": "Outbound_Scanner_1",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Pick_Station_Master_PLC", "target": "Outbound_Scanner_2",
+             "source_types": ["plc"], "target_types": ["barcode_scanner"],
+             "source_zones": ["pick_zone"], "target_zones": ["pick_zone"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # Vision systems to Pick PLC - QC results (500ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
-             "source": "QC_Vision_Station_1", "target": "Pick_Station_Master_PLC",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
-             "source": "QC_Vision_Station_2", "target": "Pick_Station_Master_PLC",
+             "source_types": ["vision_system"], "target_types": ["plc"],
+             "source_zones": ["pick_zone"], "target_zones": ["pick_zone"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
             # ============================================================
             # WCS/SCADA FLOWS (Level 3 to Level 2)
             # ============================================================
-            # Primary WCS to all conveyor PLCs (200ms)
+            # Primary WCS to conveyor PLCs and sortation (200ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "WCS_Primary_Server", "target": "Conveyor_Main_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "WCS_Primary_Server", "target": "Inbound_Conveyor_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "WCS_Primary_Server", "target": "Outbound_Conveyor_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "WCS_Primary_Server", "target": "Sortation_Master_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "WCS_Primary_Server", "target": "Pick_Station_Master_PLC",
+             "source_types": ["scada_server"], "target_types": ["plc", "sortation_controller"],
+             "source_zones": ["wms_core"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
-            # WCS to Fleet Managers (500ms)
+            # Primary WCS to Pick Station PLC (200ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["wms_core"], "target_zones": ["pick_zone"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+
+            # WCS to Fleet Managers - EtherNet/IP (500ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
-             "source": "WCS_Primary_Server", "target": "KUKA_Fleet_Manager",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "WCS_Primary_Server", "target": "MiR_Fleet_Controller",
+             "source_types": ["scada_server"], "target_types": ["fleet_manager"],
+             "source_zones": ["wms_core"], "target_zones": ["fleet_mgmt"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
-            # WCS to Safety PLC status (1s)
+            # WCS to Safety PLC status (1000ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
-             "source": "WCS_Primary_Server", "target": "Conveyor_Safety_PLC",
+             "source_types": ["scada_server"], "target_types": ["safety_plc"],
+             "source_zones": ["wms_core"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # WCS to Vision Systems (1s)
+            # WCS to Vision Systems (1000ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
-             "source": "WCS_Primary_Server", "target": "QC_Vision_Station_1",
-             "jitter_ms": 100, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
-             "source": "WCS_Primary_Server", "target": "QC_Vision_Station_2",
+             "source_types": ["scada_server"], "target_types": ["vision_system"],
+             "source_zones": ["wms_core"], "target_zones": ["pick_zone"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # Backup WCS heartbeat to primary (5s)
+            # Backup WCS heartbeat to primary (5000ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 5000,
-             "source": "WCS_Backup_Server", "target": "WCS_Primary_Server",
+             "source_types": ["scada_server"], "target_types": ["scada_server"],
+             "source_zones": ["wms_core"], "target_zones": ["wms_core"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -457,43 +355,38 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # WCS monitoring all switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "WCS_Primary_Server", "target": "WMS_Core_Switch_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "WCS_Primary_Server", "target": "WMS_Core_Switch_2"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "WCS_Primary_Server", "target": "Fleet_Network_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "WCS_Primary_Server", "target": "Conveyor_Zone_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "WCS_Primary_Server", "target": "Pick_Zone_Switch"},
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["wms_core"], "target_zones": ["wms_core", "fleet_mgmt", "conveyor_zone", "pick_zone"]},
+
+            # Jump server SNMP monitoring of core switches (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["wms_core"], "target_zones": ["wms_core"]},
 
             # ============================================================
             # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
             # Uses actual Talk2M public IPs for Cyber Vision external detection
             # ============================================================
             {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source": "Warehouse_Remote_Gateway", "target": "talk2m_cloud",
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["wms_core"], "target_zones": ["external"],
              "external_ip": "13.56.142.1", "external_port": 443,
-             "description": "eWON Talk2M VPN heartbeat",
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Warehouse_Remote_Gateway", "target": "Conveyor_Main_PLC",
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["wms_core"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
             # JUMP SERVER - External RDP Access (simulated admin sessions)
             # ============================================================
             {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source": "WMS_Jump_Server", "target": "external_admin",
+             "source_types": ["jump_server"], "target_types": ["cloud"],
+             "source_zones": ["wms_core"], "target_zones": ["external"],
              "external_ip": "203.0.113.50", "external_port": 3389,
-             "description": "Remote admin RDP session",
              "jitter_ms": 15000, "jitter_type": "uniform"},
-
-            # Jump server SNMP monitoring
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "WMS_Jump_Server", "target": "WMS_Core_Switch_1"},
         ],
         "zones": [
             {"id": "wms_core", "name": "WMS Core", "level": 3,
@@ -506,6 +399,23 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 3, "vlan": 130, "security_level": "standard"},
             {"id": "pick_zone", "name": "Pick Stations", "level": 1,
              "subnet_offset": 4, "vlan": 140, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-west",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["delayed_response", "jitter_spike", "agv_position_lag"],
@@ -547,7 +457,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "role": "Distribution Operations"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dc_core",
-             "name": "DC_Historian", "protocols": ["ethernet_ip"],
+             "name": "DC_Historian", "protocols": [],
              "fingerprint_model": "Proficy Historian",
              "role": "Data Historian"},
             {"type": "switch", "vendor": "siemens", "count": 1, "zone": "dc_core",
@@ -739,169 +649,105 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
         ],
         "flows": [
             # ============================================================
-            # RECEIVING ZONE - PROFINET FLOWS (Siemens)
+            # RECEIVING ZONE FLOWS (Siemens)
             # ============================================================
-            # Receiving PLC to I/O module - PROFINET cyclic (4ms)
+            # Receiving PLC to I/O modules - PROFINET cyclic (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Receiving_Main_PLC", "target": "Receiving_IO_Module",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["receiving"], "target_zones": ["receiving"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
-            # Receiving PLC to RFID readers - Modbus TCP (500ms)
+            # Receiving PLC to RFID readers and gateways - Modbus TCP (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Dock_Door_1_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Dock_Door_2_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Dock_Door_3_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Dock_Door_4_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-
-            # Receiving PLC to RFID gateways (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Receiving_RFID_Gateway_1",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Receiving_Main_PLC", "target": "Receiving_RFID_Gateway_2",
+             "source_types": ["plc"], "target_types": ["rfid_reader", "rfid_gateway"],
+             "source_zones": ["receiving"], "target_zones": ["receiving"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
             # Receiving PLC to barcode scanner (100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Receiving_Main_PLC", "target": "Receiving_Scanner_1",
+             "source_types": ["plc"], "target_types": ["barcode_scanner"],
+             "source_zones": ["receiving"], "target_zones": ["receiving"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # ============================================================
-            # SHIPPING ZONE - PROFINET FLOWS (Siemens)
+            # SHIPPING ZONE FLOWS (Siemens)
             # ============================================================
-            # Shipping PLC to I/O module - PROFINET cyclic (4ms)
+            # Shipping PLC to I/O modules - PROFINET cyclic (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Shipping_Main_PLC", "target": "Shipping_IO_Module",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["shipping"], "target_zones": ["shipping"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
-            # Shipping PLC to RFID readers (500ms)
+            # Shipping PLC to RFID readers and gateways - Modbus TCP (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Shipping_Main_PLC", "target": "Ship_Door_1_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Shipping_Main_PLC", "target": "Ship_Door_2_RFID",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-
-            # Shipping PLC to RFID gateways (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Shipping_Main_PLC", "target": "Shipping_RFID_Gateway_1",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Shipping_Main_PLC", "target": "Shipping_RFID_Gateway_2",
+             "source_types": ["plc"], "target_types": ["rfid_reader", "rfid_gateway"],
+             "source_zones": ["shipping"], "target_zones": ["shipping"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
             # Shipping PLC to barcode scanner (100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Shipping_Main_PLC", "target": "Shipping_Scanner_1",
+             "source_types": ["plc"], "target_types": ["barcode_scanner"],
+             "source_zones": ["shipping"], "target_zones": ["shipping"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # Safety PLC to Safety I/O - PROFIsafe (4ms)
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source": "Dock_Safety_Controller", "target": "Safety_Light_Curtain_IO",
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
+             "source_zones": ["shipping"], "target_zones": ["shipping"],
              "jitter_ms": 0.3, "jitter_type": "gaussian"},
 
             # Safety PLC to zone PLCs - safety interlock (4ms)
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source": "Dock_Safety_Controller", "target": "Shipping_Main_PLC",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source": "Dock_Safety_Controller", "target": "Receiving_Main_PLC",
+             "source_types": ["safety_plc"], "target_types": ["plc"],
+             "source_zones": ["shipping"], "target_zones": ["receiving", "shipping"],
              "jitter_ms": 0.3, "jitter_type": "gaussian"},
 
             # ============================================================
-            # CONVEYOR BACKBONE - PROFINET FLOWS (Siemens)
+            # CONVEYOR BACKBONE FLOWS (Siemens)
             # ============================================================
             # Conveyor PLCs to VFDs - PROFINET cyclic (8ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Conveyor_Zone_1_PLC", "target": "Conveyor_VFD_1",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Conveyor_Zone_1_PLC", "target": "Conveyor_VFD_2",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Conveyor_Zone_2_PLC", "target": "Conveyor_VFD_3",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Conveyor_Zone_2_PLC", "target": "Conveyor_VFD_4",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-
-            # Sortation PLC to divert VFDs (8ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Sortation_Controller_PLC", "target": "Sortation_Divert_VFD_1",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Sortation_Controller_PLC", "target": "Sortation_Divert_VFD_2",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Sortation_Controller_PLC", "target": "Sortation_Divert_VFD_3",
-             "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
-             "source": "Sortation_Controller_PLC", "target": "Sortation_Divert_VFD_4",
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["conveyor_backbone"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # Conveyor PLCs to I/O modules - PROFINET cyclic (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Conveyor_Zone_1_PLC", "target": "Conveyor_Sensors_IO_1",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Conveyor_Zone_2_PLC", "target": "Conveyor_Sensors_IO_2",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["conveyor_backbone"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
             # Inter-PLC communication - zone handoff (50ms)
             {"protocol": "profinet", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Zone_1_PLC", "target": "Conveyor_Zone_2_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Zone_2_PLC", "target": "Conveyor_Zone_3_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "profinet", "pattern": "poll", "interval_ms": 50,
-             "source": "Conveyor_Zone_3_PLC", "target": "Sortation_Controller_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["conveyor_backbone"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
-            # Receiving/Shipping to Conveyor handoff (100ms)
+            # Receiving to Conveyor handoff (100ms)
             {"protocol": "profinet", "pattern": "poll", "interval_ms": 100,
-             "source": "Receiving_Main_PLC", "target": "Conveyor_Zone_1_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["receiving"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
+
+            # Conveyor to Shipping handoff (100ms)
             {"protocol": "profinet", "pattern": "poll", "interval_ms": 100,
-             "source": "Conveyor_Zone_3_PLC", "target": "Shipping_Main_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["conveyor_backbone"], "target_zones": ["shipping"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # ============================================================
             # SCADA/OPERATIONS (S7comm+ - Siemens native)
             # ============================================================
-            # Operations Server to all PLCs - S7comm+ (500ms)
+            # Operations Server to all PLCs and safety PLC - S7comm+ (500ms)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Receiving_Main_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Shipping_Main_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Conveyor_Zone_1_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Conveyor_Zone_2_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Conveyor_Zone_3_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Sortation_Controller_PLC",
-             "jitter_ms": 50, "jitter_type": "uniform"},
-            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
-             "source": "DC_Operations_Server", "target": "Dock_Safety_Controller",
+             "source_types": ["scada_server"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["dc_core"], "target_zones": ["receiving", "shipping", "conveyor_backbone"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
-            # Historian data collection (30s)
+            # Historian data collection from Operations Server (30s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Historian", "target": "DC_Operations_Server",
+             "source_types": ["historian"], "target_types": ["scada_server"],
+             "source_zones": ["dc_core"], "target_zones": ["dc_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
             # ============================================================
@@ -909,66 +755,42 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Operations Server to all switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "DC_Core_Switch_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "DC_Core_Switch_2"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "Receiving_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "Shipping_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "Conveyor_Switch_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "DC_Operations_Server", "target": "Conveyor_Switch_2"},
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["dc_core"], "target_zones": ["dc_core", "receiving", "shipping", "conveyor_backbone"]},
 
-            # SNMP to RFID readers/gateways (60s)
+            # Operations Server SNMP to RFID readers and gateways (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Dock_Door_1_RFID"},
+             "source_types": ["scada_server"], "target_types": ["rfid_reader", "rfid_gateway"],
+             "source_zones": ["dc_core"], "target_zones": ["receiving", "shipping"]},
+
+            # Jump server SNMP monitoring of core switches (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Dock_Door_2_RFID"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Dock_Door_3_RFID"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Dock_Door_4_RFID"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Ship_Door_1_RFID"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Ship_Door_2_RFID"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Receiving_RFID_Gateway_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Receiving_RFID_Gateway_2"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Shipping_RFID_Gateway_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Operations_Server", "target": "Shipping_RFID_Gateway_2"},
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["dc_core"], "target_zones": ["dc_core"]},
 
             # ============================================================
             # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
             # ============================================================
             {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source": "DC_Remote_Gateway", "target": "talk2m_cloud",
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["dc_core"], "target_zones": ["external"],
              "external_ip": "54.95.198.117", "external_port": 443,
-             "description": "eWON Talk2M VPN heartbeat",
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "DC_Remote_Gateway", "target": "Conveyor_Zone_1_PLC",
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["dc_core"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
             # JUMP SERVER - External RDP Access
             # ============================================================
             {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source": "DC_Jump_Server", "target": "external_admin",
+             "source_types": ["jump_server"], "target_types": ["cloud"],
+             "source_zones": ["dc_core"], "target_zones": ["external"],
              "external_ip": "203.0.113.51", "external_port": 3389,
-             "description": "Remote admin RDP session",
              "jitter_ms": 15000, "jitter_type": "uniform"},
-
-            # Jump server SNMP monitoring
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "DC_Jump_Server", "target": "DC_Core_Switch_1"},
         ],
         "zones": [
             {"id": "dc_core", "name": "DC Operations Core", "level": 3,
@@ -979,6 +801,23 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 2, "vlan": 220, "security_level": "standard"},
             {"id": "conveyor_backbone", "name": "Conveyor Backbone", "level": 1,
              "subnet_offset": 3, "vlan": 230, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-west",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["delayed_response", "rfid_read_timeout"],
@@ -1026,7 +865,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "BMEH586040",
              "role": "Refrigeration Backup Controller"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "hvac_control",
-             "name": "Temperature_Compliance_Historian", "protocols": ["ethernet_ip"],
+             "name": "Temperature_Compliance_Historian", "protocols": [],
              "fingerprint_model": "Proficy Historian",
              "role": "Compliance Data Historian"},
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "hvac_control",
@@ -1185,53 +1024,26 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
         ],
         "flows": [
             # ============================================================
-            # FROZEN ZONE - TEMPERATURE CONTROL (Honeywell)
+            # TEMPERATURE ZONE CONTROL (Honeywell)
+            # Controllers to sensors - Modbus (5s) - frozen and chilled zones
             # ============================================================
-            # Frozen zone controllers to temperature sensors - Modbus (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Frozen_Zone_Controller_1", "target": "Frozen_Temp_Sensor_1",
+             "source_types": ["temperature_controller"], "target_types": ["sensor"],
+             "source_zones": ["frozen_zone"], "target_zones": ["frozen_zone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Frozen_Zone_Controller_1", "target": "Frozen_Temp_Sensor_2",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Frozen_Zone_Controller_2", "target": "Frozen_Temp_Sensor_3",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Frozen_Zone_Controller_2", "target": "Frozen_Temp_Sensor_4",
+             "source_types": ["temperature_controller"], "target_types": ["sensor"],
+             "source_zones": ["chilled_zone"], "target_zones": ["chilled_zone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # Frozen controllers to compressor VFDs - Modbus (100ms)
+            # Controllers to compressor VFDs - Modbus (100ms) - frozen and chilled zones
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Frozen_Zone_Controller_1", "target": "Freezer_Compressor_VFD_1",
+             "source_types": ["temperature_controller"], "target_types": ["drive"],
+             "source_zones": ["frozen_zone"], "target_zones": ["frozen_zone"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Frozen_Zone_Controller_2", "target": "Freezer_Compressor_VFD_2",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-
-            # ============================================================
-            # CHILLED ZONE - TEMPERATURE CONTROL (Honeywell)
-            # ============================================================
-            # Chilled zone controllers to temperature sensors (5s)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Chilled_Zone_Controller_1", "target": "Chilled_Temp_Sensor_1",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Chilled_Zone_Controller_1", "target": "Chilled_Temp_Sensor_2",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Chilled_Zone_Controller_2", "target": "Chilled_Temp_Sensor_3",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Chilled_Zone_Controller_2", "target": "Chilled_Temp_Sensor_4",
-             "jitter_ms": 500, "jitter_type": "gaussian"},
-
-            # Chilled controllers to compressor VFDs (100ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Chilled_Zone_Controller_1", "target": "Chiller_Compressor_VFD_1",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Chilled_Zone_Controller_2", "target": "Chiller_Compressor_VFD_2",
+             "source_types": ["temperature_controller"], "target_types": ["drive"],
+             "source_zones": ["chilled_zone"], "target_zones": ["chilled_zone"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1239,26 +1051,20 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master PLC to zone controllers - Modbus (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Refrigeration_Master_PLC", "target": "Frozen_Zone_Controller_1",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Refrigeration_Master_PLC", "target": "Frozen_Zone_Controller_2",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Refrigeration_Master_PLC", "target": "Chilled_Zone_Controller_1",
-             "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source": "Refrigeration_Master_PLC", "target": "Chilled_Zone_Controller_2",
+             "source_types": ["plc"], "target_types": ["temperature_controller"],
+             "source_zones": ["hvac_control"], "target_zones": ["frozen_zone", "chilled_zone"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
-            # Master PLC to HMI - operator interface (200ms)
+            # HMI to Master PLC - operator interface (200ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
-             "source": "HVAC_Control_Room_HMI", "target": "Refrigeration_Master_PLC",
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
             # Backup PLC heartbeat to Master (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Refrigeration_Backup_PLC", "target": "Refrigeration_Master_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1266,24 +1072,14 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Conveyor PLC to VFDs - EtherNet/IP cyclic (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Cold_Conveyor_PLC", "target": "Cold_Conveyor_VFD_1",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Cold_Conveyor_PLC", "target": "Cold_Conveyor_VFD_2",
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["ambient_zone"], "target_zones": ["ambient_zone"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # MiR Fleet to cold-rated AMRs - Modbus (250ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "Cold_Fleet_Controller", "target": "Cold_AMR_1",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "Cold_Fleet_Controller", "target": "Cold_AMR_2",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "Cold_Fleet_Controller", "target": "Cold_AMR_3",
-             "jitter_ms": 30, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source": "Cold_Fleet_Controller", "target": "Cold_AMR_4",
+             "source_types": ["fleet_manager"], "target_types": ["amr"],
+             "source_zones": ["ambient_zone"], "target_zones": ["ambient_zone"],
              "jitter_ms": 30, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1291,63 +1087,35 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Safety PLC to door interlocks (100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Cold_Storage_Safety_PLC", "target": "Door_Interlock_IO",
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
+             "source_zones": ["monitoring"], "target_zones": ["monitoring"],
              "jitter_ms": 10, "jitter_type": "gaussian"},
 
             # Safety PLC to refrigeration PLCs (100ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Cold_Storage_Safety_PLC", "target": "Refrigeration_Master_PLC",
-             "jitter_ms": 10, "jitter_type": "gaussian"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
-             "source": "Cold_Storage_Safety_PLC", "target": "Refrigeration_Backup_PLC",
+             "source_types": ["safety_plc"], "target_types": ["plc"],
+             "source_zones": ["monitoring"], "target_zones": ["hvac_control"],
              "jitter_ms": 10, "jitter_type": "gaussian"},
 
             # ============================================================
             # HISTORIAN - COMPLIANCE DATA (30s logging)
             # ============================================================
-            # Historian to all temperature sensors
+            # Historian to all temperature sensors (frozen + chilled)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Temp_Sensor_1",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Temp_Sensor_2",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Temp_Sensor_3",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Temp_Sensor_4",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Temp_Sensor_1",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Temp_Sensor_2",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Temp_Sensor_3",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Temp_Sensor_4",
+             "source_types": ["historian"], "target_types": ["sensor"],
+             "source_zones": ["hvac_control"], "target_zones": ["frozen_zone", "chilled_zone"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # Historian to zone controllers
+            # Historian to zone controllers (frozen + chilled)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Zone_Controller_1",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Frozen_Zone_Controller_2",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Zone_Controller_1",
-             "jitter_ms": 3000, "jitter_type": "uniform"},
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Chilled_Zone_Controller_2",
+             "source_types": ["historian"], "target_types": ["temperature_controller"],
+             "source_zones": ["hvac_control"], "target_zones": ["frozen_zone", "chilled_zone"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # Historian to master PLC
+            # Historian to master PLC - EtherNet/IP (30s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 30000,
-             "source": "Temperature_Compliance_Historian", "target": "Refrigeration_Master_PLC",
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
             # ============================================================
@@ -1355,44 +1123,45 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Gateway to Master PLC (60s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 60000,
-             "source": "Cold_Chain_Remote_Gateway", "target": "Refrigeration_Master_PLC",
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"],
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # ============================================================
             # SNMP NETWORK MONITORING
             # ============================================================
+            # Master PLC monitoring all switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Refrigeration_Master_PLC", "target": "HVAC_Core_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Refrigeration_Master_PLC", "target": "Ambient_Zone_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Refrigeration_Master_PLC", "target": "Monitoring_Switch_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Refrigeration_Master_PLC", "target": "Monitoring_Switch_2"},
+             "source_types": ["plc"], "target_types": ["switch"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control", "ambient_zone", "monitoring"]},
+
+            # Master PLC monitoring gateway (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "Refrigeration_Master_PLC", "target": "Cold_Chain_Remote_Gateway"},
+             "source_types": ["plc"], "target_types": ["remote_gateway"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"]},
+
+            # Jump server SNMP monitoring of switches (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"]},
 
             # ============================================================
             # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
             # ============================================================
             {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source": "Cold_Chain_Remote_Gateway", "target": "talk2m_cloud",
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["hvac_control"], "target_zones": ["external"],
              "external_ip": "51.38.74.240", "external_port": 443,
-             "description": "eWON Talk2M VPN heartbeat",
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # ============================================================
             # JUMP SERVER - External RDP Access
             # ============================================================
             {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source": "Cold_Chain_Jump_Server", "target": "external_admin",
+             "source_types": ["jump_server"], "target_types": ["cloud"],
+             "source_zones": ["hvac_control"], "target_zones": ["external"],
              "external_ip": "203.0.113.52", "external_port": 3389,
-             "description": "Remote admin RDP session",
              "jitter_ms": 15000, "jitter_type": "uniform"},
-
-            # Jump server SNMP monitoring
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "Cold_Chain_Jump_Server", "target": "HVAC_Core_Switch"},
         ],
         "zones": [
             {"id": "hvac_control", "name": "HVAC/Refrigeration Control", "level": 3,
@@ -1405,6 +1174,23 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 3, "vlan": 330, "security_level": "standard"},
             {"id": "monitoring", "name": "Temperature Monitoring", "level": 1,
              "subnet_offset": 4, "vlan": 340, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "eu",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["temperature_reading_delay", "compliance_gap"],
@@ -1685,38 +1471,16 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SORT LOOP - HIGH SPEED FLOWS (2-4ms critical)
             # ============================================================
-            # Tilt-Tray Master to all tilt controllers - EtherNet/IP cyclic (2ms)
+            # Tilt-Tray PLC to tilt controllers - EtherNet/IP cyclic I/O (2ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_1",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_2",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_3",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_4",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_5",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_6",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_7",
-             "jitter_ms": 0.3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source": "Tilt_Tray_Master_PLC", "target": "Tilt_Controller_8",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["sort_loop"], "target_zones": ["sort_loop"],
              "jitter_ms": 0.3, "jitter_type": "gaussian"},
 
-            # Tilt-Tray Master to sorter drives - cyclic (4ms)
+            # Tilt-Tray PLC to sorter drives - cyclic (4ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Tilt_Tray_Master_PLC", "target": "Sorter_Drive_1",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Tilt_Tray_Master_PLC", "target": "Sorter_Drive_2",
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["sort_loop"], "target_zones": ["sort_loop"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1724,17 +1488,20 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master PLCs coordination (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_1", "target": "Sort_Master_PLC_2",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["sort_control"], "target_zones": ["sort_control"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
-            # Sort Masters to Tilt-Tray Master (10ms)
+            # Sort Master to Tilt-Tray PLC (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_1", "target": "Tilt_Tray_Master_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["sort_control"], "target_zones": ["sort_loop"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
-            # Sort Masters to Induction PLC (20ms)
+            # Sort Master to Induction PLC (20ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Sort_Master_PLC_1", "target": "Induction_PLC",
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["sort_control"], "target_zones": ["induct_zone"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1742,65 +1509,41 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Induction PLC to singulator I/O (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Induction_PLC", "target": "Induct_Singulator_IO",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["induct_zone"], "target_zones": ["induct_zone"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # Induction barcode scanners to PLC - Cognex (50ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Induct_Scanner_1", "target": "Induction_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Induct_Scanner_2", "target": "Induction_PLC",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Induct_Scanner_3", "target": "Induction_PLC",
+             "source_types": ["barcode_scanner"], "target_types": ["plc"],
+             "source_zones": ["induct_zone"], "target_zones": ["induct_zone"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
             # Dimension cameras to PLC (100ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
-             "source": "Dimension_Camera_1", "target": "Induction_PLC",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
-             "source": "Dimension_Camera_2", "target": "Induction_PLC",
+             "source_types": ["vision_system"], "target_types": ["plc"],
+             "source_zones": ["induct_zone"], "target_zones": ["induct_zone"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # ============================================================
             # SCAN TUNNEL - 6-SIDED SCANNING (SICK)
             # ============================================================
-            # All 6 scanners to Sort Master - fast scan results (50ms)
+            # Scan tunnel scanners to Sort Master - fast scan results (50ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Top", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Bottom", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Left", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Right", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Front", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Scan_Tunnel_Back", "target": "Sort_Master_PLC_1",
+             "source_types": ["barcode_scanner"], "target_types": ["plc"],
+             "source_zones": ["scan_tunnel"], "target_zones": ["sort_control"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
-            # Weigh-in-motion to Sort Master (50ms)
+            # Sort Master to weigh stations (50ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Sort_Master_PLC_1", "target": "Weigh_In_Motion_1",
-             "jitter_ms": 8, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
-             "source": "Sort_Master_PLC_1", "target": "Weigh_In_Motion_2",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["sort_control"], "target_zones": ["scan_tunnel"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
-            # Label applicators (100ms)
+            # Sort Master to label applicators (100ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
-             "source": "Sort_Master_PLC_1", "target": "Label_Applicator_1",
-             "jitter_ms": 15, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
-             "source": "Sort_Master_PLC_1", "target": "Label_Applicator_2",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["sort_control"], "target_zones": ["scan_tunnel"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1808,53 +1551,26 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Sort Master to chute full sensors (10ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_1", "target": "Chute_Full_Sensor_Bank_1",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_1", "target": "Chute_Full_Sensor_Bank_2",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_2", "target": "Chute_Full_Sensor_Bank_3",
-             "jitter_ms": 2, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source": "Sort_Master_PLC_2", "target": "Chute_Full_Sensor_Bank_4",
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["sort_control"], "target_zones": ["chute_zone"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # Safety PLCs to light curtains - CIP Safety (4ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_1", "target": "Safety_Light_Curtain_1",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_1", "target": "Safety_Light_Curtain_2",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_1", "target": "Safety_Light_Curtain_3",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_1", "target": "Safety_Light_Curtain_4",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_2", "target": "Safety_Light_Curtain_5",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_2", "target": "Safety_Light_Curtain_6",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_2", "target": "Safety_Light_Curtain_7",
-             "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 4,
-             "source": "Chute_Safety_PLC_2", "target": "Safety_Light_Curtain_8",
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
+             "source_zones": ["chute_zone"], "target_zones": ["chute_zone"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
             # Safety PLCs to Sort Masters - E-stop interlock (20ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Chute_Safety_PLC_1", "target": "Sort_Master_PLC_1",
+             "source_types": ["safety_plc"], "target_types": ["plc"],
+             "source_zones": ["chute_zone"], "target_zones": ["sort_control"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
+
+            # Safety PLCs to Tilt-Tray PLC - E-stop interlock (20ms)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Chute_Safety_PLC_2", "target": "Sort_Master_PLC_2",
-             "jitter_ms": 3, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
-             "source": "Chute_Safety_PLC_1", "target": "Tilt_Tray_Master_PLC",
+             "source_types": ["safety_plc"], "target_types": ["plc"],
+             "source_zones": ["chute_zone"], "target_zones": ["sort_loop"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -1862,72 +1578,54 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SCADA to all PLCs (200ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Sort_Master_PLC_1",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Sort_Master_PLC_2",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Tilt_Tray_Master_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Induction_PLC",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Chute_Safety_PLC_1",
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 200,
-             "source": "Sort_SCADA_Server", "target": "Chute_Safety_PLC_2",
+             "source_types": ["scada_server"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["sort_control"],
+             "target_zones": ["sort_control", "induct_zone", "sort_loop", "chute_zone"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
-            # SCADA to vision/scanners status (1s)
+            # SCADA to vision systems status (1s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
-             "source": "Sort_SCADA_Server", "target": "Dimension_Camera_1",
-             "jitter_ms": 100, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
-             "source": "Sort_SCADA_Server", "target": "Dimension_Camera_2",
+             "source_types": ["scada_server"], "target_types": ["vision_system"],
+             "source_zones": ["sort_control"], "target_zones": ["induct_zone"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
             # ============================================================
             # SNMP NETWORK MONITORING
             # ============================================================
+            # SCADA monitoring all switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Sort_SCADA_Server", "target": "Sort_Control_Switch_1"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Sort_SCADA_Server", "target": "Sort_Control_Switch_2"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Sort_SCADA_Server", "target": "Induct_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Sort_SCADA_Server", "target": "Sort_Loop_Switch"},
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source": "Sort_SCADA_Server", "target": "Chute_Zone_Switch"},
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["sort_control"],
+             "target_zones": ["sort_control", "induct_zone", "sort_loop", "chute_zone"]},
+
+            # Jump server SNMP monitoring of switches (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["sort_control"], "target_zones": ["sort_control"]},
 
             # ============================================================
             # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
             # ============================================================
             {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source": "Sorting_Remote_Gateway", "target": "talk2m_cloud",
+             "source_types": ["remote_gateway"], "target_types": ["cloud"],
+             "source_zones": ["sort_control"], "target_zones": ["external"],
              "external_ip": "87.98.169.126", "external_port": 443,
-             "description": "eWON Talk2M VPN heartbeat",
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # eWON Modbus polling to SCADA (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source": "Sorting_Remote_Gateway", "target": "Sort_SCADA_Server",
+             "source_types": ["remote_gateway"], "target_types": ["scada_server"],
+             "source_zones": ["sort_control"], "target_zones": ["sort_control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
             # JUMP SERVER - External RDP Access
             # ============================================================
             {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source": "Sorting_Jump_Server", "target": "external_admin",
+             "source_types": ["jump_server"], "target_types": ["cloud"],
+             "source_zones": ["sort_control"], "target_zones": ["external"],
              "external_ip": "203.0.113.53", "external_port": 3389,
-             "description": "Remote admin RDP session",
              "jitter_ms": 15000, "jitter_type": "uniform"},
-
-            # Jump server SNMP monitoring
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source": "Sorting_Jump_Server", "target": "Sort_Control_Switch_1"},
         ],
         "zones": [
             {"id": "sort_control", "name": "Sort Control Room", "level": 3,
@@ -1940,6 +1638,23 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 3, "vlan": 430, "security_level": "standard"},
             {"id": "chute_zone", "name": "Destination Chutes", "level": 1,
              "subnet_offset": 4, "vlan": 440, "security_level": "standard"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "eu",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+            {
+                "provider": "teamviewer",
+                "region": "global",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
         ],
         "suggested_anomalies": {
             "timing": ["high_speed_desync", "scanner_lag", "safety_response_delay"],

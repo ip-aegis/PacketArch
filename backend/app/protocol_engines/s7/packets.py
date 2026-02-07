@@ -235,7 +235,7 @@ class S7Header:
     def build(self) -> bytes:
         """Build S7 header."""
         header = struct.pack(
-            ">BBHHHHH",
+            ">BBHHHH",
             0x32,  # Protocol ID
             self.pdu_type,
             0x0000,  # Reserved

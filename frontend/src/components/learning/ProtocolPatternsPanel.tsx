@@ -31,6 +31,7 @@ import {
   getProtocolPattern,
   type ProtocolPattern,
 } from '../../api/learning';
+import { PROTOCOL_COLORS_EXTENDED } from '../../constants/protocols';
 
 const { Text } = Typography;
 
@@ -38,16 +39,7 @@ interface ProtocolPatternsPanelProps {
   onSelectPattern?: (pattern: ProtocolPattern) => void;
 }
 
-const protocolColors: Record<string, string> = {
-  modbus: '#1890ff',
-  modbus_tcp: '#1890ff',
-  s7: '#52c41a',
-  s7comm: '#52c41a',
-  ethernet_ip: '#722ed1',
-  profinet: '#eb2f96',
-  dnp3: '#fa8c16',
-  opc_ua: '#13c2c2',
-};
+const protocolColors: Record<string, string> = { ...PROTOCOL_COLORS_EXTENDED };
 
 const ProtocolPatternsPanel: React.FC<ProtocolPatternsPanelProps> = ({
   onSelectPattern,

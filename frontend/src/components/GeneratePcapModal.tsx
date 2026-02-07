@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { generationApi, type GenerationJob } from '../api/generation';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const { Text, Title } = Typography;
 
@@ -104,8 +105,8 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
       setJob(newJob);
       setPolling(true);
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || 'Failed to start generation';
+    onError: (error: unknown) => {
+      const detail = extractErrorMessage(error, 'Failed to start generation');
       message.error(detail);
     },
   });
@@ -120,8 +121,8 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         setJob({ ...job, status: 'cancelled' });
       }
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || 'Failed to cancel';
+    onError: (error: unknown) => {
+      const detail = extractErrorMessage(error, 'Failed to cancel');
       message.error(detail);
     },
   });
@@ -135,8 +136,8 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         : `${scenarioName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pcap`;
       await generationApi.downloadPcap(job.job_id, filename);
       message.success('Download started');
-    } catch (error: any) {
-      const detail = error.response?.data?.detail || 'Failed to download';
+    } catch (error: unknown) {
+      const detail = extractErrorMessage(error, 'Failed to download');
       message.error(detail);
     }
   }, [job, scenarioName]);

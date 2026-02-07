@@ -373,4 +373,29 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 }));
 
+// Selector helpers for performance — select only the needed slice to prevent
+// unnecessary re-renders when unrelated parts of the store change.
+export const useDeviceList = () =>
+  useScenarioStore((s) => Object.values(s.devices));
+export const useFlowList = () =>
+  useScenarioStore((s) => Object.values(s.flows));
+export const useZoneList = () =>
+  useScenarioStore((s) => Object.values(s.zones));
+export const useDeviceCount = () =>
+  useScenarioStore((s) => Object.keys(s.devices).length);
+export const useFlowCount = () =>
+  useScenarioStore((s) => Object.keys(s.flows).length);
+export const useScenarioName = () =>
+  useScenarioStore((s) => s.name);
+export const useScenarioId = () =>
+  useScenarioStore((s) => s.id);
+export const useScenarioVertical = () =>
+  useScenarioStore((s) => s.vertical);
+export const useScenarioIsDirty = () =>
+  useScenarioStore((s) => s.isDirty);
+export const useScenarioIsLoading = () =>
+  useScenarioStore((s) => s.isLoading);
+export const useScenarioPhases = () =>
+  useScenarioStore((s) => s.phases);
+
 export default useScenarioStore;

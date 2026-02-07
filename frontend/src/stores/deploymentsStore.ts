@@ -10,6 +10,7 @@ import type {
   DeploymentLogsResponse,
 } from '../types/docker';
 import { deploymentsApi, type DeploymentFilters } from '../api/deployments';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface DeploymentsState {
   deployments: UnifiedDeployment[];
@@ -45,9 +46,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
     try {
       const response = await deploymentsApi.list(filters);
       set({ deployments: response.items, isLoading: false });
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch deployments';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch deployments');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -65,9 +65,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
         isLoading: false,
       }));
       return deployment;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch deployment';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch deployment');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -85,17 +84,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
       // Start polling for status updates
       get().startPolling(data.scenario_id);
       return deployment;
-    } catch (error: any) {
-      let message = 'Failed to start deployment';
-      const detail = error.response?.data?.detail;
-      if (typeof detail === 'string') {
-        message = detail;
-      } else if (Array.isArray(detail)) {
-        // Pydantic validation errors come as an array
-        message = detail.map((e: any) => e.msg || e.message || String(e)).join(', ');
-      } else if (error.message) {
-        message = error.message;
-      }
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to start deployment');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -112,9 +102,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
         isLoading: false,
       }));
       return deployment;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to stop deployment';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to stop deployment');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -129,9 +118,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
         activeDeployment: state.activeDeployment?.id === id ? null : state.activeDeployment,
         isLoading: false,
       }));
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to remove deployment';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to remove deployment');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -142,9 +130,8 @@ export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
       const logs = await deploymentsApi.getLogs(id, tail);
       set({ logs });
       return logs;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch logs';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch logs');
       set({ error: message });
       throw error;
     }

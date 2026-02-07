@@ -15,41 +15,26 @@ import {
   SettingOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons';
-import type { DeviceProfile, ProtocolType } from '../../types';
+import type { DeviceProfile } from '../../types';
+import {
+  PROTOCOL_COLORS,
+  PROTOCOL_SHORT_NAMES,
+  DEVICE_TYPE_COLORS,
+  DEVICE_TYPE_LABELS,
+} from '../../constants/protocols';
 
 const { Text } = Typography;
 
-// Device type configuration with colors matching DeviceNode
+// Device type configuration with icons - colors sourced from constants
 const DEVICE_TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  plc: { icon: <ControlOutlined />, color: '#049FD9', label: 'PLC' },
-  hmi: { icon: <DesktopOutlined />, color: '#6CC04A', label: 'HMI' },
-  rtu: { icon: <CloudServerOutlined />, color: '#FBAB18', label: 'RTU' },
-  drive: { icon: <ThunderboltOutlined />, color: '#FF7043', label: 'Drive' },
-  sensor: { icon: <DashboardOutlined />, color: '#00BCEB', label: 'Sensor' },
-  relay: { icon: <SafetyCertificateOutlined />, color: '#E53935', label: 'Relay' },
-  ews: { icon: <SettingOutlined />, color: '#9C27B0', label: 'EWS' },
-  historian: { icon: <DatabaseOutlined />, color: '#607D8B', label: 'Historian' },
-};
-
-const PROTOCOL_COLORS: Record<ProtocolType, string> = {
-  modbus_tcp: '#049FD9',
-  ethernet_ip: '#6CC04A',
-  profinet: '#FBAB18',
-  opc_ua: '#9C27B0',
-  dnp3: '#FF5722',
-  iec104: '#E91E63',
-  bacnet: '#00BCD4',
-};
-
-// Protocol short names for compact display
-const PROTOCOL_SHORT_NAMES: Record<ProtocolType, string> = {
-  modbus_tcp: 'MB',
-  ethernet_ip: 'EIP',
-  profinet: 'PN',
-  opc_ua: 'OPC',
-  dnp3: 'DNP3',
-  iec104: '104',
-  bacnet: 'BAC',
+  plc: { icon: <ControlOutlined />, color: DEVICE_TYPE_COLORS.plc, label: DEVICE_TYPE_LABELS.plc },
+  hmi: { icon: <DesktopOutlined />, color: DEVICE_TYPE_COLORS.hmi, label: DEVICE_TYPE_LABELS.hmi },
+  rtu: { icon: <CloudServerOutlined />, color: DEVICE_TYPE_COLORS.rtu, label: DEVICE_TYPE_LABELS.rtu },
+  drive: { icon: <ThunderboltOutlined />, color: DEVICE_TYPE_COLORS.drive, label: DEVICE_TYPE_LABELS.drive },
+  sensor: { icon: <DashboardOutlined />, color: DEVICE_TYPE_COLORS.sensor, label: DEVICE_TYPE_LABELS.sensor },
+  relay: { icon: <SafetyCertificateOutlined />, color: DEVICE_TYPE_COLORS.relay, label: DEVICE_TYPE_LABELS.relay },
+  ews: { icon: <SettingOutlined />, color: DEVICE_TYPE_COLORS.ews, label: DEVICE_TYPE_LABELS.ews },
+  historian: { icon: <DatabaseOutlined />, color: DEVICE_TYPE_COLORS.historian, label: DEVICE_TYPE_LABELS.historian },
 };
 
 interface PaletteItemProps {

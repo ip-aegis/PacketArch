@@ -310,7 +310,7 @@ _register_template(DeviceTemplate(
     device_type="plc",
     description="High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06", "64:9D:D8", "B8:2C:A0"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
 
     tcp_stack={
         "ttl": 64,
@@ -583,7 +583,7 @@ _register_template(DeviceTemplate(
     device_type="plc",
     description="High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06", "64:9D:D8", "B8:2C:A0"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
 
     tcp_stack={
         "ttl": 64,
@@ -656,6 +656,7 @@ _register_template(DeviceTemplate(
 
     s7_identity={
         "module_type": "CPU 1517-3 PN/DP",
+        "order_code": "6ES7 517-3AP00-0AB0",
         "copyright": "Original Siemens Equipment",
         "module_name": "PLC_1",
     },
@@ -678,7 +679,7 @@ _register_template(DeviceTemplate(
     device_type="plc",
     description="S7-1500 CPU with PROFINET and PROFIBUS interfaces (earlier version)",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06", "64:9D:D8", "B8:2C:A0"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
 
     tcp_stack={
         "ttl": 64,
@@ -801,6 +802,13 @@ _register_template(DeviceTemplate(
         "im0_manufacturer": "Siemens AG",
         "im0_order_id": "6ES7 511-1AK02-0AB0",
     },
+
+    s7_identity={
+        "module_type": "CPU 1511-1 PN",
+        "order_code": "6ES7 511-1AK02-0AB0",
+        "copyright": "Original Siemens Equipment",
+        "module_name": "PLC_1",
+    },
 ))
 
 
@@ -814,7 +822,7 @@ _register_template(DeviceTemplate(
     device_type="safety_plc",
     description="Failsafe S7-1500 CPU for safety applications up to SIL3/PLe",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06", "64:9D:D8"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
 
     tcp_stack={
         "ttl": 64,
@@ -1791,7 +1799,7 @@ _register_template(DeviceTemplate(
     device_type="io_module",
     description="ET 200MP distributed I/O interface module for PROFINET",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "64:9D:D8"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B"],
 
     tcp_stack={
         "ttl": 64,
@@ -1847,7 +1855,7 @@ _register_template(DeviceTemplate(
     device_type="safety_plc",
     description="S7-1200 Fail-safe CPU with integrated safety I/O",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "64:9D:D8", "B8:2C:A0"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B"],
 
     tcp_stack={
         "ttl": 64,
@@ -6470,6 +6478,13 @@ _register_template(DeviceTemplate(
         "product_name": "AC500 PM590",
         "model_name": "AC500",
     },
+
+    ethernet_ip_identity={
+        "vendor_id": 285,  # ABB
+        "device_type": 14,  # Programmable Logic Controller
+        "product_code": 590,
+        "state": 3,
+    },
 ))
 
 
@@ -6643,6 +6658,13 @@ _register_template(DeviceTemplate(
         "vendor_url": "http://www.abb.com",
         "product_name": "ACS880 Industrial Drive",
         "model_name": "ACS880",
+    },
+
+    ethernet_ip_identity={
+        "vendor_id": 285,  # ABB
+        "device_type": 2,  # AC Drive
+        "product_code": 880,
+        "state": 3,
     },
 ))
 
@@ -8351,6 +8373,62 @@ _register_template(DeviceTemplate(
         "vendor_url": "http://www.endress.com",
         "product_name": "Levelflex FMP50",
         "model_name": "Levelflex",
+    },
+))
+
+
+# Endress+Hauser Cerabar PMC71 Pressure Transmitter
+_register_template(DeviceTemplate(
+    id="endress_hauser/cerabar/pmc71",
+    vendor="Endress_Hauser",
+    vendor_family="Cerabar",
+    model="PMC71",
+    model_name="Cerabar PMC71 Pressure Transmitter",
+    device_type="pressure_sensor",
+    description="Digital pressure transmitter for process measurement",
+
+    oui_prefixes=["00:04:F3", "00:80:A3"],
+
+    tcp_stack={
+        "ttl": 64,
+        "window_size": 16384,
+        "mss": 1460,
+        "timestamps_enabled": False,
+    },
+
+    response_timing={
+        "min_ms": 5.0,
+        "max_ms": 90.0,
+        "mean_ms": 28.0,
+        "std_dev_ms": 14.0,
+        "distribution": "gaussian",
+    },
+
+    supported_protocols=["modbus_tcp"],
+
+    instance_rules=InstanceGenerationRules(
+        serial_format="EH{10ALPHANUM}",
+        station_name_pattern="pt-{location}-{seq}",
+        vendor_short="EH",
+        model_short="PMC71",
+    ),
+
+    firmware_variants=[
+        FirmwareVariant(
+            version="V01.06.00",
+            release_date=date(2023, 9, 1),
+            is_latest=True,
+            is_default=True,
+            cves=[],
+        ),
+    ],
+
+    modbus_identity={
+        "vendor_name": "Endress+Hauser",
+        "product_code": "PMC71",
+        "vendor_url": "http://www.endress.com",
+        "product_name": "Cerabar PMC71",
+        "model_name": "Cerabar",
     },
 ))
 
@@ -12847,7 +12925,7 @@ _register_template(DeviceTemplate(
     device_type="network_switch",
     description="Core layer 3 managed industrial Ethernet switch",
 
-    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06", "64:9D:D8"],
+    oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
 
     tcp_stack={
         "ttl": 64,
@@ -17322,7 +17400,7 @@ _register_template(DeviceTemplate(
 ))
 
 _register_template(DeviceTemplate(
-    id="schneider/altivar/atv930",
+    id="schneider/altivar/atv930-generic",
     vendor="Schneider",
     vendor_family="Altivar",
     model="ATV930",
@@ -17643,7 +17721,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 155-5AA01-0AB0",
     device_type="io_module",
     description="Siemens 6ES7 155-5AA01-0AB0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 16384,
@@ -17693,7 +17771,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 155-6AU01-0BN0",
     device_type="io_module",
     description="Siemens 6ES7 155-6AU01-0BN0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 8192,
@@ -17746,7 +17824,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 214-1HF40-0XB0",
     device_type="plc",
     description="Siemens 6ES7 214-1HF40-0XB0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 16384,
@@ -17813,7 +17891,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 315-2EH14-0AB0",
     device_type="plc",
     description="Siemens 6ES7 315-2EH14-0AB0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 8192,
@@ -17879,7 +17957,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 416-3ES07-0AB0",
     device_type="plc",
     description="Siemens 6ES7 416-3ES07-0AB0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 32768,
@@ -17945,7 +18023,7 @@ _register_template(DeviceTemplate(
     model_name="6ES7 516-3FN02-0AB0",
     device_type="plc",
     description="Siemens 6ES7 516-3FN02-0AB0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 29200,
@@ -18017,7 +18095,7 @@ _register_template(DeviceTemplate(
     model_name="6GK5 208-0BA00-2AB2",
     device_type="switch",
     description="Siemens 6GK5 208-0BA00-2AB2",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 4096,
@@ -18073,7 +18151,7 @@ _register_template(DeviceTemplate(
     model_name="6SL3130-7TE25-5AA3",
     device_type="drive",
     description="Siemens 6SL3130-7TE25-5AA3",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 16384,
@@ -18130,7 +18208,7 @@ _register_template(DeviceTemplate(
     model_name="6SL3210-1KE21-7UF1",
     device_type="drive",
     description="Siemens 6SL3210-1KE21-7UF1",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 8192,
@@ -18187,7 +18265,7 @@ _register_template(DeviceTemplate(
     model_name="6SL3544-0FB21-1FA0",
     device_type="drive",
     description="Siemens 6SL3544-0FB21-1FA0",
-    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06', '64:9D:D8', 'B8:2C:A0'],
+    oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
     tcp_stack={
             "ttl": 64,
             "window_size": 8192,

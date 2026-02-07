@@ -5,8 +5,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from fastapi.responses import Response
+
+from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -201,10 +203,7 @@ async def start_deployment(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", str(data.scenario_id))
 
     # Get the Docker host
     result = await db.execute(
@@ -213,16 +212,10 @@ async def start_deployment(
     host = result.scalar_one_or_none()
 
     if not host:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Docker host not found",
-        )
+        raise NotFoundError("Docker host", str(data.docker_host_id))
 
     if not host.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Docker host is not active",
-        )
+        raise ValidationError("Docker host is not active")
 
     # Create deployment record
     deployment = RemoteDeployment(
@@ -306,10 +299,7 @@ async def start_deployment(
         deployment.error_message = str(e)
         await db.commit()
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to deploy container: {str(e)}",
-        )
+        raise ExternalServiceError(service="docker", message=f"Failed to deploy container: {str(e)}", original_error=e)
 
 
 @router.get("/{deployment_id}", response_model=DeploymentResponse)
@@ -330,10 +320,7 @@ async def get_deployment(
     deployment = result.scalar_one_or_none()
 
     if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+        raise NotFoundError("Deployment", str(deployment_id))
 
     # If deployment is running, check container status
     if deployment.status == DeploymentStatus.RUNNING.value and deployment.container_id:
@@ -383,19 +370,13 @@ async def stop_deployment(
     deployment = result.scalar_one_or_none()
 
     if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+        raise NotFoundError("Deployment", str(deployment_id))
 
     if deployment.status not in [
         DeploymentStatus.RUNNING.value,
         DeploymentStatus.STARTING.value,
     ]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot stop deployment in '{deployment.status}' status",
-        )
+        raise ValidationError(f"Cannot stop deployment in '{deployment.status}' status")
 
     if not deployment.container_id:
         deployment.status = DeploymentStatus.STOPPED.value
@@ -424,10 +405,7 @@ async def stop_deployment(
 
     except Exception as e:
         logger.exception(f"Failed to stop container: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to stop container: {str(e)}",
-        )
+        raise ExternalServiceError(service="docker", message=f"Failed to stop container: {str(e)}", original_error=e)
 
 
 @router.delete("/{deployment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -473,10 +451,7 @@ async def remove_deployment(
         await db.commit()
         return
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Deployment not found",
-    )
+    raise NotFoundError("Deployment", str(deployment_id))
 
 
 @router.get("/{deployment_id}/logs", response_model=DeploymentLogsResponse)
@@ -495,10 +470,7 @@ async def get_deployment_logs(
     deployment = result.scalar_one_or_none()
 
     if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+        raise NotFoundError("Deployment", str(deployment_id))
 
     if not deployment.container_id:
         return DeploymentLogsResponse(
@@ -524,10 +496,7 @@ async def get_deployment_logs(
 
     except Exception as e:
         logger.exception(f"Failed to get container logs: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get logs: {str(e)}",
-        )
+        raise ExternalServiceError(service="docker", message=f"Failed to get logs: {str(e)}", original_error=e)
 
 
 # Default PCAP output directory inside the container
@@ -549,10 +518,7 @@ async def list_pcap_files(
     deployment = result.scalar_one_or_none()
 
     if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+        raise NotFoundError("Deployment", str(deployment_id))
 
     if not deployment.container_id:
         return {"deployment_id": str(deployment.id), "files": []}
@@ -593,23 +559,14 @@ async def download_pcap_file(
     deployment = result.scalar_one_or_none()
 
     if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Deployment not found",
-        )
+        raise NotFoundError("Deployment", str(deployment_id))
 
     if not deployment.container_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No container associated with this deployment",
-        )
+        raise ValidationError("No container associated with this deployment")
 
     # Validate filename to prevent directory traversal
     if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename",
-        )
+        raise ValidationError("Invalid filename")
 
     host = deployment.docker_host
     if host.client_key:
@@ -622,10 +579,7 @@ async def download_pcap_file(
         )
 
         if content is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="PCAP file not found",
-            )
+            raise NotFoundError("PCAP file", filename)
 
         return Response(
             content=content,
@@ -635,11 +589,8 @@ async def download_pcap_file(
             },
         )
 
-    except HTTPException:
+    except (NotFoundError, ValidationError):
         raise
     except Exception as e:
         logger.exception(f"Failed to download PCAP file: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to download PCAP: {str(e)}",
-        )
+        raise ExternalServiceError(service="docker", message=f"Failed to download PCAP: {str(e)}", original_error=e)

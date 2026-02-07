@@ -512,7 +512,7 @@ def _build_flow_contexts(
         # for unique serial number and identifier generation
         source_context = DeviceContext(
             device_id=source_device["id"],
-            mac_address=get_network_field(source_device, "mac_address", "00:00:00:00:00:01"),
+            mac_address=get_network_field(source_device, "mac_address", "02:00:00:00:00:01"),
             ip_address=get_network_field(source_device, "ip_address", "192.168.1.1"),
             port=flow.get("source_port") or flow.get("sourcePort", 50000),
             unit_id=source_device.get("unit_id") or source_device.get("unitId"),
@@ -527,7 +527,7 @@ def _build_flow_contexts(
 
         destination_context = DeviceContext(
             device_id=destination_device["id"],
-            mac_address=get_network_field(destination_device, "mac_address", "00:00:00:00:00:02"),
+            mac_address=get_network_field(destination_device, "mac_address", "02:00:00:00:00:02"),
             ip_address=get_network_field(destination_device, "ip_address", "192.168.1.2"),
             port=flow.get("destination_port") or flow.get("destinationPort", 502),
             unit_id=destination_device.get("unit_id") or destination_device.get("unitId", 1),

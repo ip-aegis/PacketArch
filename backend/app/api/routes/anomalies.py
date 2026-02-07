@@ -9,8 +9,10 @@ This module provides REST API endpoints for:
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
+
+from app.core.exceptions import NotFoundError, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -141,19 +143,13 @@ async def list_anomaly_templates(
         try:
             query = query.where(AnomalyTemplate.category == AnomalyCategory(category))
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid category: {category}",
-            )
+            raise ValidationError(f"Invalid category: {category}")
 
     if severity:
         try:
             query = query.where(AnomalyTemplate.severity == AnomalySeverity(severity))
         except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid severity: {severity}",
-            )
+            raise ValidationError(f"Invalid severity: {severity}")
 
     query = query.order_by(AnomalyTemplate.category, AnomalyTemplate.name)
 
@@ -211,10 +207,7 @@ async def get_anomaly_template(
     try:
         template_uuid = uuid.UUID(template_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid template ID format",
-        )
+        raise ValidationError("Invalid template ID format")
 
     result = await db.execute(
         select(AnomalyTemplate).where(
@@ -225,10 +218,7 @@ async def get_anomaly_template(
     template = result.scalar_one_or_none()
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Anomaly template not found",
-        )
+        raise NotFoundError("Anomaly template")
 
     return AnomalyTemplateResponse(
         id=str(template.id),
@@ -269,10 +259,7 @@ async def suggest_anomalies_for_scenario(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
     result = await db.execute(
@@ -281,10 +268,7 @@ async def suggest_anomalies_for_scenario(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     # Analyze scenario
     definition = scenario.definition
@@ -387,10 +371,7 @@ async def get_vertical_anomalies(
     template = get_template(vertical, template_name)
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{template_name}' not found for vertical '{vertical}'",
-        )
+        raise NotFoundError("Template", f"{vertical}/{template_name}")
 
     return VerticalAnomaliesResponse(
         vertical=vertical,
@@ -422,10 +403,7 @@ async def create_anomaly_campaign(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
     result = await db.execute(
@@ -434,10 +412,7 @@ async def create_anomaly_campaign(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     # Find anomaly templates
     templates = []
@@ -508,10 +483,7 @@ async def list_scenario_campaigns(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     result = await db.execute(
         select(Scenario).where(Scenario.id == scenario_uuid)
@@ -519,10 +491,7 @@ async def list_scenario_campaigns(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     campaigns = scenario.definition.get("anomaly_campaigns", [])
 
@@ -559,10 +528,7 @@ async def delete_anomaly_campaign(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     result = await db.execute(
         select(Scenario).where(Scenario.id == scenario_uuid)
@@ -570,10 +536,7 @@ async def delete_anomaly_campaign(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     # Remove campaign
     definition = scenario.definition.copy()
@@ -843,10 +806,7 @@ async def create_external_campaign(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
     result = await db.execute(
@@ -855,19 +815,13 @@ async def create_external_campaign(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     # Validate event types
     valid_types = {"c2_beacon", "dns_tunnel", "http_exfil", "exploit", "port_scan"}
     invalid_types = set(request.event_types) - valid_types
     if invalid_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid event types: {invalid_types}. Valid types: {valid_types}",
-        )
+        raise ValidationError(f"Invalid event types: {invalid_types}. Valid types: {valid_types}")
 
     # Create campaign in scenario definition
     definition = scenario.definition.copy()
@@ -931,10 +885,7 @@ async def list_external_campaigns(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     result = await db.execute(
         select(Scenario).where(Scenario.id == scenario_uuid)
@@ -942,10 +893,7 @@ async def list_external_campaigns(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     campaigns = scenario.definition.get("external_campaigns", [])
 
@@ -983,10 +931,7 @@ async def delete_external_campaign(
     try:
         scenario_uuid = uuid.UUID(scenario_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid scenario ID format",
-        )
+        raise ValidationError("Invalid scenario ID format")
 
     result = await db.execute(
         select(Scenario).where(Scenario.id == scenario_uuid)
@@ -994,10 +939,7 @@ async def delete_external_campaign(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Scenario not found",
-        )
+        raise NotFoundError("Scenario", scenario_id)
 
     # Remove campaign
     definition = scenario.definition.copy()

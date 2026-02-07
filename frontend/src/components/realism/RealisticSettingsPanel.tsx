@@ -30,14 +30,12 @@ import {
 import { useUIStore } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import {
-  listVendors,
-  getVendorModels,
   getFingerprintDetail,
   getDeviceErrorConfig,
-  type VendorSummary,
   type FingerprintDetail,
   type ErrorConfig,
 } from '../../api/fingerprints';
+import { useVendorData } from '../../hooks/useVendorData';
 
 const { Text, Title } = Typography;
 
@@ -58,31 +56,23 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
   );
   const updateDevice = useScenarioStore((state) => state.updateDevice);
 
-  // State for fingerprint selection
-  const [vendors, setVendors] = useState<VendorSummary[]>([]);
-  const [models, setModels] = useState<string[]>([]);
+  // Vendor/model data from shared hook
+  const {
+    vendors,
+    models,
+    loadingModels,
+    handleVendorChange: hookVendorChange,
+  } = useVendorData();
+
+  // Fingerprint detail and error injection (component-specific)
   const [fingerprintDetail, setFingerprintDetail] = useState<FingerprintDetail | null>(null);
   const [errorConfig, setErrorConfig] = useState<ErrorConfig | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingModels, setLoadingModels] = useState(false);
 
   // Local state for error injection
   const [errorInjectionEnabled, setErrorInjectionEnabled] = useState(false);
   const [exceptionRate, setExceptionRate] = useState(0.001);
   const [timeoutRate, setTimeoutRate] = useState(0.0005);
-
-  // Fetch vendors on mount
-  useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const data = await listVendors();
-        setVendors(data);
-      } catch (err) {
-        console.error('Failed to fetch vendors:', err);
-      }
-    };
-    fetchVendors();
-  }, []);
 
   // Load default error config when device type changes
   useEffect(() => {
@@ -101,19 +91,10 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
     }
   }, [device?.type]);
 
-  // Fetch models when vendor changes
+  // Vendor change: delegate to hook + reset fingerprint
   const handleVendorChange = async (vendor: string) => {
-    setLoadingModels(true);
-    setModels([]);
     setFingerprintDetail(null);
-    try {
-      const modelList = await getVendorModels(vendor);
-      setModels(modelList);
-    } catch (err) {
-      console.error('Failed to fetch models:', err);
-    } finally {
-      setLoadingModels(false);
-    }
+    await hookVendorChange(vendor);
   };
 
   // Fetch fingerprint detail when model changes
@@ -128,7 +109,7 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
         updateDevice(device.id, {
           vendor: vendor,
           fingerprintModel: model,
-        } as any);
+        });
       }
     } catch (err) {
       console.error('Failed to fetch fingerprint detail:', err);
@@ -145,7 +126,7 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
         errorConfig: enabled
           ? { exceptionRate, timeoutRate }
           : undefined,
-      } as any);
+      });
     }
   };
 
@@ -155,7 +136,7 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
     if (errorInjectionEnabled && device) {
       updateDevice(device.id, {
         errorConfig: { exceptionRate: value, timeoutRate },
-      } as any);
+      });
     }
   };
 
@@ -164,7 +145,7 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
     if (errorInjectionEnabled && device) {
       updateDevice(device.id, {
         errorConfig: { exceptionRate, timeoutRate: value },
-      } as any);
+      });
     }
   };
 

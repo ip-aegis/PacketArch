@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { generationApi, type GenerationJob } from '../../api/generation';
+import { extractErrorMessage } from '../../utils/errorUtils';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { Link } from 'react-router-dom';
 
@@ -88,9 +89,8 @@ const GeneratedPcapsTab: React.FC = () => {
       message.success('Job cancelled');
       queryClient.invalidateQueries({ queryKey: ['generation-jobs'] });
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || 'Failed to cancel job';
-      message.error(detail);
+    onError: (error: unknown) => {
+      message.error(extractErrorMessage(error, 'Failed to cancel job'));
     },
   });
 
@@ -101,9 +101,8 @@ const GeneratedPcapsTab: React.FC = () => {
       message.success('Job deleted');
       queryClient.invalidateQueries({ queryKey: ['generation-jobs'] });
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || 'Failed to delete job';
-      message.error(detail);
+    onError: (error: unknown) => {
+      message.error(extractErrorMessage(error, 'Failed to delete job'));
     },
   });
 
@@ -115,9 +114,8 @@ const GeneratedPcapsTab: React.FC = () => {
         : `pcap_${job.job_id.substring(0, 8)}.pcap`;
       await generationApi.downloadPcap(job.job_id, filename);
       message.success('Download started');
-    } catch (error: any) {
-      const detail = error.response?.data?.detail || 'Failed to download PCAP';
-      message.error(detail);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to download PCAP'));
     }
   }, []);
 
@@ -196,7 +194,7 @@ const GeneratedPcapsTab: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       width: 150,
-      render: (_: any, record: GenerationJob) => (
+      render: (_: unknown, record: GenerationJob) => (
         <Space>
           {record.status === 'completed' && (
             <Tooltip title="Download PCAP">

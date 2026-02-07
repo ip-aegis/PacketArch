@@ -1,10 +1,11 @@
 """Admin routes for system settings management."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.api.deps import AdminUser, DBSession
 from app.core.encryption import decrypt_value, encrypt_value
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.settings import DEFAULT_SETTINGS, SystemSetting
 from app.schemas.settings import SettingResponse, SettingsResponse, SettingUpdate
 
@@ -78,10 +79,7 @@ async def get_setting(
     setting = result.scalar_one_or_none()
 
     if setting is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Setting '{key}' not found",
-        )
+        raise NotFoundError("Setting", key)
 
     return setting_to_response(setting)
 
@@ -98,10 +96,7 @@ async def update_setting(
     setting = result.scalar_one_or_none()
 
     if setting is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Setting '{key}' not found",
-        )
+        raise NotFoundError("Setting", key)
 
     # Encrypt value if this is a secret
     if setting.is_secret and update.value:
@@ -160,18 +155,12 @@ async def test_api_connection(
     setting = result.scalar_one_or_none()
 
     if setting is None or not setting.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Anthropic API key not configured",
-        )
+        raise ValidationError("Anthropic API key not configured")
 
     api_key = decrypt_value(setting.value)
 
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to decrypt API key",
-        )
+        raise ValidationError("Failed to decrypt API key")
 
     # Verify key format first
     if not api_key.startswith("sk-ant-"):

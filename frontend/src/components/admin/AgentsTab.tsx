@@ -299,14 +299,14 @@ const AgentsTab: React.FC = () => {
     {
       title: 'Version',
       key: 'version',
-      width: 120,
+      width: 180,
       render: (_, record) => {
         if (!record.version) {
           return <Text type="secondary">-</Text>;
         }
         const isOutdated = standardVersion && record.version !== standardVersion;
         return (
-          <Space>
+          <Space size={4} wrap={false}>
             <Text code style={isOutdated ? { color: '#faad14' } : undefined}>
               v{record.version}
             </Text>

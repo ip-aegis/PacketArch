@@ -8,8 +8,10 @@ This module provides REST API endpoints for:
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
+
+from app.core.exceptions import NotFoundError
 
 from app.api.deps import CurrentUser
 from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
@@ -198,10 +200,7 @@ async def get_fingerprint_detail(
     fingerprint = get_fingerprint_cache().get_by_vendor_model(vendor, model)
 
     if not fingerprint:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Fingerprint not found for {vendor} / {model}",
-        )
+        raise NotFoundError("Fingerprint", f"{vendor}/{model}")
 
     return FingerprintDetailResponse(
         vendor=fingerprint.get("vendor", "Unknown"),
@@ -832,10 +831,7 @@ async def get_protocol_detail(
     from app.protocol_engines.identity import has_builder
 
     if protocol_id not in PROTOCOL_DATA:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Protocol '{protocol_id}' not found",
-        )
+        raise NotFoundError("Protocol", protocol_id)
 
     data = PROTOCOL_DATA[protocol_id]
 
@@ -1094,10 +1090,7 @@ async def get_device_template_detail(
     template = get_template_by_id(template_id)
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device template '{template_id}' not found",
-        )
+        raise NotFoundError("Device template", template_id)
 
     return _template_to_detail(template)
 
@@ -1133,10 +1126,7 @@ async def generate_device_instance_endpoint(
     )
 
     if not instance:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device template '{request.template_id}' not found or firmware version invalid",
-        )
+        raise NotFoundError("Device template", request.template_id)
 
     return DeviceInstanceResponse(
         template_id=instance.template_id,
@@ -1171,10 +1161,7 @@ async def list_template_firmwares(
     template = get_template_by_id(template_id)
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device template '{template_id}' not found",
-        )
+        raise NotFoundError("Device template", template_id)
 
     if vulnerable_only:
         firmwares = template.get_vulnerable_firmwares()

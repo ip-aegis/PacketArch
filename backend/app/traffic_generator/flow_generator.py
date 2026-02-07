@@ -87,15 +87,171 @@ ROLE_CONNECTIONS: dict[DeviceRole, list[DeviceRole]] = {
     ],
 }
 
-# Default polling rates by role (polls per minute)
-DEFAULT_POLL_RATES: dict[tuple[DeviceRole, DeviceRole], float] = {
-    (DeviceRole.SCADA, DeviceRole.CONTROLLER): 6.0,  # 10-second poll
-    (DeviceRole.SCADA, DeviceRole.HMI): 2.0,  # 30-second status
-    (DeviceRole.SCADA, DeviceRole.FIELD_DEVICE): 6.0,  # 10-second poll (ITS/BMS direct)
-    (DeviceRole.HMI, DeviceRole.CONTROLLER): 12.0,  # 5-second refresh
-    (DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 60.0,  # 1-second I/O
-    (DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 2.0,  # Interlock check
-    (DeviceRole.HISTORIAN, DeviceRole.CONTROLLER): 1.0,  # 1-minute archive
+# ---------------------------------------------------------------------------
+# Vendor-aware protocol selection
+# ---------------------------------------------------------------------------
+
+# Preferred protocol by vendor for real-time I/O (CONTROLLER→FIELD_DEVICE)
+VENDOR_REALTIME_PROTOCOL: dict[str, str] = {
+    "siemens": "profinet",
+    "rockwell": "ethernet_ip",
+    "allen-bradley": "ethernet_ip",
+    "schneider": "modbus_tcp",
+    "schneider electric": "modbus_tcp",
+    "abb": "modbus_tcp",
+    "ge": "modbus_tcp",
+    "honeywell": "modbus_tcp",
+    "johnson controls": "bacnet",
+    "johnson_controls": "bacnet",
+    "trane": "bacnet",
+    "carrier": "bacnet",
+    "automated logic": "bacnet",
+    "automated_logic": "bacnet",
+    "distech": "bacnet",
+    "sel": "dnp3",
+    "econolite": "snmp",
+    "daktronics": "snmp",
+    "wavetronix": "snmp",
+}
+
+# Preferred protocol by vendor for supervisory/HMI polling
+VENDOR_SUPERVISORY_PROTOCOL: dict[str, str] = {
+    "siemens": "s7comm_plus",
+    "rockwell": "ethernet_ip",
+    "allen-bradley": "ethernet_ip",
+    "schneider": "modbus_tcp",
+    "schneider electric": "modbus_tcp",
+    "abb": "modbus_tcp",
+    "ge": "opc_ua",
+    "honeywell": "bacnet",
+    "johnson controls": "bacnet",
+    "johnson_controls": "bacnet",
+    "trane": "bacnet",
+    "carrier": "bacnet",
+}
+
+# ---------------------------------------------------------------------------
+# Protocol × role timing (interval in milliseconds)
+# Derived from 200+ real template flow definitions across 6 industry verticals
+# ---------------------------------------------------------------------------
+PROTOCOL_TIMING: dict[tuple[str, DeviceRole | None, DeviceRole | None], int] = {
+    # PROFINET real-time (Siemens manufacturing)
+    ("profinet", DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 4,
+    ("profinet", DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 32,
+    ("profinet", DeviceRole.SAFETY, DeviceRole.CONTROLLER): 4,
+    ("profinet", DeviceRole.SAFETY, DeviceRole.FIELD_DEVICE): 4,
+    ("profinet", None, None): 8,
+    # EtherNet/IP implicit messaging (Rockwell manufacturing)
+    ("ethernet_ip", DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 10,
+    ("ethernet_ip", DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 20,
+    ("ethernet_ip", DeviceRole.SAFETY, DeviceRole.CONTROLLER): 4,
+    ("ethernet_ip", DeviceRole.SAFETY, DeviceRole.FIELD_DEVICE): 20,
+    ("ethernet_ip", DeviceRole.HMI, DeviceRole.CONTROLLER): 500,
+    ("ethernet_ip", DeviceRole.SCADA, DeviceRole.CONTROLLER): 1000,
+    ("ethernet_ip", DeviceRole.SCADA, DeviceRole.FIELD_DEVICE): 1000,
+    ("ethernet_ip", DeviceRole.SCADA, DeviceRole.HMI): 5000,
+    ("ethernet_ip", DeviceRole.HISTORIAN, DeviceRole.CONTROLLER): 5000,
+    ("ethernet_ip", None, None): 100,
+    # Modbus TCP (Schneider, ABB, general process)
+    ("modbus_tcp", DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 200,
+    ("modbus_tcp", DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 250,
+    ("modbus_tcp", DeviceRole.HMI, DeviceRole.CONTROLLER): 500,
+    ("modbus_tcp", DeviceRole.SCADA, DeviceRole.CONTROLLER): 1000,
+    ("modbus_tcp", DeviceRole.HISTORIAN, DeviceRole.CONTROLLER): 5000,
+    ("modbus_tcp", DeviceRole.GATEWAY, DeviceRole.CONTROLLER): 5000,
+    ("modbus_tcp", None, None): 1000,
+    # S7comm / S7comm+ (Siemens HMI/SCADA)
+    ("s7comm_plus", DeviceRole.HMI, DeviceRole.CONTROLLER): 500,
+    ("s7comm_plus", DeviceRole.SCADA, DeviceRole.CONTROLLER): 1000,
+    ("s7comm_plus", None, None): 1000,
+    ("s7comm", DeviceRole.HMI, DeviceRole.CONTROLLER): 500,
+    ("s7comm", DeviceRole.SCADA, DeviceRole.CONTROLLER): 1000,
+    ("s7comm", None, None): 1000,
+    # BACnet (building automation)
+    ("bacnet", DeviceRole.SCADA, DeviceRole.CONTROLLER): 5000,
+    ("bacnet", DeviceRole.CONTROLLER, DeviceRole.FIELD_DEVICE): 500,
+    ("bacnet", DeviceRole.CONTROLLER, DeviceRole.CONTROLLER): 1000,
+    ("bacnet", DeviceRole.HMI, DeviceRole.CONTROLLER): 1000,
+    ("bacnet", None, None): 1000,
+    # SNMP (infrastructure monitoring, ITS)
+    ("snmp", DeviceRole.SCADA, DeviceRole.FIELD_DEVICE): 30000,
+    ("snmp", DeviceRole.SCADA, DeviceRole.CONTROLLER): 30000,
+    ("snmp", DeviceRole.SCADA, DeviceRole.GATEWAY): 30000,
+    ("snmp", None, None): 30000,
+    # OPC UA (supervisory)
+    ("opc_ua", DeviceRole.SCADA, DeviceRole.CONTROLLER): 1000,
+    ("opc_ua", DeviceRole.HISTORIAN, DeviceRole.CONTROLLER): 5000,
+    ("opc_ua", None, None): 1000,
+    # Safety protocols
+    ("profisafe", None, None): 4,
+    ("cip_safety", None, None): 4,
+    # DNP3 / IEC 104 (utilities SCADA)
+    ("dnp3", None, None): 5000,
+    ("iec104", None, None): 5000,
+}
+
+# ---------------------------------------------------------------------------
+# Flow pattern types
+# ---------------------------------------------------------------------------
+PROTOCOL_PATTERN: dict[str, str] = {
+    "profinet": "cyclic_io",
+    "ethernet_ip": "cyclic_io",
+    "modbus_tcp": "poll",
+    "modbus": "poll",
+    "s7comm": "poll",
+    "s7comm_plus": "poll",
+    "bacnet": "poll",
+    "snmp": "poll",
+    "opc_ua": "subscription",
+    "profisafe": "safety",
+    "cip_safety": "safety",
+    "dnp3": "poll",
+    "iec104": "poll",
+}
+
+
+def _get_interval_ms(
+    protocol: str, source_role: DeviceRole, target_role: DeviceRole,
+) -> int:
+    """Look up realistic interval_ms for a protocol × role pairing.
+
+    Falls back to protocol default, then 1000ms.
+    """
+    return (
+        PROTOCOL_TIMING.get((protocol, source_role, target_role))
+        or PROTOCOL_TIMING.get((protocol, None, None))
+        or 1000
+    )
+
+# Cross-zone connection rules.
+# Only supervisory/aggregating roles may initiate flows across zone boundaries.
+# CONTROLLER and FIELD_DEVICE are intentionally omitted — they must stay within
+# their zone (east-west prevention for Purdue cell isolation).
+CROSS_ZONE_CONNECTIONS: dict[DeviceRole, list[DeviceRole]] = {
+    DeviceRole.SCADA: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.HMI,
+        DeviceRole.GATEWAY,
+        DeviceRole.HISTORIAN,
+        DeviceRole.FIELD_DEVICE,
+    ],
+    DeviceRole.HISTORIAN: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.SCADA,
+    ],
+    DeviceRole.GATEWAY: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.FIELD_DEVICE,
+    ],
+    DeviceRole.ENGINEERING: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.HMI,
+        DeviceRole.SCADA,
+    ],
+    DeviceRole.SAFETY: [
+        DeviceRole.CONTROLLER,
+        DeviceRole.FIELD_DEVICE,
+    ],
 }
 
 
@@ -123,6 +279,7 @@ class DeviceSpec:
     vendor: str = ""
     model: str = ""
     unit_id: int = 1
+    zone: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -154,6 +311,7 @@ class DeviceSpec:
             vendor=data.get("vendor", ""),
             model=data.get("model", ""),
             unit_id=data.get("unit_id", 1),
+            zone=data.get("zone") or data.get("zoneId") or data.get("zone_id"),
             metadata=data.get("metadata", {}),
         )
 
@@ -368,17 +526,14 @@ class SmartFlowGenerator:
                         if source.device_id == target.device_id:
                             continue
 
+                        if not self._is_zone_allowed(source, target):
+                            continue
+
                         if targets_added >= self.max_flows_per_device:
                             break
 
                         protocol = self._select_protocol(source, target, protocols)
-                        poll_rate = DEFAULT_POLL_RATES.get(
-                            (source_role, target_role), 6.0
-                        )
-
-                        flow = self._create_flow(
-                            source, target, protocol, poll_rate
-                        )
+                        flow = self._create_flow(source, target, protocol)
                         flows.append(flow)
                         targets_added += 1
 
@@ -422,6 +577,8 @@ class SmartFlowGenerator:
             for source in sources:
                 # Distribute targets among sources
                 for target in targets:
+                    if not self._is_zone_allowed(source, target):
+                        continue
                     protocol = self._select_protocol(source, target, protocols)
                     flow = self._create_flow(source, target, protocol)
                     flows.append(flow)
@@ -447,6 +604,9 @@ class SmartFlowGenerator:
         for source in devices:
             for target in devices:
                 if source.device_id == target.device_id:
+                    continue
+
+                if not self._is_zone_allowed(source, target):
                     continue
 
                 protocol = self._select_protocol(source, target, protocols)
@@ -490,6 +650,9 @@ class SmartFlowGenerator:
         # Create flows from central to all others
         for device in devices:
             if device.device_id == central.device_id:
+                continue
+
+            if not self._is_zone_allowed(central, device):
                 continue
 
             protocol = self._select_protocol(central, device, protocols)
@@ -540,6 +703,8 @@ class SmartFlowGenerator:
 
             for j in range(start, end):
                 target = sorted_devices[j]
+                if not self._is_zone_allowed(device, target):
+                    continue
                 protocol = self._select_protocol(device, target, protocols)
                 flow = self._create_flow(device, target, protocol)
                 flows.append(flow)
@@ -598,28 +763,62 @@ class SmartFlowGenerator:
                     d for d in devices
                     if d.role in (DeviceRole.CONTROLLER, DeviceRole.SCADA)
                     and d.device_id != orphan.device_id
+                    and self._is_zone_allowed(d, orphan)
                 ]
-                if pollers:
+                # Prefer same-zone pollers
+                same_zone = [d for d in pollers if d.zone and d.zone == orphan.zone]
+                if same_zone:
+                    source = random.choice(same_zone)
+                elif pollers:
                     source = random.choice(pollers)
-                    protocol = self._select_protocol(source, orphan, protocols)
-                    flow = self._create_flow(source, orphan, protocol)
-                    flows.append(flow)
+                else:
+                    continue
+                protocol = self._select_protocol(source, orphan, protocols)
+                flow = self._create_flow(source, orphan, protocol)
+                flows.append(flow)
                 continue
 
             # For initiators, find targets
             for target_role in target_roles:
                 targets = [
                     d for d in devices
-                    if d.role == target_role and d.device_id != orphan.device_id
+                    if d.role == target_role
+                    and d.device_id != orphan.device_id
+                    and self._is_zone_allowed(orphan, d)
                 ]
-                if targets:
+                # Prefer same-zone targets
+                same_zone = [d for d in targets if d.zone and d.zone == orphan.zone]
+                if same_zone:
+                    target = random.choice(same_zone)
+                elif targets:
                     target = random.choice(targets)
-                    protocol = self._select_protocol(orphan, target, protocols)
-                    flow = self._create_flow(orphan, target, protocol)
-                    flows.append(flow)
-                    break
+                else:
+                    continue
+                protocol = self._select_protocol(orphan, target, protocols)
+                flow = self._create_flow(orphan, target, protocol)
+                flows.append(flow)
+                break
 
         return flows
+
+    @staticmethod
+    def _is_zone_allowed(source: DeviceSpec, target: DeviceSpec) -> bool:
+        """Check if a flow between source and target respects zone boundaries.
+
+        Rules:
+        - If either device has no zone info, allow (backward compat).
+        - Same zone: always allowed.
+        - Cross zone: only if source role is in CROSS_ZONE_CONNECTIONS
+          AND target role is in its allowed list.
+        """
+        if not source.zone or not target.zone:
+            return True
+        if source.zone == target.zone:
+            return True
+        allowed_targets = CROSS_ZONE_CONNECTIONS.get(source.role)
+        if allowed_targets is None:
+            return False
+        return target.role in allowed_targets
 
     # TCP/UDP protocols that generate IP traffic
     # Layer 2 protocols like PROFINET don't include IP addresses in packets
@@ -627,6 +826,31 @@ class SmartFlowGenerator:
         "modbus_tcp", "modbus", "ethernet_ip", "s7comm", "s7comm_plus",
         "bacnet", "bacnet_ip", "snmp", "opc_ua", "dnp3", "iec104", "iec_104",
     }
+
+    @staticmethod
+    def _get_vendor_preferred_protocol(
+        source: DeviceSpec, target: DeviceSpec,
+    ) -> str | None:
+        """Get vendor-preferred protocol for a source→target pairing.
+
+        Uses the more specific device's vendor (target for field devices,
+        source for supervisory roles) to pick the native protocol.
+        """
+        # Try target vendor first (field device knows its own protocol),
+        # then source vendor
+        vendor = (target.vendor or source.vendor or "").lower().strip()
+        if not vendor:
+            return None
+
+        # Supervisory roles → supervisory protocol table
+        if source.role in (DeviceRole.HMI, DeviceRole.SCADA, DeviceRole.HISTORIAN):
+            return VENDOR_SUPERVISORY_PROTOCOL.get(vendor)
+
+        # Real-time I/O roles → realtime protocol table
+        if source.role in (DeviceRole.CONTROLLER, DeviceRole.SAFETY):
+            return VENDOR_REALTIME_PROTOCOL.get(vendor)
+
+        return None
 
     def _select_protocol(
         self,
@@ -636,8 +860,14 @@ class SmartFlowGenerator:
     ) -> str:
         """Select appropriate protocol for a flow.
 
-        IMPORTANT: Always prioritizes TCP/UDP protocols over Layer 2 protocols
-        to ensure flows generate IP traffic (visible to Cyber Vision).
+        Selection order:
+        1. Vendor-preferred protocol (if in common or either device's set)
+        2. Common TCP/UDP protocols
+        3. Source TCP/UDP, target TCP/UDP, any common, target any
+        4. Allowed list or default_protocol fallback
+
+        TCP/UDP protocols are always preferred over Layer 2 to ensure
+        flows generate IP traffic (visible to Cyber Vision).
 
         Args:
             source: Source device
@@ -645,49 +875,57 @@ class SmartFlowGenerator:
             allowed: Allowed protocols
 
         Returns:
-            Protocol name (always TCP/UDP if possible)
+            Protocol name
         """
-        # Find common protocols
+        # Determine vendor-preferred protocol based on role pairing
+        vendor_pref = self._get_vendor_preferred_protocol(source, target)
+
         source_protocols = set(source.protocols) if source.protocols else set()
         target_protocols = set(target.protocols) if target.protocols else set()
-
         common = source_protocols & target_protocols
-        if allowed:
-            common = common & set(allowed)
 
-        # Prioritize TCP/UDP protocols (exclude Layer 2 like PROFINET)
+        # Apply allowed filter
+        if allowed:
+            allowed_set = set(allowed)
+            common = common & allowed_set
+            source_protocols = source_protocols & allowed_set
+            target_protocols = target_protocols & allowed_set
+
+        # 1. Vendor-preferred in common set → best choice
+        if vendor_pref and vendor_pref in common:
+            return vendor_pref
+
+        # 2. Vendor-preferred in either device's protocols
+        if vendor_pref:
+            if vendor_pref in source_protocols:
+                return vendor_pref
+            if vendor_pref in target_protocols:
+                return vendor_pref
+
+        # 3. Common TCP/UDP protocols
         tcp_udp_common = common & self.TCP_UDP_PROTOCOLS
         if tcp_udp_common:
             return random.choice(list(tcp_udp_common))
 
-        # If no common TCP/UDP, try source's TCP/UDP protocols
+        # 4. Source TCP/UDP protocols
         source_tcp = source_protocols & self.TCP_UDP_PROTOCOLS
         if source_tcp:
-            if allowed:
-                source_tcp = source_tcp & set(allowed)
-            if source_tcp:
-                return random.choice(list(source_tcp))
+            return random.choice(list(source_tcp))
 
-        # Try target's TCP/UDP protocols
+        # 5. Target TCP/UDP protocols
         target_tcp = target_protocols & self.TCP_UDP_PROTOCOLS
         if target_tcp:
-            if allowed:
-                target_tcp = target_tcp & set(allowed)
-            if target_tcp:
-                return random.choice(list(target_tcp))
+            return random.choice(list(target_tcp))
 
-        # Fall back to any common protocol (may be Layer 2)
+        # 6. Any common protocol (may be Layer 2)
         if common:
             return random.choice(list(common))
 
-        # Fall back to target's protocols
+        # 7. Any target protocol
         if target_protocols:
-            if allowed:
-                target_protocols = target_protocols & set(allowed)
-            if target_protocols:
-                return random.choice(list(target_protocols))
+            return random.choice(list(target_protocols))
 
-        # Fall back to allowed or default
+        # 8. Allowed list or default
         if allowed:
             return allowed[0]
 
@@ -698,7 +936,7 @@ class SmartFlowGenerator:
         source: DeviceSpec,
         target: DeviceSpec,
         protocol: str,
-        poll_rate: float = 6.0,
+        interval_ms: int | None = None,
     ) -> GeneratedFlow:
         """Create a flow between two devices.
 
@@ -706,13 +944,27 @@ class SmartFlowGenerator:
             source: Source device
             target: Target device
             protocol: Protocol name
-            poll_rate: Polls per minute
+            interval_ms: Override interval in ms (auto-derived if None)
 
         Returns:
             GeneratedFlow instance
         """
         self._flow_counter += 1
         flow_id = f"flow_{self._flow_counter:04d}"
+
+        # Auto-derive interval from protocol × role if not provided
+        if interval_ms is None:
+            interval_ms = _get_interval_ms(protocol, source.role, target.role)
+
+        # Convert to polls_per_minute for backward compat
+        poll_rate = 60000.0 / interval_ms if interval_ms > 0 else 6.0
+
+        # Determine pattern type
+        pattern = PROTOCOL_PATTERN.get(protocol, "poll")
+        # Supervisory roles use explicit messaging, not cyclic I/O
+        if source.role in (DeviceRole.SCADA, DeviceRole.HMI, DeviceRole.HISTORIAN):
+            if pattern == "cyclic_io":
+                pattern = "poll"
 
         # Determine priority based on roles
         priority = self._calculate_priority(source.role, target.role)
@@ -727,6 +979,11 @@ class SmartFlowGenerator:
             metadata={
                 "source_role": source.role.value,
                 "destination_role": target.role.value,
+                "source_zone": source.zone,
+                "destination_zone": target.zone,
+                "cross_zone": source.zone != target.zone if (source.zone and target.zone) else None,
+                "pattern": pattern,
+                "interval_ms": interval_ms,
             },
         )
 

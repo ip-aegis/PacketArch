@@ -391,7 +391,7 @@ class DeviceContext:
         Returns:
             Merged identity dict with vulnerability overrides applied
         """
-        base_identity = dict(self.vendor_fingerprint.get(identity_type, {}))
+        base_identity = dict(self.vendor_fingerprint.get(identity_type) or {})
 
         # Apply vulnerability override if present
         if self.vulnerability_override:

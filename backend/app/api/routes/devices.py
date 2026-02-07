@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.exceptions import NotFoundError
 from app.models.device_profile import DeviceProfile
 from app.schemas.device_profile import (
     DeviceProfileCreate,
@@ -99,10 +100,7 @@ async def get_device_profile(
     profile = result.scalar_one_or_none()
 
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device profile not found",
-        )
+        raise NotFoundError("Device profile")
 
     return DeviceProfileResponse.model_validate(profile)
 
@@ -149,10 +147,7 @@ async def update_device_profile(
     profile = result.scalar_one_or_none()
 
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device profile not found",
-        )
+        raise NotFoundError("Device profile")
 
     # Don't allow editing built-in profiles (unless admin)
     if profile.is_builtin and not current_user.is_admin:
@@ -185,10 +180,7 @@ async def delete_device_profile(
     profile = result.scalar_one_or_none()
 
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device profile not found",
-        )
+        raise NotFoundError("Device profile")
 
     # Don't allow deleting built-in profiles
     if profile.is_builtin:
@@ -217,10 +209,7 @@ async def duplicate_device_profile(
     profile = result.scalar_one_or_none()
 
     if profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device profile not found",
-        )
+        raise NotFoundError("Device profile")
 
     # Create a new profile with the same data
     new_profile = DeviceProfile(

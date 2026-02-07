@@ -71,7 +71,14 @@ jobs:
 
             # Wait for services to be healthy
             echo "Waiting for services to start..."
-            sleep 20
+            for i in $(seq 1 30); do
+              if sudo /usr/bin/docker compose ps --format json | grep -q '"Health":"healthy"'; then
+                echo "Services healthy after $((i * 10)) seconds"
+                break
+              fi
+              echo "Attempt $i/30: waiting..."
+              sleep 10
+            done
 
             # Show status
             echo "=== Container Status ==="
@@ -82,12 +89,16 @@ jobs:
 
       - name: Health check
         run: |
-          echo "Checking if services are responding..."
-          sleep 10
-          # Try HTTPS first (port 443), fall back to HTTP health endpoint
-          curl -sfk https://${{ secrets.SSH_HOST }}/health || \
-          curl -sf http://${{ secrets.SSH_HOST }}:8001/health || \
-          echo "Health check pending (services may need more startup time)"
-          echo "Deployment finished!"
-          echo ""
-          echo "Access URL: https://${{ secrets.SSH_HOST }}"
+          echo "Verifying deployment health..."
+          for i in $(seq 1 6); do
+            if curl -sfk https://${{ secrets.SSH_HOST }}/health || \
+               curl -sf http://${{ secrets.SSH_HOST }}:8001/health; then
+              echo "Health check passed!"
+              echo "Access URL: https://${{ secrets.SSH_HOST }}"
+              exit 0
+            fi
+            echo "Retry $i/6..."
+            sleep 10
+          done
+          echo "Health check failed after 60 seconds"
+          exit 1

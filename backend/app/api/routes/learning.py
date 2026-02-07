@@ -4,12 +4,11 @@ import logging
 import os
 import shutil
 import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile
+
+from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,12 +20,46 @@ from app.learning.tasks import (
     get_pcap_processing_status,
     process_pcap_task,
 )
-from app.models.learned_pattern import DistributionType, LearnedPattern, PatternType
+from app.models.learned_pattern import LearnedPattern, PatternType
 from app.models.learned_protocol_pattern import LearnedProtocolPattern
 from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.learned_sequence import LearnedSequence, SequenceType
 from app.models.pcap_capture import PcapCapture, ProcessingStatus
+from app.schemas.learning import (
+    AddressPatternsResponse,
+    ApplySessionPatternsRequest,
+    ApplySessionPatternsResponse,
+    DeviceFingerprintListResponse,
+    FunctionCodeDistributionResponse,
+    LearningSessionCreate,
+    LearningSessionListResponse,
+    LearningSessionResponse,
+    LearningSessionUpdate,
+    LearningStatsResponse,
+    PatternListResponse,
+    PatternStatsResponse,
+    PatternSuggestionResponse,
+    PcapCaptureResponse,
+    PcapJobStatusResponse,
+    PcapListResponse,
+    PcapUploadResponse,
+    PollCyclePatternResponse,
+    ProtocolPatternListResponse,
+    ProtocolPatternResponse,
+    ResponseTimingModelResponse,
+    SequenceListResponse,
+    SequenceResponse,
+    StartupSequenceResponse,
+    TcpSignatureModelResponse,
+    TimingModelResponse,
+    LearnedPatternResponse,
+)
 from app.services.learned_pattern_service import LearnedPatternService
+from app.services.learning_service import (
+    process_pcap,
+    template_to_fingerprint_response,
+    apply_session_patterns_to_scenario,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,260 +68,6 @@ router = APIRouter(prefix="/learning", tags=["learning"])
 # PCAP storage directory
 PCAP_STORAGE_DIR = Path(settings.data_dir if hasattr(settings, "data_dir") else "./data") / "pcap_uploads"
 PCAP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# ========== Pydantic Schemas ==========
-
-
-class PcapUploadResponse(BaseModel):
-    """Response for PCAP upload."""
-
-    id: str
-    filename: str
-    status: str
-    message: str
-    job_id: str | None = None  # For tracking Celery job progress
-
-
-class PcapJobStatusResponse(BaseModel):
-    """Response for PCAP processing job status."""
-
-    job_id: str
-    capture_id: str
-    status: str
-    progress: float
-    stage: str
-    error_message: str | None = None
-    started_at: str | None = None
-    completed_at: str | None = None
-    packets_analyzed: int = 0
-    patterns_extracted: int = 0
-    fingerprints_extracted: int = 0
-    sequences_extracted: int = 0
-
-
-class PcapCaptureResponse(BaseModel):
-    """Response for PCAP capture details."""
-
-    id: str
-    filename: str
-    original_filename: str
-    file_size: int
-    status: str
-    error_message: str | None
-    packet_count: int | None
-    flow_count: int | None
-    capture_duration_ms: float | None
-    protocol_stats: dict | None
-    devices_detected: dict | None
-    description: str | None
-    tags: list | None
-    source_environment: str | None
-    industry_vertical: str | None
-    created_at: datetime
-    processed_at: datetime | None
-
-    class Config:
-        from_attributes = True
-
-
-class LearnedPatternResponse(BaseModel):
-    """Response for learned pattern."""
-
-    id: str
-    name: str
-    pattern_type: str
-    protocol: str
-    source_ip: str | None
-    destination_ip: str | None
-    distribution_type: str | None
-    sample_count: int
-    min_value: float | None
-    max_value: float | None
-    mean_value: float | None
-    std_dev: float | None
-    fit_score: float | None
-    confidence: float
-    is_active: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class PatternListResponse(BaseModel):
-    """Response for pattern list."""
-
-    patterns: list[LearnedPatternResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-class PcapListResponse(BaseModel):
-    """Response for PCAP list."""
-
-    captures: list[PcapCaptureResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-class LearningStatsResponse(BaseModel):
-    """Response for learning statistics."""
-
-    uploaded_pcaps: int
-    learned_patterns: int
-    active_patterns: int
-    protocols_covered: int
-    protocol_patterns: int
-    device_fingerprints: int
-    learned_sequences: int
-
-
-class PatternStatsResponse(BaseModel):
-    """Response for pattern statistics."""
-    protocol_patterns: dict
-    device_fingerprints: dict
-    sequences: dict
-
-
-class ProtocolPatternResponse(BaseModel):
-    """Response for learned protocol pattern."""
-
-    id: str
-    pcap_capture_id: str | None
-    protocol: str
-    function_codes: dict | None
-    address_patterns: dict | None
-    payload_structures: dict | None
-    request_response_pairs: list | None
-    unit_id_distribution: dict | None
-    exception_patterns: dict | None
-    device_identities: list | None
-    protocol_metadata: dict | None
-    sample_count: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class ProtocolPatternListResponse(BaseModel):
-    """Response for protocol pattern list."""
-
-    patterns: list[ProtocolPatternResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-class DeviceFingerprintResponse(BaseModel):
-    """Response for learned device fingerprint template.
-
-    Fingerprints are GENERIC TEMPLATES capturing vendor characteristics,
-    NOT specific device instances with IP addresses.
-    """
-
-    id: str
-    pcap_capture_id: str | None
-    # Vendor identification
-    inferred_vendor: str | None
-    device_type: str | None
-    oui_patterns: list | None  # OUI prefixes associated with this fingerprint
-    # TCP stack signature
-    tcp_signature: dict | None
-    # Response timing distributions
-    response_timings: dict | None
-    # Protocol-specific identity info (vendor, model, firmware)
-    protocol_identities: dict | None
-    # Behavioral patterns
-    role: str
-    active_protocols: list | None
-    typical_ports: dict | None
-    # Aggregation metadata
-    observation_count: int
-    total_packets_analyzed: int
-    # Quality metrics
-    confidence: float
-    consistency_score: float
-    # User metadata
-    name: str | None
-    tags: list | None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class DeviceFingerprintListResponse(BaseModel):
-    """Response for device fingerprint list."""
-
-    fingerprints: list[DeviceFingerprintResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-class SequenceResponse(BaseModel):
-    """Response for learned sequence."""
-
-    id: str
-    pcap_capture_id: str | None
-    name: str
-    sequence_type: str
-    protocol: str
-    initiator_ip: str | None
-    responder_ip: str | None
-    steps: dict | None
-    step_count: int
-    average_duration_ms: float | None
-    timing_variance: float | None
-    inter_step_timings: dict | None
-    repetition_interval_ms: float | None
-    repetition_jitter_ms: float | None
-    occurrence_count: int
-    confidence: float
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class SequenceListResponse(BaseModel):
-    """Response for sequence list."""
-
-    sequences: list[SequenceResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-# ========== Helpers ==========
-
-
-def _template_to_fingerprint_response(fp: DeviceTemplate) -> DeviceFingerprintResponse:
-    """Convert DeviceTemplate to DeviceFingerprintResponse for API backward compat."""
-    return DeviceFingerprintResponse(
-        id=str(fp.id),
-        pcap_capture_id=str(fp.source_pcap_id) if fp.source_pcap_id else None,
-        inferred_vendor=fp.vendor,
-        device_type=fp.device_type,
-        oui_patterns=fp.oui_patterns,
-        tcp_signature=fp.tcp_signature,
-        response_timings=fp.response_timings,
-        protocol_identities=fp.protocol_identities,
-        role=fp.role or "unknown",
-        active_protocols=fp.active_protocols,
-        typical_ports=fp.typical_ports,
-        observation_count=fp.sample_count or 0,
-        total_packets_analyzed=0,
-        confidence=fp.confidence or 0.0,
-        consistency_score=fp.consistency_score or 1.0,
-        name=fp.name,
-        tags=fp.tags,
-        created_at=fp.created_at,
-    )
 
 
 # ========== Stats Endpoint ==========
@@ -359,10 +138,7 @@ async def upload_pcap(
     """
     # Validate file type
     if not file.filename.endswith((".pcap", ".pcapng", ".cap")):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Only .pcap, .pcapng, and .cap files are allowed.",
-        )
+        raise ValidationError("Invalid file type. Only .pcap, .pcapng, and .cap files are allowed.")
 
     # Generate unique filename
     capture_id = uuid.uuid4()
@@ -376,7 +152,7 @@ async def upload_pcap(
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         logger.error(f"Failed to save PCAP file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to save file")
+        raise ExternalServiceError(service="filesystem", message="Failed to save PCAP file", original_error=e)
 
     # Get file size and hash
     file_size = os.path.getsize(file_path)
@@ -389,10 +165,7 @@ async def upload_pcap(
     if existing.scalar_one_or_none():
         # Remove duplicate file
         os.remove(file_path)
-        raise HTTPException(
-            status_code=409,
-            detail="This PCAP file has already been uploaded.",
-        )
+        raise ConflictError("This PCAP file has already been uploaded.", resource="PCAP capture")
 
     # Create database record
     capture = PcapCapture(
@@ -447,10 +220,7 @@ async def get_pcap_job_status(job_id: str):
     status = get_pcap_processing_status(job_id)
 
     if not status:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Processing job {job_id} not found",
-        )
+        raise NotFoundError("Processing job", job_id)
 
     return PcapJobStatusResponse(**status)
 
@@ -522,7 +292,7 @@ async def get_pcap_capture(
     capture = result.scalar_one_or_none()
 
     if not capture:
-        raise HTTPException(status_code=404, detail="PCAP capture not found")
+        raise NotFoundError("PCAP capture", capture_id)
 
     return PcapCaptureResponse(
         id=str(capture.id),
@@ -557,7 +327,7 @@ async def delete_pcap_capture(
     capture = result.scalar_one_or_none()
 
     if not capture:
-        raise HTTPException(status_code=404, detail="PCAP capture not found")
+        raise NotFoundError("PCAP capture", capture_id)
 
     # Delete file
     try:
@@ -592,14 +362,11 @@ async def retry_pcap_processing(
     capture = result.scalar_one_or_none()
 
     if not capture:
-        raise HTTPException(status_code=404, detail="PCAP capture not found")
+        raise NotFoundError("PCAP capture", capture_id)
 
     # Only allow retry for stuck/failed captures
     if capture.status == ProcessingStatus.COMPLETED:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot retry a completed capture. Delete and re-upload if needed.",
-        )
+        raise ValidationError("Cannot retry a completed capture. Delete and re-upload if needed.")
 
     # Delete any existing patterns from previous failed/partial processing
     await db.execute(
@@ -673,7 +440,7 @@ async def list_patterns(
         query = query.where(LearnedPattern.is_active == True)
 
     # Get total count
-    count_query = select(LearnedPattern)
+    count_query = select(func.count(LearnedPattern.id))
     if protocol:
         count_query = count_query.where(LearnedPattern.protocol == protocol)
     if pattern_type:
@@ -681,7 +448,7 @@ async def list_patterns(
     if active_only:
         count_query = count_query.where(LearnedPattern.is_active == True)
     result = await db.execute(count_query)
-    total = len(result.scalars().all())
+    total = result.scalar() or 0
 
     # Get paginated results
     offset = (page - 1) * page_size
@@ -746,7 +513,7 @@ async def get_pattern(
     pattern = result.scalar_one_or_none()
 
     if not pattern:
-        raise HTTPException(status_code=404, detail="Pattern not found")
+        raise NotFoundError("Pattern", pattern_id)
 
     return {
         "id": str(pattern.id),
@@ -788,7 +555,7 @@ async def toggle_pattern(
     pattern = result.scalar_one_or_none()
 
     if not pattern:
-        raise HTTPException(status_code=404, detail="Pattern not found")
+        raise NotFoundError("Pattern", pattern_id)
 
     pattern.is_active = not pattern.is_active
     await db.commit()
@@ -816,13 +583,13 @@ async def list_protocol_patterns(
         query = query.where(LearnedProtocolPattern.pcap_capture_id == uuid.UUID(pcap_capture_id))
 
     # Get total count
-    count_query = select(LearnedProtocolPattern)
+    count_query = select(func.count(LearnedProtocolPattern.id))
     if protocol:
         count_query = count_query.where(LearnedProtocolPattern.protocol == protocol)
     if pcap_capture_id:
         count_query = count_query.where(LearnedProtocolPattern.pcap_capture_id == uuid.UUID(pcap_capture_id))
     result = await db.execute(count_query)
-    total = len(result.scalars().all())
+    total = result.scalar() or 0
 
     # Get paginated results
     offset = (page - 1) * page_size
@@ -867,7 +634,7 @@ async def get_protocol_pattern(
     pattern = result.scalar_one_or_none()
 
     if not pattern:
-        raise HTTPException(status_code=404, detail="Protocol pattern not found")
+        raise NotFoundError("Protocol pattern", pattern_id)
 
     return ProtocolPatternResponse(
         id=str(pattern.id),
@@ -939,7 +706,7 @@ async def list_device_fingerprints(
 
     return DeviceFingerprintListResponse(
         fingerprints=[
-            _template_to_fingerprint_response(fp)
+            template_to_fingerprint_response(fp)
             for fp in fingerprints
         ],
         total=total,
@@ -963,9 +730,9 @@ async def get_device_fingerprint(
     fingerprint = result.scalar_one_or_none()
 
     if not fingerprint:
-        raise HTTPException(status_code=404, detail="Device fingerprint not found")
+        raise NotFoundError("Device fingerprint", fingerprint_id)
 
-    return _template_to_fingerprint_response(fingerprint)
+    return template_to_fingerprint_response(fingerprint)
 
 
 @router.get("/sequences", response_model=SequenceListResponse)
@@ -988,7 +755,7 @@ async def list_sequences(
         query = query.where(LearnedSequence.pcap_capture_id == uuid.UUID(pcap_capture_id))
 
     # Get total count
-    count_query = select(LearnedSequence)
+    count_query = select(func.count(LearnedSequence.id))
     if sequence_type:
         count_query = count_query.where(LearnedSequence.sequence_type == SequenceType(sequence_type))
     if protocol:
@@ -996,7 +763,7 @@ async def list_sequences(
     if pcap_capture_id:
         count_query = count_query.where(LearnedSequence.pcap_capture_id == uuid.UUID(pcap_capture_id))
     result = await db.execute(count_query)
-    total = len(result.scalars().all())
+    total = result.scalar() or 0
 
     # Get paginated results
     offset = (page - 1) * page_size
@@ -1045,7 +812,7 @@ async def get_sequence(
     sequence = result.scalar_one_or_none()
 
     if not sequence:
-        raise HTTPException(status_code=404, detail="Sequence not found")
+        raise NotFoundError("Sequence", sequence_id)
 
     return SequenceResponse(
         id=str(sequence.id),
@@ -1071,80 +838,6 @@ async def get_sequence(
 # ========== Pattern Service Endpoints ==========
 
 
-class TimingModelResponse(BaseModel):
-    """Response for timing model."""
-    protocol: str
-    source_pattern_id: str | None
-    timing: dict | None
-    confidence: float
-
-
-class FunctionCodeDistributionResponse(BaseModel):
-    """Response for function code distribution."""
-    protocol: str
-    source_pattern_id: str | None
-    function_codes: dict | None
-    sample_count: int
-    confidence: float
-
-
-class AddressPatternsResponse(BaseModel):
-    """Response for address patterns."""
-    protocol: str
-    source_pattern_id: str | None
-    address_patterns: dict | None
-    sample_count: int
-    confidence: float
-
-
-class TcpSignatureModelResponse(BaseModel):
-    """Response for TCP signature model."""
-    protocol: str | None
-    role: str | None
-    signatures: list[dict]
-    count: int
-
-
-class ResponseTimingModelResponse(BaseModel):
-    """Response for device response timing model."""
-    protocol: str
-    role: str
-    aggregate: dict
-    individual_timings: list[dict]
-    device_count: int
-
-
-class StartupSequenceResponse(BaseModel):
-    """Response for startup sequence."""
-    protocol: str
-    sequence_id: str
-    name: str
-    steps: dict | None
-    step_count: int
-    average_duration_ms: float | None
-    confidence: float
-
-
-class PollCyclePatternResponse(BaseModel):
-    """Response for poll cycle pattern."""
-    protocol: str
-    sequence_id: str
-    name: str
-    steps: dict | None
-    step_count: int
-    repetition_interval_ms: float | None
-    repetition_jitter_ms: float | None
-    confidence: float
-
-
-class PatternSuggestionResponse(BaseModel):
-    """Response for pattern suggestions."""
-    device_type: str
-    protocol: str
-    expected_role: str
-    suggestions: dict
-
-
 @router.get("/patterns/timing-model/{protocol}")
 async def get_timing_model(
     protocol: str,
@@ -1157,10 +850,7 @@ async def get_timing_model(
     model = await LearnedPatternService.get_timing_model(db, protocol)
 
     if not model:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No timing data found for protocol: {protocol}",
-        )
+        raise NotFoundError("Timing data", protocol)
 
     return TimingModelResponse(
         protocol=model["protocol"],
@@ -1182,10 +872,7 @@ async def get_function_codes(
     distribution = await LearnedPatternService.get_function_code_distribution(db, protocol)
 
     if not distribution:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No function code data found for protocol: {protocol}",
-        )
+        raise NotFoundError("Function code data", protocol)
 
     return FunctionCodeDistributionResponse(
         protocol=distribution["protocol"],
@@ -1208,10 +895,7 @@ async def get_address_patterns(
     patterns = await LearnedPatternService.get_address_patterns(db, protocol)
 
     if not patterns:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No address pattern data found for protocol: {protocol}",
-        )
+        raise NotFoundError("Address pattern data", protocol)
 
     return AddressPatternsResponse(
         protocol=patterns["protocol"],
@@ -1235,10 +919,7 @@ async def get_tcp_signatures(
     model = await LearnedPatternService.get_tcp_signature_model(db, protocol, role)
 
     if not model:
-        raise HTTPException(
-            status_code=404,
-            detail="No TCP signature data found",
-        )
+        raise NotFoundError("TCP signature data")
 
     return TcpSignatureModelResponse(
         protocol=model.get("protocol"),
@@ -1261,10 +942,7 @@ async def get_response_timing(
     model = await LearnedPatternService.get_response_timing_model(db, protocol, role)
 
     if not model:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No response timing data found for protocol: {protocol}",
-        )
+        raise NotFoundError("Response timing data", protocol)
 
     return ResponseTimingModelResponse(
         protocol=model["protocol"],
@@ -1287,10 +965,7 @@ async def get_startup_sequence(
     sequence = await LearnedPatternService.get_startup_sequence(db, protocol)
 
     if not sequence:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No startup sequence found for protocol: {protocol}",
-        )
+        raise NotFoundError("Startup sequence", protocol)
 
     return StartupSequenceResponse(
         protocol=sequence["protocol"],
@@ -1315,10 +990,7 @@ async def get_poll_cycle(
     pattern = await LearnedPatternService.get_poll_cycle_pattern(db, protocol)
 
     if not pattern:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No poll cycle pattern found for protocol: {protocol}",
-        )
+        raise NotFoundError("Poll cycle pattern", protocol)
 
     return PollCyclePatternResponse(
         protocol=pattern["protocol"],
@@ -1355,276 +1027,7 @@ async def suggest_patterns(
     )
 
 
-# ========== Background Processing ==========
-
-
-async def process_pcap(capture_id: str) -> None:
-    """Process a PCAP file in the background."""
-    from app.core.database import async_session_maker
-
-    async with async_session_maker() as db:
-        try:
-            # Get capture record
-            result = await db.execute(
-                select(PcapCapture).where(PcapCapture.id == uuid.UUID(capture_id))
-            )
-            capture = result.scalar_one_or_none()
-
-            if not capture:
-                logger.error(f"Capture {capture_id} not found")
-                return
-
-            # Update status
-            capture.status = ProcessingStatus.PROCESSING
-            await db.commit()
-
-            # Analyze PCAP
-            analyzer = PcapAnalyzer()
-            results = analyzer.analyze_file(capture.file_path)
-
-            if "error" in results:
-                capture.status = ProcessingStatus.FAILED
-                capture.error_message = results["error"]
-                await db.commit()
-                return
-
-            # Update capture with results
-            capture.packet_count = results["packet_count"]
-            capture.flow_count = results["flow_count"]
-            capture.capture_duration_ms = results["capture_duration_ms"]
-            capture.protocol_stats = results["protocol_stats"]
-            capture.devices_detected = results["devices_detected"]
-            capture.status = ProcessingStatus.COMPLETED
-            capture.processed_at = datetime.utcnow()
-
-            # Collect all objects for batch insert
-            new_objects: list = []
-
-            # Create learned patterns (timing)
-            for pattern_data in results.get("timing_patterns", []):
-                new_objects.append(LearnedPattern(
-                    pcap_capture_id=capture.id,
-                    name=pattern_data["name"],
-                    pattern_type=PatternType(pattern_data["pattern_type"]),
-                    protocol=pattern_data["protocol"],
-                    source_ip=pattern_data.get("source_ip"),
-                    destination_ip=pattern_data.get("destination_ip"),
-                    source_port=pattern_data.get("source_port"),
-                    destination_port=pattern_data.get("destination_port"),
-                    distribution_type=DistributionType(pattern_data["distribution_type"]),
-                    timing_params=pattern_data.get("timing_params"),
-                    sample_count=pattern_data["sample_count"],
-                    min_value=pattern_data.get("min_value"),
-                    max_value=pattern_data.get("max_value"),
-                    mean_value=pattern_data.get("mean_value"),
-                    std_dev=pattern_data.get("std_dev"),
-                    fit_score=pattern_data.get("fit_score"),
-                    confidence=pattern_data.get("confidence", 0),
-                ))
-
-            # Create learned patterns (payload)
-            for pattern_data in results.get("payload_patterns", []):
-                new_objects.append(LearnedPattern(
-                    pcap_capture_id=capture.id,
-                    name=pattern_data["name"],
-                    pattern_type=PatternType(pattern_data["pattern_type"]),
-                    protocol=pattern_data["protocol"],
-                    source_ip=pattern_data.get("source_ip"),
-                    destination_ip=pattern_data.get("destination_ip"),
-                    payload_patterns=pattern_data.get("payload_patterns"),
-                    sample_count=pattern_data["sample_count"],
-                    confidence=pattern_data.get("confidence", 0),
-                ))
-
-            # Store enhanced protocol patterns
-            for proto_data in results.get("protocol_patterns", []):
-                # S7-specific fields go in protocol_metadata
-                s7_metadata = {}
-                if proto_data.get("pdu_sizes"):
-                    s7_metadata["pdu_sizes"] = proto_data["pdu_sizes"]
-                if proto_data.get("rack_slot_configs"):
-                    s7_metadata["rack_slot_configs"] = proto_data["rack_slot_configs"]
-                if proto_data.get("memory_areas"):
-                    s7_metadata["memory_areas"] = proto_data["memory_areas"]
-
-                new_objects.append(LearnedProtocolPattern(
-                    pcap_capture_id=capture.id,
-                    protocol=proto_data["protocol"],
-                    function_codes=proto_data.get("function_codes"),
-                    address_patterns=proto_data.get("address_patterns"),
-                    payload_structures=proto_data.get("payload_structures"),
-                    request_response_pairs=proto_data.get("request_response_pairs"),
-                    unit_id_distribution=proto_data.get("unit_id_distribution"),
-                    exception_patterns=proto_data.get("exception_patterns"),
-                    device_identities=proto_data.get("device_identities"),
-                    protocol_metadata=s7_metadata if s7_metadata else None,
-                    sample_count=proto_data.get("packet_count", proto_data.get("sample_count", 0)),
-                ))
-
-            # Store device fingerprint templates (aggregated, not per-device)
-            for fp_data in results.get("device_fingerprints", []):
-                # Get role value - ensure lowercase for PostgreSQL enum
-                role_str = fp_data.get("role", "unknown").lower()
-                if role_str not in ("master", "slave", "both", "unknown"):
-                    role_str = "unknown"
-
-                new_objects.append(DeviceTemplate(
-                    source=TemplateSource.PCAP_LEARNED.value,
-                    source_pcap_id=capture.id,
-                    vendor=fp_data.get("inferred_vendor"),
-                    device_type=fp_data.get("device_type"),
-                    oui_patterns=fp_data.get("oui_patterns"),
-                    tcp_signature=fp_data.get("tcp_signature"),
-                    response_timings=fp_data.get("response_timings"),
-                    protocol_identities=fp_data.get("protocol_identities"),
-                    role=role_str,
-                    active_protocols=fp_data.get("active_protocols", []),
-                    typical_ports=fp_data.get("typical_ports"),
-                    sample_count=fp_data.get("observation_count", 1),
-                    confidence=fp_data.get("confidence", 0.0),
-                    consistency_score=fp_data.get("consistency_score", 1.0),
-                    name=fp_data.get("name"),
-                    is_active=True,
-                ))
-
-            # Store learned sequences
-            valid_sequence_types = {
-                "startup", "shutdown", "poll_cycle", "write_sequence",
-                "error_recovery", "state_transition", "heartbeat", "alarm"
-            }
-            for seq_data in results.get("learned_sequences", []):
-                seq_type = seq_data.get("sequence_type", "").lower()
-                if seq_type not in valid_sequence_types:
-                    continue  # Skip invalid sequence types
-
-                new_objects.append(LearnedSequence(
-                    pcap_capture_id=capture.id,
-                    name=seq_data["name"],
-                    sequence_type=seq_type,
-                    protocol=seq_data["protocol"],
-                    initiator_ip=seq_data.get("initiator_ip"),
-                    responder_ip=seq_data.get("responder_ip"),
-                    steps=seq_data.get("steps"),
-                    step_count=seq_data.get("step_count", 0),
-                    average_duration_ms=seq_data.get("average_duration_ms"),
-                    timing_variance=seq_data.get("timing_variance"),
-                    inter_step_timings=seq_data.get("inter_step_timings"),
-                    repetition_interval_ms=seq_data.get("repetition_interval_ms"),
-                    repetition_jitter_ms=seq_data.get("repetition_jitter_ms"),
-                    occurrence_count=seq_data.get("occurrence_count", 0),
-                    confidence=seq_data.get("confidence", 0.0),
-                ))
-
-            # Batch insert all objects
-            if new_objects:
-                db.add_all(new_objects)
-            await db.commit()
-
-            # Invalidate fingerprint cache so new learned data is visible
-            from app.services.fingerprint_cache import invalidate_fingerprint_cache
-            invalidate_fingerprint_cache()
-
-            logger.info(f"Successfully processed PCAP {capture_id}")
-
-        except Exception as e:
-            logger.exception(f"Failed to process PCAP {capture_id}: {e}")
-            try:
-                result = await db.execute(
-                    select(PcapCapture).where(PcapCapture.id == uuid.UUID(capture_id))
-                )
-                capture = result.scalar_one_or_none()
-                if capture:
-                    capture.status = ProcessingStatus.FAILED
-                    capture.error_message = str(e)
-                    await db.commit()
-            except Exception:
-                pass
-
-
 # ========== Learning Session Endpoints ==========
-
-
-class LearningSessionCreate(BaseModel):
-    """Request to create a learning session."""
-
-    name: str
-    description: str | None = None
-    source_environment: str | None = None
-    industry_vertical: str | None = None
-    network_description: str | None = None
-    tags: list[str] | None = None
-
-
-class LearningSessionUpdate(BaseModel):
-    """Request to update a learning session."""
-
-    name: str | None = None
-    description: str | None = None
-    source_environment: str | None = None
-    industry_vertical: str | None = None
-    network_description: str | None = None
-    tags: list[str] | None = None
-    status: str | None = None
-
-
-class LearningSessionResponse(BaseModel):
-    """Response for a learning session."""
-
-    id: str
-    name: str
-    description: str | None
-    status: str
-    source_environment: str | None
-    industry_vertical: str | None
-    network_description: str | None
-    tags: list | None
-    capture_count: int
-    total_packets: int
-    total_flows: int
-    total_duration_ms: float | None
-    protocols_detected: list | None
-    protocol_stats: dict | None
-    aggregate_confidence: float | None
-    pattern_count: int
-    fingerprint_count: int
-    sequence_count: int
-    created_at: datetime
-    updated_at: datetime
-    analyzed_at: datetime | None
-
-    class Config:
-        from_attributes = True
-
-
-class LearningSessionListResponse(BaseModel):
-    """Response for learning session list."""
-
-    sessions: list[LearningSessionResponse]
-    total: int
-    page: int
-    page_size: int
-
-
-class ApplySessionPatternsRequest(BaseModel):
-    """Request to apply session patterns to a scenario."""
-
-    scenario_id: str
-    apply_fingerprints: bool = True
-    apply_timing: bool = True
-    apply_sequences: bool = False
-    min_confidence: float = 0.5
-
-
-class ApplySessionPatternsResponse(BaseModel):
-    """Response from applying session patterns."""
-
-    session_id: str
-    scenario_id: str
-    devices_updated: int
-    patterns_applied: int
-    fingerprints_applied: int
-    sequences_applied: int
-    message: str
 
 
 @router.get("/sessions", response_model=LearningSessionListResponse)
@@ -1646,13 +1049,13 @@ async def list_learning_sessions(
         query = query.where(LearningSession.industry_vertical == industry_vertical)
 
     # Get total count
-    count_query = select(LearningSession)
+    count_query = select(func.count(LearningSession.id))
     if status:
         count_query = count_query.where(LearningSession.status == SessionStatus(status))
     if industry_vertical:
         count_query = count_query.where(LearningSession.industry_vertical == industry_vertical)
     result = await db.execute(count_query)
-    total = len(result.scalars().all())
+    total = result.scalar() or 0
 
     # Get paginated results
     offset = (page - 1) * page_size
@@ -1754,7 +1157,7 @@ async def get_learning_session(
     session = result.scalar_one_or_none()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Learning session not found")
+        raise NotFoundError("Learning session", session_id)
 
     return LearningSessionResponse(
         id=str(session.id),
@@ -1796,7 +1199,7 @@ async def update_learning_session(
     session = result.scalar_one_or_none()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Learning session not found")
+        raise NotFoundError("Learning session", session_id)
 
     # Update fields
     if request.name is not None:
@@ -1856,7 +1259,7 @@ async def delete_learning_session(
     session = result.scalar_one_or_none()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Learning session not found")
+        raise NotFoundError("Learning session", session_id)
 
     await db.delete(session)
     # Note: commit handled by get_db dependency
@@ -1885,7 +1288,7 @@ async def apply_session_patterns(
     session = result.scalar_one_or_none()
 
     if not session:
-        raise HTTPException(status_code=404, detail="Learning session not found")
+        raise NotFoundError("Learning session", session_id)
 
     # Get scenario
     result = await db.execute(
@@ -1894,119 +1297,25 @@ async def apply_session_patterns(
     scenario = result.scalar_one_or_none()
 
     if not scenario:
-        raise HTTPException(status_code=404, detail="Scenario not found")
+        raise NotFoundError("Scenario", request.scenario_id)
 
-    # Get all fingerprints from captures in this session (single query)
-    capture_ids = [c.id for c in session.pcap_captures]
-    if capture_ids:
-        fps_result = await db.execute(
-            select(DeviceTemplate).where(
-                DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
-                DeviceTemplate.source_pcap_id.in_(capture_ids),
-                DeviceTemplate.confidence >= request.min_confidence,
-            )
-        )
-        fingerprints = list(fps_result.scalars().all())
-    else:
-        fingerprints = []
-
-    # Get all sequences from captures in this session (single query)
-    sequences = []
-    if request.apply_sequences and capture_ids:
-        seqs_result = await db.execute(
-            select(LearnedSequence).where(
-                LearnedSequence.pcap_capture_id.in_(capture_ids),
-                LearnedSequence.confidence >= request.min_confidence,
-            )
-        )
-        sequences = list(seqs_result.scalars().all())
-
-    # Apply patterns to scenario devices
-    definition = scenario.definition or {}
-    devices = definition.get("devices", {})
-    flows = definition.get("flows", {})
-
-    devices_updated = 0
-    patterns_applied = 0
-    fingerprints_applied = 0
-    sequences_applied = 0
-
-    # Build device -> protocol mapping from flows
-    device_protocols: dict[str, set[str]] = {}
-    for flow in flows.values():
-        source_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
-        target_id = flow.get("targetDeviceId") or flow.get("target_device_id")
-        protocol = flow.get("protocol", "").lower()
-
-        if protocol:
-            if source_id:
-                device_protocols.setdefault(source_id, set()).add(protocol)
-            if target_id:
-                device_protocols.setdefault(target_id, set()).add(protocol)
-
-    # Apply fingerprints to matching devices
-    for device_id, device in devices.items():
-        device_type = device.get("deviceType", "").lower()
-        protocols = device_protocols.get(device_id, set())
-
-        if not protocols:
-            continue
-
-        device_updated = False
-
-        # Find best matching fingerprint
-        for fp in fingerprints:
-            fp_protocols = set(fp.active_protocols or [])
-            if not protocols.intersection(fp_protocols):
-                continue
-
-            # Apply fingerprint data
-            if request.apply_fingerprints:
-                if fp.tcp_signature:
-                    device.setdefault("learned_fingerprint", {})["tcp_signature"] = fp.tcp_signature
-                if fp.response_timings and request.apply_timing:
-                    device.setdefault("learned_fingerprint", {})["response_timings"] = fp.response_timings
-                if fp.protocol_identities:
-                    device.setdefault("learned_fingerprint", {})["protocol_identities"] = fp.protocol_identities
-                fingerprints_applied += 1
-                device_updated = True
-                break  # Use first matching fingerprint
-
-        # Apply sequences
-        if request.apply_sequences:
-            device_sequences = []
-            for seq in sequences:
-                if seq.protocol.lower() in protocols:
-                    device_sequences.append({
-                        "id": str(seq.id),
-                        "name": seq.name,
-                        "type": str(seq.sequence_type),
-                        "protocol": seq.protocol,
-                        "steps": seq.steps,
-                    })
-                    sequences_applied += 1
-
-            if device_sequences:
-                device["learned_sequences"] = device_sequences
-                device_updated = True
-
-        if device_updated:
-            devices_updated += 1
-            patterns_applied += 1
-
-    # Update scenario
-    definition["devices"] = devices
-    scenario.definition = definition
-    scenario.version += 1
-
-    await db.flush()
+    # Apply patterns using service function
+    counts = await apply_session_patterns_to_scenario(
+        db=db,
+        session=session,
+        scenario=scenario,
+        apply_fingerprints=request.apply_fingerprints,
+        apply_timing=request.apply_timing,
+        apply_sequences=request.apply_sequences,
+        min_confidence=request.min_confidence,
+    )
 
     return ApplySessionPatternsResponse(
         session_id=session_id,
         scenario_id=request.scenario_id,
-        devices_updated=devices_updated,
-        patterns_applied=patterns_applied,
-        fingerprints_applied=fingerprints_applied,
-        sequences_applied=sequences_applied,
-        message=f"Applied patterns from {session.capture_count} captures to {devices_updated} devices",
+        devices_updated=counts["devices_updated"],
+        patterns_applied=counts["patterns_applied"],
+        fingerprints_applied=counts["fingerprints_applied"],
+        sequences_applied=counts["sequences_applied"],
+        message=f"Applied patterns from {session.capture_count} captures to {counts['devices_updated']} devices",
     )

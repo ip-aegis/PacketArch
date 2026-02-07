@@ -42,32 +42,32 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SCADA Server - Schneider ClearSCADA
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "scada",
-             "name_pattern": "SCADA-WTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "WTP_SCADA_Server", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMISTM6",
              "role": "SCADA Server"},
 
             # Historian - GE Proficy (vulnerable)
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "scada",
-             "name_pattern": "HIST-WTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "WTP_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "cve_ids": ["CVE-2022-46660"],
              "role": "Process Historian"},
 
             # OPC UA Gateway - Kepware KEPServerEX
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "scada",
-             "name_pattern": "OPC-GW-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "WTP_OPC_Gateway", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "KEPServerEX",
              "role": "OPC UA Gateway"},
 
             # Core Switch - Cisco IE-4000
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
-             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["snmp"],
+             "name": "SCADA_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "scada",
-             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "WTP_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -78,7 +78,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Main PLCs - Schneider M580 BMEP586040 (vulnerable)
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "WTP_Main_Process_Controller_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "BMEP586040",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
@@ -86,7 +86,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Hot Standby PLC - Schneider M580 BMEH586040
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "control",
-             "name_pattern": "PLC-STBY-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "WTP_Hot_Standby_Controller", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "BMEH586040",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Hot Standby Controller",
@@ -94,7 +94,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Auxiliary PLCs - Schneider M340 (vulnerable)
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "PLC-AUX-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "WTP_Auxiliary_Controller_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "BMXP3420302",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
@@ -102,7 +102,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Safety PLC - Schneider M580 Safety
             {"type": "safety_plc", "vendor": "schneider", "count": 1, "zone": "control",
-             "name_pattern": "PLC-SAFETY-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "WTP_Safety_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "BMEP586040S",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
@@ -110,13 +110,13 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # HMI Panels - Schneider Magelis
             {"type": "hmi", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "HMI-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "WTP_Operator_HMI_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMISTM6",
              "role": "Operator Interface"},
 
             # Industrial Switches - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Control Zone Switch"},
 
@@ -126,26 +126,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "intake",
-             "name_pattern": "PLC-INTAKE-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Intake_Field_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Intake Controller"},
 
             # Flow Meters - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "intake",
-             "name_pattern": "FT-INTAKE-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Intake_Raw_Water_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Raw Water Flow Meter"},
 
             # Level Transmitters - E+H Levelflex
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "intake",
-             "name_pattern": "LT-INTAKE-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Intake_Level_Transmitter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Level Transmitter"},
 
             # VFD Drives - ABB ACS580
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "intake",
-             "name_pattern": "VFD-INTAKE-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Intake_Raw_Water_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS580",
              "role": "Raw Water Pump VFD"},
 
@@ -155,31 +155,31 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Remote I/O - Schneider Advantys STB
             {"type": "io_module", "vendor": "schneider", "count": 4, "zone": "treatment",
-             "name_pattern": "RIO-TREAT-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Treatment_Remote_IO_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "STBNIP2311",
              "role": "Treatment Remote I/O"},
 
             # Water Quality Analyzers - E+H Liquiline
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "treatment",
-             "name_pattern": "AIT-TURB-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Treatment_Turbidity_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CM442",
              "role": "Turbidity Analyzer"},
 
             # pH/ORP Analyzers - Yokogawa FLXA402
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "treatment",
-             "name_pattern": "AIT-PH-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Treatment_pH_ORP_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FLXA402",
              "role": "pH/ORP Analyzer"},
 
             # Turbidity Analyzers - Yokogawa SC450G
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "treatment",
-             "name_pattern": "AIT-FLT-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Filter_Effluent_Turbidity_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "SC450G",
              "role": "Filter Turbidity Analyzer"},
 
             # VFD Drives - Schneider Altivar ATV930
             {"type": "drive", "vendor": "schneider", "count": 2, "zone": "treatment",
-             "name_pattern": "VFD-TREAT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Treatment_Process_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ATV930D15N4",
              "role": "Treatment Process VFD"},
 
@@ -189,32 +189,32 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "distribution",
-             "name_pattern": "PLC-DIST-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Distribution_Field_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Distribution Controller"},
 
             # Chlorine Analyzers - Yokogawa RC400G
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "distribution",
-             "name_pattern": "AIT-CL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Distribution_Chlorine_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "RC400G",
              "role": "Chlorine Analyzer"},
 
             # Flow Meters - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
-             "name_pattern": "FT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Distribution_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Distribution Flow Meter"},
 
             # Level Transmitters - E+H Prosonic
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
-             "name_pattern": "LT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Clearwell_Level_Transmitter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMU90",
              "role": "Clearwell Level"},
 
             # VFD Drives - ABB ACS880
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "distribution",
-             "name_pattern": "VFD-HS-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "High_Service_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "High Service Pump VFD"},
         ],
@@ -277,6 +277,12 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["scada"], "target_zones": ["control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Safety PLC polling main PLCs (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["safety_plc"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "scada", "name": "SCADA Network", "level": 3,
@@ -354,47 +360,47 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # DCS Controllers - Honeywell Experion C300
             {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
-             "name_pattern": "C300-MAIN-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Central_Main_DCS_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "C300",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Main DCS Controller"},
 
             # Redundant DCS - Honeywell Experion C200
             {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
-             "name_pattern": "C200-STBY-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Central_Standby_DCS_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "C200",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Standby DCS Controller"},
 
             # Historian - GE Proficy (vulnerable)
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "central",
-             "name_pattern": "HIST-CENT-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Central_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "cve_ids": ["CVE-2022-46660"],
              "role": "Central Historian"},
 
             # HMI Workstations - Honeywell Experion Station
             {"type": "hmi", "vendor": "honeywell", "count": 2, "zone": "central",
-             "name_pattern": "HMI-CENT-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Central_Operator_Workstation_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
              "role": "Operator Workstation"},
 
             # Core Switch - Cisco IE-4000
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "central",
-             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["snmp"],
+             "name": "Central_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "central",
-             "name_pattern": "EWON-CENT-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Central_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Central Remote Access",
              "external_comms": True},
 
             # Jump Server (vulnerable to BlueKeep)
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "central",
-             "name_pattern": "JUMP-SVR-{n:02d}", "protocols": ["snmp"],
+             "name": "Central_Jump_Server", "protocols": ["snmp"],
              "fingerprint_model": "Jump Server 2016 (Vulnerable)",
              "role": "Remote Access Jump Server",
              "cve_ids": ["CVE-2019-0708"],
@@ -406,26 +412,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # RTU - Emerson ROC800
             {"type": "rtu", "vendor": "emerson", "count": 1, "zone": "station1",
-             "name_pattern": "RTU-PS1-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Station_1_Lift_RTU", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ROC800",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Pump Station 1 RTU"},
 
             # High-Power VFDs - ABB ACS880
             {"type": "drive", "vendor": "abb", "count": 4, "zone": "station1",
-             "name_pattern": "VFD-PS1-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Station_1_High_Cap_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "High Capacity Pump VFD"},
 
             # Flow Meter - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "station1",
-             "name_pattern": "FT-PS1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Station_1_Discharge_Flow_Meter", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Station Flow Meter"},
 
             # Level Transmitter - E+H Levelflex
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station1",
-             "name_pattern": "LT-PS1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Station_1_Wet_Well_Level_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Wet Well Level"},
 
@@ -435,26 +441,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # RTUs - Emerson ROC800L (3 stations)
             {"type": "rtu", "vendor": "emerson", "count": 3, "zone": "station_medium",
-             "name_pattern": "RTU-PS-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Medium_Station_RTU_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ROC800L",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
              "role": "Medium Station RTU"},
 
             # VFDs - Schneider ATV320 (2 per station)
             {"type": "drive", "vendor": "schneider", "count": 6, "zone": "station_medium",
-             "name_pattern": "VFD-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Medium_Station_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ATV320",
              "role": "Medium Pump VFD"},
 
             # Flow Meters - E+H Promag 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 3, "zone": "station_medium",
-             "name_pattern": "FT-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Medium_Station_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag 400",
              "role": "Station Flow Meter"},
 
             # Level Transmitters - E+H Prosonic
             {"type": "sensor", "vendor": "endress_hauser", "count": 6, "zone": "station_medium",
-             "name_pattern": "LT-MED-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Medium_Station_Wet_Well_Level_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMU90",
              "role": "Wet Well Level"},
 
@@ -464,26 +470,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # PLCs - Schneider M241
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "station_booster",
-             "name_pattern": "PLC-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Booster_Station_PLC_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Booster Station PLC"},
 
             # VFDs - Schneider ATV320
             {"type": "drive", "vendor": "schneider", "count": 4, "zone": "station_booster",
-             "name_pattern": "VFD-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Booster_Station_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ATV320",
              "role": "Booster Pump VFD"},
 
             # Flow Meters - E+H Promag 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station_booster",
-             "name_pattern": "FT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Booster_Station_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag 400",
              "role": "Booster Flow Meter"},
 
             # Pressure Transmitters - E+H
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "station_booster",
-             "name_pattern": "PT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Booster_Station_Discharge_Pressure_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Discharge Pressure"},
 
@@ -493,26 +499,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # RTUs - Emerson ROC800L (2 tanks)
             {"type": "rtu", "vendor": "emerson", "count": 2, "zone": "storage",
-             "name_pattern": "RTU-TANK-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Storage_Tank_RTU_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ROC800L",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0003},
              "role": "Storage Tank RTU"},
 
             # Level Transmitters - E+H Levelflex (primary)
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
-             "name_pattern": "LT-TANK-PRI-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Storage_Tank_Primary_Level_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Primary Tank Level"},
 
             # Level Transmitters - E+H Prosonic (backup)
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
-             "name_pattern": "LT-TANK-BAK-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Storage_Tank_Backup_Level_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMU90",
              "role": "Backup Tank Level"},
 
             # Flow Meters - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "storage",
-             "name_pattern": "FT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Storage_Tank_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Tank Inflow/Outflow"},
         ],
@@ -576,6 +582,22 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["plc"], "target_types": ["rtu"],
              "source_zones": ["central"], "target_zones": ["station1", "station_medium", "storage"]},
+
+            # SNMP monitoring of core switch (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["switch"],
+             "source_zones": ["central"], "target_zones": ["central"]},
+
+            # EWON polling DCS for remote monitoring (5s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["central"], "target_zones": ["central"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Jump server polling DCS via SNMP (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["plc"],
+             "source_zones": ["central"], "target_zones": ["central"]},
         ],
         "zones": [
             {"id": "central", "name": "Central Control", "level": 3,
@@ -660,39 +682,39 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Historian - GE Proficy (vulnerable)
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dmz",
-             "name_pattern": "HIST-WWTP-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "WWTP_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "cve_ids": ["CVE-2022-46660"],
              "role": "Process Historian"},
 
             # OPC UA Gateway - Kepware KEPServerEX
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "dmz",
-             "name_pattern": "OPC-GW-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "WWTP_OPC_Gateway", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "KEPServerEX",
              "role": "OPC UA Gateway"},
 
             # Central HMI - Rockwell PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "dmz",
-             "name_pattern": "HMI-CENTRAL-{n:02d}", "protocols": ["ethernet_ip"],
+             "name": "WWTP_Central_HMI", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Central HMI"},
 
             # Core Switch - Rockwell Stratix 5700
             {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "dmz",
-             "name_pattern": "SW-CORE-{n:02d}", "protocols": ["ethernet_ip", "snmp"],
+             "name": "WWTP_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1783-BMS10CGL",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dmz",
-             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "name": "WWTP_Remote_Access_Gateway", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "Cosy 131",
              "role": "Remote Access Gateway",
              "external_comms": True},
 
             # Jump Server
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "dmz",
-             "name_pattern": "JUMP-SVR-{n:02d}", "protocols": ["snmp"],
+             "name": "WWTP_Vendor_Jump_Server", "protocols": ["snmp"],
              "fingerprint_model": "Jump Server 2016 (Vulnerable)",
              "role": "Vendor Remote Access",
              "cve_ids": ["CVE-2019-0708"],
@@ -704,7 +726,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Main PLCs - Rockwell ControlLogix L85E (vulnerable)
             {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
-             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name_pattern": "WWTP_Main_Process_Controller_{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
@@ -712,7 +734,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Area PLCs - Rockwell ControlLogix L73
             {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
-             "name_pattern": "PLC-AREA-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name_pattern": "WWTP_Area_Controller_{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L73",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Area Controller",
@@ -720,7 +742,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Safety PLC - Rockwell GuardLogix L83ES
             {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "control",
-             "name_pattern": "PLC-SAFETY-{n:02d}", "protocols": ["ethernet_ip", "cip_safety"],
+             "name": "WWTP_Safety_Controller", "protocols": ["ethernet_ip", "cip_safety"],
              "fingerprint_model": "1756-L83ES",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
@@ -728,19 +750,19 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Local HMI Panels - Rockwell PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 3, "zone": "control",
-             "name_pattern": "HMI-LOCAL-{n:02d}", "protocols": ["ethernet_ip"],
+             "name_pattern": "WWTP_Local_Operator_HMI_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Local Operator Interface"},
 
             # Industrial Switches - Rockwell Stratix 5700
             {"type": "switch", "vendor": "rockwell", "count": 2, "zone": "control",
-             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["ethernet_ip", "snmp"],
+             "name_pattern": "WWTP_Control_Zone_Switch_{n:02d}", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1783-BMS10CGL",
              "role": "Control Zone Switch"},
 
             # FLEX 5000 Remote I/O
             {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "control",
-             "name_pattern": "RIO-CTRL-{n:02d}", "protocols": ["ethernet_ip"],
+             "name_pattern": "WWTP_Control_Room_IO_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "5094-AEN2TR",
              "role": "Control Room I/O"},
 
@@ -750,26 +772,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "headworks",
-             "name_pattern": "PLC-HEAD-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Headworks_Screening_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Headworks Controller"},
 
             # VFDs - ABB ACS580
             {"type": "drive", "vendor": "abb", "count": 4, "zone": "headworks",
-             "name_pattern": "VFD-HEAD-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Headworks_Screening_Grit_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS580",
              "role": "Screening/Grit VFD"},
 
             # Flow Meters - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "headworks",
-             "name_pattern": "FT-HEAD-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Headworks_Influent_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Influent Flow Meter"},
 
             # Level Transmitters - E+H Prosonic
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "headworks",
-             "name_pattern": "LT-HEAD-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Headworks_Wet_Well_Level", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMU90",
              "role": "Wet Well Level"},
 
@@ -779,19 +801,19 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Point I/O - Rockwell 1734-AENT
             {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "primary",
-             "name_pattern": "PIO-PRI-{n:02d}", "protocols": ["ethernet_ip"],
+             "name_pattern": "Primary_Clarifier_IO_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
              "role": "Primary Clarifier I/O"},
 
             # Clarifier Drives - ABB ACS880
             {"type": "drive", "vendor": "abb", "count": 2, "zone": "primary",
-             "name_pattern": "VFD-CLAR-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Primary_Clarifier_Drive_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "Clarifier Drive"},
 
             # Level/Sludge Blanket - E+H Levelflex
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "primary",
-             "name_pattern": "LT-PRI-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Primary_Sludge_Blanket_Level_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Sludge Blanket Level"},
 
@@ -801,25 +823,25 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Point I/O - Rockwell 1734-AENT
             {"type": "io_module", "vendor": "rockwell", "count": 4, "zone": "secondary",
-             "name_pattern": "PIO-SEC-{n:02d}", "protocols": ["ethernet_ip"],
+             "name_pattern": "Secondary_Aeration_IO_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
              "role": "Secondary Process I/O"},
 
             # Blower VFDs - ABB ACS880 (high power)
             {"type": "drive", "vendor": "abb", "count": 4, "zone": "secondary",
-             "name_pattern": "VFD-BLOW-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Secondary_Aeration_Blower_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "Blower VFD"},
 
             # DO Analyzers - Yokogawa FLXA402
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "secondary",
-             "name_pattern": "AIT-DO-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Secondary_Dissolved_Oxygen_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FLXA402",
              "role": "Dissolved Oxygen Analyzer"},
 
             # pH Analyzers - Yokogawa FLXA402
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "secondary",
-             "name_pattern": "AIT-PH-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Secondary_pH_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FLXA402",
              "role": "pH Analyzer"},
 
@@ -829,26 +851,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "tertiary",
-             "name_pattern": "PLC-TERT-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Tertiary_Filtration_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Tertiary Controller"},
 
             # Filter VFDs - ABB ACS580
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "tertiary",
-             "name_pattern": "VFD-FILT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Tertiary_Filter_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS580",
              "role": "Filter Pump VFD"},
 
             # Turbidity Analyzers - Yokogawa SC450G
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "tertiary",
-             "name_pattern": "AIT-TURB-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Tertiary_Effluent_Turbidity_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "SC450G",
              "role": "Effluent Turbidity"},
 
             # UV System I/O
             {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "tertiary",
-             "name_pattern": "PIO-UV-{n:02d}", "protocols": ["ethernet_ip"],
+             "name_pattern": "UV_Disinfection_System_IO_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
              "role": "UV System I/O"},
 
@@ -858,20 +880,20 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "sludge",
-             "name_pattern": "PLC-SLUDGE-{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Sludge_Processing_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Sludge Controller"},
 
             # Dewatering VFDs - ABB ACS880
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "sludge",
-             "name_pattern": "VFD-DEWAT-{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name_pattern": "Sludge_Dewatering_Press_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
              "role": "Dewatering Press VFD"},
 
             # Digester Level/Temp - E+H
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "sludge",
-             "name_pattern": "TT-DIG-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Sludge_Digester_Monitor_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CM442",
              "role": "Digester Monitoring"},
         ],
@@ -935,6 +957,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["control"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # Jump server polling PLCs via SNMP (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["plc"],
+             "source_zones": ["dmz"], "target_zones": ["control"]},
         ],
         "zones": [
             {"id": "dmz", "name": "Industrial DMZ", "level": 3.5,
@@ -1025,7 +1052,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Main PLC - Schneider Modicon Premium (legacy, vulnerable)
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name_pattern": "PLC-MAIN-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Main_Legacy_System_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TSXP57204M",
              "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.0004},
              "role": "Main System Controller",
@@ -1033,25 +1060,25 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # HMI - Schneider Magelis
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name_pattern": "HMI-MAIN-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Control_Room_Operator_HMI", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMISTM6",
              "role": "Operator Interface"},
 
             # Industrial Switch - Schneider ConneXium
             {"type": "switch", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name_pattern": "SW-CTRL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Control_Room_Switch", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "TCSESM083F2CU0",
              "role": "Control Room Switch"},
 
-            # SCADA PC (simple HMI/data collection)
+            # SCADA PC - Magelis GTO Advanced HMI (10.4" panel as SCADA workstation)
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name_pattern": "SCADA-PC-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "HMISTM6",
+             "name": "SCADA_Workstation", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMIGTO5310",
              "role": "SCADA Workstation"},
 
             # EWON Remote Access - Cosy 131 (budget model)
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "control_room",
-             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Utility_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Cosy 131",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -1062,7 +1089,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Modicon Premium (legacy, vulnerable)
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "well1",
-             "name_pattern": "PLC-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_1_Legacy_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TSXP57154M",
              "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
              "role": "Well 1 Controller",
@@ -1070,26 +1097,26 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # VFD - Schneider ATV320
             {"type": "drive", "vendor": "schneider", "count": 1, "zone": "well1",
-             "name_pattern": "VFD-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_1_Pump_VFD", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ATV320",
              "role": "Well Pump VFD"},
 
             # Flow Meter - E+H Promag 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
-             "name_pattern": "FT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_1_Flow_Meter", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag 400",
              "role": "Well Flow Meter"},
 
             # Level Transmitter - E+H Levelflex
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
-             "name_pattern": "LT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_1_Water_Level", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Well Water Level"},
 
-            # Pressure Transmitter
+            # Pressure Transmitter - E+H Cerabar PMC71
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well1",
-             "name_pattern": "PT-WELL1-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "FMP50",
+             "name": "Well_1_Discharge_Pressure", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
              "role": "Discharge Pressure"},
 
             # ============================================================
@@ -1098,33 +1125,33 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Schneider M241 (modern)
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "well2",
-             "name_pattern": "PLC-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_2_Modern_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Well 2 Controller"},
 
             # VFD - Schneider ATV320
             {"type": "drive", "vendor": "schneider", "count": 1, "zone": "well2",
-             "name_pattern": "VFD-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_2_Pump_VFD", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ATV320",
              "role": "Well Pump VFD"},
 
             # Flow Meter - E+H Promag 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
-             "name_pattern": "FT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_2_Flow_Meter", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag 400",
              "role": "Well Flow Meter"},
 
             # Level Transmitter - E+H Levelflex
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
-             "name_pattern": "LT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Well_2_Water_Level", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMP50",
              "role": "Well Water Level"},
 
-            # Pressure Transmitter
+            # Pressure Transmitter - E+H Cerabar PMC71
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "well2",
-             "name_pattern": "PT-WELL2-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "FMP50",
+             "name": "Well_2_Discharge_Pressure", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
              "role": "Discharge Pressure"},
 
             # ============================================================
@@ -1133,27 +1160,27 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Schneider M241
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "storage",
-             "name_pattern": "PLC-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Elevated_Tank_Booster_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Tank/Booster Controller"},
 
             # Level Transmitter - E+H Prosonic
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "storage",
-             "name_pattern": "LT-TANK-{n:02d}", "protocols": ["modbus_tcp"],
+             "name": "Elevated_Tank_Level", "protocols": ["modbus_tcp"],
              "fingerprint_model": "FMU90",
              "role": "Tank Level"},
 
             # Booster Pump VFDs - Schneider ATV320
             {"type": "drive", "vendor": "schneider", "count": 2, "zone": "storage",
-             "name_pattern": "VFD-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Storage_Booster_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "ATV320",
              "role": "Booster Pump VFD"},
 
-            # Pressure Transmitter
+            # Pressure Transmitter - E+H Cerabar PMC71
             {"type": "sensor", "vendor": "endress_hauser", "count": 1, "zone": "storage",
-             "name_pattern": "PT-BOOST-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "FMP50",
+             "name": "System_Discharge_Pressure", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
              "role": "System Pressure"},
 
             # ============================================================
@@ -1162,20 +1189,20 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Chlorine Analyzers - Yokogawa RC400G
             {"type": "sensor", "vendor": "yokogawa", "count": 2, "zone": "distribution",
-             "name_pattern": "AIT-CL2-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Distribution_Chlorine_Analyzer_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "RC400G",
              "role": "Distribution Chlorine"},
 
             # Flow Meters - E+H Promag W 400
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
-             "name_pattern": "FT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Distribution_Flow_Meter_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Promag W 400",
              "role": "Distribution Flow"},
 
-            # Pressure Transmitters
+            # Pressure Transmitters - E+H Cerabar PMC71
             {"type": "sensor", "vendor": "endress_hauser", "count": 2, "zone": "distribution",
-             "name_pattern": "PT-DIST-{n:02d}", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "FMP50",
+             "name_pattern": "Distribution_Pressure_Monitor_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
              "role": "Distribution Pressure"},
         ],
         "flows": [
@@ -1227,6 +1254,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["control_room"], "target_zones": ["control_room"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # SNMP monitoring of control room switch (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["control_room"], "target_zones": ["control_room"]},
         ],
         "zones": [
             {"id": "control_room", "name": "Control Room", "level": 2.5,

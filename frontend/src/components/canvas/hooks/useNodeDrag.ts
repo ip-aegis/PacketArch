@@ -9,7 +9,7 @@ import { useReactFlow } from '@xyflow/react';
 import { useScenarioStore } from '../../../stores/scenarioStore';
 import { useHistoryStore } from '../../../stores/historyStore';
 import { ipManagementApi } from '../../../api/ipManagement';
-import type { DeviceProfile, ScenarioDevice } from '../../../types';
+import type { DeviceProfile, ScenarioDevice, DeviceType } from '../../../types';
 
 export const useNodeDrag = () => {
   const { screenToFlowPosition } = useReactFlow();
@@ -38,7 +38,7 @@ export const useNodeDrag = () => {
         id: deviceId,
         profileId: deviceProfile.id,
         name: deviceProfile.name,
-        type: deviceProfile.device_type as any,
+        type: deviceProfile.device_type as DeviceType,
         role: deviceProfile.role || undefined,
         position,
         network: {

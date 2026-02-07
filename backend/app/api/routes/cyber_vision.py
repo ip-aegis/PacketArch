@@ -3,8 +3,10 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import select
+
+from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.encryption import decrypt_value, encrypt_value
@@ -65,10 +67,7 @@ async def get_cv_service(db) -> CyberVisionService:
     url, token, verify_ssl = await get_cv_settings(db)
 
     if not url or not token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cyber Vision is not configured. Please set URL and API token in settings.",
-        )
+        raise ValidationError("Cyber Vision is not configured. Please set URL and API token in settings.")
 
     return CyberVisionService(url, token, verify_ssl)
 
@@ -150,8 +149,8 @@ async def get_status(
             center_name=result.center_name,
         )
 
-    except HTTPException:
-        # Re-raise HTTP exceptions (not configured)
+    except (ValidationError, NotFoundError):
+        # Re-raise typed exceptions (not configured)
         raise
     except Exception as e:
         logger.exception("Error checking CV status")
@@ -208,14 +207,11 @@ async def get_presets(
             ]
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception("Error fetching CV presets")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch presets: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch presets: {str(e)}", original_error=e)
 
 
 @router.get("/devices", response_model=CVDeviceListResponse)
@@ -253,14 +249,11 @@ async def get_devices(
             total=len(devices),  # CV API may provide total in pagination
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception("Error fetching CV devices")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch devices: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch devices: {str(e)}", original_error=e)
 
 
 @router.get("/devices/{device_id}", response_model=CVDeviceResponse)
@@ -276,10 +269,7 @@ async def get_device(
         await service.close()
 
         if device is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Device {device_id} not found",
-            )
+            raise NotFoundError("CV device", device_id)
 
         return CVDeviceResponse(
             id=device.id,
@@ -296,14 +286,11 @@ async def get_device(
             group_name=device.group_name,
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception(f"Error fetching CV device {device_id}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch device: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch device: {str(e)}", original_error=e)
 
 
 @router.get("/vulnerabilities", response_model=CVVulnerabilityListResponse)
@@ -338,14 +325,11 @@ async def get_vulnerabilities(
             total=len(vulnerabilities),
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception("Error fetching CV vulnerabilities")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch vulnerabilities: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch vulnerabilities: {str(e)}", original_error=e)
 
 
 def normalize_mac(mac: str | None) -> str | None:
@@ -448,10 +432,7 @@ async def compare_scenario(
     scenario = result.scalar_one_or_none()
 
     if scenario is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Scenario {scenario_id} not found",
-        )
+        raise NotFoundError("Scenario", str(scenario_id))
 
     # Get scenario devices from definition
     scenario_definition = scenario.definition or {}
@@ -554,14 +535,11 @@ async def compare_scenario(
             match_rate=match_rate,
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception("Error during CV comparison")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to compare with CV: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to compare with CV: {str(e)}", original_error=e)
 
 
 @router.post("/enrich", response_model=CVEnrichmentResult)
@@ -699,11 +677,8 @@ async def enrich_devices(
             results=results,
         )
 
-    except HTTPException:
+    except (ValidationError, NotFoundError):
         raise
     except Exception as e:
         logger.exception("Error during CV enrichment")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to enrich CV devices: {str(e)}",
-        )
+        raise ExternalServiceError(service="cyber_vision", message=f"Failed to enrich CV devices: {str(e)}", original_error=e)

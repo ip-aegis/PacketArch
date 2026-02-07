@@ -11,6 +11,7 @@ import type {
   DockerHostInterfaceList,
 } from '../types/docker';
 import { dockerHostsApi } from '../api/dockerHosts';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface DockerHostsState {
   hosts: DockerHost[];
@@ -31,29 +32,6 @@ interface DockerHostsState {
   clearError: () => void;
 }
 
-// Helper to extract error message from various error formats
-const extractErrorMessage = (error: any, fallback: string): string => {
-  const detail = error.response?.data?.detail;
-
-  // Handle Pydantic validation errors (array of error objects)
-  if (Array.isArray(detail)) {
-    return detail.map((err: any) => err.msg || JSON.stringify(err)).join('; ');
-  }
-
-  // Handle string detail
-  if (typeof detail === 'string') {
-    return detail;
-  }
-
-  // Handle object with message
-  if (detail?.msg) {
-    return detail.msg;
-  }
-
-  // Fallback to error message
-  return error.message || fallback;
-};
-
 export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
   hosts: [],
   selectedHost: null,
@@ -66,7 +44,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
     try {
       const response = await dockerHostsApi.list();
       set({ hosts: response.items, isLoading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to fetch Docker hosts');
       set({ error: message, isLoading: false });
       throw error;
@@ -79,7 +57,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       const host = await dockerHostsApi.get(id);
       set({ selectedHost: host, isLoading: false });
       return host;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to fetch Docker host');
       set({ error: message, isLoading: false });
       throw error;
@@ -95,7 +73,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
         isLoading: false,
       }));
       return host;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to create Docker host');
       set({ error: message, isLoading: false });
       throw error;
@@ -112,7 +90,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
         isLoading: false,
       }));
       return host;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to update Docker host');
       set({ error: message, isLoading: false });
       throw error;
@@ -128,7 +106,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
         selectedHost: state.selectedHost?.id === id ? null : state.selectedHost,
         isLoading: false,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to delete Docker host');
       set({ error: message, isLoading: false });
       throw error;
@@ -143,7 +121,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
         await get().fetchHosts();
       }
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Connection test failed');
       return {
         success: false,
@@ -161,7 +139,7 @@ export const useDockerHostsStore = create<DockerHostsState>()((set, get) => ({
       const interfaces = await dockerHostsApi.listInterfaces(id);
       set({ interfaces, isLoading: false });
       return interfaces;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to fetch interfaces');
       set({ error: message, isLoading: false });
       throw error;

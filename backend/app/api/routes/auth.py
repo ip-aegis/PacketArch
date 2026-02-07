@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.exceptions import ConflictError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -117,19 +118,13 @@ async def register(
     # Check if username already exists
     result = await db.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        )
+        raise ConflictError("Username already registered", resource="User")
 
     # Check if email already exists
     if user_data.email:
         result = await db.execute(select(User).where(User.email == user_data.email))
         if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
+            raise ConflictError("Email already registered", resource="User")
 
     # Check if this is the first user (make them admin)
     result = await db.execute(select(User).limit(1))

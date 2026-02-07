@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import type { SettingsResponse, SystemSetting } from '../types';
 import { settingsApi } from '../api/settings';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface SettingsState {
   settings: SettingsResponse | null;
@@ -38,9 +39,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
         isLoading: false,
         lastUpdated: new Date().toISOString(),
       });
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to fetch settings';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch settings');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -69,9 +69,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       } else {
         set({ isLoading: false });
       }
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to update setting';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to update setting');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -84,9 +83,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       // Refresh settings after seeding
       await get().fetchSettings();
       return result;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Failed to seed settings';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to seed settings');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -96,9 +94,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     try {
       const result = await settingsApi.testConnection();
       return result;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || 'Connection test failed';
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Connection test failed');
       return { success: false, message };
     }
   },

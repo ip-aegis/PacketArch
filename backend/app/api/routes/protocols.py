@@ -3,10 +3,11 @@
 import math
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
+from app.core.exceptions import NotFoundError
 from app.models.protocol_template import ProtocolTemplate
 from app.schemas.protocol_template import (
     ProtocolTemplateCreate,
@@ -93,10 +94,7 @@ async def get_protocol_template(
     template = result.scalar_one_or_none()
 
     if template is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Protocol template not found",
-        )
+        raise NotFoundError("Protocol template")
 
     return ProtocolTemplateResponse.model_validate(template)
 
@@ -138,10 +136,7 @@ async def update_protocol_template(
     template = result.scalar_one_or_none()
 
     if template is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Protocol template not found",
-        )
+        raise NotFoundError("Protocol template")
 
     # Update fields
     update_data = template_data.model_dump(exclude_unset=True)
@@ -167,10 +162,7 @@ async def delete_protocol_template(
     template = result.scalar_one_or_none()
 
     if template is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Protocol template not found",
-        )
+        raise NotFoundError("Protocol template")
 
     await db.delete(template)
     await db.commit()

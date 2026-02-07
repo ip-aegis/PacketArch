@@ -11,6 +11,10 @@ import type { LoginCredentials } from '../types';
 
 const { Text } = Typography;
 
+interface LocationState {
+  from?: { pathname: string };
+}
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,7 +24,7 @@ const LoginPage: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from = (location.state as any)?.from?.pathname || '/';
+      const from = (location.state as LocationState)?.from?.pathname || '/';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
@@ -35,7 +39,7 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (values: LoginCredentials) => {
     try {
       await login(values);
-      const from = (location.state as any)?.from?.pathname || '/';
+      const from = (location.state as LocationState)?.from?.pathname || '/';
       navigate(from, { replace: true });
     } catch (err) {
       // Error is handled by the store

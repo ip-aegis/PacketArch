@@ -33,7 +33,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Central BMS server, supervisory controllers, infrastructure
             # ============================================================
             # BMS Server - Automated Logic WebCTRL
-            # Fingerprint has: bacnet_identity (NO modbus_identity despite declaring modbus)
+            # Fingerprint has: bacnet_identity ONLY
             {"type": "bms_server", "vendor": "automated_logic", "count": 1, "zone": "bms_core",
              "name_pattern": "WEBCTRL-SVR-{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "Server",
@@ -42,7 +42,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Supervisory Controllers - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "bms_core",
-             "name_pattern": "NAE55-{n:02d}", "protocols": ["bacnet", "snmp"],
+             "name_pattern": "NAE55-{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "NAE55",
              "role": "Supervisory Network Controller"},
 
@@ -81,7 +81,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "hvac_control",
-             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
@@ -97,7 +97,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # VAV controllers, room controllers, field equipment
             # ============================================================
             # VAV Controllers - Distech ECY-VAV
-            # Fingerprint has: bacnet_identity ONLY (no modbus_identity despite declaring modbus)
+            # Fingerprint has: bacnet_identity ONLY
             {"type": "vav_controller", "vendor": "distech", "count": 8, "zone": "floor_zone",
              "name_pattern": "ECY-VAV-{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "ECY-VAV",
@@ -287,14 +287,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # CRAC Units - Schneider InRow DX
             # Fingerprint has: bacnet_identity, modbus_identity (no snmp_identity)
             {"type": "crac_unit", "vendor": "schneider", "count": 6, "zone": "cooling_zone",
-             "name_pattern": "INROW-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "INROW-{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "InRow DX",
              "role": "In-Row Cooling Unit"},
 
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "cooling_zone",
-             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
@@ -458,20 +458,20 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Campus BMS Servers - Honeywell JACE 8000
             # Fingerprint has: bacnet_identity ONLY
             {"type": "bms_server", "vendor": "honeywell", "count": 2, "zone": "campus_core",
-             "name_pattern": "JACE8000-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Campus_BMS_Server_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "JACE 8000",
              "role": "Campus BMS Server"},
 
             # Core Switches
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "campus_core",
-             "name_pattern": "SW-CAMPUS-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Campus_Core_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Campus Network Switch"},
 
             # EWON Remote Access Gateway - Talk2M cloud connectivity
             # Fingerprint has: modbus_identity, ethernet_ip_identity, snmp_identity
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "campus_core",
-             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Campus_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Campus Remote Access Gateway",
              "external_comms": True},
@@ -479,7 +479,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Engineering Workstation - Honeywell XL Web
             # Fingerprint has: bacnet_identity ONLY
             {"type": "engineering_station", "vendor": "honeywell", "count": 1, "zone": "campus_core",
-             "name_pattern": "XLWEB-ENG-{n:02d}", "protocols": ["bacnet"],
+             "name": "Campus_Engineering_Workstation", "protocols": ["bacnet"],
              "fingerprint_model": "XL Web",
              "role": "Engineering Workstation"},
 
@@ -490,28 +490,28 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_a",
-             "name_pattern": "NAE55-BLDA-{n:02d}", "protocols": ["bacnet", "snmp"],
+             "name_pattern": "Building_A_Supervisor_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "NAE55",
              "role": "Building Supervisor"},
 
             # AHU Controllers - Johnson Controls FEC26
             # Fingerprint has: bacnet_identity ONLY
             {"type": "ahu_controller", "vendor": "johnson_controls", "count": 3, "zone": "building_a",
-             "name_pattern": "FEC-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_A_AHU_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "FEC26",
              "role": "AHU Controller"},
 
             # Unit Controllers - Trane UC600
             # Fingerprint has: bacnet_identity ONLY
             {"type": "zone_controller", "vendor": "trane", "count": 3, "zone": "building_a",
-             "name_pattern": "UC600-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_A_Unit_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "UC600",
              "role": "Unit Controller"},
 
             # Building Controller - Distech EC-BOS-8
             # Fingerprint has: bacnet_identity ONLY (no modbus_identity)
             {"type": "building_controller", "vendor": "distech", "count": 2, "zone": "building_a",
-             "name_pattern": "ECBOS-BLDA-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_A_Controller_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "EC-BOS-8",
              "role": "Building Controller"},
 
@@ -522,28 +522,28 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls SNC
             # Fingerprint has: bacnet_identity ONLY
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_b",
-             "name_pattern": "SNC-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_B_Supervisor_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "SNC",
              "role": "Building Supervisor"},
 
             # Room Controllers - Siemens DXR2.E12
             # Fingerprint has: bacnet_identity ONLY
             {"type": "room_controller", "vendor": "siemens", "count": 4, "zone": "building_b",
-             "name_pattern": "DXR2-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_B_Room_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
              "role": "Room Automation Station"},
 
             # Building Controllers - Siemens Climatix C600
             # Fingerprint has: bacnet_identity ONLY
             {"type": "building_controller", "vendor": "siemens", "count": 2, "zone": "building_b",
-             "name_pattern": "C600-BLDB-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Building_B_Controller_{n}", "protocols": [],
              "fingerprint_model": "C600",
              "role": "Building Controller"},
 
             # Zone Controller - Schneider CX9680
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "zone_controller", "vendor": "schneider", "count": 2, "zone": "building_b",
-             "name_pattern": "CX9680-BLDB-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "Building_B_Zone_{n}_Controller", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
              "role": "Zone Controller"},
 
@@ -554,28 +554,28 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 3, "zone": "central_plant",
-             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "Central_Plant_Chiller_{n}_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
             # Boiler Controller - Carrier Pro Open
             # Fingerprint has: bacnet_identity ONLY (no modbus_identity)
             {"type": "boiler_controller", "vendor": "carrier", "count": 2, "zone": "central_plant",
-             "name_pattern": "CARRIER-BOIL-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Central_Plant_Boiler_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "Pro Open",
              "role": "Boiler Controller"},
 
             # Plant Supervisor - Delta Controls Manager
             # Fingerprint has: bacnet_identity ONLY
             {"type": "plant_controller", "vendor": "delta_controls", "count": 1, "zone": "central_plant",
-             "name_pattern": "DELTA-MGR-{n:02d}", "protocols": ["bacnet"],
+             "name": "Central_Plant_Manager", "protocols": ["bacnet"],
              "fingerprint_model": "Manager",
              "role": "Central Plant Manager"},
 
             # AHU for Central Plant - Trane SC+
             # Fingerprint has: bacnet_identity ONLY
             {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "central_plant",
-             "name_pattern": "TRACER-PLANT-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Central_Plant_HVAC_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "SC+",
              "role": "Plant HVAC Controller"},
 
@@ -586,27 +586,27 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # VAV Controllers - Distech ECY-VAV
             # Fingerprint has: bacnet_identity ONLY
             {"type": "vav_controller", "vendor": "distech", "count": 4, "zone": "field_devices",
-             "name_pattern": "ECY-VAV-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Field_VAV_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "ECY-VAV",
              "role": "VAV Controller"},
 
             # Room Controllers - Siemens DXR2.E12
             # Fingerprint has: bacnet_identity ONLY
             {"type": "room_controller", "vendor": "siemens", "count": 2, "zone": "field_devices",
-             "name_pattern": "DXR2-FLD-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Field_Room_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
              "role": "Room Controller"},
 
             # Field Controllers - Delta Controls eBCON
             # Fingerprint has: bacnet_identity ONLY
             {"type": "field_controller", "vendor": "delta_controls", "count": 3, "zone": "field_devices",
-             "name_pattern": "EBCON-FLD-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Field_IO_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "eBCON",
              "role": "Field Controller"},
 
             # Distribution Switches
             {"type": "switch", "vendor": "cisco", "count": 3, "zone": "field_devices",
-             "name_pattern": "SW-FLD-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Field_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Field Network Switch"},
         ],
@@ -621,6 +621,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["campus_core"],
              "target_zones": ["building_a", "building_b"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # BACnet Polling - Engineering workstation to BMS servers (10s)
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["engineering_station"],
+             "target_types": ["bms_server"],
+             "source_zones": ["campus_core"],
+             "target_zones": ["campus_core"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
 
             # ============================================================
             # Building A Flows - Johnson Controls / Trane

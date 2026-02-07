@@ -124,6 +124,11 @@ export interface ScenarioDevice {
     profinet_identity_override?: Record<string, unknown>;
     s7_identity_override?: Record<string, unknown>;
   };
+  // Error injection configuration
+  errorConfig?: {
+    exceptionRate: number;
+    timeoutRate: number;
+  };
 }
 
 // Flow between devices

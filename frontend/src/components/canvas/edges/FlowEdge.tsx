@@ -11,35 +11,14 @@ import {
 } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
 import type { ProtocolType } from '../../../types';
+import { PROTOCOL_COLORS, PROTOCOL_EDGE_LABELS } from '../../../constants/protocols';
 
 export interface FlowEdgeData extends Record<string, unknown> {
   protocol: ProtocolType;
   name?: string;
 }
 
-// Protocol colors matching DeviceNode and PaletteItem
-const PROTOCOL_COLORS: Record<ProtocolType, string> = {
-  modbus_tcp: '#049FD9',
-  ethernet_ip: '#6CC04A',
-  profinet: '#FBAB18',
-  opc_ua: '#9C27B0',
-  dnp3: '#FF5722',
-  iec104: '#E91E63',
-  bacnet: '#00BCD4',
-};
-
-// Protocol short names for edge labels
-const PROTOCOL_SHORT_NAMES: Record<ProtocolType, string> = {
-  modbus_tcp: 'MODBUS',
-  ethernet_ip: 'EIP',
-  profinet: 'PROFINET',
-  opc_ua: 'OPC UA',
-  dnp3: 'DNP3',
-  iec104: 'IEC 104',
-  bacnet: 'BACnet',
-};
-
-const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = (props) => {
+const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
   const {
     id,
     sourceX,
@@ -62,10 +41,10 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = (props) => {
     targetPosition,
   });
 
-  const edgeData = data as unknown as FlowEdgeData;
+  const edgeData = data as FlowEdgeData;
   const protocol = edgeData?.protocol || 'modbus_tcp';
   const color = PROTOCOL_COLORS[protocol] || '#6a9fd4';
-  const label = PROTOCOL_SHORT_NAMES[protocol] || protocol.toUpperCase();
+  const label = PROTOCOL_EDGE_LABELS[protocol] || protocol.toUpperCase();
 
   return (
     <>
@@ -116,6 +95,8 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = (props) => {
       </style>
     </>
   );
-};
+});
+
+FlowEdge.displayName = 'FlowEdge';
 
 export default FlowEdge;

@@ -29,6 +29,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
 import { scenariosApi } from '../../api/scenarios';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
@@ -61,9 +62,8 @@ const CanvasControls: React.FC = () => {
       // Invalidate scenario query to reload with new names
       queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId] });
     },
-    onError: (error: any) => {
-      const detail = error.response?.data?.detail || error.message || 'Unknown error';
-      message.error(`Failed to regenerate names: ${detail}`);
+    onError: (error: unknown) => {
+      message.error(`Failed to regenerate names: ${extractErrorMessage(error, 'Unknown error')}`);
     },
   });
 

@@ -32,17 +32,21 @@ const ZONE_BORDER_COLORS: Record<string, string> = {
   logical: '#FBAB18',
 };
 
-const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = (props) => {
+const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = React.memo((props) => {
   const { data, selected } = props;
   if (!data) return null;
 
-  const nodeData = data as unknown as ZoneNodeData;
+  const nodeData = data as ZoneNodeData;
   const backgroundColor = ZONE_COLORS[nodeData.type] || ZONE_COLORS.logical;
   const borderColor = ZONE_BORDER_COLORS[nodeData.type] || ZONE_BORDER_COLORS.logical;
 
   return (
     <>
       <div
+        role="group"
+        aria-label={`${nodeData.type} zone: ${nodeData.name}${nodeData.network?.subnet ? `, subnet ${nodeData.network.subnet}` : ''}`}
+        aria-selected={selected}
+        tabIndex={0}
         style={{
           width: '100%',
           height: '100%',
@@ -95,6 +99,8 @@ const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = (props) => {
       </div>
     </>
   );
-};
+});
+
+ZoneNode.displayName = 'ZoneNode';
 
 export default ZoneNode;

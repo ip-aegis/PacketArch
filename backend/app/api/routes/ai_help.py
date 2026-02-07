@@ -8,8 +8,10 @@ This module provides AI-powered help for topics like:
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
+
+from app.core.exceptions import ExternalServiceError, ValidationError
 
 from app.api.deps import CurrentUser, DBSession
 from app.mcp_server.ai_providers import AIProviderFactory
@@ -98,10 +100,7 @@ async def _get_ai_provider(db: DBSession):
     setting = result.scalar_one_or_none()
 
     if not setting or not setting.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="AI provider not configured. Please set your Anthropic API key in Settings.",
-        )
+        raise ValidationError("AI provider not configured. Please set your Anthropic API key in Settings.")
 
     return AIProviderFactory.create(
         provider_type="anthropic",
@@ -173,11 +172,8 @@ Please provide a helpful, clear answer to the user's question."""
 
         return HelpChatResponse(response=response_text)
 
-    except HTTPException:
+    except (ValidationError, ExternalServiceError):
         raise
     except Exception as e:
         logger.error(f"Help chat error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process help request. Please ensure AI provider is configured.",
-        )
+        raise ExternalServiceError(service="ai", message="Failed to process help request. Please ensure AI provider is configured.", original_error=e)

@@ -36,13 +36,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 2, "zone": "tmc_core",
-             "name_pattern": "TMC-CP8000-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "TMC_Master_Station_{n}", "protocols": [],
              "fingerprint_model": "CP-8000",
              "role": "Traffic Management Center Master Station"},
 
             # Core Switches - Siemens SCALANCE XM-400
             {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tmc_core",
-             "name_pattern": "SW-TMC-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "TMC_Core_Network_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SCALANCE XM-400",
              "role": "TMC Core Network Switch"},
 
@@ -52,13 +52,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Large DMS - Daktronics Venus 7000
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
-             "name_pattern": "DMS-V7K-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Full_Matrix_DMS_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Venus 7000",
              "role": "Dynamic Message Sign (Full Matrix)"},
 
             # Smaller DMS - Daktronics Venus 1500
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
-             "name_pattern": "DMS-V15-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Compact_DMS_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Venus 1500",
              "role": "Dynamic Message Sign (Compact)"},
 
@@ -68,13 +68,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Radar Sensors - Wavetronix SmartSensor HD
             {"type": "radar_sensor", "vendor": "wavetronix", "count": 8, "zone": "detection_zone",
-             "name_pattern": "RAD-HD-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Radar_Vehicle_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SmartSensor HD",
              "role": "Radar Vehicle Detector (HD)"},
 
             # Thermal Sensors - FLIR TrafiOne
             {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
-             "name_pattern": "THERM-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Thermal_Incident_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "TrafiOne",
              "role": "Thermal Incident Detector"},
 
@@ -84,7 +84,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Weather Stations - Vaisala RWIS500
             {"type": "weather_station", "vendor": "vaisala", "count": 4, "zone": "weather_zone",
-             "name_pattern": "RWIS-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Road_Weather_Station_{n}", "protocols": ["snmp"],
              "fingerprint_model": "RWIS500",
              "role": "Road Weather Information Station"},
 
@@ -94,13 +94,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Fixed Cameras - Axis P1455-LE
             {"type": "camera_fixed", "vendor": "axis", "count": 6, "zone": "camera_zone",
-             "name_pattern": "CAM-FIX-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_Fixed_CCTV_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "P1455-LE",
              "role": "Fixed ITS Camera"},
 
             # PTZ Cameras - Pelco Spectra Enhanced
             {"type": "camera_ptz", "vendor": "pelco", "count": 4, "zone": "camera_zone",
-             "name_pattern": "CAM-PTZ-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Highway_PTZ_Surveillance_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Spectra Enhanced",
              "role": "PTZ Surveillance Camera"},
 
@@ -110,14 +110,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Remote Access Gateway - HMS EWON Flexy
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "external",
-             "name_pattern": "EWON-HWY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Highway_Corridor_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
 
             # Roadside Unit - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
-             "name_pattern": "RSU-{n:02d}", "protocols": ["snmp"],
+             "name": "Highway_V2X_Roadside_Unit", "protocols": [],
              "fingerprint_model": "RSU 5000",
              "role": "V2X Roadside Unit"},
         ],
@@ -238,19 +238,19 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Coordination Master - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
-             "name_pattern": "ATMS-CP8000-{n:02d}", "protocols": ["snmp"],
+             "name": "ATMS_Coordination_Master_Station", "protocols": [],
              "fingerprint_model": "CP-8000",
              "role": "ATMS Coordination Master"},
 
             # Distribution Switches - Siemens SCALANCE X-200
             {"type": "switch", "vendor": "siemens", "count": 2, "zone": "atms_core",
-             "name_pattern": "SW-ATMS-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "ATMS_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SCALANCE X-200",
              "role": "ATMS Distribution Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "atms_core",
-             "name_pattern": "EWON-ATMS-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "ATMS_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -261,19 +261,19 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Econolite Cobalt ATC Controllers
             {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "intersection_main",
-             "name_pattern": "INT-ECO-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Main_Arterial_Signal_Controller_Econolite_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Cobalt ATC",
              "role": "Traffic Signal Controller (Main)"},
 
             # McCain 2070 ATC Controllers
             {"type": "traffic_controller", "vendor": "mccain", "count": 3, "zone": "intersection_main",
-             "name_pattern": "INT-MCC-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Main_Arterial_Signal_Controller_McCain_{n}", "protocols": ["snmp"],
              "fingerprint_model": "2070 ATC",
              "role": "Traffic Signal Controller (Main)"},
 
             # Siemens M60 Controllers
             {"type": "traffic_controller", "vendor": "siemens_its", "count": 3, "zone": "intersection_main",
-             "name_pattern": "INT-SIE-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Main_Arterial_Signal_Controller_Siemens_{n}", "protocols": [],
              "fingerprint_model": "M60",
              "role": "Traffic Signal Controller (Main)"},
 
@@ -283,7 +283,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # McCain 170E Controllers
             {"type": "traffic_controller", "vendor": "mccain", "count": 8, "zone": "intersection_minor",
-             "name_pattern": "INT-MIN-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Minor_Street_Signal_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "170E",
              "role": "Traffic Signal Controller (Minor)"},
 
@@ -293,13 +293,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Wavetronix SmartSensor Advance
             {"type": "radar_sensor", "vendor": "wavetronix", "count": 4, "zone": "detection_zone",
-             "name_pattern": "DET-RAD-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Intersection_Radar_Vehicle_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SmartSensor Advance",
              "role": "Radar Vehicle Detector"},
 
             # FLIR TrafiSense Thermal
             {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
-             "name_pattern": "DET-THERM-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Intersection_Thermal_Pedestrian_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "TrafiSense",
              "role": "Thermal Detection Sensor"},
 
@@ -309,13 +309,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Hikvision ANPR Cameras
             {"type": "camera_anpr", "vendor": "hikvision", "count": 2, "zone": "camera_zone",
-             "name_pattern": "CAM-ANPR-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Intersection_ANPR_Enforcement_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "DS-2CD7A26G0/P",
              "role": "ANPR Camera"},
 
             # Bosch PTZ Camera
             {"type": "camera_ptz", "vendor": "bosch", "count": 1, "zone": "camera_zone",
-             "name_pattern": "CAM-PTZ-{n:02d}", "protocols": ["snmp"],
+             "name": "Urban_Corridor_PTZ_Surveillance_Camera", "protocols": ["snmp"],
              "fingerprint_model": "MIC IP 7100i",
              "role": "PTZ Surveillance Camera"},
         ],
@@ -439,19 +439,19 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
-             "name_pattern": "TUN-MASTER-{n:02d}", "protocols": ["snmp"],
+             "name": "Tunnel_Master_Control_Station", "protocols": [],
              "fingerprint_model": "CP-8000",
              "role": "Tunnel Master Control Station"},
 
             # Core Switches - Siemens SCALANCE XM-400
             {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
-             "name_pattern": "SW-TUN-CORE-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Core_Network_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SCALANCE XM-400",
              "role": "Tunnel Core Switch"},
 
             # Distribution Switches - Siemens SCALANCE X-200
             {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
-             "name_pattern": "SW-TUN-DIST-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SCALANCE X-200",
              "role": "Tunnel Distribution Switch"},
 
@@ -461,13 +461,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Ventilation Controllers - Siemens TCS-VENT
             {"type": "ventilation_controller", "vendor": "siemens_its", "count": 4, "zone": "ventilation_zone",
-             "name_pattern": "VENT-CTRL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Jet_Fan_Ventilation_Controller_{n}", "protocols": [],
              "fingerprint_model": "TCS-VENT",
              "role": "Tunnel Ventilation Controller"},
 
             # Ventilation RTUs - Schneider SCADAPack 350
             {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "ventilation_zone",
-             "name_pattern": "VENT-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Tunnel_Ventilation_Field_RTU_{n}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "SCADAPack 350",
              "role": "Ventilation Field RTU"},
 
@@ -477,7 +477,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Lighting Controllers - Siemens Climatix C600
             {"type": "lighting_controller", "vendor": "siemens", "count": 6, "zone": "lighting_zone",
-             "name_pattern": "LIGHT-CTRL-{n:02d}", "protocols": ["bacnet", "snmp"],
+             "name_pattern": "Tunnel_Adaptive_Lighting_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "C600",
              "role": "Tunnel Lighting Controller"},
 
@@ -487,19 +487,19 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Radar Sensors - Wavetronix SmartSensor HD
             {"type": "radar_sensor", "vendor": "wavetronix", "count": 4, "zone": "detection_zone",
-             "name_pattern": "DET-RAD-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Radar_Vehicle_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SmartSensor HD",
              "role": "Radar Vehicle Detector"},
 
             # Thermal Sensors - FLIR TrafiOne
             {"type": "thermal_sensor", "vendor": "flir", "count": 4, "zone": "detection_zone",
-             "name_pattern": "DET-THERM-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Thermal_Incident_Detector_{n}", "protocols": ["snmp"],
              "fingerprint_model": "TrafiOne",
              "role": "Thermal Incident Detector"},
 
             # Loop Detector RTUs - Schneider SCADAPack 350
             {"type": "rtu", "vendor": "schneider", "count": 2, "zone": "detection_zone",
-             "name_pattern": "DET-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Tunnel_Loop_Detector_RTU_{n}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "SCADAPack 350",
              "role": "Loop Detector RTU"},
 
@@ -509,13 +509,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Fire Detection RTUs - Schneider SCADAPack 350
             {"type": "rtu", "vendor": "schneider", "count": 4, "zone": "safety_zone",
-             "name_pattern": "FIRE-RTU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Tunnel_Fire_Detection_RTU_{n}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "SCADAPack 350",
              "role": "Fire Detection RTU"},
 
             # Evacuation Controllers - McCain 170E
             {"type": "traffic_controller", "vendor": "mccain", "count": 4, "zone": "safety_zone",
-             "name_pattern": "EVAC-CTRL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Evacuation_Signal_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "170E",
              "role": "Evacuation Signal Controller"},
 
@@ -525,13 +525,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Portal DMS - Daktronics Venus 1500
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "portal_zone",
-             "name_pattern": "DMS-PORTAL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Portal_Message_Sign_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Venus 1500",
              "role": "Portal Message Sign"},
 
             # Portal Controllers - McCain 170E
             {"type": "traffic_controller", "vendor": "mccain", "count": 2, "zone": "portal_zone",
-             "name_pattern": "BARRIER-CTRL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Portal_Barrier_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "170E",
              "role": "Portal Barrier Controller"},
 
@@ -541,14 +541,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Remote Access Gateway - HMS EWON Cosy
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "external",
-             "name_pattern": "EWON-TUN-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Tunnel_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Cosy 131",
              "role": "Remote Access Gateway",
              "external_comms": True},
 
             # Roadside Unit - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
-             "name_pattern": "RSU-TUN-{n:02d}", "protocols": ["snmp"],
+             "name": "Tunnel_Entry_V2X_Roadside_Unit", "protocols": [],
              "fingerprint_model": "RSU 5000",
              "role": "Tunnel Entry RSU"},
         ],
@@ -695,19 +695,19 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Toll Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "toll_center",
-             "name_pattern": "TOLL-MASTER-{n:02d}", "protocols": ["snmp"],
+             "name": "Toll_Plaza_Master_Station", "protocols": [],
              "fingerprint_model": "CP-8000",
              "role": "Toll Plaza Master Station"},
 
             # Distribution Switches - Siemens SCALANCE X-200
             {"type": "switch", "vendor": "siemens", "count": 2, "zone": "toll_center",
-             "name_pattern": "SW-TOLL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Toll_Center_Network_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "SCALANCE X-200",
              "role": "Toll Center Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "toll_center",
-             "name_pattern": "EWON-TOLL-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name": "Toll_Plaza_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -718,13 +718,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Toll Controllers - Kapsch TCS 2000
             {"type": "toll_controller", "vendor": "kapsch", "count": 6, "zone": "etc_lanes",
-             "name_pattern": "ETC-CTRL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "ETC_Lane_Toll_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "TCS 2000",
              "role": "ETC Lane Controller"},
 
             # Roadside Units - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 4, "zone": "etc_lanes",
-             "name_pattern": "ETC-RSU-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "ETC_Lane_Roadside_Unit_{n}", "protocols": [],
              "fingerprint_model": "RSU 5000",
              "role": "ETC Roadside Unit"},
 
@@ -734,7 +734,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Manual Lane Controllers - McCain 170E
             {"type": "traffic_controller", "vendor": "mccain", "count": 6, "zone": "manual_lanes",
-             "name_pattern": "MANUAL-CTRL-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Manual_Cash_Lane_Controller_{n}", "protocols": ["snmp"],
              "fingerprint_model": "170E",
              "role": "Manual Lane Controller"},
 
@@ -744,7 +744,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # ANPR Cameras - Hikvision
             {"type": "camera_anpr", "vendor": "hikvision", "count": 6, "zone": "anpr_zone",
-             "name_pattern": "ANPR-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Toll_Plaza_ANPR_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "DS-2CD7A26G0/P",
              "role": "ANPR Camera"},
 
@@ -754,7 +754,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Lane Status Signs - Daktronics Venus 1500
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "signage_zone",
-             "name_pattern": "DMS-LANE-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Toll_Lane_Status_Display_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Venus 1500",
              "role": "Lane Status Display"},
         ],

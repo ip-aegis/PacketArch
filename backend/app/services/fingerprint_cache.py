@@ -135,7 +135,10 @@ class FingerprintCache:
             return enhancements
 
         except Exception as e:
-            logger.warning(f"Could not load DB enhancements: {e}")
+            # Graceful degradation: device_templates module is the authoritative
+            # source, so missing DB enhancements are not fatal. Log the full
+            # traceback so the root cause can be investigated.
+            logger.error(f"Could not load DB enhancements: {e}", exc_info=True)
             return {}
 
     def _template_to_fingerprint_dict(self, template) -> dict[str, Any] | None:
@@ -271,6 +274,17 @@ class FingerprintCache:
         1. device_templates module (AUTHORITATIVE SOURCE for all fingerprint data)
         2. DeviceTemplate DB table (enhancement layer for CVE, variants, learned patterns)
         """
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+            logger.warning(
+                "FingerprintCache._build_index() called within async event loop. "
+                "This uses sync DB access and may block the event loop. "
+                "Consider calling cache.refresh() during startup."
+            )
+        except RuntimeError:
+            pass  # Not in async context, safe to proceed
+
         logger.info("Building fingerprint cache index...")
 
         # STEP 1: Load from device_templates (authoritative source)

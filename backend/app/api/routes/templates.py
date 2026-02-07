@@ -4,12 +4,13 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.exceptions import NotFoundError
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.scenario import Scenario
 from app.protocol_engines.vendor_oui import generate_mac_address
@@ -33,242 +34,14 @@ from app.scenario_templates.phases import (
     get_default_phases,
     list_phase_presets,
 )
-from app.services.serial_number_generator import SerialNumberGenerator
+from app.services.device_identity_enricher import (
+    enrich_device_serial_numbers,
+    enrich_device_unique_identifiers,
+)
 from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
 from app.mcp_server.ai_providers import AIProviderFactory
 
 logger = logging.getLogger(__name__)
-
-
-def _enrich_device_with_serial_numbers(
-    device: dict,
-    device_id: str,
-    scenario_id: str,
-) -> None:
-    """Add unique serial numbers to device's vendor fingerprint.
-
-    This ensures every device has a unique serial number for each protocol,
-    preventing Cyber Vision from merging devices.
-
-    Serial numbers are generated for any protocol identity that exists in the
-    fingerprint with proper vendor data. The device's protocols list is used
-    as a hint, but if the fingerprint has identity data for a protocol, we
-    enrich it regardless - the fingerprint defines what protocols the device
-    actually supports.
-
-    Args:
-        device: Device dictionary (modified in place)
-        device_id: Unique device identifier
-        scenario_id: Scenario UUID for deterministic serial generation
-    """
-    fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
-    protocols = set(device.get("protocols", []) or [])
-
-    def identity_has_vendor_data(identity: dict | None, required_key: str) -> bool:
-        """Check if identity has real vendor data, not just a serial number placeholder."""
-        if not identity or not isinstance(identity, dict):
-            return False
-        # For EtherNet/IP, vendor_id is required to avoid defaulting to Rockwell
-        if required_key == "vendor_id":
-            return identity.get("vendor_id") is not None
-        # For other protocols, check for any key besides serial_number
-        return any(k != "serial_number" for k in identity.keys())
-
-    def should_enrich(protocol_names: list[str], identity_key: str, required_field: str) -> bool:
-        """Determine if we should enrich this protocol's serial number.
-
-        Enriches if EITHER:
-        1. Protocol is declared in device's protocols list, OR
-        2. Fingerprint has identity data for this protocol (infer protocol from fingerprint)
-
-        This fixes the issue where devices created from templates have empty
-        protocols lists but fingerprints with full identity data.
-        """
-        identity = fingerprint.get(identity_key)
-        has_identity = identity_has_vendor_data(identity, required_field)
-        protocol_declared = any(p in protocols for p in protocol_names)
-        # Enrich if fingerprint has identity data OR protocol is declared
-        return has_identity
-
-    # EtherNet/IP identity - enrich if fingerprint has vendor_id
-    existing_identity = fingerprint.get("ethernet_ip_identity")
-    if should_enrich(["ethernet_ip"], "ethernet_ip_identity", "vendor_id"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_ethernet_ip(device_id, scenario_id)
-
-    # S7comm identity - enrich if fingerprint has order_code
-    existing_identity = fingerprint.get("s7_identity")
-    if should_enrich(["s7comm", "s7comm_plus"], "s7_identity", "order_code"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
-
-    # PROFINET identity - enrich if fingerprint has vendor_id
-    existing_identity = fingerprint.get("profinet_identity")
-    if should_enrich(["profinet", "profisafe"], "profinet_identity", "vendor_id"):
-        serial = SerialNumberGenerator.generate_profinet(device_id, scenario_id)
-        existing_identity["serial_number"] = serial
-        existing_identity["im0_serial_number"] = serial
-
-    # Modbus identity - enrich if fingerprint has vendor_name
-    existing_identity = fingerprint.get("modbus_identity")
-    if should_enrich(["modbus_tcp", "modbus"], "modbus_identity", "vendor_name"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
-
-    # BACnet identity - enrich if fingerprint has vendor_id
-    existing_identity = fingerprint.get("bacnet_identity")
-    if should_enrich(["bacnet"], "bacnet_identity", "vendor_id"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
-
-    # SNMP identity - enrich if fingerprint has sys_descr
-    existing_identity = fingerprint.get("snmp_identity")
-    if should_enrich(["snmp"], "snmp_identity", "sys_descr"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
-
-    # OPC UA identity - enrich if fingerprint has manufacturer_name
-    existing_identity = fingerprint.get("opc_ua_identity")
-    if should_enrich(["opc_ua"], "opc_ua_identity", "manufacturer_name"):
-        existing_identity["serial_number"] = SerialNumberGenerator.generate_s7(device_id, scenario_id)
-
-    # Update both camelCase and snake_case versions for compatibility
-    device["vendorFingerprint"] = fingerprint
-    device["vendor_fingerprint"] = fingerprint
-
-    logger.debug(f"Enriched serial numbers for device {device_id}")
-
-
-def _enrich_device_with_unique_identifiers(
-    device: dict,
-    device_id: str,
-    scenario_id: str,
-) -> None:
-    """Add unique identifiers to device's protocol identities based on device name.
-
-    This ensures Cisco Cyber Vision displays meaningful device names instead of
-    generic model names. Uses the device's name (ideally AI-generated) to populate:
-    - EtherNet/IP: product_name
-    - PROFINET: station_name
-    - S7comm: plc_name
-    - Modbus: product_name
-    - SNMP: sys_name
-    - BACnet: object_name, device_instance
-
-    IMPORTANT: This should be called AFTER AI naming to use the contextual names.
-
-    Args:
-        device: Device dictionary (modified in place)
-        device_id: Unique device identifier
-        scenario_id: Scenario UUID
-    """
-    from app.services.unique_identifier_generator import UniqueIdentifierGenerator
-
-    device_name = device.get("name")
-    fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
-    protocols = device.get("protocols", []) or []
-    model = fingerprint.get("model", "")
-    vendor_family = fingerprint.get("vendor_family", "")
-    vendor = fingerprint.get("vendor", "")
-
-    def identity_has_vendor_data(identity: dict | None) -> bool:
-        """Check if identity has real vendor data."""
-        if not identity or not isinstance(identity, dict):
-            return False
-        return len(identity) > 0
-
-    # EtherNet/IP identity - product_name (what CV displays for Rockwell devices)
-    if "ethernet_ip" in protocols:
-        existing_identity = fingerprint.get("ethernet_ip_identity")
-        if identity_has_vendor_data(existing_identity):
-            existing_identity["product_name"] = (
-                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
-                )
-            )
-
-    # PROFINET identity - station_name (must be unique on PROFINET network)
-    if "profinet" in protocols or "profisafe" in protocols:
-        existing_identity = fingerprint.get("profinet_identity")
-        if identity_has_vendor_data(existing_identity):
-            existing_identity["station_name"] = (
-                UniqueIdentifierGenerator.generate_profinet_station_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
-                )
-            )
-
-    # S7comm identity - plc_name (what CV displays for Siemens devices)
-    if "s7comm" in protocols or "s7comm_plus" in protocols:
-        existing_identity = fingerprint.get("s7_identity")
-        if identity_has_vendor_data(existing_identity):
-            existing_identity["plc_name"] = (
-                UniqueIdentifierGenerator.generate_s7_plc_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
-                )
-            )
-
-    # Modbus identity - product_name (from FC43 MEI response)
-    if "modbus_tcp" in protocols or "modbus" in protocols:
-        existing_identity = fingerprint.get("modbus_identity")
-        if identity_has_vendor_data(existing_identity):
-            if device_name:
-                existing_identity["product_name"] = device_name
-            elif model:
-                hash_bytes = UniqueIdentifierGenerator._generate_hash(device_id, scenario_id)
-                hash_suffix = hash_bytes[:2].hex().upper()
-                existing_identity["product_name"] = f"{model}-{hash_suffix}"
-
-    # SNMP identity - sys_name (what CV displays for network devices)
-    if "snmp" in protocols:
-        existing_identity = fingerprint.get("snmp_identity")
-        if identity_has_vendor_data(existing_identity):
-            existing_identity["sys_name"] = (
-                UniqueIdentifierGenerator.generate_snmp_sys_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
-                )
-            )
-
-    # BACnet identity - object_name and device_instance
-    if "bacnet" in protocols:
-        existing_identity = fingerprint.get("bacnet_identity")
-        if identity_has_vendor_data(existing_identity):
-            existing_identity["device_instance"] = (
-                UniqueIdentifierGenerator.generate_bacnet_device_instance(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                )
-            )
-            existing_identity["object_name"] = (
-                UniqueIdentifierGenerator.generate_bacnet_object_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
-                )
-            )
-
-    # Update both camelCase and snake_case versions for compatibility
-    device["vendorFingerprint"] = fingerprint
-    device["vendor_fingerprint"] = fingerprint
-
-    logger.debug(f"Enriched unique identifiers for device {device_id}: name={device_name}")
 
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
@@ -439,10 +212,7 @@ async def get_template_detail(
                 template_name = available[0]
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{template_name}' not found for vertical '{vertical}'",
-        )
+        raise NotFoundError("Template", f"{vertical}/{template_name}")
 
     return TemplateDetailResponse(
         name=template.get("name", template_name),
@@ -521,10 +291,7 @@ async def create_scenario_from_template(
                 template = VERTICAL_TEMPLATES[request.vertical][available[0]]
 
     if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{request.template_name}' not found for vertical '{request.vertical}'",
-        )
+        raise NotFoundError("Template", f"{request.vertical}/{request.template_name}")
 
     # Determine total duration
     total_duration_ms = request.total_duration_ms or template.get("total_duration_ms", 300000)
@@ -647,7 +414,7 @@ async def create_scenario_from_template(
 
             # CRITICAL: Generate unique serial numbers for each device
             # This prevents Cyber Vision from merging devices with same fingerprint
-            _enrich_device_with_serial_numbers(device, device_id, str(scenario.id))
+            enrich_device_serial_numbers(device, device_id, str(scenario.id))
 
             devices[device_id] = device
 
@@ -696,7 +463,7 @@ async def create_scenario_from_template(
     # This ensures Cyber Vision displays the contextual device names (AI-generated or generic)
     # in protocol responses (EtherNet/IP product_name, PROFINET station_name, etc.)
     for device_id, device in devices.items():
-        _enrich_device_with_unique_identifiers(device, device_id, str(scenario.id))
+        enrich_device_unique_identifiers(device, device_id, str(scenario.id))
 
     logger.info(f"Enriched {len(devices)} devices with unique protocol identifiers")
 
@@ -704,11 +471,16 @@ async def create_scenario_from_template(
     if request.auto_assign_addresses and zones:
         _auto_assign_ips(devices, zones, allocation)
 
-    # Build flows - using SmartFlowGenerator for role-based generation
+    # Build flows
+    # If the template defines flows, use them (they have protocol-correct timing
+    # and zone isolation). Fall back to SmartFlowGenerator for templates without
+    # flows or when explicitly requested.
     flows = {}
     cloud_service_links = []  # Will be populated from cloud_services template config
+    template_has_flows = bool(template.get("flows"))
+    use_smart = request.use_smart_flow_generation and not template_has_flows
 
-    if request.use_smart_flow_generation:
+    if use_smart:
         # Use SmartFlowGenerator for role-based, realistic flow generation
         # Convert devices dict to list of dicts for the generator
         device_list = []
@@ -721,6 +493,7 @@ async def create_scenario_from_template(
                 "mac_address": device.get("network", {}).get("macAddress"),
                 "vendor": device.get("vendor"),
                 "protocols": device.get("protocols", []),
+                "zone": device.get("zoneId"),
             }
             device_list.append(device_dict)
 
@@ -767,28 +540,59 @@ async def create_scenario_from_template(
             logger.info(f"Added {len(cloud_service_links)} cloud service links")
 
     else:
-        # Legacy flow generation (round-robin based on device types)
+        # Template-driven flow generation (respects zone constraints)
         flow_index = 0
 
-        # Group devices by type for flow matching
+        # Group devices by (type, zone) for zone-aware flow matching
         devices_by_type: dict[str, list[str]] = {}
+        devices_by_type_zone: dict[tuple[str, str], list[str]] = {}
         for device_id, device in devices.items():
             dtype = device.get("type", "unknown")
+            dzone = device.get("zoneId", "")
             if dtype not in devices_by_type:
                 devices_by_type[dtype] = []
             devices_by_type[dtype].append(device_id)
+            key = (dtype, dzone)
+            if key not in devices_by_type_zone:
+                devices_by_type_zone[key] = []
+            devices_by_type_zone[key].append(device_id)
 
         for flow_spec in template.get("flows", []):
             source_types = flow_spec.get("source_types", [])
             target_types = flow_spec.get("target_types", [])
+            source_zones = flow_spec.get("source_zones", [])
+            target_zones = flow_spec.get("target_zones", [])
             protocol = flow_spec.get("protocol")
             interval_ms = flow_spec.get("interval_ms", 1000)
 
-            # Create flows between matching device types
+            # Build jitter config if present
+            timing: dict[str, Any] = {"intervalMs": interval_ms}
+            if flow_spec.get("jitter_ms"):
+                timing["jitterMs"] = flow_spec["jitter_ms"]
+            if flow_spec.get("jitter_type"):
+                timing["jitterType"] = flow_spec["jitter_type"]
+
+            # Create flows between matching device types, respecting zone constraints
             for source_type in source_types:
                 for target_type in target_types:
-                    source_devices = devices_by_type.get(source_type, [])
-                    target_devices = devices_by_type.get(target_type, [])
+                    # Filter by zones when specified
+                    if source_zones:
+                        source_devices = []
+                        for sz in source_zones:
+                            source_devices.extend(
+                                devices_by_type_zone.get((source_type, sz), [])
+                            )
+                    else:
+                        source_devices = devices_by_type.get(source_type, [])
+
+                    if target_zones:
+                        target_devices = []
+                        for tz in target_zones:
+                            target_devices.extend(
+                                devices_by_type_zone.get((target_type, tz), [])
+                            )
+                    else:
+                        target_devices = devices_by_type.get(target_type, [])
 
                     if not source_devices or not target_devices:
                         continue
@@ -808,9 +612,7 @@ async def create_scenario_from_template(
                                 "sourceDeviceId": source_id,
                                 "targetDeviceId": target_id,
                                 "protocol": protocol,
-                                "timing": {
-                                    "intervalMs": interval_ms,
-                                },
+                                "timing": timing,
                                 "config": {},
                             }
 
