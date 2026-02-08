@@ -7,16 +7,28 @@ import React from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
 } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
+import { useCompactMode } from '../hooks/useCompactMode';
 import type { ProtocolType } from '../../../types';
-import { PROTOCOL_COLORS, PROTOCOL_EDGE_LABELS } from '../../../constants/protocols';
+import { PROTOCOL_COLORS, PROTOCOL_EDGE_LABELS, PROTOCOL_SHORT_NAMES } from '../../../constants/protocols';
 
 export interface FlowEdgeData extends Record<string, unknown> {
   protocol: ProtocolType;
   name?: string;
+  /** Aggregate edge: number of merged flows */
+  flowCount?: number;
+  /** Aggregate edge: unique protocols in the aggregate */
+  protocolList?: string[];
+  /** Parallel edge index (0-based) among edges sharing the same node pair */
+  parallelIndex?: number;
+  /** Total number of parallel edges between the same node pair */
+  parallelCount?: number;
 }
+
+/** Perpendicular pixel offset between parallel edges */
+const PARALLEL_OFFSET_PX = 16;
 
 const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
   const {
@@ -32,19 +44,58 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
     markerEnd,
   } = props;
 
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
-
+  const isCompact = useCompactMode();
   const edgeData = data as FlowEdgeData;
   const protocol = edgeData?.protocol || 'modbus_tcp';
   const color = PROTOCOL_COLORS[protocol] || '#6a9fd4';
-  const label = PROTOCOL_EDGE_LABELS[protocol] || protocol.toUpperCase();
+  const isAggregate = edgeData?.flowCount != null && edgeData.flowCount > 0;
+
+  // Compute perpendicular offset for parallel edges between the same node pair
+  const pIndex = edgeData?.parallelIndex ?? 0;
+  const pCount = edgeData?.parallelCount ?? 1;
+  let offsetSourceX = sourceX;
+  let offsetSourceY = sourceY;
+  let offsetTargetX = targetX;
+  let offsetTargetY = targetY;
+
+  if (pCount > 1) {
+    const offset = (pIndex - (pCount - 1) / 2) * PARALLEL_OFFSET_PX;
+    // Offset perpendicular to the source→target axis
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    // Perpendicular unit vector (rotated 90°)
+    const px = -dy / len;
+    const py = dx / len;
+    offsetSourceX = sourceX + px * offset;
+    offsetSourceY = sourceY + py * offset;
+    offsetTargetX = targetX + px * offset;
+    offsetTargetY = targetY + py * offset;
+  }
+
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX: offsetSourceX,
+    sourceY: offsetSourceY,
+    sourcePosition,
+    targetX: offsetTargetX,
+    targetY: offsetTargetY,
+    targetPosition,
+    borderRadius: 8,
+  });
+
+  // Build label text
+  let label: string;
+  if (isAggregate && edgeData.protocolList && edgeData.protocolList.length > 0) {
+    label = edgeData.protocolList
+      .map((p) => PROTOCOL_SHORT_NAMES[p as ProtocolType] || p.slice(0, 3).toUpperCase())
+      .join(', ');
+    label = `${edgeData.flowCount}x ${label}`;
+  } else {
+    label = PROTOCOL_EDGE_LABELS[protocol] || protocol.toUpperCase();
+  }
+
+  // Aggregate edges are thicker (smoothstep segments appear bolder than bezier at same width)
+  const baseWidth = isAggregate ? 1.5 + Math.min(edgeData.flowCount!, 4) : 1.5;
 
   return (
     <>
@@ -54,35 +105,38 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
         markerEnd={markerEnd}
         style={{
           stroke: color,
-          strokeWidth: selected ? 3 : 2,
+          strokeWidth: selected ? baseWidth + 1 : baseWidth,
           strokeDasharray: selected ? '5,5' : undefined,
           animation: selected ? 'dashdraw 0.5s linear infinite' : undefined,
           filter: selected ? `drop-shadow(0 0 4px ${color})` : undefined,
         }}
       />
-      <EdgeLabelRenderer>
-        <div
-          style={{
-            position: 'absolute',
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-            fontSize: 10,
-            fontWeight: 600,
-            background: '#1e2a3a',
-            padding: '3px 8px',
-            borderRadius: '4px',
-            border: `1px solid ${color}60`,
-            color: color,
-            pointerEvents: 'all',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            boxShadow: selected ? `0 0 8px ${color}40` : '0 2px 4px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s ease',
-          }}
-          className="nodrag nopan"
-        >
-          {label}
-        </div>
-      </EdgeLabelRenderer>
+      {!isCompact && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 12}px)`,
+              fontSize: isAggregate ? 11 : 10,
+              fontWeight: 600,
+              background: '#1e2a3a',
+              padding: isAggregate ? '4px 10px' : '3px 8px',
+              borderRadius: '4px',
+              border: `1px solid ${color}60`,
+              color: color,
+              pointerEvents: 'all',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              zIndex: 10,
+              boxShadow: selected ? `0 0 8px ${color}40` : '0 2px 4px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            className="nodrag nopan"
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
 
       <style>
         {`

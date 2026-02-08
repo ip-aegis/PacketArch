@@ -14,8 +14,8 @@ import { useShallow } from 'zustand/react/shallow';
 // Stable marker object to avoid recreation
 const ARROW_MARKER = {
   type: 'arrowclosed' as const,
-  width: 20,
-  height: 20,
+  width: 14,
+  height: 14,
 };
 
 export const useCanvasSync = () => {
@@ -93,20 +93,39 @@ export const useCanvasSync = () => {
     return [...zoneNodes, ...deviceNodes];
   }, [devices, zones]);
 
-  // Convert flows to React Flow edges
+  // Convert flows to React Flow edges, computing parallel-edge indices
   const edges = useMemo(() => {
-    const flowEdges: Edge<FlowEdgeData>[] = Object.values(flows).map((flow) => ({
-      id: flow.id,
-      source: flow.sourceDeviceId,
-      target: flow.targetDeviceId,
-      type: 'flowEdge',
-      data: {
-        protocol: flow.protocol,
-        name: flow.name,
-      },
-      animated: false,
-      markerEnd: ARROW_MARKER,
-    }));
+    const flowList = Object.values(flows);
+
+    // Group flows by canonical node-pair key so parallel edges can be offset
+    const pairCounts = new Map<string, number>();
+    const pairIndices = new Map<string, number>();
+    for (const flow of flowList) {
+      const key = [flow.sourceDeviceId, flow.targetDeviceId].sort().join('::');
+      pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+    }
+
+    const flowEdges: Edge<FlowEdgeData>[] = flowList.map((flow) => {
+      const key = [flow.sourceDeviceId, flow.targetDeviceId].sort().join('::');
+      const parallelCount = pairCounts.get(key) ?? 1;
+      const parallelIndex = pairIndices.get(key) ?? 0;
+      pairIndices.set(key, parallelIndex + 1);
+
+      return {
+        id: flow.id,
+        source: flow.sourceDeviceId,
+        target: flow.targetDeviceId,
+        type: 'flowEdge',
+        data: {
+          protocol: flow.protocol,
+          name: flow.name,
+          parallelIndex,
+          parallelCount,
+        },
+        animated: false,
+        markerEnd: ARROW_MARKER,
+      };
+    });
 
     return flowEdges;
   }, [flows]);
