@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.ip_range_allocation import IPRangeAllocation
+    from app.models.scenario_version import ScenarioVersion
 
 from app.core.database import Base
 
@@ -83,6 +84,14 @@ class Scenario(Base):
         back_populates="scenario",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+
+    # Relationship to version history
+    versions: Mapped[list["ScenarioVersion"]] = relationship(
+        "ScenarioVersion",
+        back_populates="scenario",
+        cascade="all, delete-orphan",
+        order_by="ScenarioVersion.version_number.desc()",
     )
 
     def __repr__(self) -> str:

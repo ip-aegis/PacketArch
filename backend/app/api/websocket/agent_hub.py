@@ -10,6 +10,8 @@ from sqlalchemy import select, update
 from app.core.database import async_session_maker
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
 from app.services.agent_manager import agent_manager
+from app.services.health_monitor import health_monitor
+from app.services.traffic_dashboard import traffic_dashboard
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["agent-websocket"])
@@ -264,6 +266,9 @@ async def agent_websocket(
     # Register with agent manager
     await agent_manager.register(agent.id, websocket)
 
+    # Notify health monitor (may trigger auto-redeploy of disconnected scenarios)
+    await health_monitor.on_agent_connected(agent.id, agent.name)
+
     # Send connection confirmation
     await websocket.send_json({
         "type": "CONNECTED",
@@ -291,6 +296,26 @@ async def agent_websocket(
                         packets_sent=data.get("packets_sent", 0),
                         error_message=data.get("error"),
                     )
+                    # Feed live traffic dashboard
+                    traffic_dashboard.update_from_status(
+                        agent_id=agent.id,
+                        scenario_id=scenario_id,
+                        message=data,
+                        agent_name=agent.name,
+                    )
+                    # Feed health monitor
+                    health_monitor.on_deployment_status(
+                        agent.id,
+                        scenario_id,
+                        data.get("packets_per_second", 0.0),
+                        data.get("state", "unknown"),
+                    )
+                    if data.get("state") == "error":
+                        health_monitor.on_deployment_error(
+                            agent.id, agent.name,
+                            scenario_id,
+                            data.get("error", "Unknown error"),
+                        )
 
             # Handle HEARTBEAT - sync agent info and running scenarios with database
             # This is critical for state reconciliation after backend restart
@@ -317,8 +342,16 @@ async def agent_websocket(
         logger.error(f"Agent {agent.id} WebSocket error: {e}")
 
     finally:
+        # Notify health monitor before unregister (capture running scenarios)
+        conn = agent_manager.get_connection(agent.id)
+        running = list(conn.running_scenarios) if conn else []
+        await health_monitor.on_agent_disconnected(agent.id, agent.name, running)
+
         # Unregister and update status
         await agent_manager.unregister(agent.id)
+
+        # Clean up live dashboard stats for this agent
+        traffic_dashboard.remove_agent_deployments(agent.id)
 
         # Update agent status to offline and mark active deployments as disconnected
         async with async_session_maker() as db:

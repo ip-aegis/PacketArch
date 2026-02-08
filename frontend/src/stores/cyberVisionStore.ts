@@ -38,6 +38,7 @@ interface CyberVisionState {
   isTesting: boolean;
   isEnriching: boolean;
   enrichmentResult: CVEnrichmentResult | null;
+  enrichedSinceCompare: boolean;
   error: string | null;
 
   // Actions
@@ -71,6 +72,7 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
   isTesting: false,
   isEnriching: false,
   enrichmentResult: null,
+  enrichedSinceCompare: false,
   error: null,
 
   fetchStatus: async () => {
@@ -158,7 +160,7 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
   },
 
   compareScenario: async (scenarioId: string, presetId?: string) => {
-    set({ isComparing: true, error: null, comparisonResult: null });
+    set({ isComparing: true, error: null, comparisonResult: null, enrichedSinceCompare: false });
     try {
       const result = await cyberVisionApi.compareScenario(scenarioId, presetId);
       set({ comparisonResult: result, isComparing: false });
@@ -180,7 +182,7 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
     set({ isEnriching: true, error: null, enrichmentResult: null });
     try {
       const result = await cyberVisionApi.enrichDevices(request);
-      set({ enrichmentResult: result, isEnriching: false });
+      set({ enrichmentResult: result, isEnriching: false, enrichedSinceCompare: true });
       return result;
     } catch (error: unknown) {
       const message = extractErrorMessage(error, 'Failed to enrich CV devices');

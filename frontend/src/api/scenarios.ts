@@ -6,6 +6,21 @@ import apiClient from './client';
 import type { PaginatedResponse, VerticalType } from '../types';
 
 // Scenario types
+export interface ReadinessCheck {
+  name: string;
+  passed: boolean;
+  severity: 'error' | 'warning';
+  message: string | null;
+}
+
+export interface ReadinessSummary {
+  score: number;
+  status: 'ready' | 'warnings' | 'not_ready';
+  error_count: number;
+  warning_count: number;
+  checks: ReadinessCheck[];
+}
+
 export interface ScenarioSummary {
   id: string;
   name: string;
@@ -18,6 +33,7 @@ export interface ScenarioSummary {
   version: number;
   has_learned_patterns: boolean;
   protocols_enhanced: string[];
+  readiness: ReadinessSummary;
   created_at: string;
   updated_at: string;
 }

@@ -3,32 +3,49 @@
  * to either a traffic agent or Docker host.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
+  Collapse,
   Form,
   InputNumber,
   Radio,
   Select,
   Space,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import type { FormInstance } from 'antd';
 import {
   CloudServerOutlined,
+  FieldTimeOutlined,
   PlayCircleOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
 import type { DockerHost } from '../../types/docker';
 import type { RunMode, NetworkInterface } from '../../types/docker';
 import type { AgentInterface, TrafficAgent } from '../../types/agent';
+import type { Phase } from '../../types';
 
 const { Text } = Typography;
 
 export type TargetType = 'docker' | 'agent';
+
+export interface PhaseScheduleConfig {
+  enabled: boolean;
+  cycle: boolean;
+  phases: {
+    phase_id: string;
+    name: string;
+    duration_seconds: number;
+    rate_multiplier: number;
+    color: string;
+  }[];
+}
 
 export interface DeploymentFormProps {
   form: FormInstance;
@@ -47,18 +64,41 @@ export interface DeploymentFormProps {
   interfaces: NetworkInterface[];
   onHostChange: (hostId: string) => void;
 
+  // Scenario phases
+  phases?: Phase[];
+
   // Shared
   loadingInterfaces: boolean;
   validating: boolean;
   deploymentsLoading: boolean;
+  deployDisabled?: boolean;
   onFinish: (values: {
     docker_host_id?: string;
     agent_id?: string;
     network_interface: string;
     run_mode: RunMode;
     duration_minutes?: number;
+    phase_schedule?: PhaseScheduleConfig;
   }) => void;
 }
+
+// Map frontend phase name to backend phase_id
+const PHASE_NAME_MAP: Record<string, string> = {
+  startup: 'startup',
+  'steady-state': 'steady_state',
+  maintenance: 'maintenance',
+  shutdown: 'shutdown',
+  custom: 'custom',
+};
+
+// Default live durations per phase type (seconds)
+const DEFAULT_LIVE_DURATIONS: Record<string, number> = {
+  startup: 300,
+  'steady-state': 3600,
+  maintenance: 900,
+  shutdown: 300,
+  custom: 600,
+};
 
 const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   form,
@@ -72,12 +112,49 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   hostsLoading,
   interfaces,
   onHostChange,
+  phases,
   loadingInterfaces,
   validating,
   deploymentsLoading,
+  deployDisabled,
   onFinish,
 }) => {
   const hasTargets = onlineAgents.length > 0 || activeHosts.length > 0;
+  const [phaseScheduleEnabled, setPhaseScheduleEnabled] = useState(false);
+  const [cycleContinuously, setCycleContinuously] = useState(true);
+  const [phaseDurations, setPhaseDurations] = useState<Record<string, number>>(() => {
+    const durations: Record<string, number> = {};
+    if (phases) {
+      for (const p of phases) {
+        durations[p.id] = DEFAULT_LIVE_DURATIONS[p.name] ?? 600;
+      }
+    }
+    return durations;
+  });
+
+  const handleFinish = (values: {
+    docker_host_id?: string;
+    agent_id?: string;
+    network_interface: string;
+    run_mode: RunMode;
+    duration_minutes?: number;
+  }) => {
+    let phase_schedule: PhaseScheduleConfig | undefined;
+    if (phaseScheduleEnabled && phases && phases.length > 0) {
+      phase_schedule = {
+        enabled: true,
+        cycle: cycleContinuously,
+        phases: phases.map((p) => ({
+          phase_id: PHASE_NAME_MAP[p.name] ?? p.name,
+          name: p.displayName,
+          duration_seconds: phaseDurations[p.id] ?? DEFAULT_LIVE_DURATIONS[p.name] ?? 600,
+          rate_multiplier: p.intensity,
+          color: p.color,
+        })),
+      };
+    }
+    onFinish({ ...values, phase_schedule });
+  };
 
   return (
     <Card
@@ -102,7 +179,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
         <Form
           form={form}
           layout="vertical"
-          onFinish={onFinish}
+          onFinish={handleFinish}
           initialValues={{ duration_minutes: 5, run_mode: 'timed' }}
           size="small"
         >
@@ -326,16 +403,124 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
             </>
           )}
 
+          {/* Phase Schedule (agent deployments only) */}
+          {targetType === 'agent' && phases && phases.length > 0 && (
+            <Collapse
+              ghost
+              size="small"
+              style={{ marginBottom: 12, background: 'transparent' }}
+              items={[{
+                key: 'phase-schedule',
+                label: (
+                  <Space size={4}>
+                    <FieldTimeOutlined />
+                    <span style={{ fontSize: 12 }}>Phase Schedule</span>
+                    {phaseScheduleEnabled && (
+                      <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
+                        {phases.length} phases
+                      </Tag>
+                    )}
+                  </Space>
+                ),
+                children: (
+                  <div style={{ paddingTop: 4 }}>
+                    <Checkbox
+                      checked={phaseScheduleEnabled}
+                      onChange={(e) => setPhaseScheduleEnabled(e.target.checked)}
+                      style={{ marginBottom: 8, fontSize: 12, color: '#8aa4bc' }}
+                    >
+                      Enable phase cycling
+                    </Checkbox>
+
+                    {phaseScheduleEnabled && (
+                      <>
+                        <div style={{ marginBottom: 8 }}>
+                          {phases.map((phase) => (
+                            <div
+                              key={phase.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  background: phase.color,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Text
+                                style={{
+                                  color: '#8aa4bc',
+                                  fontSize: 11,
+                                  width: 80,
+                                  flexShrink: 0,
+                                }}
+                                ellipsis
+                              >
+                                {phase.displayName}
+                              </Text>
+                              <InputNumber
+                                size="small"
+                                min={10}
+                                max={86400}
+                                value={phaseDurations[phase.id] ?? DEFAULT_LIVE_DURATIONS[phase.name] ?? 600}
+                                onChange={(val) => {
+                                  if (val !== null) {
+                                    setPhaseDurations((prev) => ({
+                                      ...prev,
+                                      [phase.id]: val,
+                                    }));
+                                  }
+                                }}
+                                style={{ width: 80 }}
+                                addonAfter="s"
+                              />
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: 10 }}
+                              >
+                                {Math.round(phase.intensity * 100)}% rate
+                              </Text>
+                            </div>
+                          ))}
+                        </div>
+
+                        <Checkbox
+                          checked={cycleContinuously}
+                          onChange={(e) => setCycleContinuously(e.target.checked)}
+                          style={{ fontSize: 12, color: '#8aa4bc' }}
+                        >
+                          Cycle continuously
+                        </Checkbox>
+                      </>
+                    )}
+                  </div>
+                ),
+              }]}
+            />
+          )}
+
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={deploymentsLoading || validating}
-              icon={<PlayCircleOutlined />}
-              block
+            <Tooltip
+              title={deployDisabled ? 'Fix readiness errors before deploying' : undefined}
             >
-              {validating ? 'Validating...' : 'Deploy'}
-            </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={deploymentsLoading || validating}
+                disabled={deployDisabled}
+                icon={<PlayCircleOutlined />}
+                block
+              >
+                {validating ? 'Validating...' : 'Deploy'}
+              </Button>
+            </Tooltip>
           </Form.Item>
         </Form>
       )}

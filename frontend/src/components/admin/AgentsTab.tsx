@@ -50,6 +50,7 @@ import {
 
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
+import { healthMonitorApi, type HealthStatusResponse } from '../../api/healthMonitor';
 import type { TrafficAgent, TrafficAgentWithToken } from '../../types/agent';
 import AgentDetailsDrawer from './AgentDetailsDrawer';
 import AgentInstallDrawer from './AgentInstallDrawer';
@@ -91,6 +92,7 @@ const AgentsTab: React.FC = () => {
   } | null>(null);
   const buildPollRef = useRef<NodeJS.Timeout | null>(null);
   const [form] = Form.useForm();
+  const [healthStatus, setHealthStatus] = useState<HealthStatusResponse | null>(null);
 
   // Poll for build status
   const pollBuildStatus = useCallback(async () => {
@@ -127,13 +129,25 @@ const AgentsTab: React.FC = () => {
     };
   }, []);
 
+  // Fetch health status alongside agents
+  const fetchHealth = useCallback(async () => {
+    try {
+      const status = await healthMonitorApi.getStatus();
+      setHealthStatus(status);
+    } catch {
+      // Silently ignore
+    }
+  }, []);
+
   // Fetch agents on mount and set up polling
   useEffect(() => {
     fetchAgents();
+    fetchHealth();
 
     // Poll for status updates every 10 seconds
     const interval = setInterval(() => {
       fetchAgents();
+      fetchHealth();
     }, 10000);
 
     return () => clearInterval(interval);
@@ -242,22 +256,52 @@ const AgentsTab: React.FC = () => {
       render: (status: string, record) => {
         const isOnline = status === 'online';
         const neverConnected = !record.first_connected_at;
+        const agentHealth = healthStatus?.agents?.[record.id];
+        const healthState = agentHealth?.status;
 
-        return (
+        // Use health status if available, fall back to simple online/offline
+        let badgeStatus: 'success' | 'warning' | 'error' | 'default' = 'default';
+        let tagColor = 'default';
+        let tagLabel = 'Offline';
+        let tooltipText = '';
+
+        if (neverConnected) {
+          badgeStatus = 'warning';
+          tagColor = 'orange';
+          tagLabel = 'Pending';
+        } else if (healthState === 'critical') {
+          badgeStatus = 'error';
+          tagColor = 'red';
+          tagLabel = 'Critical';
+          const issues: string[] = [];
+          if (!agentHealth?.heartbeat_ok) issues.push('Heartbeat timeout');
+          if (!agentHealth?.resource_ok) issues.push('Resource exhaustion');
+          if (agentHealth?.stalled_scenarios?.length) issues.push(`${agentHealth.stalled_scenarios.length} stalled`);
+          tooltipText = issues.join(', ');
+        } else if (healthState === 'warning') {
+          badgeStatus = 'warning';
+          tagColor = 'orange';
+          tagLabel = 'Warning';
+          const issues: string[] = [];
+          if (!agentHealth?.heartbeat_ok) issues.push('Heartbeat timeout');
+          if (!agentHealth?.resource_ok) issues.push('High resource usage');
+          if (agentHealth?.stalled_scenarios?.length) issues.push(`${agentHealth.stalled_scenarios.length} stalled`);
+          tooltipText = issues.join(', ');
+        } else if (isOnline) {
+          badgeStatus = 'success';
+          tagColor = 'green';
+          tagLabel = 'Healthy';
+        }
+
+        const tag = (
           <Space>
-            <Badge status={isOnline ? 'success' : neverConnected ? 'warning' : 'default'} />
-            {isOnline ? (
-              <Tag color="green">Online</Tag>
-            ) : neverConnected ? (
-              <Tag color="orange">Pending</Tag>
-            ) : (
-              <Tag color="default">Offline</Tag>
-            )}
-            {!record.is_active && (
-              <Tag color="red">Disabled</Tag>
-            )}
+            <Badge status={badgeStatus} />
+            <Tag color={tagColor}>{tagLabel}</Tag>
+            {!record.is_active && <Tag color="red">Disabled</Tag>}
           </Space>
         );
+
+        return tooltipText ? <Tooltip title={tooltipText}>{tag}</Tooltip> : tag;
       },
     },
     {

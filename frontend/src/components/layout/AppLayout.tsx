@@ -2,9 +2,9 @@
  * Main application layout with navigation - Cisco inspired dark theme
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Badge } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, Badge, Tooltip } from 'antd';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import {
   DashboardOutlined,
@@ -17,6 +17,7 @@ import {
   DatabaseOutlined,
   FolderOutlined,
   ExperimentOutlined,
+  BarChartOutlined,
   CloudServerOutlined,
   GlobalOutlined,
   BugOutlined,
@@ -24,9 +25,11 @@ import {
   EyeOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { healthMonitorApi } from '../../api/healthMonitor';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
+import AgentVersionBanner from './AgentVersionBanner';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -37,6 +40,22 @@ const AppLayout: React.FC = () => {
   const { user, logout } = useAuthStore();
   const { panels, toggleLeftSidebar } = useUIStore();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [healthAlertCount, setHealthAlertCount] = useState(0);
+
+  // Poll health status for notification badge
+  useEffect(() => {
+    const fetchHealthCount = async () => {
+      try {
+        const status = await healthMonitorApi.getStatus();
+        setHealthAlertCount(status.summary.warning + status.summary.critical);
+      } catch {
+        // Silently ignore — badge stays at last known count
+      }
+    };
+    fetchHealthCount();
+    const interval = setInterval(fetchHealthCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -76,6 +95,11 @@ const AppLayout: React.FC = () => {
       key: '/deployments',
       icon: <CloudServerOutlined />,
       label: 'Deployments',
+    },
+    {
+      key: '/live-traffic',
+      icon: <BarChartOutlined />,
+      label: 'Live Traffic',
     },
     {
       key: '/ip-management',
@@ -248,14 +272,17 @@ const AppLayout: React.FC = () => {
           </Space>
 
           <Space size="large">
-            {/* Notifications */}
-            <Badge count={0} showZero={false}>
-              <Button
-                type="text"
-                icon={<BellOutlined style={{ fontSize: 18 }} />}
-                style={{ color: '#a8a8c0' }}
-              />
-            </Badge>
+            {/* Health Notifications */}
+            <Tooltip title={healthAlertCount > 0 ? `${healthAlertCount} agent(s) need attention` : 'All agents healthy'}>
+              <Badge count={healthAlertCount} overflowCount={9}>
+                <Button
+                  type="text"
+                  icon={<BellOutlined style={{ fontSize: 18 }} />}
+                  style={{ color: healthAlertCount > 0 ? '#fa8c16' : '#a8a8c0' }}
+                  onClick={() => navigate('/live-traffic')}
+                />
+              </Badge>
+            </Tooltip>
 
             {/* User Menu */}
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -285,6 +312,8 @@ const AppLayout: React.FC = () => {
             </Dropdown>
           </Space>
         </Header>
+
+        <AgentVersionBanner />
 
         <Content
           className="tech-grid-bg"

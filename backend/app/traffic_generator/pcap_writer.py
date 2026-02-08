@@ -24,21 +24,27 @@ class PcapWriter:
 
         # Initialize Scapy's PcapWriter
         self._writer = ScapyPcapWriter(str(self.output_path), append=False, sync=True)
+        self._header_written = False
 
     def write_packet(self, packet_bytes: bytes, timestamp: float | None = None) -> None:
         """Write a packet to the PCAP file.
 
         Args:
             packet_bytes: Raw packet bytes
-            timestamp: Optional timestamp (seconds since epoch)
+            timestamp: Optional timestamp (milliseconds)
         """
+        # Ensure PCAP header is written (sets linktype for raw bytes)
+        if not self._header_written:
+            self._writer.write_header(packet_bytes)
+            self._header_written = True
+
         # Scapy expects timestamp in seconds (float)
         if timestamp is not None:
             timestamp_sec = timestamp / 1000.0  # Convert ms to seconds
         else:
             timestamp_sec = None
 
-        self._writer.write(packet_bytes, sec=timestamp_sec)
+        self._writer.write_packet(packet_bytes, sec=timestamp_sec)
         self.packet_count += 1
 
     def close(self) -> None:

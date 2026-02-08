@@ -1,6 +1,9 @@
-"""Orchestrator pool for managing multiple concurrent traffic generation scenarios."""
+"""Orchestrator pool for managing multiple concurrent traffic generation scenarios.
 
-import asyncio
+Uses the shared protocol engines (UnifiedOrchestrator + LiveOutput) for traffic
+generation, providing parity between PCAP and live traffic output.
+"""
+
 import logging
 import threading
 import time
@@ -28,6 +31,11 @@ class ScenarioStatus:
     scenario_id: str
     state: ScenarioState
     packets_sent: int = 0
+    bytes_sent: int = 0
+    protocol_breakdown: dict[str, dict] | None = None
+    flow_count: int = 0
+    packets_per_second: float = 0.0
+    bytes_per_second: float = 0.0
     error_message: str | None = None
     started_at: float | None = None
     stopped_at: float | None = None
@@ -42,15 +50,49 @@ class ScenarioContext:
     interface: str
     status: ScenarioStatus = field(default_factory=lambda: ScenarioStatus("", ScenarioState.STARTING))
     thread: threading.Thread | None = None
-    orchestrator: Any = None  # LiveTrafficOrchestrator
-    cloud_scheduler: Any = None  # CloudTrafficScheduler
+    output: Any = None  # LiveOutput — tracks packet_count
+    orchestrator: Any = None  # UnifiedOrchestrator — tracks per-protocol stats
     stop_event: threading.Event = field(default_factory=threading.Event)
+    adaptive_controller: Any = None  # AdaptiveController — optional
+    attack_orchestrator: Any = None  # AttackOrchestrator — optional
 
     def __post_init__(self):
         self.status = ScenarioStatus(
             scenario_id=self.scenario_id,
             state=ScenarioState.STARTING,
         )
+
+
+# Protocol port mapping
+PROTOCOL_PORTS = {
+    "modbus_tcp": 502,
+    "modbus_rtu": 502,
+    "s7comm": 102,
+    "s7comm_plus": 102,
+    "ethernet_ip": 44818,
+    "profinet": 0,
+    "bacnet_ip": 47808,
+    "bacnet": 47808,
+    "dnp3": 20000,
+    "opcua": 4840,
+    "opc_ua": 4840,
+    "iec104": 2404,
+    "iec_104": 2404,
+    "iec61850": 102,
+    "snmp": 161,
+    "lldp": 0,
+    "cdp": 0,
+    "ethercat": 0,
+    "fins": 9600,
+    "slmp": 5000,
+    "pccc": 44818,
+    "codesys": 11740,
+    "wmi": 135,
+    "fanuc": 8193,
+    "dcs": 502,
+    "cloud_service": 443,
+    "https": 443,
+}
 
 
 class OrchestratorPool:
@@ -79,18 +121,26 @@ class OrchestratorPool:
                 if ctx.status.state in (ScenarioState.STARTING, ScenarioState.RUNNING)
             ]
 
+    def _update_stats_from_orchestrator(self, ctx: ScenarioContext) -> None:
+        """Pull live stats from the orchestrator and output into the status."""
+        if ctx.output and hasattr(ctx.output, 'packet_count'):
+            ctx.status.packets_sent = ctx.output.packet_count
+        if ctx.output and hasattr(ctx.output, 'bytes_sent'):
+            ctx.status.bytes_sent = ctx.output.bytes_sent
+        if ctx.orchestrator and hasattr(ctx.orchestrator, 'get_stats_snapshot'):
+            snapshot = ctx.orchestrator.get_stats_snapshot()
+            if snapshot:
+                ctx.status.protocol_breakdown = snapshot.get('protocol_stats')
+                ctx.status.flow_count = snapshot.get('flow_count', 0)
+                ctx.status.packets_per_second = snapshot.get('packets_per_second', 0.0)
+                ctx.status.bytes_per_second = snapshot.get('bytes_per_second', 0.0)
+
     def get_status(self, scenario_id: str) -> ScenarioStatus | None:
         """Get status of a scenario."""
         with self._lock:
             ctx = self._scenarios.get(scenario_id)
             if ctx:
-                # Update packets_sent from orchestrator and cloud scheduler if running
-                packets = 0
-                if ctx.orchestrator and hasattr(ctx.orchestrator, 'packets_sent'):
-                    packets += ctx.orchestrator.packets_sent
-                if ctx.cloud_scheduler and hasattr(ctx.cloud_scheduler, 'packets_sent'):
-                    packets += ctx.cloud_scheduler.packets_sent
-                ctx.status.packets_sent = packets
+                self._update_stats_from_orchestrator(ctx)
                 return ctx.status
             return None
 
@@ -99,13 +149,7 @@ class OrchestratorPool:
         with self._lock:
             statuses = []
             for ctx in self._scenarios.values():
-                # Update packets_sent from orchestrator and cloud scheduler if running
-                packets = 0
-                if ctx.orchestrator and hasattr(ctx.orchestrator, 'packets_sent'):
-                    packets += ctx.orchestrator.packets_sent
-                if ctx.cloud_scheduler and hasattr(ctx.cloud_scheduler, 'packets_sent'):
-                    packets += ctx.cloud_scheduler.packets_sent
-                ctx.status.packets_sent = packets
+                self._update_stats_from_orchestrator(ctx)
                 statuses.append(ctx.status)
             return statuses
 
@@ -131,7 +175,6 @@ class OrchestratorPool:
                 if existing.status.state in (ScenarioState.STARTING, ScenarioState.RUNNING):
                     logger.warning(f"Scenario {scenario_id} is already running")
                     return False
-                # Clean up old context
                 del self._scenarios[scenario_id]
 
             ctx = ScenarioContext(
@@ -141,7 +184,6 @@ class OrchestratorPool:
             )
             self._scenarios[scenario_id] = ctx
 
-        # Start in a thread
         thread = threading.Thread(
             target=self._run_scenario,
             args=(ctx,),
@@ -173,18 +215,9 @@ class OrchestratorPool:
                 logger.warning(f"Scenario {scenario_id} is not running (state: {ctx.status.state})")
                 return False
 
-        # Signal stop
         ctx.stop_event.set()
         ctx.status.state = ScenarioState.STOPPING
         self._notify_status_change(ctx)
-
-        # Stop the orchestrator if it exists
-        if ctx.orchestrator:
-            ctx.orchestrator._running = False
-
-        # Stop the cloud scheduler if it exists
-        if ctx.cloud_scheduler:
-            ctx.cloud_scheduler.stop()
 
         logger.info(f"Stop signal sent to scenario {scenario_id}")
         return True
@@ -201,20 +234,45 @@ class OrchestratorPool:
                 count += 1
         return count
 
+    def check_thread_health(self) -> list[dict]:
+        """Check health of all running scenario threads.
+
+        Detects scenarios whose threads have died unexpectedly.
+        Marks them as ERROR and notifies via status callback.
+
+        Returns:
+            List of unhealthy scenario dicts.
+        """
+        unhealthy = []
+        with self._lock:
+            for sid, ctx in self._scenarios.items():
+                if ctx.status.state in (ScenarioState.STARTING, ScenarioState.RUNNING):
+                    if ctx.thread is None or not ctx.thread.is_alive():
+                        unhealthy.append({
+                            "scenario_id": sid,
+                            "state": ctx.status.state.value,
+                            "thread_alive": ctx.thread.is_alive() if ctx.thread else False,
+                        })
+                        ctx.status.state = ScenarioState.ERROR
+                        ctx.status.error_message = "Scenario thread died unexpectedly"
+                        ctx.status.stopped_at = time.time()
+                        self._notify_status_change(ctx)
+        return unhealthy
+
     def _run_scenario(self, ctx: ScenarioContext) -> None:
-        """Run a scenario in a thread."""
+        """Run a scenario using the shared UnifiedOrchestrator + LiveOutput."""
         try:
             ctx.status.state = ScenarioState.STARTING
             ctx.status.started_at = time.time()
             self._notify_status_change(ctx)
 
-            # Import here to avoid circular imports and allow copying live_orchestrator
-            from app.live_orchestrator import (
+            from app.protocol_engines.output import LiveOutput
+            from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
+            from app.protocol_engines.types import (
                 DeviceContext,
                 FlowContext,
-                LiveTrafficOrchestrator,
+                ProtocolType,
             )
-            from app.cloud_traffic_scheduler import CloudTrafficScheduler
 
             # Parse the definition
             devices = ctx.definition.get("devices", {})
@@ -229,118 +287,139 @@ class OrchestratorPool:
             if not flows:
                 raise ValueError("No flows defined in scenario")
 
-            # Create orchestrator in perpetual mode (None duration)
-            orchestrator = LiveTrafficOrchestrator(ctx.interface, duration_ms=None)
+            # Create LiveOutput and UnifiedOrchestrator (perpetual mode)
+            output = LiveOutput(interface=ctx.interface)
+            ctx.output = output
+            orchestrator = UnifiedOrchestrator(output=output, duration_ms=None)
             ctx.orchestrator = orchestrator
 
-            # Register all devices for discovery
-            all_device_contexts = []
-            for device_id, device in devices.items():
-                network = device.get("network", {})
-                fingerprint = (
-                    device.get("vendorFingerprint") or
-                    device.get("vendor_fingerprint") or
-                    device.get("fingerprint") or
-                    {}
-                )
-                # Get CVE vulnerability overrides for vulnerable firmware versions
-                vulnerability_override = device.get("cveIdentityOverrides")
-                if vulnerability_override:
-                    logger.info(f"Device {device_id} has CVE override: {vulnerability_override.get('cve_id', 'unknown')}")
-
-                device_ctx = DeviceContext(
-                    device_id=device_id,
-                    mac_address=network.get("macAddress", "00:00:00:00:00:01"),
-                    ip_address=network.get("ipAddress", "10.0.0.1"),
-                    port=502,
-                    vendor_fingerprint=fingerprint,
-                    vulnerability_override=vulnerability_override,
-                    device_name=device.get("name") or device.get("label"),
-                    scenario_id=ctx.scenario_id,
-                )
-                all_device_contexts.append(device_ctx)
-
-            orchestrator.set_all_devices(all_device_contexts)
-
-            # Add flows
+            # Add OT protocol flows
+            flow_count = 0
             for flow_id, flow_def in flows.items():
                 flow_ctx = self._create_flow_context(flow_def, devices)
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
+                    flow_count += 1
 
-            if not orchestrator.flows:
+            # Add cloud service links as regular flows via CloudServiceEngine
+            cloud_links = ctx.definition.get("cloud_service_links", [])
+            for link in cloud_links:
+                if not link.get("enabled", True):
+                    continue
+
+                cloud_flow = self._create_cloud_flow(link, devices)
+                if cloud_flow:
+                    orchestrator.add_flow(cloud_flow)
+                    flow_count += 1
+
+            if flow_count == 0:
                 raise ValueError("No valid flows to generate")
 
-            # Start cloud traffic scheduler for cloud service links (separate from OT poll loop)
-            cloud_links = ctx.definition.get("cloud_service_links", [])
-            cloud_scheduler = None
+            # Initialize adaptive traffic controller (defaults to enabled)
+            try:
+                from app.protocol_engines.adaptive import AdaptiveConfig, AdaptiveController
+                adaptive_dict = ctx.definition.get("adaptive_config", {})
 
-            if cloud_links:
-                cloud_scheduler = CloudTrafficScheduler(ctx.interface)
-                ctx.cloud_scheduler = cloud_scheduler
+                # Auto-populate phase schedule from scenario phases if present
+                definition_phases = ctx.definition.get("phases", [])
+                if definition_phases and not adaptive_dict.get("phase_schedule", {}).get("enabled"):
+                    phase_configs = []
+                    for p in definition_phases:
+                        phase_configs.append({
+                            "phase_id": p.get("phase_type", p.get("id", "")),
+                            "name": p.get("name", ""),
+                            "duration_seconds": p.get(
+                                "live_duration_seconds",
+                                p.get("duration_ms", 300000) / 1000,
+                            ),
+                            "rate_multiplier": p.get("traffic_multiplier", 1.0),
+                            "active_flow_percent": p.get("active_flow_percent", 100.0),
+                            "behaviors": p.get("behaviors", []),
+                            "protocol_patterns": p.get("protocol_patterns", {}),
+                            "color": p.get("color", "#1890ff"),
+                        })
+                    if phase_configs:
+                        adaptive_dict.setdefault("phase_schedule", {})
+                        adaptive_dict["phase_schedule"] = {
+                            "enabled": True,
+                            "cycle": True,
+                            "phases": phase_configs,
+                        }
+                        logger.info(
+                            f"Auto-populated phase schedule from {len(phase_configs)} "
+                            f"scenario phases"
+                        )
 
-                for link in cloud_links:
-                    if not link.get("enabled", True):
-                        continue
+                adaptive_config = AdaptiveConfig.from_dict(adaptive_dict)
+                if adaptive_config.enabled:
+                    controller = AdaptiveController(adaptive_config, total_flows=flow_count)
+                    orchestrator.register_adaptive_controller(controller)
+                    ctx.adaptive_controller = controller
+                    logger.info(f"Adaptive traffic enabled for scenario {ctx.scenario_id}")
+            except Exception as e:
+                logger.warning(f"Adaptive traffic unavailable: {e}")
 
-                    device_id = link.get("device_id")
-                    device = devices.get(device_id)
-
-                    if device:
-                        cloud_scheduler.add_link(link, device)
-                    else:
-                        logger.warning(f"Device {device_id} not found for cloud link {link.get('id')}")
-
-                if cloud_scheduler.tasks:
-                    cloud_scheduler.start()
-                    logger.info(
-                        f"Started cloud scheduler with {len(cloud_scheduler.tasks)} cloud service links"
+            # Initialize attack orchestrator if playbook is configured
+            try:
+                attack_playbook_config = ctx.definition.get("attack_playbook")
+                if attack_playbook_config and attack_playbook_config.get("playbook_id"):
+                    from app.protocol_engines.attacks import (
+                        AttackOrchestrator,
+                        get_playbook,
                     )
+                    from app.protocol_engines.attacks.types import AttackPlaybookConfig
+
+                    playbook_id = attack_playbook_config["playbook_id"]
+                    playbook = get_playbook(playbook_id)
+                    if playbook:
+                        config = AttackPlaybookConfig.from_dict(attack_playbook_config)
+                        # Collect device list for target resolution
+                        device_list = []
+                        for dev_id, dev in devices.items():
+                            device_list.append(dev)
+                        attack_orch = AttackOrchestrator(
+                            playbook=playbook,
+                            devices=device_list,
+                            config=config,
+                        )
+                        orchestrator.register_attack_orchestrator(attack_orch)
+                        ctx.attack_orchestrator = attack_orch
+                        logger.info(
+                            f"Attack playbook '{playbook.name}' loaded for "
+                            f"scenario {ctx.scenario_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Attack playbook '{playbook_id}' not found, skipping"
+                        )
+            except Exception as e:
+                logger.warning(f"Attack orchestrator unavailable: {e}")
 
             # Update state to running
             ctx.status.state = ScenarioState.RUNNING
             self._notify_status_change(ctx)
 
-            logger.info(f"Scenario {ctx.scenario_id} running with {len(orchestrator.flows)} flows")
+            logger.info(f"Scenario {ctx.scenario_id} running with {flow_count} flows")
 
-            # Start a thread to monitor stop signal
-            def stop_monitor():
-                ctx.stop_event.wait()
-                orchestrator._running = False
+            # Run orchestration (blocks until stop_event is set)
+            result = orchestrator.run(stop_event=ctx.stop_event)
 
-            monitor_thread = threading.Thread(target=stop_monitor, daemon=True)
-            monitor_thread.start()
-
-            # Run generation (perpetual mode) - this blocks until stopped
-            orchestrator.run()
-
-            # Stop cloud scheduler if running
-            if cloud_scheduler:
-                cloud_scheduler.stop()
-
-            # Final status update (include cloud scheduler packets in total)
-            total_packets = orchestrator.packets_sent
-            if cloud_scheduler:
-                total_packets += cloud_scheduler.packets_sent
-
-            ctx.status.packets_sent = total_packets
-
-            # Graceful shutdown
+            # Final status
+            ctx.status.packets_sent = output.packet_count
             ctx.status.state = ScenarioState.STOPPED
             ctx.status.stopped_at = time.time()
             self._notify_status_change(ctx)
 
             logger.info(
                 f"Scenario {ctx.scenario_id} stopped. "
-                f"Total packets: {total_packets} "
-                f"(OT: {orchestrator.packets_sent}"
-                f"{f', Cloud: {cloud_scheduler.packets_sent}' if cloud_scheduler else ''})"
+                f"Packets: {output.packet_count}, "
+                f"stopped_by_event={result.stopped_by_event}"
             )
 
         except ImportError as e:
-            logger.error(f"Failed to import live_orchestrator: {e}")
+            logger.error(f"Failed to import protocol engines: {e}")
             ctx.status.state = ScenarioState.ERROR
-            ctx.status.error_message = "Traffic generator not available"
+            ctx.status.error_message = f"Protocol engines not available: {e}"
             self._notify_status_change(ctx)
 
         except Exception as e:
@@ -357,12 +436,11 @@ class OrchestratorPool:
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
-            from app.live_orchestrator import DeviceContext, FlowContext
+            from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 
             source_device = devices.get(flow_def.get("sourceDeviceId"))
             target_device = devices.get(flow_def.get("targetDeviceId"))
 
-            # Check for external flows (EWON Talk2M, etc.)
             flow_config = flow_def.get("config", {})
             is_external_flow = flow_config.get("external", False)
 
@@ -374,9 +452,18 @@ class OrchestratorPool:
                 logger.warning(f"Missing target device for flow {flow_def.get('id')}")
                 return None
 
-            protocol = flow_def.get("protocol", "modbus_tcp")
+            protocol_str = flow_def.get("protocol", "modbus_tcp")
 
-            # Get network info, fingerprints, and CVE overrides for source
+            # Map protocol string to ProtocolType enum
+            try:
+                protocol = ProtocolType(protocol_str)
+            except ValueError:
+                logger.warning(f"Unknown protocol '{protocol_str}', skipping flow")
+                return None
+
+            default_port = PROTOCOL_PORTS.get(protocol_str, 44818)
+
+            # Build source DeviceContext
             src_network = source_device.get("network", {})
             src_fingerprint = (
                 source_device.get("vendorFingerprint") or
@@ -384,22 +471,6 @@ class OrchestratorPool:
                 source_device.get("fingerprint") or
                 {}
             )
-            src_vulnerability = source_device.get("cveIdentityOverrides")
-
-            # Protocol port mapping
-            PROTOCOL_PORTS = {
-                "modbus_tcp": 502,
-                "s7comm": 102,
-                "s7comm_plus": 102,
-                "ethernet_ip": 44818,
-                "bacnet_ip": 47808,
-                "dnp3": 20000,
-                "opcua": 4840,
-                "opc_ua": 4840,
-                "iec104": 2404,
-                "https": 443,
-            }
-            default_port = PROTOCOL_PORTS.get(protocol, 44818)
 
             source = DeviceContext(
                 device_id=source_device.get("id", ""),
@@ -407,29 +478,20 @@ class OrchestratorPool:
                 ip_address=src_network.get("ipAddress", "10.0.0.1"),
                 port=flow_def.get("protocolConfig", {}).get("sourcePort", 50000),
                 vendor_fingerprint=src_fingerprint,
-                vulnerability_override=src_vulnerability,
-                device_name=source_device.get("name") or source_device.get("label"),
             )
 
-            # Handle external flows vs internal flows
+            # Build destination DeviceContext
             if is_external_flow:
-                # External flow - destination is an external IP, not another device
                 external_ip = flow_config.get("externalIp", "0.0.0.0")
                 external_port = flow_config.get("externalPort", 443)
 
                 destination = DeviceContext(
                     device_id="external_cloud",
-                    mac_address="00:00:00:00:00:00",  # Placeholder - will use gateway
+                    mac_address="00:00:00:00:00:00",
                     ip_address=external_ip,
                     port=external_port,
                 )
-
-                logger.info(
-                    f"Created external flow {flow_def.get('id')}: "
-                    f"{source.ip_address} -> {external_ip}:{external_port}"
-                )
             else:
-                # Internal flow - destination is another device
                 dst_network = target_device.get("network", {})
                 dst_fingerprint = (
                     target_device.get("vendorFingerprint") or
@@ -437,7 +499,6 @@ class OrchestratorPool:
                     target_device.get("fingerprint") or
                     {}
                 )
-                dst_vulnerability = target_device.get("cveIdentityOverrides")
 
                 destination = DeviceContext(
                     device_id=target_device.get("id", ""),
@@ -446,19 +507,22 @@ class OrchestratorPool:
                     port=flow_def.get("protocolConfig", {}).get("port", default_port),
                     unit_id=flow_def.get("protocolConfig", {}).get("unitId", 1),
                     vendor_fingerprint=dst_fingerprint,
-                    vulnerability_override=dst_vulnerability,
-                    device_name=target_device.get("name") or target_device.get("label"),
                 )
 
-            # Timing
+            # Timing model
             timing = flow_def.get("timing", {})
+            jitter_ms = timing.get("jitterMs", 50)
             timing_model = {
                 "poll_interval_ms": timing.get("intervalMs", 1000),
-                "jitter_min_ms": timing.get("jitterMs", 0) * -0.5,
-                "jitter_max_ms": timing.get("jitterMs", 50) * 0.5,
+                "response_delay_ms": timing.get("responseDelayMs", 5.0),
+                "jitter": {
+                    "type": "uniform",
+                    "min_ms": -abs(jitter_ms) * 0.5,
+                    "max_ms": abs(jitter_ms) * 0.5,
+                },
             }
 
-            # Merge flow config into protocolConfig for the orchestrator
+            # Merge flow config into protocolConfig
             merged_config = flow_def.get("protocolConfig", {}).copy()
             merged_config.update(flow_config)
 
@@ -473,6 +537,127 @@ class OrchestratorPool:
 
         except Exception as e:
             logger.error(f"Error creating flow context: {e}")
+            return None
+
+    def _create_cloud_flow(
+        self,
+        link: dict[str, Any],
+        devices: dict[str, dict[str, Any]],
+    ) -> Any | None:
+        """Create a FlowContext for a cloud service link."""
+        try:
+            from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
+
+            device_id = link.get("device_id")
+            device = devices.get(device_id)
+            if not device:
+                logger.warning(f"Device {device_id} not found for cloud link {link.get('id')}")
+                return None
+
+            network = device.get("network", {})
+
+            source = DeviceContext(
+                device_id=device_id,
+                mac_address=network.get("macAddress", "00:00:00:00:00:01"),
+                ip_address=network.get("ipAddress", "10.0.0.1"),
+                port=0,
+            )
+
+            destination = DeviceContext(
+                device_id=f"cloud-{link.get('id', 'unknown')}",
+                mac_address="ff:ff:ff:ff:ff:ff",
+                ip_address=link.get("cloud_ip", "0.0.0.0"),
+                port=link.get("port", 443),
+            )
+
+            interval_ms = link.get("interval_ms", 30000)
+
+            return FlowContext(
+                flow_id=f"cloud-{link.get('id', device_id)}",
+                source=source,
+                destination=destination,
+                protocol=ProtocolType.CLOUD_SERVICE,
+                config={
+                    "hostname": link.get("hostname", ""),
+                    "tls_enabled": link.get("tls_enabled", True),
+                },
+                timing_model={
+                    "poll_interval_ms": interval_ms,
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error creating cloud flow: {e}")
+            return None
+
+    def apply_directives(self, scenario_id: str, directives: list[dict]) -> bool:
+        """Apply adaptive traffic directives to a running scenario.
+
+        Thread-safe: sets pending directives on the controller via atomic swap.
+
+        Args:
+            scenario_id: Target scenario
+            directives: List of directive dicts from ADAPT_TRAFFIC message
+
+        Returns:
+            True if directives were accepted
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if not ctx or not ctx.adaptive_controller:
+                return False
+            ctx.adaptive_controller.set_pending_directives(directives)
+            logger.info(f"Applied {len(directives)} directives to scenario {scenario_id}")
+            return True
+
+    def get_adaptation_state(self, scenario_id: str) -> dict | None:
+        """Get adaptive controller state for a scenario.
+
+        Args:
+            scenario_id: Target scenario
+
+        Returns:
+            Adaptation state dict or None
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if ctx and ctx.adaptive_controller:
+                return ctx.adaptive_controller.get_state_snapshot()
+            return None
+
+    def send_attack_command(self, scenario_id: str, command: dict) -> bool:
+        """Send a runtime command to the attack orchestrator.
+
+        Thread-safe: uses atomic command swap on the orchestrator.
+
+        Args:
+            scenario_id: Target scenario
+            command: Command dict (type: start|stop|advance_stage|pause)
+
+        Returns:
+            True if command was accepted
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if not ctx or not ctx.attack_orchestrator:
+                return False
+            ctx.attack_orchestrator.set_pending_command(command)
+            logger.info(f"Sent attack command '{command.get('type')}' to scenario {scenario_id}")
+            return True
+
+    def get_attack_state(self, scenario_id: str) -> dict | None:
+        """Get attack orchestrator state for a scenario.
+
+        Args:
+            scenario_id: Target scenario
+
+        Returns:
+            Attack state dict or None
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if ctx and ctx.attack_orchestrator:
+                return ctx.attack_orchestrator.get_state_snapshot()
             return None
 
     def _notify_status_change(self, ctx: ScenarioContext) -> None:

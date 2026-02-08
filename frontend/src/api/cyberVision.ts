@@ -75,6 +75,14 @@ export interface MatchedDevice {
   match_type: string;
 }
 
+// Comparison insight
+export interface ComparisonInsight {
+  category: string;
+  severity: string;
+  message: string;
+  affected_devices: string[];
+}
+
 // Comparison result
 export interface CVComparisonResult {
   scenario_id: string;
@@ -85,6 +93,7 @@ export interface CVComparisonResult {
   scenario_only: Record<string, unknown>[];
   cv_only: CVDevice[];
   match_rate: number;
+  insights: ComparisonInsight[];
 }
 
 // List response types

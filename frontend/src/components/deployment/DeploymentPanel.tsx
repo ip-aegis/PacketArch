@@ -31,6 +31,7 @@ import {
 import { useDockerHostsStore } from '../../stores/dockerHostsStore';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAgentsStore } from '../../stores/agentsStore';
+import { useScenarioStore } from '../../stores/scenarioStore';
 import { scenariosApi, type ScenarioValidationResponse } from '../../api/scenarios';
 import type {
   UnifiedDeployment,
@@ -42,7 +43,10 @@ import type { AgentInterface } from '../../types/agent';
 import { formatElapsedTime } from '../../utils/dateUtils';
 import { extractErrorMessage } from '../../utils/errorUtils';
 
-import DeploymentForm, { type TargetType } from './DeploymentForm';
+import { useAttackStore } from '../../stores/attackStore';
+import DeploymentForm, { type TargetType, type PhaseScheduleConfig } from './DeploymentForm';
+import PhaseTimeline from './PhaseTimeline';
+import ReadinessChecklist from './ReadinessChecklist';
 import ValidationModal from './ValidationModal';
 import LogsModal from './LogsModal';
 
@@ -105,6 +109,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     useState<ScenarioValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [repairing, setRepairing] = useState(false);
+  const [hasReadinessErrors, setHasReadinessErrors] = useState(false);
   const [pendingDeployData, setPendingDeployData] =
     useState<DeploymentRequest | null>(null);
 
@@ -263,6 +268,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     network_interface: string;
     run_mode: RunMode;
     duration_minutes?: number;
+    phase_schedule?: PhaseScheduleConfig;
   }) => {
     if (!scenarioId) return;
 
@@ -279,10 +285,19 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
 
       if (!validation || validation.warnings.length === 0) {
         try {
-          await deployToAgent(values.agent_id, {
+          const deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> } = {
             scenario_id: scenarioId,
             interface: values.network_interface,
-          });
+          };
+          if (values.phase_schedule?.enabled) {
+            deployData.adaptive_config = { phase_schedule: values.phase_schedule };
+          }
+          // Include attack playbook config if configured
+          const attackConfig = useAttackStore.getState().playbookConfig;
+          if (attackConfig?.playbook_id) {
+            deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
+          }
+          await deployToAgent(values.agent_id, deployData);
           message.success(
             'Scenario deployed to agent successfully! Traffic generation started.',
           );
@@ -423,6 +438,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     }
   };
 
+  const scenarioPhases = useScenarioStore((s) => s.phases);
+
   const activeHosts = useMemo(
     () => hosts.filter((h) => h.is_active),
     [hosts],
@@ -473,6 +490,12 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
         />
       )}
 
+      {/* Readiness Checklist */}
+      <ReadinessChecklist
+        scenarioId={scenarioId}
+        onReadinessChange={setHasReadinessErrors}
+      />
+
       {/* New Deployment Form */}
       <DeploymentForm
         form={form}
@@ -486,9 +509,11 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
         hostsLoading={hostsLoading}
         interfaces={interfaces}
         onHostChange={handleHostChange}
+        phases={scenarioPhases}
         loadingInterfaces={loadingInterfaces}
         validating={validating}
         deploymentsLoading={deploymentsLoading}
+        deployDisabled={hasReadinessErrors}
         onFinish={handleDeploy}
       />
 
@@ -694,6 +719,14 @@ const DeploymentCard: React.FC<{
                 style={{ marginTop: 8, marginBottom: 0 }}
               />
             ))}
+
+          {/* Phase timeline for agent deployments */}
+          {isAgent && deployment.status === 'running' && (
+            <PhaseTimeline
+              scenarioId={deployment.scenario_id}
+              isRunning={deployment.status === 'running'}
+            />
+          )}
         </div>
 
         <div

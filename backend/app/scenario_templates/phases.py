@@ -10,6 +10,7 @@ PHASE_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "System Startup",
         "description": "Initial system boot, connection establishment, and configuration download",
         "duration_pct": 5,  # 5% of total duration
+        "live_duration_seconds": 300,  # 5 minutes for live deployments
         "traffic_multiplier": 0.1,  # 10% of normal traffic rate
         "color": "#52c41a",  # Green
         "behaviors": [
@@ -33,6 +34,7 @@ PHASE_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Normal Operations",
         "description": "Standard cyclic I/O, periodic polling, and normal operational traffic",
         "duration_pct": 80,  # 80% of total duration
+        "live_duration_seconds": 3600,  # 1 hour for live deployments
         "traffic_multiplier": 1.0,  # 100% normal rate
         "color": "#1890ff",  # Blue
         "behaviors": [
@@ -56,6 +58,7 @@ PHASE_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Maintenance Window",
         "description": "Configuration changes, firmware updates, and diagnostic activities",
         "duration_pct": 5,  # 5% of total duration
+        "live_duration_seconds": 900,  # 15 minutes for live deployments
         "traffic_multiplier": 0.3,  # 30% normal rate (reduced operations)
         "color": "#faad14",  # Orange/Yellow
         "behaviors": [
@@ -79,6 +82,7 @@ PHASE_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Graceful Shutdown",
         "description": "Orderly shutdown with state save, connection teardown, and final reporting",
         "duration_pct": 10,  # 10% of total duration
+        "live_duration_seconds": 300,  # 5 minutes for live deployments
         "traffic_multiplier": 0.2,  # 20% of normal rate
         "color": "#ff4d4f",  # Red
         "behaviors": [
@@ -104,6 +108,7 @@ VERTICAL_PHASE_VARIATIONS: dict[str, dict[str, dict[str, Any]]] = {
     "manufacturing": {
         "startup": {
             "duration_pct": 3,
+            "live_duration_seconds": 180,  # 3 minutes
             "behaviors": [
                 "connection_establishment",
                 "plc_boot",
@@ -113,6 +118,7 @@ VERTICAL_PHASE_VARIATIONS: dict[str, dict[str, dict[str, Any]]] = {
         },
         "steady_state": {
             "duration_pct": 90,
+            "live_duration_seconds": 7200,  # 2 hours
             "behaviors": [
                 "cyclic_io",
                 "motion_control",
@@ -121,6 +127,7 @@ VERTICAL_PHASE_VARIATIONS: dict[str, dict[str, dict[str, Any]]] = {
         },
         "maintenance": {
             "duration_pct": 2,
+            "live_duration_seconds": 600,  # 10 minutes
         },
         "shutdown": {
             "duration_pct": 5,
@@ -353,6 +360,7 @@ def get_default_phases(
             "start_ms": start_ms,
             "end_ms": end_ms,
             "duration_ms": end_ms - start_ms,
+            "live_duration_seconds": template.get("live_duration_seconds", 300),
             "traffic_multiplier": template.get("traffic_multiplier", 1.0),
             "color": template.get("color", "#1890ff"),
             "behaviors": template.get("behaviors", []),

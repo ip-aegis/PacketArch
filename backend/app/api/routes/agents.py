@@ -53,6 +53,7 @@ AGENT_VERSION_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / 
 AGENT_BUILD_STATUS_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "build_status.json"
 AGENT_CHECKSUM_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "checksum.txt"
 AGENT_SOURCE_PATH = Path(__file__).parent.parent.parent.parent.parent / "docker" / "packetarch-agent"
+BACKEND_APP_PATH = Path(__file__).parent.parent.parent  # backend/app/
 
 
 def get_standard_agent_version() -> str | None:
@@ -173,9 +174,51 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
     def build_image_sync():
         """Build image using Docker SDK (synchronous for background task)."""
         import gzip
+        import shutil
+        import tempfile
         import docker
 
+        build_dir = None
         try:
+            # Copy agent source to a writable temp directory
+            # (the agent source mount may be read-only in production)
+            _write_build_status({
+                "status": "building",
+                "stage": "staging",
+                "message": "Staging shared protocol engines...",
+                "version": version,
+                "started_at": started_at,
+            })
+
+            build_dir = Path(tempfile.mkdtemp(prefix="packetarch-agent-build-"))
+            shutil.copytree(AGENT_SOURCE_PATH, build_dir / "agent", dirs_exist_ok=True)
+            build_context = build_dir / "agent"
+
+            shared_dir = build_context / "_shared"
+            if shared_dir.exists():
+                shutil.rmtree(shared_dir)
+            shared_dir.mkdir(parents=True)
+
+            # Copy protocol_engines/ (canonical source of truth for all protocols)
+            shutil.copytree(
+                BACKEND_APP_PATH / "protocol_engines",
+                shared_dir / "protocol_engines",
+            )
+
+            # Copy needed traffic_generator files (scheduler, flow_coordinator)
+            tg_dir = shared_dir / "traffic_generator"
+            tg_dir.mkdir()
+            for fname in ("scheduler.py", "flow_coordinator.py", "pcap_writer.py"):
+                src_file = BACKEND_APP_PATH / "traffic_generator" / fname
+                if src_file.exists():
+                    shutil.copy2(src_file, tg_dir / fname)
+            # Write minimal __init__.py (backend's imports modules not available in agent)
+            (tg_dir / "__init__.py").write_text(
+                '"""Traffic generator utilities (agent subset)."""\n'
+            )
+
+            logger.info(f"Staged shared code into {shared_dir}")
+
             # Update status: building
             _write_build_status({
                 "status": "building",
@@ -187,12 +230,13 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
 
             client = docker.from_env()
 
-            # Build the image
-            logger.info(f"Building agent image from {AGENT_SOURCE_PATH}...")
+            # Build the image from the writable temp directory
+            logger.info(f"Building agent image from {build_context}...")
             image, build_logs = client.images.build(
-                path=str(AGENT_SOURCE_PATH),
+                path=str(build_context),
                 tag="packetarch-agent:latest",
                 rm=True,
+                nocache=True,
             )
 
             # Log build output
@@ -290,6 +334,11 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
                 "started_at": started_at,
                 "completed_at": datetime.utcnow().isoformat(),
             })
+        finally:
+            # Clean up temp build directory
+            if build_dir and build_dir.exists():
+                shutil.rmtree(build_dir, ignore_errors=True)
+                logger.info("Cleaned up temp build directory")
 
     background_tasks.add_task(build_image_sync)
 
@@ -710,11 +759,20 @@ async def deploy_scenario_to_agent(
     await db.commit()
     await db.refresh(agent_deployment)
 
-    # Send deployment command
+    # Send deployment command — merge overrides into definition
+    definition = scenario.definition
+    if deployment.adaptive_config:
+        definition = {**definition}
+        existing_adaptive = definition.get("adaptive_config", {})
+        definition["adaptive_config"] = {**existing_adaptive, **deployment.adaptive_config}
+    if deployment.attack_playbook:
+        definition = {**definition} if definition is scenario.definition else definition
+        definition["attack_playbook"] = deployment.attack_playbook
+
     success = await agent_manager.deploy_scenario(
         agent_id=agent_id,
         scenario_id=str(scenario.id),
-        definition=scenario.definition,
+        definition=definition,
         interface=interface,
     )
 

@@ -80,6 +80,15 @@ class MatchedDevice(BaseModel):
     match_type: str = Field(..., description="How the match was made (ip, mac, vendor_model)")
 
 
+class ComparisonInsight(BaseModel):
+    """A single actionable insight from comparison analysis."""
+
+    category: str = Field(..., description="Insight category: match_quality, protocol_visibility, enrichment_suggestion")
+    severity: str = Field(..., description="info, warning, or suggestion")
+    message: str
+    affected_devices: list[str] = Field(default_factory=list, description="Names of affected devices")
+
+
 class CVComparisonResult(BaseModel):
     """Schema for scenario vs CV device comparison results."""
 
@@ -91,6 +100,7 @@ class CVComparisonResult(BaseModel):
     scenario_only: list[dict] = Field(default_factory=list, description="Devices only in scenario")
     cv_only: list[CVDeviceResponse] = Field(default_factory=list, description="Devices only in CV")
     match_rate: float = Field(..., ge=0, le=1, description="Percentage of scenario devices matched")
+    insights: list[ComparisonInsight] = Field(default_factory=list, description="Actionable comparison insights")
 
 
 class CVSettingsUpdate(BaseModel):

@@ -385,6 +385,21 @@ Agents can be updated centrally from the PacketArch UI without SSH access to age
 | GET | `/api/v1/agents/image` | Download agent image tarball |
 | POST | `/api/v1/agents/{id}/update` | Trigger agent update |
 
+### Adaptation API Endpoints
+
+Adaptive traffic controls including deployment phase scheduling.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/adaptation/{scenario_id}/state` | Get current adaptation state |
+| POST | `/api/v1/adaptation/{scenario_id}/directives` | Send adaptation directives |
+| POST | `/api/v1/adaptation/{scenario_id}/schedule-override` | Force a schedule phase |
+| POST | `/api/v1/adaptation/{scenario_id}/protocol-rate` | Adjust protocol traffic rate |
+| DELETE | `/api/v1/adaptation/{scenario_id}/directives` | Clear all active directives |
+| POST | `/api/v1/adaptation/{scenario_id}/phase/skip` | Skip to next deployment phase |
+| POST | `/api/v1/adaptation/{scenario_id}/phase/force` | Force a specific deployment phase |
+| POST | `/api/v1/adaptation/{scenario_id}/phase/pause` | Pause or resume phase cycling |
+
 ### WebSocket Protocol
 
 Agents connect to `/ws/agent?token=<token>` and exchange JSON messages:
@@ -393,12 +408,13 @@ Agents connect to `/ws/agent?token=<token>` and exchange JSON messages:
 - `START_SCENARIO` - Start traffic generation
 - `STOP_SCENARIO` - Stop traffic generation
 - `UPDATE_SCENARIO` - Update running scenario
+- `ADAPT_TRAFFIC` - Send adaptation directives (rate adjustments, phase controls)
 - `LIST_INTERFACES` - Request interface list
 - `UPDATE_AGENT` - Trigger self-update (download new image and restart)
 - `PING` - Heartbeat
 
 **Agent → Server:**
-- `STATUS` - Scenario status (state, packets_sent)
+- `STATUS` - Scenario status (state, packets_sent, adaptation state including deployment phase info)
 - `INTERFACES` - Interface list response
 - `ERROR` - Error report
 - `HEARTBEAT` - System stats (CPU, memory, hostname, platform, version)
@@ -409,8 +425,7 @@ Agents connect to `/ws/agent?token=<token>` and exchange JSON messages:
 **Agent Container (`docker/packetarch-agent/`):**
 - `app/main.py` - Entry point, WebSocket connection, command handlers
 - `app/websocket_client.py` - WebSocket client with auto-reconnect
-- `app/orchestrator_pool.py` - Concurrent scenario management
-- `app/live_orchestrator.py` - Traffic generation logic
+- `app/orchestrator_pool.py` - Concurrent scenario management (uses shared `protocol_engines/`)
 - `app/version.py` - Agent version constant
 - `app/config.py` - Agent configuration from environment
 - `docker-compose.agent.yml` - Agent stack with Watchtower
@@ -420,6 +435,8 @@ Agents connect to `/ws/agent?token=<token>` and exchange JSON messages:
 - `backend/app/api/websocket/agent_hub.py` - WebSocket endpoint
 - `backend/app/services/agent_manager.py` - Agent tracking and command routing
 - `backend/app/api/routes/agents.py` - REST API including update endpoints
+- `backend/app/api/routes/adaptation.py` - Adaptive traffic and phase control endpoints
+- `backend/app/services/adaptation_service.py` - Adaptation state and directive management
 - `backend/app/models/traffic_agent.py` - Database models
 - `backend/app/schemas/agent.py` - Pydantic schemas
 
@@ -443,6 +460,10 @@ The old Docker API approach (`DockerHost` model) is still available but deprecat
 - Pydantic schemas for all request/response models
 - Zustand for frontend state management
 - SQLAlchemy 2.0 async patterns for database
+
+### Agent Versioning Rule
+
+Any change to files under `docker/packetarch-agent/` or to shared code in `backend/app/protocol_engines/` (which is copied into the agent via Docker build staging) **MUST** include a version bump in `docker/packetarch-agent/app/version.py`. Use semver: MAJOR for breaking protocol changes, MINOR for new features, PATCH for bug fixes. Add a one-line changelog entry at the top of the version history comment.
 
 ---
 
@@ -869,7 +890,10 @@ PacketArch can connect to Cisco Cyber Vision centers to compare simulated device
 - **Device Discovery**: Fetch devices, presets, and vulnerabilities from Cyber Vision
 - **Scenario Comparison**: Compare PacketArch scenario devices against CV-discovered devices
 - **Device Matching**: Match by MAC address (100% confidence) or IP address (95% confidence)
-- **Device Enrichment**: Push vendor, model, firmware, and custom properties to CV devices
+- **Device Enrichment**: Push vendor, model, firmware, and custom properties to CV devices with before/after preview
+- **Comparison Insights**: Actionable feedback explaining why devices are missing (Layer 2 visibility, network segments) and suggesting next steps (enrichment, re-compare)
+- **CV-Only Devices**: Shows devices discovered by CV that aren't in the scenario
+- **Re-compare Workflow**: After enrichment, one-click re-comparison to verify changes took effect
 - **Vulnerability Tracking**: View vulnerabilities detected by Cyber Vision
 
 ### API Endpoints
@@ -990,7 +1014,8 @@ Supported contexts:
 │   │   │   ├── bacnet/        # BACnet/IP engine
 │   │   │   ├── snmp/          # SNMP/NTCIP engine
 │   │   │   ├── identity/      # Protocol identity + MAC generation
-│   │   │   └── timing/        # Timing model system
+│   │   │   ├── timing/        # Timing model system
+│   │   │   └── adaptive/      # Adaptive traffic (micro-variations, scheduling, phase cycling)
 │   │   ├── traffic_generator/ # PCAP generation
 │   │   ├── ai_services/       # AI scenario generation
 │   │   └── mcp_server/        # AI integration

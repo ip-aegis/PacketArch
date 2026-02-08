@@ -196,6 +196,11 @@ class ScenarioDeployment:
     agent_id: UUID
     state: str = "starting"
     packets_sent: int = 0
+    bytes_sent: int = 0
+    protocol_breakdown: dict[str, dict] | None = None
+    flow_count: int = 0
+    packets_per_second: float = 0.0
+    bytes_per_second: float = 0.0
     error_message: str | None = None
     started_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -365,6 +370,53 @@ class AgentManager:
         logger.warning(f"No deployment found for scenario {scenario_id}")
         return False
 
+    def get_deployment(self, scenario_id: str) -> Any:
+        """Get deployment info for a scenario.
+
+        Args:
+            scenario_id: Scenario UUID string
+
+        Returns:
+            ScenarioDeployment or None
+        """
+        return self._deployments.get(scenario_id)
+
+    async def send_adaptation_directive(
+        self,
+        scenario_id: str,
+        directives: list[dict[str, Any]],
+        ttl_seconds: int = 300,
+    ) -> bool:
+        """Send adaptive traffic directives to a running scenario.
+
+        Args:
+            scenario_id: Target scenario UUID
+            directives: List of directive dicts
+            ttl_seconds: Directive time-to-live
+
+        Returns:
+            True if directives were sent successfully
+        """
+        deployment = self._deployments.get(scenario_id)
+        if not deployment:
+            # Try searching connected agents
+            for agent_id, conn in self._connections.items():
+                if scenario_id in conn.running_scenarios:
+                    return await self.send_command(agent_id, {
+                        "type": "ADAPT_TRAFFIC",
+                        "scenario_id": scenario_id,
+                        "directives": directives,
+                        "ttl_seconds": ttl_seconds,
+                    })
+            return False
+
+        return await self.send_command(deployment.agent_id, {
+            "type": "ADAPT_TRAFFIC",
+            "scenario_id": scenario_id,
+            "directives": directives,
+            "ttl_seconds": ttl_seconds,
+        })
+
     async def update_scenario(
         self,
         scenario_id: str,
@@ -498,6 +550,11 @@ class AgentManager:
             if deployment:
                 deployment.state = state
                 deployment.packets_sent = message.get("packets_sent", 0)
+                deployment.bytes_sent = message.get("bytes_sent", 0)
+                deployment.protocol_breakdown = message.get("protocol_breakdown")
+                deployment.flow_count = message.get("flow_count", 0)
+                deployment.packets_per_second = message.get("packets_per_second", 0.0)
+                deployment.bytes_per_second = message.get("bytes_per_second", 0.0)
                 deployment.error_message = message.get("error")
 
             # Always update connection's running scenarios based on status

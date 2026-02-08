@@ -30,6 +30,7 @@ class TcpOptions:
     sack_permitted: bool = True
     timestamps_enabled: bool = True
     df_flag: bool = True
+    nop_padding: bool = True
 
 
 @dataclass
@@ -121,24 +122,24 @@ class FingerprintApplicator:
         self._identities_initialized = True
 
         fingerprint = self.fingerprint
-        self.modbus_identity = dict(fingerprint.get("modbus_identity", {}))
-        self.ethernet_ip_identity = dict(fingerprint.get("ethernet_ip_identity", {}))
-        self.profinet_identity = dict(fingerprint.get("profinet_identity", {}))
+        self.modbus_identity = dict(fingerprint.get("modbus_identity") or {})
+        self.ethernet_ip_identity = dict(fingerprint.get("ethernet_ip_identity") or {})
+        self.profinet_identity = dict(fingerprint.get("profinet_identity") or {})
         # S7 identity: use top-level only (legacy protocol_quirks location is deprecated)
-        self.s7_identity = dict(fingerprint.get("s7_identity", {}))
+        self.s7_identity = dict(fingerprint.get("s7_identity") or {})
         # Warn if legacy location is used
-        if not self.s7_identity and fingerprint.get("protocol_quirks", {}).get("s7_identity"):
+        if not self.s7_identity and (fingerprint.get("protocol_quirks") or {}).get("s7_identity"):
             logger.warning(
                 f"Fingerprint has s7_identity in protocol_quirks (deprecated). "
                 f"Move s7_identity to top level. Vendor: {fingerprint.get('vendor')}, "
                 f"Model: {fingerprint.get('model')}"
             )
-            self.s7_identity = dict(fingerprint.get("protocol_quirks", {}).get("s7_identity", {}))
-        self.snmp_identity = dict(fingerprint.get("snmp_identity", {}))
-        self.bacnet_identity = dict(fingerprint.get("bacnet_identity", {}))
-        self.opc_ua_identity = dict(fingerprint.get("opc_ua_identity", {}))
-        self.dnp3_identity = dict(fingerprint.get("dnp3_identity", {}))
-        self.iec104_identity = dict(fingerprint.get("iec104_identity", {}))
+            self.s7_identity = dict((fingerprint.get("protocol_quirks") or {}).get("s7_identity") or {})
+        self.snmp_identity = dict(fingerprint.get("snmp_identity") or {})
+        self.bacnet_identity = dict(fingerprint.get("bacnet_identity") or {})
+        self.opc_ua_identity = dict(fingerprint.get("opc_ua_identity") or {})
+        self.dnp3_identity = dict(fingerprint.get("dnp3_identity") or {})
+        self.iec104_identity = dict(fingerprint.get("iec104_identity") or {})
 
         # Apply vulnerability overrides if provided
         if self._vulnerability_override:
@@ -340,7 +341,11 @@ class FingerprintApplicator:
         Serial numbers are deterministic - the same device_id + scenario_id
         combination will always produce the same serial number.
         """
-        from app.services.serial_number_generator import SerialNumberGenerator
+        try:
+            from app.services.serial_number_generator import SerialNumberGenerator
+        except ImportError:
+            logger.debug("SerialNumberGenerator not available (agent context), skipping unique serials")
+            return
 
         vendor = self.fingerprint.get("vendor", "")
 
@@ -398,7 +403,11 @@ class FingerprintApplicator:
         Identifiers are deterministic - same device_id + scenario_id always
         produces the same values.
         """
-        from app.services.unique_identifier_generator import UniqueIdentifierGenerator
+        try:
+            from app.services.unique_identifier_generator import UniqueIdentifierGenerator
+        except ImportError:
+            logger.debug("UniqueIdentifierGenerator not available (agent context), skipping unique identifiers")
+            return
 
         model = self.fingerprint.get("model", "")
         vendor_family = self.fingerprint.get("vendor_family", "")

@@ -1,6 +1,7 @@
 """Pydantic schemas for traffic agent API."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -81,6 +82,14 @@ class DeploymentCreate(BaseModel):
 
     scenario_id: UUID
     interface: str | None = Field(None, description="Override default interface")
+    adaptive_config: dict[str, Any] | None = Field(
+        None,
+        description="Optional adaptive config overrides (e.g. phase_schedule)",
+    )
+    attack_playbook: dict[str, Any] | None = Field(
+        None,
+        description="Optional attack playbook config (playbook_id, intensity, etc.)",
+    )
 
 
 class DeploymentResponse(BaseModel):

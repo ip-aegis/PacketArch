@@ -4,9 +4,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.4.2"
+VERSION = "1.11.0"
 
 # Version history:
+# 1.11.0 - Live attack simulation: attack playbook execution, kill-chain stage commands (START/STOP/ADVANCE/PAUSE_ATTACK)
+# 1.10.0 - Deployment phase scheduling: sequential lifecycle phase cycling (startup → steady → maintenance → shutdown)
+# 1.9.0 - Adaptive traffic: server-directed adaptation (ADAPT_TRAFFIC command, directive delivery)
+# 1.8.0 - Adaptive traffic: time-of-day traffic scheduling (macro rate shaping, schedule presets)
+# 1.7.0 - Adaptive traffic: micro-variations (timing drift, retransmits, vendor personality, connection resets)
+# 1.6.0 - Agent health: exponential reconnect backoff (5s->120s cap), scenario thread liveness checks
+# 1.5.0 - Live Traffic Dashboard: per-protocol stats, bytes tracking, packet rates, running_scenarios in heartbeat
 # 1.4.2 - Synced PROTOCOL_TO_IDENTITY_KEY with canonical source (added enip, s7, bacnet_ip, opc_ua, dnp3, iec104 aliases)
 # 1.4.1 - Fixed NameError in PROFINET DCP response (device.device_id -> src.device_id)
 # 1.4.0 - Added fingerprint identity support for OPC UA, IEC104, and DNP3 protocols

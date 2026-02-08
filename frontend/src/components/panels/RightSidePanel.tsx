@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { Tabs, Typography, Empty, Badge, Input, Button, Space, Divider } from 'antd';
-import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined } from '@ant-design/icons';
+import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
@@ -13,6 +13,7 @@ import FlowPropertyForm from './FlowPropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
+import AttackPanel from '../attack/AttackPanel';
 import GenerateDescriptionModal from '../ai/GenerateDescriptionModal';
 
 const { Text } = Typography;
@@ -173,6 +174,10 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     <DeploymentPanel scenarioId={scenarioId} />
   );
 
+  const attackContent = (
+    <AttackPanel scenarioId={scenarioId} />
+  );
+
   const items = [
     {
       key: 'ai',
@@ -203,6 +208,15 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         </span>
       ),
       children: deployContent,
+    },
+    {
+      key: 'attack',
+      label: (
+        <span>
+          <ThunderboltOutlined /> Attack
+        </span>
+      ),
+      children: attackContent,
     },
   ];
 

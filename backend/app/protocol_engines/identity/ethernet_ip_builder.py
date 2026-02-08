@@ -145,15 +145,18 @@ class EtherNetIPIdentityBuilder(ProtocolIdentityBuilder):
             ip_parts = [192, 168, 1, 100]
             port = 44818
 
-        # Build identity item
-        identity_data = struct.pack(
-            "<HHHHBBIHB",
-            identity.get("encap_protocol_version", 1),  # Encap version
-            identity.get("sin_family", 2),  # Socket family
-            port,  # Port
-            (ip_parts[0] << 24) | (ip_parts[1] << 16) | (ip_parts[2] << 8) | ip_parts[3],
-            0,  # Sin zero padding
-            0,  # Sin zero padding
+        # Build identity item per CIP spec:
+        # Protocol version (UINT, 2 bytes, little-endian)
+        identity_data = struct.pack("<H", identity.get("encap_protocol_version", 1))
+
+        # Socket address (big-endian network fields per CIP spec)
+        ip_int = (ip_parts[0] << 24) | (ip_parts[1] << 16) | (ip_parts[2] << 8) | ip_parts[3]
+        identity_data += struct.pack(">HHI", identity.get("sin_family", 2), port, ip_int)
+        identity_data += b"\x00" * 8  # sin_zero (8 bytes)
+
+        # CIP Identity fields (little-endian)
+        identity_data += struct.pack(
+            "<HHH",
             vendor_id,
             device_type,
             product_code,

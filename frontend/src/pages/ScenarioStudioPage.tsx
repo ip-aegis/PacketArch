@@ -16,6 +16,7 @@ import TimelineEditor from '../components/timeline/TimelineEditor';
 import { useScenarioStore } from '../stores/scenarioStore';
 import { useUIStore } from '../stores/uiStore';
 import { scenariosApi } from '../api/scenarios';
+import { scenarioVersionsApi } from '../api/scenarioVersions';
 import { useScenarioLifecycle } from '../hooks/useScenarioLifecycle';
 
 const ScenarioStudioPage: React.FC = () => {
@@ -188,6 +189,47 @@ const ScenarioStudioPage: React.FC = () => {
       }
     };
   }, [isDirty, storeScenarioId, setDirty, lifecycle]);
+
+  // Ctrl+S / Cmd+S: save explicit version
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+
+        const currentState = useScenarioStore.getState();
+        if (!currentState.id) return;
+
+        try {
+          // Flush pending changes first
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          await scenariosApi.update(currentState.id, {
+            name: currentState.name,
+            description: currentState.description,
+            vertical: currentState.vertical,
+            total_duration_ms: currentState.totalDurationMs,
+            definition: {
+              devices: currentState.devices,
+              flows: currentState.flows,
+              zones: currentState.zones,
+              phases: currentState.phases,
+            },
+          });
+          setDirty(false);
+
+          // Create explicit version
+          const version = await scenarioVersionsApi.create(currentState.id);
+          message.success(`Version ${version.version_number} saved`);
+        } catch {
+          message.error('Failed to save version');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setDirty]);
 
   // Handle canvas drag/drop - actual drop is handled inside canvas
   const onCanvasDrop = useCallback(

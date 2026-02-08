@@ -15,12 +15,16 @@ import {
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
+  CheckCircleOutlined,
   ClockCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
   MoreOutlined,
   FolderOutlined,
   ExperimentOutlined,
 } from '@ant-design/icons';
 import type { ScenarioSummary } from '../../api/scenarios';
+import type { DashboardDeployment } from '../../api/dashboard';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { verticalConfig, formatDuration } from './scenarioConstants';
 
@@ -33,6 +37,7 @@ export interface ScenarioCardProps {
   onOpen: (id: string) => void;
   onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onMenuClick: (scenario: ScenarioSummary, info: { key: string; domEvent: React.MouseEvent }) => void;
+  deployment?: DashboardDeployment;
 }
 
 const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
@@ -42,12 +47,23 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
   onOpen,
   onToggleSelect,
   onMenuClick,
+  deployment,
 }) => {
   const verticalInfo = scenario.vertical
     ? verticalConfig[scenario.vertical]
     : null;
 
   return (
+    <>
+    <style>{`
+      @keyframes scenarioCardPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .scenario-card-pulse {
+        animation: scenarioCardPulse 2s ease-in-out infinite;
+      }
+    `}</style>
     <Card
       hoverable
       style={{
@@ -220,6 +236,42 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
         </div>
       </div>
 
+      {/* Deployment Status */}
+      {deployment && (
+        <div
+          style={{
+            background: '#0a2e1a',
+            border: '1px solid rgba(82,196,26,0.25)',
+            borderRadius: 6,
+            padding: '6px 12px',
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
+              className="scenario-card-pulse"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#52c41a',
+                boxShadow: '0 0 8px rgba(82,196,26,0.6)',
+                flexShrink: 0,
+              }}
+            />
+            <Text style={{ color: '#52c41a', fontSize: 11 }}>
+              Running on {deployment.agent_name}
+            </Text>
+          </div>
+          <Text style={{ color: '#6b6b8a', fontSize: 10, whiteSpace: 'nowrap' }}>
+            {deployment.packets_per_second.toFixed(0)} pps
+          </Text>
+        </div>
+      )}
+
       {/* Footer */}
       <div
         style={{
@@ -237,6 +289,64 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
           </Text>
         </Space>
         <Space size={4}>
+          {scenario.readiness && (
+            <Tooltip
+              title={
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ marginBottom: 4, fontWeight: 600 }}>
+                    Readiness: {scenario.readiness.score}%
+                  </div>
+                  {scenario.readiness.checks.map((check, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 0' }}>
+                      {check.passed ? (
+                        <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 11 }} />
+                      ) : check.severity === 'error' ? (
+                        <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: 11 }} />
+                      ) : (
+                        <ExclamationCircleOutlined style={{ color: '#faad14', fontSize: 11 }} />
+                      )}
+                      <span>{check.name}</span>
+                    </div>
+                  ))}
+                </div>
+              }
+            >
+              {scenario.readiness.status === 'ready' ? (
+                <Tag
+                  style={{
+                    background: '#52c41a20',
+                    border: '1px solid #52c41a40',
+                    color: '#52c41a',
+                    fontSize: 10,
+                  }}
+                >
+                  <CheckCircleOutlined /> Ready
+                </Tag>
+              ) : scenario.readiness.status === 'warnings' ? (
+                <Tag
+                  style={{
+                    background: '#faad1420',
+                    border: '1px solid #faad1440',
+                    color: '#faad14',
+                    fontSize: 10,
+                  }}
+                >
+                  <ExclamationCircleOutlined /> {scenario.readiness.warning_count} warning{scenario.readiness.warning_count !== 1 ? 's' : ''}
+                </Tag>
+              ) : (
+                <Tag
+                  style={{
+                    background: '#ff4d4f20',
+                    border: '1px solid #ff4d4f40',
+                    color: '#ff4d4f',
+                    fontSize: 10,
+                  }}
+                >
+                  <CloseCircleOutlined /> Not Ready
+                </Tag>
+              )}
+            </Tooltip>
+          )}
           {scenario.has_learned_patterns && (
             <Tooltip
               title={`Enhanced with learned patterns for: ${scenario.protocols_enhanced?.join(', ') || 'multiple protocols'}`}
@@ -266,6 +376,7 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
         </Space>
       </div>
     </Card>
+    </>
   );
 });
 

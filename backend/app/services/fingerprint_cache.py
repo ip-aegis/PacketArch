@@ -86,7 +86,7 @@ class FingerprintCache:
         """Load enhancement data from DeviceTemplate DB table.
 
         Returns enhancement data keyed by (vendor, model) that can be merged
-        into vendor_fingerprints. This includes CVE data, firmware variants,
+        into device templates. This includes CVE data, firmware variants,
         learned patterns, and other DB-specific enhancements.
 
         Returns:
@@ -208,16 +208,16 @@ class FingerprintCache:
         fingerprints: list[dict[str, Any]],
         enhancements: dict[tuple[str, str], dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """Merge DB enhancements into vendor_fingerprints.
+        """Merge DB enhancements into device template fingerprints.
 
         IMPORTANT: This method NEVER overrides protocol identity fields.
         It only adds enhancement data (CVE, firmware variants, etc.) from the DB.
 
         For learned patterns (pcap_learned), these are added as separate entries
-        since they don't exist in vendor_fingerprints.
+        since they don't exist in device_templates.
 
         Args:
-            fingerprints: List of fingerprints from vendor_fingerprints (source of truth)
+            fingerprints: List of fingerprints from device_templates (source of truth)
             enhancements: Dict of (vendor, model) -> enhancement data from DB
 
         Returns:
@@ -251,7 +251,7 @@ class FingerprintCache:
                 if metrics.get("sample_count") is not None:
                     fp["sample_count"] = metrics["sample_count"]
 
-        # Add DB-only entries (learned patterns that don't exist in vendor_fingerprints)
+        # Add DB-only entries (learned patterns that don't exist in device_templates)
         db_only_count = 0
         for key, enhancement in enhancements.items():
             if key not in merged_keys and enhancement.get("_is_db_only"):

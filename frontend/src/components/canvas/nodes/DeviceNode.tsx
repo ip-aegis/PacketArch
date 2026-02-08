@@ -66,6 +66,15 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
       aria-label={`${deviceConfig.label} device: ${nodeData.name}${nodeData.vendor ? `, vendor ${nodeData.vendor}` : ''}${nodeData.ipAddress ? `, IP ${nodeData.ipAddress}` : ''}`}
       aria-selected={selected}
       tabIndex={0}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.dispatchEvent(
+          new CustomEvent('device-context-menu', {
+            detail: { deviceId: nodeData.id, x: e.clientX, y: e.clientY },
+          }),
+        );
+      }}
       style={{
         padding: '12px 16px',
         borderRadius: '12px',

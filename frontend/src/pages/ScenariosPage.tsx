@@ -2,7 +2,7 @@
  * Scenarios Page - List, create, and manage scenarios
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -34,6 +34,8 @@ import {
   RocketOutlined,
   RobotOutlined,
   FileAddOutlined,
+  ThunderboltOutlined,
+  CompassOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -42,6 +44,7 @@ import {
   type ScenarioSummary,
   type ScenarioCreate,
 } from '../api/scenarios';
+import { dashboardApi, type DashboardDeployment } from '../api/dashboard';
 import type { CreateFromTemplateRequest } from '../api/templates';
 import { GenerateDescriptionModal } from '../components/ai';
 import GeneratePcapModal from '../components/GeneratePcapModal';
@@ -50,6 +53,7 @@ import { verticalConfig } from '../components/scenarios/scenarioConstants';
 import CreateScenarioModal from '../components/scenarios/CreateScenarioModal';
 import TemplateWizardModal from '../components/scenarios/TemplateWizardModal';
 import ImportScenarioModal from '../components/scenarios/ImportScenarioModal';
+import QuickDemoModal from '../components/scenarios/QuickDemoModal';
 import {
   useScenarioMutations,
   type ImportedScenarioData,
@@ -72,6 +76,7 @@ const ScenariosPage: React.FC = () => {
   const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const [selectedScenarioForDesc, setSelectedScenarioForDesc] =
     useState<ScenarioSummary | null>(null);
+  const [quickDemoOpen, setQuickDemoOpen] = useState(false);
   const [generatePcapModalOpen, setGeneratePcapModalOpen] = useState(false);
   const [selectedScenarioForPcap, setSelectedScenarioForPcap] =
     useState<ScenarioSummary | null>(null);
@@ -81,6 +86,24 @@ const ScenariosPage: React.FC = () => {
     queryKey: ['scenarios', filters],
     queryFn: () => scenariosApi.list(filters),
   });
+
+  // Poll dashboard for live deployment status
+  const { data: dashboardData } = useQuery({
+    queryKey: ['dashboard-live-scenarios'],
+    queryFn: () => dashboardApi.getLive(),
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+
+  const deploymentMap = useMemo(() => {
+    const map = new Map<string, DashboardDeployment>();
+    dashboardData?.deployments?.forEach((d) => {
+      if (d.state === 'running' || d.state === 'starting') {
+        map.set(d.scenario_id, d);
+      }
+    });
+    return map;
+  }, [dashboardData]);
 
   // ── Mutations ────────────────────────────────────────────────────
   const {
@@ -268,6 +291,20 @@ const ScenariosPage: React.FC = () => {
             </Button>
           )}
           <Button
+            icon={<ThunderboltOutlined />}
+            style={{ borderColor: '#FBAB18', color: '#FBAB18' }}
+            onClick={() => setQuickDemoOpen(true)}
+          >
+            Quick Demo
+          </Button>
+          <Button
+            icon={<CompassOutlined />}
+            style={{ borderColor: '#049FD9', color: '#049FD9' }}
+            onClick={() => navigate('/scenarios/guided-builder')}
+          >
+            Guided Builder
+          </Button>
+          <Button
             icon={<ImportOutlined />}
             style={{ borderColor: '#2d2d52' }}
             onClick={() => setImportModalOpen(true)}
@@ -439,6 +476,7 @@ const ScenariosPage: React.FC = () => {
                   onOpen={handleOpenScenario}
                   onToggleSelect={handleToggleSelect}
                   onMenuClick={handleMenuClick}
+                  deployment={deploymentMap.get(scenario.id)}
                 />
               </Col>
             ))}
@@ -462,6 +500,11 @@ const ScenariosPage: React.FC = () => {
       )}
 
       {/* ── Modals ─────────────────────────────────────────────── */}
+      <QuickDemoModal
+        open={quickDemoOpen}
+        onCancel={() => setQuickDemoOpen(false)}
+      />
+
       <CreateScenarioModal
         open={createModalOpen}
         loading={createMutation.isPending}

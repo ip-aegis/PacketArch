@@ -26,7 +26,7 @@ class EnhancedDeviceSpec:
     """Enhanced device specification with fingerprint and error config.
 
     Extends the basic device spec with:
-    - fingerprint_model: Links to VendorFingerprint for hyper-realism
+    - fingerprint_model: Links to DeviceTemplate for hyper-realism
     - error_config: Configures error injection rates
     - cve_ids: List of CVE identifiers for vulnerable firmware emulation
     """
@@ -38,7 +38,7 @@ class EnhancedDeviceSpec:
     name_pattern: str
     protocols: list[str]
     # Link to vendor fingerprint for hyper-realism
-    # Maps to VendorFingerprint.model (e.g., "1756-L83E", "S7-1500")
+    # Maps to DeviceTemplate.model (e.g., "1756-L83E", "S7-1500")
     fingerprint_model: str | None = None
     # Error injection configuration
     error_config: ErrorConfig | None = None

@@ -37,6 +37,9 @@ class AgentWebSocket:
         self._running = False
         self._connected = False
         self._heartbeat_task: asyncio.Task | None = None
+        self.get_running_scenarios: Callable[[], list[str]] | None = None
+        self._current_reconnect_delay: float = config.reconnect_delay_seconds
+        self._max_reconnect_delay: float = 120.0
 
     @property
     def is_connected(self) -> bool:
@@ -70,6 +73,7 @@ class AgentWebSocket:
                 ) as ws:
                     self.ws = ws
                     self._connected = True
+                    self._current_reconnect_delay = self.config.reconnect_delay_seconds
                     logger.info("Connected to PacketArch server")
 
                     # Start heartbeat task
@@ -109,9 +113,14 @@ class AgentWebSocket:
 
             if self._running:
                 logger.info(
-                    f"Reconnecting in {self.config.reconnect_delay_seconds}s..."
+                    f"Reconnecting in {self._current_reconnect_delay:.0f}s..."
                 )
-                await asyncio.sleep(self.config.reconnect_delay_seconds)
+                await asyncio.sleep(self._current_reconnect_delay)
+                # Exponential backoff: double delay, cap at max
+                self._current_reconnect_delay = min(
+                    self._current_reconnect_delay * 2,
+                    self._max_reconnect_delay,
+                )
 
     async def _message_loop(self) -> None:
         """Process incoming messages from server."""
@@ -161,7 +170,7 @@ class AgentWebSocket:
             cpu_percent = 0.0
             memory_percent = 0.0
 
-        return {
+        heartbeat: dict[str, Any] = {
             "type": "HEARTBEAT",
             "cpu": cpu_percent,
             "memory": memory_percent,
@@ -169,6 +178,14 @@ class AgentWebSocket:
             "platform": platform.system(),
             "version": VERSION,
         }
+
+        if self.get_running_scenarios:
+            try:
+                heartbeat["running_scenarios"] = self.get_running_scenarios()
+            except Exception:
+                pass
+
+        return heartbeat
 
     async def send(self, message: dict[str, Any]) -> bool:
         """Send a message to the server.
@@ -196,6 +213,14 @@ class AgentWebSocket:
         state: str,
         packets_sent: int = 0,
         error: str | None = None,
+        *,
+        bytes_sent: int = 0,
+        protocol_breakdown: dict[str, dict] | None = None,
+        flow_count: int = 0,
+        packets_per_second: float = 0.0,
+        bytes_per_second: float = 0.0,
+        adaptation: dict | None = None,
+        attack: dict | None = None,
     ) -> bool:
         """Send scenario status update to server.
 
@@ -204,6 +229,13 @@ class AgentWebSocket:
             state: Current state (starting, running, stopping, stopped, error)
             packets_sent: Number of packets sent so far
             error: Error message if state is 'error'
+            bytes_sent: Number of bytes sent so far
+            protocol_breakdown: Per-protocol stats dict
+            flow_count: Number of active flows
+            packets_per_second: Current packet rate
+            bytes_per_second: Current bandwidth
+            adaptation: Adaptive traffic controller state
+            attack: Attack orchestrator state
 
         Returns:
             True if sent successfully
@@ -213,9 +245,19 @@ class AgentWebSocket:
             "scenario_id": scenario_id,
             "state": state,
             "packets_sent": packets_sent,
+            "bytes_sent": bytes_sent,
+            "flow_count": flow_count,
+            "packets_per_second": packets_per_second,
+            "bytes_per_second": bytes_per_second,
         }
         if error:
             message["error"] = error
+        if protocol_breakdown:
+            message["protocol_breakdown"] = protocol_breakdown
+        if adaptation:
+            message["adaptation"] = adaptation
+        if attack:
+            message["attack"] = attack
 
         return await self.send(message)
 

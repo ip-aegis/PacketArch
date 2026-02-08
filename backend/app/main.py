@@ -9,12 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import admin, agent_install, agents, ai, anomalies, auth, cloud_services, cve, cyber_vision, deployments, devices, docker_hosts, downloads, fingerprints, generation, health, ip_management, learning, protocols, scenarios, stats, templates, users
+from app.api.routes import adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, devices, docker_hosts, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, learning, protocols, scenario_versions, scenarios, stats, templates, users
 from app.api.websocket import agent_hub
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
 from app.core.exceptions import PacketArchError, ValidationError as AppValidationError
+from app.services.health_monitor import health_monitor
 from app.services.startup import run_startup_tasks
 
 # Configure logging
@@ -41,12 +42,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         for task, result in results.items():
             logger.info(f"Startup task [{task}]: {result}")
 
+    # Start health monitor
+    await health_monitor.start()
+
     logger.info("PacketArch API started successfully")
 
     yield
 
     # Shutdown
     logger.info("Shutting down PacketArch API...")
+    await health_monitor.stop()
     await close_db()
     logger.info("PacketArch API shutdown complete")
 
@@ -135,6 +140,7 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(devices.router, prefix=settings.api_prefix)
 app.include_router(scenarios.router, prefix=settings.api_prefix)
+app.include_router(scenario_versions.router, prefix=settings.api_prefix)
 app.include_router(protocols.router, prefix=settings.api_prefix)
 app.include_router(generation.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
@@ -146,11 +152,15 @@ app.include_router(anomalies.router, prefix=settings.api_prefix)
 app.include_router(fingerprints.router, prefix=settings.api_prefix)
 app.include_router(ip_management.router, prefix=settings.api_prefix)
 app.include_router(stats.router, prefix=settings.api_prefix)
+app.include_router(dashboard.router, prefix=settings.api_prefix)
+app.include_router(adaptation.router, prefix=settings.api_prefix)
+app.include_router(attacks.router, prefix=settings.api_prefix)
 app.include_router(cve.router, prefix=settings.api_prefix)
 app.include_router(cloud_services.router, prefix=settings.api_prefix)
 app.include_router(cyber_vision.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
+app.include_router(health_monitor_routes.router, prefix=settings.api_prefix)
 app.include_router(downloads.router, prefix=settings.api_prefix)
 app.include_router(http_sse.router, prefix=settings.api_prefix)
 

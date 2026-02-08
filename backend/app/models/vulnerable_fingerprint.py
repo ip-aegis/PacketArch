@@ -19,7 +19,7 @@ class VulnerableFingerprintVariant(Base):
     """Variant fingerprint with vulnerable firmware for CVE detection.
 
     This table stores protocol identity overrides that, when applied to
-    a base VendorFingerprint, cause the device to report vulnerable
+    a device template, cause the device to report vulnerable
     firmware versions detectable by security scanners.
     """
 

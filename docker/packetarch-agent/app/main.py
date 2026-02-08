@@ -67,6 +67,7 @@ class PacketArchAgent:
         self.config = config
         self.pool = OrchestratorPool(on_status_change=self._on_status_change)
         self.ws = AgentWebSocket(config, on_command=self._handle_command)
+        self.ws.get_running_scenarios = lambda: self.pool.running_scenarios
         self._status_queue: asyncio.Queue[tuple[str, ScenarioState, int, str | None]] = asyncio.Queue()
         self._running = False
 
@@ -77,8 +78,9 @@ class PacketArchAgent:
         logger.info(f"Server: {self.config.server_url}")
         logger.info(f"Default interface: {self.config.default_interface}")
 
-        # Start status reporter task
+        # Start status reporter and self-health check tasks
         status_task = asyncio.create_task(self._status_reporter())
+        health_task = asyncio.create_task(self._self_health_check())
 
         try:
             # Connect to server (auto-reconnect loop)
@@ -89,8 +91,13 @@ class PacketArchAgent:
             self._running = False
             self.pool.stop_all()
             status_task.cancel()
+            health_task.cancel()
             try:
                 await status_task
+            except asyncio.CancelledError:
+                pass
+            try:
+                await health_task
             except asyncio.CancelledError:
                 pass
 
@@ -103,16 +110,38 @@ class PacketArchAgent:
                     self._status_queue.get(),
                     timeout=self.config.status_report_interval_seconds,
                 )
-                await self.ws.send_status(scenario_id, state.value, packets_sent, error)
+                # For event-driven updates, get fresh rich stats
+                fresh = self.pool.get_status(scenario_id)
+                if fresh:
+                    await self.ws.send_status(
+                        scenario_id, state.value, fresh.packets_sent, error,
+                        bytes_sent=fresh.bytes_sent,
+                        protocol_breakdown=fresh.protocol_breakdown,
+                        flow_count=fresh.flow_count,
+                        packets_per_second=fresh.packets_per_second,
+                        bytes_per_second=fresh.bytes_per_second,
+                    )
+                else:
+                    await self.ws.send_status(scenario_id, state.value, packets_sent, error)
 
             except asyncio.TimeoutError:
                 # Send periodic status for all running scenarios
                 for status in self.pool.get_all_statuses():
                     if status.state in (ScenarioState.STARTING, ScenarioState.RUNNING):
+                        # Include adaptation and attack state if available
+                        adaptation = self.pool.get_adaptation_state(status.scenario_id)
+                        attack = self.pool.get_attack_state(status.scenario_id)
                         await self.ws.send_status(
                             status.scenario_id,
                             status.state.value,
                             status.packets_sent,
+                            bytes_sent=status.bytes_sent,
+                            protocol_breakdown=status.protocol_breakdown,
+                            flow_count=status.flow_count,
+                            packets_per_second=status.packets_per_second,
+                            bytes_per_second=status.bytes_per_second,
+                            adaptation=adaptation,
+                            attack=attack,
                         )
 
             except asyncio.CancelledError:
@@ -132,6 +161,23 @@ class PacketArchAgent:
             self._status_queue.put_nowait((scenario_id, state, packets_sent, error_message))
         except Exception:
             pass  # Queue might be full, ignore
+
+    async def _self_health_check(self) -> None:
+        """Periodically check scenario thread health."""
+        while self._running:
+            try:
+                await asyncio.sleep(15)
+                unhealthy = self.pool.check_thread_health()
+                for scenario in unhealthy:
+                    logger.error(
+                        f"Unhealthy scenario detected: {scenario['scenario_id']} "
+                        f"(thread_alive={scenario['thread_alive']})"
+                    )
+                    # The status change callback will notify the server
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Self-health check error: {e}")
 
     async def _handle_command(self, command: dict[str, Any]) -> None:
         """Handle a command from the server.
@@ -166,6 +212,21 @@ class PacketArchAgent:
 
             elif cmd_type == "PING_TEST":
                 await self._handle_ping_test(command)
+
+            elif cmd_type == "ADAPT_TRAFFIC":
+                await self._handle_adapt_traffic(command)
+
+            elif cmd_type == "START_ATTACK":
+                await self._handle_attack_command(command, "start")
+
+            elif cmd_type == "STOP_ATTACK":
+                await self._handle_attack_command(command, "stop")
+
+            elif cmd_type == "ADVANCE_STAGE":
+                await self._handle_attack_command(command, "advance_stage")
+
+            elif cmd_type == "PAUSE_ATTACK":
+                await self._handle_attack_command(command, "pause")
 
             else:
                 logger.warning(f"Unknown command type: {cmd_type}")
@@ -387,6 +448,56 @@ class PacketArchAgent:
             "agent_received_at": receive_time,
             "agent_sent_at": time.time() * 1000,
         })
+
+    async def _handle_adapt_traffic(self, command: dict[str, Any]) -> None:
+        """Handle ADAPT_TRAFFIC command - apply adaptive traffic directives.
+
+        Directives adjust traffic behavior mid-deployment without restarting.
+        """
+        scenario_id = command.get("scenario_id")
+        directives = command.get("directives", [])
+
+        if not scenario_id:
+            await self.ws.send_error(None, "Missing scenario_id", "INVALID_COMMAND")
+            return
+
+        if not directives:
+            await self.ws.send_error(scenario_id, "Missing directives", "INVALID_COMMAND")
+            return
+
+        success = self.pool.apply_directives(scenario_id, directives)
+        if success:
+            logger.info(f"Applied {len(directives)} adaptive directives to scenario {scenario_id}")
+        else:
+            logger.warning(f"Failed to apply directives: scenario {scenario_id} not found or no adaptive controller")
+            await self.ws.send_error(
+                scenario_id,
+                "Scenario not found or adaptive traffic not enabled",
+                "ADAPT_FAILED",
+            )
+
+    async def _handle_attack_command(self, command: dict[str, Any], cmd_type: str) -> None:
+        """Handle attack control commands (START_ATTACK, STOP_ATTACK, ADVANCE_STAGE, PAUSE_ATTACK)."""
+        scenario_id = command.get("scenario_id")
+
+        if not scenario_id:
+            await self.ws.send_error(None, "Missing scenario_id", "INVALID_COMMAND")
+            return
+
+        attack_cmd: dict[str, Any] = {"type": cmd_type}
+        if cmd_type == "pause":
+            attack_cmd["paused"] = command.get("paused", True)
+
+        success = self.pool.send_attack_command(scenario_id, attack_cmd)
+        if success:
+            logger.info(f"Attack command '{cmd_type}' sent to scenario {scenario_id}")
+        else:
+            logger.warning(f"Failed to send attack command: scenario {scenario_id} not found or no attack orchestrator")
+            await self.ws.send_error(
+                scenario_id,
+                "Scenario not found or no attack playbook configured",
+                "ATTACK_COMMAND_FAILED",
+            )
 
     async def _handle_update_agent(self, command: dict[str, Any]) -> None:
         """Handle UPDATE_AGENT command - download new image and restart.

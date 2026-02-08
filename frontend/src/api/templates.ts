@@ -29,12 +29,21 @@ export interface TemplateDetail {
     vendor?: string;
     count: number;
     zone?: string;
+    name?: string;
+    name_pattern?: string;
     protocols?: string[];
+    fingerprint_model?: string;
+    role?: string;
+    cve_ids?: string[];
   }>;
   flows: Array<{
     protocol: string;
     pattern: string;
     interval_ms: number;
+    source_types?: string[];
+    target_types?: string[];
+    jitter_ms?: number;
+    jitter_type?: string;
   }>;
   zones: Array<{
     id: string;

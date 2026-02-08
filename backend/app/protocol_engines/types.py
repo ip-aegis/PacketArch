@@ -32,6 +32,7 @@ class ProtocolType(str, Enum):
     WMI = "wmi"  # Windows Management Instrumentation over DCOM/RPC
     FANUC = "fanuc"  # FANUC FOCAS CNC machine protocol
     DCS = "dcs"  # DCS protocols (DeltaV, Experion, Vnet/IP, Triconex)
+    CLOUD_SERVICE = "cloud_service"  # Cloud service TLS heartbeats (Talk2M, TeamViewer, etc.)
 
 
 @dataclass
@@ -1204,6 +1205,26 @@ class DCSConversationState(ConversationStateBase):
     poll_index: int = 0
 
 
+@dataclass
+class CloudServiceConversationState(ConversationStateBase):
+    """Typed state for cloud service TLS heartbeat conversations.
+
+    Tracks TCP state for periodic TLS Client Hello heartbeats to
+    cloud services (EWON Talk2M, TeamViewer, AWS IoT, etc.).
+
+    Attributes:
+        src_port: Source TCP port (ephemeral, rotated per heartbeat)
+        seq_num: TCP sequence number
+        hostname: Server hostname for TLS SNI extension
+        tls_enabled: Whether to generate TLS Client Hello
+    """
+
+    src_port: int = 49152
+    seq_num: int = 0
+    hostname: str = ""
+    tls_enabled: bool = True
+
+
 # =============================================================================
 # Factory Function
 # =============================================================================
@@ -1249,6 +1270,7 @@ def create_conversation_state(
         ProtocolType.WMI: WMIConversationState,
         ProtocolType.FANUC: FANUCConversationState,
         ProtocolType.DCS: DCSConversationState,
+        ProtocolType.CLOUD_SERVICE: CloudServiceConversationState,
     }
 
     state_class = state_classes.get(protocol)

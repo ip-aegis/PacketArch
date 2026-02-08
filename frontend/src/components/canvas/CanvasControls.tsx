@@ -21,6 +21,8 @@ import {
   AppstoreOutlined,
   RadiusSettingOutlined,
   EditOutlined,
+  SaveOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { useReactFlow } from '@xyflow/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +31,9 @@ import { useUIStore } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
 import { scenariosApi } from '../../api/scenarios';
+import { scenarioVersionsApi } from '../../api/scenarioVersions';
 import { extractErrorMessage } from '../../utils/errorUtils';
+import VersionHistoryDrawer from './VersionHistoryDrawer';
 
 const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
@@ -46,6 +50,10 @@ const CanvasControls: React.FC = () => {
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const toggleMinimap = useUIStore((state) => state.toggleMinimap);
   const { applyLayout } = useAutoLayout();
+
+  // Version history drawer state
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [savingVersion, setSavingVersion] = useState(false);
 
   // Customize Names modal state
   const [customizeNamesModalOpen, setCustomizeNamesModalOpen] = useState(false);
@@ -77,6 +85,22 @@ const CanvasControls: React.FC = () => {
       return;
     }
     regenerateNamesMutation.mutate({ scenarioId, processContext: processContext.trim() });
+  };
+
+  const handleSaveVersion = async () => {
+    if (!scenarioId) {
+      message.error('No scenario loaded');
+      return;
+    }
+    setSavingVersion(true);
+    try {
+      const version = await scenarioVersionsApi.create(scenarioId);
+      message.success(`Version ${version.version_number} saved`);
+    } catch (error: unknown) {
+      message.error(`Failed to save version: ${extractErrorMessage(error, 'Unknown error')}`);
+    } finally {
+      setSavingVersion(false);
+    }
   };
 
   const handleDelete = () => {
@@ -225,7 +249,40 @@ const CanvasControls: React.FC = () => {
             Customize Names
           </Button>
         </Tooltip>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+
+        {/* Version controls */}
+        <Tooltip title="Save Version (Ctrl+S)">
+          <Button
+            icon={<SaveOutlined />}
+            style={buttonStyle}
+            onClick={handleSaveVersion}
+            loading={savingVersion}
+            disabled={!scenarioId}
+          >
+            Save Version
+          </Button>
+        </Tooltip>
+        <Tooltip title="Version History">
+          <Button
+            icon={<HistoryOutlined />}
+            style={buttonStyle}
+            onClick={() => setHistoryDrawerOpen(true)}
+            disabled={!scenarioId}
+          >
+            History
+          </Button>
+        </Tooltip>
       </Space>
+
+      {/* Version History Drawer */}
+      <VersionHistoryDrawer
+        scenarioId={scenarioId}
+        open={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+      />
 
       {/* Customize Names Modal */}
       <Modal

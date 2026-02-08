@@ -20,6 +20,7 @@ from app.models.vulnerable_fingerprint import VulnerableFingerprintVariant
 from app.models.traffic_agent import TrafficAgent, AgentDeployment
 from app.models.generation_job import GenerationJob, GenerationJobStatus
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
+from app.models.scenario_version import ScenarioVersion
 
 __all__ = [
     "User",
@@ -55,4 +56,5 @@ __all__ = [
     "GenerationJobStatus",
     "CloudServiceEndpoint",
     "CloudServiceProvider",
+    "ScenarioVersion",
 ]

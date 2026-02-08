@@ -22,6 +22,7 @@ import DeviceNode from './nodes/DeviceNode';
 import ZoneNode from './nodes/ZoneNode';
 import FlowEdge from './edges/FlowEdge';
 import CanvasControls from './CanvasControls';
+import DeviceContextMenu from './DeviceContextMenu';
 import { useCanvasSync } from './hooks/useCanvasSync';
 import { useNodeDrag } from './hooks/useNodeDrag';
 import { useScenarioStore } from '../../stores/scenarioStore';
@@ -51,6 +52,9 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const { handleDrop: handleNodeDrop } = useNodeDrag();
   const moveDevice = useScenarioStore((state) => state.moveDevice);
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ deviceId: string; x: number; y: number } | null>(null);
+
   // Local state for React Flow to manage drag interactions
   const [nodes, setNodes] = useState<Node[]>(storeNodes);
   const [edges, setEdges] = useState<Edge[]>(storeEdges);
@@ -63,6 +67,17 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   useEffect(() => {
     setEdges(storeEdges);
   }, [storeEdges]);
+
+  // Listen for device context menu events from DeviceNode
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { deviceId, x, y } = (e as CustomEvent).detail;
+      setContextMenu({ deviceId, x, y });
+    };
+    window.addEventListener('device-context-menu', handler);
+    return () => window.removeEventListener('device-context-menu', handler);
+  }, []);
+
   const addFlow = useScenarioStore((state) => state.addFlow);
   const removeFlow = useScenarioStore((state) => state.removeFlow);
   const removeDevice = useScenarioStore((state) => state.removeDevice);
@@ -206,6 +221,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const onPaneClick = useCallback(() => {
     setPropertyContext(null, []);
     setSelection([], []);
+    setContextMenu(null);
   }, [setPropertyContext, setSelection]);
 
   // Handle delete key
@@ -364,6 +380,13 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
           <CanvasControls />
         </Panel>
       </ReactFlow>
+      {contextMenu && (
+        <DeviceContextMenu
+          deviceId={contextMenu.deviceId}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 };

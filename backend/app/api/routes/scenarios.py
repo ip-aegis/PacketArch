@@ -1,5 +1,6 @@
 """Scenario routes for managing traffic simulation scenarios."""
 
+import logging
 import math
 from datetime import datetime, timezone
 from uuid import UUID
@@ -22,6 +23,8 @@ from app.services.ip_management import IPManagementService
 from app.services.learned_pattern_service import LearnedPatternService
 from app.services.protocol_validator import validate_scenario_protocols
 from app.schemas.scenario import (
+    ReadinessCheck,
+    ReadinessSummary,
     ScenarioCreate,
     ScenarioExport,
     ScenarioImport,
@@ -49,6 +52,149 @@ def get_learned_pattern_info(definition: dict) -> tuple[bool, list[str]]:
         return True, learned_info.get("protocols_enhanced", [])
     return False, []
 
+
+def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
+    """Compute readiness summary from a scenario definition.
+
+    Pure function (no DB needed) that evaluates whether a scenario is
+    deployment-ready based on its definition.
+    """
+    from collections import Counter
+
+    checks: list[ReadinessCheck] = []
+    devices = definition.get("devices", {})
+    flows = definition.get("flows", {})
+
+    # --- Check: Has devices ---
+    has_devices = len(devices) > 0
+    checks.append(ReadinessCheck(
+        name="Has devices",
+        passed=has_devices,
+        severity="error",
+        message=None if has_devices else "Scenario has no devices",
+    ))
+
+    # --- Check: Has flows ---
+    has_flows = len(flows) > 0
+    checks.append(ReadinessCheck(
+        name="Has flows",
+        passed=has_flows,
+        severity="error",
+        message=None if has_flows else "Scenario has no flows",
+    ))
+
+    # --- Check: All flows have endpoints ---
+    incomplete_flows = []
+    devices_with_flows: set[str] = set()
+    for flow_id, flow in flows.items():
+        source_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
+        target_id = flow.get("targetDeviceId") or flow.get("target_device_id")
+        flow_config = flow.get("config", {})
+        is_external = flow_config.get("external", False)
+
+        if source_id:
+            devices_with_flows.add(source_id)
+        if target_id:
+            devices_with_flows.add(target_id)
+
+        if not source_id:
+            incomplete_flows.append(flow_id)
+        elif not target_id and not is_external:
+            incomplete_flows.append(flow_id)
+
+    flows_complete = len(incomplete_flows) == 0
+    checks.append(ReadinessCheck(
+        name="All flows have endpoints",
+        passed=flows_complete,
+        severity="error",
+        message=None if flows_complete else f"{len(incomplete_flows)} flow(s) missing endpoints",
+    ))
+
+    # --- Check: Unique device names ---
+    device_names = [d.get("name", did) for did, d in devices.items()]
+    name_counts = Counter(device_names)
+    duplicate_names = {n: c for n, c in name_counts.items() if c > 1}
+    names_unique = len(duplicate_names) == 0
+    checks.append(ReadinessCheck(
+        name="Unique device names",
+        passed=names_unique,
+        severity="error",
+        message=None if names_unique else f"{len(duplicate_names)} duplicate name(s)",
+    ))
+
+    # --- Check: Unique MAC addresses ---
+    mac_list = []
+    for did, device in devices.items():
+        network = device.get("network", {})
+        mac = network.get("macAddress") or network.get("mac_address")
+        if mac:
+            mac_list.append(mac.upper())
+    mac_counts = Counter(mac_list)
+    duplicate_macs = {m: c for m, c in mac_counts.items() if c > 1}
+    macs_unique = len(duplicate_macs) == 0
+    checks.append(ReadinessCheck(
+        name="Unique MAC addresses",
+        passed=macs_unique,
+        severity="error",
+        message=None if macs_unique else f"{len(duplicate_macs)} duplicate MAC(s)",
+    ))
+
+    # --- Check: All devices have IPs ---
+    devices_missing_ip = 0
+    for did, device in devices.items():
+        network = device.get("network", {})
+        ip = network.get("ipAddress") or network.get("ip_address") or device.get("ip_address")
+        if not ip:
+            devices_missing_ip += 1
+    all_have_ips = devices_missing_ip == 0
+    checks.append(ReadinessCheck(
+        name="All devices have IPs",
+        passed=all_have_ips,
+        severity="warning",
+        message=None if all_have_ips else f"{devices_missing_ip} device(s) missing IP",
+    ))
+
+    # --- Check: No orphan devices ---
+    orphan_count = sum(1 for did in devices if did not in devices_with_flows)
+    no_orphans = orphan_count == 0
+    checks.append(ReadinessCheck(
+        name="No orphan devices",
+        passed=no_orphans,
+        severity="warning",
+        message=None if no_orphans else f"{orphan_count} device(s) with no flows",
+    ))
+
+    # --- Check: Protocol/fingerprint consistency ---
+    protocol_issues = validate_scenario_protocols(definition)
+    protocols_ok = len(protocol_issues) == 0
+    checks.append(ReadinessCheck(
+        name="Protocol/fingerprint consistency",
+        passed=protocols_ok,
+        severity="warning",
+        message=None if protocols_ok else f"{len(protocol_issues)} protocol mismatch(es)",
+    ))
+
+    # Compute score and status
+    total = len(checks)
+    passed = sum(1 for c in checks if c.passed)
+    error_count = sum(1 for c in checks if not c.passed and c.severity == "error")
+    warning_count = sum(1 for c in checks if not c.passed and c.severity == "warning")
+    score = round((passed / total) * 100) if total > 0 else 0
+
+    if error_count > 0:
+        status = "not_ready"
+    elif warning_count > 0:
+        status = "warnings"
+    else:
+        status = "ready"
+
+    return ReadinessSummary(
+        score=score,
+        status=status,
+        error_count=error_count,
+        warning_count=warning_count,
+        checks=checks,
+    )
 
 
 @router.get("", response_model=ScenarioListResponse)
@@ -86,12 +232,13 @@ async def list_scenarios(
     result = await db.execute(query)
     scenarios = result.scalars().all()
 
-    # Build summary responses with counts
+    # Build summary responses with counts and readiness
     items = []
     for s in scenarios:
         definition = s.definition or {}
         device_count, flow_count = get_scenario_counts(definition)
         has_learned_patterns, protocols_enhanced = get_learned_pattern_info(definition)
+        readiness = compute_scenario_readiness(definition)
         items.append(ScenarioSummaryResponse(
             id=s.id,
             name=s.name,
@@ -103,6 +250,7 @@ async def list_scenarios(
             flow_count=flow_count,
             has_learned_patterns=has_learned_patterns,
             protocols_enhanced=protocols_enhanced,
+            readiness=readiness,
             created_at=s.created_at,
             updated_at=s.updated_at,
         ))
@@ -185,6 +333,54 @@ async def create_scenario(
     return ScenarioResponse.model_validate(scenario)
 
 
+_AUTO_VERSION_INTERVAL_SECONDS = 300  # 5 minutes
+_logger = logging.getLogger(__name__)
+
+
+async def _maybe_auto_version(
+    db: DBSession,
+    scenario: Scenario,
+    user_id: UUID,
+) -> None:
+    """Auto-create a version if enough time has passed since the last one.
+
+    Coalesces rapid auto-saves into a single version by only creating
+    a snapshot when >= 5 minutes have elapsed since the last version.
+    """
+    from app.models.scenario_version import ScenarioVersion
+    from app.api.routes.scenario_versions import create_version_snapshot
+
+    result = await db.execute(
+        select(ScenarioVersion)
+        .where(ScenarioVersion.scenario_id == scenario.id)
+        .order_by(ScenarioVersion.version_number.desc())
+        .limit(1)
+    )
+    latest_version = result.scalar_one_or_none()
+
+    now = datetime.now(timezone.utc)
+    should_create = False
+
+    if latest_version is None:
+        should_create = True
+    else:
+        elapsed = (now - latest_version.created_at).total_seconds()
+        if elapsed >= _AUTO_VERSION_INTERVAL_SECONDS:
+            should_create = True
+
+    if should_create:
+        try:
+            await create_version_snapshot(
+                db, scenario, source="auto", user_id=user_id
+            )
+        except Exception:
+            _logger.warning(
+                "Failed to auto-create version for scenario %s",
+                scenario.id,
+                exc_info=True,
+            )
+
+
 @router.put("/{scenario_id}", response_model=ScenarioResponse)
 @router.patch("/{scenario_id}", response_model=ScenarioResponse)
 async def update_scenario(
@@ -219,6 +415,9 @@ async def update_scenario(
     # Increment version
     scenario.version += 1
     scenario.updated_at = datetime.now(timezone.utc)
+
+    # Auto-version coalescing: create a version if enough time has passed
+    await _maybe_auto_version(db, scenario, current_user.id)
 
     await db.commit()
     await db.refresh(scenario)

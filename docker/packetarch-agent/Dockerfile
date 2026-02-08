@@ -1,5 +1,9 @@
 # PacketArch Remote Traffic Agent
 # WebSocket-based agent that connects to PacketArch server and executes traffic generation commands
+#
+# Before building, the build script stages shared backend code into _shared/:
+#   _shared/protocol_engines/  — from backend/app/protocol_engines/
+#   _shared/traffic_generator/  — selected files from backend/app/traffic_generator/
 
 FROM python:3.12-slim
 
@@ -32,6 +36,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
+
+# Copy shared protocol engines from backend (staged by build script).
+# These provide all 23+ protocol implementations, identity builders,
+# timing models, and the unified orchestrator for traffic generation.
+COPY _shared/protocol_engines/ ./app/protocol_engines/
+COPY _shared/traffic_generator/ ./app/traffic_generator/
 
 # Environment variables (set by deployment)
 ENV PACKETARCH_SERVER=""

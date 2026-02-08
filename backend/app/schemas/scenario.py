@@ -55,6 +55,25 @@ class ScenarioResponse(ScenarioBase):
         from_attributes = True
 
 
+class ReadinessCheck(BaseModel):
+    """A single readiness check result."""
+
+    name: str
+    passed: bool
+    severity: str  # "error" or "warning"
+    message: str | None = None
+
+
+class ReadinessSummary(BaseModel):
+    """Scenario readiness summary for list view."""
+
+    score: int = 0  # 0-100
+    status: str = "not_ready"  # "ready", "warnings", "not_ready"
+    error_count: int = 0
+    warning_count: int = 0
+    checks: list[ReadinessCheck] = []
+
+
 class ScenarioSummaryResponse(BaseModel):
     """Schema for scenario summary (listing)."""
 
@@ -68,6 +87,7 @@ class ScenarioSummaryResponse(BaseModel):
     flow_count: int = 0
     has_learned_patterns: bool = False
     protocols_enhanced: list[str] = []
+    readiness: ReadinessSummary = Field(default_factory=ReadinessSummary)
     created_at: datetime
     updated_at: datetime
 

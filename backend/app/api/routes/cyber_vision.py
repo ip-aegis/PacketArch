@@ -13,6 +13,7 @@ from app.core.encryption import decrypt_value, encrypt_value
 from app.models.scenario import Scenario
 from app.models.settings import SystemSetting
 from app.schemas.cyber_vision import (
+    ComparisonInsight,
     CVComparisonResult,
     CVConnectionStatusResponse,
     CVDeviceListResponse,
@@ -407,6 +408,79 @@ def find_best_match(
     return best_match, best_confidence, best_match_type
 
 
+# Protocols that require Layer 2 adjacency for CV discovery
+LAYER2_ONLY_PROTOCOLS = {"profinet"}
+# Protocols discoverable via IP traffic
+IP_PROTOCOLS = {"modbus_tcp", "ethernet_ip", "s7comm", "bacnet", "snmp", "opc_ua", "dnp3", "iec_104"}
+
+
+def generate_comparison_insights(
+    scenario_devices: list[dict],
+    matched_devices: list[MatchedDevice],
+    scenario_only: list[dict],
+    cv_only: list[CVDeviceResponse],
+) -> list[ComparisonInsight]:
+    """Generate actionable insights from comparison results."""
+    insights: list[ComparisonInsight] = []
+    total = len(scenario_devices)
+    matched_count = len(matched_devices)
+
+    # 1. Match summary (always)
+    if total > 0:
+        pct = round(matched_count / total * 100)
+        insights.append(ComparisonInsight(
+            category="match_quality",
+            severity="info",
+            message=f"CV discovered {matched_count} of {total} scenario devices ({pct}% match rate).",
+        ))
+
+    # 2. Layer 2 protocol visibility
+    l2_devices = []
+    for dev in scenario_only:
+        protocols = {p.lower() for p in (dev.get("protocols") or [])}
+        if protocols and protocols.issubset(LAYER2_ONLY_PROTOCOLS):
+            l2_devices.append(dev.get("name", "Unknown"))
+
+    if l2_devices:
+        insights.append(ComparisonInsight(
+            category="protocol_visibility",
+            severity="warning",
+            message=(
+                f"{len(l2_devices)} device(s) use only Layer 2 protocols (e.g. PROFINET). "
+                "CV sensors must be on the same VLAN/broadcast domain to discover these devices."
+            ),
+            affected_devices=l2_devices,
+        ))
+
+    # 3. Enrichment suggestion
+    enrichable = [
+        m for m in matched_devices
+        if any(m.scenario_device.get(f) for f in ("vendor", "fingerprintModel", "model", "type", "role"))
+    ]
+    if enrichable:
+        insights.append(ComparisonInsight(
+            category="enrichment_suggestion",
+            severity="suggestion",
+            message=(
+                f"{len(enrichable)} matched device(s) can be enriched with vendor, model, "
+                "or type information from PacketArch."
+            ),
+        ))
+
+    # 4. CV-only note
+    if cv_only:
+        insights.append(ComparisonInsight(
+            category="match_quality",
+            severity="info",
+            message=(
+                f"CV discovered {len(cv_only)} additional device(s) not represented in your scenario. "
+                "These may be real network infrastructure or devices outside the simulation scope."
+            ),
+        ))
+
+    return insights
+
+
 @router.post("/compare/{scenario_id}", response_model=CVComparisonResult)
 async def compare_scenario(
     scenario_id: UUID,
@@ -522,7 +596,36 @@ async def compare_scenario(
         # Calculate match rate
         match_rate = len(matched_devices) / len(scenario_devices) if scenario_devices else 0.0
 
-        logger.info(f"Comparison complete: {len(matched_devices)}/{len(scenario_devices)} matched ({match_rate*100:.0f}%)")
+        # Build cv_only: CV devices not matched to any scenario device
+        matched_cv_ids = {m.cv_device.id for m in matched_devices}
+        cv_only = [
+            CVDeviceResponse(
+                id=cv_dev.id,
+                name=cv_dev.name,
+                ip=cv_dev.ip,
+                mac=cv_dev.mac,
+                vendor=cv_dev.vendor,
+                model=cv_dev.model,
+                firmware=cv_dev.firmware,
+                category=cv_dev.category,
+                risk_score=cv_dev.risk_score,
+                first_seen=cv_dev.first_seen,
+                last_seen=cv_dev.last_seen,
+                group_name=cv_dev.group_name,
+            )
+            for cv_dev in all_cv_devices
+            if cv_dev.id not in matched_cv_ids
+        ]
+
+        # Generate actionable insights
+        insights = generate_comparison_insights(
+            scenario_devices, matched_devices, scenario_only, cv_only,
+        )
+
+        logger.info(
+            f"Comparison complete: {len(matched_devices)}/{len(scenario_devices)} matched "
+            f"({match_rate*100:.0f}%), {len(cv_only)} CV-only, {len(insights)} insights"
+        )
 
         return CVComparisonResult(
             scenario_id=str(scenario_id),
@@ -531,8 +634,9 @@ async def compare_scenario(
             cv_device_count=len(all_cv_devices),
             matched_devices=matched_devices,
             scenario_only=scenario_only,
-            cv_only=[],
+            cv_only=cv_only,
             match_rate=match_rate,
+            insights=insights,
         )
 
     except (ValidationError, NotFoundError):

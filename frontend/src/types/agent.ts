@@ -89,6 +89,7 @@ export interface AgentDeployment {
 export interface DeploymentCreate {
   scenario_id: string;
   interface?: string;
+  adaptive_config?: Record<string, unknown>;
 }
 
 /**

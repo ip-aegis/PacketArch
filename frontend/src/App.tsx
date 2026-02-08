@@ -12,8 +12,10 @@ import IPManagementPage from './pages/IPManagementPage';
 import CVEBrowserPage from './pages/CVEBrowserPage';
 import HelpPage from './pages/HelpPage';
 import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
+import GuidedBuilderPage from './pages/GuidedBuilderPage';
 import CyberVisionPage from './pages/CyberVisionPage';
 import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
+import LiveTrafficDashboardPage from './pages/LiveTrafficDashboardPage';
 import SettingsPage from './pages/admin/SettingsPage';
 
 function App() {
@@ -36,9 +38,11 @@ function App() {
         <Route path="studio" element={<ScenarioStudioPage />} />
         <Route path="scenarios" element={<ScenariosPage />} />
         <Route path="scenarios/ai-create" element={<AIScenarioWizardPage />} />
+        <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
         <Route path="devices" element={<DeviceLibraryPage />} />
         <Route path="learning" element={<LearningPage />} />
         <Route path="deployments" element={<DeploymentsPage />} />
+        <Route path="live-traffic" element={<LiveTrafficDashboardPage />} />
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
         <Route path="cyber-vision" element={<CyberVisionPage />} />

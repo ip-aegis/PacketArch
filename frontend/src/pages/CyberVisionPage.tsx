@@ -26,6 +26,7 @@ import {
   message,
 } from 'antd';
 import {
+  BulbOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   SyncOutlined,
@@ -34,6 +35,7 @@ import {
   SafetyOutlined,
   EyeOutlined,
   WarningOutlined,
+  InfoCircleOutlined,
   ExclamationCircleOutlined,
   CloudUploadOutlined,
 } from '@ant-design/icons';
@@ -65,6 +67,7 @@ const CyberVisionPage: React.FC = () => {
     isLoadingPresets,
     isComparing,
     isEnriching,
+    enrichedSinceCompare,
     error,
     fetchStatus,
     fetchDevices,
@@ -714,6 +717,41 @@ const CyberVisionPage: React.FC = () => {
                 </Col>
               </Row>
 
+              {/* Re-compare prompt after enrichment */}
+              {enrichedSinceCompare && (
+                <Alert
+                  message="Enrichment complete — re-compare to verify changes took effect in Cyber Vision."
+                  type="info"
+                  showIcon
+                  icon={<SyncOutlined />}
+                  action={
+                    <Button size="small" type="primary" onClick={handleCompare} loading={isComparing}>
+                      Re-compare
+                    </Button>
+                  }
+                />
+              )}
+
+              {/* Comparison insights */}
+              {comparisonResult.insights.length > 0 && (
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  {comparisonResult.insights.map((insight, idx) => (
+                    <Alert
+                      key={idx}
+                      message={insight.message}
+                      type={insight.severity === 'warning' ? 'warning' : insight.severity === 'suggestion' ? 'info' : 'info'}
+                      showIcon
+                      icon={
+                        insight.severity === 'suggestion' ? <BulbOutlined /> :
+                        insight.severity === 'warning' ? <WarningOutlined /> :
+                        <InfoCircleOutlined />
+                      }
+                      banner
+                    />
+                  ))}
+                </Space>
+              )}
+
               {/* Matched devices */}
               <Card
                 title={
@@ -787,6 +825,75 @@ const CyberVisionPage: React.FC = () => {
                     ]}
                     dataSource={comparisonResult.scenario_only.map((d, i) => ({ ...d, key: i }))}
                     pagination={false}
+                    size="small"
+                  />
+                </Card>
+              )}
+
+              {/* CV-only devices */}
+              {comparisonResult.cv_only.length > 0 && (
+                <Card
+                  title={
+                    <Space>
+                      <EyeOutlined style={{ color: '#1890ff' }} />
+                      Only in Cyber Vision ({comparisonResult.cv_only.length})
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                    These devices were discovered by Cyber Vision but are not represented in your scenario.
+                  </Text>
+                  <Table
+                    columns={[
+                      {
+                        title: 'Name',
+                        dataIndex: 'name',
+                        key: 'name',
+                        render: (name: string) => <Text strong>{name}</Text>,
+                      },
+                      {
+                        title: 'IP',
+                        dataIndex: 'ip',
+                        key: 'ip',
+                        render: (ip: string | null) => ip || <Text type="secondary">-</Text>,
+                      },
+                      {
+                        title: 'MAC',
+                        dataIndex: 'mac',
+                        key: 'mac',
+                        render: (mac: string | null) => mac ? <Text style={{ fontSize: 11 }}>{mac}</Text> : <Text type="secondary">-</Text>,
+                      },
+                      {
+                        title: 'Vendor',
+                        dataIndex: 'vendor',
+                        key: 'vendor',
+                        render: (vendor: string | null) => vendor || <Text type="secondary">Unknown</Text>,
+                      },
+                      {
+                        title: 'Category',
+                        dataIndex: 'category',
+                        key: 'category',
+                        render: (category: string | null) => (
+                          category ? <Tag>{category}</Tag> : <Text type="secondary">-</Text>
+                        ),
+                      },
+                      {
+                        title: 'Risk Score',
+                        dataIndex: 'risk_score',
+                        key: 'risk_score',
+                        render: (score: number | null) => (
+                          score !== null ? (
+                            <Tag color={score > 70 ? 'red' : score > 40 ? 'orange' : 'green'}>
+                              {score}
+                            </Tag>
+                          ) : <Text type="secondary">-</Text>
+                        ),
+                      },
+                    ]}
+                    dataSource={comparisonResult.cv_only}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
                     size="small"
                   />
                 </Card>
@@ -945,49 +1052,98 @@ const CyberVisionPage: React.FC = () => {
         okButtonProps={{ loading: isEnriching, icon: <CloudUploadOutlined /> }}
         cancelButtonProps={{ disabled: isEnriching }}
       >
-        {enrichTarget && (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div style={{ marginBottom: 16 }}>
-              <Text type="secondary">Source:</Text>
-              <div>
-                <Text strong>{enrichTarget.scenario_device.name as string || 'Unnamed'}</Text>
-                <Text type="secondary"> (PacketArch Scenario)</Text>
+        {enrichTarget && (() => {
+          const availableProps = getAvailableProperties(enrichTarget);
+          const cvDevice = enrichTarget.cv_device;
+          // Map property labels to current CV values for before/after preview
+          const cvCurrentValues: Record<string, string | null> = {
+            'Vendor': cvDevice.vendor || null,
+            'Model': cvDevice.model || null,
+            'Device Type': cvDevice.category || null,
+            'Role': null,
+            'Protocols': null,
+            'Hostname': null,
+          };
+          return (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div style={{ marginBottom: 16 }}>
+                <Text type="secondary">Source:</Text>
+                <div>
+                  <Text strong>{enrichTarget.scenario_device.name as string || 'Unnamed'}</Text>
+                  <Text type="secondary"> (PacketArch Scenario)</Text>
+                </div>
               </div>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Text type="secondary">Target:</Text>
-              <div>
-                <Text strong>{enrichTarget.cv_device.name}</Text>
-                <Text type="secondary"> (Cyber Vision ID: {enrichTarget.cv_device.id})</Text>
+              <div style={{ marginBottom: 16 }}>
+                <Text type="secondary">Target:</Text>
+                <div>
+                  <Text strong>{cvDevice.name}</Text>
+                  <Text type="secondary"> (Cyber Vision ID: {cvDevice.id})</Text>
+                </div>
               </div>
-            </div>
-            <div>
-              <Text style={{ display: 'block', marginBottom: 8 }}>
-                Select properties to push:
-              </Text>
-              <Checkbox.Group
-                value={selectedProperties}
-                onChange={(values) => setSelectedProperties(values as string[])}
-                style={{ width: '100%' }}
-              >
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {getAvailableProperties(enrichTarget).map((prop) => (
-                    <Checkbox key={prop.label} value={prop.label}>
-                      <Text strong>{prop.label}:</Text> {prop.value}
-                    </Checkbox>
-                  ))}
-                </Space>
-              </Checkbox.Group>
-            </div>
-            <Alert
-              message="Note"
-              description="Properties will be added as custom user properties in Cyber Vision. Existing properties with the same label will be skipped."
-              type="info"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          </Space>
-        )}
+
+              {/* Before / After preview */}
+              <Table
+                size="small"
+                pagination={false}
+                dataSource={availableProps.map((prop) => ({
+                  key: prop.label,
+                  property: prop.label,
+                  cvCurrent: cvCurrentValues[prop.label] || null,
+                  proposed: prop.value,
+                }))}
+                columns={[
+                  {
+                    title: 'Property',
+                    dataIndex: 'property',
+                    key: 'property',
+                    render: (v: string) => <Text strong>{v}</Text>,
+                  },
+                  {
+                    title: 'CV Current',
+                    dataIndex: 'cvCurrent',
+                    key: 'cvCurrent',
+                    render: (v: string | null) => v ? <Text>{v}</Text> : <Text type="secondary" italic>empty</Text>,
+                  },
+                  {
+                    title: 'PacketArch',
+                    dataIndex: 'proposed',
+                    key: 'proposed',
+                    render: (v: string, record: { cvCurrent: string | null }) => (
+                      <Text style={{ color: record.cvCurrent ? undefined : '#52c41a' }}>{v}</Text>
+                    ),
+                  },
+                ]}
+                style={{ marginBottom: 16 }}
+              />
+
+              <div>
+                <Text style={{ display: 'block', marginBottom: 8 }}>
+                  Select properties to push:
+                </Text>
+                <Checkbox.Group
+                  value={selectedProperties}
+                  onChange={(values) => setSelectedProperties(values as string[])}
+                  style={{ width: '100%' }}
+                >
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {availableProps.map((prop) => (
+                      <Checkbox key={prop.label} value={prop.label}>
+                        <Text strong>{prop.label}:</Text> {prop.value}
+                      </Checkbox>
+                    ))}
+                  </Space>
+                </Checkbox.Group>
+              </div>
+              <Alert
+                message="Note"
+                description="Properties will be added as custom user properties in Cyber Vision. Existing properties with the same label will be skipped."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+              />
+            </Space>
+          );
+        })()}
       </Modal>
 
       {/* Bulk Enrichment Progress Modal */}
@@ -1008,13 +1164,23 @@ const CyberVisionPage: React.FC = () => {
         }}
         footer={
           bulkEnrichResults ? (
-            <Button type="primary" onClick={() => {
-              setBulkEnrichModalOpen(false);
-              setBulkEnrichResults(null);
-              setBulkEnrichPreview(null);
-            }}>
-              Done
-            </Button>
+            <Space>
+              <Button onClick={() => {
+                setBulkEnrichModalOpen(false);
+                setBulkEnrichResults(null);
+                setBulkEnrichPreview(null);
+              }}>
+                Done
+              </Button>
+              <Button type="primary" icon={<SyncOutlined />} onClick={() => {
+                setBulkEnrichModalOpen(false);
+                setBulkEnrichResults(null);
+                setBulkEnrichPreview(null);
+                handleCompare();
+              }}>
+                Re-compare
+              </Button>
+            </Space>
           ) : bulkEnrichPreview ? (
             <Space>
               <Button onClick={() => {
