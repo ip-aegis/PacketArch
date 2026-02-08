@@ -13,48 +13,36 @@ The Scenario Studio is a React Flow canvas editor where users build OT network s
 
 ---
 
-## Easy Wins (1-3 hours each)
+## Easy Wins (1-3 hours each) — COMPLETE
 
-### E1. Fix default node spacing
+### E1. Fix default node spacing — DONE
 **File**: `frontend/src/components/canvas/hooks/useCanvasSync.ts:38-41`
-- Change default grid from `180px x 150px` to `250px x 220px`
-- This alone eliminates the primary overlap complaint for new/loaded scenarios
-- Also increase column count threshold from 5 to 4 for more breathing room
+- Changed default grid from `180px x 150px` to `250px x 220px`
+- Reduced column count from 5 to 4 for more breathing room
 
-### E2. Add fitView on scenario load
-**File**: `frontend/src/components/canvas/ScenarioCanvas.tsx:353`
-- Currently `fitView={false}` — change to `fitView` with `padding: 0.15`
-- Ensures new scenarios auto-fit to viewport instead of starting at origin
-- Add `fitView({ padding: 0.15 })` call after auto-layout runs
+### E2. Add fitView on scenario load — DONE
+**File**: `frontend/src/components/canvas/ScenarioCanvas.tsx`
+- Changed `fitView={false}` to `fitView` with `fitViewOptions={{ padding: 0.15 }}`
 
-### E3. Improve toolbar button grouping with visual separators
+### E3. Improve toolbar button grouping with visual separators — DONE
 **File**: `frontend/src/components/canvas/CanvasControls.tsx`
-- Currently ~15 buttons in a flat row. Add subtle group dividers and labels:
-  - **View**: Zoom In / Out / Fit
-  - **Edit**: Undo / Redo / Delete
-  - **Layout**: Layout dropdown / Minimap toggle
-  - **Version**: Save / History
-- Use 1px divider + small group label (9px, muted) above each section
+- Added labeled groups (View, Edit, Map, Layout, Names, Version) with 9px uppercase muted labels
+- Merged Delete into Edit group, shortened button text to icon-only for Save/History
 
-### E4. Collapse device palette groups by default
+### E4. Collapse device palette groups by default — DONE
 **File**: `frontend/src/components/palette/DevicePalette.tsx`
-- Currently `defaultActiveKey={Object.keys(groupedDevices)}` (all open)
-- Change to `defaultActiveKey={[]}` (all collapsed) or just the first group
-- Reduces initial visual noise and scrolling in the palette
+- Changed `defaultActiveKey={Object.keys(groupedDevices)}` to `defaultActiveKey={[]}`
 
-### E5. Tighten device card content
+### E5. Tighten device card content — DONE
 **File**: `frontend/src/components/canvas/nodes/DeviceNode.tsx`
-- Reduce icon container from 56x56px to 40x40px (icon font from 28px to 20px)
-- Reduce padding from `12px 16px` to `10px 12px`
-- Reduce protocol badge font from 9px to 8px
-- Hide vendor text by default (show on hover or selection only)
-- Net effect: cards shrink from ~180x190px effective to ~150x155px
+- Reduced icon container from 56x56px to 40x40px (icon font 28px to 20px)
+- Reduced padding from `12px 16px` to `10px 12px`
+- Reduced card width from 140-180px to 130-160px
+- Vendor text now shown only on hover or selection
 
-### E6. Snap grid alignment improvement
-**File**: `frontend/src/components/canvas/ScenarioCanvas.tsx:347-348`
-- Current snap grid is 16x16 (too fine to prevent overlap)
-- Increase to `[20, 20]` for cleaner alignment
-- Add `snapGrid` visual dots to background (already has grid but at 20px gap)
+### E6. Snap grid alignment improvement — DONE
+**File**: `frontend/src/components/canvas/ScenarioCanvas.tsx`
+- Changed snap grid from `[16, 16]` to `[20, 20]` to match background grid gap
 
 ---
 
