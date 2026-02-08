@@ -345,12 +345,13 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         onDrop={onCanvasDrop}
         onDragOver={onDragOver}
         snapToGrid={true}
-        snapGrid={[16, 16]}
+        snapGrid={[20, 20]}
         defaultEdgeOptions={{
           type: 'flowEdge',
           animated: false,
         }}
-        fitView={false}
+        fitView
+        fitViewOptions={{ padding: 0.15 }}
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}

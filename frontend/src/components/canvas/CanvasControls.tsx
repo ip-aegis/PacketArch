@@ -152,130 +152,175 @@ const CanvasControls: React.FC = () => {
     color: '#b8c9dc',
   };
 
+  const groupLabelStyle: React.CSSProperties = {
+    fontSize: '9px',
+    color: 'rgba(184,201,220,0.45)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: '2px',
+    lineHeight: 1,
+    userSelect: 'none',
+  };
+
+  const groupStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  };
+
+  const groupButtonsStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: '4px',
+  };
+
+  const dividerStyle: React.CSSProperties = {
+    width: 1,
+    alignSelf: 'stretch',
+    background: '#3a5068',
+    margin: '0 2px',
+  };
+
   return (
     <div
       style={{
         background: '#1a2734',
-        padding: '8px',
+        padding: '6px 8px',
         borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
         border: '1px solid #2a3f54',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
       }}
     >
-      <Space>
-        {/* Zoom controls */}
-        <Tooltip title="Zoom In">
-          <Button icon={<ZoomInOutlined />} onClick={() => zoomIn()} style={buttonStyle} />
-        </Tooltip>
-        <Tooltip title="Zoom Out">
-          <Button icon={<ZoomOutOutlined />} onClick={() => zoomOut()} style={buttonStyle} />
-        </Tooltip>
-        <Tooltip title="Fit View">
-          <Button icon={<ExpandOutlined />} onClick={() => fitView()} style={buttonStyle} />
-        </Tooltip>
+      {/* View group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>View</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title="Zoom In">
+            <Button icon={<ZoomInOutlined />} onClick={() => zoomIn()} style={buttonStyle} />
+          </Tooltip>
+          <Tooltip title="Zoom Out">
+            <Button icon={<ZoomOutOutlined />} onClick={() => zoomOut()} style={buttonStyle} />
+          </Tooltip>
+          <Tooltip title="Fit View">
+            <Button icon={<ExpandOutlined />} onClick={() => fitView()} style={buttonStyle} />
+          </Tooltip>
+        </div>
+      </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+      <div style={dividerStyle} />
 
-        {/* History controls */}
-        <Tooltip title="Undo">
-          <Button
-            icon={<UndoOutlined />}
-            onClick={undo}
-            disabled={!canUndo}
-            style={buttonStyle}
-          />
-        </Tooltip>
-        <Tooltip title="Redo">
-          <Button
-            icon={<RedoOutlined />}
-            onClick={redo}
-            disabled={!canRedo}
-            style={buttonStyle}
-          />
-        </Tooltip>
+      {/* Edit group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Edit</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title="Undo">
+            <Button
+              icon={<UndoOutlined />}
+              onClick={undo}
+              disabled={!canUndo}
+              style={buttonStyle}
+            />
+          </Tooltip>
+          <Tooltip title="Redo">
+            <Button
+              icon={<RedoOutlined />}
+              onClick={redo}
+              disabled={!canRedo}
+              style={buttonStyle}
+            />
+          </Tooltip>
+          <Tooltip title="Delete Selected">
+            <Button
+              icon={<DeleteOutlined />}
+              onClick={handleDelete}
+              disabled={selectedNodeIds.length === 0}
+              danger
+            />
+          </Tooltip>
+        </div>
+      </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+      <div style={dividerStyle} />
 
-        {/* Delete control */}
-        <Tooltip title="Delete Selected">
-          <Button
-            icon={<DeleteOutlined />}
-            onClick={handleDelete}
-            disabled={selectedNodeIds.length === 0}
-            danger
-          />
-        </Tooltip>
+      {/* Map group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Map</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title={minimapVisible ? 'Hide Minimap' : 'Show Minimap'}>
+            <Button
+              icon={minimapVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              onClick={toggleMinimap}
+              style={buttonStyle}
+            />
+          </Tooltip>
+        </div>
+      </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+      <div style={dividerStyle} />
 
-        {/* Minimap toggle */}
-        <Tooltip title={minimapVisible ? 'Hide Minimap' : 'Show Minimap'}>
-          <Button
-            icon={minimapVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-            onClick={toggleMinimap}
-            style={buttonStyle}
-          />
-        </Tooltip>
+      {/* Layout group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Layout</span>
+        <div style={groupButtonsStyle}>
+          <Dropdown
+            menu={{ items: layoutMenuItems, onClick: handleLayoutSelect }}
+            trigger={['click']}
+          >
+            <Tooltip title="Auto-arrange Layout">
+              <Button icon={<LayoutOutlined />} style={buttonStyle}>
+                Layout
+              </Button>
+            </Tooltip>
+          </Dropdown>
+        </div>
+      </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+      <div style={dividerStyle} />
 
-        {/* Layout dropdown */}
-        <Dropdown
-          menu={{ items: layoutMenuItems, onClick: handleLayoutSelect }}
-          trigger={['click']}
-        >
-          <Tooltip title="Auto-arrange Layout">
-            <Button icon={<LayoutOutlined />} style={buttonStyle}>
-              Layout
+      {/* Names group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Names</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title="Customize device names using AI based on your facility description">
+            <Button
+              icon={<EditOutlined />}
+              style={buttonStyle}
+              onClick={() => setCustomizeNamesModalOpen(true)}
+              disabled={deviceCount === 0}
+            >
+              Customize
             </Button>
           </Tooltip>
-        </Dropdown>
+        </div>
+      </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
+      <div style={dividerStyle} />
 
-        {/* Customize Names button */}
-        <Tooltip title="Customize device names using AI based on your facility description">
-          <Button
-            icon={<EditOutlined />}
-            style={buttonStyle}
-            onClick={() => setCustomizeNamesModalOpen(true)}
-            disabled={deviceCount === 0}
-          >
-            Customize Names
-          </Button>
-        </Tooltip>
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 24, background: '#3a5068' }} />
-
-        {/* Version controls */}
-        <Tooltip title="Save Version (Ctrl+S)">
-          <Button
-            icon={<SaveOutlined />}
-            style={buttonStyle}
-            onClick={handleSaveVersion}
-            loading={savingVersion}
-            disabled={!scenarioId}
-          >
-            Save Version
-          </Button>
-        </Tooltip>
-        <Tooltip title="Version History">
-          <Button
-            icon={<HistoryOutlined />}
-            style={buttonStyle}
-            onClick={() => setHistoryDrawerOpen(true)}
-            disabled={!scenarioId}
-          >
-            History
-          </Button>
-        </Tooltip>
-      </Space>
+      {/* Version group */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Version</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title="Save Version (Ctrl+S)">
+            <Button
+              icon={<SaveOutlined />}
+              style={buttonStyle}
+              onClick={handleSaveVersion}
+              loading={savingVersion}
+              disabled={!scenarioId}
+            />
+          </Tooltip>
+          <Tooltip title="Version History">
+            <Button
+              icon={<HistoryOutlined />}
+              style={buttonStyle}
+              onClick={() => setHistoryDrawerOpen(true)}
+              disabled={!scenarioId}
+            />
+          </Tooltip>
+        </div>
+      </div>
 
       {/* Version History Drawer */}
       <VersionHistoryDrawer

@@ -3,7 +3,7 @@
  * Enhanced visual design with color-coded device type icons
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import {
@@ -54,11 +54,13 @@ const DEVICE_TYPE_CONFIG: Record<DeviceType, { icon: React.ReactNode; color: str
 
 const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
   const { data, selected } = props;
+  const [hovered, setHovered] = useState(false);
   if (!data) return null;
 
   const nodeData = data as DeviceNodeData;
   const deviceConfig = DEVICE_TYPE_CONFIG[nodeData.type] || DEVICE_TYPE_CONFIG.plc;
   const deviceColor = deviceConfig.color;
+  const showDetails = selected || hovered;
 
   return (
     <div
@@ -66,6 +68,8 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
       aria-label={`${deviceConfig.label} device: ${nodeData.name}${nodeData.vendor ? `, vendor ${nodeData.vendor}` : ''}${nodeData.ipAddress ? `, IP ${nodeData.ipAddress}` : ''}`}
       aria-selected={selected}
       tabIndex={0}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -76,15 +80,15 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
         );
       }}
       style={{
-        padding: '12px 16px',
+        padding: '10px 12px',
         borderRadius: '12px',
         background: '#1e2a3a',
         border: `2px solid ${selected ? deviceColor : 'rgba(255,255,255,0.08)'}`,
         boxShadow: selected
           ? `0 4px 20px ${deviceColor}40, 0 0 0 1px ${deviceColor}60`
           : '0 2px 8px rgba(0,0,0,0.3)',
-        minWidth: '140px',
-        maxWidth: '180px',
+        minWidth: '130px',
+        maxWidth: '160px',
         transition: 'all 0.2s ease',
         cursor: 'pointer',
         position: 'relative',
@@ -193,15 +197,15 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
       >
         <div
           style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '14px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
             background: `linear-gradient(135deg, ${deviceColor}30, ${deviceColor}15)`,
             border: `1px solid ${deviceColor}50`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '28px',
+            fontSize: '20px',
             color: deviceColor,
             boxShadow: `0 2px 8px ${deviceColor}20`,
           }}
@@ -230,7 +234,7 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
         >
           {nodeData.name}
         </div>
-        {nodeData.vendor && (
+        {nodeData.vendor && showDetails && (
           <div
             style={{
               fontSize: '10px',

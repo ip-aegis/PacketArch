@@ -111,7 +111,7 @@ const DevicePalette: React.FC = () => {
           />
         ) : (
           <Collapse
-            defaultActiveKey={Object.keys(groupedDevices)}
+            defaultActiveKey={[]}
             ghost
             expandIconPosition="end"
           >

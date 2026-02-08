@@ -36,8 +36,8 @@ export const useCanvasSync = () => {
 
       // Calculate default position if not provided (grid layout)
       const defaultPosition = {
-        x: 100 + (index % 5) * 180,
-        y: 100 + Math.floor(index / 5) * 150,
+        x: 100 + (index % 4) * 250,
+        y: 100 + Math.floor(index / 4) * 220,
       };
 
       return {
