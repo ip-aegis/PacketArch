@@ -2,7 +2,7 @@
  * Canvas controls toolbar (zoom, fit view, undo/redo, delete, layout, customize names)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Space, Tooltip, Dropdown, Modal, Input, App } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -23,11 +23,17 @@ import {
   EditOutlined,
   SaveOutlined,
   HistoryOutlined,
+  BlockOutlined,
+  PartitionOutlined,
+  ApiOutlined,
+  ShopOutlined,
+  GroupOutlined,
 } from '@ant-design/icons';
-import { useReactFlow } from '@xyflow/react';
+import { useReactFlow, useViewport } from '@xyflow/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
+import type { ClusterViewMode } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
 import { scenariosApi } from '../../api/scenarios';
@@ -39,6 +45,7 @@ const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const { zoom } = useViewport();
   const undo = useHistoryStore((state) => state.undo);
   const redo = useHistoryStore((state) => state.redo);
   const canUndo = useHistoryStore((state) => state.canUndo());
@@ -49,6 +56,8 @@ const CanvasControls: React.FC = () => {
   const deviceCount = useScenarioStore((state) => Object.keys(state.devices).length);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const toggleMinimap = useUIStore((state) => state.toggleMinimap);
+  const clusterViewMode = useUIStore((state) => state.clusterViewMode);
+  const setClusterViewMode = useUIStore((state) => state.setClusterViewMode);
   const { applyLayout } = useAutoLayout();
 
   // Version history drawer state
@@ -58,6 +67,18 @@ const CanvasControls: React.FC = () => {
   // Customize Names modal state
   const [customizeNamesModalOpen, setCustomizeNamesModalOpen] = useState(false);
   const [processContext, setProcessContext] = useState('');
+
+  // Listen for command palette events
+  useEffect(() => {
+    const onOpenHistory = () => setHistoryDrawerOpen(true);
+    const onOpenNames = () => setCustomizeNamesModalOpen(true);
+    window.addEventListener('command-palette:open-version-history', onOpenHistory);
+    window.addEventListener('command-palette:open-customize-names', onOpenNames);
+    return () => {
+      window.removeEventListener('command-palette:open-version-history', onOpenHistory);
+      window.removeEventListener('command-palette:open-customize-names', onOpenNames);
+    };
+  }, []);
 
   // Regenerate names mutation
   const regenerateNamesMutation = useMutation({
@@ -146,6 +167,30 @@ const CanvasControls: React.FC = () => {
     },
   ];
 
+  const handleGroupSelect: MenuProps['onClick'] = ({ key }) => {
+    setClusterViewMode(key as ClusterViewMode);
+    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+  };
+
+  const GROUP_MODE_LABELS: Record<ClusterViewMode, string> = {
+    none: 'Group',
+    zone: 'By Zone',
+    protocol: 'By Protocol',
+    vendor: 'By Vendor',
+    purdueLevel: 'By Purdue',
+    deviceType: 'By Type',
+  };
+
+  const groupMenuItems: MenuProps['items'] = [
+    { key: 'none', icon: <BlockOutlined />, label: 'No Grouping' },
+    { type: 'divider' },
+    { key: 'zone', icon: <PartitionOutlined />, label: 'By Zone' },
+    { key: 'protocol', icon: <ApiOutlined />, label: 'By Protocol' },
+    { key: 'vendor', icon: <ShopOutlined />, label: 'By Vendor' },
+    { key: 'purdueLevel', icon: <BuildOutlined />, label: 'By Purdue Level' },
+    { key: 'deviceType', icon: <AppstoreOutlined />, label: 'By Device Type' },
+  ];
+
   const buttonStyle = {
     background: '#253545',
     borderColor: '#3a5068',
@@ -206,6 +251,18 @@ const CanvasControls: React.FC = () => {
           <Tooltip title="Fit View">
             <Button icon={<ExpandOutlined />} onClick={() => fitView()} style={buttonStyle} />
           </Tooltip>
+          <span
+            style={{
+              fontSize: '10px',
+              color: '#b8c9dc',
+              minWidth: '32px',
+              textAlign: 'center',
+              fontFamily: 'monospace',
+              lineHeight: '32px',
+            }}
+          >
+            {Math.round(zoom * 100)}%
+          </span>
         </div>
       </div>
 
@@ -271,6 +328,32 @@ const CanvasControls: React.FC = () => {
             <Tooltip title="Auto-arrange Layout">
               <Button icon={<LayoutOutlined />} style={buttonStyle}>
                 Layout
+              </Button>
+            </Tooltip>
+          </Dropdown>
+        </div>
+      </div>
+
+      <div style={dividerStyle} />
+
+      {/* Group-by cluster view */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Group</span>
+        <div style={groupButtonsStyle}>
+          <Dropdown
+            menu={{ items: groupMenuItems, onClick: handleGroupSelect }}
+            trigger={['click']}
+          >
+            <Tooltip title="Group devices by attribute (G)">
+              <Button
+                icon={<GroupOutlined />}
+                style={
+                  clusterViewMode !== 'none'
+                    ? { ...buttonStyle, borderColor: '#049FD9', color: '#049FD9' }
+                    : buttonStyle
+                }
+              >
+                {GROUP_MODE_LABELS[clusterViewMode]}
               </Button>
             </Tooltip>
           </Dropdown>

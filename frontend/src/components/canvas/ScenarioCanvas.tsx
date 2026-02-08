@@ -20,21 +20,28 @@ import '@xyflow/react/dist/style.css';
 
 import DeviceNode from './nodes/DeviceNode';
 import ZoneNode from './nodes/ZoneNode';
+import ClusterNode from './nodes/ClusterNode';
+import type { ClusterNodeData } from './nodes/ClusterNode';
 import FlowEdge from './edges/FlowEdge';
 import CanvasControls from './CanvasControls';
 import DeviceContextMenu from './DeviceContextMenu';
 import { useCanvasSync } from './hooks/useCanvasSync';
+import { useClusterView } from './hooks/useClusterView';
 import { useNodeDrag } from './hooks/useNodeDrag';
+import { useAutoLayout } from './hooks/useAutoLayout';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
+import type { ClusterViewMode } from '../../stores/uiStore';
 import type { ScenarioFlow } from '../../types';
 import type { DeviceNodeData } from './nodes/DeviceNode';
 import { DEVICE_TYPE_COLORS } from '../../constants/protocols';
+import { registerCanvasDeps } from '../command-palette/CommandPalette';
 
 const nodeTypes = {
   deviceNode: DeviceNode,
   zoneNode: ZoneNode,
+  clusterNode: ClusterNode,
 } as const satisfies Record<string, React.ComponentType<unknown>>;
 
 const edgeTypes = {
@@ -49,24 +56,32 @@ interface ScenarioCanvasProps {
 const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) => {
   // Get nodes/edges from sync hook (source of truth from store)
   const { nodes: storeNodes, edges: storeEdges } = useCanvasSync();
+  // Cluster view: transforms nodes/edges when a grouping mode is active
+  const {
+    nodes: viewNodes,
+    edges: viewEdges,
+    isClusterViewActive,
+    toggleCluster,
+  } = useClusterView(storeNodes, storeEdges);
   const { handleDrop: handleNodeDrop } = useNodeDrag();
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
   const moveDevice = useScenarioStore((state) => state.moveDevice);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ deviceId: string; x: number; y: number } | null>(null);
 
   // Local state for React Flow to manage drag interactions
-  const [nodes, setNodes] = useState<Node[]>(storeNodes);
-  const [edges, setEdges] = useState<Edge[]>(storeEdges);
+  const [nodes, setNodes] = useState<Node[]>(viewNodes);
+  const [edges, setEdges] = useState<Edge[]>(viewEdges);
 
-  // Sync local state when store changes (e.g., new devices added)
+  // Sync local state when store or cluster view changes
   useEffect(() => {
-    setNodes(storeNodes);
-  }, [storeNodes]);
+    setNodes(viewNodes);
+  }, [viewNodes]);
 
   useEffect(() => {
-    setEdges(storeEdges);
-  }, [storeEdges]);
+    setEdges(viewEdges);
+  }, [viewEdges]);
 
   // Listen for device context menu events from DeviceNode
   useEffect(() => {
@@ -85,6 +100,46 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const setPropertyContext = useUIStore((state) => state.setPropertyContext);
   const setSelection = useUIStore((state) => state.setSelection);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
+  const pendingFitToNode = useUIStore((state) => state.pendingFitToNode);
+  const setPendingFitToNode = useUIStore((state) => state.setPendingFitToNode);
+  const selectedNodeIds = useUIStore((state) => state.selectedNodeIds);
+  const { applyLayout } = useAutoLayout();
+
+  // Register canvas deps for command palette (lives outside ReactFlowProvider)
+  useEffect(() => {
+    registerCanvasDeps({
+      zoomIn: () => zoomIn(),
+      zoomOut: () => zoomOut(),
+      fitView: () => fitView({ padding: 0.15, duration: 300 }),
+      applyLayout: (type: string) => applyLayout(type as 'purdue' | 'dataflow' | 'grid' | 'circular'),
+      deleteSelected: () => {
+        const ids = useUIStore.getState().selectedNodeIds;
+        ids.forEach((id) => removeDevice(id));
+      },
+      saveVersion: () => {
+        // Dispatch Ctrl+S event to trigger existing handler in ScenarioStudioPage
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }));
+      },
+      openVersionHistory: () => {
+        // Dispatch custom event for CanvasControls to open its drawer
+        window.dispatchEvent(new CustomEvent('command-palette:open-version-history'));
+      },
+      openCustomizeNames: () => {
+        window.dispatchEvent(new CustomEvent('command-palette:open-customize-names'));
+      },
+    });
+    return () => registerCanvasDeps(null);
+  }, [fitView, zoomIn, zoomOut, applyLayout, removeDevice]);
+
+  // Command palette device search → navigate to device
+  useEffect(() => {
+    if (pendingFitToNode) {
+      setSelection([pendingFitToNode], []);
+      setPropertyContext('device', [pendingFitToNode]);
+      fitView({ nodes: [{ id: pendingFitToNode }], padding: 0.3, duration: 300 });
+      setPendingFitToNode(null);
+    }
+  }, [pendingFitToNode, fitView, setSelection, setPropertyContext, setPendingFitToNode]);
 
   // Handle drop from palette
   const onCanvasDrop = useCallback(
@@ -110,13 +165,16 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
       setNodes((nds) => applyNodeChanges(changes, nds));
 
       // When drag ends, sync the final position to the store
-      changes.forEach((change) => {
-        if (change.type === 'position' && change.position && !change.dragging) {
-          moveDevice(change.id, change.position);
-        }
-      });
+      // Skip store sync for cluster/container nodes (computed positions, not persisted)
+      if (!isClusterViewActive) {
+        changes.forEach((change) => {
+          if (change.type === 'position' && change.position && !change.dragging) {
+            moveDevice(change.id, change.position);
+          }
+        });
+      }
     },
-    [moveDevice]
+    [moveDevice, isClusterViewActive]
   );
 
   // Handle edge changes
@@ -208,6 +266,19 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     [setPropertyContext, setSelection]
   );
 
+  // Handle double-click on cluster nodes to expand/collapse
+  const onNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.type === 'clusterNode' && node.data) {
+        const clusterData = node.data as ClusterNodeData;
+        toggleCluster(clusterData.clusterId);
+        // Re-center view after expand/collapse
+        setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+      }
+    },
+    [toggleCluster, fitView]
+  );
+
   // Handle edge selection
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
@@ -285,6 +356,8 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
   // Keyboard shortcuts
   useEffect(() => {
+    const GROUP_MODES: ClusterViewMode[] = ['none', 'zone', 'protocol', 'vendor', 'purdueLevel', 'deviceType'];
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -303,15 +376,27 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         const deviceIds = Object.keys(useScenarioStore.getState().devices);
         setSelection(deviceIds, []);
       }
+
+      // G - Cycle through group-by modes
+      if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const current = useUIStore.getState().clusterViewMode;
+        const idx = GROUP_MODES.indexOf(current);
+        const next = GROUP_MODES[(idx + 1) % GROUP_MODES.length];
+        useUIStore.getState().setClusterViewMode(next);
+        setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [duplicateSelectedDevice, setSelection]);
+  }, [duplicateSelectedDevice, setSelection, fitView]);
 
-  // Get node color for minimap based on device type
+  // Get node color for minimap based on device type or cluster color
   const getNodeColor = useCallback((node: Node) => {
-    if (node.type === 'zoneNode') return 'rgba(255,255,255,0.2)';
+    if (node.type === 'zoneNode' || node.type === 'group') return 'rgba(255,255,255,0.2)';
+    if (node.type === 'clusterNode' && node.data) {
+      return (node.data as ClusterNodeData).color || '#6a9fd4';
+    }
     if (node.type === 'deviceNode' && node.data) {
       const deviceType = (node.data as DeviceNodeData).type;
       return DEVICE_TYPE_COLORS[deviceType] || '#6a9fd4';
@@ -337,6 +422,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onNodesDelete={onNodesDelete}

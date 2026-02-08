@@ -25,6 +25,8 @@ interface ToolState {
   activeTool: 'select' | 'pan' | 'zone' | 'connection';
 }
 
+export type ClusterViewMode = 'none' | 'zone' | 'protocol' | 'vendor' | 'purdueLevel' | 'deviceType';
+
 interface UIState {
   // Panel state
   panels: PanelState;
@@ -36,6 +38,10 @@ interface UIState {
   setLeftSidebarWidth: (width: number) => void;
   setRightSidebarWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
+
+  // Cluster view state
+  clusterViewMode: ClusterViewMode;
+  setClusterViewMode: (mode: ClusterViewMode) => void;
 
   // Viewport state
   viewport: ViewportState;
@@ -64,6 +70,16 @@ interface UIState {
   modalData: Record<string, unknown>;
   openModal: (modalId: string, data?: Record<string, unknown>) => void;
   closeModal: () => void;
+
+  // Command Palette
+  commandPaletteOpen: boolean;
+  openCommandPalette: () => void;
+  closeCommandPalette: () => void;
+  toggleCommandPalette: () => void;
+
+  // Device search → canvas navigation bridge
+  pendingFitToNode: string | null;
+  setPendingFitToNode: (id: string | null) => void;
 
   // Theme
   theme: 'light' | 'dark' | 'system';
@@ -116,6 +132,10 @@ export const useUIStore = create<UIState>()(
         set((state) => ({
           panels: { ...state.panels, bottomPanelHeight: height },
         })),
+
+      // Cluster view state
+      clusterViewMode: 'none',
+      setClusterViewMode: (mode) => set({ clusterViewMode: mode }),
 
       // Viewport state
       viewport: {
@@ -175,6 +195,17 @@ export const useUIStore = create<UIState>()(
           modalData: {},
         }),
 
+      // Command Palette
+      commandPaletteOpen: false,
+      openCommandPalette: () => set({ commandPaletteOpen: true }),
+      closeCommandPalette: () => set({ commandPaletteOpen: false }),
+      toggleCommandPalette: () =>
+        set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
+
+      // Device search → canvas navigation bridge
+      pendingFitToNode: null,
+      setPendingFitToNode: (id) => set({ pendingFitToNode: id }),
+
       // Theme
       theme: 'light',
       setTheme: (theme) => set({ theme }),
@@ -184,6 +215,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         panels: state.panels,
         theme: state.theme,
+        clusterViewMode: state.clusterViewMode,
       }),
     }
   )

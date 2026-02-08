@@ -25,11 +25,13 @@ import {
   EyeOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
 import AgentVersionBanner from './AgentVersionBanner';
+import CommandPalette from '../command-palette/CommandPalette';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -39,8 +41,21 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { panels, toggleLeftSidebar } = useUIStore();
+  const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
+
+  // Global Ctrl+K / Cmd+K shortcut for command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleCommandPalette();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [toggleCommandPalette]);
 
   // Poll health status for notification badge
   useEffect(() => {
@@ -272,6 +287,16 @@ const AppLayout: React.FC = () => {
           </Space>
 
           <Space size="large">
+            {/* Command Palette trigger */}
+            <Tooltip title="Search commands (Ctrl+K)">
+              <Button
+                type="text"
+                icon={<SearchOutlined style={{ fontSize: 16 }} />}
+                onClick={toggleCommandPalette}
+                style={{ color: '#a8a8c0' }}
+              />
+            </Tooltip>
+
             {/* Health Notifications */}
             <Tooltip title={healthAlertCount > 0 ? `${healthAlertCount} agent(s) need attention` : 'All agents healthy'}>
               <Badge count={healthAlertCount} overflowCount={9}>
@@ -335,6 +360,9 @@ const AppLayout: React.FC = () => {
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
       />
+
+      {/* Command Palette */}
+      <CommandPalette />
     </Layout>
   );
 };
