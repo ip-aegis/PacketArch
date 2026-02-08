@@ -48,7 +48,7 @@ The Scenario Studio is a React Flow canvas editor where users build OT network s
 
 ## Medium Effort (0.5-2 days each)
 
-### M1. Compact node mode (zoom-aware card density)
+### M1. Compact node mode (zoom-aware card density) — DONE
 **Files**: `DeviceNode.tsx`, `ScenarioCanvas.tsx`
 - Introduce two node render modes based on zoom level:
   - **Normal** (zoom >= 0.6): current card with icon, name, IP, protocols
@@ -92,11 +92,13 @@ The Scenario Studio is a React Flow canvas editor where users build OT network s
 - Add "Auto-arrange" button in toolbar (wraps existing grid layout)
 - Make it more discoverable — many users don't know about the Layout dropdown
 
-### M7. Improved edge routing
-**File**: `FlowEdge.tsx`
-- Currently using default Bezier curves which can cross through nodes
-- Switch to `smoothstep` edge type for better readability in dense graphs
-- Add edge labels that stay readable (currently can overlap with nodes)
+### M7. Improved edge routing — DONE
+**Files**: `FlowEdge.tsx`, `useCanvasSync.ts`, `useClusterView.ts`
+- Switched from Bezier to `getSmoothStepPath` with `borderRadius: 8` for cleaner rectilinear routing
+- Added parallel edge offset logic — flows between the same device pair fan out with 16px spacing
+- Labels shifted 12px above edge paths with `zIndex: 10` for proper layering
+- Arrow markers tightened from 20×20 to 14×14
+- Stroke widths tuned for smoothstep (1.5px base)
 
 ---
 
@@ -151,7 +153,7 @@ The Scenario Studio is a React Flow canvas editor where users build OT network s
 
 ## Moonshot Ideas (1-4 weeks each)
 
-### S1. Spatial clustering / group-by views
+### S1. Spatial clustering / group-by views — DONE
 - Automatically cluster devices by: zone, protocol, vendor, Purdue level
 - Toggle between views: "Show by Zone" / "Show by Protocol" / "Show by Vendor"
 - Each view re-layouts the canvas with different grouping logic
