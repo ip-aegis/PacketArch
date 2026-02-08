@@ -11,6 +11,7 @@ import {
   CopyOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;
@@ -20,16 +21,16 @@ const DeviceLibraryContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <DatabaseOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <DatabaseOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Device Library
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           The Device Library contains pre-configured device profiles representing real-world
           industrial equipment. Browse, search, and clone devices to use in your scenarios.
         </Paragraph>
       </div>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Device Types
         </Title>
@@ -49,13 +50,13 @@ const DeviceLibraryContent: React.FC = () => {
             {
               title: 'Type',
               dataIndex: 'type',
-              render: (text) => <Text strong style={{ color: '#049FD9' }}>{text}</Text>,
+              render: (text) => <Text strong style={{ color: ACCENT_BLUE }}>{text}</Text>,
               width: 100,
             },
             {
               title: 'Description',
               dataIndex: 'desc',
-              render: (text) => <Text style={{ color: '#8aa4bc' }}>{text}</Text>,
+              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
             },
             {
               title: 'Protocols',
@@ -69,7 +70,7 @@ const DeviceLibraryContent: React.FC = () => {
         />
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <SearchOutlined style={{ marginRight: 8 }} />
           Finding Devices
@@ -77,37 +78,37 @@ const DeviceLibraryContent: React.FC = () => {
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Tag color="blue">Search</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Type to search by device name, type, or vendor
             </Text>
           </div>
           <div>
             <Tag color="green">Filter by Type</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Select specific device types (PLC, RTU, HMI, etc.)
             </Text>
           </div>
           <div>
             <Tag color="orange">Filter by Protocol</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Show devices supporting specific protocols
             </Text>
           </div>
           <div>
             <Tag color="purple">Filter by Vertical</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Show devices for specific industries
             </Text>
           </div>
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <SettingOutlined style={{ marginRight: 8 }} />
           Device Properties
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Click on a device to view its details:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -134,59 +135,59 @@ const DeviceLibraryContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           <CopyOutlined style={{ marginRight: 8 }} />
           Cloning Devices
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           To create a custom variation of an existing device:
         </Paragraph>
-        <ol style={{ color: '#8aa4bc', paddingLeft: 20 }}>
+        <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
           <li>Find the device you want to clone</li>
           <li>Click the "Clone" button</li>
           <li>Modify the properties as needed</li>
           <li>Save with a new name</li>
         </ol>
-        <Paragraph style={{ color: '#8aa4bc', marginTop: 12 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, marginTop: 12 }}>
           Cloned devices appear in your custom devices list and can be used in any scenario.
         </Paragraph>
       </div>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           Vendor Fingerprints
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Each device includes vendor-specific fingerprints that make generated traffic
           appear authentic. Fingerprints include:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Tag color="blue">Modbus</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Device ID, supported function codes
             </Text>
           </div>
           <div>
             <Tag color="green">EtherNet/IP</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Vendor ID, product code, serial number, CIP identity
             </Text>
           </div>
           <div>
             <Tag color="orange">PROFINET</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Station name, vendor ID, device ID
             </Text>
           </div>
           <div>
             <Tag color="purple">TCP Stack</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Window size, TTL, TCP options (for OS fingerprinting)
             </Text>
           </div>

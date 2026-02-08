@@ -14,6 +14,7 @@ import {
   LockOutlined,
 } from '@ant-design/icons';
 import type { HelpArticle } from './index';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -22,10 +23,10 @@ const AnomaliesContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <WarningOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <WarningOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Anomaly Injection
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Inject anomalies into your traffic scenarios to test security monitoring,
           detection systems, and incident response procedures. Create realistic
           attack simulations and protocol violations.
@@ -38,10 +39,10 @@ const AnomaliesContent: React.FC = () => {
         icon={<LockOutlined />}
         message="Authorized Testing Only"
         description="Anomaly injection is intended for authorized security testing on networks you own or have permission to test. Never use these features on production systems without proper authorization."
-        style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+        style={CARD_STYLE}
       />
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Anomaly Categories
         </Title>
@@ -50,7 +51,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="blue" icon={<ClockCircleOutlined />} style={{ marginBottom: 4 }}>
               Timing Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Unusual polling intervals, traffic bursts, unexpected timing patterns.
               Tests detection of operational changes.
             </Paragraph>
@@ -60,7 +61,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="orange" icon={<ApiOutlined />} style={{ marginBottom: 4 }}>
               Protocol Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Invalid function codes, malformed packets, protocol violations.
               Tests protocol-aware intrusion detection.
             </Paragraph>
@@ -70,7 +71,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="purple" icon={<OrderedListOutlined />} style={{ marginBottom: 4 }}>
               Sequence Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Out-of-order commands, unexpected state transitions, unauthorized operations.
               Tests behavioral analysis systems.
             </Paragraph>
@@ -80,7 +81,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="cyan" icon={<FileTextOutlined />} style={{ marginBottom: 4 }}>
               Payload Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Unusual data values, out-of-range parameters, suspicious payloads.
               Tests content inspection capabilities.
             </Paragraph>
@@ -90,7 +91,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="green" icon={<GlobalOutlined />} style={{ marginBottom: 4 }}>
               Network Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Port scanning, network enumeration, broadcast storms.
               Tests network-level detection.
             </Paragraph>
@@ -100,7 +101,7 @@ const AnomaliesContent: React.FC = () => {
             <Tag color="red" icon={<LockOutlined />} style={{ marginBottom: 4 }}>
               Security Anomalies
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Authentication failures, privilege escalation attempts, known exploits.
               Tests security-specific detection rules.
             </Paragraph>
@@ -108,7 +109,7 @@ const AnomaliesContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Severity Levels
         </Title>
@@ -131,7 +132,7 @@ const AnomaliesContent: React.FC = () => {
             {
               title: 'Description',
               dataIndex: 'desc',
-              render: (text) => <Text style={{ color: '#8aa4bc' }}>{text}</Text>,
+              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
             },
             {
               title: 'Example',
@@ -144,31 +145,31 @@ const AnomaliesContent: React.FC = () => {
         />
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           External Communications
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Simulate malicious external communications for advanced threat detection testing:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Tag color="red">C2 Beacons</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Simulated command-and-control callback patterns
             </Text>
           </div>
           <div>
             <Tag color="orange">Data Exfiltration</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Simulated data theft patterns
             </Text>
           </div>
           <div>
             <Tag color="purple">Port Scanning</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Network reconnaissance simulation
             </Text>
           </div>
@@ -179,13 +180,13 @@ const AnomaliesContent: React.FC = () => {
         </Paragraph>
       </div>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           Anomaly Campaigns
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Group anomalies into campaigns for coordinated injection:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -209,7 +210,7 @@ const AnomaliesContent: React.FC = () => {
         showIcon
         message="Testing Workflow"
         description="1. Create scenario with normal traffic. 2. Add anomaly campaign. 3. Deploy and monitor with security tools. 4. Verify detection and alerting."
-        style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+        style={CARD_STYLE}
       />
     </Space>
   );

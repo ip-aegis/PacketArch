@@ -13,6 +13,7 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import type { HelpArticle } from './index';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, BG_INSET, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -21,10 +22,10 @@ const AdminSettingsContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <SettingOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <SettingOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Admin Settings
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Configure system-wide settings including AI providers, Docker hosts, user
           management, and default configurations. Admin access required.
         </Paragraph>
@@ -35,10 +36,10 @@ const AdminSettingsContent: React.FC = () => {
         showIcon
         message="Administrator Access"
         description="The Settings page is only visible to users with administrator privileges."
-        style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+        style={CARD_STYLE}
       />
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Settings Tabs
         </Title>
@@ -47,7 +48,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="blue" icon={<KeyOutlined />} style={{ marginBottom: 4 }}>
               API Tokens
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Manage API tokens for programmatic access to PacketArch. Create, view,
               and revoke tokens.
             </Paragraph>
@@ -57,7 +58,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="purple" icon={<RobotOutlined />} style={{ marginBottom: 4 }}>
               AI Provider
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Configure the AI provider for natural language scenario generation.
               Choose between Anthropic (Claude) or OpenAI (GPT). Enter API keys
               and select models.
@@ -68,7 +69,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="cyan" style={{ marginBottom: 4 }}>
               Network Defaults
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Set default network configuration values for new scenarios, including
               default IP ranges and subnet masks.
             </Paragraph>
@@ -78,7 +79,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="green" style={{ marginBottom: 4 }}>
               System
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               View system information, version details, and general application settings.
             </Paragraph>
           </div>
@@ -87,7 +88,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="orange" icon={<CloudServerOutlined />} style={{ marginBottom: 4 }}>
               Docker Hosts
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Configure remote Docker hosts for traffic generation. Add, edit, and
               test connectivity to Docker endpoints.
             </Paragraph>
@@ -97,7 +98,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="red" icon={<UserOutlined />} style={{ marginBottom: 4 }}>
               Users
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Manage user accounts. Create new users, set admin privileges,
               and deactivate accounts.
             </Paragraph>
@@ -107,7 +108,7 @@ const AdminSettingsContent: React.FC = () => {
             <Tag color="gold" icon={<DatabaseOutlined />} style={{ marginBottom: 4 }}>
               Seed Data
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Initialize or reset database with default data including device profiles,
               vendor fingerprints, and CVE entries.
             </Paragraph>
@@ -115,28 +116,28 @@ const AdminSettingsContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <RobotOutlined style={{ marginRight: 8 }} />
           AI Provider Configuration
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           The AI assistant uses natural language processing to help create scenarios.
           Configure your preferred provider:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 12 }}>
           <div>
             <Text strong style={{ color: '#fff' }}>Anthropic (Claude)</Text>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 8 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 8 }}>
               Recommended. Supports Claude 3.5 Sonnet, Claude 3 Opus, and other models.
               Enter your Anthropic API key.
             </Paragraph>
           </div>
           <div>
             <Text strong style={{ color: '#fff' }}>OpenAI (GPT)</Text>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 8 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 8 }}>
               Alternative option. Supports GPT-4, GPT-4 Turbo, and GPT-3.5 Turbo.
               Enter your OpenAI API key.
             </Paragraph>
@@ -147,16 +148,16 @@ const AdminSettingsContent: React.FC = () => {
           showIcon
           message="Test Connection"
           description="Use the 'Test Connection' button to verify your API key works before saving."
-          style={{ background: '#152330', border: '1px solid #2a3f54', marginTop: 12 }}
+          style={{ background: BG_INSET, border: `1px solid ${BORDER_DEFAULT}`, marginTop: 12 }}
         />
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <CloudServerOutlined style={{ marginRight: 8 }} />
           Docker Host Configuration
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Docker hosts are remote machines that run the traffic generator containers.
           Configure each host with:
         </Paragraph>
@@ -184,7 +185,7 @@ const AdminSettingsContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <UserOutlined style={{ marginRight: 8 }} />
           User Management

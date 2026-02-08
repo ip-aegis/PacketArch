@@ -14,6 +14,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import type { HelpArticle } from './index';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, BG_INSET, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -22,16 +23,16 @@ const DeploymentsContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <CloudServerOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <CloudServerOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Deployments
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Deploy your scenarios to generate traffic. Choose between generating PCAP files
           for offline analysis or injecting live traffic onto a network interface.
         </Paragraph>
       </div>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Deployment Modes
         </Title>
@@ -40,7 +41,7 @@ const DeploymentsContent: React.FC = () => {
             <Tag color="blue" style={{ marginBottom: 4 }}>
               <ClockCircleOutlined /> Timed
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Run for a specific duration (from scenario settings). Automatically stops
               when the duration is reached. Best for generating specific capture files.
             </Paragraph>
@@ -49,7 +50,7 @@ const DeploymentsContent: React.FC = () => {
             <Tag color="green" style={{ marginBottom: 4 }}>
               <SyncOutlined /> Perpetual
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Run continuously until manually stopped. Use for ongoing traffic simulation
               or security monitoring validation.
             </Paragraph>
@@ -57,11 +58,11 @@ const DeploymentsContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Starting a Deployment
         </Title>
-        <ol style={{ color: '#8aa4bc', paddingLeft: 20 }}>
+        <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
           <li>Open a scenario in Scenario Studio</li>
           <li>Click the "Deploy" button in the toolbar</li>
           <li>Select the Docker host (where traffic will be generated)</li>
@@ -74,11 +75,11 @@ const DeploymentsContent: React.FC = () => {
           showIcon
           message="Validation"
           description="The scenario is validated before deployment. Issues like missing IP addresses or incomplete flows must be fixed first."
-          style={{ background: '#152330', border: '1px solid #2a3f54', marginTop: 12 }}
+          style={{ background: BG_INSET, border: `1px solid ${BORDER_DEFAULT}`, marginTop: 12 }}
         />
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Deployment Status
         </Title>
@@ -103,7 +104,7 @@ const DeploymentsContent: React.FC = () => {
             {
               title: 'Description',
               dataIndex: 'desc',
-              render: (text) => <Text style={{ color: '#8aa4bc' }}>{text}</Text>,
+              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
             },
           ]}
           style={{ background: 'transparent' }}
@@ -111,7 +112,7 @@ const DeploymentsContent: React.FC = () => {
         />
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
@@ -122,7 +123,7 @@ const DeploymentsContent: React.FC = () => {
             <Tag color="blue">
               <FileTextOutlined /> View Logs
             </Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Stream real-time logs from the traffic generator
             </Text>
           </div>
@@ -130,7 +131,7 @@ const DeploymentsContent: React.FC = () => {
             <Tag color="green">
               <DownloadOutlined /> Download PCAP
             </Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Download generated capture file (available after completion)
             </Text>
           </div>
@@ -138,26 +139,26 @@ const DeploymentsContent: React.FC = () => {
             <Tag color="orange">
               <PauseCircleOutlined /> Stop
             </Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Stop a running deployment gracefully
             </Text>
           </div>
           <div>
             <Tag color="red">Remove</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Remove a completed/failed deployment from the list
             </Text>
           </div>
         </Space>
       </div>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           Docker Hosts
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Traffic is generated on Docker hosts configured in Admin Settings. Each host can
           inject traffic on any of its network interfaces. Configure hosts with:
         </Paragraph>
@@ -182,7 +183,7 @@ const DeploymentsContent: React.FC = () => {
         showIcon
         message="Network Impact"
         description="Live traffic injection will send packets onto the selected network interface. Ensure you have authorization to inject traffic on the target network."
-        style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+        style={CARD_STYLE}
       />
     </Space>
   );

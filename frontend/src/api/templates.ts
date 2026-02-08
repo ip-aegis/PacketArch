@@ -72,14 +72,6 @@ export interface PhasePreset {
   phases: string[];
 }
 
-export interface LearnedPatternOptions {
-  timing?: boolean;
-  fingerprints?: boolean;
-  sequences?: boolean;
-  function_codes?: boolean;
-  address_patterns?: boolean;
-}
-
 export interface CreateFromTemplateRequest {
   vertical: string;
   template_name?: string;
@@ -88,9 +80,6 @@ export interface CreateFromTemplateRequest {
   phase_preset?: string;
   auto_assign_addresses?: boolean;
   total_duration_ms?: number;
-  // Learned pattern options
-  apply_learned_patterns?: boolean;
-  learned_pattern_options?: LearnedPatternOptions;
   // AI device naming options
   use_ai_naming?: boolean;  // Default false - templates have meaningful built-in names
   process_context?: string; // User description for AI naming (e.g., "candy factory")
@@ -103,8 +92,6 @@ export interface CreateFromTemplateResponse {
   flow_count: number;
   zone_count: number;
   phase_count: number;
-  learned_patterns_applied: boolean;
-  protocols_enhanced: string[];
   ai_naming_applied?: boolean;  // True if AI naming was used
 }
 

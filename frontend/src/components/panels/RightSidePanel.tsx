@@ -3,8 +3,10 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Typography, Empty, Badge, Input, Button, Space, Divider } from 'antd';
+import { Tabs, Typography, Badge, Input, Button, Space, Divider } from 'antd';
 import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { TEXT_BODY, TEXT_MUTED, BG_CARD, BG_PANEL, BG_CODE, BORDER_DEFAULT } from '../../constants/theme';
+import { PanelContainer, EmptyState } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
@@ -57,19 +59,19 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   // Scenario metadata panel shown when nothing is selected
   const scenarioMetadataPanel = (
     <div>
-      <Text strong style={{ color: '#c9d1d9', display: 'block', marginBottom: 16 }}>
+      <Text strong style={{ color: TEXT_BODY, display: 'block', marginBottom: 16 }}>
         Scenario Properties
       </Text>
 
       <div style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 11, color: '#6a8caf', display: 'block', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, color: TEXT_MUTED, display: 'block', marginBottom: 4 }}>
           Name
         </Text>
-        <Text style={{ color: '#c9d1d9' }}>{scenarioName}</Text>
+        <Text style={{ color: TEXT_BODY }}>{scenarioName}</Text>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 11, color: '#6a8caf', display: 'block', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, color: TEXT_MUTED, display: 'block', marginBottom: 4 }}>
           Description
         </Text>
         <TextArea
@@ -78,9 +80,9 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           onChange={(e) => setMetadata({ description: e.target.value })}
           placeholder="Add a description for this scenario..."
           style={{
-            background: '#0d1117',
-            border: '1px solid #2a3f54',
-            color: '#c9d1d9',
+            background: BG_CODE,
+            border: `1px solid ${BORDER_DEFAULT}`,
+            color: TEXT_BODY,
             resize: 'vertical',
           }}
         />
@@ -101,16 +103,16 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         </Button>
       )}
 
-      <Divider style={{ borderColor: '#2a3f54', margin: '20px 0' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT, margin: '20px 0' }} />
 
-      <Text style={{ fontSize: 11, color: '#6a8caf' }}>
+      <Text style={{ fontSize: 11, color: TEXT_MUTED }}>
         Select a device or flow to edit its properties
       </Text>
     </div>
   );
 
   const propertiesContent = (
-    <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
+    <PanelContainer>
       {!activePropertyContext.type || activePropertyContext.ids.length === 0 ? (
         scenarioMetadataPanel
       ) : activePropertyContext.type === 'device' ? (
@@ -118,23 +120,12 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
       ) : activePropertyContext.type === 'flow' ? (
         <FlowPropertyForm flowId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'multi' ? (
-        <Empty
-          description={
-            <div>
-              <Text style={{ fontSize: '13px', color: '#8aa4bc' }}>
-                Multiple items selected
-              </Text>
-              <div style={{ marginTop: '8px' }}>
-                <Text style={{ fontSize: '11px', color: '#6a8caf' }}>
-                  Bulk editing is not yet supported
-                </Text>
-              </div>
-            </div>
-          }
-          style={{ marginTop: '60px' }}
+        <EmptyState
+          message="Multiple items selected"
+          hint="Bulk editing is not yet supported"
         />
       ) : null}
-    </div>
+    </PanelContainer>
   );
 
   const aiContent = (
@@ -151,7 +142,7 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           flex: 1,
           overflowY: 'auto',
           padding: '12px',
-          backgroundColor: '#1e2d3d',
+          backgroundColor: BG_CARD,
         }}
       >
         <ChatInterface />
@@ -161,8 +152,8 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
       <div
         style={{
           padding: '12px',
-          backgroundColor: '#1a2734',
-          borderTop: '1px solid #2a3f54',
+          backgroundColor: BG_PANEL,
+          borderTop: `1px solid ${BORDER_DEFAULT}`,
         }}
       >
         <ChatInput disabled={!isConnected || isProcessing} />
@@ -226,8 +217,8 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         style={{
           width: '360px',
           height: '100%',
-          background: '#1e2d3d',
-          borderLeft: '1px solid #2a3f54',
+          background: BG_CARD,
+          borderLeft: `1px solid ${BORDER_DEFAULT}`,
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -241,8 +232,8 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           tabBarStyle={{
             margin: 0,
             padding: '0 12px',
-            background: '#1a2734',
-            borderBottom: '1px solid #2a3f54',
+            background: BG_PANEL,
+            borderBottom: `1px solid ${BORDER_DEFAULT}`,
           }}
           className="right-side-panel-tabs"
         />

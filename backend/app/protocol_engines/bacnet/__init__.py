@@ -32,10 +32,10 @@ Example fingerprint configuration:
 """
 
 from app.protocol_engines.bacnet.engine import BACnetEngine
+from app.protocol_engines.vendor_oui import BACNET_VENDOR_IDS
 from app.protocol_engines.bacnet.types import (
     BACNET_PORT,
     BACNET_BVLC_TYPE,
-    BACNET_VENDOR_IDS,
     BACnetAbortReason,
     BACnetApplicationTag,
     BACnetConfirmedService,

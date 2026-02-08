@@ -2,6 +2,7 @@
  * Scenario API functions
  */
 
+import { createCrudApi } from './createCrudApi';
 import apiClient from './client';
 import type { PaginatedResponse, VerticalType } from '../types';
 
@@ -31,8 +32,6 @@ export interface ScenarioSummary {
   flow_count: number;
   zone_count: number;
   version: number;
-  has_learned_patterns: boolean;
-  protocols_enhanced: string[];
   readiness: ReadinessSummary;
   created_at: string;
   updated_at: string;
@@ -161,145 +160,87 @@ export interface RepairProtocolsResponse {
   message: string;
 }
 
-const SCENARIOS_PREFIX = '/api/v1/scenarios';
+const PREFIX = '/api/v1/scenarios';
 
 export const scenariosApi = {
-  /**
-   * List scenarios with optional filters
-   */
+  ...createCrudApi<ScenarioDetail, ScenarioCreate, ScenarioUpdate>({
+    prefix: PREFIX,
+  }),
+
   async list(filters: ScenarioFilters = {}): Promise<PaginatedResponse<ScenarioSummary>> {
-    const params = new URLSearchParams();
-
-    if (filters.vertical) params.append('vertical', filters.vertical);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.page) params.append('page', String(filters.page));
-    if (filters.page_size) params.append('page_size', String(filters.page_size));
-
-    const response = await apiClient.get<PaginatedResponse<ScenarioSummary>>(
-      `${SCENARIOS_PREFIX}?${params.toString()}`
-    );
+    const response = await apiClient.get<PaginatedResponse<ScenarioSummary>>(PREFIX, {
+      params: {
+        vertical: filters.vertical,
+        search: filters.search,
+        page: filters.page,
+        page_size: filters.page_size,
+      },
+    });
     return response.data;
   },
 
-  /**
-   * Get a single scenario by ID
-   */
-  async get(id: string): Promise<ScenarioDetail> {
-    const response = await apiClient.get<ScenarioDetail>(`${SCENARIOS_PREFIX}/${id}`);
-    return response.data;
-  },
-
-  /**
-   * Create a new scenario
-   */
-  async create(data: ScenarioCreate): Promise<ScenarioDetail> {
-    const response = await apiClient.post<ScenarioDetail>(SCENARIOS_PREFIX, data);
-    return response.data;
-  },
-
-  /**
-   * Update an existing scenario
-   */
-  async update(id: string, data: ScenarioUpdate): Promise<ScenarioDetail> {
-    const response = await apiClient.patch<ScenarioDetail>(`${SCENARIOS_PREFIX}/${id}`, data);
-    return response.data;
-  },
-
-  /**
-   * Delete a scenario
-   * @param id - Scenario ID
-   * @param force - If true, force delete even if there are active deployments or generation jobs
-   */
   async delete(id: string, force: boolean = false): Promise<void> {
     const params = force ? '?force=true' : '';
-    await apiClient.delete(`${SCENARIOS_PREFIX}/${id}${params}`);
+    await apiClient.delete(`${PREFIX}/${id}${params}`);
   },
 
-  /**
-   * Duplicate a scenario
-   */
   async duplicate(id: string, newName?: string): Promise<ScenarioDetail> {
     const params = newName ? `?new_name=${encodeURIComponent(newName)}` : '';
-    const response = await apiClient.post<ScenarioDetail>(`${SCENARIOS_PREFIX}/${id}/duplicate${params}`);
+    const response = await apiClient.post<ScenarioDetail>(`${PREFIX}/${id}/duplicate${params}`);
     return response.data;
   },
 
-  /**
-   * Export a scenario as JSON
-   */
   async export(id: string): Promise<Record<string, unknown>> {
-    const response = await apiClient.get<Record<string, unknown>>(`${SCENARIOS_PREFIX}/${id}/export`);
+    const response = await apiClient.get<Record<string, unknown>>(`${PREFIX}/${id}/export`);
     return response.data;
   },
 
-  /**
-   * Import a scenario from JSON
-   */
   async import(data: Record<string, unknown>): Promise<ScenarioDetail> {
-    const response = await apiClient.post<ScenarioDetail>(`${SCENARIOS_PREFIX}/import`, data);
+    const response = await apiClient.post<ScenarioDetail>(`${PREFIX}/import`, data);
     return response.data;
   },
 
-  /**
-   * Bulk delete multiple scenarios
-   */
   async bulkDelete(scenarioIds: string[]): Promise<{ deleted: number; message: string }> {
     const response = await apiClient.post<{ deleted: number; message: string }>(
-      `${SCENARIOS_PREFIX}/bulk-delete`,
+      `${PREFIX}/bulk-delete`,
       { scenario_ids: scenarioIds }
     );
     return response.data;
   },
 
-  /**
-   * Validate a scenario before deployment
-   */
   async validate(id: string): Promise<ScenarioValidationResponse> {
     const response = await apiClient.get<ScenarioValidationResponse>(
-      `${SCENARIOS_PREFIX}/${id}/validate`
+      `${PREFIX}/${id}/validate`
     );
     return response.data;
   },
 
-  /**
-   * Get pattern suggestions for all devices in a scenario
-   */
   async getPatternSuggestions(id: string): Promise<ScenarioPatternSuggestionsResponse> {
     const response = await apiClient.get<ScenarioPatternSuggestionsResponse>(
-      `${SCENARIOS_PREFIX}/${id}/pattern-suggestions`
+      `${PREFIX}/${id}/pattern-suggestions`
     );
     return response.data;
   },
 
-  /**
-   * Apply learned patterns to devices in a scenario
-   */
   async applyPatterns(id: string, request: ApplyPatternsRequest): Promise<ApplyPatternsResponse> {
     const response = await apiClient.post<ApplyPatternsResponse>(
-      `${SCENARIOS_PREFIX}/${id}/apply-patterns`,
+      `${PREFIX}/${id}/apply-patterns`,
       request
     );
     return response.data;
   },
 
-  /**
-   * Regenerate device names using AI with user-provided process context
-   */
   async regenerateDeviceNames(id: string, request: RegenerateNamesRequest): Promise<RegenerateNamesResponse> {
     const response = await apiClient.post<RegenerateNamesResponse>(
-      `${SCENARIOS_PREFIX}/${id}/regenerate-names`,
+      `${PREFIX}/${id}/regenerate-names`,
       request
     );
     return response.data;
   },
 
-  /**
-   * Repair protocol assignments by removing protocols without fingerprint support.
-   * This fixes protocol_identity_mismatch validation errors.
-   */
   async repairProtocols(id: string): Promise<RepairProtocolsResponse> {
     const response = await apiClient.post<RepairProtocolsResponse>(
-      `${SCENARIOS_PREFIX}/${id}/repair-protocols`
+      `${PREFIX}/${id}/repair-protocols`
     );
     return response.data;
   },

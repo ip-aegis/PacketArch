@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.core.exceptions import NotFoundError, ValidationError
 from sqlalchemy import select
+from app.api.helpers import get_or_404, get_or_404_where
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.deps import CurrentUser, DBSession
@@ -209,16 +210,12 @@ async def get_anomaly_template(
     except ValueError:
         raise ValidationError("Invalid template ID format")
 
-    result = await db.execute(
-        select(AnomalyTemplate).where(
-            AnomalyTemplate.id == template_uuid,
-            AnomalyTemplate.is_active == True,
-        )
+    template = await get_or_404_where(
+        db, AnomalyTemplate,
+        AnomalyTemplate.id == template_uuid,
+        AnomalyTemplate.is_active == True,
+        resource_name="Anomaly template",
     )
-    template = result.scalar_one_or_none()
-
-    if not template:
-        raise NotFoundError("Anomaly template")
 
     return AnomalyTemplateResponse(
         id=str(template.id),
@@ -262,13 +259,7 @@ async def suggest_anomalies_for_scenario(
         raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     # Analyze scenario
     definition = scenario.definition
@@ -406,13 +397,7 @@ async def create_anomaly_campaign(
         raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     # Find anomaly templates
     templates = []
@@ -485,13 +470,7 @@ async def list_scenario_campaigns(
     except ValueError:
         raise ValidationError("Invalid scenario ID format")
 
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     campaigns = scenario.definition.get("anomaly_campaigns", [])
 
@@ -530,13 +509,7 @@ async def delete_anomaly_campaign(
     except ValueError:
         raise ValidationError("Invalid scenario ID format")
 
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     # Remove campaign
     definition = scenario.definition.copy()
@@ -809,13 +782,7 @@ async def create_external_campaign(
         raise ValidationError("Invalid scenario ID format")
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     # Validate event types
     valid_types = {"c2_beacon", "dns_tunnel", "http_exfil", "exploit", "port_scan"}
@@ -887,13 +854,7 @@ async def list_external_campaigns(
     except ValueError:
         raise ValidationError("Invalid scenario ID format")
 
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     campaigns = scenario.definition.get("external_campaigns", [])
 
@@ -933,13 +894,7 @@ async def delete_external_campaign(
     except ValueError:
         raise ValidationError("Invalid scenario ID format")
 
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == scenario_uuid)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", scenario_id)
+    scenario = await get_or_404(db, Scenario, scenario_uuid, "Scenario")
 
     # Remove campaign
     definition = scenario.definition.copy()

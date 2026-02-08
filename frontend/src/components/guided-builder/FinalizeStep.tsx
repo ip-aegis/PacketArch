@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { templatesApi } from '../../api/templates';
 import { useGuidedBuilderStore } from '../../stores/guidedBuilderStore';
 import { verticalConfig } from '../scenarios/scenarioConstants';
-import { getProtocolColor, getProtocolLabel } from '../../utils/formatUtils';
+import { getProtocolColor, getProtocolLabel } from '../../constants/protocols';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -32,14 +32,12 @@ const FinalizeStep: React.FC = () => {
     scenarioName,
     description,
     phasePreset,
-    applyLearnedPatterns,
     useAINaming,
     processContext,
     isCreating,
     setScenarioName,
     setDescription,
     setPhasePreset,
-    setApplyLearnedPatterns,
     setUseAINaming,
     setProcessContext,
   } = useGuidedBuilderStore();
@@ -121,12 +119,6 @@ const FinalizeStep: React.FC = () => {
             label: <Text style={{ color: '#8aa4bc' }}>Advanced Options</Text>,
             children: (
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Checkbox
-                  checked={applyLearnedPatterns}
-                  onChange={(e) => setApplyLearnedPatterns(e.target.checked)}
-                >
-                  <Text style={{ color: '#c9d1d9' }}>Apply learned traffic patterns</Text>
-                </Checkbox>
                 <Checkbox
                   checked={useAINaming}
                   onChange={(e) => setUseAINaming(e.target.checked)}

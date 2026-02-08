@@ -58,6 +58,7 @@ import {
   type DeviceTemplateSummary,
   type DeviceTemplateDetail,
 } from '../api/fingerprints';
+import { TEXT_BODY, BORDER_ELEVATED } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -372,7 +373,7 @@ const FingerprintingLibraryPage: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         allowClear
-                        style={{ background: '#0d0d1a', borderColor: '#2d2d52' }}
+                        style={{ background: '#0d0d1a', borderColor: BORDER_ELEVATED }}
                       />
                     </Col>
                     <Col xs={24} sm={12} md={6}>
@@ -445,7 +446,7 @@ const FingerprintingLibraryPage: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         allowClear
-                        style={{ background: '#0d0d1a', borderColor: '#2d2d52' }}
+                        style={{ background: '#0d0d1a', borderColor: BORDER_ELEVATED }}
                       />
                     </Col>
                     <Col xs={24} sm={12} md={6}>
@@ -508,7 +509,7 @@ const FingerprintingLibraryPage: React.FC = () => {
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         allowClear
-                        style={{ background: '#0d0d1a', borderColor: '#2d2d52' }}
+                        style={{ background: '#0d0d1a', borderColor: BORDER_ELEVATED }}
                       />
                     </Col>
                     <Col xs={24} sm={6} md={4}>
@@ -726,7 +727,7 @@ const ProtocolCard: React.FC<ProtocolCardProps> = ({ protocol, onClick }) => {
         <Text style={{ color: '#6b6b8a', fontSize: 11 }}>
           Port: {formatPort(protocol.port, protocol.layer)}
         </Text>
-        <Tag style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: '#c9d1d9' }}>
+        <Tag style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: TEXT_BODY }}>
           {protocol.layer}
         </Tag>
       </div>
@@ -791,7 +792,7 @@ const VendorCard: React.FC<VendorCardProps> = ({ vendor, onClick }) => {
         {vendor.protocols.slice(0, 4).map((proto) => (
           <Tag
             key={proto}
-            style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: '#c9d1d9' }}
+            style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: TEXT_BODY }}
           >
             {proto.replace(/_/g, ' ')}
           </Tag>
@@ -841,7 +842,7 @@ const DeviceTemplateCard: React.FC<DeviceTemplateCardProps> = ({ template, onCli
           {template.vendor}
         </Tag>
         {template.vendor_family && (
-          <Tag style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: '#c9d1d9', marginLeft: 4 }}>
+          <Tag style={{ fontSize: 10, background: '#2d2d52', border: 'none', color: TEXT_BODY, marginLeft: 4 }}>
             {template.vendor_family}
           </Tag>
         )}
@@ -875,7 +876,7 @@ const DeviceTemplateCard: React.FC<DeviceTemplateCardProps> = ({ template, onCli
         {template.supported_protocols.slice(0, 3).map((proto) => (
           <Tag
             key={proto}
-            style={{ fontSize: 9, background: '#2d2d52', border: 'none', color: '#c9d1d9' }}
+            style={{ fontSize: 9, background: '#2d2d52', border: 'none', color: TEXT_BODY }}
           >
             {proto.replace(/_/g, ' ')}
           </Tag>
@@ -918,11 +919,11 @@ const ProtocolDetailContent: React.FC<ProtocolDetailContentProps> = ({ protocol 
         )}
       </div>
 
-      <Paragraph style={{ color: '#c9d1d9', marginBottom: 16 }}>
+      <Paragraph style={{ color: TEXT_BODY, marginBottom: 16 }}>
         {protocol.description}
       </Paragraph>
 
-      <Divider style={{ borderColor: '#2d2d52' }} />
+      <Divider style={{ borderColor: BORDER_ELEVATED }} />
 
       <Descriptions
         column={1}
@@ -937,13 +938,13 @@ const ProtocolDetailContent: React.FC<ProtocolDetailContentProps> = ({ protocol 
 
       {protocol.identity_fields && protocol.identity_fields.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Identity Fields
           </Title>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {protocol.identity_fields.map((field) => (
-              <Tag key={field} style={{ fontSize: 11, background: '#2d2d52', border: 'none', color: '#c9d1d9' }}>
+              <Tag key={field} style={{ fontSize: 11, background: '#2d2d52', border: 'none', color: TEXT_BODY }}>
                 {field}
               </Tag>
             ))}
@@ -953,7 +954,7 @@ const ProtocolDetailContent: React.FC<ProtocolDetailContentProps> = ({ protocol 
 
       {protocol.typical_devices.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Typical Devices
           </Title>
@@ -969,7 +970,7 @@ const ProtocolDetailContent: React.FC<ProtocolDetailContentProps> = ({ protocol 
 
       {protocol.typical_vendors.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Typical Vendors
           </Title>
@@ -1023,7 +1024,7 @@ const VendorDetailContent: React.FC<VendorDetailContentProps> = ({ vendor }) => 
         </Col>
       </Row>
 
-      <Divider style={{ borderColor: '#2d2d52' }} />
+      <Divider style={{ borderColor: BORDER_ELEVATED }} />
 
       <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
         OUI Prefixes (MAC)
@@ -1048,7 +1049,7 @@ const VendorDetailContent: React.FC<VendorDetailContentProps> = ({ vendor }) => 
 
       {vendor.device_types.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Device Types
           </Title>
@@ -1064,7 +1065,7 @@ const VendorDetailContent: React.FC<VendorDetailContentProps> = ({ vendor }) => 
 
       {vendor.protocols.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Protocols
           </Title>
@@ -1106,7 +1107,7 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
         )}
       </div>
 
-      <Paragraph style={{ color: '#c9d1d9', marginBottom: 16 }}>
+      <Paragraph style={{ color: TEXT_BODY, marginBottom: 16 }}>
         {template.description}
       </Paragraph>
 
@@ -1121,7 +1122,7 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       </Descriptions>
 
       {/* Firmware Variants - THE KEY FEATURE */}
-      <Divider style={{ borderColor: '#2d2d52' }} />
+      <Divider style={{ borderColor: BORDER_ELEVATED }} />
       <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
         <DatabaseOutlined style={{ marginRight: 8 }} />
         Firmware Variants ({template.firmware_variants.length})
@@ -1183,7 +1184,7 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       {/* Instance Rules */}
       {template.instance_rules && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Instance Generation Rules
           </Title>
@@ -1204,7 +1205,7 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       {/* OUI Prefixes */}
       {template.oui_prefixes.length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             OUI Prefixes
           </Title>
@@ -1219,7 +1220,7 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       )}
 
       {/* Supported Protocols */}
-      <Divider style={{ borderColor: '#2d2d52' }} />
+      <Divider style={{ borderColor: BORDER_ELEVATED }} />
       <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
         Supported Protocols
       </Title>
@@ -1234,11 +1235,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       {/* TCP Stack */}
       {Object.keys(template.tcp_stack).length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             TCP Stack Characteristics
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.tcp_stack, null, 2)}
           </pre>
         </>
@@ -1247,11 +1248,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       {/* Response Timing */}
       {Object.keys(template.response_timing).length > 0 && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Response Timing
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.response_timing, null, 2)}
           </pre>
         </>
@@ -1260,11 +1261,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
       {/* Protocol Identities */}
       {template.modbus_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             Modbus Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.modbus_identity, null, 2)}
           </pre>
         </>
@@ -1272,11 +1273,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
 
       {template.ethernet_ip_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             EtherNet/IP Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.ethernet_ip_identity, null, 2)}
           </pre>
         </>
@@ -1284,11 +1285,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
 
       {template.profinet_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             PROFINET Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.profinet_identity, null, 2)}
           </pre>
         </>
@@ -1296,11 +1297,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
 
       {template.s7_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             S7 Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.s7_identity, null, 2)}
           </pre>
         </>
@@ -1308,11 +1309,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
 
       {template.bacnet_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             BACnet Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.bacnet_identity, null, 2)}
           </pre>
         </>
@@ -1320,11 +1321,11 @@ const DeviceTemplateDetailContent: React.FC<DeviceTemplateDetailContentProps> = 
 
       {template.snmp_identity && (
         <>
-          <Divider style={{ borderColor: '#2d2d52' }} />
+          <Divider style={{ borderColor: BORDER_ELEVATED }} />
           <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
             SNMP Identity
           </Title>
-          <pre style={{ color: '#c9d1d9', fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
+          <pre style={{ color: TEXT_BODY, fontSize: 11, background: '#1a1a2e', padding: 12, borderRadius: 4, overflow: 'auto' }}>
             {JSON.stringify(template.snmp_identity, null, 2)}
           </pre>
         </>

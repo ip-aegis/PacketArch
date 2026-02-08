@@ -11,6 +11,7 @@
 import React, { useState, useCallback } from 'react';
 import { Button, Space, Tag, Typography, notification } from 'antd';
 import { DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PanelContainer } from '../common';
 import { useAttackStore } from '../../stores/attackStore';
 import AttackPlaybookLibrary from './AttackPlaybookLibrary';
 import AttackConfigurator from './AttackConfigurator';
@@ -69,7 +70,7 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
   // If there's an active attack state, show the live timeline
   if (attackState && (attackState.is_active || attackState.is_completed) && scenarioId) {
     return (
-      <div style={{ padding: 16, height: '100%', overflowY: 'auto' }}>
+      <PanelContainer>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
           <ThunderboltOutlined style={{ color: '#ff4d4f' }} />
           <Text style={{ color: '#ffa39e', fontSize: 13, fontWeight: 500 }}>
@@ -98,14 +99,14 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
             </Text>
           </div>
         </div>
-      </div>
+      </PanelContainer>
     );
   }
 
   // Summary view — playbook applied but not yet deployed
   if (view === 'summary' && selectedPlaybook && playbookConfig) {
     return (
-      <div style={{ padding: 16, height: '100%', overflowY: 'auto' }}>
+      <PanelContainer>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <Space size={4}>
             <ThunderboltOutlined style={{ color: '#ff4d4f' }} />
@@ -157,24 +158,24 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
         >
           Edit Configuration
         </Button>
-      </div>
+      </PanelContainer>
     );
   }
 
   // Configure view
   if (view === 'configure' && selectedPlaybook) {
     return (
-      <div style={{ padding: 16, height: '100%', overflowY: 'auto' }}>
+      <PanelContainer>
         <AttackConfigurator onBack={handleBack} onApply={handleApply} />
-      </div>
+      </PanelContainer>
     );
   }
 
   // Library view (default)
   return (
-    <div style={{ padding: 16, height: '100%', overflowY: 'auto' }}>
+    <PanelContainer>
       <AttackPlaybookLibrary scenarioId={scenarioId} onSelect={handleSelectPlaybook} />
-    </div>
+    </PanelContainer>
   );
 };
 

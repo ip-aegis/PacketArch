@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { Typography, Empty } from 'antd';
+import { Typography } from 'antd';
 import { ControlOutlined } from '@ant-design/icons';
+import { EmptyState } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
@@ -48,41 +49,21 @@ const PropertyPanel: React.FC = () => {
         }}
       >
         {!activePropertyContext.type || activePropertyContext.ids.length === 0 ? (
-          <Empty
-            image={<ControlOutlined style={{ fontSize: 48, color: '#4a6a8a' }} />}
-            description={
-              <div>
-                <Text style={{ fontSize: '13px', color: '#8aa4bc' }}>
-                  No selection
-                </Text>
-                <div style={{ marginTop: '8px' }}>
-                  <Text style={{ fontSize: '11px', color: '#6a8caf' }}>
-                    Click on a device or flow to view and edit its properties
-                  </Text>
-                </div>
-              </div>
-            }
-            style={{ marginTop: '80px' }}
+          <EmptyState
+            icon={<ControlOutlined />}
+            message="No selection"
+            hint="Click on a device or flow to view and edit its properties"
+            marginTop={80}
           />
         ) : activePropertyContext.type === 'device' ? (
           <DevicePropertyForm deviceId={activePropertyContext.ids[0]} />
         ) : activePropertyContext.type === 'flow' ? (
           <FlowPropertyForm flowId={activePropertyContext.ids[0]} />
         ) : activePropertyContext.type === 'multi' ? (
-          <Empty
-            description={
-              <div>
-                <Text style={{ fontSize: '13px', color: '#8aa4bc' }}>
-                  Multiple items selected
-                </Text>
-                <div style={{ marginTop: '8px' }}>
-                  <Text style={{ fontSize: '11px', color: '#6a8caf' }}>
-                    Bulk editing is not yet supported
-                  </Text>
-                </div>
-              </div>
-            }
-            style={{ marginTop: '80px' }}
+          <EmptyState
+            message="Multiple items selected"
+            hint="Bulk editing is not yet supported"
+            marginTop={80}
           />
         ) : null}
       </div>

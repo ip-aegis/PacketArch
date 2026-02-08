@@ -13,14 +13,14 @@ from sqlalchemy import func, select
 from sqlalchemy import delete as sql_delete
 
 from app.api.deps import CurrentUser, DBSession
-from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
+from app.api.helpers import get_or_404_where, paginate
+from app.core.exceptions import ConflictError, ExternalServiceError, ValidationError
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob
 from app.models.traffic_agent import AgentDeployment
 from app.models.remote_deployment import RemoteDeployment
 from app.services.device_identity_enricher import enrich_definition_serial_numbers
 from app.services.ip_management import IPManagementService
-from app.services.learned_pattern_service import LearnedPatternService
 from app.services.protocol_validator import validate_scenario_protocols
 from app.schemas.scenario import (
     ReadinessCheck,
@@ -43,14 +43,6 @@ def get_scenario_counts(definition: dict) -> tuple[int, int]:
     devices = definition.get("devices", {})
     flows = definition.get("flows", {})
     return len(devices), len(flows)
-
-
-def get_learned_pattern_info(definition: dict) -> tuple[bool, list[str]]:
-    """Extract learned pattern information from scenario definition."""
-    learned_info = definition.get("learned_patterns_applied", {})
-    if learned_info:
-        return True, learned_info.get("protocols_enhanced", [])
-    return False, []
 
 
 def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
@@ -220,24 +212,14 @@ async def list_scenarios(
             | Scenario.description.ilike(search_filter)
         )
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Apply pagination
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size).order_by(Scenario.updated_at.desc())
-
-    result = await db.execute(query)
-    scenarios = result.scalars().all()
+    query = query.order_by(Scenario.updated_at.desc())
+    scenarios, total = await paginate(db, query, page, page_size)
 
     # Build summary responses with counts and readiness
     items = []
     for s in scenarios:
         definition = s.definition or {}
         device_count, flow_count = get_scenario_counts(definition)
-        has_learned_patterns, protocols_enhanced = get_learned_pattern_info(definition)
         readiness = compute_scenario_readiness(definition)
         items.append(ScenarioSummaryResponse(
             id=s.id,
@@ -248,8 +230,6 @@ async def list_scenarios(
             version=s.version,
             device_count=device_count,
             flow_count=flow_count,
-            has_learned_patterns=has_learned_patterns,
-            protocols_enhanced=protocols_enhanced,
             readiness=readiness,
             created_at=s.created_at,
             updated_at=s.updated_at,
@@ -271,17 +251,13 @@ async def get_scenario(
     current_user: CurrentUser,
 ) -> ScenarioResponse:
     """Get a scenario by ID."""
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
-
     return ScenarioResponse.model_validate(scenario)
 
 
@@ -390,16 +366,13 @@ async def update_scenario(
     current_user: CurrentUser,
 ) -> ScenarioResponse:
     """Update a scenario (supports both PUT and PATCH)."""
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     # Update fields
     update_data = scenario_data.model_dump(exclude_unset=True)
@@ -438,16 +411,13 @@ async def delete_scenario(
     unless force=true is specified, which will stop deployments and remove all
     related records first.
     """
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     # Check for active agent deployments
     active_agent_deployments = await db.execute(
@@ -564,16 +534,13 @@ async def duplicate_scenario(
     new_name: str | None = Query(default=None, min_length=1, max_length=255),
 ) -> ScenarioResponse:
     """Duplicate a scenario with a new name and new IP allocation."""
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     # Use provided name or generate a copy name
     final_name = new_name if new_name else f"{scenario.name} (Copy)"
@@ -626,16 +593,13 @@ async def export_scenario(
     current_user: CurrentUser,
 ) -> ScenarioExport:
     """Export a scenario as JSON."""
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     return ScenarioExport(
         name=scenario.name,
@@ -680,16 +644,13 @@ async def validate_scenario(
     - Missing IP addresses
     - Protocol mismatches
     """
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     warnings: list[ValidationWarning] = []
     definition = scenario.definition or {}
@@ -866,16 +827,13 @@ async def repair_scenario_protocols(
     )
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     definition = scenario.definition or {}
     devices = definition.get("devices", {})
@@ -991,258 +949,6 @@ async def import_scenario(
     return ScenarioResponse.model_validate(scenario)
 
 
-# ========== Pattern Integration Endpoints ==========
-
-
-class DevicePatternSuggestion(BaseModel):
-    """Pattern suggestions for a single device."""
-    device_id: str
-    device_name: str
-    device_type: str
-    protocol: str
-    suggestions: dict
-
-
-class ScenarioPatternSuggestionsResponse(BaseModel):
-    """Response for scenario pattern suggestions."""
-    scenario_id: str
-    scenario_name: str
-    device_suggestions: list[DevicePatternSuggestion]
-    total_patterns_available: int
-
-
-class ApplyPatternsRequest(BaseModel):
-    """Request to apply patterns to a scenario."""
-    device_pattern_mappings: list[dict]  # [{device_id, fingerprint_id, pattern_id, sequence_ids}]
-    apply_timing: bool = True
-    apply_fingerprints: bool = True
-    apply_sequences: bool = False
-
-
-class ApplyPatternsResponse(BaseModel):
-    """Response from applying patterns."""
-    scenario_id: str
-    devices_updated: int
-    patterns_applied: int
-    message: str
-
-
-@router.get("/{scenario_id}/pattern-suggestions", response_model=ScenarioPatternSuggestionsResponse)
-async def get_pattern_suggestions(
-    scenario_id: UUID,
-    db: DBSession,
-    current_user: CurrentUser,
-) -> ScenarioPatternSuggestionsResponse:
-    """Get pattern suggestions for all devices in a scenario.
-
-    Analyzes each device's type and protocol to find matching learned patterns
-    from the PCAP learning system.
-    """
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
-    )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
-
-    definition = scenario.definition or {}
-    devices = definition.get("devices", {})
-    flows = definition.get("flows", {})
-
-    # Build device -> protocol mapping from flows
-    device_protocols: dict[str, set[str]] = {}
-    for flow in flows.values():
-        source_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
-        target_id = flow.get("targetDeviceId") or flow.get("target_device_id")
-        protocol = flow.get("protocol", "").lower()
-
-        if protocol:
-            if source_id:
-                device_protocols.setdefault(source_id, set()).add(protocol)
-            if target_id:
-                device_protocols.setdefault(target_id, set()).add(protocol)
-
-    # Get suggestions for each device
-    device_suggestions = []
-    total_patterns = 0
-
-    for device_id, device in devices.items():
-        device_name = device.get("name", device_id)
-        device_type = device.get("type", "plc").lower()
-        protocols = device_protocols.get(device_id, set())
-
-        # Get suggestions for each protocol this device uses
-        for protocol in protocols:
-            suggestions = await LearnedPatternService.suggest_patterns_for_device(
-                db, device_type, protocol
-            )
-
-            # Count available patterns
-            pattern_count = (
-                len(suggestions["suggestions"].get("protocol_patterns", []))
-                + len(suggestions["suggestions"].get("fingerprints", []))
-                + len(suggestions["suggestions"].get("sequences", []))
-            )
-            total_patterns += pattern_count
-
-            device_suggestions.append(DevicePatternSuggestion(
-                device_id=device_id,
-                device_name=device_name,
-                device_type=device_type,
-                protocol=protocol,
-                suggestions=suggestions["suggestions"],
-            ))
-
-    return ScenarioPatternSuggestionsResponse(
-        scenario_id=str(scenario_id),
-        scenario_name=scenario.name,
-        device_suggestions=device_suggestions,
-        total_patterns_available=total_patterns,
-    )
-
-
-@router.post("/{scenario_id}/apply-patterns", response_model=ApplyPatternsResponse)
-async def apply_patterns(
-    scenario_id: UUID,
-    request: ApplyPatternsRequest,
-    db: DBSession,
-    current_user: CurrentUser,
-) -> ApplyPatternsResponse:
-    """Apply learned patterns to devices in a scenario.
-
-    Updates the scenario definition with realistic timing, fingerprints,
-    and sequences from the PCAP learning system.
-    """
-    from app.models.device_template import DeviceTemplate, TemplateSource
-    from app.models.learned_protocol_pattern import LearnedProtocolPattern
-    from app.models.learned_sequence import LearnedSequence
-    import uuid as uuid_module
-
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
-    )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
-
-    definition = scenario.definition or {}
-    devices = definition.get("devices", {})
-    flows = definition.get("flows", {})
-
-    devices_updated = 0
-    patterns_applied = 0
-
-    for mapping in request.device_pattern_mappings:
-        device_id = mapping.get("device_id")
-        if not device_id or device_id not in devices:
-            continue
-
-        device = devices[device_id]
-
-        # Apply fingerprint to device
-        if request.apply_fingerprints and mapping.get("fingerprint_id"):
-            try:
-                fp_result = await db.execute(
-                    select(DeviceTemplate).where(
-                        DeviceTemplate.id == uuid_module.UUID(mapping["fingerprint_id"]),
-                        DeviceTemplate.source == TemplateSource.PCAP_LEARNED.value,
-                    )
-                )
-                fingerprint = fp_result.scalar_one_or_none()
-
-                if fingerprint:
-                    # Add learned fingerprint data to device
-                    device["learned_fingerprint"] = {
-                        "source_id": str(fingerprint.id),
-                        "tcp_signature": fingerprint.tcp_signature,
-                        "response_timings": fingerprint.response_timings,
-                        "inferred_vendor": fingerprint.vendor,
-                    }
-                    patterns_applied += 1
-            except Exception:
-                pass
-
-        # Apply protocol pattern timing to flows
-        if request.apply_timing and mapping.get("pattern_id"):
-            try:
-                pattern_result = await db.execute(
-                    select(LearnedProtocolPattern).where(
-                        LearnedProtocolPattern.id == uuid_module.UUID(mapping["pattern_id"])
-                    )
-                )
-                pattern = pattern_result.scalar_one_or_none()
-
-                if pattern:
-                    # Find flows involving this device and update them
-                    for flow_id, flow in flows.items():
-                        source_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
-                        target_id = flow.get("targetDeviceId") or flow.get("target_device_id")
-
-                        if source_id == device_id or target_id == device_id:
-                            # Add learned pattern data to flow
-                            flow["learned_pattern"] = {
-                                "source_id": str(pattern.id),
-                                "function_codes": pattern.function_codes,
-                                "address_patterns": pattern.address_patterns,
-                                "timing_distributions": pattern.timing_distributions,
-                            }
-                            patterns_applied += 1
-            except Exception:
-                pass
-
-        # Apply sequences
-        if request.apply_sequences and mapping.get("sequence_ids"):
-            sequence_data = []
-            for seq_id in mapping.get("sequence_ids", []):
-                try:
-                    seq_result = await db.execute(
-                        select(LearnedSequence).where(
-                            LearnedSequence.id == uuid_module.UUID(seq_id)
-                        )
-                    )
-                    sequence = seq_result.scalar_one_or_none()
-
-                    if sequence:
-                        sequence_data.append({
-                            "source_id": str(sequence.id),
-                            "name": sequence.name,
-                            "sequence_type": str(sequence.sequence_type),
-                            "steps": sequence.steps,
-                            "step_count": sequence.step_count,
-                        })
-                        patterns_applied += 1
-                except Exception:
-                    pass
-
-            if sequence_data:
-                device["learned_sequences"] = sequence_data
-
-        devices_updated += 1
-
-    # Update scenario definition
-    definition["devices"] = devices
-    definition["flows"] = flows
-    scenario.definition = definition
-    scenario.version += 1
-    scenario.updated_at = datetime.now(timezone.utc)
-    # Note: commit handled by get_db dependency
-
-    return ApplyPatternsResponse(
-        scenario_id=str(scenario_id),
-        devices_updated=devices_updated,
-        patterns_applied=patterns_applied,
-        message=f"Applied {patterns_applied} patterns to {devices_updated} devices",
-    )
-
-
 # ========== AI Device Naming ==========
 
 
@@ -1290,16 +996,13 @@ async def regenerate_device_names(
     from app.mcp_server.ai_providers import AIProviderFactory
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == current_user.id,
-        )
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
 
     definition = scenario.definition or {}
     devices = definition.get("devices", {})

@@ -529,6 +529,31 @@ PROFINET_VENDOR_IDS: dict[str, int] = {
     "phoenix_contact": 0x00B8,  # 184
 }
 
+# BACnet Vendor IDs (ASHRAE-registered)
+BACNET_VENDOR_IDS: dict[int, str] = {
+    5: "Johnson Controls",
+    17: "Honeywell",
+    24: "Siemens",
+    67: "Schneider Electric",
+    86: "Automated Logic",
+    95: "TAC (Schneider)",
+    97: "Trane",
+    122: "Delta Controls",
+    165: "Distech Controls",
+    200: "KMC Controls",
+    236: "Alerton",
+    252: "Continental Automated Buildings Association",
+    260: "Carel Industries",
+    279: "Carrier",
+    301: "Carrier Corp.",
+    317: "Reliable Controls",
+    353: "Lennox",
+    381: "McQuay",
+    416: "Novar (Honeywell)",
+    438: "Computrols",
+    489: "Contemporary Controls",
+}
+
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to
 # subdivision-specific OUI prefixes used by fingerprinting.
 _VENDOR_DIVISION_OUIS: dict[str, list[str]] = {

@@ -6,7 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
 import DeviceLibraryPage from './pages/DeviceLibraryPage';
 import ScenariosPage from './pages/ScenariosPage';
-import LearningPage from './pages/LearningPage';
+
 import DeploymentsPage from './pages/DeploymentsPage';
 import IPManagementPage from './pages/IPManagementPage';
 import CVEBrowserPage from './pages/CVEBrowserPage';
@@ -40,7 +40,7 @@ function App() {
         <Route path="scenarios/ai-create" element={<AIScenarioWizardPage />} />
         <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
         <Route path="devices" element={<DeviceLibraryPage />} />
-        <Route path="learning" element={<LearningPage />} />
+
         <Route path="deployments" element={<DeploymentsPage />} />
         <Route path="live-traffic" element={<LiveTrafficDashboardPage />} />
         <Route path="ip-management" element={<IPManagementPage />} />

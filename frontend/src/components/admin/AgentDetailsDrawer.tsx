@@ -43,6 +43,7 @@ import AgentConnectionCard from '../agents/AgentConnectionCard';
 import AgentInterfacesList from '../agents/AgentInterfacesList';
 import AgentDeploymentsCard from '../agents/AgentDeploymentsCard';
 import AgentUpdateCard from '../agents/AgentUpdateCard';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -203,10 +204,7 @@ const AgentDetailsDrawer: React.FC<AgentDetailsDrawerProps> = ({
       setUpdateModalOpen(true);
       pollIntervalRef.current = setInterval(pollUpdateStatus, 2000);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      const errorMsg =
-        axiosErr?.response?.data?.detail || 'Failed to trigger update';
-      message.error(errorMsg);
+      message.error(extractErrorMessage(err, 'Failed to trigger update'));
     } finally {
       setUpdating(false);
     }
@@ -243,10 +241,7 @@ const AgentDetailsDrawer: React.FC<AgentDetailsDrawerProps> = ({
       setLogs(result.logs);
       setLogsExpanded(true);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      const errorMsg =
-        axiosErr?.response?.data?.detail || 'Failed to load logs';
-      message.error(errorMsg);
+      message.error(extractErrorMessage(err, 'Failed to load logs'));
     } finally {
       setLogsLoading(false);
     }
@@ -264,10 +259,7 @@ const AgentDetailsDrawer: React.FC<AgentDetailsDrawerProps> = ({
         agent_to_server_ms: result.agent_to_server_ms,
       });
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      const errorMsg =
-        axiosErr?.response?.data?.detail || 'Ping test failed';
-      message.error(errorMsg);
+      message.error(extractErrorMessage(err, 'Ping test failed'));
     } finally {
       setPingLoading(false);
     }

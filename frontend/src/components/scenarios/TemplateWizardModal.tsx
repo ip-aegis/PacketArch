@@ -27,7 +27,6 @@ import {
 import {
   RocketOutlined,
   FolderOutlined,
-  ExperimentOutlined,
   RobotOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -85,7 +84,6 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
   const handleFinish = (values: {
     scenario_name: string;
     description?: string;
-    apply_learned_patterns?: boolean;
   }) => {
     if (!selectedTemplate) return;
     onSubmit({
@@ -95,7 +93,6 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
       description: values.description,
       auto_assign_addresses: true,
       phase_preset: 'standard',
-      apply_learned_patterns: values.apply_learned_patterns ?? true,
       use_ai_naming: useAINaming,
       process_context: useAINaming ? processContext : undefined,
     });
@@ -377,20 +374,6 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
               <Input.TextArea rows={2} />
             </Form.Item>
 
-            <Form.Item
-              name="apply_learned_patterns"
-              valuePropName="checked"
-              initialValue={true}
-            >
-              <Checkbox style={{ color: '#a8a8c0' }}>
-                <Space>
-                  <span>Apply learned traffic patterns</span>
-                  <Tooltip title="Enhance realism using patterns learned from real PCAP traffic data">
-                    <ExperimentOutlined style={{ color: '#52c41a' }} />
-                  </Tooltip>
-                </Space>
-              </Checkbox>
-            </Form.Item>
 
             <Divider style={{ borderColor: '#2d2d52', margin: '16px 0' }} />
 

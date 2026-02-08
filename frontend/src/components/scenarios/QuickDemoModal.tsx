@@ -91,7 +91,7 @@ const QuickDemoModal: React.FC<QuickDemoModalProps> = ({ open, onCancel }) => {
         template_name: templateName,
         scenario_name: `Quick Demo - ${vertLabel} - ${timestamp}`,
         auto_assign_addresses: true,
-        apply_learned_patterns: true,
+
       });
 
       setDeployStep(1);

@@ -12,8 +12,6 @@ _IGNORE_FIELDS = {"position"}
 _SUMMARY_FIELDS = {
     "vendorFingerprint",
     "vendor_fingerprint",
-    "learned_fingerprint",
-    "learned_sequences",
     "vulnerabilityOverride",
 }
 

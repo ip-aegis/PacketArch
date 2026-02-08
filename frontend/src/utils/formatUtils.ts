@@ -38,27 +38,3 @@ export function formatNumber(n: number): string {
   return `${n}`;
 }
 
-/** Protocol display name and color mapping */
-export const PROTOCOL_COLORS: Record<string, { color: string; label: string }> = {
-  modbus_tcp: { color: '#1890ff', label: 'Modbus TCP' },
-  modbus_rtu: { color: '#1890ff', label: 'Modbus RTU' },
-  ethernet_ip: { color: '#52c41a', label: 'EtherNet/IP' },
-  profinet: { color: '#722ed1', label: 'PROFINET' },
-  s7comm: { color: '#fa8c16', label: 'S7comm' },
-  s7comm_plus: { color: '#fa8c16', label: 'S7comm+' },
-  bacnet_ip: { color: '#13c2c2', label: 'BACnet/IP' },
-  bacnet: { color: '#13c2c2', label: 'BACnet' },
-  snmp: { color: '#eb2f96', label: 'SNMP' },
-  cloud_service: { color: '#faad14', label: 'Cloud/TLS' },
-  https: { color: '#faad14', label: 'HTTPS' },
-  lldp: { color: '#8c8c8c', label: 'LLDP' },
-  cdp: { color: '#8c8c8c', label: 'CDP' },
-};
-
-export function getProtocolColor(protocol: string): string {
-  return PROTOCOL_COLORS[protocol]?.color ?? '#8c8c8c';
-}
-
-export function getProtocolLabel(protocol: string): string {
-  return PROTOCOL_COLORS[protocol]?.label ?? protocol.replace(/_/g, ' ').toUpperCase();
-}

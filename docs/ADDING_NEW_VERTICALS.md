@@ -62,7 +62,7 @@ This document provides exhaustive documentation for adding new industry vertical
 | **CVE Data** | `backend/app/services/cve_data/` | Vulnerability definitions + variants |
 | **CVE Models** | `backend/app/models/vulnerable_fingerprint.py` | Database schema for CVE overrides |
 | **Fingerprint Applicator** | `backend/app/protocol_engines/fingerprint_applicator.py` | Apply fingerprints to packets |
-| **Traffic Generator** | `docker/traffic-generator/app/live_orchestrator.py` | Real-time packet generation |
+| **Traffic Generator** | `backend/app/protocol_engines/unified_orchestrator.py` | Real-time packet generation |
 | **Protocol Engines** | `backend/app/protocol_engines/{protocol}/` | Protocol-specific packet construction |
 
 ### Detection Requirements for Cyber Vision
@@ -840,14 +840,14 @@ Scenario JSON → Docker Container → Scapy Packets → Network Interface → C
 
 | File | Purpose |
 |------|---------|
-| `docker/traffic-generator/app/entrypoint.py` | Container entry point, parses scenario |
-| `docker/traffic-generator/app/live_orchestrator.py` | Real-time packet generation and injection |
+| `docker/packetarch-agent/app/main.py` | Container entry point, parses scenario |
+| `backend/app/protocol_engines/unified_orchestrator.py` | Real-time packet generation and injection |
 | `backend/app/protocol_engines/fingerprint_applicator.py` | Apply fingerprints to packets |
 
 ### Container Initialization (entrypoint.py)
 
 ```python
-# docker/traffic-generator/app/entrypoint.py
+# docker/packetarch-agent/app/main.py
 
 def main():
     # 1. Load scenario from environment
@@ -876,12 +876,12 @@ def main():
     orchestrator.run()
 ```
 
-### Real-Time Packet Generation (live_orchestrator.py)
+### Real-Time Packet Generation (unified_orchestrator.py)
 
 The orchestrator uses a **heap-based event queue** for precise timing:
 
 ```python
-# docker/traffic-generator/app/live_orchestrator.py
+# backend/app/protocol_engines/unified_orchestrator.py
 
 class LiveTrafficOrchestrator:
     def __init__(self, interface: str):
@@ -1124,7 +1124,7 @@ def _send_packet(self, packet_bytes):
 | Register CVEs | `backend/app/services/cve_data/__init__.py` |
 | Register templates | `backend/app/scenario_templates/__init__.py` |
 | Fingerprint application | `backend/app/protocol_engines/fingerprint_applicator.py` |
-| Traffic generation | `docker/traffic-generator/app/live_orchestrator.py` |
+| Traffic generation | `backend/app/protocol_engines/unified_orchestrator.py` |
 | Database seeding | `backend/app/services/seed_data.py` |
 
 ---

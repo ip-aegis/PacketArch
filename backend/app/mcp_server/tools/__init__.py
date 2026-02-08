@@ -3,7 +3,6 @@
 from app.mcp_server.tools.ai_generation_tools import (
     generate_scenario_from_nl,
     suggest_vertical_template,
-    suggest_patterns_for_scenario,
     inject_anomaly_campaign,
     list_anomaly_templates,
     analyze_scenario_for_anomalies,
@@ -45,13 +44,6 @@ from app.mcp_server.tools.protocol_tools import (
     configure_iec61850_ied,
     configure_goose_publisher,
 )
-from app.mcp_server.tools.learning_tools import (
-    list_learned_fingerprints,
-    apply_learned_fingerprint_to_device,
-    list_learned_sequences,
-    apply_sequence_to_flow,
-    auto_apply_learned_patterns,
-)
 from app.mcp_server.tools.deployment_tools import (
     list_docker_hosts,
     start_deployment,
@@ -76,7 +68,7 @@ __all__ = [
     # AI generation tools
     "generate_scenario_from_nl",
     "suggest_vertical_template",
-    "suggest_patterns_for_scenario",
+
     "inject_anomaly_campaign",
     "list_anomaly_templates",
     "analyze_scenario_for_anomalies",
@@ -117,12 +109,6 @@ __all__ = [
     "configure_opcua_subscription",
     "configure_iec61850_ied",
     "configure_goose_publisher",
-    # Learned pattern tools
-    "list_learned_fingerprints",
-    "apply_learned_fingerprint_to_device",
-    "list_learned_sequences",
-    "apply_sequence_to_flow",
-    "auto_apply_learned_patterns",
     # Deployment tools
     "list_docker_hosts",
     "start_deployment",

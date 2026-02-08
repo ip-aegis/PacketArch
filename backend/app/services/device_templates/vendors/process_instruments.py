@@ -1,0 +1,578 @@
+"""Process instrumentation device templates (Endress+Hauser, SICK, Vaisala)."""
+
+from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
+
+from datetime import date
+
+
+TEMPLATES: list[DeviceTemplate] = [
+    DeviceTemplate(
+        id="sick/inspector/p631",
+        vendor="SICK",
+        vendor_family="Inspector",
+        model="Inspector P631",
+        model_name="Inspector P631 Vision Sensor",
+        device_type="vision_sensor",
+        description="2D vision sensor for quality inspection applications",
+
+        oui_prefixes=["00:06:B6", "00:1E:0E"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 2.0,
+            "max_ms": 50.0,
+            "mean_ms": 15.0,
+            "std_dev_ms": 8.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["ethernet_ip", "profinet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SICK{8ALPHANUM}",
+            station_name_pattern="cam-{location}-{seq}",
+            vendor_short="SICK",
+            model_short="P631",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V2.4.1",
+                release_date=date(2023, 10, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        profinet_identity={
+            "vendor_id": 0x0112,
+            "device_id": 0x0631,
+            "device_role": 1,
+            "im0_manufacturer": "SICK AG",
+            "im0_order_id": "Inspector P631",
+        },
+    ),
+    DeviceTemplate(
+        id="sick/clv/clv650-0120",
+        vendor="SICK",
+        vendor_family="CLV",
+        model="CLV650-0120",
+        model_name="CLV650 Barcode Scanner",
+        device_type="barcode_scanner",
+        description="Industrial barcode scanner for logistics and manufacturing",
+
+        oui_prefixes=["00:06:B6", "00:1E:0E"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 25.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 4.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["ethernet_ip", "profinet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="CLV{8ALPHANUM}",
+            station_name_pattern="scan-{location}-{seq}",
+            vendor_short="SICK",
+            model_short="CLV650",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V2.10",
+                release_date=date(2023, 7, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        profinet_identity={
+            "vendor_id": 0x0112,
+            "device_id": 0x0650,
+            "device_role": 1,
+            "im0_manufacturer": "SICK AG",
+            "im0_order_id": "CLV650-0120",
+        },
+    ),
+    DeviceTemplate(
+        id="endress_hauser/promag/400",
+        vendor="Endress+Hauser",
+        vendor_family="Promag",
+        model="Promag 400",
+        model_name="Promag 400 Electromagnetic Flow Meter",
+        device_type="flow_sensor",
+        description="Electromagnetic flow meter for process applications",
+
+        oui_prefixes=["00:04:F3", "00:80:A3"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 5.0,
+            "max_ms": 80.0,
+            "mean_ms": 25.0,
+            "std_dev_ms": 12.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp", "profinet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EH{10ALPHANUM}",
+            station_name_pattern="ft-{location}-{seq}",
+            vendor_short="EH",
+            model_short="PM400",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V01.06.00",
+                release_date=date(2023, 8, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Endress+Hauser",
+            "product_code": "Promag 400",
+            "vendor_url": "http://www.endress.com",
+            "product_name": "Promag 400",
+            "model_name": "Promag",
+        },
+    ),
+    DeviceTemplate(
+        id="endress_hauser/levelflex/fmp50",
+        vendor="Endress+Hauser",
+        vendor_family="Levelflex",
+        model="FMP50",
+        model_name="Levelflex FMP50 Level Transmitter",
+        device_type="level_sensor",
+        description="Guided wave radar level transmitter for liquids and solids",
+
+        oui_prefixes=["00:04:F3", "00:80:A3"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 5.0,
+            "max_ms": 100.0,
+            "mean_ms": 30.0,
+            "std_dev_ms": 15.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EH{10ALPHANUM}",
+            station_name_pattern="lt-{location}-{seq}",
+            vendor_short="EH",
+            model_short="FMP50",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V01.05.00",
+                release_date=date(2023, 5, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Endress+Hauser",
+            "product_code": "FMP50",
+            "vendor_url": "http://www.endress.com",
+            "product_name": "Levelflex FMP50",
+            "model_name": "Levelflex",
+        },
+    ),
+    DeviceTemplate(
+        id="endress_hauser/cerabar/pmc71",
+        vendor="Endress+Hauser",
+        vendor_family="Cerabar",
+        model="PMC71",
+        model_name="Cerabar PMC71 Pressure Transmitter",
+        device_type="pressure_sensor",
+        description="Digital pressure transmitter for process measurement",
+
+        oui_prefixes=["00:04:F3", "00:80:A3"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 5.0,
+            "max_ms": 90.0,
+            "mean_ms": 28.0,
+            "std_dev_ms": 14.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EH{10ALPHANUM}",
+            station_name_pattern="pt-{location}-{seq}",
+            vendor_short="EH",
+            model_short="PMC71",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V01.06.00",
+                release_date=date(2023, 9, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Endress+Hauser",
+            "product_code": "PMC71",
+            "vendor_url": "http://www.endress.com",
+            "product_name": "Cerabar PMC71",
+            "model_name": "Cerabar",
+        },
+    ),
+    DeviceTemplate(
+        id="endress-hauser/promag/400",
+        vendor="Endress+Hauser",
+        vendor_family="Promag",
+        model="Promag 400",
+        model_name="Promag 400 Electromagnetic Flowmeter",
+        device_type="flow_meter",
+        description="Electromagnetic flowmeter for process measurement applications",
+
+        oui_prefixes=["00:0E:B3", "00:50:C2"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 2.0,
+            "max_ms": 50.0,
+            "mean_ms": 10.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EH{2ALPHA}{10NUM}",
+            station_name_pattern="fit-{location}-{seq}",
+            vendor_short="EH",
+            model_short="PM400",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V01.05.00",
+                release_date=date(2024, 1, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V01.03.00",
+                release_date=date(2022, 6, 20),
+                cves=["CVE-2022-35578"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Endress+Hauser",
+            "product_code": "Promag 400",
+            "product_name": "Electromagnetic Flowmeter",
+        },
+    ),
+    DeviceTemplate(
+        id="endress-hauser/liquiline/cm442",
+        vendor="Endress+Hauser",
+        vendor_family="Liquiline",
+        model="CM442",
+        model_name="Liquiline CM442 Transmitter",
+        device_type="analyzer",
+        description="Multi-parameter transmitter for liquid analysis",
+
+        oui_prefixes=["00:0E:B3", "00:50:C2"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 3.0,
+            "max_ms": 80.0,
+            "mean_ms": 15.0,
+            "std_dev_ms": 10.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="CM44{8NUM}",
+            station_name_pattern="ait-{location}-{seq}",
+            vendor_short="EH",
+            model_short="CM442",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V01.08.00",
+                release_date=date(2024, 2, 10),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V01.06.00",
+                release_date=date(2022, 9, 15),
+                cves=["CVE-2022-35578"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Endress+Hauser",
+            "product_code": "CM442",
+            "product_name": "Liquiline Multiparameter Transmitter",
+        },
+    ),
+    DeviceTemplate(
+        id="vaisala/rwis/500",
+        vendor="Vaisala",
+        vendor_family="RWIS",
+        model="RWIS500",
+        model_name="Road Weather Information System",
+        device_type="weather_station",
+        description="Road weather station for transportation applications",
+
+        oui_prefixes=["00:0E:C3"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 5.0,
+            "max_ms": 100.0,
+            "mean_ms": 20.0,
+            "std_dev_ms": 15.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="VWS{10NUM}",
+            station_name_pattern="rwis-{location}-{seq}",
+            vendor_short="VAI",
+            model_short="RW500",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V2.5.0",
+                release_date=date(2024, 1, 25),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V2.3.0",
+                release_date=date(2022, 7, 10),
+                cves=["CVE-2022-38408"],
+            ),
+        ],
+
+        snmp_identity={
+            "sys_descr": "Vaisala RWIS500 Road Weather Station",
+            "sys_object_id": "1.3.6.1.4.1.10395.1.1",
+        },
+    ),
+    DeviceTemplate(
+        id="endress-hauser/prosonic/fmu90",
+        vendor="Endress+Hauser",
+        vendor_family="Prosonic",
+        model="FMU90",
+        model_name="FMU90",
+        device_type="field_instrument",
+        description="Endress+Hauser FMU90",
+        oui_prefixes=['00:0B:CD', '00:80:A3'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+        response_timing={
+                "min_ms": 8.0,
+                "max_ms": 60.0,
+                "mean_ms": 20.0,
+                "std_dev_ms": 10.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.003,
+                "outlier_multiplier": 3.0,
+            },
+        error_behavior={
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0004,
+                "timeout_probability": 0.0002,
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="01.04.00",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Endress+Hauser",
+                "product_code": "FMU90-R11CA111AA3A",
+                "major_minor_revision": "01.04.00",
+                "vendor_url": "http://www.endress.com",
+                "product_name": "Prosonic S FMU90 Ultrasonic Level",
+                "model_name": "Ultrasonic Level Transmitter",
+            },
+    ),
+    DeviceTemplate(
+        id="endress-hauser/promag/promag-w-400",
+        vendor="Endress+Hauser",
+        vendor_family="Promag",
+        model="Promag W 400",
+        model_name="Promag W 400",
+        device_type="field_instrument",
+        description="Endress+Hauser Promag W 400",
+        oui_prefixes=['00:0B:CD', '00:80:A3'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 16384,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+        response_timing={
+                "min_ms": 5.0,
+                "max_ms": 45.0,
+                "mean_ms": 14.0,
+                "std_dev_ms": 7.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 3.5,
+            },
+        error_behavior={
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="01.07.00",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Endress+Hauser",
+                "product_code": "50W4H-UA0A1AA0AAAA",
+                "major_minor_revision": "01.07.00",
+                "vendor_url": "http://www.endress.com",
+                "product_name": "Proline Promag W 400 Water Flowmeter",
+                "model_name": "Water Flowmeter",
+            },
+    ),
+    DeviceTemplate(
+        id="sick/clv/sick-clv650",
+        vendor="SICK",
+        vendor_family="CLV",
+        model="SICK CLV650",
+        model_name="SICK CLV650",
+        device_type="barcode_scanner",
+        description="SICK SICK CLV650",
+        oui_prefixes=['00:06:6F', '00:10:BE'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+            },
+        response_timing={
+                "min_ms": 2.0,
+                "max_ms": 30.0,
+                "mean_ms": 8.0,
+                "std_dev_ms": 5.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['modbus', 'ethernet_ip'],
+        firmware_variants=[FirmwareVariant(
+            version="5.60",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "SICK AG",
+                "product_code": "1041807",
+                "major_minor_revision": "V5.60",
+                "product_name": "CLV650 Fixed Mount Barcode Scanner",
+                "model_name": "CLV650",
+            },
+        ethernet_ip_identity={
+                "vendor_id": 218,
+                "device_type": 12,
+                "product_code": 650,
+                "revision_major": 5,
+                "revision_minor": 60,
+                "product_name": "CLV650 Barcode Scanner",
+                "state": 3,
+            },
+    ),
+]

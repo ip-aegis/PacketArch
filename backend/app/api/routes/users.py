@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
+from app.api.helpers import get_or_404
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User
@@ -62,12 +63,7 @@ async def admin_reset_password(
 
     Does not require the user's current password.
     """
-    # Get the target user
-    result = await db.execute(select(User).where(User.id == user_id))
-    target_user = result.scalar_one_or_none()
-
-    if target_user is None:
-        raise NotFoundError("User")
+    target_user = await get_or_404(db, User, user_id, "User")
 
     # Update password
     target_user.password_hash = get_password_hash(request.new_password)
@@ -101,13 +97,7 @@ async def get_user(
     """
     Get a specific user by ID (admin only).
     """
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise NotFoundError("User")
-
-    return user
+    return await get_or_404(db, User, user_id, "User")
 
 
 @router.patch("/{user_id}/toggle-active", response_model=UserResponse)
@@ -124,11 +114,7 @@ async def toggle_user_active(
     if user_id == admin.id:
         raise ValidationError("Cannot deactivate your own account")
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise NotFoundError("User")
+    user = await get_or_404(db, User, user_id, "User")
 
     user.is_active = not user.is_active
     await db.commit()

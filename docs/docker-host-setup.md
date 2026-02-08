@@ -56,14 +56,7 @@ sudo systemctl restart docker
 sudo ufw allow 2375/tcp
 ```
 
-### Step 5: Build Traffic Generator Image
-
-```bash
-cd /path/to/PacketArch/docker/traffic-generator
-sudo docker build -t packetarch/traffic-generator:latest .
-```
-
-### Step 6: Configure in PacketArch
+### Step 5: Configure in PacketArch
 
 1. Go to **Settings > Docker Hosts**
 2. Click **Add Docker Host**
@@ -256,20 +249,6 @@ docker --tlsverify \
    - **Default Interface**: The network interface for packet injection (e.g., `eth0`, `ens192`)
 4. Click **Create**
 5. Click the **Test Connection** button to verify
-
-## Step 9: Build the Traffic Generator Image
-
-On the remote Docker host, build the traffic generator image:
-
-```bash
-# Clone or copy the PacketArch repository to the remote host
-cd /path/to/PacketArch/docker/traffic-generator
-
-# Build the image
-sudo docker build -t packetarch/traffic-generator:latest .
-```
-
-Or pull from a registry if you've published it.
 
 ## Troubleshooting
 

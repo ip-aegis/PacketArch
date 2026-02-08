@@ -15,7 +15,6 @@ import {
   Select,
   List,
   Empty,
-  Spin,
   Collapse,
   Tooltip,
   message,
@@ -50,6 +49,7 @@ import {
   formatDuration,
   type ExternalCommTypesResponse,
 } from '../../api/externalComms';
+import { PanelContainer, LoadingSpinner } from '../common';
 import type {
   BeaconPattern,
   ExploitPattern,
@@ -58,6 +58,8 @@ import type {
   ExternalEventType,
   CreateExternalCampaignRequest,
 } from '../../types';
+import { extractErrorMessage } from '../../utils/errorUtils';
+import { TEXT_BODY, TEXT_MUTED, BG_PANEL, BG_CODE } from '../../constants/theme';
 
 const { Text, Title } = Typography;
 const { Panel } = Collapse;
@@ -167,9 +169,9 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
       setSelectedEventTypes([]);
       setShowForm(false);
       fetchCampaigns();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create campaign:', err);
-      message.error(err?.response?.data?.detail || 'Failed to create campaign');
+      message.error(extractErrorMessage(err, 'Failed to create campaign'));
     } finally {
       setCreating(false);
     }
@@ -195,7 +197,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
   const showScanOptions = selectedEventTypes.includes('port_scan');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <PanelContainer padding={0}>
       {/* Header Alert */}
       <Alert
         type="warning"
@@ -217,7 +219,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
               <Tag>{campaigns.length}</Tag>
             </Space>
           }
-          style={{ background: '#1a2734' }}
+          style={{ background: BG_PANEL }}
           styles={{ body: { padding: '8px' } }}
         >
           <List
@@ -244,13 +246,11 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
               <span>Available Patterns</span>
             </Space>
           }
-          style={{ background: '#1a2734' }}
+          style={{ background: BG_PANEL }}
           styles={{ body: { padding: '8px' } }}
         >
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 24 }}>
-              <Spin />
-            </div>
+            <LoadingSpinner />
           ) : (
             <Collapse ghost expandIconPosition="start">
               {/* Beacon Patterns */}
@@ -345,7 +345,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
               <span>Create External Campaign</span>
             </Space>
           }
-          style={{ background: '#1a2734' }}
+          style={{ background: BG_PANEL }}
           extra={
             <Button size="small" onClick={() => setShowForm(false)}>
               Cancel
@@ -445,7 +445,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
             {showC2Options && (
               <>
                 <Divider style={{ margin: '12px 0' }}>
-                  <Text style={{ fontSize: 10, color: '#6a8caf' }}>C2 Beacon Options</Text>
+                  <Text style={{ fontSize: 10, color: TEXT_MUTED }}>C2 Beacon Options</Text>
                 </Divider>
                 <Space style={{ width: '100%' }}>
                   <Form.Item label="Pattern" name="c2_pattern" style={{ marginBottom: 8 }}>
@@ -473,7 +473,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
             {showExfilOptions && (
               <>
                 <Divider style={{ margin: '12px 0' }}>
-                  <Text style={{ fontSize: 10, color: '#6a8caf' }}>Exfiltration Options</Text>
+                  <Text style={{ fontSize: 10, color: TEXT_MUTED }}>Exfiltration Options</Text>
                 </Divider>
                 <Form.Item label="Data Size (bytes)" name="exfil_data_size" style={{ marginBottom: 8 }}>
                   <InputNumber min={1} max={1048576} style={{ width: '100%' }} />
@@ -485,7 +485,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
             {showExploitOptions && (
               <>
                 <Divider style={{ margin: '12px 0' }}>
-                  <Text style={{ fontSize: 10, color: '#6a8caf' }}>Exploit Options</Text>
+                  <Text style={{ fontSize: 10, color: TEXT_MUTED }}>Exploit Options</Text>
                 </Divider>
                 <Form.Item label="Exploit Pattern" name="exploit_pattern" style={{ marginBottom: 8 }}>
                   <Select placeholder="Select exploit pattern">
@@ -501,7 +501,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
             {showScanOptions && (
               <>
                 <Divider style={{ margin: '12px 0' }}>
-                  <Text style={{ fontSize: 10, color: '#6a8caf' }}>Port Scan Options</Text>
+                  <Text style={{ fontSize: 10, color: TEXT_MUTED }}>Port Scan Options</Text>
                 </Divider>
                 <Space style={{ width: '100%' }}>
                   <Form.Item label="Scan Type" name="scan_type" style={{ marginBottom: 8 }}>
@@ -544,7 +544,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
           Create External Campaign
         </Button>
       )}
-    </div>
+    </PanelContainer>
   );
 };
 
@@ -560,14 +560,14 @@ const PatternItem: React.FC<PatternItemProps> = ({ name, description, mitre, ext
   <div
     style={{
       padding: '6px 8px',
-      background: '#0d1117',
+      background: BG_CODE,
       borderRadius: 4,
       marginBottom: 4,
     }}
   >
     <Space direction="vertical" size={2} style={{ width: '100%' }}>
       <Space size={4}>
-        <Text style={{ fontSize: 11, color: '#c9d1d9' }}>{name}</Text>
+        <Text style={{ fontSize: 11, color: TEXT_BODY }}>{name}</Text>
         {mitre && (
           <Tooltip title="View MITRE ATT&CK technique">
             <Tag
@@ -580,10 +580,10 @@ const PatternItem: React.FC<PatternItemProps> = ({ name, description, mitre, ext
           </Tooltip>
         )}
         {extra && (
-          <Text style={{ fontSize: 9, color: '#6a8caf' }}>{extra}</Text>
+          <Text style={{ fontSize: 9, color: TEXT_MUTED }}>{extra}</Text>
         )}
       </Space>
-      <Text style={{ fontSize: 10, color: '#6a8caf' }}>{description}</Text>
+      <Text style={{ fontSize: 10, color: TEXT_MUTED }}>{description}</Text>
     </Space>
   </div>
 );
@@ -598,14 +598,14 @@ const CampaignItem: React.FC<CampaignItemProps> = ({ campaign, onDelete }) => (
   <div
     style={{
       padding: '8px',
-      background: '#0d1117',
+      background: BG_CODE,
       borderRadius: 4,
       marginBottom: 4,
     }}
   >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <Space direction="vertical" size={2}>
-        <Text style={{ fontSize: 11, color: '#c9d1d9', fontWeight: 500 }}>
+        <Text style={{ fontSize: 11, color: TEXT_BODY, fontWeight: 500 }}>
           {campaign.name}
         </Text>
         <Space size={4} wrap>
@@ -619,7 +619,7 @@ const CampaignItem: React.FC<CampaignItemProps> = ({ campaign, onDelete }) => (
             </Tag>
           ))}
         </Space>
-        <Text style={{ fontSize: 10, color: '#6a8caf' }}>
+        <Text style={{ fontSize: 10, color: TEXT_MUTED }}>
           {campaign.event_count} events • {campaign.internal_devices.length} devices •{' '}
           {formatDuration(campaign.duration_ms)}
         </Text>

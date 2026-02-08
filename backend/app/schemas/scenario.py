@@ -85,8 +85,6 @@ class ScenarioSummaryResponse(BaseModel):
     version: int
     device_count: int = 0
     flow_count: int = 0
-    has_learned_patterns: bool = False
-    protocols_enhanced: list[str] = []
     readiness: ReadinessSummary = Field(default_factory=ReadinessSummary)
     created_at: datetime
     updated_at: datetime

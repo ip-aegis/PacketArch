@@ -51,7 +51,8 @@ def enrich_device_serial_numbers(
     device: dict,
     device_id: str,
     scenario_id: str,
-) -> None:
+    skip_existing: bool = False,
+) -> bool:
     """Add unique serial numbers to a device's vendor fingerprint.
 
     Enriches serial numbers for any protocol identity that exists in the
@@ -62,13 +63,24 @@ def enrich_device_serial_numbers(
         device: Device dictionary (modified in place)
         device_id: Unique device identifier
         scenario_id: Scenario UUID for deterministic serial generation
+        skip_existing: If True, only enrich identities missing serial_number.
+            Used as a deployment-time guardrail for legacy scenarios.
+
+    Returns:
+        True if any serial numbers were added (useful for skip_existing logging).
     """
     fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+    enriched_any = False
 
     for identity_key, required_field, _protocol_names, generator_type in _PROTOCOL_SERIAL_RULES:
         existing_identity = fingerprint.get(identity_key)
         if not _identity_has_vendor_data(existing_identity, required_field):
             continue
+
+        if skip_existing and existing_identity.get("serial_number"):
+            continue
+
+        enriched_any = True
 
         if generator_type == "ethernet_ip":
             existing_identity["serial_number"] = SerialNumberGenerator.generate_ethernet_ip(
@@ -89,8 +101,14 @@ def enrich_device_serial_numbers(
 
     logger.debug(f"Enriched serial numbers for device {device_id}")
 
+    return enriched_any
 
-def enrich_definition_serial_numbers(definition: dict, scenario_id: str) -> dict:
+
+def enrich_definition_serial_numbers(
+    definition: dict,
+    scenario_id: str,
+    skip_existing: bool = False,
+) -> dict:
     """Enrich all devices in a scenario definition with unique serial numbers.
 
     Supports both dict and list device formats.
@@ -98,6 +116,8 @@ def enrich_definition_serial_numbers(definition: dict, scenario_id: str) -> dict
     Args:
         definition: Scenario definition dict
         scenario_id: Scenario UUID for deterministic generation
+        skip_existing: If True, only enrich devices missing serial numbers.
+            Logs a warning summarizing how many devices were backfilled.
 
     Returns:
         Updated definition with serial numbers added
@@ -112,10 +132,21 @@ def enrich_definition_serial_numbers(definition: dict, scenario_id: str) -> dict
     else:
         device_items = [(d.get("id", f"device_{i}"), d) for i, d in enumerate(devices)]
 
+    devices_enriched = 0
     for device_id, device in device_items:
         if not device_id or not device:
             continue
-        enrich_device_serial_numbers(device, device_id, scenario_id)
+        was_enriched = enrich_device_serial_numbers(
+            device, device_id, scenario_id, skip_existing=skip_existing
+        )
+        if was_enriched and skip_existing:
+            devices_enriched += 1
+
+    if skip_existing and devices_enriched > 0:
+        logger.warning(
+            f"Scenario {scenario_id}: {devices_enriched} device(s) were missing serial numbers "
+            f"and were backfilled at deployment time. Consider recreating from template."
+        )
 
     return definition
 

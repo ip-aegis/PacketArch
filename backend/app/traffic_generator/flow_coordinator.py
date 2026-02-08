@@ -485,56 +485,6 @@ def create_alarm_trigger(
     )
 
 
-# =============================================================================
-# Learned Pattern Integration
-# =============================================================================
-
-
-def apply_learned_patterns_to_flow(flow_config: dict[str, Any]) -> dict[str, Any]:
-    """Apply learned patterns to a flow configuration.
-
-    Enhances a flow config with learned timing, function codes, and address
-    patterns if available. This function merges learned patterns into the
-    flow configuration for use by protocol engines.
-
-    Args:
-        flow_config: Flow configuration dict with optional learned_* fields
-
-    Returns:
-        Enhanced flow configuration with learned patterns applied
-    """
-    result = flow_config.copy()
-
-    # Apply learned timing
-    if "learned_timing" in flow_config:
-        learned_timing = flow_config["learned_timing"]
-        timing = result.get("timing", {})
-
-        # Override timing with learned values
-        if "intervalMs" in learned_timing:
-            timing["intervalMs"] = learned_timing["intervalMs"]
-        if "jitterMs" in learned_timing:
-            timing["jitterMs"] = learned_timing["jitterMs"]
-        if "jitterType" in learned_timing:
-            timing["jitterType"] = learned_timing["jitterType"]
-        if "responseTimeMs" in learned_timing:
-            timing["responseTimeMs"] = learned_timing["responseTimeMs"]
-
-        # Mark as enhanced
-        timing["source"] = "learned"
-        result["timing"] = timing
-
-    # Apply learned function code distribution
-    if "learned_function_codes" in flow_config:
-        result["function_code_distribution"] = flow_config["learned_function_codes"]
-
-    # Apply learned address patterns
-    if "learned_address_patterns" in flow_config:
-        result["address_patterns"] = flow_config["learned_address_patterns"]
-
-    return result
-
-
 def sample_function_code(distribution: dict[int | str, Any]) -> int:
     """Sample a function code from a learned distribution.
 

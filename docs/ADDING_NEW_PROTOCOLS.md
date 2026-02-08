@@ -123,7 +123,7 @@ Understanding the complete data flow is critical for debugging fingerprinting is
    └── build_device_fingerprint() merges fingerprint + CVE overrides
    └── create_flow_from_definition() creates DeviceContext with fingerprint
 
-4. PACKET GENERATION (live_orchestrator.py)
+4. PACKET GENERATION (unified_orchestrator.py)
    └── DeviceContext.vendor_fingerprint has merged fingerprint
    └── DeviceContext.vulnerability_override has CVE overrides
    └── get_effective_identity() merges both at packet build time
@@ -382,7 +382,7 @@ async def seed_cve_data(session: AsyncSession) -> None:
 
 ## 4. Traffic Generator Components
 
-Location: `docker/traffic-generator/app/live_orchestrator.py`
+Location: `backend/app/protocol_engines/unified_orchestrator.py`
 
 ### 4.1 Protocol Constants
 
@@ -620,7 +620,7 @@ def _generate_your_protocol_poll(self, flow_state: FlowState, time_ms: float) ->
 
 ### Phase 4: Traffic Generator
 
-- [ ] **Add protocol constants** - Define at top of `live_orchestrator.py`
+- [ ] **Add protocol constants** - Define at top of `unified_orchestrator.py`
 - [ ] **Implement packet builders** - `_build_your_protocol_request()` and `_build_your_protocol_response()`
 - [ ] **Use get_effective_identity()** - Ensure CVE overrides are applied in responses
 - [ ] **Add per-protocol tracking set** - Add `discovered_your_protocol: set[str] = set()`
@@ -650,7 +650,7 @@ def _generate_your_protocol_poll(self, flow_state: FlowState, time_ms: float) ->
 **Identity Mechanism:** SZL (System Status List) Read Response
 
 **Key Files:**
-- Constants: `live_orchestrator.py` lines 243-272
+- Constants: `unified_orchestrator.py` lines 243-272
 - Packet Builders: `_build_s7_szl_request()`, `_build_s7_szl_response()`
 - Discovery: `_generate_discovery_sequences()` S7comm section
 
@@ -1019,7 +1019,7 @@ method for device fingerprinting.
 
 ### How It Works
 
-In `live_orchestrator.py`, SNMP discovery is scheduled for every device:
+In `unified_orchestrator.py`, SNMP discovery is scheduled for every device:
 
 ```python
 # Every device gets SNMP discovery, not just SNMP-primary devices
@@ -1062,7 +1062,7 @@ Adding a new protocol requires changes across multiple layers:
 | **Fingerprint Data** | `services/vendor_fingerprints/*.py` | Add protocol identity block |
 | **CVE Data** | `services/cve_data/*.py` | Add vulnerable variants with `firmware_version` |
 | **Firmware Deriver** | `protocol_engines/firmware_version_deriver.py` | Add `derive_your_protocol()` |
-| **Traffic Generator** | `live_orchestrator.py` | Constants, packet builders, discovery, polling |
+| **Traffic Generator** | `unified_orchestrator.py` | Constants, packet builders, discovery, polling |
 
 **Key Success Factors:**
 1. Discovery packets must be generated to make devices visible

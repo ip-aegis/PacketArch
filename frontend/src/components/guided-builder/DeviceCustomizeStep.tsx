@@ -10,8 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useGuidedBuilderStore } from '../../stores/guidedBuilderStore';
 import type { TemplateDevicePreview } from '../../stores/guidedBuilderStore';
 import { listVendors, getVendorModels } from '../../api/fingerprints';
-import { DEVICE_TYPE_COLORS_EXTENDED } from '../../constants/protocols';
-import { getProtocolColor, getProtocolLabel } from '../../utils/formatUtils';
+import { DEVICE_TYPE_COLORS_EXTENDED, getProtocolColor, getProtocolLabel } from '../../constants/protocols';
 
 const { Title, Text } = Typography;
 

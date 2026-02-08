@@ -12,7 +12,7 @@ This service is thread-safe and uses a singleton pattern.
 
 Data Sources (in priority order):
 1. device_templates module (AUTHORITATIVE SOURCE for all fingerprint data)
-2. DeviceTemplate DB table (enhancement layer: CVE data, firmware variants, learned patterns)
+2. DeviceTemplate DB table (enhancement layer: CVE data, firmware variants)
 
 The device_templates module is the single source of truth for protocol identity data.
 DeviceTemplate DB can ENHANCE fingerprints (add CVE tracking, firmware variants) but
@@ -24,7 +24,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.core.vendor_normalize import normalize_vendor  # noqa: F401 - re-exported for backwards compat
+from app.core.vendor_normalize import normalize_vendor
 
 logger = logging.getLogger(__name__)
 
@@ -118,14 +118,7 @@ class FingerprintCache:
                             "sample_count": getattr(template, "sample_count", None),
                         },
                         "source": template.source,
-                        "is_learned": template.source == "pcap_learned",
                     }
-
-                    # For learned patterns (pcap_learned source), include protocol identities
-                    # These are unique to the DB and should be added, not merged
-                    if template.source == "pcap_learned":
-                        enhancement["_is_db_only"] = True
-                        enhancement["_full_fingerprint"] = self._template_to_fingerprint_dict(template)
 
                     key = (vendor, model)
                     enhancements[key] = enhancement
@@ -213,9 +206,6 @@ class FingerprintCache:
         IMPORTANT: This method NEVER overrides protocol identity fields.
         It only adds enhancement data (CVE, firmware variants, etc.) from the DB.
 
-        For learned patterns (pcap_learned), these are added as separate entries
-        since they don't exist in device_templates.
-
         Args:
             fingerprints: List of fingerprints from device_templates (source of truth)
             enhancements: Dict of (vendor, model) -> enhancement data from DB
@@ -251,18 +241,6 @@ class FingerprintCache:
                 if metrics.get("sample_count") is not None:
                     fp["sample_count"] = metrics["sample_count"]
 
-        # Add DB-only entries (learned patterns that don't exist in device_templates)
-        db_only_count = 0
-        for key, enhancement in enhancements.items():
-            if key not in merged_keys and enhancement.get("_is_db_only"):
-                full_fp = enhancement.get("_full_fingerprint")
-                if full_fp:
-                    fingerprints.append(full_fp)
-                    db_only_count += 1
-
-        if db_only_count > 0:
-            logger.info(f"Added {db_only_count} learned patterns from DB")
-
         return fingerprints
 
     def _build_index(self) -> None:
@@ -272,7 +250,7 @@ class FingerprintCache:
 
         Data sources (in priority order):
         1. device_templates module (AUTHORITATIVE SOURCE for all fingerprint data)
-        2. DeviceTemplate DB table (enhancement layer for CVE, variants, learned patterns)
+        2. DeviceTemplate DB table (enhancement layer for CVE data and firmware variants)
         """
         import asyncio
         try:

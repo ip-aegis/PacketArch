@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import delete as sql_delete, func, select
 
 from app.api.deps import CurrentUser, DBSession
+from app.api.helpers import get_or_404_where, paginate
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.scenario import Scenario
 from app.models.scenario_version import ScenarioVersion
@@ -41,16 +42,13 @@ async def _get_scenario_for_user(
     db: DBSession, scenario_id: uuid.UUID, user_id: uuid.UUID
 ) -> Scenario:
     """Fetch a scenario owned by the current user or raise NotFoundError."""
-    result = await db.execute(
-        select(Scenario).where(
-            Scenario.id == scenario_id,
-            Scenario.user_id == user_id,
-        )
+    return await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == user_id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
     )
-    scenario = result.scalar_one_or_none()
-    if scenario is None:
-        raise NotFoundError("Scenario", str(scenario_id))
-    return scenario
 
 
 async def _next_version_number(
@@ -157,27 +155,14 @@ async def list_versions(
     page_size: int = Query(20, ge=1, le=100),
 ) -> VersionListResponse:
     """List version history for a scenario (newest first)."""
-    # Verify ownership
     await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    # Count
-    count_result = await db.execute(
-        select(func.count(ScenarioVersion.id)).where(
-            ScenarioVersion.scenario_id == scenario_id
-        )
-    )
-    total = count_result.scalar() or 0
-
-    # Fetch page
-    offset = (page - 1) * page_size
-    result = await db.execute(
+    query = (
         select(ScenarioVersion)
         .where(ScenarioVersion.scenario_id == scenario_id)
         .order_by(ScenarioVersion.version_number.desc())
-        .offset(offset)
-        .limit(page_size)
     )
-    versions = result.scalars().all()
+    versions, total = await paginate(db, query, page, page_size)
 
     return VersionListResponse(
         items=[VersionSummary.model_validate(v) for v in versions],
@@ -219,26 +204,20 @@ async def diff_versions(
     """Compute a structured diff between two versions."""
     await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    # Load both versions
-    base_result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.scenario_id == scenario_id,
-            ScenarioVersion.version_number == base,
-        )
+    base_version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.scenario_id == scenario_id,
+        ScenarioVersion.version_number == base,
+        resource_name="Version",
+        identifier=str(base),
     )
-    base_version = base_result.scalar_one_or_none()
-    if base_version is None:
-        raise NotFoundError("Version", str(base))
-
-    compare_result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.scenario_id == scenario_id,
-            ScenarioVersion.version_number == compare,
-        )
+    compare_version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.scenario_id == scenario_id,
+        ScenarioVersion.version_number == compare,
+        resource_name="Version",
+        identifier=str(compare),
     )
-    compare_version = compare_result.scalar_one_or_none()
-    if compare_version is None:
-        raise NotFoundError("Version", str(compare))
 
     # Compute diff
     base_meta = {
@@ -278,16 +257,13 @@ async def get_version(
     """Get full version detail including definition."""
     await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.id == version_id,
-            ScenarioVersion.scenario_id == scenario_id,
-        )
+    version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.id == version_id,
+        ScenarioVersion.scenario_id == scenario_id,
+        resource_name="Version",
+        identifier=str(version_id),
     )
-    version = result.scalar_one_or_none()
-    if version is None:
-        raise NotFoundError("Version", str(version_id))
-
     return VersionDetail.model_validate(version)
 
 
@@ -302,15 +278,13 @@ async def update_version_label(
     """Update a version's label."""
     await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.id == version_id,
-            ScenarioVersion.scenario_id == scenario_id,
-        )
+    version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.id == version_id,
+        ScenarioVersion.scenario_id == scenario_id,
+        resource_name="Version",
+        identifier=str(version_id),
     )
-    version = result.scalar_one_or_none()
-    if version is None:
-        raise NotFoundError("Version", str(version_id))
 
     version.label = request.label
     await db.commit()
@@ -329,15 +303,13 @@ async def delete_version(
     """Delete a single version."""
     await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.id == version_id,
-            ScenarioVersion.scenario_id == scenario_id,
-        )
+    version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.id == version_id,
+        ScenarioVersion.scenario_id == scenario_id,
+        resource_name="Version",
+        identifier=str(version_id),
     )
-    version = result.scalar_one_or_none()
-    if version is None:
-        raise NotFoundError("Version", str(version_id))
 
     await db.delete(version)
     await db.commit()
@@ -358,16 +330,13 @@ async def rollback_to_version(
     """
     scenario = await _get_scenario_for_user(db, scenario_id, current_user.id)
 
-    # Load target version
-    target_result = await db.execute(
-        select(ScenarioVersion).where(
-            ScenarioVersion.scenario_id == scenario_id,
-            ScenarioVersion.version_number == version,
-        )
+    target_version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.scenario_id == scenario_id,
+        ScenarioVersion.version_number == version,
+        resource_name="Version",
+        identifier=str(version),
     )
-    target_version = target_result.scalar_one_or_none()
-    if target_version is None:
-        raise NotFoundError("Version", str(version))
 
     # Create safety snapshot of current state
     await create_version_snapshot(

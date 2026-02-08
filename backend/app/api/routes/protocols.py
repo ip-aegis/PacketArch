@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
+from app.api.helpers import get_or_404, paginate
 from app.core.exceptions import NotFoundError
 from app.models.protocol_template import ProtocolTemplate
 from app.schemas.protocol_template import (
@@ -47,19 +48,8 @@ async def list_protocol_templates(
             | ProtocolTemplate.description.ilike(search_filter)
         )
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Apply pagination
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size).order_by(
-        ProtocolTemplate.protocol, ProtocolTemplate.name
-    )
-
-    result = await db.execute(query)
-    templates = result.scalars().all()
+    query = query.order_by(ProtocolTemplate.protocol, ProtocolTemplate.name)
+    templates, total = await paginate(db, query, page, page_size)
 
     return ProtocolTemplateListResponse(
         items=[ProtocolTemplateResponse.model_validate(t) for t in templates],
@@ -88,14 +78,7 @@ async def get_protocol_template(
     current_user: CurrentUser,
 ) -> ProtocolTemplateResponse:
     """Get a protocol template by ID."""
-    result = await db.execute(
-        select(ProtocolTemplate).where(ProtocolTemplate.id == template_id)
-    )
-    template = result.scalar_one_or_none()
-
-    if template is None:
-        raise NotFoundError("Protocol template")
-
+    template = await get_or_404(db, ProtocolTemplate, template_id, "Protocol template")
     return ProtocolTemplateResponse.model_validate(template)
 
 
@@ -130,13 +113,7 @@ async def update_protocol_template(
     admin_user: AdminUser,  # Only admins can update protocol templates
 ) -> ProtocolTemplateResponse:
     """Update a protocol template (admin only)."""
-    result = await db.execute(
-        select(ProtocolTemplate).where(ProtocolTemplate.id == template_id)
-    )
-    template = result.scalar_one_or_none()
-
-    if template is None:
-        raise NotFoundError("Protocol template")
+    template = await get_or_404(db, ProtocolTemplate, template_id, "Protocol template")
 
     # Update fields
     update_data = template_data.model_dump(exclude_unset=True)
@@ -156,13 +133,7 @@ async def delete_protocol_template(
     admin_user: AdminUser,  # Only admins can delete protocol templates
 ) -> MessageResponse:
     """Delete a protocol template (admin only)."""
-    result = await db.execute(
-        select(ProtocolTemplate).where(ProtocolTemplate.id == template_id)
-    )
-    template = result.scalar_one_or_none()
-
-    if template is None:
-        raise NotFoundError("Protocol template")
+    template = await get_or_404(db, ProtocolTemplate, template_id, "Protocol template")
 
     await db.delete(template)
     await db.commit()

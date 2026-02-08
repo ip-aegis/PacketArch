@@ -16,7 +16,7 @@ import {
   BellOutlined,
   DatabaseOutlined,
   FolderOutlined,
-  ExperimentOutlined,
+
   BarChartOutlined,
   CloudServerOutlined,
   GlobalOutlined,
@@ -100,11 +100,6 @@ const AppLayout: React.FC = () => {
       key: '/devices',
       icon: <DatabaseOutlined />,
       label: 'Device Library',
-    },
-    {
-      key: '/learning',
-      icon: <ExperimentOutlined />,
-      label: 'PCAP Learning',
     },
     {
       key: '/deployments',

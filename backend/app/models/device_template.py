@@ -14,9 +14,9 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func, Index
+from sqlalchemy import DateTime, Float, Integer, String, func, Index
 from sqlalchemy.dialects.postgresql import JSONB, UUID, ARRAY
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -25,18 +25,15 @@ class TemplateSource(str, Enum):
     """Source/provenance of the device template."""
 
     VENDOR_BUILTIN = "vendor_builtin"  # Pre-packaged vendor fingerprints
-    PCAP_LEARNED = "pcap_learned"  # Learned from PCAP analysis
     USER_CREATED = "user_created"  # Manually created by user
 
 
 class DeviceTemplate(Base):
     """Unified device fingerprint/template for traffic generation.
 
-    This model consolidates vendor fingerprints and learned device fingerprints
-    into a single table with a source discriminator. Templates can be:
+    Unified device template table. Templates can be:
 
     - VENDOR_BUILTIN: Pre-packaged fingerprints for known vendors (Siemens, Rockwell, etc.)
-    - PCAP_LEARNED: Templates learned from captured traffic analysis
     - USER_CREATED: Custom templates created/modified by users
 
     Templates provide:
@@ -59,16 +56,7 @@ class DeviceTemplate(Base):
         String(20),
         nullable=False,
         index=True,
-        comment="Template source: vendor_builtin, pcap_learned, user_created",
-    )
-
-    # Source PCAP (for learned templates)
-    source_pcap_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("pcap_captures.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-        comment="Source PCAP for learned templates",
+        comment="Template source: vendor_builtin, user_created",
     )
 
     # ==================== VENDOR IDENTIFICATION ====================
@@ -263,19 +251,12 @@ class DeviceTemplate(Base):
     )
 
     # ==================== INDEXES ====================
-    # Note: Single-column indexes on source, vendor, device_type, vendor_family, source_pcap_id
+    # Note: Single-column indexes on source, vendor, device_type, vendor_family
     # are created automatically via index=True on the column definitions above.
     # Only composite indexes need to be declared here.
     __table_args__ = (
         Index("ix_device_templates_vendor_model", "vendor", "model"),
         Index("ix_device_templates_source_vendor", "source", "vendor"),
-    )
-
-    # ==================== RELATIONSHIPS ====================
-    source_pcap: Mapped["PcapCapture"] = relationship(
-        "PcapCapture",
-        foreign_keys=[source_pcap_id],
-        back_populates="learned_templates",
     )
 
     def __repr__(self) -> str:
@@ -341,7 +322,3 @@ class DeviceTemplate(Base):
         sig_str = json.dumps(sig_data, sort_keys=True)
         return hashlib.sha256(sig_str.encode()).hexdigest()[:16]
 
-
-
-# Forward references for relationships
-from app.models.pcap_capture import PcapCapture  # noqa: E402, F401

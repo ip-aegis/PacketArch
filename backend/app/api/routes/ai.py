@@ -25,9 +25,10 @@ from app.ai_services.nl_parser import extract_device_counts, format_device_count
 from app.protocol_engines.identity import generate_mac
 from app.services.device_identity_enricher import enrich_device_serial_numbers
 
+from app.core.constants import MAX_DEVICES_PER_SCENARIO
+
 # Import from extracted service modules
 from app.services.ai_chat_service import (
-    MAX_DEVICES_PER_SCENARIO,
     build_system_prompt,
     build_completion_message,
     detect_convergence,

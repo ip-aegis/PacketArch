@@ -5,6 +5,7 @@
 import React from 'react';
 import { Typography, Space, Card, Divider, Input } from 'antd';
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;
@@ -66,11 +67,11 @@ const GlossaryContent: React.FC = () => {
   );
 
   const categoryColors: Record<string, string> = {
-    protocol: '#049FD9',
+    protocol: ACCENT_BLUE,
     device: '#6CC04A',
     network: '#faad14',
     security: '#cf1322',
-    general: '#8aa4bc',
+    general: TEXT_PARAGRAPH,
   };
 
   const groupedTerms = filteredTerms.reduce((acc, term) => {
@@ -84,10 +85,10 @@ const GlossaryContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <BookOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <BookOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Glossary
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Reference guide for OT/ICS terminology, protocols, and concepts used throughout PacketArch.
         </Paragraph>
       </div>
@@ -98,8 +99,7 @@ const GlossaryContent: React.FC = () => {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
-          background: '#1e2d3d',
-          border: '1px solid #2a3f54',
+          ...CARD_STYLE,
           color: '#fff',
         }}
       />
@@ -118,9 +118,9 @@ const GlossaryContent: React.FC = () => {
         .map(([letter, terms]) => (
           <Card
             key={letter}
-            style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+            style={CARD_STYLE}
           >
-            <Title level={5} style={{ color: '#049FD9', marginBottom: 16 }}>
+            <Title level={5} style={{ color: ACCENT_BLUE, marginBottom: 16 }}>
               {letter}
             </Title>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -136,7 +136,7 @@ const GlossaryContent: React.FC = () => {
                   >
                     {t.term}
                   </Text>
-                  <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+                  <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
                     {t.definition}
                   </Paragraph>
                 </div>
@@ -146,7 +146,7 @@ const GlossaryContent: React.FC = () => {
         ))}
 
       {filteredTerms.length === 0 && (
-        <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+        <Card style={CARD_STYLE}>
           <Text style={{ color: '#6b6b8a' }}>
             No terms found matching "{searchTerm}"
           </Text>

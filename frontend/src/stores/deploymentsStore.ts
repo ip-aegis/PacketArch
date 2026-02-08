@@ -11,6 +11,25 @@ import type {
 } from '../types/docker';
 import { deploymentsApi, type DeploymentFilters } from '../api/deployments';
 import { extractErrorMessage } from '../utils/errorUtils';
+import { createResourceSlice } from './createResourceStore';
+
+// Adapter: the factory expects a standard CRUD api shape.
+// start/stop are non-standard so we stub create/update (unused).
+const crudApi = {
+  list: deploymentsApi.list,
+  get: deploymentsApi.get,
+  create: deploymentsApi.start as any,
+  update: (() => { throw new Error('not used'); }) as any,
+  delete: deploymentsApi.remove,
+};
+
+const crud = createResourceSlice<UnifiedDeployment, DeploymentRequest, never>({
+  resourceName: 'deployment',
+  api: crudApi,
+  listExtractor: (r) => r.items,
+  itemsKey: 'deployments',
+  selectedKey: 'activeDeployment',
+});
 
 interface DeploymentsState {
   deployments: UnifiedDeployment[];
@@ -20,7 +39,6 @@ interface DeploymentsState {
   error: string | null;
   pollingInterval: NodeJS.Timeout | null;
 
-  // Actions
   fetchDeployments: (filters?: DeploymentFilters) => Promise<void>;
   fetchDeployment: (id: string) => Promise<UnifiedDeployment>;
   startDeployment: (data: DeploymentRequest) => Promise<Deployment>;
@@ -33,158 +51,112 @@ interface DeploymentsState {
   clearError: () => void;
 }
 
-export const useDeploymentsStore = create<DeploymentsState>()((set, get) => ({
-  deployments: [],
-  activeDeployment: null,
-  logs: null,
-  isLoading: false,
-  error: null,
-  pollingInterval: null,
+export const useDeploymentsStore = create<DeploymentsState>()((set, get) => {
+  const { fetchAll, fetchOne, deleteOne, clearError } = crud(set, get);
 
-  fetchDeployments: async (filters?: DeploymentFilters) => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await deploymentsApi.list(filters);
-      set({ deployments: response.items, isLoading: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch deployments');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
+  return {
+    deployments: [],
+    activeDeployment: null,
+    logs: null,
+    isLoading: false,
+    error: null,
+    pollingInterval: null,
 
-  fetchDeployment: async (id: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const deployment = await deploymentsApi.get(id);
-      // Update in list
-      set((state) => ({
-        deployments: state.deployments.map((d) => (d.id === id ? deployment : d)),
-        activeDeployment:
-          state.activeDeployment?.id === id ? deployment : state.activeDeployment,
-        isLoading: false,
-      }));
-      return deployment;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch deployment');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
+    fetchDeployments: fetchAll,
+    fetchDeployment: fetchOne,
+    removeDeployment: deleteOne,
+    clearError,
 
-  startDeployment: async (data: DeploymentRequest) => {
-    set({ isLoading: true, error: null });
-    try {
-      const deployment = await deploymentsApi.start(data);
-      set((state) => ({
-        deployments: [deployment, ...state.deployments],
-        activeDeployment: deployment,
-        isLoading: false,
-      }));
-      // Start polling for status updates
-      get().startPolling(data.scenario_id);
-      return deployment;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to start deployment');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
-
-  stopDeployment: async (id: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const deployment = await deploymentsApi.stop(id);
-      set((state) => ({
-        deployments: state.deployments.map((d) => (d.id === id ? deployment : d)),
-        activeDeployment:
-          state.activeDeployment?.id === id ? deployment : state.activeDeployment,
-        isLoading: false,
-      }));
-      return deployment;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to stop deployment');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
-
-  removeDeployment: async (id: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      await deploymentsApi.remove(id);
-      set((state) => ({
-        deployments: state.deployments.filter((d) => d.id !== id),
-        activeDeployment: state.activeDeployment?.id === id ? null : state.activeDeployment,
-        isLoading: false,
-      }));
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to remove deployment');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
-
-  fetchLogs: async (id: string, tail: number = 100) => {
-    try {
-      const logs = await deploymentsApi.getLogs(id, tail);
-      set({ logs });
-      return logs;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch logs');
-      set({ error: message });
-      throw error;
-    }
-  },
-
-  setActiveDeployment: (deployment: UnifiedDeployment | null) => {
-    set({ activeDeployment: deployment, logs: null });
-  },
-
-  startPolling: (scenarioId?: string) => {
-    const { pollingInterval } = get();
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-    }
-
-    const interval = setInterval(async () => {
-      const { activeDeployment, fetchDeployment, fetchDeployments, stopPolling } = get();
-
-      // If we have an active deployment, poll its status
-      if (activeDeployment) {
-        try {
-          const updated = await fetchDeployment(activeDeployment.id);
-          // Stop polling if deployment is no longer running
-          if (['stopped', 'failed'].includes(updated.status)) {
-            stopPolling();
-          }
-        } catch {
-          // Ignore errors during polling
-        }
-      } else if (scenarioId) {
-        // Otherwise refresh the full list for this scenario
-        try {
-          await fetchDeployments({ scenario_id: scenarioId });
-        } catch {
-          // Ignore errors during polling
-        }
+    startDeployment: async (data: DeploymentRequest) => {
+      set({ isLoading: true, error: null });
+      try {
+        const deployment = await deploymentsApi.start(data);
+        set((state) => ({
+          deployments: [deployment, ...state.deployments],
+          activeDeployment: deployment,
+          isLoading: false,
+        }));
+        get().startPolling(data.scenario_id);
+        return deployment;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to start deployment');
+        set({ error: message, isLoading: false });
+        throw error;
       }
-    }, 3000); // Poll every 3 seconds
+    },
 
-    set({ pollingInterval: interval });
-  },
+    stopDeployment: async (id: string) => {
+      set({ isLoading: true, error: null });
+      try {
+        const deployment = await deploymentsApi.stop(id);
+        set((state) => ({
+          deployments: state.deployments.map((d) => (d.id === id ? deployment : d)),
+          activeDeployment:
+            state.activeDeployment?.id === id ? deployment : state.activeDeployment,
+          isLoading: false,
+        }));
+        return deployment;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to stop deployment');
+        set({ error: message, isLoading: false });
+        throw error;
+      }
+    },
 
-  stopPolling: () => {
-    const { pollingInterval } = get();
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      set({ pollingInterval: null });
-    }
-  },
+    fetchLogs: async (id: string, tail: number = 100) => {
+      try {
+        const logs = await deploymentsApi.getLogs(id, tail);
+        set({ logs });
+        return logs;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to fetch logs');
+        set({ error: message });
+        throw error;
+      }
+    },
 
-  clearError: () => {
-    set({ error: null });
-  },
-}));
+    setActiveDeployment: (deployment: UnifiedDeployment | null) => {
+      set({ activeDeployment: deployment, logs: null });
+    },
+
+    startPolling: (scenarioId?: string) => {
+      const { pollingInterval } = get();
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      const interval = setInterval(async () => {
+        const { activeDeployment, fetchDeployment, fetchDeployments, stopPolling } = get();
+
+        if (activeDeployment) {
+          try {
+            const updated = await fetchDeployment(activeDeployment.id);
+            if (['stopped', 'failed'].includes(updated.status)) {
+              stopPolling();
+            }
+          } catch {
+            // Ignore errors during polling
+          }
+        } else if (scenarioId) {
+          try {
+            await fetchDeployments({ scenario_id: scenarioId });
+          } catch {
+            // Ignore errors during polling
+          }
+        }
+      }, 3000);
+
+      set({ pollingInterval: interval });
+    },
+
+    stopPolling: () => {
+      const { pollingInterval } = get();
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        set({ pollingInterval: null });
+      }
+    },
+  };
+});
 
 export default useDeploymentsStore;

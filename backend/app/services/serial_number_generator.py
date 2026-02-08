@@ -15,6 +15,23 @@ import hashlib
 from typing import Literal
 
 
+def device_hash(device_id: str, scenario_id: str | None = None) -> bytes:
+    """Generate a deterministic SHA-256 hash from device and scenario identifiers.
+
+    Shared by SerialNumberGenerator and UniqueIdentifierGenerator for
+    consistent deterministic generation across all protocol identifiers.
+
+    Args:
+        device_id: Unique device identifier
+        scenario_id: Scenario identifier (optional, defaults to "global")
+
+    Returns:
+        SHA-256 hash bytes
+    """
+    seed = f"{device_id}:{scenario_id or 'global'}"
+    return hashlib.sha256(seed.encode()).digest()
+
+
 class SerialNumberGenerator:
     """Generates unique serial numbers from device and scenario identifiers.
 
@@ -55,9 +72,7 @@ class SerialNumberGenerator:
             >>> SerialNumberGenerator.generate("profinet", "dev-001", "scenario-123")
             '12AB34CD56EF7890'  # 16-char IM0 serial
         """
-        # Build deterministic seed from device and scenario
-        seed = f"{device_id}:{scenario_id or 'global'}"
-        hash_bytes = hashlib.sha256(seed.encode()).digest()
+        hash_bytes = device_hash(device_id, scenario_id)
 
         if protocol == "ethernet_ip":
             # EtherNet/IP: 32-bit unsigned integer serial number

@@ -13,12 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.mcp_server.ai_providers import AIProvider, AIProviderFactory
 from app.mcp_server.server import mcp_server
+from app.core.constants import MAX_DEVICES_PER_SCENARIO
 from app.services.ai_session_service import AISessionService
 
 logger = logging.getLogger(__name__)
-
-# Maximum devices allowed per scenario
-MAX_DEVICES_PER_SCENARIO = 100
 
 
 def generate_serial_number(vendor: str, fingerprint_data: dict) -> str:

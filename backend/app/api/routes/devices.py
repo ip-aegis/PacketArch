@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DBSession
+from app.api.helpers import get_or_404, paginate
 from app.core.exceptions import NotFoundError
 from app.models.device_profile import DeviceProfile
 from app.schemas.device_profile import (
@@ -55,17 +56,8 @@ async def list_device_profiles(
             | DeviceProfile.description.ilike(search_filter)
         )
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Apply pagination
-    offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size).order_by(DeviceProfile.name)
-
-    result = await db.execute(query)
-    profiles = result.scalars().all()
+    query = query.order_by(DeviceProfile.name)
+    profiles, total = await paginate(db, query, page, page_size)
 
     return DeviceProfileListResponse(
         items=[DeviceProfileResponse.model_validate(p) for p in profiles],
@@ -94,14 +86,7 @@ async def get_device_profile(
     current_user: CurrentUser,
 ) -> DeviceProfileResponse:
     """Get a device profile by ID."""
-    result = await db.execute(
-        select(DeviceProfile).where(DeviceProfile.id == device_id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if profile is None:
-        raise NotFoundError("Device profile")
-
+    profile = await get_or_404(db, DeviceProfile, device_id, "Device profile")
     return DeviceProfileResponse.model_validate(profile)
 
 
@@ -141,13 +126,7 @@ async def update_device_profile(
     current_user: CurrentUser,
 ) -> DeviceProfileResponse:
     """Update a device profile."""
-    result = await db.execute(
-        select(DeviceProfile).where(DeviceProfile.id == device_id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if profile is None:
-        raise NotFoundError("Device profile")
+    profile = await get_or_404(db, DeviceProfile, device_id, "Device profile")
 
     # Don't allow editing built-in profiles (unless admin)
     if profile.is_builtin and not current_user.is_admin:
@@ -174,13 +153,7 @@ async def delete_device_profile(
     current_user: CurrentUser,
 ) -> MessageResponse:
     """Delete a device profile."""
-    result = await db.execute(
-        select(DeviceProfile).where(DeviceProfile.id == device_id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if profile is None:
-        raise NotFoundError("Device profile")
+    profile = await get_or_404(db, DeviceProfile, device_id, "Device profile")
 
     # Don't allow deleting built-in profiles
     if profile.is_builtin:
@@ -203,13 +176,7 @@ async def duplicate_device_profile(
     new_name: str = Query(..., min_length=1, max_length=255),
 ) -> DeviceProfileResponse:
     """Duplicate a device profile with a new name."""
-    result = await db.execute(
-        select(DeviceProfile).where(DeviceProfile.id == device_id)
-    )
-    profile = result.scalar_one_or_none()
-
-    if profile is None:
-        raise NotFoundError("Device profile")
+    profile = await get_or_404(db, DeviceProfile, device_id, "Device profile")
 
     # Create a new profile with the same data
     new_profile = DeviceProfile(

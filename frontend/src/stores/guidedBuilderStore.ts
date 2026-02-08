@@ -59,7 +59,6 @@ interface GuidedBuilderState {
   scenarioName: string;
   description: string;
   phasePreset: string;
-  applyLearnedPatterns: boolean;
   useAINaming: boolean;
   processContext: string;
 
@@ -76,7 +75,6 @@ interface GuidedBuilderState {
   setScenarioName: (name: string) => void;
   setDescription: (desc: string) => void;
   setPhasePreset: (preset: string) => void;
-  setApplyLearnedPatterns: (v: boolean) => void;
   setUseAINaming: (v: boolean) => void;
   setProcessContext: (ctx: string) => void;
   nextStep: () => void;
@@ -112,7 +110,6 @@ const initialState = {
   scenarioName: '',
   description: '',
   phasePreset: 'standard',
-  applyLearnedPatterns: true,
   useAINaming: false,
   processContext: '',
   isCreating: false,
@@ -232,7 +229,6 @@ export const useGuidedBuilderStore = create<GuidedBuilderState>((set, get) => ({
   setScenarioName: (name) => set({ scenarioName: name }),
   setDescription: (desc) => set({ description: desc }),
   setPhasePreset: (preset) => set({ phasePreset: preset }),
-  setApplyLearnedPatterns: (v) => set({ applyLearnedPatterns: v }),
   setUseAINaming: (v) => set({ useAINaming: v }),
   setProcessContext: (ctx) => set({ processContext: ctx }),
 
@@ -289,7 +285,6 @@ export const useGuidedBuilderStore = create<GuidedBuilderState>((set, get) => ({
         description: state.description || undefined,
         phase_preset: state.phasePreset,
         auto_assign_addresses: true,
-        apply_learned_patterns: state.applyLearnedPatterns,
         use_ai_naming: state.useAINaming,
         process_context: state.useAINaming ? state.processContext : undefined,
       });

@@ -8,10 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.scenario import Scenario
+from app.core.constants import MAX_DEVICES_PER_SCENARIO
 from app.mcp_server.tools.scenario_lock import safe_update_scenario
-
-# Maximum number of devices allowed per scenario to prevent AI runaway
-MAX_DEVICES_PER_SCENARIO = 100
 
 
 async def list_devices(db: AsyncSession, scenario_id: str) -> str:

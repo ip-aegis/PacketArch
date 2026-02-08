@@ -490,7 +490,6 @@ raise ValidationError("Invalid protocol configuration", code="INVALID_PROTOCOL")
 | `NotFoundError` | 404 | Resource not found |
 | `ConflictError` | 409 | Duplicate or conflicting state |
 | `ExternalServiceError` | 502 | Docker, Cyber Vision, external API failures |
-| `PatternExtractionError` | 422 | PCAP analysis failures |
 | `TrafficGenerationError` | 500 | Traffic generation failures |
 
 ### Frontend Error Utilities
@@ -737,7 +736,6 @@ Device templates provide unified fingerprint/signature data for realistic traffi
 
 ### Template Sources
 - **VENDOR_BUILTIN**: Pre-packaged fingerprints for known vendors (Siemens, Rockwell, etc.)
-- **PCAP_LEARNED**: Templates learned from captured traffic analysis
 - **USER_CREATED**: Custom templates created/modified by users
 
 ### Template Contents
@@ -766,32 +764,6 @@ templates = await db.execute(
 identity = template.get_protocol_identity("modbus")
 timing = template.get_timing_for_protocol("modbus")
 ```
-
----
-
-## PCAP Learning Pipeline
-
-Learn traffic patterns from existing PCAP files to create realistic scenarios.
-
-### Features
-- Upload PCAP files for analysis
-- Extract device fingerprints and communication patterns
-- Generate scenario templates from learned patterns
-- Support for Modbus, EtherNet/IP, PROFINET, S7comm, BACnet, and SNMP protocols
-
-### Learning Sessions
-Learning sessions track the analysis of uploaded PCAPs and manage the extracted patterns.
-
-### API Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/learning/upload` | Upload PCAP for analysis |
-| GET | `/api/v1/learning/sessions` | List learning sessions (paginated) |
-| POST | `/api/v1/learning/sessions` | Create new learning session |
-| GET | `/api/v1/learning/sessions/{id}` | Get session details |
-| PUT | `/api/v1/learning/sessions/{id}` | Update session |
-| DELETE | `/api/v1/learning/sessions/{id}` | Delete session |
-| POST | `/api/v1/learning/sessions/{id}/apply` | Apply learned patterns to scenario |
 
 ---
 
@@ -970,7 +942,6 @@ Supported contexts:
 │   │   │   ├── scenarios.py   # Scenario CRUD
 │   │   │   ├── templates.py   # Template creation
 │   │   │   ├── ip_management.py # IP range allocation
-│   │   │   ├── learning.py    # PCAP learning + sessions
 │   │   │   ├── anomalies.py   # Anomaly injection
 │   │   │   ├── docker_hosts.py # Docker host management
 │   │   │   ├── cyber_vision.py # Cisco CV integration
@@ -987,7 +958,6 @@ Supported contexts:
 │   │   │   ├── device_template.py # Unified device template
 │   │   │   ├── ip_range_allocation.py # IP allocation model
 │   │   │   ├── docker_host.py # Docker host model
-│   │   │   ├── learning_session.py # Learning session model
 │   │   │   └── ...
 │   │   ├── schemas/           # Pydantic schemas
 │   │   │   ├── cyber_vision.py # CV API schemas
@@ -996,7 +966,6 @@ Supported contexts:
 │   │   │   ├── ip_management.py # IP allocation functions
 │   │   │   ├── docker_service.py # Docker API client
 │   │   │   ├── cyber_vision_service.py # CV API client
-│   │   │   ├── learned_pattern_service.py # Template service
 │   │   │   └── ...
 │   │   ├── scenario_templates/ # Industry vertical templates
 │   │   │   ├── manufacturing.py
@@ -1025,7 +994,6 @@ Supported contexts:
 │       ├── api/               # Axios API client
 │       │   ├── scenarios.ts   # Scenario API
 │       │   ├── ipManagement.ts # IP management API
-│       │   ├── learning.ts    # Learning API
 │       │   ├── cyberVision.ts # CV API client
 │       │   └── ...
 │       ├── components/        # UI components
@@ -1033,7 +1001,6 @@ Supported contexts:
 │       │   ├── layout/        # App layout
 │       │   ├── panels/        # Side panels
 │       │   ├── anomalies/     # Anomaly components
-│       │   ├── learning/      # Learning components
 │       │   └── admin/         # Admin components
 │       │       ├── DockerHostsTab.tsx     # Docker hosts UI
 │       │       ├── CyberVisionTab.tsx     # CV settings UI
@@ -1044,7 +1011,6 @@ Supported contexts:
 │       ├── pages/             # Route pages
 │       │   ├── ScenariosPage.tsx
 │       │   ├── IPManagementPage.tsx
-│       │   ├── LearningPage.tsx
 │       │   ├── CyberVisionPage.tsx # CV comparison UI
 │       │   └── ...
 │       ├── stores/            # Zustand state
@@ -1068,7 +1034,6 @@ Supported contexts:
 │       │   ├── main.py         # Entry point, command handlers
 │       │   ├── websocket_client.py # WebSocket with auto-reconnect
 │       │   ├── orchestrator_pool.py # Scenario management
-│       │   ├── live_orchestrator.py # Traffic generation
 │       │   ├── version.py      # Agent version constant
 │       │   └── config.py       # Environment configuration
 │       ├── Dockerfile          # Agent container image

@@ -1,0 +1,958 @@
+"""Honeywell device templates."""
+
+from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
+
+from datetime import date
+
+
+TEMPLATES: list[DeviceTemplate] = [
+    DeviceTemplate(
+        id="honeywell/controledge/lcnp4m",
+        vendor="Honeywell",
+        vendor_family="ControlEdge",
+        model="LCNP4M",
+        model_name="ControlEdge PLC",
+        device_type="plc",
+        description="High-performance process controller",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 65535,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 15.0,
+            "mean_ms": 3.0,
+            "std_dev_ms": 2.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="HW{10ALPHANUM}",
+            station_name_pattern="{role}-cedge-{seq}",
+            vendor_short="HON",
+            model_short="LCNP",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R431.2",
+                release_date=date(2024, 2, 20),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R430.1",
+                release_date=date(2022, 9, 15),
+                cves=["CVE-2022-30317"],
+            ),
+            FirmwareVariant(
+                version="R421.0",
+                release_date=date(2020, 6, 10),
+                cves=["CVE-2022-30317", "CVE-2020-6960"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "LCNP4M",
+            "product_name": "ControlEdge PLC",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/c300",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="C300",
+        model_name="Experion PKS C300 Controller",
+        device_type="dcs_controller",
+        description="High-performance process controller for Experion PKS DCS",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 12.0,
+            "mean_ms": 2.5,
+            "std_dev_ms": 1.8,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="C300-{8HEX}",
+            station_name_pattern="c300-{location}-{seq}",
+            vendor_short="HON",
+            model_short="C300",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R520.2",
+                release_date=date(2024, 2, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R510.1",
+                release_date=date(2022, 10, 20),
+                cves=["CVE-2022-30317"],
+            ),
+            FirmwareVariant(
+                version="R501.0",
+                release_date=date(2021, 4, 10),
+                cves=["CVE-2022-30317", "CVE-2021-38395"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "C300",
+            "vendor_url": "http://www.honeywell.com",
+            "product_name": "Experion PKS C300 Controller",
+            "model_name": "C300",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/c200",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="C200",
+        model_name="Experion PKS C200 Controller",
+        device_type="dcs_controller",
+        description="Mid-range process controller for Experion PKS DCS",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.8,
+            "max_ms": 18.0,
+            "mean_ms": 4.0,
+            "std_dev_ms": 2.5,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="C200-{8HEX}",
+            station_name_pattern="c200-{location}-{seq}",
+            vendor_short="HON",
+            model_short="C200",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R520.2",
+                release_date=date(2024, 2, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R510.1",
+                release_date=date(2022, 10, 20),
+                cves=["CVE-2022-30317"],
+            ),
+            FirmwareVariant(
+                version="R501.0",
+                release_date=date(2021, 4, 10),
+                cves=["CVE-2022-30317", "CVE-2021-38395"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "C200",
+            "vendor_url": "http://www.honeywell.com",
+            "product_name": "Experion PKS C200 Controller",
+            "model_name": "C200",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/server",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="Experion Server",
+        model_name="Experion PKS Server",
+        device_type="scada_server",
+        description="Experion PKS application server for DCS operation",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "df_flag": True,
+        },
+
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 50.0,
+            "mean_ms": 10.0,
+            "std_dev_ms": 8.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EXPSVR-{8HEX}",
+            station_name_pattern="experion-svr-{seq}",
+            vendor_short="HON",
+            model_short="EXPSVR",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R520.2",
+                release_date=date(2024, 2, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R510.1",
+                release_date=date(2022, 10, 20),
+                cves=["CVE-2022-30317"],
+            ),
+            FirmwareVariant(
+                version="R501.0",
+                release_date=date(2021, 4, 10),
+                cves=["CVE-2022-30317", "CVE-2021-38395"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "Experion-Server",
+            "product_name": "Experion PKS Server",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/safety-manager",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="Safety Manager",
+        model_name="Experion Safety Manager",
+        device_type="safety_plc",
+        description="SIL 3 safety controller for Experion PKS",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 8.0,
+            "mean_ms": 1.5,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SM-{8HEX}",
+            station_name_pattern="safety-{location}-{seq}",
+            vendor_short="HON",
+            model_short="SM",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V12.5",
+                release_date=date(2024, 1, 20),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V11.3",
+                release_date=date(2022, 6, 15),
+                cves=["CVE-2022-30317"],
+            ),
+            FirmwareVariant(
+                version="V10.2",
+                release_date=date(2020, 9, 10),
+                cves=["CVE-2022-30317", "CVE-2020-6960"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "Safety-Manager",
+            "product_name": "Experion Safety Manager",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/series-c-io",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="Series C I/O",
+        model_name="Experion Series C I/O",
+        device_type="remote_io",
+        description="Series C distributed I/O for Experion PKS",
+
+        oui_prefixes=["00:60:35", "00:D0:36"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 10.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.2,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SCIO-{8HEX}",
+            station_name_pattern="io-seriesc-{seq}",
+            vendor_short="HON",
+            model_short="SCIO",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V5.3",
+                release_date=date(2024, 1, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V5.0",
+                release_date=date(2022, 5, 20),
+                cves=["CVE-2022-30317"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "Series-C-IO",
+            "product_name": "Experion Series C I/O",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/experion-pks/station",
+        vendor="Honeywell",
+        vendor_family="Experion PKS",
+        model="Experion Station",
+        model_name="Experion Operator Station",
+        device_type="operator_station",
+        description="Operator workstation for Experion PKS HMI",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "df_flag": True,
+        },
+
+        response_timing={
+            "min_ms": 2.0,
+            "max_ms": 100.0,
+            "mean_ms": 20.0,
+            "std_dev_ms": 15.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="EXPWS-{8HEX}",
+            station_name_pattern="experion-ws-{seq}",
+            vendor_short="HON",
+            model_short="EXPWS",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R520.2",
+                release_date=date(2024, 2, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R510.1",
+                release_date=date(2022, 10, 20),
+                cves=["CVE-2022-30317"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "Experion-Station",
+            "product_name": "Experion Operator Station",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/niagara/jace-8000",
+        vendor="Honeywell",
+        vendor_family="Niagara",
+        model="JACE 8000",
+        model_name="JACE 8000 Controller",
+        device_type="bms_controller",
+        description="Niagara Framework-based building automation controller",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "00:0D:6B"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 32768,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 2.0,
+            "max_ms": 80.0,
+            "mean_ms": 15.0,
+            "std_dev_ms": 12.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "bacnet", "opc_ua"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="JACE8K-{8HEX}",
+            station_name_pattern="jace-{location}-{seq}",
+            vendor_short="HON",
+            model_short="JACE8",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="N4.13",
+                release_date=date(2024, 2, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="N4.10",
+                release_date=date(2022, 8, 15),
+                cves=["CVE-2022-40145"],
+            ),
+            FirmwareVariant(
+                version="N4.8",
+                release_date=date(2021, 3, 10),
+                cves=["CVE-2022-40145", "CVE-2021-26264"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "JACE-8000",
+            "product_name": "Niagara JACE 8000",
+        },
+
+        bacnet_identity={
+            "vendor_id": 256,  # Tridium (Honeywell subsidiary)
+            "vendor_name": "Tridium, Inc.",
+            "model_name": "JACE 8000",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/excel/xl-web",
+        vendor="Honeywell",
+        vendor_family="Excel",
+        model="XL Web",
+        model_name="Excel Web Boiler Controller",
+        device_type="hvac_controller",
+        description="Excel Web controller for boiler and HVAC applications",
+
+        oui_prefixes=["00:60:35", "00:D0:36"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 3.0,
+            "max_ms": 80.0,
+            "mean_ms": 20.0,
+            "std_dev_ms": 12.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "bacnet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="XLWEB-{8NUM}",
+            station_name_pattern="xlweb-{location}-{seq}",
+            vendor_short="HON",
+            model_short="XLWEB",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V5.2",
+                release_date=date(2024, 1, 15),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V4.8",
+                release_date=date(2022, 4, 20),
+                cves=["CVE-2022-30244"],
+            ),
+            FirmwareVariant(
+                version="V4.5",
+                release_date=date(2020, 8, 10),
+                cves=["CVE-2022-30244", "CVE-2020-6968"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "XL-Web",
+            "product_name": "Excel Web Boiler Controller",
+        },
+
+        bacnet_identity={
+            "vendor_id": 94,  # Honeywell
+            "vendor_name": "Honeywell",
+            "model_name": "Excel Web",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/enraf/optiflex-6000",
+        vendor="Honeywell",
+        vendor_family="Enraf",
+        model="Optiflex 6000",
+        model_name="Optiflex 6000 Level Gauge",
+        device_type="level_gauge",
+        description="Servo tank gauge for custody transfer applications",
+
+        oui_prefixes=["00:60:35", "00:D0:36"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 5.0,
+            "max_ms": 100.0,
+            "mean_ms": 25.0,
+            "std_dev_ms": 15.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="OPT6K-{8NUM}",
+            station_name_pattern="gauge-{location}-{seq}",
+            vendor_short="HON",
+            model_short="OPT6K",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V4.3.1",
+                release_date=date(2024, 1, 20),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V4.1.0",
+                release_date=date(2022, 5, 15),
+                cves=["CVE-2022-30312"],
+            ),
+            FirmwareVariant(
+                version="V3.8.0",
+                release_date=date(2020, 9, 10),
+                cves=["CVE-2022-30312", "CVE-2020-6994"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell Enraf",
+            "product_code": "Optiflex-6000",
+            "product_name": "Optiflex 6000 Level Gauge",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/rtu/2020",
+        vendor="Honeywell",
+        vendor_family="Enraf",
+        model="RTU2020",
+        model_name="RTU2020 Remote Terminal Unit",
+        device_type="rtu",
+        description="Remote terminal unit for tank gauging and control",
+
+        oui_prefixes=["00:60:35", "00:D0:36"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 3.0,
+            "max_ms": 80.0,
+            "mean_ms": 20.0,
+            "std_dev_ms": 12.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="HW-RTU{8NUM}",
+            station_name_pattern="rtu-{location}-{seq}",
+            vendor_short="HON",
+            model_short="R2020",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V3.6.0",
+                release_date=date(2024, 2, 10),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V3.4.0",
+                release_date=date(2022, 7, 15),
+                cves=["CVE-2022-30317"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "RTU2020",
+            "product_name": "RTU2020 Remote Terminal Unit",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/spyder/vav",
+        vendor="Honeywell",
+        vendor_family="Spyder",
+        model="PUB6438S",
+        model_name="Spyder Unitary Controller",
+        device_type="vav_controller",
+        description="Programmable VAV controller with BACnet",
+
+        oui_prefixes=["00:60:35", "00:D0:36", "F4:4E:05"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 3.0,
+            "max_ms": 80.0,
+            "mean_ms": 20.0,
+            "std_dev_ms": 12.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SPY{10NUM}",
+            station_name_pattern="vav-{location}-{seq}",
+            vendor_short="HON",
+            model_short="SPY",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V4.0.3",
+                release_date=date(2024, 2, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V3.8.0",
+                release_date=date(2022, 6, 10),
+                cves=["CVE-2022-30317"],
+            ),
+        ],
+
+        bacnet_identity={
+            "vendor_id": 7,  # Honeywell
+            "device_type": "VAV Controller",
+            "model_name": "Spyder PUB6438S",
+        },
+
+        modbus_identity={
+            "vendor_name": "Honeywell International Inc.",
+            "product_code": "PUB6438S",
+            "product_name": "Spyder Unitary Controller",
+        },
+    ),
+    DeviceTemplate(
+        id="honeywell/hc900/hc900-controller",
+        vendor="Honeywell",
+        vendor_family="HC900",
+        model="HC900 Controller",
+        model_name="HC900 Controller",
+        device_type="instrument",
+        description="Honeywell HC900 Controller",
+        oui_prefixes=['00:40:84', '00:22:6A'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 16384,
+                "mss": 1460,
+            },
+        response_timing={
+                "min_ms": 5.0,
+                "max_ms": 50.0,
+                "mean_ms": 15.0,
+                "std_dev_ms": 8.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="7.3",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Honeywell International Inc",
+                "product_code": "900C52-0001",
+                "major_minor_revision": "7.3",
+                "product_name": "HC900 Hybrid Controller",
+                "model_name": "HC900",
+            },
+    ),
+    DeviceTemplate(
+        id="honeywell/lds/pipeline-lds",
+        vendor="Honeywell",
+        vendor_family="LDS",
+        model="Pipeline LDS",
+        model_name="Pipeline LDS",
+        device_type="leak_detection",
+        description="Honeywell Pipeline LDS",
+        oui_prefixes=['00:40:84', '00:22:6A', 'C4:EF:DA', '58:FC:C8'],
+        tcp_stack={
+                "ttl": 128,
+                "window_size": 65535,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+            },
+        response_timing={
+                "min_ms": 5.0,
+                "max_ms": 100.0,
+                "mean_ms": 25.0,
+                "std_dev_ms": 15.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 3.5,
+            },
+        error_behavior={
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="3.2.0",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Honeywell International Inc.",
+                "product_code": "LDS-3200",
+                "major_minor_revision": "V3.2.0",
+                "product_name": "Pipeline Leak Detection System",
+                "model_name": "LDS Server",
+            },
+    ),
+    DeviceTemplate(
+        id="honeywell/stt/stt850",
+        vendor="Honeywell",
+        vendor_family="STT",
+        model="STT850",
+        model_name="STT850",
+        device_type="instrument",
+        description="Honeywell STT850",
+        oui_prefixes=['00:40:84', '00:22:6A'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 4096,
+                "mss": 536,
+            },
+        response_timing={
+                "min_ms": 20.0,
+                "max_ms": 150.0,
+                "mean_ms": 50.0,
+                "std_dev_ms": 25.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="4.2",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Honeywell International Inc",
+                "product_code": "STT850-E-0-AHS",
+                "major_minor_revision": "4.2",
+                "product_name": "STT850 SmartLine Temperature Transmitter",
+                "model_name": "STT850",
+            },
+    ),
+    DeviceTemplate(
+        id="honeywell/uda/uda2182",
+        vendor="Honeywell",
+        vendor_family="UDA",
+        model="UDA2182",
+        model_name="UDA2182",
+        device_type="instrument",
+        description="Honeywell UDA2182",
+        oui_prefixes=['00:40:84', '00:22:6A', 'C4:EF:DA', '58:FC:C8'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": False,
+            },
+        response_timing={
+                "min_ms": 10.0,
+                "max_ms": 80.0,
+                "mean_ms": 30.0,
+                "std_dev_ms": 15.0,
+                "distribution": "gaussian",
+                "outlier_probability": 0.002,
+                "outlier_multiplier": 3.5,
+            },
+        error_behavior={
+                "supported_exception_codes": [1, 2, 3, 4],
+                "exception_probability": 0.0003,
+                "timeout_probability": 0.0001,
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="2.50",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Honeywell International Inc.",
+                "product_code": "UDA2182",
+                "major_minor_revision": "V2.50",
+                "product_name": "UDA2182 Universal Dual Analyzer",
+                "model_name": "Process Analyzer",
+            },
+    ),
+    DeviceTemplate(
+        id="honeywell/udc/udc3500",
+        vendor="Honeywell",
+        vendor_family="UDC",
+        model="UDC3500",
+        model_name="UDC3500",
+        device_type="instrument",
+        description="Honeywell UDC3500",
+        oui_prefixes=['00:40:84', '00:22:6A'],
+        tcp_stack={
+                "ttl": 64,
+                "window_size": 8192,
+                "mss": 1460,
+            },
+        response_timing={
+                "min_ms": 10.0,
+                "max_ms": 80.0,
+                "mean_ms": 25.0,
+                "std_dev_ms": 12.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['modbus'],
+        firmware_variants=[FirmwareVariant(
+            version="6.1",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        modbus_identity={
+                "vendor_name": "Honeywell International Inc",
+                "product_code": "DC3500-EE-0L00-200",
+                "major_minor_revision": "6.1",
+                "product_name": "UDC3500 Universal Digital Controller",
+                "model_name": "UDC3500",
+            },
+    ),
+]

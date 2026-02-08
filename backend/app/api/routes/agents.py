@@ -11,9 +11,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.helpers import get_or_404, paginate as paginate_query
 from app.core.database import get_db
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
@@ -422,14 +423,8 @@ async def list_agents(
     if status_filter:
         query = query.where(TrafficAgent.status == status_filter)
 
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    total = (await db.execute(count_query)).scalar() or 0
-
-    # Get page
-    query = query.order_by(TrafficAgent.name).offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(query)
-    agents = result.scalars().all()
+    query = query.order_by(TrafficAgent.name)
+    agents, total = await paginate_query(db, query, page, page_size)
 
     # Enrich with real-time connection info
     agent_responses = []
@@ -519,11 +514,7 @@ async def get_agent(
     db: AsyncSession = Depends(get_db),
 ) -> AgentResponse:
     """Get details for a specific agent."""
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     response = AgentResponse.model_validate(agent)
 
@@ -546,11 +537,7 @@ async def update_agent(
     db: AsyncSession = Depends(get_db),
 ) -> AgentResponse:
     """Update a traffic agent."""
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     # Check for duplicate name if changing
     if agent_data.name and agent_data.name != agent.name:
@@ -583,11 +570,7 @@ async def delete_agent(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a traffic agent."""
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     # Disconnect if connected
     if agent_manager.is_connected(agent_id):
@@ -613,11 +596,7 @@ async def regenerate_agent_token(
 
     This will invalidate the current token and disconnect the agent.
     """
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     # Generate new token
     token = generate_agent_token()
@@ -708,11 +687,7 @@ async def deploy_scenario_to_agent(
 ) -> DeploymentResponse:
     """Deploy a scenario to an agent for traffic generation."""
     # Check agent exists and is active
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     if not agent.is_active:
         raise ValidationError("Agent is not active")
@@ -721,16 +696,7 @@ async def deploy_scenario_to_agent(
         raise ValidationError("Agent is not connected")
 
     # Get scenario
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == deployment.scenario_id)
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise NotFoundError(
-            "Scenario not found",
-            details={"id": str(deployment.scenario_id)},
-        )
+    scenario = await get_or_404(db, Scenario, deployment.scenario_id, "Scenario")
 
     # Check for existing active deployment - prevent duplicates
     existing_result = await db.execute(
@@ -887,11 +853,7 @@ async def trigger_agent_update(
     3. Restart with the new version
     """
     # Check agent exists
-    result = await db.execute(select(TrafficAgent).where(TrafficAgent.id == agent_id))
-    agent = result.scalar_one_or_none()
-
-    if not agent:
-        raise NotFoundError("Agent not found", details={"id": str(agent_id)})
+    agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
     if not agent_manager.is_connected(agent_id):
         raise ValidationError("Agent is not connected")

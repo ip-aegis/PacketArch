@@ -1,0 +1,387 @@
+"""Fingerprint conversion and database adapter functions.
+
+Provides backwards compatibility with existing code that expects
+fingerprint dictionaries (FingerprintApplicator, scenario templates,
+AI scenario generator).
+"""
+
+from typing import Any
+
+from app.services.device_templates._api import (
+    get_all_templates,
+    get_template_by_id,
+    get_templates_by_vendor,
+)
+from app.services.device_templates._helpers import (
+    generate_serial_number,
+    generate_station_name,
+)
+from app.services.device_templates._registry import DEVICE_TEMPLATES
+from app.services.device_templates._types import DeviceTemplate
+
+
+def get_template_by_vendor_model(vendor: str, model: str) -> DeviceTemplate | None:
+    """Find a template by vendor and model (case-insensitive).
+
+    Performs flexible matching on:
+    - model field (exact, e.g., "6ES7 516-3AN02-0AB0")
+    - model_name field (e.g., "CPU 1516-3 PN/DP")
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+        model: Model identifier or name
+
+    Returns:
+        DeviceTemplate or None if not found
+    """
+    vendor_lower = vendor.lower()
+    model_lower = model.lower()
+
+    for template in DEVICE_TEMPLATES.values():
+        if template.vendor.lower() != vendor_lower:
+            continue
+
+        # Check model field (exact)
+        if template.model.lower() == model_lower:
+            return template
+
+        # Check model_name field
+        if template.model_name.lower() == model_lower:
+            return template
+
+        # Check partial match on model
+        if model_lower in template.model.lower():
+            return template
+
+        # Check partial match on model_name
+        if model_lower in template.model_name.lower():
+            return template
+
+    return None
+
+
+def get_fingerprint_from_template(
+    template_id: str,
+    firmware_version: str | None = None,
+    include_instance: bool = False,
+    serial_number: str | None = None,
+    station_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Convert a device template to fingerprint dictionary.
+
+    This provides backwards compatibility with existing code that
+    expects fingerprint dictionaries (FingerprintApplicator, scenario
+    templates, AI scenario generator).
+
+    Args:
+        template_id: Template ID (e.g., "siemens/s7-1500/cpu-1516-3")
+        firmware_version: Specific firmware or None for default
+        include_instance: Whether to generate unique instance values
+        serial_number: Override serial number
+        station_name: Override station name
+
+    Returns:
+        Fingerprint dictionary compatible with FingerprintApplicator
+    """
+    template = get_template_by_id(template_id)
+    if not template:
+        return None
+
+    # Get firmware variant
+    if firmware_version:
+        firmware = template.get_firmware_by_version(firmware_version)
+    else:
+        firmware = template.get_default_firmware()
+
+    if not firmware:
+        return None
+
+    # Build the fingerprint dictionary
+    fingerprint: dict[str, Any] = {
+        "vendor": template.vendor,
+        "vendor_family": template.vendor_family,
+        "model": template.model,
+        "firmware_version": firmware.version,
+        "oui_prefixes": list(template.oui_prefixes),
+        "tcp_stack": dict(template.tcp_stack) if template.tcp_stack else {},
+        "response_timing": dict(template.response_timing) if template.response_timing else {},
+        "error_behavior": dict(template.error_behavior) if template.error_behavior else {},
+        "protocol_quirks": dict(template.protocol_quirks) if template.protocol_quirks else {},
+        "is_builtin": template.is_builtin,
+    }
+
+    # Add protocol identities with firmware overrides
+    protocol_identities = [
+        ("modbus_identity", template.modbus_identity),
+        ("ethernet_ip_identity", template.ethernet_ip_identity),
+        ("profinet_identity", template.profinet_identity),
+        ("s7_identity", template.s7_identity),
+        ("bacnet_identity", template.bacnet_identity),
+        ("snmp_identity", template.snmp_identity),
+        ("opc_ua_identity", template.opc_ua_identity),
+    ]
+
+    for key, base_identity in protocol_identities:
+        if base_identity:
+            # Start with base identity
+            merged = dict(base_identity)
+
+            # Apply firmware overrides
+            fw_override = firmware.identity_overrides.get(key, {})
+            if fw_override:
+                merged.update(fw_override)
+
+            # Apply version fields
+            if key == "modbus_identity" and "major_minor_revision" not in merged:
+                merged["major_minor_revision"] = firmware.version
+            elif key == "profinet_identity" and "im0_sw_revision" not in merged:
+                merged["im0_sw_revision"] = firmware.version
+            elif key == "ethernet_ip_identity":
+                parts = firmware.version.lstrip("V").split(".")
+                if len(parts) >= 2:
+                    try:
+                        if "revision_major" not in merged:
+                            merged["revision_major"] = int(parts[0])
+                        if "revision_minor" not in merged:
+                            merged["revision_minor"] = int(parts[1])
+                    except ValueError:
+                        pass
+
+            # Add instance values if requested
+            if include_instance:
+                if serial_number:
+                    merged["serial_number"] = serial_number
+                elif template.instance_rules:
+                    merged["serial_number"] = generate_serial_number(
+                        template.instance_rules.serial_format
+                    )
+
+                if station_name:
+                    merged["station_name"] = station_name
+                elif template.instance_rules:
+                    merged["station_name"] = generate_station_name(
+                        template.instance_rules.station_name_pattern,
+                        role=template.device_type,
+                        vendor_short=template.instance_rules.vendor_short,
+                        model_short=template.instance_rules.model_short,
+                    )
+
+            fingerprint[key] = merged
+        else:
+            fingerprint[key] = None
+
+    return fingerprint
+
+
+def get_fingerprint_by_vendor_model(
+    vendor: str,
+    model: str,
+    firmware_version: str | None = None,
+) -> dict[str, Any] | None:
+    """Get fingerprint dictionary by vendor/model.
+
+    Searches DEVICE_TEMPLATES registry (single source of truth).
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+        model: Model identifier or name
+        firmware_version: Specific firmware or None for default
+
+    Returns:
+        Fingerprint dictionary compatible with FingerprintApplicator,
+        or None if no matching fingerprint found
+    """
+    # Try FingerprintCache first (O(1) lookup, handles fuzzy matching)
+    from app.services.fingerprint_cache import get_fingerprint_cache
+    cache = get_fingerprint_cache()
+    result = cache.get_by_vendor_model(vendor, model)
+    if result:
+        return result.copy()
+
+    # Direct template lookup as fallback
+    template = get_template_by_vendor_model(vendor, model)
+    if template:
+        return get_fingerprint_from_template(
+            template.id,
+            firmware_version=firmware_version,
+        )
+
+    return None
+
+
+def get_fingerprints_by_vendor(vendor: str) -> list[dict[str, Any]]:
+    """Get all fingerprint dictionaries for a vendor.
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+
+    Returns:
+        List of fingerprint dictionaries for all templates from this vendor
+    """
+    fingerprints = []
+    for template in get_templates_by_vendor(vendor):
+        fp = get_fingerprint_from_template(template.id)
+        if fp:
+            fingerprints.append(fp)
+    return fingerprints
+
+
+def get_all_fingerprints() -> list[dict[str, Any]]:
+    """Get all fingerprint dictionaries from the template library.
+
+    Converts all registered DeviceTemplate entries to fingerprint dictionaries
+    compatible with FingerprintApplicator.
+
+    Returns:
+        List of fingerprint dictionaries with complete protocol identities
+    """
+    return [
+        fp for fp in (
+            get_fingerprint_from_template(t.id)
+            for t in get_all_templates()
+        ) if fp is not None
+    ]
+
+
+# =============================================================================
+# Database Adapter Functions
+# =============================================================================
+
+
+def template_db_to_fingerprint_dict(template) -> dict[str, Any] | None:
+    """Convert a DeviceTemplate DB model to a fingerprint dictionary.
+
+    Args:
+        template: DeviceTemplate DB model instance
+
+    Returns:
+        Fingerprint dictionary compatible with FingerprintApplicator,
+        or None if conversion fails.
+    """
+    if template is None:
+        return None
+
+    try:
+        fp: dict[str, Any] = {
+            "vendor": template.vendor,
+            "vendor_family": template.vendor_family,
+            "model": template.model,
+            "firmware_version": template.firmware_version,
+            "oui_prefixes": list(template.oui_patterns or []),
+            "tcp_stack": dict(template.tcp_signature or {}),
+            "is_builtin": template.source == "vendor_builtin",
+        }
+
+        # Extract response timing
+        if template.response_timings:
+            fp["response_timing"] = template.response_timings.get(
+                "default",
+                next(iter(template.response_timings.values()), {})
+            )
+        else:
+            fp["response_timing"] = {}
+
+        # Error behavior and protocol quirks
+        fp["error_behavior"] = dict(template.error_behavior or {})
+        fp["protocol_quirks"] = dict(template.protocol_quirks or {})
+
+        # Protocol identities (check both unified and legacy columns)
+        for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "opc_ua"]:
+            identity = template.get_protocol_identity(protocol)
+            fp[f"{protocol}_identity"] = dict(identity) if identity else None
+
+        return fp
+
+    except Exception:
+        return None
+
+
+def get_fingerprint_from_db_sync(
+    vendor: str,
+    model: str,
+) -> dict[str, Any] | None:
+    """Query DeviceTemplate DB (sync) and return fingerprint dict.
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+        model: Model identifier
+
+    Returns:
+        Fingerprint dictionary or None if not found.
+    """
+    try:
+        from sqlalchemy import func
+
+        from app.core.database import get_sync_session
+        from app.models.device_template import DeviceTemplate
+
+        with get_sync_session() as db:
+            template = db.query(DeviceTemplate).filter(
+                func.lower(DeviceTemplate.vendor) == vendor.lower(),
+                DeviceTemplate.model == model,
+                DeviceTemplate.is_active == True,  # noqa: E712
+            ).first()
+
+            return template_db_to_fingerprint_dict(template)
+
+    except Exception:
+        return None
+
+
+async def get_fingerprint_from_db_async(
+    db,
+    vendor: str,
+    model: str,
+) -> dict[str, Any] | None:
+    """Query DeviceTemplate DB (async) and return fingerprint dict.
+
+    Args:
+        db: AsyncSession instance
+        vendor: Vendor name (case-insensitive)
+        model: Model identifier
+
+    Returns:
+        Fingerprint dictionary or None if not found.
+    """
+    try:
+        from sqlalchemy import func, select
+
+        from app.models.device_template import DeviceTemplate
+
+        result = await db.execute(
+            select(DeviceTemplate).where(
+                func.lower(DeviceTemplate.vendor) == vendor.lower(),
+                DeviceTemplate.model == model,
+                DeviceTemplate.is_active == True,  # noqa: E712
+            )
+        )
+        template = result.scalar_one_or_none()
+
+        return template_db_to_fingerprint_dict(template)
+
+    except Exception:
+        return None
+
+
+def get_fingerprint_with_fallback(
+    vendor: str,
+    model: str,
+    firmware_version: str | None = None,
+) -> dict[str, Any] | None:
+    """Get fingerprint from DB with fallback to Python dataclass library.
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+        model: Model identifier
+        firmware_version: Specific firmware or None for default
+
+    Returns:
+        Fingerprint dictionary or None if not found in either source.
+    """
+    # Try DB first
+    fp = get_fingerprint_from_db_sync(vendor, model)
+    if fp:
+        return fp
+
+    # Fall back to Python dataclass library
+    return get_fingerprint_by_vendor_model(vendor, model, firmware_version)

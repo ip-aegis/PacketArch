@@ -14,9 +14,10 @@ Generation is deterministic: same device_id + scenario_id always produces
 the same identifier values, ensuring reproducibility across regenerations.
 """
 
-import hashlib
 import re
 from typing import Literal
+
+from app.services.serial_number_generator import device_hash
 
 
 class UniqueIdentifierGenerator:
@@ -29,17 +30,8 @@ class UniqueIdentifierGenerator:
 
     @classmethod
     def _generate_hash(cls, device_id: str, scenario_id: str | None = None) -> bytes:
-        """Generate a deterministic hash from device and scenario identifiers.
-
-        Args:
-            device_id: Unique device identifier
-            scenario_id: Scenario identifier (optional, defaults to "global")
-
-        Returns:
-            SHA-256 hash bytes
-        """
-        seed = f"{device_id}:{scenario_id or 'global'}"
-        return hashlib.sha256(seed.encode()).digest()
+        """Generate a deterministic hash from device and scenario identifiers."""
+        return device_hash(device_id, scenario_id)
 
     @classmethod
     def _sanitize_station_name(cls, name: str) -> str:

@@ -8,6 +8,7 @@ import { useScenarioStore } from '../../../stores/scenarioStore';
 import { useHistoryStore } from '../../../stores/historyStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ScenarioDevice, ScenarioFlow, ScenarioZone } from '../../../types';
+import { inferPurdueLevel } from '../../../utils/clusterGrouping';
 
 export type LayoutType = 'manual' | 'purdue' | 'dataflow' | 'grid' | 'circular';
 
@@ -37,27 +38,6 @@ const PURDUE_LEVELS: Record<number, number> = {
   1: 1550,    // Basic Control
   0: 1850,    // Process (Field Devices)
 };
-
-// Map zone types/names to Purdue levels
-function inferPurdueLevel(zone: ScenarioZone): number {
-  const nameLower = zone.name.toLowerCase();
-
-  // Check name patterns first
-  if (nameLower.includes('enterprise') || nameLower.includes('corporate')) return 4;
-  if (nameLower.includes('dmz')) return 3.5;
-  if (nameLower.includes('scada') || nameLower.includes('operations')) return 3;
-  if (nameLower.includes('process') || nameLower.includes('control')) return 2;
-  if (nameLower.includes('field') || nameLower.includes('device') || nameLower.includes('sensor')) return 1;
-
-  // Fall back to zone type
-  switch (zone.type) {
-    case 'vertical': return 3;
-    case 'network': return 2;
-    case 'vlan': return 2;
-    case 'logical': return 1;
-    default: return 2;
-  }
-}
 
 // Group devices by zone
 function groupDevicesByZone(
@@ -427,7 +407,7 @@ function calculateDataFlowLayout(
 
   // Position zones left-to-right by flow level
   const horizontalSpacing = 350;
-  const verticalSpacing = 140;
+  const verticalSpacing = 200;
   let currentX = LAYOUT_CONFIG.gridStartX;
 
   sortedZones.forEach(zone => {

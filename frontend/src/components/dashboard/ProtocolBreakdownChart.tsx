@@ -1,7 +1,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { DashboardProtocolStats } from '../../api/dashboard';
-import { getProtocolColor, getProtocolLabel } from '../../utils/formatUtils';
+import { getProtocolColor, getProtocolLabel } from '../../constants/protocols';
 
 interface ProtocolBreakdownChartProps {
   breakdown: Record<string, DashboardProtocolStats> | null;

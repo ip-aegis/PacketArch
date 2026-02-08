@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
+import { useCompactMode } from '../hooks/useCompactMode';
 import {
   ControlOutlined,
   DesktopOutlined,
@@ -55,12 +56,101 @@ const DEVICE_TYPE_CONFIG: Record<DeviceType, { icon: React.ReactNode; color: str
 const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
   const { data, selected } = props;
   const [hovered, setHovered] = useState(false);
+  const rawCompact = useCompactMode();
+  // Selected nodes always show full detail
+  const isCompact = rawCompact && !selected;
   if (!data) return null;
 
   const nodeData = data as DeviceNodeData;
   const deviceConfig = DEVICE_TYPE_CONFIG[nodeData.type] || DEVICE_TYPE_CONFIG.plc;
   const deviceColor = deviceConfig.color;
   const showDetails = selected || hovered;
+
+  const handleStyle = (pos: 'top' | 'bottom' | 'left' | 'right') => {
+    const size = isCompact ? 8 : 10;
+    const offset = isCompact ? -4 : -5;
+    return {
+      background: deviceColor,
+      width: size,
+      height: size,
+      border: '2px solid #1e2a3a',
+      [pos]: offset,
+    };
+  };
+
+  if (isCompact) {
+    return (
+      <div
+        role="treeitem"
+        aria-label={`${deviceConfig.label}: ${nodeData.name}`}
+        aria-selected={selected}
+        tabIndex={0}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.dispatchEvent(
+            new CustomEvent('device-context-menu', {
+              detail: { deviceId: nodeData.id, x: e.clientX, y: e.clientY },
+            }),
+          );
+        }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px',
+          cursor: 'pointer',
+          position: 'relative',
+        }}
+      >
+        <Handle type="target" position={Position.Top} style={handleStyle('top')} />
+        <Handle type="source" position={Position.Bottom} style={handleStyle('bottom')} />
+        <Handle type="target" position={Position.Left} style={handleStyle('left')} />
+        <Handle type="source" position={Position.Right} style={handleStyle('right')} />
+
+        {/* Colored circle with icon */}
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: `linear-gradient(135deg, ${deviceColor}40, ${deviceColor}20)`,
+            border: `2px solid ${hovered ? deviceColor : `${deviceColor}60`}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+            color: deviceColor,
+            boxShadow: hovered
+              ? `0 0 12px ${deviceColor}50`
+              : '0 1px 4px rgba(0,0,0,0.3)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {deviceConfig.icon}
+        </div>
+
+        {/* Name label */}
+        <div
+          style={{
+            fontSize: 10,
+            color: '#ffffff',
+            fontWeight: 600,
+            maxWidth: 70,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+          }}
+        >
+          {nodeData.name}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -95,50 +185,10 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
       }}
     >
       {/* Connection handles */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: deviceColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #1e2a3a',
-          top: -5,
-        }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: deviceColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #1e2a3a',
-          bottom: -5,
-        }}
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{
-          background: deviceColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #1e2a3a',
-          left: -5,
-        }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{
-          background: deviceColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #1e2a3a',
-          right: -5,
-        }}
-      />
+      <Handle type="target" position={Position.Top} style={handleStyle('top')} />
+      <Handle type="source" position={Position.Bottom} style={handleStyle('bottom')} />
+      <Handle type="target" position={Position.Left} style={handleStyle('left')} />
+      <Handle type="source" position={Position.Right} style={handleStyle('right')} />
 
       {/* Configuration status indicator */}
       <div

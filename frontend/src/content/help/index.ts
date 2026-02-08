@@ -206,7 +206,7 @@ import { gettingStartedArticle } from './getting-started';
 import { scenariosArticle } from './scenarios';
 import { scenarioStudioArticle } from './scenario-studio';
 import { deviceLibraryArticle } from './device-library';
-import { pcapLearningArticle } from './pcap-learning';
+
 import { deploymentsArticle } from './deployments';
 import { ipManagementArticle } from './ip-management';
 import { cveBrowserArticle } from './cve-browser';
@@ -221,7 +221,7 @@ registerHelpArticle(gettingStartedArticle);
 registerHelpArticle(scenariosArticle);
 registerHelpArticle(scenarioStudioArticle);
 registerHelpArticle(deviceLibraryArticle);
-registerHelpArticle(pcapLearningArticle);
+
 registerHelpArticle(deploymentsArticle);
 registerHelpArticle(ipManagementArticle);
 registerHelpArticle(cveBrowserArticle);

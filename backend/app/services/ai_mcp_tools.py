@@ -20,7 +20,6 @@ from app.mcp_server.tools import (
     fingerprint_tools,
     flow_tools,
     layout_tools,
-    learning_tools,
     protocol_tools,
     scenario_tools,
     validation_tools,
@@ -930,87 +929,6 @@ def register_mcp_tools(db: AsyncSession, user_id: str | None = None) -> None:
         ),
     )
 
-    # ==================== Learned Pattern Tools ====================
-    mcp_server.register_tool(
-        name="list_learned_fingerprints",
-        description="List device fingerprints learned from PCAP analysis. Returns fingerprints with vendor, protocols, confidence, and timing information.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "protocol_filter": {"type": "string", "description": "Filter by protocol (modbus, ethernet_ip, profinet, s7)"},
-                "vendor_filter": {"type": "string", "description": "Filter by inferred vendor name"},
-            },
-        },
-        handler=lambda protocol_filter=None, vendor_filter=None: learning_tools.list_learned_fingerprints(
-            db, protocol_filter, vendor_filter
-        ),
-    )
-
-    mcp_server.register_tool(
-        name="apply_learned_fingerprint_to_device",
-        description="Apply a learned fingerprint (from PCAP analysis) to a device. Sets TCP signature, response timing, and MAC address from the learned data.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "scenario_id": {"type": "string", "description": "Scenario UUID"},
-                "device_id": {"type": "string", "description": "Device ID"},
-                "learned_fingerprint_id": {"type": "string", "description": "Learned fingerprint UUID from PCAP analysis"},
-            },
-            "required": ["scenario_id", "device_id", "learned_fingerprint_id"],
-        },
-        handler=lambda scenario_id, device_id, learned_fingerprint_id: learning_tools.apply_learned_fingerprint_to_device(
-            db, scenario_id, device_id, learned_fingerprint_id
-        ),
-    )
-
-    mcp_server.register_tool(
-        name="list_learned_sequences",
-        description="List communication sequences learned from PCAPs. Returns sequences with type (startup, poll_cycle, shutdown), timing, and step count.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "protocol_filter": {"type": "string", "description": "Filter by protocol (modbus, ethernet_ip, profinet, s7)"},
-                "sequence_type_filter": {"type": "string", "description": "Filter by sequence type (startup, poll_cycle, shutdown)"},
-            },
-        },
-        handler=lambda protocol_filter=None, sequence_type_filter=None: learning_tools.list_learned_sequences(
-            db, protocol_filter, sequence_type_filter
-        ),
-    )
-
-    mcp_server.register_tool(
-        name="apply_sequence_to_flow",
-        description="Apply a learned sequence pattern to a flow. Sets timing intervals, jitter, and learned operation steps.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "scenario_id": {"type": "string", "description": "Scenario UUID"},
-                "flow_id": {"type": "string", "description": "Flow ID"},
-                "sequence_id": {"type": "string", "description": "Learned sequence UUID"},
-            },
-            "required": ["scenario_id", "flow_id", "sequence_id"],
-        },
-        handler=lambda scenario_id, flow_id, sequence_id: learning_tools.apply_sequence_to_flow(
-            db, scenario_id, flow_id, sequence_id
-        ),
-    )
-
-    mcp_server.register_tool(
-        name="auto_apply_learned_patterns",
-        description="Intelligently apply all relevant learned patterns to a scenario. Matches fingerprints to devices by protocol and sequences to flows.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "scenario_id": {"type": "string", "description": "Scenario UUID"},
-                "match_threshold": {"type": "number", "description": "Minimum confidence threshold for pattern matching (0.0-1.0, default 0.5)"},
-            },
-            "required": ["scenario_id"],
-        },
-        handler=lambda scenario_id, match_threshold=0.5: learning_tools.auto_apply_learned_patterns(
-            db, scenario_id, match_threshold
-        ),
-    )
-
     # ==================== Deployment Control Tools ====================
     mcp_server.register_tool(
         name="list_docker_hosts",
@@ -1295,19 +1213,6 @@ Returns: Suggested vertical with confidence score and reasoning.""",
             "required": ["description"],
         },
         handler=lambda description: ai_generation_tools.suggest_vertical_template(description),
-    )
-
-    mcp_server.register_tool(
-        name="suggest_patterns_for_scenario",
-        description="""Suggest learned patterns from PCAP analysis that match a scenario.
-Finds timing patterns and payload patterns that match the scenario's protocols.
-Use this to make scenarios more realistic based on real-world traffic captures.""",
-        input_schema={
-            "type": "object",
-            "properties": {"scenario_id": {"type": "string", "description": "Scenario UUID to analyze"}},
-            "required": ["scenario_id"],
-        },
-        handler=lambda scenario_id: ai_generation_tools.suggest_patterns_for_scenario(db, scenario_id),
     )
 
     # ==================== Anomaly Injection Tools ====================

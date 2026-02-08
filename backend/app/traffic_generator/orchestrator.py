@@ -1,25 +1,19 @@
 """Traffic generation orchestrator.
 
 Delegates to UnifiedOrchestrator for actual packet generation while
-maintaining the existing API for backward compatibility with tasks.py
-and AI-enhanced generation.
+maintaining the existing API for backward compatibility with tasks.py.
 """
 
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any
 from uuid import UUID
 
-from app.protocol_engines import get_engine
-from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.output import PcapOutput
 from app.protocol_engines.types import FlowContext
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
 from app.traffic_generator.models import GenerationResult, JobStatus
-
-if TYPE_CHECKING:
-    from app.protocol_engines.ai_enhanced_base import AIEnhancedEngineFactory
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +27,6 @@ class GenerationConfig:
     total_duration_ms: int
     output_path: str | Path
 
-    # AI-enhanced generation options
-    use_ai_timing: bool = False
-    use_learned_patterns: bool = False
     anomaly_injection_config: dict[str, Any] = field(default_factory=dict)
 
 
@@ -54,40 +45,6 @@ class TrafficOrchestrator:
         """
         self.config = config
         self._flow_contexts: list[FlowContext] = []
-
-        # AI-enhanced generation support
-        self._ai_engine_factory: "AIEnhancedEngineFactory | None" = None
-        self._ai_patterns_loaded = False
-
-    async def load_ai_patterns(self, db_session: Any) -> None:
-        """Load learned patterns from the database for AI-enhanced generation.
-
-        Args:
-            db_session: Database session
-        """
-        if not (self.config.use_ai_timing or self.config.use_learned_patterns):
-            return
-
-        from app.protocol_engines.ai_enhanced_base import AIEnhancedEngineFactory
-
-        self._ai_engine_factory = AIEnhancedEngineFactory()
-        await self._ai_engine_factory.load_patterns(db_session)
-        self._ai_patterns_loaded = True
-
-        logger.info("Loaded AI patterns for enhanced traffic generation")
-
-    def _get_engine_for_flow(self, flow_context: FlowContext) -> ProtocolEngine:
-        """Get the appropriate engine for a flow.
-
-        Uses AI-enhanced engine if patterns are loaded and AI mode is enabled.
-        """
-        if self._ai_patterns_loaded and self._ai_engine_factory:
-            return self._ai_engine_factory.create_engine(
-                protocol=flow_context.protocol,
-                anomaly_config=self.config.anomaly_injection_config,
-            )
-        else:
-            return get_engine(flow_context.protocol)
 
     def add_flow(self, flow_context: FlowContext) -> None:
         """Add a flow to be generated.

@@ -12,7 +12,6 @@ import {
   Select,
   List,
   Empty,
-  Spin,
   Collapse,
   Badge,
   Tooltip,
@@ -27,6 +26,7 @@ import {
   PlusOutlined,
   BugOutlined,
 } from '@ant-design/icons';
+import { PanelContainer, LoadingSpinner } from '../common';
 import {
   listAnomalyTemplates,
   suggestAnomalies,
@@ -146,7 +146,7 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
   }, {} as Record<string, AnomalyTemplate[]>);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <PanelContainer padding={0}>
       {/* AI Suggestions */}
       {scenarioId && suggestions.length > 0 && (
         <Card
@@ -162,9 +162,7 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
           styles={{ body: { padding: '8px' } }}
         >
           {loadingSuggestions ? (
-            <div style={{ textAlign: 'center', padding: 12 }}>
-              <Spin size="small" />
-            </div>
+            <LoadingSpinner padding={12} size="small" />
           ) : (
             <List
               size="small"
@@ -300,9 +298,7 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
         styles={{ body: { padding: '8px' } }}
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 24 }}>
-            <Spin />
-          </div>
+          <LoadingSpinner />
         ) : templates.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -365,7 +361,7 @@ const AnomalyPanel: React.FC<AnomalyPanelProps> = ({
           Create Campaign ({selectedTemplates.size} anomalies)
         </Button>
       )}
-    </div>
+    </PanelContainer>
   );
 };
 

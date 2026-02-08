@@ -1,6 +1,7 @@
 """Agent manager for tracking connected WebSocket agents and routing commands."""
 
 import asyncio
+import copy
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -9,153 +10,9 @@ from uuid import UUID
 
 from fastapi import WebSocket
 
-from app.services.serial_number_generator import SerialNumberGenerator
+from app.services.device_identity_enricher import enrich_definition_serial_numbers
 
 logger = logging.getLogger(__name__)
-
-
-def validate_and_enrich_serial_numbers(
-    definition: dict[str, Any],
-    scenario_id: str,
-) -> dict[str, Any]:
-    """Validate that devices have serial numbers, enriching legacy scenarios if needed.
-
-    Serial numbers should be generated at scenario creation time. This function
-    serves as a guardrail for legacy scenarios that may not have serial numbers,
-    and logs warnings to help identify scenarios that need regeneration.
-
-    IMPORTANT: Only enriches identities that ALREADY EXIST in the fingerprint
-    with proper vendor data. Does NOT create new identity blocks, as that would
-    cause protocol misattribution (e.g., Siemens appearing as Rockwell).
-
-    Args:
-        definition: Scenario definition dict with devices and flows
-        scenario_id: Scenario UUID for deterministic serial generation
-
-    Returns:
-        Definition with serial numbers validated/enriched
-    """
-    import copy
-    enriched = copy.deepcopy(definition)
-
-    devices = enriched.get("devices", {})
-    # Handle both dict and list formats for devices
-    if isinstance(devices, dict):
-        device_items = list(devices.values())
-    else:
-        device_items = devices
-
-    devices_missing_serials = 0
-    devices_enriched = 0
-
-    def identity_has_vendor_data(identity: dict | None, required_key: str) -> bool:
-        """Check if identity has real vendor data, not just a serial number placeholder."""
-        if not identity or not isinstance(identity, dict):
-            return False
-        # For EtherNet/IP, vendor_id is required to avoid defaulting to Rockwell
-        if required_key == "vendor_id":
-            return identity.get("vendor_id") is not None
-        # For other protocols, check for any key besides serial_number
-        return any(k != "serial_number" for k in identity.keys())
-
-    for device in device_items:
-        device_id = device.get("id")
-        if not device_id:
-            continue
-
-        # Get vendor_fingerprint
-        fingerprint = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
-        protocols = device.get("protocols", []) or []
-        needs_enrichment = False
-
-        # EtherNet/IP - ONLY enrich if protocol declared AND identity has vendor_id
-        if "ethernet_ip" in protocols:
-            existing_identity = fingerprint.get("ethernet_ip_identity")
-            if identity_has_vendor_data(existing_identity, "vendor_id"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_ethernet_ip(device_id, scenario_id)
-                    )
-
-        # S7comm - enrich if protocol declared AND identity exists with data
-        if "s7comm" in protocols or "s7comm_plus" in protocols:
-            existing_identity = fingerprint.get("s7_identity")
-            if identity_has_vendor_data(existing_identity, "order_code"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_s7(device_id, scenario_id)
-                    )
-
-        # PROFINET - enrich if protocol declared AND identity exists with data
-        if "profinet" in protocols or "profisafe" in protocols:
-            existing_identity = fingerprint.get("profinet_identity")
-            if identity_has_vendor_data(existing_identity, "vendor_id"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    serial = SerialNumberGenerator.generate_profinet(device_id, scenario_id)
-                    existing_identity["serial_number"] = serial
-                    existing_identity["im0_serial_number"] = serial
-
-        # Modbus - enrich if protocol declared AND identity exists with data
-        if "modbus_tcp" in protocols or "modbus" in protocols:
-            existing_identity = fingerprint.get("modbus_identity")
-            if identity_has_vendor_data(existing_identity, "vendor_name"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_s7(device_id, scenario_id)
-                    )
-
-        # BACnet - enrich if protocol declared AND identity exists with data
-        if "bacnet" in protocols:
-            existing_identity = fingerprint.get("bacnet_identity")
-            if identity_has_vendor_data(existing_identity, "vendor_id"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_s7(device_id, scenario_id)
-                    )
-
-        # SNMP - enrich if protocol declared AND identity exists with data
-        if "snmp" in protocols:
-            existing_identity = fingerprint.get("snmp_identity")
-            if identity_has_vendor_data(existing_identity, "sys_descr"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_s7(device_id, scenario_id)
-                    )
-
-        # OPC UA - enrich if protocol declared AND identity exists with data
-        if "opc_ua" in protocols:
-            existing_identity = fingerprint.get("opc_ua_identity")
-            if identity_has_vendor_data(existing_identity, "manufacturer_name"):
-                if not existing_identity.get("serial_number"):
-                    needs_enrichment = True
-                    existing_identity["serial_number"] = (
-                        SerialNumberGenerator.generate_s7(device_id, scenario_id)
-                    )
-
-        if needs_enrichment:
-            devices_missing_serials += 1
-            devices_enriched += 1
-            # Update the device with enriched fingerprint
-            device["vendorFingerprint"] = fingerprint
-            device["vendor_fingerprint"] = fingerprint
-
-    if devices_missing_serials > 0:
-        logger.warning(
-            f"Scenario {scenario_id}: {devices_missing_serials} devices were missing serial numbers. "
-            f"This scenario may have been created before serial number generation was added. "
-            f"Consider recreating the scenario from template to ensure proper fingerprinting."
-        )
-        logger.info(f"Enriched {devices_enriched} devices with serial numbers at deployment time.")
-    else:
-        logger.debug(f"Scenario {scenario_id}: All devices have valid serial numbers.")
-
-    return enriched
 
 
 @dataclass
@@ -313,10 +170,11 @@ class AgentManager:
         Returns:
             True if deployment command sent successfully
         """
-        # Validate and enrich serial numbers - primary generation happens at scenario creation,
-        # this serves as a guardrail for legacy scenarios
-        enriched_definition = validate_and_enrich_serial_numbers(definition, scenario_id)
-        logger.info(f"Validated serial numbers for scenario {scenario_id}")
+        # Backfill serial numbers for legacy scenarios that may be missing them.
+        # Primary generation happens at scenario creation time; this is a guardrail.
+        enriched_definition = enrich_definition_serial_numbers(
+            copy.deepcopy(definition), scenario_id, skip_existing=True
+        )
 
         command: dict[str, Any] = {
             "type": "START_SCENARIO",

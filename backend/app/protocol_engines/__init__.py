@@ -78,30 +78,6 @@ from app.protocol_engines.fanuc.engine import FANUCEngine  # noqa: E402, F401
 from app.protocol_engines.dcs.engine import DCSEngine  # noqa: E402, F401
 from app.protocol_engines.cloud_service.engine import CloudServiceEngine  # noqa: E402, F401
 
-# AI-enhanced engines (optional — require scipy and backend models)
-try:
-    from app.protocol_engines.ai_enhanced_base import (  # noqa: E402, F401
-        AIEnhancedProtocolEngine,
-        AIEnhancedEngineFactory,
-        create_ai_enhanced_engine,
-    )
-    from app.protocol_engines.ai_timing import (  # noqa: E402, F401
-        LearnedJitterModel,
-        ContextAwareTimingModel,
-        DevicePersonality,
-        LearnedTimingService,
-    )
-
-    # Learned pattern integration
-    from app.protocol_engines.learned_pattern_integrator import (  # noqa: E402, F401
-        LearnedPatternIntegrator,
-        LearnedTimingConfig,
-        LearnedFunctionCodeConfig,
-        LearnedAddressConfig,
-    )
-except ImportError:
-    pass  # AI modules unavailable (e.g. agent container without scipy)
-
 __all__ = [
     "ProtocolEngine",
     "ProtocolType",
@@ -131,19 +107,3 @@ __all__ = [
     "DCSEngine",
     "CloudServiceEngine",
 ]
-
-# Conditionally extend __all__ with AI-enhanced symbols
-if "AIEnhancedProtocolEngine" in dir():
-    __all__ += [
-        "AIEnhancedProtocolEngine",
-        "AIEnhancedEngineFactory",
-        "create_ai_enhanced_engine",
-        "LearnedJitterModel",
-        "ContextAwareTimingModel",
-        "DevicePersonality",
-        "LearnedTimingService",
-        "LearnedPatternIntegrator",
-        "LearnedTimingConfig",
-        "LearnedFunctionCodeConfig",
-        "LearnedAddressConfig",
-    ]

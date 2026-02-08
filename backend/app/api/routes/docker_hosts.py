@@ -6,6 +6,7 @@ from fastapi import APIRouter, status
 from sqlalchemy import select
 
 from app.api.deps import AdminUser, DBSession
+from app.api.helpers import get_or_404
 from app.core.encryption import decrypt_value, encrypt_value
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.docker_host import DockerHost
@@ -88,14 +89,7 @@ async def get_docker_host(
     _admin: AdminUser,
 ) -> DockerHostResponse:
     """Get a Docker host by ID."""
-    result = await db.execute(
-        select(DockerHost).where(DockerHost.id == host_id)
-    )
-    host = result.scalar_one_or_none()
-
-    if not host:
-        raise NotFoundError("Docker host")
-
+    host = await get_or_404(db, DockerHost, host_id, "Docker host")
     return DockerHostResponse.from_model(host)
 
 
@@ -107,13 +101,7 @@ async def update_docker_host(
     _admin: AdminUser,
 ) -> DockerHostResponse:
     """Update a Docker host."""
-    result = await db.execute(
-        select(DockerHost).where(DockerHost.id == host_id)
-    )
-    host = result.scalar_one_or_none()
-
-    if not host:
-        raise NotFoundError("Docker host")
+    host = await get_or_404(db, DockerHost, host_id, "Docker host")
 
     # Check for duplicate name if changing
     if data.name and data.name != host.name:
@@ -149,13 +137,7 @@ async def delete_docker_host(
     _admin: AdminUser,
 ) -> None:
     """Delete a Docker host."""
-    result = await db.execute(
-        select(DockerHost).where(DockerHost.id == host_id)
-    )
-    host = result.scalar_one_or_none()
-
-    if not host:
-        raise NotFoundError("Docker host")
+    host = await get_or_404(db, DockerHost, host_id, "Docker host")
 
     await db.delete(host)
     await db.commit()
@@ -168,13 +150,7 @@ async def test_docker_host_connection(
     _admin: AdminUser,
 ) -> DockerHostTestResult:
     """Test connection to a Docker host."""
-    result = await db.execute(
-        select(DockerHost).where(DockerHost.id == host_id)
-    )
-    host = result.scalar_one_or_none()
-
-    if not host:
-        raise NotFoundError("Docker host")
+    host = await get_or_404(db, DockerHost, host_id, "Docker host")
 
     # Decrypt client key for connection - store in temp var to avoid modifying model
     decrypted_key = decrypt_value(host.client_key) if host.client_key else None
@@ -215,13 +191,7 @@ async def list_docker_host_interfaces(
     _admin: AdminUser,
 ) -> DockerHostInterfaceList:
     """List network interfaces on a Docker host."""
-    result = await db.execute(
-        select(DockerHost).where(DockerHost.id == host_id)
-    )
-    host = result.scalar_one_or_none()
-
-    if not host:
-        raise NotFoundError("Docker host")
+    host = await get_or_404(db, DockerHost, host_id, "Docker host")
 
     # Decrypt client key for connection - store in temp var to avoid modifying model
     decrypted_key = decrypt_value(host.client_key) if host.client_key else None

@@ -18,7 +18,9 @@ from app.models.docker_host import DockerHost
 
 logger = logging.getLogger(__name__)
 
-# Traffic generator image name
+# Legacy traffic generator image (deprecated - use WebSocket agent instead)
+# The docker/traffic-generator/ directory has been removed; agents use
+# docker/packetarch-agent/ with shared protocol_engines via build staging.
 TRAFFIC_GENERATOR_IMAGE = "packetarch/traffic-generator:latest"
 
 

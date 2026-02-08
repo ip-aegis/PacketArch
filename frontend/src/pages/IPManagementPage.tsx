@@ -26,6 +26,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { ipManagementApi, type IPRangeAllocation } from '../api/ipManagement';
+import { TEXT_PARAGRAPH, TEXT_MUTED, BG_PANEL, BORDER_DEFAULT } from '../constants/theme';
 
 const { Title, Text } = Typography;
 
@@ -106,10 +107,10 @@ const IPManagementPage: React.FC = () => {
         const nextIP = `10.${record.range_index}.${subnet}.${host}`;
         return (
           <Space direction="vertical" size={0}>
-            <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, fontSize: 12 }}>
               Offset: {offset}
             </Text>
-            <Text style={{ color: '#6a8caf', fontSize: 11 }}>
+            <Text style={{ color: TEXT_MUTED, fontSize: 11 }}>
               Next: {nextIP}
             </Text>
           </Space>
@@ -122,7 +123,7 @@ const IPManagementPage: React.FC = () => {
       key: 'created_at',
       width: 180,
       render: (ts: string) => (
-        <Text style={{ color: '#6a8caf', fontSize: 12 }}>
+        <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
           {new Date(ts).toLocaleString()}
         </Text>
       ),
@@ -138,7 +139,7 @@ const IPManagementPage: React.FC = () => {
           <GlobalOutlined style={{ marginRight: 12 }} />
           IP Management
         </Title>
-        <Text style={{ color: '#8aa4bc' }}>
+        <Text style={{ color: TEXT_PARAGRAPH }}>
           View scenario IP range allocations and prevent address conflicts
         </Text>
       </div>
@@ -147,11 +148,11 @@ const IPManagementPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card
-            style={{ background: '#1a2734', border: '1px solid #2a3f54' }}
+            style={{ background: BG_PANEL, border: `1px solid ${BORDER_DEFAULT}` }}
             styles={{ body: { padding: 16 } }}
           >
             <Statistic
-              title={<Text style={{ color: '#6a8caf' }}>Allocated Ranges</Text>}
+              title={<Text style={{ color: TEXT_MUTED }}>Allocated Ranges</Text>}
               value={allocations.length}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#fff' }}
@@ -160,11 +161,11 @@ const IPManagementPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card
-            style={{ background: '#1a2734', border: '1px solid #2a3f54' }}
+            style={{ background: BG_PANEL, border: `1px solid ${BORDER_DEFAULT}` }}
             styles={{ body: { padding: 16 } }}
           >
             <Statistic
-              title={<Text style={{ color: '#6a8caf' }}>Available Ranges</Text>}
+              title={<Text style={{ color: TEXT_MUTED }}>Available Ranges</Text>}
               value={availableRanges.length}
               prefix={<ClusterOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#fff' }}
@@ -173,11 +174,11 @@ const IPManagementPage: React.FC = () => {
         </Col>
         <Col span={12}>
           <Card
-            style={{ background: '#1a2734', border: '1px solid #2a3f54' }}
+            style={{ background: BG_PANEL, border: `1px solid ${BORDER_DEFAULT}` }}
             styles={{ body: { padding: 16 } }}
           >
             <div style={{ marginBottom: 8 }}>
-              <Text style={{ color: '#6a8caf' }}>
+              <Text style={{ color: TEXT_MUTED }}>
                 IP Range Usage ({allocations.length} / {MAX_RANGES})
               </Text>
             </div>
@@ -187,12 +188,12 @@ const IPManagementPage: React.FC = () => {
                 '0%': '#1890ff',
                 '100%': '#52c41a',
               }}
-              trailColor="#2a3f54"
+              trailColor={BORDER_DEFAULT}
               format={(percent) => (
                 <span style={{ color: '#fff' }}>{percent}%</span>
               )}
             />
-            <Text style={{ color: '#6a8caf', fontSize: 12 }}>
+            <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
               Each scenario receives a unique 10.{'{n}'}.0.0/16 range (n = 1-254)
             </Text>
           </Card>
@@ -201,7 +202,7 @@ const IPManagementPage: React.FC = () => {
 
       {/* Allocations Table */}
       <Card
-        style={{ background: '#1a2734', border: '1px solid #2a3f54' }}
+        style={{ background: BG_PANEL, border: `1px solid ${BORDER_DEFAULT}` }}
         styles={{ body: { padding: '16px 24px' } }}
       >
         <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -213,7 +214,7 @@ const IPManagementPage: React.FC = () => {
             Refresh
           </Button>
           <div style={{ flex: 1 }} />
-          <Text style={{ color: '#6a8caf', fontSize: 12 }}>
+          <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
             {allocations.length} allocation{allocations.length !== 1 ? 's' : ''}
           </Text>
         </div>
@@ -235,14 +236,14 @@ const IPManagementPage: React.FC = () => {
           locale={{
             emptyText: (
               <div style={{ padding: 48, textAlign: 'center' }}>
-                <GlobalOutlined style={{ fontSize: 48, color: '#6a8caf', marginBottom: 16 }} />
+                <GlobalOutlined style={{ fontSize: 48, color: TEXT_MUTED, marginBottom: 16 }} />
                 <div>
-                  <Text style={{ color: '#8aa4bc' }}>
+                  <Text style={{ color: TEXT_PARAGRAPH }}>
                     No IP ranges allocated yet
                   </Text>
                 </div>
                 <div>
-                  <Text style={{ color: '#6a8caf', fontSize: 12 }}>
+                  <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
                     IP ranges are automatically allocated when you create a new scenario
                   </Text>
                 </div>
@@ -254,7 +255,7 @@ const IPManagementPage: React.FC = () => {
 
       {/* Info Section */}
       <Card
-        style={{ background: '#1a2734', border: '1px solid #2a3f54', marginTop: 16 }}
+        style={{ background: BG_PANEL, border: `1px solid ${BORDER_DEFAULT}`, marginTop: 16 }}
         styles={{ body: { padding: 16 } }}
       >
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
@@ -264,7 +265,7 @@ const IPManagementPage: React.FC = () => {
           <Col span={8}>
             <Text strong style={{ color: '#52c41a' }}>Automatic Allocation</Text>
             <div>
-              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+              <Text style={{ color: TEXT_PARAGRAPH, fontSize: 12 }}>
                 When you create a scenario, a unique /16 IP range is automatically assigned from the 10.x.0.0/8 private address space.
               </Text>
             </div>
@@ -272,7 +273,7 @@ const IPManagementPage: React.FC = () => {
           <Col span={8}>
             <Text strong style={{ color: '#1890ff' }}>Device IP Assignment</Text>
             <div>
-              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+              <Text style={{ color: TEXT_PARAGRAPH, fontSize: 12 }}>
                 When you drop a device on the canvas (for a saved scenario), an IP address from that scenario's range is automatically assigned.
               </Text>
             </div>
@@ -280,7 +281,7 @@ const IPManagementPage: React.FC = () => {
           <Col span={8}>
             <Text strong style={{ color: '#fa8c16' }}>No Conflicts</Text>
             <div>
-              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+              <Text style={{ color: TEXT_PARAGRAPH, fontSize: 12 }}>
                 Each scenario has its own /16 range, ensuring devices in different scenarios never have IP address conflicts.
               </Text>
             </div>

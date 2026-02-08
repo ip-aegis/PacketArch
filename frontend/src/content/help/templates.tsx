@@ -12,6 +12,7 @@ import {
   FireOutlined,
 } from '@ant-design/icons';
 import type { HelpArticle } from './index';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -20,17 +21,17 @@ const TemplatesContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <AppstoreAddOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <AppstoreAddOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Industry Templates
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Pre-built scenario templates provide realistic starting points for different
           industrial environments. Each template includes devices, protocols, and traffic
           patterns specific to the industry vertical.
         </Paragraph>
       </div>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Industry Verticals
         </Title>
@@ -39,7 +40,7 @@ const TemplatesContent: React.FC = () => {
             <Tag color="blue" icon={<ToolOutlined />} style={{ marginBottom: 4 }}>
               Manufacturing
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               High-speed automation with PLCs, HMIs, and variable frequency drives.
               Protocols: PROFINET, EtherNet/IP, Modbus TCP. Typical devices include
               Siemens S7-1500, Rockwell CompactLogix, and Allen-Bradley drives.
@@ -50,7 +51,7 @@ const TemplatesContent: React.FC = () => {
             <Tag color="cyan" icon={<ExperimentOutlined />} style={{ marginBottom: 4 }}>
               Water/Wastewater
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               SCADA systems with RTUs for remote pump stations and treatment facilities.
               Protocols: Modbus TCP, DNP3. Includes master/outstation configurations
               with realistic polling patterns.
@@ -61,7 +62,7 @@ const TemplatesContent: React.FC = () => {
             <Tag color="orange" icon={<ThunderboltOutlined />} style={{ marginBottom: 4 }}>
               Energy/Power
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Substation automation and power distribution. Protocols: IEC 104, Modbus TCP.
               Includes protective relays, meters, and substation RTUs with event-driven traffic.
             </Paragraph>
@@ -71,7 +72,7 @@ const TemplatesContent: React.FC = () => {
             <Tag color="purple" icon={<FireOutlined />} style={{ marginBottom: 4 }}>
               Oil & Gas
             </Tag>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               Pipeline SCADA and refinery automation. Protocols: Modbus TCP, OPC UA.
               Sparse polling patterns typical of geographically distributed systems.
             </Paragraph>
@@ -79,11 +80,11 @@ const TemplatesContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Template Contents
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Each template includes:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -110,11 +111,11 @@ const TemplatesContent: React.FC = () => {
         </Space>
       </Card>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Creating from Template
         </Title>
-        <ol style={{ color: '#8aa4bc', paddingLeft: 20 }}>
+        <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
           <li>Go to <Text code>Scenarios</Text> page</li>
           <li>Click <Text code>Create from Template</Text></li>
           <li>Select an industry vertical</li>
@@ -122,7 +123,6 @@ const TemplatesContent: React.FC = () => {
           <li>Enter a name for your scenario</li>
           <li>Optionally enable:
             <ul style={{ marginTop: 4 }}>
-              <li><Text strong style={{ color: '#fff' }}>Apply Learned Patterns</Text> - Use timing from PCAP learning</li>
               <li><Text strong style={{ color: '#fff' }}>Include Vulnerable Devices</Text> - Apply CVE variants</li>
             </ul>
           </li>
@@ -130,7 +130,7 @@ const TemplatesContent: React.FC = () => {
         </ol>
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
@@ -166,7 +166,7 @@ const TemplatesContent: React.FC = () => {
             {
               title: 'Devices',
               dataIndex: 'devices',
-              render: (text) => <Text style={{ color: '#8aa4bc' }}>{text}</Text>,
+              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
               width: 80,
             },
             {
@@ -180,37 +180,37 @@ const TemplatesContent: React.FC = () => {
         />
       </div>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           Traffic Phases
         </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
           Templates can include time-based phases that vary traffic intensity:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Tag color="green">Startup</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Initial device discovery and registration
             </Text>
           </div>
           <div>
             <Tag color="blue">Normal Operation</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Standard polling and monitoring
             </Text>
           </div>
           <div>
             <Tag color="orange">Peak Load</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Increased traffic during production
             </Text>
           </div>
           <div>
             <Tag color="purple">Maintenance</Tag>
-            <Text style={{ color: '#8aa4bc', marginLeft: 8 }}>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Configuration changes and diagnostics
             </Text>
           </div>
@@ -230,7 +230,7 @@ export const templatesArticle: HelpArticle = {
   ],
   summary: 'Use pre-built templates for Manufacturing, Water, Energy, and Oil & Gas scenarios.',
   content: TemplatesContent,
-  relatedArticles: ['scenarios', 'scenario-studio', 'pcap-learning'],
+  relatedArticles: ['scenarios', 'scenario-studio'],
   relatedPages: ['/scenarios'],
   order: 3,
 };

@@ -8,7 +8,7 @@ import {
   DashboardOutlined,
   FolderOutlined,
   DatabaseOutlined,
-  ExperimentOutlined,
+
   CloudServerOutlined,
   BarChartOutlined,
   GlobalOutlined,
@@ -94,7 +94,7 @@ export function buildCommandRegistry(deps: RegistryDeps): CommandDefinition[] {
     { path: '/scenarios', label: 'Go to Scenarios', icon: e(FolderOutlined), keywords: ['list', 'projects'] },
     { path: '/studio', label: 'Go to Scenario Studio', icon: e(LayoutOutlined), keywords: ['canvas', 'editor', 'design'] },
     { path: '/devices', label: 'Go to Device Library', icon: e(DatabaseOutlined), keywords: ['templates', 'profiles'] },
-    { path: '/learning', label: 'Go to PCAP Learning', icon: e(ExperimentOutlined), keywords: ['capture', 'upload', 'analysis'] },
+
     { path: '/deployments', label: 'Go to Deployments', icon: e(CloudServerOutlined), keywords: ['running', 'active'] },
     { path: '/live-traffic', label: 'Go to Live Traffic', icon: e(BarChartOutlined), keywords: ['dashboard', 'monitoring'] },
     { path: '/ip-management', label: 'Go to IP Management', icon: e(GlobalOutlined), keywords: ['addresses', 'ranges', 'subnets'] },

@@ -618,36 +618,6 @@ class BACnetPropertyValue:
 
 
 # ============================================================================
-# Registered BACnet Vendor IDs
-# ============================================================================
-
-BACNET_VENDOR_IDS = {
-    # Major BMS Vendors
-    5: "Johnson Controls",
-    17: "Honeywell",
-    24: "Siemens",
-    67: "Schneider Electric",
-    86: "Automated Logic",
-    95: "TAC (Schneider)",
-    97: "Trane",
-    122: "Delta Controls",
-    165: "Distech Controls",
-    200: "KMC Controls",
-    236: "Alerton",
-    252: "Continental Automated Buildings Association",
-    260: "Carel Industries",
-    279: "Carrier",
-    301: "Carrier Corp.",
-    317: "Reliable Controls",
-    353: "Lennox",
-    381: "McQuay",
-    416: "Novar (Honeywell)",
-    438: "Computrols",
-    489: "Contemporary Controls",
-}
-
-
-# ============================================================================
 # BACnet Units (Engineering Units)
 # ============================================================================
 

@@ -30,6 +30,7 @@ import type { DockerHost } from '../../types/docker';
 import type { RunMode, NetworkInterface } from '../../types/docker';
 import type { AgentInterface, TrafficAgent } from '../../types/agent';
 import type { Phase } from '../../types';
+import { PHASE_NAME_MAP, DEFAULT_LIVE_DURATIONS } from '../../constants/phases';
 
 const { Text } = Typography;
 
@@ -81,24 +82,6 @@ export interface DeploymentFormProps {
     phase_schedule?: PhaseScheduleConfig;
   }) => void;
 }
-
-// Map frontend phase name to backend phase_id
-const PHASE_NAME_MAP: Record<string, string> = {
-  startup: 'startup',
-  'steady-state': 'steady_state',
-  maintenance: 'maintenance',
-  shutdown: 'shutdown',
-  custom: 'custom',
-};
-
-// Default live durations per phase type (seconds)
-const DEFAULT_LIVE_DURATIONS: Record<string, number> = {
-  startup: 300,
-  'steady-state': 3600,
-  maintenance: 900,
-  shutdown: 300,
-  custom: 600,
-};
 
 const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   form,

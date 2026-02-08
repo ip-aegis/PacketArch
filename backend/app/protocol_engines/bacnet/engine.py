@@ -24,9 +24,9 @@ from app.protocol_engines.bacnet.packets import (
     build_read_property_response_packet,
     build_who_is_packet,
 )
+from app.protocol_engines.vendor_oui import BACNET_VENDOR_IDS
 from app.protocol_engines.bacnet.types import (
     BACNET_PORT,
-    BACNET_VENDOR_IDS,
     BACnetFlowConfig,
     BACnetObjectType,
     BACnetPropertyIdentifier,

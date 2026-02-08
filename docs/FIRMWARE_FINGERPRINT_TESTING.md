@@ -519,7 +519,7 @@ asyncio.run(seed_vulnerable_fingerprints())
 
 # Rebuild traffic generator
 sshpass -p 'cisco' ssh cisco@10.10.20.113 \
-  "cd /home/cisco/traffic-generator && docker build -t packetarch/traffic-generator:latest ."
+  "cd /opt/packetarch-agent && docker compose pull && docker compose up -d"
 
 # Recreate and redeploy test scenario
 ```
@@ -537,7 +537,7 @@ sshpass -p 'cisco' ssh cisco@10.10.20.113 \
 | `docs/FIRMWARE_FINGERPRINT_TESTING.md` | This document |
 | `backend/app/services/cve_data/*.py` | CVE definitions with vulnerable variants |
 | `backend/app/protocol_engines/firmware_version_deriver.py` | Auto-derives firmware fields |
-| `docker/traffic-generator/app/live_orchestrator.py` | Packet generation logic |
+| `backend/app/protocol_engines/unified_orchestrator.py` | Packet generation logic |
 
 ### Related Documentation
 

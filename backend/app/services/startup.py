@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
-from app.models.pcap_capture import PcapCapture, ProcessingStatus
 from app.models.settings import DEFAULT_SETTINGS, SystemSetting
 from app.models.traffic_agent import TrafficAgent, AgentDeployment
 from app.models.user import User
@@ -55,36 +54,6 @@ async def seed_default_settings(db: AsyncSession) -> int:
         await db.commit()
 
     return created
-
-
-async def recover_stuck_pcap_processing(db: AsyncSession) -> int:
-    """Reset any PCAP captures stuck in 'processing' status.
-
-    This handles the case where the server restarted while processing was in progress.
-    Since background tasks are lost on restart, these captures would be stuck forever.
-    We reset them to 'pending' so they can be retried.
-    """
-    # Find all captures stuck in processing status
-    result = await db.execute(
-        select(PcapCapture).where(PcapCapture.status == ProcessingStatus.PROCESSING)
-    )
-    stuck_captures = result.scalars().all()
-
-    if not stuck_captures:
-        return 0
-
-    # Reset to pending
-    await db.execute(
-        update(PcapCapture)
-        .where(PcapCapture.status == ProcessingStatus.PROCESSING)
-        .values(
-            status=ProcessingStatus.PENDING,
-            error_message="Processing was interrupted by server restart. Click retry to reprocess.",
-        )
-    )
-    await db.commit()
-
-    return len(stuck_captures)
 
 
 async def seed_cloud_services(db: AsyncSession) -> int:
@@ -193,13 +162,6 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     cache.refresh()
     fp_count = len(cache.index.all_fingerprints)
     results["fingerprint_cache"] = f"Pre-warmed fingerprint cache with {fp_count} fingerprints"
-
-    # Recover any stuck PCAP processing jobs
-    stuck_count = await recover_stuck_pcap_processing(db)
-    if stuck_count > 0:
-        results["pcap_recovery"] = f"Reset {stuck_count} stuck PCAP processing job(s)"
-    else:
-        results["pcap_recovery"] = "No stuck PCAP jobs found"
 
     # Reconcile agent statuses (reset all to offline since no agents connected at startup)
     agents_reset = await reconcile_agent_statuses(db)

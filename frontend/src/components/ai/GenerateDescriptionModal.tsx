@@ -11,6 +11,7 @@ import {
   NodeIndexOutlined,
 } from '@ant-design/icons';
 import { aiApi, type GenerateDescriptionResponse } from '../../api/ai';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -52,10 +53,9 @@ const GenerateDescriptionModal: React.FC<GenerateDescriptionModalProps> = ({
       const result = await aiApi.generateDescription(scenarioId);
       setDescription(result.description);
       setMetadata(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to generate description:', err);
-      const errorMsg = err?.response?.data?.detail || err?.message || 'Failed to generate description';
-      setError(errorMsg);
+      setError(extractErrorMessage(err, 'Failed to generate description'));
       // Fall back to current description if generation fails
       if (currentDescription) {
         setDescription(currentDescription);

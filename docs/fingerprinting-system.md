@@ -253,8 +253,8 @@ These CAN be identical for devices with the same fingerprint:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  6. TRAFFIC GENERATION (Agent)                              │
-│  Location: docker/packetarch-agent/app/                     │
-│            live_orchestrator.py                             │
+│  Location: backend/app/protocol_engines/                     │
+│            unified_orchestrator.py                           │
 │                                                             │
 │  Uses fingerprints for:                                     │
 │  - Protocol identity responses (Modbus FC 43, etc.)         │
@@ -626,7 +626,7 @@ Both load fingerprints but with different features (firmware variants vs caching
 |---------|------|
 | Flow generator | `backend/app/traffic_generator/flow_generator.py` |
 | Tasks (Celery) | `backend/app/traffic_generator/tasks.py` |
-| Agent orchestrator | `docker/packetarch-agent/app/live_orchestrator.py` |
+| Unified orchestrator | `backend/app/protocol_engines/unified_orchestrator.py` |
 | Agent pool | `docker/packetarch-agent/app/orchestrator_pool.py` |
 
 ### 8.9 AI Services

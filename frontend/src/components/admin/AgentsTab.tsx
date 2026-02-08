@@ -20,9 +20,7 @@ import {
   message,
   Modal,
   Popconfirm,
-  Progress,
   Space,
-  Spin,
   Table,
   Tag,
   Tooltip,
@@ -48,6 +46,7 @@ import {
   RocketOutlined,
 } from '@ant-design/icons';
 
+import { ErrorAlert } from '../common';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
 import { healthMonitorApi, type HealthStatusResponse } from '../../api/healthMonitor';
@@ -55,6 +54,7 @@ import type { TrafficAgent, TrafficAgentWithToken } from '../../types/agent';
 import AgentDetailsDrawer from './AgentDetailsDrawer';
 import AgentInstallDrawer from './AgentInstallDrawer';
 import { formatRelativeTime } from '../../utils/dateUtils';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -239,9 +239,8 @@ const AgentsTab: React.FC = () => {
 
         message.info('Agent image build started. This may take a few minutes.');
       }
-    } catch (err: any) {
-      const errorMsg = err?.response?.data?.detail || 'Failed to start image build';
-      message.error(errorMsg);
+    } catch (err: unknown) {
+      message.error(extractErrorMessage(err, 'Failed to start image build'));
       setBuildingImage(false);
     }
   };
@@ -454,17 +453,7 @@ const AgentsTab: React.FC = () => {
 
   return (
     <div>
-      {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={clearError}
-          style={{ marginBottom: 16 }}
-        />
-      )}
+      <ErrorAlert error={error} onClose={clearError} style={{ marginBottom: 16 }} />
 
       <Card
         title={

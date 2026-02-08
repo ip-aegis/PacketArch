@@ -15,7 +15,6 @@ from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.scenario import Scenario
 from app.protocol_engines.vendor_oui import generate_mac_address
 from app.services.ip_management import IPManagementService
-from app.services.template_pattern_service import TemplatePatternService
 from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.device_templates import get_fingerprint_by_vendor_model
 from app.traffic_generator.flow_generator import (
@@ -100,16 +99,6 @@ class PhasePresetResponse(BaseModel):
     phases: list[str]
 
 
-class LearnedPatternOptions(BaseModel):
-    """Options for learned pattern application."""
-
-    timing: bool = True
-    fingerprints: bool = True
-    sequences: bool = True
-    function_codes: bool = True
-    address_patterns: bool = True
-
-
 class CreateFromTemplateRequest(BaseModel):
     """Request to create scenario from template."""
 
@@ -123,9 +112,6 @@ class CreateFromTemplateRequest(BaseModel):
     # Flow generation pattern (realistic, hierarchical, mesh, star, tree)
     flow_pattern: str = "realistic"
     use_smart_flow_generation: bool = True  # Use new SmartFlowGenerator
-    # Learned pattern options
-    apply_learned_patterns: bool = True
-    learned_pattern_options: LearnedPatternOptions | None = None
     # AI-enhanced device naming (enabled by default)
     use_ai_naming: bool = False  # Templates have meaningful built-in names by default
     process_context: str | None = Field(
@@ -144,8 +130,6 @@ class CreateFromTemplateResponse(BaseModel):
     flow_count: int
     zone_count: int
     phase_count: int
-    learned_patterns_applied: bool = False
-    protocols_enhanced: list[str] = []
     ai_naming_applied: bool = False
 
 
@@ -648,33 +632,6 @@ async def create_scenario_from_template(
         definition["external_comms"] = external_comms
         logger.info(f"Added external comms config to scenario: {external_comms}")
 
-    # Apply learned patterns if requested
-    learned_patterns_applied = False
-    protocols_enhanced = []
-
-    if request.apply_learned_patterns:
-        options = request.learned_pattern_options or LearnedPatternOptions()
-        try:
-            definition = await TemplatePatternService.enhance_scenario_from_learned(
-                db,
-                definition,
-                apply_timing=options.timing,
-                apply_fingerprints=options.fingerprints,
-                apply_sequences=options.sequences,
-                apply_function_codes=options.function_codes,
-                apply_address_patterns=options.address_patterns,
-            )
-            learned_patterns_applied = True
-            protocols_enhanced = definition.get("learned_patterns_applied", {}).get(
-                "protocols_enhanced", []
-            )
-            logger.info(
-                f"Applied learned patterns to scenario. Protocols enhanced: {protocols_enhanced}"
-            )
-        except Exception as e:
-            logger.warning(f"Failed to apply learned patterns: {e}")
-            # Continue without learned patterns
-
     # Update scenario with final definition
     scenario.definition = definition
 
@@ -688,8 +645,6 @@ async def create_scenario_from_template(
         flow_count=len(flows),
         zone_count=len(zones),
         phase_count=len(phases),
-        learned_patterns_applied=learned_patterns_applied,
-        protocols_enhanced=protocols_enhanced,
         ai_naming_applied=ai_naming_applied,
     )
 

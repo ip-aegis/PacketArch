@@ -30,9 +30,52 @@ export const PROTOCOL_COLORS: Record<ProtocolType, string> = {
 export const PROTOCOL_COLORS_EXTENDED: Record<string, string> = {
   ...PROTOCOL_COLORS,
   modbus: '#049FD9',
+  modbus_rtu: '#049FD9',
   s7: '#52c41a',
   s7comm: '#52c41a',
+  s7comm_plus: '#52c41a',
+  bacnet_ip: '#00BCD4',
+  snmp: '#E91E63',
+  cloud_service: '#FBAB18',
+  https: '#FBAB18',
+  lldp: '#607D8B',
+  cdp: '#607D8B',
 };
+
+// ---------------------------------------------------------------------------
+// Protocol labels - human-readable display names (extended key set)
+// ---------------------------------------------------------------------------
+
+export const PROTOCOL_LABELS: Record<string, string> = {
+  modbus_tcp: 'Modbus TCP',
+  modbus_rtu: 'Modbus RTU',
+  modbus: 'Modbus',
+  ethernet_ip: 'EtherNet/IP',
+  profinet: 'PROFINET',
+  s7: 'S7comm',
+  s7comm: 'S7comm',
+  s7comm_plus: 'S7comm+',
+  bacnet: 'BACnet',
+  bacnet_ip: 'BACnet/IP',
+  snmp: 'SNMP',
+  opc_ua: 'OPC UA',
+  dnp3: 'DNP3',
+  iec104: 'IEC 60870-5-104',
+  cloud_service: 'Cloud/TLS',
+  https: 'HTTPS',
+  lldp: 'LLDP',
+  cdp: 'CDP',
+};
+
+/** Get color for any protocol key (canonical or extended). */
+export function getProtocolColor(protocol: string): string {
+  return PROTOCOL_COLORS_EXTENDED[protocol] ?? '#8c8c8c';
+}
+
+/** Get human-readable label for any protocol key. */
+export function getProtocolLabel(protocol: string): string {
+  return PROTOCOL_LABELS[protocol] ?? protocol.replace(/_/g, ' ').toUpperCase();
+}
 
 // ---------------------------------------------------------------------------
 // Protocol short names - compact labels for canvas nodes and edges

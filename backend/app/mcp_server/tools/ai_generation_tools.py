@@ -13,10 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.scenario import Scenario
+from app.core.constants import MAX_DEVICES_PER_SCENARIO
 from app.models.anomaly_template import AnomalyTemplate, AnomalyCategory
-
-# Maximum devices per scenario to prevent runaway generation
-MAX_DEVICES_PER_SCENARIO = 100
 
 
 async def generate_scenario_from_nl(
@@ -171,85 +169,6 @@ async def suggest_vertical_template(description: str) -> str:
     suggestion = generator.suggest_vertical(description)
 
     return json.dumps(suggestion)
-
-
-async def suggest_patterns_for_scenario(
-    db: AsyncSession,
-    scenario_id: str,
-) -> str:
-    """Suggest learned patterns that could be applied to a scenario.
-
-    Analyzes the scenario's protocols and devices, then finds
-    matching learned patterns from PCAP analysis.
-
-    Args:
-        db: Database session
-        scenario_id: Scenario UUID
-
-    Returns:
-        JSON string with pattern suggestions
-    """
-    from app.models.learned_pattern import LearnedPattern, PatternType
-
-    # Get scenario
-    result = await db.execute(
-        select(Scenario).where(Scenario.id == uuid.UUID(scenario_id))
-    )
-    scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        return json.dumps({"error": "Scenario not found"})
-
-    # Get protocols used in scenario
-    protocols = set()
-    flows = scenario.definition.get("flows", {})
-    for flow in flows.values():
-        protocols.add(flow.get("protocol", ""))
-
-    # Find matching patterns
-    timing_query = select(LearnedPattern).where(
-        LearnedPattern.pattern_type == PatternType.TIMING,
-        LearnedPattern.is_active == True,
-        LearnedPattern.protocol.in_(protocols),
-    ).order_by(LearnedPattern.confidence.desc()).limit(10)
-
-    result = await db.execute(timing_query)
-    timing_patterns = result.scalars().all()
-
-    payload_query = select(LearnedPattern).where(
-        LearnedPattern.pattern_type == PatternType.PAYLOAD,
-        LearnedPattern.is_active == True,
-        LearnedPattern.protocol.in_(protocols),
-    ).order_by(LearnedPattern.confidence.desc()).limit(10)
-
-    result = await db.execute(payload_query)
-    payload_patterns = result.scalars().all()
-
-    return json.dumps({
-        "scenario_id": scenario_id,
-        "protocols_in_scenario": list(protocols),
-        "timing_patterns": [
-            {
-                "id": str(p.id),
-                "name": p.name,
-                "protocol": p.protocol,
-                "distribution_type": p.distribution_type.value if p.distribution_type else None,
-                "mean_value": p.mean_value,
-                "confidence": p.confidence,
-            }
-            for p in timing_patterns
-        ],
-        "payload_patterns": [
-            {
-                "id": str(p.id),
-                "name": p.name,
-                "protocol": p.protocol,
-                "sample_count": p.sample_count,
-                "confidence": p.confidence,
-            }
-            for p in payload_patterns
-        ],
-    })
 
 
 async def inject_anomaly_campaign(

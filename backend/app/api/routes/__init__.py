@@ -13,7 +13,7 @@ from app.api.routes import (
     generation,
     health,
     ip_management,
-    learning,
+
     protocols,
     scenarios,
     stats,
@@ -34,7 +34,7 @@ __all__ = [
     "generation",
     "health",
     "ip_management",
-    "learning",
+
     "protocols",
     "scenarios",
     "stats",

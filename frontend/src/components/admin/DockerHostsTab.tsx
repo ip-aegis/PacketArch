@@ -15,7 +15,6 @@ import {
   Tag,
   Tooltip,
   Popconfirm,
-  Alert,
   Typography,
   Card,
   Descriptions,
@@ -32,6 +31,7 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { ErrorAlert } from '../common';
 import { useDockerHostsStore } from '../../stores/dockerHostsStore';
 import type { DockerHost, DockerHostCreate, DockerHostTestResult } from '../../types/docker';
 import DockerHostHelpDrawer from './DockerHostHelpDrawer';
@@ -235,16 +235,7 @@ const DockerHostsTab: React.FC = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={clearError}
-        />
-      )}
+      <ErrorAlert error={error} onClose={clearError} />
 
       {testResult && (
         <Card size="small">

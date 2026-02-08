@@ -13,6 +13,7 @@ import {
   ImportOutlined,
   EditOutlined,
 } from '@ant-design/icons';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;
@@ -22,16 +23,16 @@ const ScenariosContent: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <FolderOutlined style={{ marginRight: 8, color: '#049FD9' }} />
+          <FolderOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Scenario Management
         </Title>
-        <Paragraph style={{ color: '#8aa4bc', fontSize: 15 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Scenarios are the core building blocks of PacketArch. Each scenario defines a complete
           OT network environment including devices, protocols, communication flows, and traffic patterns.
         </Paragraph>
       </div>
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Creating Scenarios
         </Title>
@@ -41,7 +42,7 @@ const ScenariosContent: React.FC = () => {
               <PlusOutlined style={{ marginRight: 8 }} />
               From Template (Recommended)
             </Text>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0, marginTop: 4 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0, marginTop: 4 }}>
               Select an industry vertical (Manufacturing, Water, Energy, Oil & Gas) and choose
               a pre-built template. Templates include realistic device configurations, protocols,
               and traffic patterns for common industrial scenarios.
@@ -52,7 +53,7 @@ const ScenariosContent: React.FC = () => {
               <EditOutlined style={{ marginRight: 8 }} />
               Blank Scenario
             </Text>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0, marginTop: 4 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0, marginTop: 4 }}>
               Start with an empty canvas and add devices manually. Best for custom scenarios
               or when learning how the system works.
             </Paragraph>
@@ -62,7 +63,7 @@ const ScenariosContent: React.FC = () => {
               <ImportOutlined style={{ marginRight: 8 }} />
               Import from JSON
             </Text>
-            <Paragraph style={{ color: '#8aa4bc', marginBottom: 0, marginTop: 4 }}>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0, marginTop: 4 }}>
               Import a previously exported scenario. IP addresses are automatically remapped
               to avoid conflicts with existing scenarios.
             </Paragraph>
@@ -75,10 +76,10 @@ const ScenariosContent: React.FC = () => {
         showIcon
         message="Automatic IP Allocation"
         description="Each scenario automatically receives a unique /16 IP range (10.X.0.0/16). This prevents IP conflicts between scenarios and simplifies network management."
-        style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}
+        style={CARD_STYLE}
       />
 
-      <Card style={{ background: '#1e2d3d', border: '1px solid #2a3f54' }}>
+      <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Scenario Actions
         </Title>
@@ -105,7 +106,7 @@ const ScenariosContent: React.FC = () => {
             {
               title: 'Description',
               dataIndex: 'desc',
-              render: (text) => <Text style={{ color: '#8aa4bc' }}>{text}</Text>,
+              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
             },
           ]}
           style={{ background: 'transparent' }}
@@ -113,7 +114,7 @@ const ScenariosContent: React.FC = () => {
         />
       </Card>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
@@ -143,7 +144,7 @@ const ScenariosContent: React.FC = () => {
         </Space>
       </div>
 
-      <Divider style={{ borderColor: '#2a3f54' }} />
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
 
       <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
@@ -155,7 +156,7 @@ const ScenariosContent: React.FC = () => {
           <Tag color="orange">Energy/Power</Tag>
           <Tag color="purple">Oil & Gas</Tag>
         </Space>
-        <Paragraph style={{ color: '#8aa4bc', marginTop: 12 }}>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, marginTop: 12 }}>
           Each vertical has specific device types, protocols, and traffic patterns that
           reflect real-world industrial environments.
         </Paragraph>

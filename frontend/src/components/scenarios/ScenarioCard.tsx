@@ -21,7 +21,6 @@ import {
   ExclamationCircleOutlined,
   MoreOutlined,
   FolderOutlined,
-  ExperimentOutlined,
 } from '@ant-design/icons';
 import type { ScenarioSummary } from '../../api/scenarios';
 import type { DashboardDeployment } from '../../api/dashboard';
@@ -345,22 +344,6 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
                   <CloseCircleOutlined /> Not Ready
                 </Tag>
               )}
-            </Tooltip>
-          )}
-          {scenario.has_learned_patterns && (
-            <Tooltip
-              title={`Enhanced with learned patterns for: ${scenario.protocols_enhanced?.join(', ') || 'multiple protocols'}`}
-            >
-              <Tag
-                style={{
-                  background: '#52c41a20',
-                  border: '1px solid #52c41a40',
-                  color: '#52c41a',
-                  fontSize: 10,
-                }}
-              >
-                <ExperimentOutlined /> Learned
-              </Tag>
             </Tooltip>
           )}
           <Tag

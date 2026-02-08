@@ -160,11 +160,6 @@ export function useScenarioMutations(options: UseScenarioMutationsOptions = {}) 
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['scenarios'] });
       const enhancements: string[] = [];
-      if (result.learned_patterns_applied) {
-        enhancements.push(
-          `learned patterns for ${result.protocols_enhanced?.join(', ') || 'all protocols'}`,
-        );
-      }
       if (result.ai_naming_applied) {
         enhancements.push('AI-generated device names');
       }

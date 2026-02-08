@@ -1,7 +1,7 @@
 /**
  * HelpCard - Standardized "How X Works" help card component
  *
- * Follows the existing pattern from LearningPage and IPManagementPage
+ * Follows the existing pattern from IPManagementPage
  * for consistent inline help throughout the application.
  */
 
