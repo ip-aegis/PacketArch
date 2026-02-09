@@ -671,6 +671,71 @@ def get_vendor_for_oui(oui: str, human_readable: bool = True) -> Optional[str]:
     return None
 
 
+# ---------------------------------------------------------------------------
+# SNMP Enterprise OIDs (IANA Private Enterprise Numbers)
+# Used for sysObjectID synthesis when a device template lacks explicit
+# snmp_identity.  Keyed by normalised vendor name (lowercase, underscores).
+# ---------------------------------------------------------------------------
+VENDOR_ENTERPRISE_OIDS: dict[str, str] = {
+    "siemens": "1.3.6.1.4.1.4329",
+    "rockwell": "1.3.6.1.4.1.53148",
+    "schneider": "1.3.6.1.4.1.3833",
+    "abb": "1.3.6.1.4.1.26381",
+    "emerson": "1.3.6.1.4.1.3530",
+    "honeywell": "1.3.6.1.4.1.2879",
+    "ge": "1.3.6.1.4.1.3861",
+    "yokogawa": "1.3.6.1.4.1.2745",
+    "cisco": "1.3.6.1.4.1.9",
+    "moxa": "1.3.6.1.4.1.8691",
+    "hirschmann": "1.3.6.1.4.1.248",
+    "hms": "1.3.6.1.4.1.8284",
+    "phoenix_contact": "1.3.6.1.4.1.4346",
+    "beckhoff": "1.3.6.1.4.1.2510",
+    "wago": "1.3.6.1.4.1.13576",
+    "omron": "1.3.6.1.4.1.1103",
+    "mitsubishi": "1.3.6.1.4.1.18296",
+    "sel": "1.3.6.1.4.1.1027",
+    "sick": "1.3.6.1.4.1.1713",
+    "advantech": "1.3.6.1.4.1.10297",
+    "johnson_controls": "1.3.6.1.4.1.21239",
+    "tridium": "1.3.6.1.4.1.18943",
+    "trane": "1.3.6.1.4.1.11108",
+    "delta_controls": "1.3.6.1.4.1.12412",
+    "distech": "1.3.6.1.4.1.37567",
+    "daktronics": "1.3.6.1.4.1.5765",
+    "kapsch": "1.3.6.1.4.1.28846",
+    "axis": "1.3.6.1.4.1.368",
+    "vaisala": "1.3.6.1.4.1.39165",
+    "kuka": "1.3.6.1.4.1.25882",
+    "cognex": "1.3.6.1.4.1.10642",
+    "fanuc": "1.3.6.1.4.1.5765",
+    "endress+hauser": "1.3.6.1.4.1.8714",
+    "econolite": "1.3.6.1.4.1.1206.4.2",
+    "siemens_its": "1.3.6.1.4.1.1206.4.2",
+    "mccain": "1.3.6.1.4.1.1206.4.2",
+}
+
+# Neutral fallback — net-snmp on Linux, signals "generic agent"
+DEFAULT_ENTERPRISE_OID = "1.3.6.1.4.1.8072.3.2.10"
+
+
+def get_enterprise_oid_for_vendor(vendor: str) -> str:
+    """Return the SNMP enterprise OID for a vendor.
+
+    Normalises the vendor string (lowercase, spaces/hyphens → underscores)
+    and looks up ``VENDOR_ENTERPRISE_OIDS``.  Falls back to
+    ``DEFAULT_ENTERPRISE_OID`` for unknown vendors.
+    """
+    key = vendor.lower().replace(" ", "_").replace("-", "_")
+    if key in VENDOR_ENTERPRISE_OIDS:
+        return VENDOR_ENTERPRISE_OIDS[key]
+    # Try prefix match (e.g. "schneider electric" → "schneider")
+    for vendor_key, oid in VENDOR_ENTERPRISE_OIDS.items():
+        if key.startswith(vendor_key) or vendor_key.startswith(key):
+            return oid
+    return DEFAULT_ENTERPRISE_OID
+
+
 def list_vendors() -> list[str]:
     """List all known vendors.
 

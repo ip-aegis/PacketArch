@@ -72,14 +72,15 @@ class TestDeviceFiltering:
         assert gen._should_bacnet_whois(_make_device(protocols=["modbus_tcp"])) is False
         assert gen._should_bacnet_whois(_make_device(protocols=[])) is False
 
-    def test_should_profinet_requires_protocol_and_controller(self):
+    def test_should_profinet_requires_protocol(self):
         gen = BackgroundNoiseGenerator([_make_device()])
         assert gen._should_profinet_dcp(
             _make_device(protocols=["profinet"], device_type="plc")
         ) is True
+        # Any device with profinet gets DCP (protocol is sufficient)
         assert gen._should_profinet_dcp(
             _make_device(protocols=["profinet"], device_type="sensor")
-        ) is False
+        ) is True
         assert gen._should_profinet_dcp(
             _make_device(protocols=["modbus_tcp"], device_type="plc")
         ) is False
@@ -459,3 +460,155 @@ class TestIntegration:
 
         # Managed devices boot traps
         assert "ambient_snmp_coldstart" in types
+
+
+# ======================================================================
+# Universal SNMP discovery guardrail tests
+# ======================================================================
+
+
+class TestUniversalSnmpDiscovery:
+    """Test universal SNMP discovery guardrail."""
+
+    def test_snmp_discovery_with_explicit_snmp_protocol(self):
+        gen = BackgroundNoiseGenerator([_make_device()])
+        device = _make_device(protocols=["snmp"])
+        assert gen._should_snmp_discovery(device) is True
+
+    def test_snmp_discovery_with_vendor_fingerprint(self):
+        """Devices with vendor fingerprint get SNMP even without SNMP protocol."""
+        gen = BackgroundNoiseGenerator([_make_device()])
+        device = _make_device(
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": "Schneider Electric"},
+        )
+        assert gen._should_snmp_discovery(device) is True
+
+    def test_snmp_discovery_without_fingerprint_or_protocol(self):
+        """Devices with no fingerprint and no SNMP protocol are excluded."""
+        gen = BackgroundNoiseGenerator([_make_device()])
+        device = _make_device(protocols=["modbus_tcp"], vendor_fingerprint={})
+        assert gen._should_snmp_discovery(device) is False
+
+    def test_snmp_discovery_with_empty_vendor(self):
+        """Fingerprint with empty vendor does not trigger discovery."""
+        gen = BackgroundNoiseGenerator([_make_device()])
+        device = _make_device(
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": ""},
+        )
+        assert gen._should_snmp_discovery(device) is False
+
+    def test_snmp_discovery_disabled_config(self):
+        config = AmbientConfig(snmp_discovery_enabled=False)
+        gen = BackgroundNoiseGenerator([_make_device()], config=config)
+        device = _make_device(
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": "Siemens"},
+        )
+        assert gen._should_snmp_discovery(device) is False
+
+    def test_source_only_device_gets_snmp_scheduled(self):
+        """A SCADA server (source-only) with fingerprint gets SNMP discovery."""
+        device = _make_device(
+            device_type="scada_server",
+            vendor="Schneider",
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": "Schneider Electric", "model": "ClearSCADA"},
+        )
+        gen = BackgroundNoiseGenerator([device])
+        scheduler = FakeScheduler()
+        gen.schedule_initial_events(scheduler, warmup_ms=500.0)
+        types = scheduler.event_types()
+        assert "ambient_snmp_discovery" in types
+
+
+# ======================================================================
+# SNMP identity synthesis tests
+# ======================================================================
+
+
+class TestSynthesizeSnmpIdentity:
+    """Test _synthesize_snmp_identity helper."""
+
+    def test_full_fingerprint_produces_rich_descr(self):
+        device = _make_device(
+            vendor="Schneider",
+            device_name="WTP_SCADA_Server",
+            vendor_fingerprint={
+                "vendor": "Schneider Electric",
+                "model": "ClearSCADA",
+                "firmware_version": "V3.30",
+            },
+        )
+        gen = BackgroundNoiseGenerator([device])
+        result = gen._synthesize_snmp_identity(device)
+        assert "Schneider Electric" in result["sys_descr"]
+        assert "ClearSCADA" in result["sys_descr"]
+        assert "V3.30" in result["sys_descr"]
+        # Should NOT be Cisco OID
+        assert result["sys_object_id"] != "1.3.6.1.4.1.9.1.1"
+        assert "3833" in result["sys_object_id"]  # Schneider PEN
+        assert result["sys_name"] == "WTP_SCADA_Server"
+
+    def test_minimal_fingerprint_still_works(self):
+        device = _make_device(
+            vendor="GE",
+            vendor_fingerprint={"vendor": "GE"},
+        )
+        gen = BackgroundNoiseGenerator([device])
+        result = gen._synthesize_snmp_identity(device)
+        assert result["sys_descr"] == "GE"
+        assert result["sys_object_id"] != "1.3.6.1.4.1.9.1.1"
+
+    def test_firmware_without_v_prefix_gets_prefixed(self):
+        device = _make_device(
+            vendor_fingerprint={
+                "vendor": "Siemens",
+                "model": "S7-1500",
+                "firmware_version": "2.9.4",
+            },
+        )
+        gen = BackgroundNoiseGenerator([device])
+        result = gen._synthesize_snmp_identity(device)
+        assert "V2.9.4" in result["sys_descr"]
+        assert "Siemens" in result["sys_descr"]
+        assert "S7-1500" in result["sys_descr"]
+
+    def test_model_name_preferred_over_model(self):
+        device = _make_device(
+            vendor_fingerprint={
+                "vendor": "Siemens",
+                "model": "WinCC",
+                "model_name": "SIMATIC WinCC Professional",
+            },
+        )
+        gen = BackgroundNoiseGenerator([device])
+        result = gen._synthesize_snmp_identity(device)
+        assert "SIMATIC WinCC Professional" in result["sys_descr"]
+
+
+# ======================================================================
+# Vendor enterprise OID tests
+# ======================================================================
+
+
+class TestVendorEnterpriseOids:
+    """Test enterprise OID lookup."""
+
+    def test_known_vendors(self):
+        from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
+        assert "4329" in get_enterprise_oid_for_vendor("Siemens")
+        assert "3833" in get_enterprise_oid_for_vendor("Schneider Electric")
+        assert get_enterprise_oid_for_vendor("Cisco") == "1.3.6.1.4.1.9"
+
+    def test_unknown_vendor_returns_default(self):
+        from app.protocol_engines.vendor_oui import (
+            DEFAULT_ENTERPRISE_OID,
+            get_enterprise_oid_for_vendor,
+        )
+        assert get_enterprise_oid_for_vendor("unknown_vendor_xyz") == DEFAULT_ENTERPRISE_OID
+
+    def test_case_insensitive(self):
+        from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
+        assert get_enterprise_oid_for_vendor("SIEMENS") == get_enterprise_oid_for_vendor("siemens")

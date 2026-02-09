@@ -277,7 +277,14 @@ class BackgroundNoiseGenerator:
         handler_name = self._HANDLER_MAP.get(event_type)
         if handler_name:
             handler = getattr(self, handler_name)
-            return handler(device, current_time_ms, scheduler, event)
+            try:
+                return handler(device, current_time_ms, scheduler, event)
+            except Exception as e:
+                logger.warning(
+                    "Ambient handler %s failed for device %s: %s",
+                    handler_name, device.device_id, e, exc_info=True,
+                )
+                return []
 
         return []
 
@@ -317,9 +324,20 @@ class BackgroundNoiseGenerator:
                 ))
 
     def _should_snmp_discovery(self, device: AmbientDevice) -> bool:
-        """Devices with SNMP get periodic GET/Response for CV fingerprinting."""
-        return (self.config.snmp_discovery_enabled
-                and "snmp" in device.protocols)
+        """Enable SNMP discovery for any device with a vendor fingerprint.
+
+        This is a universal guardrail: every fingerprinted device gets
+        periodic SNMP GET/Response pairs so that Cisco Cyber Vision can
+        identify vendor/model/firmware even when the device is only a
+        traffic source (never a target in any flow).
+        """
+        if not self.config.snmp_discovery_enabled:
+            return False
+        if "snmp" in device.protocols:
+            return True
+        # Universal guardrail: any device with a vendor fingerprint
+        fp = device.vendor_fingerprint
+        return bool(fp and fp.get("vendor"))
 
     def _should_igmp(self, device: AmbientDevice) -> bool:
         """Devices using multicast protocols send IGMP joins."""
@@ -787,9 +805,15 @@ class BackgroundNoiseGenerator:
         dst_mac = sink.mac_address if sink else self.config.ntp_server_mac
 
         fp = device.vendor_fingerprint
-        enterprise_oid = fp.get("protocol_identities", {}).get(
-            "snmp", {}
-        ).get("sysObjectID", "1.3.6.1.4.1.9.1.1")
+        snmp_id = fp.get("protocol_identities", {}).get("snmp", {})
+        if not snmp_id:
+            snmp_id = fp.get("snmp_identity", {}) or {}
+        if not snmp_id:
+            snmp_id = self._synthesize_snmp_identity(device)
+        enterprise_oid = snmp_id.get("sysObjectID") or snmp_id.get("sys_object_id", "")
+        if not enterprise_oid:
+            from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
+            enterprise_oid = get_enterprise_oid_for_vendor(device.vendor)
 
         pkt_bytes = build_snmp_trap_packet(
             src_mac=device.mac_address,
@@ -850,14 +874,19 @@ class BackgroundNoiseGenerator:
         mgr_ip = mgr.ip_address if mgr else (device.gateway_ip or "10.0.0.1")
         mgr_mac = mgr.mac_address if mgr else self.config.ntp_server_mac
 
-        # Extract SNMP identity from fingerprint
+        # Extract SNMP identity from fingerprint, synthesise if missing
         fp = device.vendor_fingerprint
         snmp_id = fp.get("protocol_identities", {}).get("snmp", {})
         if not snmp_id:
             snmp_id = fp.get("snmp_identity", {}) or {}
+        if not snmp_id:
+            snmp_id = self._synthesize_snmp_identity(device)
 
-        sys_descr = snmp_id.get("sys_descr", f"{device.vendor} {device.device_name or device.device_id}")
-        sys_object_id = snmp_id.get("sys_object_id", "1.3.6.1.4.1.9.1.1")
+        sys_descr = snmp_id.get("sys_descr", device.device_name or device.device_id)
+        sys_object_id = snmp_id.get("sys_object_id", "")
+        if not sys_object_id:
+            from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
+            sys_object_id = get_enterprise_oid_for_vendor(device.vendor)
         sys_name = snmp_id.get("sys_name", device.device_name or device.device_id)
         sys_location = snmp_id.get("sys_location", "Industrial Site")
 
@@ -1432,6 +1461,40 @@ class BackgroundNoiseGenerator:
             port=port,
             vendor_fingerprint=device.vendor_fingerprint,
         )
+
+    # ------------------------------------------------------------------
+    # SNMP identity synthesis (fallback when template lacks snmp_identity)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _synthesize_snmp_identity(device: AmbientDevice) -> dict[str, str]:
+        """Build SNMP identity fields from fingerprint metadata.
+
+        Called when the device template has no explicit ``snmp_identity``.
+        Constructs a professional-quality sysDescr from vendor, model, and
+        firmware fields, and resolves the enterprise OID by vendor name.
+        """
+        from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
+
+        fp = device.vendor_fingerprint
+        vendor = fp.get("vendor", device.vendor or "")
+        model = fp.get("model_name") or fp.get("model", "")
+        fw = fp.get("firmware_version", "")
+
+        # Build sysDescr: "Siemens SIMATIC WinCC Professional V18.0"
+        parts = [p for p in (vendor, model) if p]
+        if fw:
+            # Normalise firmware string — prefix with "V" if it starts with a digit
+            fw_str = fw if fw.upper().startswith("V") else f"V{fw}"
+            parts.append(fw_str)
+        sys_descr = " ".join(parts) if parts else device.device_name or device.device_id
+
+        return {
+            "sys_descr": sys_descr,
+            "sys_object_id": get_enterprise_oid_for_vendor(vendor),
+            "sys_name": device.device_name or device.device_id,
+            "sys_location": "Industrial Site",
+        }
 
     # Preferred device types for management station role (most → least realistic)
     _MANAGER_TYPES = frozenset({

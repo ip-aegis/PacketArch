@@ -430,12 +430,21 @@ class OrchestratorPool:
                     zone_vlan_map[zid] = network_info.get("vlanId") or network_info.get("vlan")
 
                 def _collect_device_protocols(
-                    dev_id: str, all_flows: dict[str, Any],
+                    dev_id: str,
+                    all_flows: dict[str, Any],
+                    device_def: dict[str, Any] | None = None,
                 ) -> list[str]:
                     protos: list[str] = []
                     for fdef in all_flows.values():
                         if fdef.get("sourceDeviceId") == dev_id or fdef.get("targetDeviceId") == dev_id:
                             p = fdef.get("protocol", "")
+                            if p and p not in protos:
+                                protos.append(p)
+                    # Merge protocols from the device definition so that
+                    # ambient discovery covers all device capabilities,
+                    # not only protocols present in flow definitions.
+                    if device_def:
+                        for p in device_def.get("protocols", []):
                             if p and p not in protos:
                                 protos.append(p)
                     return protos
@@ -457,7 +466,7 @@ class OrchestratorPool:
                                     mac_address=mac,
                                     ip_address=ip,
                                     gateway_ip=ip.rsplit(".", 1)[0] + ".1",
-                                    protocols=_collect_device_protocols(dev_id, flows),
+                                    protocols=_collect_device_protocols(dev_id, flows, dev),
                                     device_type=dev.get("type", fp.get("device_type", "")),
                                     vendor=fp.get("vendor", ""),
                                     device_name=dev.get("name", dev_id),

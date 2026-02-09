@@ -515,15 +515,28 @@ class UnifiedOrchestrator:
             self.stats.record_packet("attack", len(pkt.packet_bytes))
 
     def _handle_ambient_event(self, event: dict[str, Any]) -> None:
-        """Handle an ambient noise event — generate ARP/NTP packets."""
+        """Handle an ambient noise event — generate ARP/NTP/discovery packets.
+
+        Wrapped in try/except so that a single handler failure does NOT
+        crash the entire orchestration run loop.
+        """
         if not self._ambient_generator:
             return
-        packets = self._ambient_generator.handle_event(
-            event, self.current_time_ms, self.scheduler,
-        )
-        for pkt in packets:
-            self.scheduler.schedule(pkt.timestamp_ms, pkt)
-            self.stats.record_packet("ambient", len(pkt.packet_bytes))
+        try:
+            packets = self._ambient_generator.handle_event(
+                event, self.current_time_ms, self.scheduler,
+            )
+            for pkt in packets:
+                self.scheduler.schedule(pkt.timestamp_ms, pkt)
+                self.stats.record_packet("ambient", len(pkt.packet_bytes))
+        except Exception as e:
+            logger.warning(
+                "Ambient event '%s' failed (device=%s): %s",
+                event.get("type", "?"),
+                event.get("device_id", "?"),
+                e,
+                exc_info=True,
+            )
 
     def _handle_process_sim_tick(self) -> None:
         """Handle a process simulation tick — advance models, push values."""
