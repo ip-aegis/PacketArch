@@ -112,8 +112,10 @@ class SLMPEngine(ProtocolEngine):
 
         # SYN-ACK
         syn_ack_time = current_time + random.uniform(1.0, 2.0)
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
         syn_ack_packet = build_tcp_handshake_syn_ack(
-            flow.destination, flow.source, server_seq, client_seq + 1
+            flow.destination, flow.source, server_seq, client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=syn_ack_time,

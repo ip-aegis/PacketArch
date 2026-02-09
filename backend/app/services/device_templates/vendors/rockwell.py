@@ -277,7 +277,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua"],
+        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -325,6 +325,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 166,
             "product_name": "1756-L85E/B LOGIX5580",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L85E/B ControlLogix 5580",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
     DeviceTemplate(
@@ -748,7 +753,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp"],
+        supported_protocols=["ethernet_ip", "modbus_tcp", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -786,6 +791,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 73,
             "product_name": "1756-L73 LOGIX5570",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L73 ControlLogix 5570",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
     DeviceTemplate(
@@ -1299,6 +1309,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 85,
             "product_name": "1756-L85E LOGIX5580",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L85E ControlLogix 5580",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
     DeviceTemplate(

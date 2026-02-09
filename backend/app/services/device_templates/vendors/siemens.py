@@ -310,7 +310,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "timeout_probability": 0.0001,
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua"],
+        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -357,6 +357,16 @@ TEMPLATES: list[DeviceTemplate] = [
             "order_code": "6ES7 517-3AP00-0AB0",
             "copyright": "Original Siemens Equipment",
             "module_name": "PLC_1",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 285,
+            "device_type": 14,
+            "product_code": 1517,
+            "revision_major": 3,
+            "revision_minor": 0,
+            "product_name": "CPU 1517-3 PN/DP",
+            "state": 3,
         },
 
         protocol_quirks={
@@ -1166,7 +1176,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["snmp"],
+        supported_protocols=["snmp", "bacnet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="C6-{8HEX}",
@@ -1188,6 +1198,13 @@ TEMPLATES: list[DeviceTemplate] = [
         snmp_identity={
             "sys_descr": "Siemens SITRAFFIC C600 Signal Controller",
             "sys_object_id": "1.3.6.1.4.1.4329.10.600",
+        },
+
+        bacnet_identity={
+            "vendor_id": 7,
+            "device_type": "Traffic Controller",
+            "model_name": "SITRAFFIC C600",
+            "firmware_revision": "V2.5",
         },
     ),
     DeviceTemplate(

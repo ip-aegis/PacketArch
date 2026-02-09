@@ -515,22 +515,24 @@ class FingerprintApplicator:
                 )
 
         # Modbus identity: product_name (for Modbus FC43 Device Identification)
-        # CV uses this from MEI responses for device naming
+        # CV uses this from MEI responses for model identification.
+        # Preserve the template's product_name (manufacturer catalog string)
+        # so CV can properly identify the model. Only generate a synthetic
+        # name when the template doesn't already supply one.
         if self.modbus_identity:
-            # Use device_name for the product_name field in Modbus identity
-            if self.device_name:
-                self.modbus_identity["product_name"] = self.device_name
-            elif model:
-                # Fallback to model with hash suffix
-                hash_bytes = UniqueIdentifierGenerator._generate_hash(
-                    self.device_id, self.scenario_id
+            if not self.modbus_identity.get("product_name"):
+                if self.device_name:
+                    self.modbus_identity["product_name"] = self.device_name
+                elif model:
+                    hash_bytes = UniqueIdentifierGenerator._generate_hash(
+                        self.device_id, self.scenario_id
+                    )
+                    hash_suffix = hash_bytes[:2].hex().upper()
+                    self.modbus_identity["product_name"] = f"{model}-{hash_suffix}"
+                logger.debug(
+                    f"Generated unique Modbus product_name: "
+                    f"{self.modbus_identity.get('product_name')}"
                 )
-                hash_suffix = hash_bytes[:2].hex().upper()
-                self.modbus_identity["product_name"] = f"{model}-{hash_suffix}"
-            logger.debug(
-                f"Generated unique Modbus product_name: "
-                f"{self.modbus_identity.get('product_name')}"
-            )
 
     @property
     def is_vulnerable(self) -> bool:

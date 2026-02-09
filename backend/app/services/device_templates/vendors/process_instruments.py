@@ -32,7 +32,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "profinet"],
+        supported_protocols=["ethernet_ip", "profinet", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="SICK{8ALPHANUM}",
@@ -57,6 +57,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "SICK AG",
             "im0_order_id": "Inspector P631",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 274,
+            "device_type": 43,
+            "product_code": 631,
+            "revision_major": 2,
+            "revision_minor": 4,
+            "product_name": "Inspector P631 Vision Sensor",
+            "state": 3,
+        },
+
+        modbus_identity={
+            "vendor_name": "SICK AG",
+            "product_code": "Inspector P631",
+            "major_minor_revision": "V2.4.1",
+            "product_name": "Inspector P631 Vision Sensor",
+            "model_name": "Inspector P631",
         },
     ),
     DeviceTemplate(
@@ -85,7 +103,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "profinet"],
+        supported_protocols=["ethernet_ip", "profinet", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="CLV{8ALPHANUM}",
@@ -110,6 +128,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "SICK AG",
             "im0_order_id": "CLV650-0120",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 274,
+            "device_type": 43,
+            "product_code": 650,
+            "revision_major": 2,
+            "revision_minor": 10,
+            "product_name": "CLV650 Barcode Scanner",
+            "state": 3,
+        },
+
+        modbus_identity={
+            "vendor_name": "SICK AG",
+            "product_code": "CLV650-0120",
+            "major_minor_revision": "V2.10",
+            "product_name": "CLV650 Barcode Scanner",
+            "model_name": "CLV650",
         },
     ),
     DeviceTemplate(

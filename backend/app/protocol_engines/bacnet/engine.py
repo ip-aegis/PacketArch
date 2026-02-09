@@ -144,7 +144,7 @@ class BACnetEngine(ProtocolEngine):
     def _get_device_instance(self, flow: FlowContext) -> int:
         """Get device instance from fingerprint or generate one."""
         fingerprint = flow.destination.vendor_fingerprint or {}
-        bacnet_id = fingerprint.get("bacnet_identity", {})
+        bacnet_id = fingerprint.get("bacnet_identity") or {}
         return bacnet_id.get("device_instance", random.randint(1, 4194302))
 
     def _get_bacnet_identity(self, flow: FlowContext) -> dict[str, Any]:
@@ -153,7 +153,7 @@ class BACnetEngine(ProtocolEngine):
         Returns identity fields critical for Cyber Vision detection.
         """
         fingerprint = flow.destination.vendor_fingerprint or {}
-        bacnet_id = fingerprint.get("bacnet_identity", {})
+        bacnet_id = fingerprint.get("bacnet_identity") or {}
 
         # Check for vulnerability override (CVE-specific identity)
         vuln_override = flow.destination.vulnerability_override or {}

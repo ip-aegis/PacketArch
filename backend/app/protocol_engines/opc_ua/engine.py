@@ -91,8 +91,14 @@ class OpcUaEngine(ProtocolEngine):
 
         # === TCP Three-Way Handshake ===
 
+        # Get fingerprinted TCP options for client and server
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # SYN
-        syn_packet = build_tcp_handshake_syn(flow.source, flow.destination, client_seq)
+        syn_packet = build_tcp_handshake_syn(
+            flow.source, flow.destination, client_seq, tcp_options=client_tcp_opts,
+        )
         yield PacketEvent(
             timestamp_ms=current_time,
             flow_id=flow.flow_id,
@@ -104,7 +110,8 @@ class OpcUaEngine(ProtocolEngine):
         # SYN-ACK
         current_time += random.uniform(1.0, 3.0)
         syn_ack_packet = build_tcp_handshake_syn_ack(
-            flow.destination, flow.source, server_seq, client_seq + 1
+            flow.destination, flow.source, server_seq, client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,

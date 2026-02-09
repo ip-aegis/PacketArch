@@ -391,9 +391,11 @@ async def create_scenario_from_template(
 
             # Auto-assign MAC if requested
             if request.auto_assign_addresses:
+                fp_ouis = device.get("vendorFingerprint", {}).get("oui_prefixes")
                 device["network"]["macAddress"] = generate_mac_address(
                     vendor=device_spec.get("vendor"),
                     device_type=device_spec.get("type"),
+                    oui_prefixes=fp_ouis if fp_ouis else None,
                 )
 
             # CRITICAL: Generate unique serial numbers for each device

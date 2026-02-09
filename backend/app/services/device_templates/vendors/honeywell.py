@@ -96,7 +96,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="C300-{8HEX}",
@@ -132,6 +132,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Experion PKS C300 Controller",
             "model_name": "C300",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion PKS C300 Controller",
+            "sys_object_id": "1.3.6.1.4.1.2879.1.3.300",
+        },
     ),
     DeviceTemplate(
         id="honeywell/experion-pks/c200",
@@ -161,7 +166,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="C200-{8HEX}",
@@ -196,6 +201,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.honeywell.com",
             "product_name": "Experion PKS C200 Controller",
             "model_name": "C200",
+        },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion PKS C200 Controller",
+            "sys_object_id": "1.3.6.1.4.1.2879.1.3.200",
         },
     ),
     DeviceTemplate(

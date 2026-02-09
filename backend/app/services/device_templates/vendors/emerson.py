@@ -95,7 +95,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "dnp3"],
+        supported_protocols=["modbus_tcp", "dnp3", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ROC{10NUM}",
@@ -128,6 +128,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Emerson Process Management",
             "product_code": "ROC800L",
             "product_name": "ROC800L Remote Operations Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Emerson ROC800L Remote Operations Controller",
+            "sys_object_id": "1.3.6.1.4.1.3530.10.800",
         },
     ),
     DeviceTemplate(
@@ -214,7 +219,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "dnp3"],
+        supported_protocols=["modbus_tcp", "dnp3", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ROC8{10NUM}",
@@ -242,6 +247,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Emerson Process Management",
             "product_code": "ROC800",
             "product_name": "ROC800 Remote Operations Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Emerson ROC800 Remote Operations Controller",
+            "sys_object_id": "1.3.6.1.4.1.3530.10.800",
         },
     ),
     DeviceTemplate(

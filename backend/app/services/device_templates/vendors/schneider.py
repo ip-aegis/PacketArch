@@ -1475,7 +1475,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "modbus_tcp"],
+        supported_protocols=["snmp", "modbus_tcp", "bacnet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="INROW{8ALPHANUM}",
@@ -1504,6 +1504,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "InRow DX",
             "product_name": "InRow DX Precision Cooling",
             "model_name": "InRow",
+        },
+
+        bacnet_identity={
+            "vendor_id": 67,
+            "device_type": "Precision Cooling Unit",
+            "model_name": "InRow DX",
+            "firmware_revision": "V7.0.2",
         },
     ),
     DeviceTemplate(

@@ -650,7 +650,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 4.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus_tcp'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="3.8.0",
             release_date=date(2024, 1, 1),
@@ -663,6 +663,16 @@ TEMPLATES: list[DeviceTemplate] = [
                 "major_minor_revision": "3.8.0",
                 "product_name": "MiR Fleet Management System",
                 "model_name": "MiR Fleet",
+            },
+
+        ethernet_ip_identity={
+                "vendor_id": 0,
+                "device_type": 12,
+                "product_code": 9000,
+                "revision_major": 3,
+                "revision_minor": 8,
+                "product_name": "MiR Fleet Management System",
+                "state": 3,
             },
     ),
     DeviceTemplate(

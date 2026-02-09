@@ -616,17 +616,25 @@ def get_oui_for_device_type(device_type: str, vendor: Optional[str] = None) -> s
     return DEFAULT_OUI
 
 
-def generate_mac_address(vendor: Optional[str] = None, device_type: Optional[str] = None) -> str:
+def generate_mac_address(
+    vendor: Optional[str] = None,
+    device_type: Optional[str] = None,
+    oui_prefixes: list[str] | None = None,
+) -> str:
     """Generate a complete MAC address with appropriate OUI.
 
     Args:
         vendor: Optional vendor name
         device_type: Optional device type
+        oui_prefixes: Optional list of OUI prefixes to choose from.
+                      When provided, takes priority over vendor/device_type lookup.
 
     Returns:
         Complete MAC address (e.g., "00:0E:8C:AB:12:34")
     """
-    if vendor:
+    if oui_prefixes:
+        oui = random.choice(oui_prefixes)
+    elif vendor:
         oui = get_oui_for_vendor(vendor)
     elif device_type:
         oui = get_oui_for_device_type(device_type)

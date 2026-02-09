@@ -33,7 +33,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp"],
+        supported_protocols=["bacnet", "modbus_tcp", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="NAE{10NUM}",
@@ -66,6 +66,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 5,  # Johnson Controls
             "device_type": "Network Automation Engine",
             "model_name": "NAE55",
+        },
+
+        snmp_identity={
+            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine",
+            "sys_object_id": "1.3.6.1.4.1.4399.2.1.10",
         },
     ),
     DeviceTemplate(
@@ -162,7 +167,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp"],
+        supported_protocols=["bacnet", "modbus_tcp", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="JCI{8ALPHANUM}",
@@ -190,6 +195,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 5,
             "model_name": "NAE55",
             "device_instance": 0,
+        },
+
+        snmp_identity={
+            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine",
+            "sys_object_id": "1.3.6.1.4.1.4399.2.1.10",
         },
     ),
     DeviceTemplate(
@@ -780,7 +790,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp"],
+        supported_protocols=["modbus_tcp", "bacnet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="PCO5{10NUM}",
@@ -808,6 +818,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Carel Industries",
             "product_code": "pCO5+",
             "product_name": "pCO5+ HVAC Controller",
+        },
+
+        bacnet_identity={
+            "vendor_id": 198,
+            "device_type": "HVAC Controller",
+            "model_name": "pCO5+",
+            "firmware_revision": "V3.5.0",
         },
     ),
     DeviceTemplate(

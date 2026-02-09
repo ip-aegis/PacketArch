@@ -203,8 +203,8 @@ class SnmpEngine(ProtocolEngine):
                 value = applicator.get_sys_descr()
             else:
                 # Fallback to vendor fingerprint
-                fp = flow.destination.vendor_fingerprint
-                sys_descr = fp.get("snmp_identity", {}).get("sys_descr")
+                fp = flow.destination.vendor_fingerprint or {}
+                sys_descr = (fp.get("snmp_identity") or {}).get("sys_descr")
                 if sys_descr:
                     value = sys_descr
                 else:
@@ -219,8 +219,8 @@ class SnmpEngine(ProtocolEngine):
             if hasattr(applicator, "get_sys_object_id"):
                 value = applicator.get_sys_object_id()
             else:
-                fp = flow.destination.vendor_fingerprint
-                value = fp.get("snmp_identity", {}).get(
+                fp = flow.destination.vendor_fingerprint or {}
+                value = (fp.get("snmp_identity") or {}).get(
                     "sys_object_id", "1.3.6.1.4.1.9999.1.1"
                 )
             return VarBind(oid=oid, value=value, value_type="oid")
@@ -235,20 +235,20 @@ class SnmpEngine(ProtocolEngine):
             if flow.destination.device_name:
                 value = flow.destination.device_name
             else:
-                fp = flow.destination.vendor_fingerprint
-                value = fp.get("snmp_identity", {}).get(
+                fp = flow.destination.vendor_fingerprint or {}
+                value = (fp.get("snmp_identity") or {}).get(
                     "sys_name", f"device-{flow.destination.device_id[:8]}"
                 )
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_LOCATION.oid:
-            fp = flow.destination.vendor_fingerprint
-            value = fp.get("snmp_identity", {}).get("sys_location", "Unknown")
+            fp = flow.destination.vendor_fingerprint or {}
+            value = (fp.get("snmp_identity") or {}).get("sys_location", "Unknown")
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_CONTACT.oid:
-            fp = flow.destination.vendor_fingerprint
-            value = fp.get("snmp_identity", {}).get("sys_contact", "admin@local")
+            fp = flow.destination.vendor_fingerprint or {}
+            value = (fp.get("snmp_identity") or {}).get("sys_contact", "admin@local")
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_SERVICES.oid:
@@ -601,10 +601,10 @@ class SnmpEngine(ProtocolEngine):
         - enterprise-specific: Device-specific events
         """
         config = self._get_snmp_config(flow)
-        fp = flow.destination.vendor_fingerprint
+        fp = flow.destination.vendor_fingerprint or {}
 
         # Get enterprise OID from fingerprint
-        enterprise_oid = fp.get("snmp_identity", {}).get(
+        enterprise_oid = (fp.get("snmp_identity") or {}).get(
             "sys_object_id", "1.3.6.1.4.1.9999"
         )
 

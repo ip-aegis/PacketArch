@@ -161,7 +161,7 @@ class ModbusTcpEngine(ProtocolEngine):
         server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
 
         # --- MEI Request (from HMI/scanner) ---
-        config_mei = {"device_id_code": 0x01, "object_id": 0x00}
+        config_mei = {"device_id_code": 0x02, "object_id": 0x00}
         request_pdu = handler.build_request(config_mei)
         state.transaction_id = (state.transaction_id + 1) % 65536
         request_mbap = build_mbap_header(state.transaction_id, unit_id, len(request_pdu))
