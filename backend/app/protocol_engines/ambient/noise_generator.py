@@ -379,7 +379,10 @@ class BackgroundNoiseGenerator:
         event: dict[str, Any],
     ) -> list[PacketEvent]:
         """Emit NTP query + response pair and reschedule."""
-        ntp_server_ip = self._resolve_ntp_server(device)
+        # Use a real device (switch/server) as NTP server instead of phantom
+        ntp_dev = self._pick_query_source(device)
+        ntp_server_ip = ntp_dev.ip_address if ntp_dev else self._resolve_ntp_server(device)
+        ntp_server_mac = ntp_dev.mac_address if ntp_dev else self.config.ntp_server_mac
         if not ntp_server_ip:
             return []
 
@@ -388,13 +391,13 @@ class BackgroundNoiseGenerator:
             src_mac=device.mac_address,
             src_ip=device.ip_address,
             dst_ip=ntp_server_ip,
-            dst_mac=self.config.ntp_server_mac,
+            dst_mac=ntp_server_mac,
             src_port=src_port,
         )
 
         response_delay_ms = random.uniform(1.0, 15.0)
         response_bytes = build_ntp_response(
-            src_mac=self.config.ntp_server_mac,
+            src_mac=ntp_server_mac,
             src_ip=ntp_server_ip,
             dst_mac=device.mac_address,
             dst_ip=device.ip_address,
@@ -778,9 +781,10 @@ class BackgroundNoiseGenerator:
             logger.debug("SNMP engine not available, skipping")
             return []
 
-        dst_ip = device.gateway_ip or "10.0.0.1"
-        # Use locally-administered MAC for trap sink
-        dst_mac = self.config.ntp_server_mac
+        # Use a real device as trap sink instead of phantom gateway
+        sink = self._pick_query_source(device)
+        dst_ip = sink.ip_address if sink else (device.gateway_ip or "10.0.0.1")
+        dst_mac = sink.mac_address if sink else self.config.ntp_server_mac
 
         fp = device.vendor_fingerprint
         enterprise_oid = fp.get("protocol_identities", {}).get(
@@ -841,9 +845,10 @@ class BackgroundNoiseGenerator:
             "device_id": device.device_id,
         })
 
-        # Use gateway as management station (SNMP manager)
-        mgr_ip = device.gateway_ip or "10.0.0.1"
-        mgr_mac = self.config.ntp_server_mac  # locally-administered MAC
+        # Use a real device as the SNMP manager instead of phantom gateway
+        mgr = self._pick_query_source(device)
+        mgr_ip = mgr.ip_address if mgr else (device.gateway_ip or "10.0.0.1")
+        mgr_mac = mgr.mac_address if mgr else self.config.ntp_server_mac
 
         # Extract SNMP identity from fingerprint
         fp = device.vendor_fingerprint
@@ -989,12 +994,14 @@ class BackgroundNoiseGenerator:
         )
 
         # Build TCP packets (manager → device, device → manager)
-        mgr_ip = device.gateway_ip or "10.0.0.1"
-        mgr_mac = self.config.ntp_server_mac
+        # Use a real device as the Modbus client instead of phantom gateway
+        mgr_dev = self._pick_query_source(device)
+        mgr_ip = mgr_dev.ip_address if mgr_dev else (device.gateway_ip or "10.0.0.1")
+        mgr_mac = mgr_dev.mac_address if mgr_dev else self.config.ntp_server_mac
         src_port = random.randint(49152, 65535)
 
         mgr_ctx = DeviceContext(
-            device_id="mgr_modbus",
+            device_id=mgr_dev.device_id if mgr_dev else "mgr_modbus",
             mac_address=mgr_mac,
             ip_address=mgr_ip,
             port=src_port,
@@ -1086,11 +1093,13 @@ class BackgroundNoiseGenerator:
         if not enip_id:
             return []
 
-        mgr_ip = device.gateway_ip or "10.0.0.1"
-        mgr_mac = self.config.ntp_server_mac
+        # Use a real device as the EtherNet/IP scanner instead of phantom gateway
+        mgr_dev = self._pick_query_source(device)
+        mgr_ip = mgr_dev.ip_address if mgr_dev else (device.gateway_ip or "10.0.0.1")
+        mgr_mac = mgr_dev.mac_address if mgr_dev else self.config.ntp_server_mac
 
         mgr_ctx = DeviceContext(
-            device_id="mgr_enip",
+            device_id=mgr_dev.device_id if mgr_dev else "mgr_enip",
             mac_address=mgr_mac,
             ip_address=mgr_ip,
             port=44818,
@@ -1196,13 +1205,14 @@ class BackgroundNoiseGenerator:
             logger.debug("Failed to build S7 SZL for %s", device.device_id)
             return []
 
-        # Wrap in TCP packets
-        mgr_ip = device.gateway_ip or "10.0.0.1"
-        mgr_mac = self.config.ntp_server_mac
+        # Wrap in TCP packets — use real device as S7 engineering station
+        mgr_dev = self._pick_query_source(device)
+        mgr_ip = mgr_dev.ip_address if mgr_dev else (device.gateway_ip or "10.0.0.1")
+        mgr_mac = mgr_dev.mac_address if mgr_dev else self.config.ntp_server_mac
         src_port = random.randint(49152, 65535)
 
         mgr_ctx = DeviceContext(
-            device_id="mgr_s7",
+            device_id=mgr_dev.device_id if mgr_dev else "mgr_s7",
             mac_address=mgr_mac,
             ip_address=mgr_ip,
             port=src_port,
@@ -1273,8 +1283,10 @@ class BackgroundNoiseGenerator:
         )
 
         xid = random.randint(1, 0xFFFFFFFF)
-        server_ip = device.gateway_ip or device.ip_address.rsplit(".", 1)[0] + ".1"
-        server_mac = self.config.ntp_server_mac  # reuse for DHCP server
+        # Use a real device (switch/server) as DHCP server instead of phantom
+        dhcp_dev = self._pick_query_source(device)
+        server_ip = dhcp_dev.ip_address if dhcp_dev else (device.gateway_ip or device.ip_address.rsplit(".", 1)[0] + ".1")
+        server_mac = dhcp_dev.mac_address if dhcp_dev else self.config.ntp_server_mac
 
         packets = []
         t = current_time_ms
@@ -1420,3 +1432,37 @@ class BackgroundNoiseGenerator:
             port=port,
             vendor_fingerprint=device.vendor_fingerprint,
         )
+
+    # Preferred device types for management station role (most → least realistic)
+    _MANAGER_TYPES = frozenset({
+        "hmi", "workstation", "server", "scada_server", "engineering_workstation",
+        "engineering_station", "historian", "gateway", "fleet_manager",
+    })
+
+    def _pick_query_source(self, target: AmbientDevice) -> AmbientDevice | None:
+        """Pick a real scenario device to act as the query source.
+
+        Prefers HMIs/servers/workstations in the same zone. Falls back to
+        any other zone peer, then any device in the scenario.  Returns None
+        only when the scenario has a single device (should never happen in
+        practice).
+        """
+        zone_peers = self._zone_devices.get(target.zone_id, [])
+
+        # Pass 1: preferred type in same zone
+        for d in zone_peers:
+            if d.device_id != target.device_id and d.device_type in self._MANAGER_TYPES:
+                return d
+        # Pass 2: any peer in same zone
+        for d in zone_peers:
+            if d.device_id != target.device_id:
+                return d
+        # Pass 3: preferred type in any zone
+        for d in self.devices:
+            if d.device_id != target.device_id and d.device_type in self._MANAGER_TYPES:
+                return d
+        # Pass 4: any device in the scenario
+        for d in self.devices:
+            if d.device_id != target.device_id:
+                return d
+        return None
