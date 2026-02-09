@@ -59,6 +59,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   const [hasReadinessErrors, setHasReadinessErrors] = useState(false);
   const [pendingDeployData, setPendingDeployData] =
     useState<DeploymentRequest | null>(null);
+  const [pendingAgentDeploy, setPendingAgentDeploy] = useState<{
+    agentId: string;
+    deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> };
+  } | null>(null);
 
   const {
     hosts,
@@ -260,12 +264,18 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
           );
         }
       } else {
-        setPendingDeployData({
-          ...agentDeployData,
-          docker_host_id: '',
-          network_interface: values.network_interface,
-          run_mode: 'perpetual',
-        });
+        const deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> } = {
+          scenario_id: scenarioId,
+          interface: values.network_interface,
+        };
+        if (values.phase_schedule?.enabled) {
+          deployData.adaptive_config = { phase_schedule: values.phase_schedule };
+        }
+        const attackConfig = useAttackStore.getState().playbookConfig;
+        if (attackConfig?.playbook_id) {
+          deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
+        }
+        setPendingAgentDeploy({ agentId: values.agent_id, deployData });
         setValidationResult(validation);
         setValidationModalVisible(true);
       }
@@ -301,7 +311,25 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   // ── Proceed after validation ────────────────────────────────────
   const handleProceedWithDeployment = async () => {
     setValidationModalVisible(false);
-    if (pendingDeployData) await executeDeployment(pendingDeployData);
+    if (pendingAgentDeploy) {
+      try {
+        await deployToAgent(pendingAgentDeploy.agentId, pendingAgentDeploy.deployData);
+        message.success(
+          'Scenario deployed to agent successfully! Traffic generation started.',
+        );
+        form.resetFields(['agent_id', 'network_interface']);
+        setAgentInterfaces([]);
+        if (scenarioId) await fetchDeployments({ scenario_id: scenarioId });
+      } catch (err: unknown) {
+        message.error(
+          extractErrorMessage(err, 'Failed to deploy scenario to agent'),
+        );
+      } finally {
+        setPendingAgentDeploy(null);
+      }
+    } else if (pendingDeployData) {
+      await executeDeployment(pendingDeployData);
+    }
   };
 
   // ── Repair protocols ────────────────────────────────────────────

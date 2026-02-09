@@ -40,6 +40,8 @@ export const PROTOCOL_COLORS_EXTENDED: Record<string, string> = {
   https: '#FBAB18',
   lldp: '#607D8B',
   cdp: '#607D8B',
+  ambient: '#78909C',
+  attack: '#F44336',
 };
 
 // ---------------------------------------------------------------------------
@@ -65,6 +67,8 @@ export const PROTOCOL_LABELS: Record<string, string> = {
   https: 'HTTPS',
   lldp: 'LLDP',
   cdp: 'CDP',
+  ambient: 'Ambient',
+  attack: 'Attack',
 };
 
 /** Get color for any protocol key (canonical or extended). */

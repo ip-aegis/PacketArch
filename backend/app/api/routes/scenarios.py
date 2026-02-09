@@ -906,7 +906,9 @@ async def repair_scenario_protocols(
 
     # Save changes if any
     if devices_fixed > 0:
+        from sqlalchemy.orm.attributes import flag_modified
         scenario.definition = definition
+        flag_modified(scenario, "definition")
         await db.commit()
 
     return RepairProtocolsResponse(

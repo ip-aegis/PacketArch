@@ -90,6 +90,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 14,
             "product_code": 584,
+            "product_name": "BMEP584040 M580 ePAC",
             "state": 3,
         },
 
@@ -239,6 +240,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 2,  # AC Drive
             "product_code": 630,
+            "product_name": "ATV630D15N4 ALTIVAR PROCESS",
             "state": 3,
         },
 
@@ -320,6 +322,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 14,
             "product_code": 582,
+            "product_name": "BMEP582040 M580 ePAC",
             "state": 3,
         },
     ),
@@ -391,6 +394,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 14,
             "product_code": 342,
+            "product_name": "BMXP3420302 M340 PROCESSOR",
             "state": 3,
         },
     ),
@@ -526,6 +530,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 43,  # Motion Controller
             "product_code": 262,
+            "product_name": "TM262L20MESE8T M262 MOTION",
             "state": 3,
         },
     ),
@@ -598,6 +603,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 2,  # AC Drive
             "product_code": 930,
+            "product_name": "ATV930D15N4 ALTIVAR PROCESS",
             "state": 3,
         },
 
@@ -735,6 +741,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 7,  # General Purpose I/O
             "product_code": 231,
+            "product_name": "STBNIP2311 STB ETHERNET/IP",
             "state": 3,
         },
     ),
@@ -1177,6 +1184,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 67,
             "device_type": 14,
             "product_code": 586,
+            "product_name": "BMEH586040 M580 HP ePAC",
             "state": 3,
         },
     ),

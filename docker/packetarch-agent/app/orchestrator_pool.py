@@ -666,14 +666,17 @@ class OrchestratorPool:
                 port=0,
             )
 
+            # Backend sends nested cloud_service object; fall back to flat keys for compat
+            cloud_svc = link.get("cloud_service", {})
+
             destination = DeviceContext(
                 device_id=f"cloud-{link.get('id', 'unknown')}",
                 mac_address="ff:ff:ff:ff:ff:ff",
-                ip_address=link.get("cloud_ip", "0.0.0.0"),
-                port=link.get("port", 443),
+                ip_address=cloud_svc.get("primary_ip", link.get("cloud_ip", "0.0.0.0")),
+                port=cloud_svc.get("port", link.get("port", 443)),
             )
 
-            interval_ms = link.get("interval_ms", 30000)
+            interval_ms = link.get("heartbeat_interval_ms", link.get("interval_ms", 30000))
 
             return FlowContext(
                 flow_id=f"cloud-{link.get('id', device_id)}",
@@ -681,8 +684,8 @@ class OrchestratorPool:
                 destination=destination,
                 protocol=ProtocolType.CLOUD_SERVICE,
                 config={
-                    "hostname": link.get("hostname", ""),
-                    "tls_enabled": link.get("tls_enabled", True),
+                    "hostname": cloud_svc.get("hostname", link.get("hostname", "")),
+                    "tls_enabled": cloud_svc.get("tls_enabled", link.get("tls_enabled", True)),
                 },
                 timing_model={
                     "poll_interval_ms": interval_ms,

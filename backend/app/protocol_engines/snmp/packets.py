@@ -539,6 +539,15 @@ def build_snmp_get_response_packet(
     )
 
 
+_TRAP_NAME_TO_OID: dict[str, str] = {
+    "coldStart": "1.3.6.1.6.3.1.1.5.1",
+    "warmStart": "1.3.6.1.6.3.1.1.5.2",
+    "linkDown": "1.3.6.1.6.3.1.1.5.3",
+    "linkUp": "1.3.6.1.6.3.1.1.5.4",
+    "authenticationFailure": "1.3.6.1.6.3.1.1.5.5",
+}
+
+
 def build_snmp_trap_packet(
     src_mac: str,
     dst_mac: str,
@@ -588,11 +597,12 @@ def build_snmp_trap_packet(
         )
     else:
         req_id = request_id or random.randint(1, 65535)
+        trap_oid = _TRAP_NAME_TO_OID.get(trap_type, trap_type)
         snmp_payload = build_snmp_trap_v2c(
             community=community,
             request_id=req_id,
             uptime=uptime_ticks,
-            trap_oid=trap_type,
+            trap_oid=trap_oid,
             varbinds=var_binds,
         )
 

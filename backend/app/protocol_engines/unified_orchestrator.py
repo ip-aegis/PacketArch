@@ -266,9 +266,11 @@ class UnifiedOrchestrator:
                 if isinstance(event, PacketEvent):
                     self.output.write_packet(event.packet_bytes, timestamp_ms)
                     packets += 1
-                    fs = self._flow_map.get(event.flow_id)
-                    proto = fs.flow.protocol.value if fs else "unknown"
-                    self.stats.record_packet(proto, len(event.packet_bytes))
+                    # Ambient/attack packets already recorded stats in their handlers
+                    if not event.flow_id.startswith(("ambient_", "__attack__")):
+                        fs = self._flow_map.get(event.flow_id)
+                        proto = fs.flow.protocol.value if fs else "unknown"
+                        self.stats.record_packet(proto, len(event.packet_bytes))
                     if packets % 1000 == 0:
                         logger.debug(f"Generated {packets} packets")
                 elif isinstance(event, dict):
@@ -285,9 +287,10 @@ class UnifiedOrchestrator:
                 if isinstance(event, PacketEvent):
                     self.output.write_packet(event.packet_bytes, timestamp_ms)
                     packets += 1
-                    fs = self._flow_map.get(event.flow_id)
-                    proto = fs.flow.protocol.value if fs else "unknown"
-                    self.stats.record_packet(proto, len(event.packet_bytes))
+                    if not event.flow_id.startswith(("ambient_", "__attack__")):
+                        fs = self._flow_map.get(event.flow_id)
+                        proto = fs.flow.protocol.value if fs else "unknown"
+                        self.stats.record_packet(proto, len(event.packet_bytes))
 
             wall_elapsed_ms = (time.monotonic() - wall_start) * 1000.0
             logger.info(
@@ -329,6 +332,7 @@ class UnifiedOrchestrator:
             protocol = fs.flow.protocol
 
             if protocol == ProtocolType.ETHERNET_IP:
+                # UDP ListIdentity discovery — independent of TCP, works at any time
                 if hasattr(fs.engine, "generate_discovery_sequence"):
                     for pkt in fs.engine.generate_discovery_sequence(
                         fs.flow, fs.conversation, start_time_ms=discovery_time,
@@ -336,12 +340,10 @@ class UnifiedOrchestrator:
                         self.scheduler.schedule(pkt.timestamp_ms, pkt)
                     discovery_time += random.uniform(50.0, 150.0)
 
-                if hasattr(fs.engine, "generate_cip_discovery_sequence"):
-                    self.scheduler.schedule(
-                        discovery_time + 500.0,
-                        {"type": "cip_discovery", "flow_id": fs.flow.flow_id},
-                    )
-                    discovery_time += random.uniform(100.0, 200.0)
+                # CIP deep discovery (GetAttributeAll, etc.) is now performed
+                # inside generate_startup_sequence() after the TCP session is
+                # established, eliminating the timing race where discovery
+                # fired before RegisterSession completed.
 
             elif protocol == ProtocolType.PROFINET:
                 if hasattr(fs.engine, "generate_dcp_discovery_sequence"):
@@ -462,8 +464,6 @@ class UnifiedOrchestrator:
 
         if event_type == "poll":
             self._handle_poll_event(event["flow_id"])
-        elif event_type == "cip_discovery":
-            self._handle_cip_discovery_event(event["flow_id"])
         elif event_type == "attack_stage_tick":
             self._handle_attack_tick()
         elif event_type == "process_sim_tick":
@@ -502,23 +502,6 @@ class UnifiedOrchestrator:
                 next_poll,
                 {"type": "poll", "flow_id": flow_id},
             )
-
-    def _handle_cip_discovery_event(self, flow_id: str) -> None:
-        """Handle CIP deep fingerprinting for EtherNet/IP."""
-        fs = self._flow_map.get(flow_id)
-        if not fs:
-            logger.warning(f"Flow {flow_id} not found for CIP discovery")
-            return
-
-        if not hasattr(fs.engine, "generate_cip_discovery_sequence"):
-            return
-
-        for pkt in fs.engine.generate_cip_discovery_sequence(
-            fs.flow, fs.conversation, start_time_ms=self.current_time_ms,
-        ):
-            self.scheduler.schedule(pkt.timestamp_ms, pkt)
-
-        logger.debug(f"Scheduled CIP discovery for flow {flow_id}")
 
     def _handle_attack_tick(self) -> None:
         """Handle an attack stage tick — generate attack packets."""

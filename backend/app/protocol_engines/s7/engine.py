@@ -325,6 +325,17 @@ class S7Engine(ProtocolEngine):
         state.custom_data["pdu_ref"] = pdu_ref + 1
         state.state_name = "connected"
 
+        # ============================================================
+        # Phase 4: SZL Query (Module Identification)
+        # ============================================================
+        # Emit SZL 0x0011 (module identification) right after setup.
+        # Cisco Cyber Vision uses this to fingerprint Siemens devices
+        # (order code, serial number, firmware version).
+        current_time += random.uniform(10.0, 50.0)
+        yield from self.generate_szl_query_sequence(
+            flow, state, start_time_ms=current_time,
+        )
+
     def generate_szl_query_sequence(
         self,
         flow: FlowContext,

@@ -141,6 +141,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 285,  # ABB
             "device_type": 14,  # Programmable Logic Controller
             "product_code": 590,
+            "product_name": "PM590-ETH AC500 CPU",
             "state": 3,
         },
     ),
@@ -313,6 +314,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 285,  # ABB
             "device_type": 2,  # AC Drive
             "product_code": 880,
+            "product_name": "ACS880-01 INDUSTRIAL DRIVE",
             "state": 3,
         },
     ),

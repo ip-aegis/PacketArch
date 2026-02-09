@@ -129,6 +129,87 @@ class ModbusTcpEngine(ProtocolEngine):
         state.tcp_ack_client = server_seq + 1
         state.tcp_ack_server = client_seq + 1
 
+        # ============================================================
+        # Modbus MEI Discovery (FC 43 — Read Device Identification)
+        # ============================================================
+        # Cisco Cyber Vision uses FC 43 responses to fingerprint Modbus
+        # devices (vendor name, product code, firmware version).
+        mei_start = start_time_ms + random.uniform(5.0, 15.0)
+        yield from self._generate_mei_discovery(flow, state, mei_start)
+
+    def _generate_mei_discovery(
+        self,
+        flow: FlowContext,
+        state: ModbusConversationState,
+        start_time_ms: float,
+    ) -> Iterator[PacketEvent]:
+        """Generate Modbus FC 43 (Read Device Identification) request/response.
+
+        Emits a MEI request (device_id_code=0x01 for basic identification)
+        followed by a fingerprinted response containing vendor, model, and
+        firmware version.  This is what Cisco Cyber Vision parses to identify
+        Modbus devices on the network.
+        """
+        handler = get_handler(0x2B)
+        applicator = flow.destination.fingerprint_applicator
+        unit_id = flow.destination.unit_id or 1
+
+        client_seq = state.tcp_seq_client
+        server_seq = state.tcp_seq_server
+
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
+        # --- MEI Request (from HMI/scanner) ---
+        config_mei = {"device_id_code": 0x01, "object_id": 0x00}
+        request_pdu = handler.build_request(config_mei)
+        state.transaction_id = (state.transaction_id + 1) % 65536
+        request_mbap = build_mbap_header(state.transaction_id, unit_id, len(request_pdu))
+        mei_request = request_mbap + request_pdu
+
+        request_packet = build_tcp_packet(
+            flow.source, flow.destination, mei_request,
+            seq=client_seq, ack=server_seq, flags="PA",
+            tcp_options=client_tcp_opts,
+        )
+        yield PacketEvent(
+            timestamp_ms=start_time_ms,
+            flow_id=flow.flow_id,
+            packet_bytes=request_packet,
+            direction="request",
+            metadata={"type": "modbus_mei_request", "function_code": 0x2B},
+        )
+        client_seq += len(mei_request)
+
+        # --- MEI Response (from device with fingerprint identity) ---
+        response_pdu = handler.build_response_from_fingerprint(config_mei, applicator)
+        response_mbap = build_mbap_header(state.transaction_id, unit_id, len(response_pdu))
+        mei_response = response_mbap + response_pdu
+
+        response_delay = flow.destination.get_response_delay_ms()
+        if response_delay <= 0:
+            response_delay = random.uniform(2.0, 10.0)
+
+        response_packet = build_tcp_packet(
+            flow.destination, flow.source, mei_response,
+            seq=server_seq, ack=client_seq, flags="PA",
+            tcp_options=server_tcp_opts,
+        )
+        yield PacketEvent(
+            timestamp_ms=start_time_ms + response_delay,
+            flow_id=flow.flow_id,
+            packet_bytes=response_packet,
+            direction="response",
+            metadata={"type": "modbus_mei_response", "function_code": 0x2B},
+        )
+        server_seq += len(mei_response)
+
+        # Update state
+        state.tcp_seq_client = client_seq
+        state.tcp_seq_server = server_seq
+        state.tcp_ack_client = server_seq
+        state.tcp_ack_server = client_seq
+
     def generate_poll_cycle(
         self,
         flow: FlowContext,

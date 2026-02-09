@@ -217,7 +217,7 @@ def build_encapsulation_header(
         24-byte encapsulation header
     """
     return struct.pack(
-        "<HHIIQQ",
+        "<HHIIQI",
         command,
         length,
         session_handle,
@@ -581,15 +581,15 @@ def build_register_session_error_response(
 
     data = struct.pack("<HH", protocol_version, options_flags)
 
-    # Build header with error status
+    # Build header with error status (24-byte EtherNet/IP encapsulation)
     header = struct.pack(
-        "<HHIIQQ",
+        "<HHIIQI",
         ENIP_CMD_REGISTER_SESSION,
         len(data),
         0,  # Session handle (0 for error)
         status,
         int.from_bytes(sender_context[:8], "little"),
-        0,  # Options
+        0,  # Options (4 bytes per spec)
     )
 
     return header + data

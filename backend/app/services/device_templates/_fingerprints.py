@@ -136,6 +136,12 @@ def get_fingerprint_from_template(
                 merged["major_minor_revision"] = firmware.version
             elif key == "profinet_identity" and "im0_sw_revision" not in merged:
                 merged["im0_sw_revision"] = firmware.version
+            elif key == "bacnet_identity" and "firmware_revision" not in merged:
+                merged["firmware_revision"] = firmware.version
+            elif key == "s7_identity" and "firmware_version" not in merged:
+                merged["firmware_version"] = firmware.version
+            elif key == "snmp_identity" and "firmware_version" not in merged:
+                merged["firmware_version"] = firmware.version
             elif key == "ethernet_ip_identity":
                 parts = firmware.version.lstrip("V").split(".")
                 if len(parts) >= 2:

@@ -252,6 +252,149 @@ class EtherNetIPEngine(ProtocolEngine):
             client_seq += len(forward_open_request)
             server_seq += len(forward_open_response)
 
+        # === CIP Identity Discovery (in-band, after TCP session is established) ===
+        # Cisco Cyber Vision fingerprints via GetAttributeAll on Identity Object.
+        # These MUST happen inside the TCP session — scheduling as a deferred event
+        # fires before the TCP handshake completes (timing race).
+
+        applicator = flow.destination.fingerprint_applicator
+        sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+        # --- GetAttributeAll on Identity Object (Class 0x01, Instance 1) ---
+        current_time += random.uniform(10.0, 30.0)
+
+        get_all_request = build_cip_unconnected_send_request(
+            service=CIP_SERVICE_GET_ATTRIBUTE_ALL,
+            class_id=CIP_CLASS_IDENTITY,
+            instance_id=1,
+            attribute_id=None,
+            session_handle=session_handle,
+            sender_context=sender_context,
+        )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.source, flow.destination, get_all_request,
+                seq=client_seq, ack=server_seq, flags="PA",
+            ),
+            direction="request",
+            metadata={"type": "cip_get_attribute_all_request", "class": CIP_CLASS_IDENTITY, "instance": 1},
+        )
+
+        timing_sample = applicator.get_response_delay()
+        current_time += timing_sample.delay_ms
+
+        cip_response = build_cip_get_attribute_all_response(applicator, CIP_CLASS_IDENTITY, 1)
+        get_all_response = build_cip_unconnected_send_response(cip_response, session_handle, sender_context)
+        client_seq += len(get_all_request)
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.destination, flow.source, get_all_response,
+                seq=server_seq, ack=client_seq, flags="PA",
+            ),
+            direction="response",
+            metadata={"type": "cip_get_attribute_all_response", "class": CIP_CLASS_IDENTITY, "instance": 1},
+        )
+        server_seq += len(get_all_response)
+
+        # --- GetAttributeSingle for extended attributes ---
+        for attr_id, attr_name in [
+            (9, "configuration_consistency_value"),
+            (10, "heartbeat_interval"),
+            (19, "protection_mode"),
+            (20, "maximum_cip_connections"),
+        ]:
+            current_time += random.uniform(5.0, 15.0)
+            sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+            get_single_request = build_cip_unconnected_send_request(
+                service=CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
+                class_id=CIP_CLASS_IDENTITY,
+                instance_id=1,
+                attribute_id=attr_id,
+                session_handle=session_handle,
+                sender_context=sender_context,
+            )
+
+            yield PacketEvent(
+                timestamp_ms=current_time,
+                flow_id=flow.flow_id,
+                packet_bytes=build_enip_packet_fingerprinted(
+                    flow.source, flow.destination, get_single_request,
+                    seq=client_seq, ack=server_seq, flags="PA",
+                ),
+                direction="request",
+                metadata={"type": "cip_get_attribute_single_request", "attribute": attr_id, "attribute_name": attr_name},
+            )
+
+            timing_sample = applicator.get_response_delay()
+            current_time += timing_sample.delay_ms
+
+            cip_resp = build_cip_get_attribute_single_response(applicator, CIP_CLASS_IDENTITY, 1, attr_id)
+            get_single_response = build_cip_unconnected_send_response(cip_resp, session_handle, sender_context)
+            client_seq += len(get_single_request)
+
+            yield PacketEvent(
+                timestamp_ms=current_time,
+                flow_id=flow.flow_id,
+                packet_bytes=build_enip_packet_fingerprinted(
+                    flow.destination, flow.source, get_single_response,
+                    seq=server_seq, ack=client_seq, flags="PA",
+                ),
+                direction="response",
+                metadata={"type": "cip_get_attribute_single_response", "attribute": attr_id, "attribute_name": attr_name},
+            )
+            server_seq += len(get_single_response)
+
+        # --- ListServices ---
+        current_time += random.uniform(5.0, 15.0)
+        sender_context = bytes([random.randint(0, 255) for _ in range(8)])
+
+        from app.protocol_engines.ethernet_ip.packets import (
+            ENIP_CMD_LIST_SERVICES,
+            build_encapsulation_header,
+        )
+        list_svc_request = build_encapsulation_header(
+            command=ENIP_CMD_LIST_SERVICES,
+            length=0,
+            session_handle=0,
+            sender_context=sender_context,
+        )
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.source, flow.destination, list_svc_request,
+                seq=client_seq, ack=server_seq, flags="PA",
+            ),
+            direction="request",
+            metadata={"type": "enip_list_services_request"},
+        )
+
+        timing_sample = applicator.get_response_delay()
+        current_time += timing_sample.delay_ms
+
+        list_svc_response = build_list_services_response(applicator, sender_context)
+        client_seq += len(list_svc_request)
+
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=build_enip_packet_fingerprinted(
+                flow.destination, flow.source, list_svc_response,
+                seq=server_seq, ack=client_seq, flags="PA",
+            ),
+            direction="response",
+            metadata={"type": "enip_list_services_response"},
+        )
+        server_seq += len(list_svc_response)
+
         # Update state
         state.tcp_seq_client = client_seq
         state.tcp_seq_server = server_seq
