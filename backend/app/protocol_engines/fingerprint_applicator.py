@@ -492,23 +492,27 @@ class FingerprintApplicator:
                 f"Generated unique S7 plc_name: {self.s7_identity['plc_name']}"
             )
 
-        # EtherNet/IP identity: product_name (for Rockwell/AB device naming in Cyber Vision)
-        # This is what CV displays as the device name from ListIdentity responses
+        # EtherNet/IP identity: product_name (CIP Identity Object)
+        # CV uses this for BOTH model-ref and name.  The template's product_name
+        # is the manufacturer catalog string (e.g. "1756-L83E/B LOGIX5580") which
+        # lets CV properly identify the model.  Only generate a synthetic name
+        # when the template doesn't already supply one.
         if self.ethernet_ip_identity:
-            self.ethernet_ip_identity["product_name"] = (
-                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
-                    device_id=self.device_id,
-                    scenario_id=self.scenario_id,
-                    device_name=self.device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
+            if not self.ethernet_ip_identity.get("product_name"):
+                self.ethernet_ip_identity["product_name"] = (
+                    UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                        device_id=self.device_id,
+                        scenario_id=self.scenario_id,
+                        device_name=self.device_name,
+                        model=model,
+                        vendor_family=vendor_family,
+                        vendor=vendor,
+                    )
                 )
-            )
-            logger.debug(
-                f"Generated unique EtherNet/IP product_name: "
-                f"{self.ethernet_ip_identity['product_name']}"
-            )
+                logger.debug(
+                    f"Generated unique EtherNet/IP product_name: "
+                    f"{self.ethernet_ip_identity['product_name']}"
+                )
 
         # Modbus identity: product_name (for Modbus FC43 Device Identification)
         # CV uses this from MEI responses for device naming

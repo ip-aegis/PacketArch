@@ -182,20 +182,23 @@ def enrich_device_unique_identifiers(
         """Check if identity has any data."""
         return bool(identity and isinstance(identity, dict) and len(identity) > 0)
 
-    # EtherNet/IP identity - product_name (what CV displays for Rockwell devices)
+    # EtherNet/IP identity - product_name (CIP Identity Object)
+    # CV uses this for both model-ref and name.  Preserve the template's
+    # manufacturer catalog string; only generate a synthetic name if missing.
     if "ethernet_ip" in protocols:
         existing_identity = fingerprint.get("ethernet_ip_identity")
         if identity_exists(existing_identity):
-            existing_identity["product_name"] = (
-                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
-                    device_id=device_id,
-                    scenario_id=scenario_id,
-                    device_name=device_name,
-                    model=model,
-                    vendor_family=vendor_family,
-                    vendor=vendor,
+            if not existing_identity.get("product_name"):
+                existing_identity["product_name"] = (
+                    UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                        device_id=device_id,
+                        scenario_id=scenario_id,
+                        device_name=device_name,
+                        model=model,
+                        vendor_family=vendor_family,
+                        vendor=vendor,
+                    )
                 )
-            )
 
     # PROFINET identity - station_name (must be unique on PROFINET network)
     if "profinet" in protocols or "profisafe" in protocols:

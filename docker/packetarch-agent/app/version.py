@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.17.0"
+VERSION = "1.17.1"
 
 # Version history:
+# 1.17.1 - Fix EtherNet/IP product_name: preserve template catalog string, stop overwriting with device_name
 # 1.17.0 - Fix CV fingerprinting: CIP identity queries in TCP startup (timing race fix), EWON cloud field mismatch, product_name in all EtherNet/IP templates
 # 1.16.0 - Fix CV fingerprinting: EtherNet/IP encapsulation header (28→24 bytes), S7 SZL + Modbus MEI in startup, BACnet firmware_revision merging
 # 1.15.2 - Fix double-counted "unknown" protocol stats for ambient/attack packets
