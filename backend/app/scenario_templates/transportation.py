@@ -36,7 +36,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 2, "zone": "tmc_core",
-             "name_pattern": "TMC_Master_Station_{n}", "protocols": [],
+             "name_pattern": "TMC_Master_Station_{n}", "protocols": ["snmp", "modbus_tcp"],
              "fingerprint_model": "CP-8000",
              "role": "Traffic Management Center Master Station"},
 
@@ -117,7 +117,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Roadside Unit - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
-             "name": "Highway_V2X_Roadside_Unit", "protocols": [],
+             "name": "Highway_V2X_Roadside_Unit", "protocols": ["snmp"],
              "fingerprint_model": "RSU 5000",
              "role": "V2X Roadside Unit"},
         ],
@@ -238,7 +238,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Coordination Master - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
-             "name": "ATMS_Coordination_Master_Station", "protocols": [],
+             "name": "ATMS_Coordination_Master_Station", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
              "role": "ATMS Coordination Master"},
 
@@ -273,7 +273,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Siemens M60 Controllers
             {"type": "traffic_controller", "vendor": "siemens_its", "count": 3, "zone": "intersection_main",
-             "name_pattern": "Main_Arterial_Signal_Controller_Siemens_{n}", "protocols": [],
+             "name_pattern": "Main_Arterial_Signal_Controller_Siemens_{n}", "protocols": ["snmp"],
              "fingerprint_model": "M60",
              "role": "Traffic Signal Controller (Main)"},
 
@@ -439,7 +439,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
-             "name": "Tunnel_Master_Control_Station", "protocols": [],
+             "name": "Tunnel_Master_Control_Station", "protocols": ["snmp", "modbus_tcp"],
              "fingerprint_model": "CP-8000",
              "role": "Tunnel Master Control Station"},
 
@@ -461,7 +461,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Ventilation Controllers - Siemens TCS-VENT
             {"type": "ventilation_controller", "vendor": "siemens_its", "count": 4, "zone": "ventilation_zone",
-             "name_pattern": "Tunnel_Jet_Fan_Ventilation_Controller_{n}", "protocols": [],
+             "name_pattern": "Tunnel_Jet_Fan_Ventilation_Controller_{n}", "protocols": ["snmp", "modbus_tcp"],
              "fingerprint_model": "TCS-VENT",
              "role": "Tunnel Ventilation Controller"},
 
@@ -548,7 +548,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Roadside Unit - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
-             "name": "Tunnel_Entry_V2X_Roadside_Unit", "protocols": [],
+             "name": "Tunnel_Entry_V2X_Roadside_Unit", "protocols": ["snmp"],
              "fingerprint_model": "RSU 5000",
              "role": "Tunnel Entry RSU"},
         ],
@@ -695,7 +695,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Toll Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "toll_center",
-             "name": "Toll_Plaza_Master_Station", "protocols": [],
+             "name": "Toll_Plaza_Master_Station", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
              "role": "Toll Plaza Master Station"},
 
@@ -724,7 +724,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Roadside Units - Q-Free RSU 5000
             {"type": "rsu", "vendor": "q_free", "count": 4, "zone": "etc_lanes",
-             "name_pattern": "ETC_Lane_Roadside_Unit_{n}", "protocols": [],
+             "name_pattern": "ETC_Lane_Roadside_Unit_{n}", "protocols": ["snmp"],
              "fingerprint_model": "RSU 5000",
              "role": "ETC Roadside Unit"},
 

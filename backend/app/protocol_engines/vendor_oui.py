@@ -426,10 +426,7 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
 }
 
 # Default OUI for unknown vendors (locally administered)
-DEFAULT_OUIS = [
-    "02:00:00",  # Locally administered
-    "00:50:56",  # VMware (common in virtual OT labs)
-]
+DEFAULT_OUI = "02:00:00"
 
 # Human-readable vendor names for display
 # Maps internal key -> display name
@@ -594,7 +591,7 @@ def get_oui_for_vendor(vendor: str) -> str:
             return random.choice(oui_list)
         # Empty list means software vendor - use default OUI
 
-    return random.choice(DEFAULT_OUIS)
+    return DEFAULT_OUI
 
 
 def get_oui_for_device_type(device_type: str, vendor: Optional[str] = None) -> str:
@@ -616,7 +613,7 @@ def get_oui_for_device_type(device_type: str, vendor: Optional[str] = None) -> s
         typical_vendor = random.choice(DEVICE_TYPE_VENDORS[device_type_lower])
         return get_oui_for_vendor(typical_vendor)
 
-    return random.choice(DEFAULT_OUIS)
+    return DEFAULT_OUI
 
 
 def generate_mac_address(vendor: Optional[str] = None, device_type: Optional[str] = None) -> str:
@@ -634,7 +631,7 @@ def generate_mac_address(vendor: Optional[str] = None, device_type: Optional[str
     elif device_type:
         oui = get_oui_for_device_type(device_type)
     else:
-        oui = random.choice(DEFAULT_OUIS)
+        oui = DEFAULT_OUI
 
     # Generate the last 3 bytes randomly
     last_bytes = [random.randint(0, 255) for _ in range(3)]

@@ -150,10 +150,9 @@ class TestEtherNetIPEngine:
 
         assert state.flow_id == flow_context.flow_id
         assert state.state_name == "unconnected"
-        assert "tcp_seq_client" in state.custom_data
-        assert "tcp_seq_server" in state.custom_data
-        assert "session_handle" in state.custom_data
-        assert state.custom_data["session_handle"] == 0
+        assert 100_000_000 <= state.tcp_seq_client <= 4_000_000_000
+        assert 100_000_000 <= state.tcp_seq_server <= 4_000_000_000
+        assert state.session_handle == 0
 
     def test_generate_startup_sequence(self, engine: EtherNetIPEngine, flow_context: FlowContext):
         """Test startup sequence with TCP + RegisterSession + ForwardOpen."""
@@ -174,7 +173,7 @@ class TestEtherNetIPEngine:
 
         # State should be updated
         assert state.state_name == "io_active"
-        assert state.custom_data["session_handle"] != 0
+        assert state.session_handle != 0
 
     def test_generate_startup_skip_forward_open(self, engine: EtherNetIPEngine, flow_context: FlowContext):
         """Test startup skipping ForwardOpen."""

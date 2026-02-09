@@ -441,7 +441,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.002,
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="4.21",
             release_date=date(2024, 1, 1),
@@ -485,7 +485,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0008,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="10.80",
             release_date=date(2024, 1, 1),
@@ -542,7 +542,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0015,
                 "timeout_probability": 0.0008,
             },
-        supported_protocols=['modbus', 'opc_ua'],
+        supported_protocols=['modbus_tcp', 'opc_ua'],
         protocol_quirks={
                 "max_concurrent_connections": 300,
                 "query_timeout_ms": 30000,

@@ -21,6 +21,7 @@ from app.models.traffic_agent import AgentDeployment
 from app.models.remote_deployment import RemoteDeployment
 from app.services.device_identity_enricher import enrich_definition_serial_numbers
 from app.services.ip_management import IPManagementService
+from app.protocol_engines.protocols import validate_protocol_vendor_affinity
 from app.services.protocol_validator import validate_scenario_protocols
 from app.schemas.scenario import (
     ReadinessCheck,
@@ -164,6 +165,21 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         passed=protocols_ok,
         severity="warning",
         message=None if protocols_ok else f"{len(protocol_issues)} protocol mismatch(es)",
+    ))
+
+    # --- Check: Protocol-vendor affinity ---
+    affinity_warnings: list[str] = []
+    for did, device in devices.items():
+        vendor = device.get("vendor") or ""
+        protocols = device.get("protocols") or device.get("supported_protocols") or []
+        if vendor and protocols:
+            affinity_warnings.extend(validate_protocol_vendor_affinity(vendor, protocols))
+    affinity_ok = len(affinity_warnings) == 0
+    checks.append(ReadinessCheck(
+        name="Protocol-vendor affinity",
+        passed=affinity_ok,
+        severity="warning",
+        message=None if affinity_ok else f"{len(affinity_warnings)} vendor-protocol affinity warning(s)",
     ))
 
     # Compute score and status

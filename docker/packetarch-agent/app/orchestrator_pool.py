@@ -294,9 +294,10 @@ class OrchestratorPool:
             ctx.orchestrator = orchestrator
 
             # Add OT protocol flows
+            vertical = ctx.definition.get("vertical")
             flow_count = 0
             for flow_id, flow_def in flows.items():
-                flow_ctx = self._create_flow_context(flow_def, devices)
+                flow_ctx = self._create_flow_context(flow_def, devices, vertical=vertical)
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
                     flow_count += 1
@@ -395,6 +396,105 @@ class OrchestratorPool:
             except Exception as e:
                 logger.warning(f"Attack orchestrator unavailable: {e}")
 
+            # Initialize ambient noise generator (ARP, NTP, LLDP, STP, etc.)
+            try:
+                from app.protocol_engines.ambient import (
+                    AmbientDevice,
+                    BackgroundNoiseGenerator,
+                )
+
+                # Build device-to-zone map and zone VLAN lookup
+                zones_list = ctx.definition.get("zones", [])
+                if isinstance(zones_list, dict):
+                    zones_list = list(zones_list.values())
+                zone_vlan_map: dict[str, int | None] = {}
+                for z in zones_list:
+                    zid = z.get("id", "")
+                    network_info = z.get("network", z)
+                    zone_vlan_map[zid] = network_info.get("vlanId") or network_info.get("vlan")
+
+                def _collect_device_protocols(
+                    dev_id: str, all_flows: dict[str, Any],
+                ) -> list[str]:
+                    protos: list[str] = []
+                    for fdef in all_flows.values():
+                        if fdef.get("sourceDeviceId") == dev_id or fdef.get("targetDeviceId") == dev_id:
+                            p = fdef.get("protocol", "")
+                            if p and p not in protos:
+                                protos.append(p)
+                    return protos
+
+                seen_devices: dict[str, AmbientDevice] = {}
+                for flow_id_iter, flow_def_iter in flows.items():
+                    for dev_key in ("sourceDeviceId", "targetDeviceId"):
+                        dev_id = flow_def_iter.get(dev_key)
+                        dev = devices.get(dev_id) if dev_id else None
+                        if dev and dev_id not in seen_devices:
+                            network = dev.get("network", {})
+                            ip = network.get("ipAddress", "")
+                            mac = network.get("macAddress", "")
+                            if ip and mac:
+                                fp = dev.get("vendorFingerprint") or dev.get("vendor_fingerprint") or {}
+                                dev_zone = dev.get("zone", "")
+                                seen_devices[dev_id] = AmbientDevice(
+                                    device_id=dev_id,
+                                    mac_address=mac,
+                                    ip_address=ip,
+                                    gateway_ip=ip.rsplit(".", 1)[0] + ".1",
+                                    protocols=_collect_device_protocols(dev_id, flows),
+                                    device_type=dev.get("type", fp.get("device_type", "")),
+                                    vendor=fp.get("vendor", ""),
+                                    device_name=dev.get("name", dev_id),
+                                    zone_id=dev_zone if dev_zone else None,
+                                    vlan_id=zone_vlan_map.get(dev_zone),
+                                    vendor_fingerprint=fp,
+                                )
+                if seen_devices:
+                    ambient = BackgroundNoiseGenerator(list(seen_devices.values()))
+                    orchestrator.register_ambient_generator(ambient)
+                    logger.info(
+                        f"Ambient noise enabled for {len(seen_devices)} devices"
+                    )
+            except Exception as e:
+                logger.warning(f"Ambient noise unavailable: {e}")
+
+            # Initialize process simulation
+            try:
+                process_sim_config = ctx.definition.get("process_sim", {})
+                if not process_sim_config.get("enabled") and vertical:
+                    # Auto-enable if vertical has a template
+                    from app.protocol_engines.process_sim.templates import (
+                        get_available_verticals,
+                    )
+                    if vertical in get_available_verticals():
+                        process_sim_config = {"enabled": True, "vertical": vertical}
+                if process_sim_config.get("enabled"):
+                    from app.protocol_engines.process_sim import (
+                        ProcessSimConfig,
+                        ProcessSimController,
+                        build_from_vertical,
+                    )
+
+                    ps_config = ProcessSimConfig.from_dict(process_sim_config)
+                    ps_vertical = ps_config.vertical or vertical
+                    if ps_vertical:
+                        models, faults = build_from_vertical(ps_vertical)
+                        if models:
+                            flow_gens = {
+                                fs.flow.flow_id: fs.flow.payload_generator
+                                for fs in orchestrator.flows
+                                if fs.flow.payload_generator
+                            }
+                            ps_controller = ProcessSimController(
+                                ps_config, models, flow_gens, faults=faults,
+                            )
+                            orchestrator.register_process_sim(ps_controller)
+                            logger.info(
+                                f"Process simulation enabled for vertical '{ps_vertical}'"
+                            )
+            except Exception as e:
+                logger.warning(f"Process simulation unavailable: {e}")
+
             # Update state to running
             ctx.status.state = ScenarioState.RUNNING
             self._notify_status_change(ctx)
@@ -433,6 +533,7 @@ class OrchestratorPool:
         self,
         flow_def: dict[str, Any],
         devices: dict[str, dict[str, Any]],
+        vertical: str | None = None,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -525,6 +626,8 @@ class OrchestratorPool:
             # Merge flow config into protocolConfig
             merged_config = flow_def.get("protocolConfig", {}).copy()
             merged_config.update(flow_config)
+            if vertical:
+                merged_config["_vertical"] = vertical
 
             return FlowContext(
                 flow_id=flow_def.get("id", ""),

@@ -77,6 +77,10 @@ function computeStats(
 // ---------------------------------------------------------------------------
 
 export function inferPurdueLevel(zone: ScenarioZone): number {
+  // Use explicit level from backend/template if available
+  if (zone.level !== undefined) return zone.level;
+
+  // Fallback: infer from zone name and type (for legacy scenarios)
   const nameLower = zone.name.toLowerCase();
 
   if (nameLower.includes('enterprise') || nameLower.includes('corporate')) return 4;

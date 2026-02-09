@@ -1190,22 +1190,22 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "General Purpose Drive"},
 
             {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
-             "name": "Vision_Inspection_Camera", "protocols": [],
+             "name": "Vision_Inspection_Camera", "protocols": ["ethernet_ip"],
              "fingerprint_model": "Inspector P631",
              "role": "Vision System"},
 
             {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
-             "name": "Quality_Check_Camera", "protocols": [],
+             "name": "Quality_Check_Camera", "protocols": ["ethernet_ip"],
              "fingerprint_model": "Inspector P631",
              "role": "Vision System"},
 
             {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
-             "name": "Pallet_Barcode_Scanner", "protocols": [],
+             "name": "Pallet_Barcode_Scanner", "protocols": ["ethernet_ip"],
              "fingerprint_model": "CLV650-0120",
              "role": "Barcode Scanner"},
 
             {"type": "sensor", "vendor": "sick", "count": 1, "zone": "abb_zone",
-             "name": "Product_Barcode_Scanner", "protocols": [],
+             "name": "Product_Barcode_Scanner", "protocols": ["ethernet_ip"],
              "fingerprint_model": "CLV650-0120",
              "role": "Barcode Scanner"},
 

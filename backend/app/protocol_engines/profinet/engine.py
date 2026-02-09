@@ -15,6 +15,7 @@ PROFINET operates at Layer 2 (Ethernet) with EtherType 0x8892.
 """
 
 import random
+import uuid
 from collections.abc import Iterator
 
 from app.protocol_engines import register_engine
@@ -30,6 +31,12 @@ from app.protocol_engines.profinet.packets import (
     build_dcp_identify_request_packet,
     build_dcp_identify_response_packet,
     build_dcp_identify_response_packet_fingerprinted,
+    build_rpc_connect_request,
+    build_rpc_connect_response,
+    build_rpc_control_request,
+    build_rpc_control_response,
+    build_rpc_write_request,
+    build_rpc_write_response,
     build_rt_packet,
     build_irt_packet,
     build_rta_alarm_ack_packet,
@@ -279,13 +286,10 @@ class ProfinetEngine(ProtocolEngine):
             # Small delay before connection establishment
             current_time += random.uniform(5.0, 20.0)
 
-        # Note: Full PROFINET connection establishment (RPC-based AR setup)
-        # is complex and involves multiple steps. For traffic simulation,
-        # we skip directly to RT data exchange after DCP.
-        # In a complete implementation, this would include:
-        # - Connect Request/Response
-        # - Write Request/Response (parameters)
-        # - Control Command (Application Ready)
+        # Phase 3: RPC-based AR (Application Relationship) setup
+        # Connect → Write (parameterization) → Control (ApplicationReady)
+        yield from self._generate_ar_setup(flow, state, current_time)
+        current_time = state.custom_data.get("ar_end_time_ms", current_time)
 
         # For IRT (RT Class 3), perform PTCP synchronization startup
         rt_class = state.custom_data.get("rt_class", RTClass.RT_CLASS_1)
@@ -295,6 +299,152 @@ class ProfinetEngine(ProtocolEngine):
             current_time = state.custom_data.get("last_sync_time_ms", current_time) + 10
 
         state.state_name = "data_exchange"
+
+    def _generate_ar_setup(
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        start_time_ms: float,
+    ) -> Iterator[PacketEvent]:
+        """Generate RPC-based Application Relationship setup.
+
+        Sequence:
+        1. Connect Request  (controller → device)
+        2. Connect Response (device → controller)
+        3. Write Request    (controller → device) — parameterization
+        4. Write Response   (device → controller)
+        5. Control Request  (controller → device) — ApplicationReady / PrmEnd
+        6. Control Response (device → controller)
+        """
+        current_time = start_time_ms
+
+        # Generate AR UUID and session key
+        ar_uuid = uuid.uuid4().bytes
+        session_key = random.randint(1, 65535)
+        ephemeral_port = random.randint(49152, 65534)
+
+        state.custom_data["ar_uuid"] = ar_uuid
+        state.custom_data["session_key"] = session_key
+        state.custom_data["ar_ephemeral_port"] = ephemeral_port
+
+        # --- Connect Request (controller → device) ---
+        connect_req = build_rpc_connect_request(
+            src=flow.source,
+            dst=flow.destination,
+            ar_uuid=ar_uuid,
+            session_key=session_key,
+            src_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=connect_req,
+            direction="request",
+            metadata={"type": "rpc_connect_request"},
+        )
+
+        # --- Connect Response (device → controller) ---
+        applicator = flow.destination.fingerprint_applicator
+        timing_sample = applicator.get_response_delay()
+        response_delay = max(timing_sample.delay_ms, 5.0)
+        current_time += response_delay
+
+        connect_res = build_rpc_connect_response(
+            src=flow.destination,
+            dst=flow.source,
+            ar_uuid=ar_uuid,
+            session_key=session_key,
+            dst_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=connect_res,
+            direction="response",
+            metadata={"type": "rpc_connect_response"},
+        )
+
+        # Small processing gap
+        current_time += random.uniform(2.0, 8.0)
+
+        # --- Write Request (controller → device) ---
+        write_req = build_rpc_write_request(
+            src=flow.source,
+            dst=flow.destination,
+            ar_uuid=ar_uuid,
+            session_key=session_key,
+            src_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=write_req,
+            direction="request",
+            metadata={"type": "rpc_write_request"},
+        )
+
+        # --- Write Response (device → controller) ---
+        timing_sample = applicator.get_response_delay()
+        response_delay = max(timing_sample.delay_ms, 3.0)
+        current_time += response_delay
+
+        write_res = build_rpc_write_response(
+            src=flow.destination,
+            dst=flow.source,
+            ar_uuid=ar_uuid,
+            dst_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=write_res,
+            direction="response",
+            metadata={"type": "rpc_write_response"},
+        )
+
+        # Small processing gap
+        current_time += random.uniform(2.0, 8.0)
+
+        # --- Control Request (controller → device) ---
+        ctrl_req = build_rpc_control_request(
+            src=flow.source,
+            dst=flow.destination,
+            ar_uuid=ar_uuid,
+            session_key=session_key,
+            src_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=ctrl_req,
+            direction="request",
+            metadata={"type": "rpc_control_request"},
+        )
+
+        # --- Control Response (device → controller) ---
+        timing_sample = applicator.get_response_delay()
+        response_delay = max(timing_sample.delay_ms, 3.0)
+        current_time += response_delay
+
+        ctrl_res = build_rpc_control_response(
+            src=flow.destination,
+            dst=flow.source,
+            ar_uuid=ar_uuid,
+            session_key=session_key,
+            dst_port=ephemeral_port,
+        )
+        yield PacketEvent(
+            timestamp_ms=current_time,
+            flow_id=flow.flow_id,
+            packet_bytes=ctrl_res,
+            direction="response",
+            metadata={"type": "rpc_control_response"},
+        )
+
+        # Record AR establishment
+        state.custom_data["is_ar_established"] = True
+        state.custom_data["ar_end_time_ms"] = current_time + random.uniform(5.0, 15.0)
+        state.state_name = "ar_established"
 
     def generate_poll_cycle(
         self,

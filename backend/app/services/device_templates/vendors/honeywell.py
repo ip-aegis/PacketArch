@@ -778,7 +778,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="7.3",
             release_date=date(2024, 1, 1),
@@ -823,7 +823,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0003,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="3.2.0",
             release_date=date(2024, 1, 1),
@@ -859,7 +859,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 25.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="4.2",
             release_date=date(2024, 1, 1),
@@ -904,7 +904,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0003,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="2.50",
             release_date=date(2024, 1, 1),
@@ -940,7 +940,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 12.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="6.1",
             release_date=date(2024, 1, 1),

@@ -4,9 +4,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.11.0"
+VERSION = "1.15.0"
 
 # Version history:
+# 1.15.0 - Broadcast/multicast ecosystem: LLDP, STP, DHCP, BACnet Who-Is, PROFINET DCP, SNMP traps, CDP, IGMP
+# 1.14.0 - Process simulation engine: correlated sensor values with ODE models, state machine, 4 vertical templates
+# 1.13.0 - Unified TCP builder, staggered flow startup, PROFINET AR establishment (RPC Connect/Write/Control)
+# 1.12.0 - PayloadGenerator auto-wiring (realistic sensor values), background noise engine (ARP, NTP)
 # 1.11.0 - Live attack simulation: attack playbook execution, kill-chain stage commands (START/STOP/ADVANCE/PAUSE_ATTACK)
 # 1.10.0 - Deployment phase scheduling: sequential lifecycle phase cycling (startup → steady → maintenance → shutdown)
 # 1.9.0 - Adaptive traffic: server-directed adaptation (ADAPT_TRAFFIC command, directive delivery)

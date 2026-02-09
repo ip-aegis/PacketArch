@@ -142,6 +142,8 @@ class TestLognormalTimingModel:
         """Test that distribution is right-skewed (median < mean)."""
         config = TimingConfig(
             distribution=TimingDistribution.LOGNORMAL,
+            min_ms=1.0,
+            max_ms=500.0,  # Well above mean so right tail isn't clipped
             mean_ms=50.0,
             std_dev_ms=30.0,
             outlier_probability=0,
@@ -149,11 +151,11 @@ class TestLognormalTimingModel:
         )
         model = LognormalTimingModel(config, seed=42)
 
-        samples = [model.sample().delay_ms for _ in range(1000)]
+        samples = [model.sample().delay_ms for _ in range(10000)]
         median = np.median(samples)
         mean = np.mean(samples)
 
-        # For lognormal, median is typically less than mean
+        # For lognormal with unclipped right tail, median < mean
         assert median < mean
 
 

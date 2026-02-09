@@ -10,6 +10,7 @@ import { EmptyState } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
+import ZonePropertyForm from './ZonePropertyForm';
 
 const { Text } = Typography;
 
@@ -59,6 +60,8 @@ const PropertyPanel: React.FC = () => {
           <DevicePropertyForm deviceId={activePropertyContext.ids[0]} />
         ) : activePropertyContext.type === 'flow' ? (
           <FlowPropertyForm flowId={activePropertyContext.ids[0]} />
+        ) : activePropertyContext.type === 'zone' ? (
+          <ZonePropertyForm zoneId={activePropertyContext.ids[0]} />
         ) : activePropertyContext.type === 'multi' ? (
           <EmptyState
             message="Multiple items selected"

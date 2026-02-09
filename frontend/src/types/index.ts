@@ -153,6 +153,7 @@ export interface ScenarioZone {
   id: string;
   name: string;
   type: 'vertical' | 'network' | 'vlan' | 'logical';
+  level?: number;
   position: { x: number; y: number };
   dimensions: { width: number; height: number };
   color?: string;

@@ -26,7 +26,7 @@ class TestBuilderRegistry:
 
     def test_all_protocols_registered(self):
         """Verify all expected protocols are registered."""
-        expected = {"modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet"}
+        expected = {"modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "dnp3", "opc_ua", "iec104"}
         registered = set(get_registered_protocols())
         assert expected == registered
 
@@ -54,7 +54,7 @@ class TestBuilderRegistry:
     def test_get_all_builders(self):
         """Test get_all_builders returns all builder instances."""
         builders = get_all_builders()
-        assert len(builders) == 6
+        assert len(builders) == 9
         assert all(isinstance(b, type(get_builder("modbus")).__bases__[0])
                    for b in builders.values())
 

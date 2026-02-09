@@ -1598,7 +1598,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0003,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         protocol_quirks={
                 "enip_encap_timeout_ms": 10000,
                 "cip_safety_enabled": True,
@@ -1657,7 +1657,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0006,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="32.011",
             release_date=date(2024, 1, 1),
@@ -1713,7 +1713,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0005,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="32.011",
             release_date=date(2024, 1, 1),
@@ -1769,7 +1769,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4, 6],
                 "exception_probability": 0.0004,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="32.011",
             release_date=date(2024, 1, 1),
@@ -1824,7 +1824,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.003,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="14.000",
             release_date=date(2024, 1, 1),
@@ -1882,7 +1882,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.002,
                 "timeout_probability": 0.001,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="21.007",
             release_date=date(2024, 1, 1),
@@ -1940,7 +1940,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.002,
                 "timeout_probability": 0.001,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="21.007",
             release_date=date(2024, 1, 1),
@@ -1998,7 +1998,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.002,
                 "timeout_probability": 0.001,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="21.007",
             release_date=date(2024, 1, 1),
@@ -2056,7 +2056,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.002,
                 "timeout_probability": 0.001,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="21.007",
             release_date=date(2024, 1, 1),
@@ -2112,7 +2112,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0009,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="33.011",
             release_date=date(2024, 1, 1),
@@ -2168,7 +2168,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0004,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         protocol_quirks={
                 "cip_safety_enabled": True,
             },
@@ -2227,7 +2227,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4],
                 "exception_probability": 0.0004,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         protocol_quirks={
                 "cip_safety_enabled": True,
             },

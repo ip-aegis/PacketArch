@@ -5,9 +5,11 @@ This module builds:
 - DCP (Discovery and Configuration Protocol) frames
 - RT (Real-Time) cyclic I/O data frames
 - RTA (Real-Time Acyclic) frames for alarms
+- RPC (DCE/RPC over UDP) frames for AR establishment
 """
 
 import struct
+import uuid
 from typing import TYPE_CHECKING, Any
 
 from app.protocol_engines.types import DeviceContext
@@ -1204,3 +1206,420 @@ class IRTCycleState:
         # Simple linear phase offset within red phase
         phase_duration_ns = self.get_cycle_time_ns() // 4  # Red phase is ~25% of cycle
         return (self.phase * phase_duration_ns) // 256  # Phase is 0-255
+
+
+# =============================================================================
+# PROFINET RPC — Application Relationship (AR) Establishment
+# =============================================================================
+#
+# Real PROFINET uses DCE/RPC over UDP (port 34964) for AR setup:
+#   1. Connect Request/Response  — negotiate AR, allocate IOCRs
+#   2. Write Request/Response    — download parameters to device
+#   3. Control Request/Response  — signal "Application Ready"
+#
+# After Control, the device transitions to cyclic RT data exchange.
+# =============================================================================
+
+# DCE/RPC constants for PROFINET
+PNIO_RPC_PORT = 34964
+PNIO_INTERFACE_UUID = uuid.UUID("dea00001-6c97-11d1-8271-00a02442df7d")
+PNIO_OBJECT_UUID = uuid.UUID("dea00000-6c97-11d1-8271-00a02442df7d")
+
+# DCE/RPC PDU types
+RPC_REQUEST = 0x00
+RPC_RESPONSE = 0x02
+
+# PROFINET RPC operation numbers
+PNIO_OPNUM_CONNECT = 0x0000
+PNIO_OPNUM_RELEASE = 0x0001
+PNIO_OPNUM_READ = 0x0002
+PNIO_OPNUM_WRITE = 0x0003
+PNIO_OPNUM_CONTROL = 0x0004
+
+# PROFINET block types
+BLOCK_TYPE_AR_REQ = 0x0101
+BLOCK_TYPE_AR_RES = 0x8101
+BLOCK_TYPE_IOCR_REQ = 0x0102
+BLOCK_TYPE_IOCR_RES = 0x8102
+BLOCK_TYPE_EXPECTED_SUBMODULE = 0x0104
+BLOCK_TYPE_MODULE_DIFF = 0x8104
+BLOCK_TYPE_IOD_WRITE_REQ = 0x0008
+BLOCK_TYPE_IOD_WRITE_RES = 0x8008
+BLOCK_TYPE_IOD_CONTROL_REQ = 0x0110
+BLOCK_TYPE_IOD_CONTROL_RES = 0x8110
+
+# AR types
+AR_TYPE_IOCR = 0x0001  # IO Controller AR
+
+
+def _build_rpc_header(
+    pdu_type: int,
+    opnum: int,
+    activity_uuid: bytes,
+    body_length: int,
+    fragment_num: int = 0,
+    serial_high: int = 0,
+    serial_low: int = 0,
+) -> bytes:
+    """Build a DCE/RPC PDU header (80 bytes) for PROFINET.
+
+    Uses the connectionless (CL) variant of DCE/RPC over UDP.
+
+    Args:
+        pdu_type: RPC_REQUEST or RPC_RESPONSE
+        opnum: PROFINET operation number
+        activity_uuid: Activity UUID (16 bytes)
+        body_length: Length of the RPC body
+        fragment_num: Fragment number (0 for unfragmented)
+        serial_high: High byte of serial number
+        serial_low: Low byte of serial number
+
+    Returns:
+        80-byte DCE/RPC header
+    """
+    header = struct.pack(
+        "BBBB",
+        0x04,           # RPC version
+        0x00,           # Packet type (overridden below)
+        0x20,           # Flags1: idempotent
+        0x00,           # Flags2
+    )
+    header = header[:1] + struct.pack("B", pdu_type) + header[2:]
+
+    # Data representation (little-endian, ASCII, IEEE float)
+    header += struct.pack("<BBH", 0x10, 0x00, 0x00)
+
+    # Serial high
+    header += struct.pack("B", serial_high)
+
+    # Object UUID (PROFINET IO)
+    header += PNIO_OBJECT_UUID.bytes_le
+
+    # Interface UUID
+    header += PNIO_INTERFACE_UUID.bytes_le
+
+    # Activity UUID
+    header += activity_uuid[:16].ljust(16, b"\x00")
+
+    # Server boot time (0 for client requests)
+    header += struct.pack("<I", 0)
+
+    # Interface version (1.0)
+    header += struct.pack("<I", 0x00000001)
+
+    # Sequence number, operation number, interface hint, activity hint
+    header += struct.pack("<IHHH", 0, opnum, 0xFFFF, 0xFFFF)
+
+    # Fragment length = body length, fragment number
+    header += struct.pack("<HH", body_length, fragment_num)
+
+    # Auth protocol (0 = none), serial low
+    header += struct.pack("BB", 0x00, serial_low)
+
+    return header
+
+
+def _build_pnio_block_header(block_type: int, data_length: int, version: int = 0x0100) -> bytes:
+    """Build a PROFINET block header (6 bytes).
+
+    Args:
+        block_type: Block type code
+        data_length: Length of block data (excluding this 6-byte header)
+        version: Block version (default 1.0)
+
+    Returns:
+        6-byte block header
+    """
+    return struct.pack(">HHH", block_type, data_length + 2, version)
+
+
+def _build_udp_packet(
+    src: DeviceContext,
+    dst: DeviceContext,
+    payload: bytes,
+    src_port: int,
+    dst_port: int = PNIO_RPC_PORT,
+) -> bytes:
+    """Build a raw Ethernet/IP/UDP packet for RPC.
+
+    Args:
+        src: Source device context
+        dst: Destination device context
+        payload: UDP payload (DCE/RPC PDU)
+        src_port: Source UDP port
+        dst_port: Destination UDP port
+
+    Returns:
+        Complete packet bytes
+    """
+    from scapy.layers.inet import IP, UDP
+    from scapy.layers.l2 import Ether
+    from scapy.packet import Raw
+
+    packet = (
+        Ether(src=src.mac_address, dst=dst.mac_address)
+        / IP(src=src.ip_address, dst=dst.ip_address, ttl=64)
+        / UDP(sport=src_port, dport=dst_port)
+        / Raw(load=payload)
+    )
+    return bytes(packet)
+
+
+def build_rpc_connect_request(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    session_key: int,
+    src_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Connect Request (controller → device).
+
+    Establishes an Application Relationship by negotiating AR
+    parameters and I/O Communication Relations (IOCRs).
+
+    Args:
+        src: Source device (IO controller)
+        dst: Destination device (IO device)
+        ar_uuid: Application Relationship UUID (16 bytes)
+        session_key: Session key for this AR
+        src_port: Source UDP port (ephemeral)
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    # AR block request
+    src_mac = bytes.fromhex(src.mac_address.replace(":", "").replace("-", ""))
+    ar_block = _build_pnio_block_header(BLOCK_TYPE_AR_REQ, 52)
+    ar_block += struct.pack(">H", AR_TYPE_IOCR)               # AR type
+    ar_block += ar_uuid[:16]                                    # AR UUID
+    ar_block += struct.pack(">H", session_key)                  # Session key
+    ar_block += src_mac                                         # CM initiator MAC
+    ar_block += PNIO_OBJECT_UUID.bytes[:16]                     # CM initiator object UUID
+    # AR properties: supervisor takeover allowed, parameterization server
+    ar_block += struct.pack(">I", 0x00000001)
+    # Timeout factor (100ms * factor)
+    ar_block += struct.pack(">H", 100)
+    # Padding
+    ar_block += struct.pack(">H", 0)
+
+    # IOCR block (simplified — one output CR)
+    iocr_block = _build_pnio_block_header(BLOCK_TYPE_IOCR_REQ, 28)
+    iocr_block += struct.pack(">H", 0x0001)   # IOCR type: Input CR
+    iocr_block += struct.pack(">H", 0x0001)   # IOCR reference
+    iocr_block += struct.pack(">H", 0x8000)   # Frame ID for RT class 1
+    iocr_block += struct.pack(">H", 0x0020)   # SendClockFactor (32)
+    iocr_block += struct.pack(">H", 0x0001)   # ReductionRatio
+    iocr_block += struct.pack(">H", 0x0001)   # Phase
+    iocr_block += struct.pack(">I", 0x00000000)  # Frame send offset
+    iocr_block += struct.pack(">H", 0x0003)   # Watchdog factor
+    iocr_block += struct.pack(">H", 40)       # Data length
+    iocr_block += struct.pack(">H", 0x8892)   # Frame ID
+
+    # Expected submodule block (simplified — slot 0, subslot 1)
+    submod_block = _build_pnio_block_header(BLOCK_TYPE_EXPECTED_SUBMODULE, 16)
+    submod_block += struct.pack(">H", 1)       # Number of APIs
+    submod_block += struct.pack(">I", 0)       # API 0
+    submod_block += struct.pack(">H", 1)       # Number of submodules
+    submod_block += struct.pack(">HHI", 0x0001, 0x0001, 0x00000001)  # Slot, subslot, submodule ID
+
+    body = ar_block + iocr_block + submod_block
+    activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_REQUEST, PNIO_OPNUM_CONNECT, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, src_port)
+
+
+def build_rpc_connect_response(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    session_key: int,
+    activity_uuid: bytes | None = None,
+    dst_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Connect Response (device → controller).
+
+    Confirms AR establishment and returns allocated IOCR parameters.
+
+    Args:
+        src: Source device (IO device)
+        dst: Destination device (IO controller)
+        ar_uuid: Application Relationship UUID
+        session_key: Session key
+        activity_uuid: Activity UUID from request (or random)
+        dst_port: Destination UDP port (controller's ephemeral port)
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    # AR response block
+    src_mac = bytes.fromhex(src.mac_address.replace(":", "").replace("-", ""))
+    ar_res = _build_pnio_block_header(BLOCK_TYPE_AR_RES, 52)
+    ar_res += struct.pack(">H", AR_TYPE_IOCR)
+    ar_res += ar_uuid[:16]
+    ar_res += struct.pack(">H", session_key)
+    ar_res += src_mac
+    ar_res += PNIO_OBJECT_UUID.bytes[:16]
+    ar_res += struct.pack(">I", 0x00000001)   # AR properties
+    ar_res += struct.pack(">H", 100)          # Timeout factor
+    ar_res += struct.pack(">H", 0)
+
+    # IOCR response block
+    iocr_res = _build_pnio_block_header(BLOCK_TYPE_IOCR_RES, 8)
+    iocr_res += struct.pack(">H", 0x0001)     # IOCR reference
+    iocr_res += struct.pack(">H", 0x8000)     # Frame ID
+    iocr_res += struct.pack(">H", 0x0000)     # Status: OK
+    iocr_res += struct.pack(">H", 0x0000)     # Padding
+
+    # Module diff block (empty — all modules match)
+    diff_block = _build_pnio_block_header(BLOCK_TYPE_MODULE_DIFF, 6)
+    diff_block += struct.pack(">H", 1)         # Number of APIs
+    diff_block += struct.pack(">I", 0)         # API 0
+
+    body = ar_res + iocr_res + diff_block
+    if activity_uuid is None:
+        activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_RESPONSE, PNIO_OPNUM_CONNECT, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, PNIO_RPC_PORT, dst_port)
+
+
+def build_rpc_write_request(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    session_key: int,
+    src_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Write Request (controller → device).
+
+    Downloads parameterization data to the device after AR is connected.
+
+    Args:
+        src: Source device (IO controller)
+        dst: Destination device (IO device)
+        ar_uuid: AR UUID
+        session_key: Session key
+        src_port: Source UDP port
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    # IODWriteMultipleReq block (simplified — one write record)
+    write_block = _build_pnio_block_header(BLOCK_TYPE_IOD_WRITE_REQ, 44)
+    write_block += struct.pack(">H", 0x0001)         # Sequence number
+    write_block += ar_uuid[:16]                       # AR UUID
+    write_block += struct.pack(">I", 0)               # API
+    write_block += struct.pack(">HH", 0x0000, 0x0001) # Slot, subslot
+    write_block += struct.pack(">H", 0x8000)          # Index (device-specific)
+    write_block += struct.pack(">I", 4)               # Record data length
+    write_block += struct.pack(">I", 0x00000001)      # Parameterization data
+
+    body = write_block
+    activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_REQUEST, PNIO_OPNUM_WRITE, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, src_port)
+
+
+def build_rpc_write_response(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    dst_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Write Response (device → controller).
+
+    Confirms parameter download.
+
+    Args:
+        src: Source device (IO device)
+        dst: Destination device (IO controller)
+        ar_uuid: AR UUID
+        dst_port: Destination UDP port
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    write_res = _build_pnio_block_header(BLOCK_TYPE_IOD_WRITE_RES, 36)
+    write_res += struct.pack(">H", 0x0001)             # Sequence number
+    write_res += ar_uuid[:16]                           # AR UUID
+    write_res += struct.pack(">I", 0)                   # API
+    write_res += struct.pack(">HH", 0x0000, 0x0001)    # Slot, subslot
+    write_res += struct.pack(">H", 0x8000)              # Index
+    write_res += struct.pack(">I", 0x00000000)          # Status: OK
+
+    body = write_res
+    activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_RESPONSE, PNIO_OPNUM_WRITE, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, PNIO_RPC_PORT, dst_port)
+
+
+def build_rpc_control_request(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    session_key: int,
+    src_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Control Request — ApplicationReady (controller → device).
+
+    Signals the device that parameterization is complete and it should
+    transition to cyclic data exchange.
+
+    Args:
+        src: Source device (IO controller)
+        dst: Destination device (IO device)
+        ar_uuid: AR UUID
+        session_key: Session key
+        src_port: Source UDP port
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    ctrl_block = _build_pnio_block_header(BLOCK_TYPE_IOD_CONTROL_REQ, 24)
+    ctrl_block += struct.pack(">H", 0x0000)       # Padding
+    ctrl_block += ar_uuid[:16]                     # AR UUID
+    ctrl_block += struct.pack(">H", session_key)   # Session key
+    ctrl_block += struct.pack(">H", 0x0001)        # Control command: PrmEnd
+
+    body = ctrl_block
+    activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_REQUEST, PNIO_OPNUM_CONTROL, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, src_port)
+
+
+def build_rpc_control_response(
+    src: DeviceContext,
+    dst: DeviceContext,
+    ar_uuid: bytes,
+    session_key: int,
+    dst_port: int = 49152,
+) -> bytes:
+    """Build PROFINET RPC Control Response — ApplicationReady confirm (device → controller).
+
+    Confirms the device is ready for cyclic data exchange.
+
+    Args:
+        src: Source device (IO device)
+        dst: Destination device (IO controller)
+        ar_uuid: AR UUID
+        session_key: Session key
+        dst_port: Destination UDP port
+
+    Returns:
+        Complete UDP packet bytes
+    """
+    ctrl_res = _build_pnio_block_header(BLOCK_TYPE_IOD_CONTROL_RES, 24)
+    ctrl_res += struct.pack(">H", 0x0000)          # Padding
+    ctrl_res += ar_uuid[:16]                        # AR UUID
+    ctrl_res += struct.pack(">H", session_key)      # Session key
+    ctrl_res += struct.pack(">H", 0x0002)           # Control command: ApplicationReady
+
+    body = ctrl_res
+    activity_uuid = uuid.uuid4().bytes
+    rpc_header = _build_rpc_header(RPC_RESPONSE, PNIO_OPNUM_CONTROL, activity_uuid, len(body))
+
+    return _build_udp_packet(src, dst, rpc_header + body, PNIO_RPC_PORT, dst_port)

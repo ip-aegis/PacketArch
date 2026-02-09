@@ -2631,7 +2631,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0002,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus', 'profinet', 's7'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
         protocol_quirks={
                 "profisafe_enabled": True,
             },
@@ -2696,7 +2696,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0008,
                 "timeout_probability": 0.0004,
             },
-        supported_protocols=['modbus', 'profinet', 's7'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
         protocol_quirks={
                 "s7_max_pdu_size": 240,
             },
@@ -2761,7 +2761,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0003,
                 "timeout_probability": 0.00015,
             },
-        supported_protocols=['modbus', 'profinet', 's7'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
         protocol_quirks={
                 "s7_max_pdu_size": 960,
             },
@@ -2828,7 +2828,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0002,
                 "timeout_probability": 5e-05,
             },
-        supported_protocols=['modbus', 'profinet', 's7'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
         protocol_quirks={
                 "profinet_cycle_time_us": 500,
                 "s7_max_pdu_size": 960,
@@ -2952,7 +2952,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0002,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus', 'profinet'],
+        supported_protocols=['modbus_tcp', 'profinet'],
         firmware_variants=[FirmwareVariant(
             version="V5.2",
             release_date=date(2024, 1, 1),
@@ -3008,7 +3008,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0005,
                 "timeout_probability": 0.0003,
             },
-        supported_protocols=['modbus', 'profinet'],
+        supported_protocols=['modbus_tcp', 'profinet'],
         firmware_variants=[FirmwareVariant(
             version="V4.8",
             release_date=date(2024, 1, 1),

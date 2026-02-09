@@ -536,7 +536,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Controllers - Siemens Climatix C600
             # Fingerprint has: bacnet_identity ONLY
             {"type": "building_controller", "vendor": "siemens", "count": 2, "zone": "building_b",
-             "name_pattern": "Building_B_Controller_{n}", "protocols": [],
+             "name_pattern": "Building_B_Controller_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "C600",
              "role": "Building Controller"},
 

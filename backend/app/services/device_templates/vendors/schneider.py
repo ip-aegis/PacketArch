@@ -1998,7 +1998,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0008,
                 "timeout_probability": 0.0003,
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="V1.7IE18",
             release_date=date(2024, 1, 1),
@@ -2041,7 +2041,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0005,
                 "timeout_probability": 0.0002,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="V2.1IE26",
             release_date=date(2024, 1, 1),
@@ -2095,7 +2095,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4, 5, 6, 10, 11],
                 "exception_probability": 0.0006,
             },
-        supported_protocols=['modbus', 'ethernet_ip', 'snmp'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip', 'snmp'],
         protocol_quirks={
                 "modbus_max_registers": 125,
                 "modbus_max_coils": 2000,
@@ -2153,7 +2153,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 6.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="5.1",
             release_date=date(2024, 1, 1),
@@ -2196,7 +2196,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="V1.48.520",
             release_date=date(2024, 1, 1),
@@ -2245,7 +2245,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0004,
                 "timeout_probability": 0.0002,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="V2.62",
             release_date=date(2024, 1, 1),
@@ -2298,7 +2298,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="V1.50.598",
             release_date=date(2024, 1, 1),

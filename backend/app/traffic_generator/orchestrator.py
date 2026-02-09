@@ -80,6 +80,67 @@ class TrafficOrchestrator:
             for fc in self._flow_contexts:
                 unified.add_flow(fc)
 
+            # Auto-create ambient noise generator from flow devices
+            from app.protocol_engines.ambient import (
+                AmbientDevice,
+                BackgroundNoiseGenerator,
+            )
+
+            seen_devices: dict[str, AmbientDevice] = {}
+            for fc in self._flow_contexts:
+                for ctx in (fc.source, fc.destination):
+                    if ctx.device_id not in seen_devices and ctx.ip_address:
+                        fp = ctx.vendor_fingerprint or {}
+                        seen_devices[ctx.device_id] = AmbientDevice(
+                            device_id=ctx.device_id,
+                            mac_address=ctx.mac_address,
+                            ip_address=ctx.ip_address,
+                            gateway_ip=ctx.ip_address.rsplit(".", 1)[0] + ".1",
+                            protocols=[fc.protocol.value],
+                            device_type=fp.get("device_type", ""),
+                            vendor=fp.get("vendor", ""),
+                            device_name=getattr(ctx, "device_name", "") or ctx.device_id,
+                            vendor_fingerprint=fp,
+                        )
+                    elif ctx.device_id in seen_devices:
+                        # Accumulate protocols from multiple flows
+                        dev = seen_devices[ctx.device_id]
+                        if fc.protocol.value not in dev.protocols:
+                            dev.protocols.append(fc.protocol.value)
+            if seen_devices:
+                ambient = BackgroundNoiseGenerator(list(seen_devices.values()))
+                unified.register_ambient_generator(ambient)
+
+            # Auto-create process simulation from vertical metadata
+            try:
+                vertical = None
+                for fc in self._flow_contexts:
+                    if isinstance(fc.config, dict):
+                        vertical = fc.config.get("_vertical")
+                        if vertical:
+                            break
+                if vertical:
+                    from app.protocol_engines.process_sim import (
+                        ProcessSimConfig,
+                        ProcessSimController,
+                        build_from_vertical,
+                    )
+
+                    models, faults = build_from_vertical(vertical)
+                    if models:
+                        flow_gens = {
+                            fs.flow.flow_id: fs.flow.payload_generator
+                            for fs in unified.flows
+                            if fs.flow.payload_generator
+                        }
+                        config = ProcessSimConfig(enabled=True, vertical=vertical)
+                        controller = ProcessSimController(
+                            config, models, flow_gens, faults=faults,
+                        )
+                        unified.register_process_sim(controller)
+            except Exception as e:
+                logger.warning(f"Process simulation unavailable: {e}")
+
             logger.info(f"Starting traffic generation for job {self.config.job_id}")
             logger.info(f"Duration: {self.config.total_duration_ms}ms")
             logger.info(f"Output: {self.config.output_path}")

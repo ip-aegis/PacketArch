@@ -393,8 +393,8 @@ class TestS7Engine:
         assert state.custom_data["pdu_ref"] == 0
         assert state.custom_data["negotiated_pdu_size"] == 480
         # Check TCP sequence numbers are in valid range
-        assert 1000000 <= state.custom_data["tcp_seq_client"] <= 9999999
-        assert 1000000 <= state.custom_data["tcp_seq_server"] <= 9999999
+        assert 100_000_000 <= state.custom_data["tcp_seq_client"] <= 4_000_000_000
+        assert 100_000_000 <= state.custom_data["tcp_seq_server"] <= 4_000_000_000
 
     def test_generate_startup_sequence(self, engine: S7Engine, flow_context: FlowContext):
         """Test startup sequence: TCP handshake + COTP CR/CC + S7 setup."""

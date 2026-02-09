@@ -36,12 +36,12 @@ from app.protocol_engines.ethernet_ip.packets import (
     build_register_session_request,
     build_register_session_response,
 )
-from app.protocol_engines.modbus.packets import (
+from app.protocol_engines.tcp_builder import (
+    build_tcp_ack as build_tcp_handshake_ack,
     build_tcp_fin,
     build_tcp_fin_ack,
-    build_tcp_handshake_ack,
-    build_tcp_handshake_syn,
-    build_tcp_handshake_syn_ack,
+    build_tcp_syn as build_tcp_handshake_syn,
+    build_tcp_syn_ack as build_tcp_handshake_syn_ack,
 )
 from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
@@ -69,8 +69,8 @@ class EtherNetIPEngine(ProtocolEngine):
             state_name="unconnected",
             transaction_id=0,
             sequence_number=random.randint(1, 65535),
-            tcp_seq_client=random.randint(1000, 9999),
-            tcp_seq_server=random.randint(1000, 9999),
+            tcp_seq_client=random.randint(100_000_000, 4_000_000_000),
+            tcp_seq_server=random.randint(100_000_000, 4_000_000_000),
             tcp_ack_client=0,
             tcp_ack_server=0,
             session_handle=0,
@@ -93,8 +93,14 @@ class EtherNetIPEngine(ProtocolEngine):
 
         # === TCP Three-Way Handshake ===
 
+        # Get fingerprinted TCP options for client and server
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # SYN from client
-        syn_packet = build_tcp_handshake_syn(flow.source, flow.destination, client_seq)
+        syn_packet = build_tcp_handshake_syn(
+            flow.source, flow.destination, client_seq, tcp_options=client_tcp_opts,
+        )
         yield PacketEvent(
             timestamp_ms=current_time,
             flow_id=flow.flow_id,
@@ -110,6 +116,7 @@ class EtherNetIPEngine(ProtocolEngine):
             flow.source,
             server_seq,
             client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -268,7 +275,24 @@ class EtherNetIPEngine(ProtocolEngine):
         """
         # Get I/O data from config or use default
         io_data_size = flow.config.get("io_data_size", 8)
-        io_data = flow.payload_template.get("io_data", b"\x00" * io_data_size) if flow.payload_template else b"\x00" * io_data_size
+        if flow.payload_template and "io_data" in flow.payload_template:
+            io_data = flow.payload_template["io_data"]
+        elif flow.payload_generator:
+            io_data = bytearray()
+            num_values = io_data_size // 2
+            remainder = io_data_size % 2
+            for j in range(num_values):
+                try:
+                    io_data.extend(
+                        flow.payload_generator.get_value(f"io_{j}", cycle_time_ms)
+                    )
+                except KeyError:
+                    io_data.extend(b"\x00\x00")
+            if remainder:
+                io_data.extend(b"\x00")
+            io_data = bytes(io_data[:io_data_size])
+        else:
+            io_data = b"\x00" * io_data_size
 
         # Build I/O data packet
         state.io_sequence = (state.io_sequence + 1) % 65536

@@ -4,13 +4,11 @@ Implements the S7comm protocol (ISO-on-TCP) for simulating
 traffic to/from Siemens S7-300/400/1200/1500 PLCs.
 """
 
+from __future__ import annotations
+
 import os
 import random
 from collections.abc import Iterator
-
-from scapy.layers.inet import IP, TCP
-from scapy.layers.l2 import Ether
-from scapy.packet import Raw
 
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
@@ -37,6 +35,13 @@ from app.protocol_engines.s7.packets import (
     build_s7_write_request,
     build_s7_write_response,
 )
+from app.protocol_engines.tcp_builder import (
+    build_tcp_ack as _build_tcp_ack,
+    build_tcp_fin as _build_tcp_fin,
+    build_tcp_packet as _build_tcp_packet,
+    build_tcp_syn as _build_tcp_syn,
+    build_tcp_syn_ack as _build_tcp_syn_ack,
+)
 from app.protocol_engines.types import (
     ConversationState,
     DeviceContext,
@@ -51,119 +56,6 @@ from app.traffic_generator.flow_coordinator import (
 
 # S7 default port (ISO-TSAP)
 S7_PORT = 102
-
-
-def _build_tcp_packet(
-    src: DeviceContext,
-    dst: DeviceContext,
-    payload: bytes,
-    seq: int,
-    ack: int,
-    flags: str = "PA",
-) -> bytes:
-    """Build a TCP packet with Ethernet/IP/TCP headers for S7.
-
-    Args:
-        src: Source device context
-        dst: Destination device context
-        payload: TCP payload (TPKT+COTP+S7 data)
-        seq: TCP sequence number
-        ack: TCP acknowledgment number
-        flags: TCP flags
-
-    Returns:
-        Complete packet bytes
-    """
-    # Build Ethernet layer
-    ether = Ether(src=src.mac_address, dst=dst.mac_address)
-
-    # Build IP layer
-    ip = IP(src=src.ip_address, dst=dst.ip_address, ttl=128)
-
-    # Build TCP layer
-    tcp = TCP(
-        sport=src.port,
-        dport=dst.port,
-        seq=seq,
-        ack=ack,
-        flags=flags,
-        window=65535,
-    )
-
-    # Combine layers
-    if payload:
-        packet = ether / ip / tcp / Raw(load=payload)
-    else:
-        packet = ether / ip / tcp
-
-    return bytes(packet)
-
-
-def _build_tcp_syn(src: DeviceContext, dst: DeviceContext, seq: int) -> bytes:
-    """Build TCP SYN packet."""
-    ether = Ether(src=src.mac_address, dst=dst.mac_address)
-    ip = IP(src=src.ip_address, dst=dst.ip_address, ttl=128, flags="DF")
-    tcp = TCP(
-        sport=src.port,
-        dport=dst.port,
-        seq=seq,
-        flags="S",
-        window=65535,
-        options=[("MSS", 1460), ("SAckOK", b""), ("WScale", 7)],
-    )
-    return bytes(ether / ip / tcp)
-
-
-def _build_tcp_syn_ack(
-    src: DeviceContext, dst: DeviceContext, seq: int, ack: int
-) -> bytes:
-    """Build TCP SYN-ACK packet."""
-    ether = Ether(src=src.mac_address, dst=dst.mac_address)
-    ip = IP(src=src.ip_address, dst=dst.ip_address, ttl=128, flags="DF")
-    tcp = TCP(
-        sport=src.port,
-        dport=dst.port,
-        seq=seq,
-        ack=ack,
-        flags="SA",
-        window=65535,
-        options=[("MSS", 1460), ("SAckOK", b""), ("WScale", 7)],
-    )
-    return bytes(ether / ip / tcp)
-
-
-def _build_tcp_ack(
-    src: DeviceContext, dst: DeviceContext, seq: int, ack: int
-) -> bytes:
-    """Build TCP ACK packet."""
-    ether = Ether(src=src.mac_address, dst=dst.mac_address)
-    ip = IP(src=src.ip_address, dst=dst.ip_address, ttl=128)
-    tcp = TCP(
-        sport=src.port,
-        dport=dst.port,
-        seq=seq,
-        ack=ack,
-        flags="A",
-        window=65535,
-    )
-    return bytes(ether / ip / tcp)
-
-
-def _build_tcp_fin(
-    src: DeviceContext, dst: DeviceContext, seq: int, ack: int
-) -> bytes:
-    """Build TCP FIN packet."""
-    ether = Ether(src=src.mac_address, dst=dst.mac_address)
-    ip = IP(src=src.ip_address, dst=dst.ip_address, ttl=128)
-    tcp = TCP(
-        sport=src.port,
-        dport=dst.port,
-        seq=seq,
-        ack=ack,
-        flags="FA",
-        window=65535,
-    )
-    return bytes(ether / ip / tcp)
 
 
 def _parse_s7_config(flow_config: dict) -> S7FlowConfig:
@@ -220,8 +112,8 @@ class S7Engine(ProtocolEngine):
             transaction_id=0,  # S7 PDU reference
             sequence_number=0,
             custom_data={
-                "tcp_seq_client": random.randint(1000000, 9999999),
-                "tcp_seq_server": random.randint(1000000, 9999999),
+                "tcp_seq_client": random.randint(100_000_000, 4_000_000_000),
+                "tcp_seq_server": random.randint(100_000_000, 4_000_000_000),
                 "tcp_ack_client": 0,
                 "tcp_ack_server": 0,
                 "cotp_src_ref": random.randint(1, 255),
@@ -251,6 +143,10 @@ class S7Engine(ProtocolEngine):
         client_seq = state.custom_data["tcp_seq_client"]
         server_seq = state.custom_data["tcp_seq_server"]
 
+        # Get fingerprinted TCP options for client and server
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # Get response timing from CPU profile
         cpu_model = flow.config.get("cpu_model", "CPU 1214C")
         profile = get_cpu_profile(cpu_model)
@@ -264,7 +160,9 @@ class S7Engine(ProtocolEngine):
         # ============================================================
 
         # SYN from client
-        syn_packet = _build_tcp_syn(flow.source, flow.destination, client_seq)
+        syn_packet = _build_tcp_syn(
+            flow.source, flow.destination, client_seq, tcp_options=client_tcp_opts,
+        )
         yield PacketEvent(
             timestamp_ms=current_time,
             flow_id=flow.flow_id,
@@ -276,7 +174,8 @@ class S7Engine(ProtocolEngine):
 
         # SYN-ACK from server
         syn_ack_packet = _build_tcp_syn_ack(
-            flow.destination, flow.source, server_seq, client_seq + 1
+            flow.destination, flow.source, server_seq, client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -289,7 +188,8 @@ class S7Engine(ProtocolEngine):
 
         # ACK from client
         ack_packet = _build_tcp_ack(
-            flow.source, flow.destination, client_seq + 1, server_seq + 1
+            flow.source, flow.destination, client_seq + 1, server_seq + 1,
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -320,7 +220,8 @@ class S7Engine(ProtocolEngine):
             connection_type=config.connection_type,
         )
         cotp_cr_packet = _build_tcp_packet(
-            flow.source, flow.destination, cotp_cr_payload, client_seq, server_seq, "PA"
+            flow.source, flow.destination, cotp_cr_payload, client_seq, server_seq, "PA",
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -341,7 +242,8 @@ class S7Engine(ProtocolEngine):
             src_ref=cotp_dst_ref,
         )
         cotp_cc_packet = _build_tcp_packet(
-            flow.destination, flow.source, cotp_cc_payload, server_seq, client_seq, "PA"
+            flow.destination, flow.source, cotp_cc_payload, server_seq, client_seq, "PA",
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -372,6 +274,7 @@ class S7Engine(ProtocolEngine):
             client_seq,
             server_seq,
             "PA",
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -402,6 +305,7 @@ class S7Engine(ProtocolEngine):
             server_seq,
             client_seq,
             "PA",
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -457,6 +361,10 @@ class S7Engine(ProtocolEngine):
         server_seq = state.custom_data["tcp_seq_server"]
         pdu_ref = state.custom_data["pdu_ref"]
 
+        # Get fingerprinted TCP options
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # Get response timing from CPU profile
         cpu_model = flow.config.get("cpu_model", "CPU 1214C")
         profile = get_cpu_profile(cpu_model)
@@ -482,6 +390,7 @@ class S7Engine(ProtocolEngine):
             client_seq,
             server_seq,
             "PA",
+            tcp_options=client_tcp_opts,
         )
 
         yield PacketEvent(
@@ -527,6 +436,7 @@ class S7Engine(ProtocolEngine):
             server_seq,
             client_seq,
             "PA",
+            tcp_options=server_tcp_opts,
         )
 
         yield PacketEvent(
@@ -598,6 +508,10 @@ class S7Engine(ProtocolEngine):
         server_seq = state.custom_data["tcp_seq_server"]
         pdu_ref = state.custom_data["pdu_ref"]
 
+        # Get fingerprinted TCP options
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # ============================================================
         # Read Variable Request / Response
         # ============================================================
@@ -615,6 +529,7 @@ class S7Engine(ProtocolEngine):
                 client_seq,
                 server_seq,
                 "PA",
+                tcp_options=client_tcp_opts,
             )
             yield PacketEvent(
                 timestamp_ms=current_time,
@@ -631,7 +546,24 @@ class S7Engine(ProtocolEngine):
             response_items = []
             for read_area in config.read_areas:
                 # Generate realistic data based on area type
-                if read_area.area == S7Area.DB:
+                if flow.payload_generator:
+                    # Use PayloadGenerator for correlated, trending values
+                    data = bytearray()
+                    num_floats = read_area.size // 4
+                    remainder = read_area.size % 4
+                    for j in range(num_floats):
+                        try:
+                            data.extend(
+                                flow.payload_generator.get_value(
+                                    f"s7_val_{j}", current_time
+                                )
+                            )
+                        except KeyError:
+                            data.extend(os.urandom(4))
+                    if remainder:
+                        data.extend(os.urandom(remainder))
+                    data = bytes(data[: read_area.size])
+                elif read_area.area == S7Area.DB:
                     # Data block - could be sensor values, setpoints, etc.
                     data = os.urandom(read_area.size)
                 elif read_area.area == S7Area.INPUTS:
@@ -659,6 +591,7 @@ class S7Engine(ProtocolEngine):
                 server_seq,
                 client_seq,
                 "PA",
+                tcp_options=server_tcp_opts,
             )
             yield PacketEvent(
                 timestamp_ms=current_time,
@@ -689,6 +622,7 @@ class S7Engine(ProtocolEngine):
                 client_seq,
                 server_seq,
                 "PA",
+                tcp_options=client_tcp_opts,
             )
             yield PacketEvent(
                 timestamp_ms=current_time,
@@ -714,6 +648,7 @@ class S7Engine(ProtocolEngine):
                 server_seq,
                 client_seq,
                 "PA",
+                tcp_options=server_tcp_opts,
             )
             yield PacketEvent(
                 timestamp_ms=current_time,
@@ -749,6 +684,10 @@ class S7Engine(ProtocolEngine):
         client_seq = state.custom_data["tcp_seq_client"]
         server_seq = state.custom_data["tcp_seq_server"]
 
+        # Get fingerprinted TCP options
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # ============================================================
         # Option 1: Clean COTP Disconnect (some implementations)
         # ============================================================
@@ -765,6 +704,7 @@ class S7Engine(ProtocolEngine):
             client_seq,
             server_seq,
             "PA",
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -782,7 +722,8 @@ class S7Engine(ProtocolEngine):
 
         # FIN from client
         fin_packet = _build_tcp_fin(
-            flow.source, flow.destination, client_seq, server_seq
+            flow.source, flow.destination, client_seq, server_seq,
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -795,7 +736,8 @@ class S7Engine(ProtocolEngine):
 
         # FIN-ACK from server
         fin_ack_packet = _build_tcp_fin(
-            flow.destination, flow.source, server_seq, client_seq + 1
+            flow.destination, flow.source, server_seq, client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,
@@ -808,7 +750,8 @@ class S7Engine(ProtocolEngine):
 
         # Final ACK from client
         final_ack_packet = _build_tcp_ack(
-            flow.source, flow.destination, client_seq + 1, server_seq + 1
+            flow.source, flow.destination, client_seq + 1, server_seq + 1,
+            tcp_options=client_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=current_time,

@@ -371,7 +371,9 @@ async def _generate_traffic_async(
 
             # Build flow contexts from scenario definition
             # Pass scenario_id for unique serial number generation
-            flow_contexts = _build_flow_contexts(scenario.definition, str(scenario.id))
+            flow_contexts = _build_flow_contexts(
+                scenario.definition, str(scenario.id), vertical=scenario.vertical
+            )
 
             # Add flows to orchestrator
             for flow_context in flow_contexts:
@@ -407,6 +409,7 @@ async def _generate_traffic_async(
 def _build_flow_contexts(
     scenario_definition: dict,
     scenario_id: str | None = None,
+    vertical: str | None = None,
 ) -> list[FlowContext]:
     """Build flow contexts from scenario definition.
 
@@ -548,13 +551,17 @@ def _build_flow_contexts(
             logger.warning(f"Unsupported protocol: {protocol_str}")
             continue
 
-        # Build flow context
+        # Build flow context (inject vertical for PayloadGenerator auto-selection)
+        flow_config = flow.get("config", {})
+        if vertical:
+            flow_config = {**flow_config, "_vertical": vertical}
+
         flow_context = FlowContext(
             flow_id=flow.get("id", str(uuid.uuid4())),
             source=source_context,
             destination=destination_context,
             protocol=protocol,
-            config=flow.get("config", {}),
+            config=flow_config,
             timing_model=flow.get("timing_model", {}),
             payload_template=flow.get("payload_template"),
         )

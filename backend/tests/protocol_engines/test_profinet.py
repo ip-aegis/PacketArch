@@ -66,7 +66,7 @@ class TestProfinetPackets:
 
         # Ethernet header: Dst MAC(6) + Src MAC(6) + EtherType(2) = 14 bytes
         assert len(header) == 14
-        assert header[0:6] == bytes.fromhex("667788AABB".replace("99", "99"))  # Dst MAC
+        assert header[0:6] == bytes.fromhex("66778899AABB")  # Dst MAC
         assert header[12:14] == b'\x88\x92'  # PROFINET EtherType
 
     def test_rt_frame_structure(self):
@@ -302,12 +302,12 @@ class TestProfinetEngine:
         assert rt_state.frame_id_input == 0x8001
 
     def test_generate_startup_sequence_with_dcp(self, engine: ProfinetEngine, flow_context: FlowContext):
-        """Test startup with DCP discovery."""
+        """Test startup with DCP discovery + AR establishment."""
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # Should generate DCP Identify Request + Response
-        assert len(events) == 2
+        # Should generate DCP Identify Request + Response + 6 RPC AR packets
+        assert len(events) == 8
 
         assert events[0].metadata["type"] == "dcp_identify_request"
         assert events[0].direction == "request"
@@ -315,17 +315,27 @@ class TestProfinetEngine:
         assert events[1].metadata["type"] == "dcp_identify_response"
         assert events[1].direction == "response"
 
+        # RPC AR setup: Connect, Write, Control (request + response each)
+        assert events[2].metadata["type"] == "rpc_connect_request"
+        assert events[3].metadata["type"] == "rpc_connect_response"
+        assert events[4].metadata["type"] == "rpc_write_request"
+        assert events[5].metadata["type"] == "rpc_write_response"
+        assert events[6].metadata["type"] == "rpc_control_request"
+        assert events[7].metadata["type"] == "rpc_control_response"
+
         # State should be updated
         assert state.state_name == "data_exchange"
+        assert state.custom_data.get("is_ar_established") is True
 
     def test_generate_startup_sequence_skip_dcp(self, engine: ProfinetEngine, flow_context: FlowContext):
-        """Test startup skipping DCP discovery."""
+        """Test startup skipping DCP but still doing AR establishment."""
         flow_context.config["skip_dcp"] = True
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # No DCP packets when skipped
-        assert len(events) == 0
+        # No DCP packets when skipped, but still 6 RPC AR packets
+        assert len(events) == 6
+        assert events[0].metadata["type"] == "rpc_connect_request"
         assert state.state_name == "data_exchange"
 
     def test_generate_poll_cycle(self, engine: ProfinetEngine, flow_context: FlowContext):

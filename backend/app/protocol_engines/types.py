@@ -140,6 +140,8 @@ class FlowContext:
     config: dict[str, Any]
     timing_model: dict[str, Any]
     payload_template: dict[str, Any] | None = None
+    payload_generator: Any | None = None  # PayloadGenerator instance
+    startup_offset_ms: float = 0.0  # Per-flow delay before startup sequence begins
 
 
 @dataclass

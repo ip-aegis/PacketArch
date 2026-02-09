@@ -1,6 +1,7 @@
 """PCAP file writer wrapper."""
 
 import os
+import time
 from pathlib import Path
 
 from scapy.utils import PcapWriter as ScapyPcapWriter
@@ -18,6 +19,7 @@ class PcapWriter:
         self.output_path = Path(output_path)
         self.packet_count = 0
         self.file_size = 0
+        self._time_anchor: float | None = None
 
         # Ensure output directory exists
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,9 +40,13 @@ class PcapWriter:
             self._writer.write_header(packet_bytes)
             self._header_written = True
 
+        # Anchor to wall-clock time so PCAPs don't start at epoch 0
+        if self._time_anchor is None:
+            self._time_anchor = time.time()
+
         # Scapy expects timestamp in seconds (float)
         if timestamp is not None:
-            timestamp_sec = timestamp / 1000.0  # Convert ms to seconds
+            timestamp_sec = self._time_anchor + (timestamp / 1000.0)
         else:
             timestamp_sec = None
 

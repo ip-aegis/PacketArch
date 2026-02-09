@@ -57,8 +57,8 @@ class ModbusTcpEngine(ProtocolEngine):
             state_name="idle",
             transaction_id=random.randint(1, 65535),
             sequence_number=random.randint(1000, 9999),
-            tcp_seq_client=random.randint(1000, 9999),
-            tcp_seq_server=random.randint(1000, 9999),
+            tcp_seq_client=random.randint(100_000_000, 4_000_000_000),
+            tcp_seq_server=random.randint(100_000_000, 4_000_000_000),
             tcp_ack_client=0,
             tcp_ack_server=0,
         )
@@ -74,8 +74,14 @@ class ModbusTcpEngine(ProtocolEngine):
         client_seq = state.tcp_seq_client
         server_seq = state.tcp_seq_server
 
+        # Get fingerprinted TCP options for client and server
+        client_tcp_opts = flow.source.fingerprint_applicator.get_tcp_options()
+        server_tcp_opts = flow.destination.fingerprint_applicator.get_tcp_options()
+
         # SYN from client
-        syn_packet = build_tcp_handshake_syn(flow.source, flow.destination, client_seq)
+        syn_packet = build_tcp_handshake_syn(
+            flow.source, flow.destination, client_seq, tcp_options=client_tcp_opts,
+        )
         yield PacketEvent(
             timestamp_ms=start_time_ms,
             flow_id=flow.flow_id,
@@ -91,6 +97,7 @@ class ModbusTcpEngine(ProtocolEngine):
             flow.source,
             server_seq,
             client_seq + 1,
+            tcp_options=server_tcp_opts,
         )
         yield PacketEvent(
             timestamp_ms=syn_ack_time,
@@ -287,6 +294,23 @@ class ModbusTcpEngine(ProtocolEngine):
                 )
             else:
                 payload_template = flow.payload_template or {}
+                # Use PayloadGenerator for register-read function codes
+                if (
+                    not payload_template.get("values")
+                    and flow.payload_generator
+                    and function_code in (0x03, 0x04)
+                ):
+                    quantity = flow.config.get("quantity", 1)
+                    values = []
+                    for i in range(quantity):
+                        try:
+                            raw = flow.payload_generator.get_value(
+                                f"reg_{i}", cycle_time_ms, as_float=True
+                            )
+                            values.append(int(raw) & 0xFFFF)
+                        except KeyError:
+                            values.append(0)
+                    payload_template = {**payload_template, "values": values}
                 response_pdu = handler.build_response(flow.config, payload_template)
 
             # Build response MBAP header

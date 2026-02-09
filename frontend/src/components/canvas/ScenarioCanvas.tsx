@@ -36,6 +36,8 @@ import type { ClusterViewMode } from '../../stores/uiStore';
 import type { ScenarioFlow } from '../../types';
 import type { DeviceNodeData } from './nodes/DeviceNode';
 import { DEVICE_TYPE_COLORS } from '../../constants/protocols';
+import { validateProtocolVendorAffinity } from '../../utils/protocolVendorAffinity';
+import { message } from 'antd';
 import { registerCanvasDeps } from '../command-palette/CommandPalette';
 
 const nodeTypes = {
@@ -220,6 +222,16 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
 
       const protocol = commonProtocols[0] || sourceDevice.protocols[0];
       if (!protocol) return;
+
+      // Warn on unusual protocol-vendor combinations
+      for (const dev of [sourceDevice, targetDevice]) {
+        if (dev.vendor) {
+          const warnings = validateProtocolVendorAffinity(dev.vendor, [protocol]);
+          if (warnings.length > 0) {
+            message.warning(warnings[0]);
+          }
+        }
+      }
 
       const flowId = `flow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const newFlow: ScenarioFlow = {

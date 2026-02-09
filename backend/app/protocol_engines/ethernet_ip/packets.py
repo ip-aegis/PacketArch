@@ -10,6 +10,7 @@ from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.l2 import Ether
 from scapy.packet import Raw
 
+from app.protocol_engines.tcp_builder import extract_tcp_options
 from app.protocol_engines.types import DeviceContext
 
 if TYPE_CHECKING:
@@ -627,41 +628,12 @@ def build_enip_packet(
     Returns:
         Complete packet bytes
     """
-    from app.protocol_engines.fingerprint_applicator import TcpOptions
+    ttl, window, options, df = extract_tcp_options(tcp_options, flags)
 
-    # Use fingerprinted values if available
-    if tcp_options:
-        ttl = tcp_options.ttl
-        window = tcp_options.window_size
-        # Build TCP options list
-        options = []
-        if tcp_options.mss and "S" in flags:  # MSS only in SYN
-            options.append(("MSS", tcp_options.mss))
-        if tcp_options.sack_permitted and "S" in flags:
-            options.append(("SAckOK", b""))
-        if tcp_options.timestamps_enabled:
-            options.append(("Timestamp", (0, 0)))
-        if tcp_options.window_scaling is not None and "S" in flags:
-            options.append(("WScale", tcp_options.window_scaling))
-        if options and getattr(tcp_options, "nop_padding", False):
-            options.insert(0, ("NOP", None))
-    else:
-        ttl = 64
-        window = 65535
-        options = []
-
-    # Build IP layer with fingerprinted TTL
-    ip_layer = IP(
-        src=src.ip_address,
-        dst=dst.ip_address,
-        ttl=ttl,
-    )
-
-    # Set DF flag if specified
-    if tcp_options and tcp_options.df_flag:
+    ip_layer = IP(src=src.ip_address, dst=dst.ip_address, ttl=ttl)
+    if df:
         ip_layer.flags = "DF"
 
-    # Build TCP layer with fingerprinted window
     tcp_layer = TCP(
         sport=src.port,
         dport=dst.port,
@@ -670,7 +642,6 @@ def build_enip_packet(
         flags=flags,
         window=window,
     )
-
     if options:
         tcp_layer.options = options
 

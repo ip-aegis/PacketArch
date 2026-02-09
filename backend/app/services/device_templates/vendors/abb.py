@@ -693,7 +693,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0005,
                 "timeout_probability": 0.00025,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="2.76",
             release_date=date(2024, 1, 1),
@@ -749,7 +749,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0004,
                 "timeout_probability": 0.0002,
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="1.0",
             release_date=date(2024, 1, 1),

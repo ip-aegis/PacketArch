@@ -37,7 +37,9 @@ from app.traffic_generator.scheduler import EventScheduler
 
 if TYPE_CHECKING:
     from app.protocol_engines.adaptive.controller import AdaptiveController
+    from app.protocol_engines.ambient.noise_generator import BackgroundNoiseGenerator
     from app.protocol_engines.attacks.attack_orchestrator import AttackOrchestrator
+    from app.protocol_engines.process_sim.controller import ProcessSimController
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,9 @@ class UnifiedOrchestrator:
         self.stats = TrafficStats()
         self._adaptive_controller: AdaptiveController | None = None
         self._attack_orchestrator: AttackOrchestrator | None = None
+        self._ambient_generator: BackgroundNoiseGenerator | None = None
+        self._process_sim: ProcessSimController | None = None
+        self._last_process_phase: str | None = None
 
     def add_flow(self, flow_context: FlowContext) -> None:
         """Add a flow to be generated.
@@ -107,6 +112,22 @@ class UnifiedOrchestrator:
             engine=engine,
             poll_interval_ms=poll_interval,
         )
+
+        # Auto-create PayloadGenerator when not explicitly provided
+        if flow_context.payload_generator is None:
+            from app.protocol_engines.payload_defaults import (
+                create_default_payload_generator,
+            )
+
+            flow_context.payload_generator = create_default_payload_generator(
+                protocol=flow_context.protocol,
+                config=flow_context.config
+                if not isinstance(flow_context.config, dict)
+                else flow_context.config,
+                vertical=flow_context.config.get("_vertical")
+                if isinstance(flow_context.config, dict)
+                else None,
+            )
 
         self.flows.append(flow_state)
         self._flow_map[flow_context.flow_id] = flow_state
@@ -158,6 +179,36 @@ class UnifiedOrchestrator:
         warmup_ms = 10_000.0  # 10s after start for discovery/startup to complete
         attack_orch.schedule_initial_events(self.scheduler, warmup_ms)
         logger.info("Attack orchestrator registered")
+
+    def register_ambient_generator(self, generator: BackgroundNoiseGenerator) -> None:
+        """Register a background noise generator for ambient traffic.
+
+        Schedules gratuitous ARP, NTP queries, and other ambient packets
+        on the shared event heap, interleaved with protocol traffic.
+
+        Args:
+            generator: BackgroundNoiseGenerator instance
+        """
+        self._ambient_generator = generator
+        # Schedule ambient events after startup sequences (~500ms)
+        generator.schedule_initial_events(self.scheduler, warmup_ms=500.0)
+        logger.info(
+            f"Ambient noise generator registered for {len(generator.devices)} devices"
+        )
+
+    def register_process_sim(self, controller: ProcessSimController) -> None:
+        """Register a process simulation controller.
+
+        The controller schedules periodic ``process_sim_tick`` control events
+        on the shared heap.  Each tick advances the physical models and pushes
+        correlated values into each flow's :class:`PayloadGenerator`.
+
+        Args:
+            controller: ProcessSimController instance
+        """
+        self._process_sim = controller
+        controller.schedule_initial_events(self.scheduler, warmup_ms=100.0)
+        logger.info("Process simulation controller registered")
 
     def run(self, stop_event: threading.Event | None = None) -> OrchestrationResult:
         """Run traffic generation.
@@ -307,17 +358,75 @@ class UnifiedOrchestrator:
     # Startup scheduling
     # ------------------------------------------------------------------
 
+    # Role-based startup offset ranges (ms).  Infrastructure and supervisory
+    # devices boot first; field devices come up last.
+    _STARTUP_OFFSETS: dict[str, tuple[float, float]] = {
+        "scada": (0, 2000),
+        "hmi": (0, 2000),
+        "server": (0, 2000),
+        "workstation": (0, 2000),
+        "plc": (2000, 10000),
+        "controller": (2000, 10000),
+        "rtu": (2000, 10000),
+        "safety_controller": (2000, 10000),
+        "sensor": (5000, 20000),
+        "actuator": (5000, 20000),
+        "drive": (5000, 20000),
+        "meter": (5000, 20000),
+        "io_module": (5000, 20000),
+        "field_device": (5000, 20000),
+    }
+    _DEFAULT_OFFSET = (1000, 15000)
+
+    def _compute_startup_offset(self, fs: FlowState) -> float:
+        """Compute a startup offset for a flow based on device role.
+
+        In timed mode, offsets are capped to 10% of total duration so that
+        short PCAP captures aren't eaten up by stagger.
+
+        Returns:
+            Offset in milliseconds
+        """
+        # Honour explicit offset if the caller pre-set it
+        if fs.flow.startup_offset_ms > 0:
+            return fs.flow.startup_offset_ms
+
+        device_type = ""
+        dst = fs.flow.destination
+        if dst.vendor_fingerprint:
+            device_type = dst.vendor_fingerprint.get("device_type", "").lower()
+
+        lo, hi = self._STARTUP_OFFSETS.get(device_type, self._DEFAULT_OFFSET)
+
+        # In timed mode, cap offset to 10% of the total duration
+        if self.duration_ms is not None:
+            cap = self.duration_ms * 0.10
+            lo = min(lo, cap)
+            hi = min(hi, cap)
+
+        return random.uniform(lo, hi)
+
     def _schedule_startup_sequences(self) -> None:
-        """Schedule startup sequences for all flows."""
+        """Schedule startup sequences for all flows with staggered offsets.
+
+        Devices boot in a realistic order: supervisory first, then
+        controllers, then field devices — each with a random offset
+        within their role-based range.
+        """
         for fs in self.flows:
+            offset = self._compute_startup_offset(fs)
+            fs.flow.startup_offset_ms = offset
+
             for pkt in fs.engine.generate_startup_sequence(
-                fs.flow, fs.conversation, start_time_ms=0.0,
+                fs.flow, fs.conversation, start_time_ms=offset,
             ):
                 self.scheduler.schedule(pkt.timestamp_ms, pkt)
 
             fs.is_started = True
 
-            first_poll = apply_jitter(fs.poll_interval_ms, fs.flow.timing_model)
+            first_poll = offset + apply_jitter(
+                fs.poll_interval_ms, fs.flow.timing_model,
+            )
             fs.next_poll_time = first_poll
             self.scheduler.schedule(
                 first_poll,
@@ -348,8 +457,8 @@ class UnifiedOrchestrator:
     # ------------------------------------------------------------------
 
     def _handle_control_event(self, event: dict[str, Any]) -> None:
-        """Handle control events (poll triggers, CIP discovery, etc.)."""
-        event_type = event.get("type")
+        """Handle control events (poll triggers, CIP discovery, ambient, etc.)."""
+        event_type = event.get("type", "")
 
         if event_type == "poll":
             self._handle_poll_event(event["flow_id"])
@@ -357,6 +466,10 @@ class UnifiedOrchestrator:
             self._handle_cip_discovery_event(event["flow_id"])
         elif event_type == "attack_stage_tick":
             self._handle_attack_tick()
+        elif event_type == "process_sim_tick":
+            self._handle_process_sim_tick()
+        elif event_type.startswith("ambient_"):
+            self._handle_ambient_event(event)
 
     def _handle_poll_event(self, flow_id: str) -> None:
         """Handle a poll trigger for a flow."""
@@ -418,6 +531,32 @@ class UnifiedOrchestrator:
             self.scheduler.schedule(pkt.timestamp_ms, pkt)
             self.stats.record_packet("attack", len(pkt.packet_bytes))
 
+    def _handle_ambient_event(self, event: dict[str, Any]) -> None:
+        """Handle an ambient noise event — generate ARP/NTP packets."""
+        if not self._ambient_generator:
+            return
+        packets = self._ambient_generator.handle_event(
+            event, self.current_time_ms, self.scheduler,
+        )
+        for pkt in packets:
+            self.scheduler.schedule(pkt.timestamp_ms, pkt)
+            self.stats.record_packet("ambient", len(pkt.packet_bytes))
+
+    def _handle_process_sim_tick(self) -> None:
+        """Handle a process simulation tick — advance models, push values."""
+        if not self._process_sim:
+            return
+
+        # Forward deployment phase changes to process state machine
+        if self._adaptive_controller:
+            snapshot = self._adaptive_controller.get_state_snapshot()
+            phase_id = snapshot.get("deployment_phase_id") if snapshot else None
+            if phase_id and phase_id != self._last_process_phase:
+                self._last_process_phase = phase_id
+                self._process_sim.on_phase_change(phase_id)
+
+        self._process_sim.handle_tick(self.current_time_ms, self.scheduler)
+
     def get_stats_snapshot(self) -> dict | None:
         """Get a JSON-serializable snapshot of current traffic stats."""
         snapshot = self.stats.snapshot()
@@ -425,4 +564,6 @@ class UnifiedOrchestrator:
             snapshot["adaptation"] = self._adaptive_controller.get_state_snapshot()
         if snapshot and self._attack_orchestrator:
             snapshot["attack"] = self._attack_orchestrator.get_state_snapshot()
+        if snapshot and self._process_sim:
+            snapshot["process_sim"] = self._process_sim.get_state_snapshot()
         return snapshot

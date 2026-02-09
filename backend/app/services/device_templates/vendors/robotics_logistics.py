@@ -259,7 +259,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="6.2.0",
             release_date=date(2024, 1, 1),
@@ -347,7 +347,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="5.4.0",
             release_date=date(2024, 1, 1),
@@ -392,7 +392,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="7.5.0",
             release_date=date(2024, 1, 1),
@@ -435,7 +435,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 5.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="8.2.0",
             release_date=date(2024, 1, 1),
@@ -591,7 +591,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'ethernet_ip', 'profinet'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip', 'profinet'],
         firmware_variants=[FirmwareVariant(
             version="3.2.1",
             release_date=date(2024, 1, 1),
@@ -650,7 +650,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 4.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus'],
+        supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="3.8.0",
             release_date=date(2024, 1, 1),
@@ -695,7 +695,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),
@@ -743,7 +743,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),
@@ -791,7 +791,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 10.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'ethernet_ip'],
+        supported_protocols=['modbus_tcp', 'ethernet_ip'],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),
@@ -837,7 +837,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="3.28.10",
             release_date=date(2024, 1, 1),
@@ -880,7 +880,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 10.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus', 'snmp'],
+        supported_protocols=['modbus_tcp', 'snmp'],
         firmware_variants=[FirmwareVariant(
             version="3.29.15",
             release_date=date(2024, 1, 1),
