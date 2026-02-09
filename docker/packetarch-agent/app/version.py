@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.18.0"
+VERSION = "1.18.1"
 
 # Version history:
+# 1.18.1 - Ambient SNMP discovery: periodic GET/Response for devices with SNMP protocol (CV fingerprints EWON/gateway devices)
 # 1.18.0 - Fix protocol alias mapping: profisafe→profinet, s7comm_plus→s7comm, cip_safety→ethernet_ip; add scenario_id/device_name to DeviceContext
 # 1.17.1 - Fix EtherNet/IP product_name: preserve template catalog string, stop overwriting with device_name
 # 1.17.0 - Fix CV fingerprinting: CIP identity queries in TCP startup (timing race fix), EWON cloud field mismatch, product_name in all EtherNet/IP templates

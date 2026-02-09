@@ -79,6 +79,8 @@ class AmbientConfig:
     profinet_dcp_enabled: bool = True
     profinet_dcp_interval_s: float = 120.0  # 2 minutes
     snmp_trap_enabled: bool = True     # coldStart one-shot at boot
+    snmp_discovery_enabled: bool = True  # periodic SNMP GET/Response for CV fingerprinting
+    snmp_discovery_interval_s: float = 300.0  # 5 minutes
     igmp_enabled: bool = True
     igmp_interval_s: float = 125.0
     cdp_enabled: bool = True
@@ -199,6 +201,12 @@ class BackgroundNoiseGenerator:
                     "device_id": device.device_id,
                 })
 
+            if self._should_snmp_discovery(device):
+                scheduler.schedule(base_t + random.uniform(5000.0, 20000.0), {
+                    "type": "ambient_snmp_discovery",
+                    "device_id": device.device_id,
+                })
+
     # ------------------------------------------------------------------
     # Event dispatch
     # ------------------------------------------------------------------
@@ -212,6 +220,7 @@ class BackgroundNoiseGenerator:
         "ambient_bacnet_whois": "_handle_bacnet_whois",
         "ambient_profinet_dcp": "_handle_profinet_dcp",
         "ambient_snmp_coldstart": "_handle_snmp_coldstart",
+        "ambient_snmp_discovery": "_handle_snmp_discovery",
         "ambient_dhcp_boot": "_handle_dhcp_boot",
         "ambient_igmp_join": "_handle_igmp_join",
     }
@@ -267,7 +276,15 @@ class BackgroundNoiseGenerator:
     def _should_snmp_trap(self, device: AmbientDevice) -> bool:
         """Managed devices send SNMP coldStart on boot."""
         return (self.config.snmp_trap_enabled
-                and device.device_type in ("switch", "plc", "rtu", "controller"))
+                and device.device_type in (
+                    "switch", "plc", "rtu", "controller",
+                    "remote_gateway", "gateway", "remote_access",
+                ))
+
+    def _should_snmp_discovery(self, device: AmbientDevice) -> bool:
+        """Devices with SNMP get periodic GET/Response for CV fingerprinting."""
+        return (self.config.snmp_discovery_enabled
+                and "snmp" in device.protocols)
 
     def _should_igmp(self, device: AmbientDevice) -> bool:
         """Devices using multicast protocols send IGMP joins."""
@@ -664,6 +681,118 @@ class BackgroundNoiseGenerator:
                 metadata={"type": "snmp_coldstart", "device_id": device.device_id},
             )
         ]
+
+    # ------------------------------------------------------------------
+    # Handlers: SNMP discovery (periodic GET/Response for CV fingerprinting)
+    # ------------------------------------------------------------------
+
+    def _handle_snmp_discovery(
+        self,
+        device: AmbientDevice,
+        current_time_ms: float,
+        scheduler: Any,
+        event: dict[str, Any],
+    ) -> list[PacketEvent]:
+        """Emit SNMP GET + Response pairs for system MIB OIDs.
+
+        Simulates a management station polling the device. CV uses sysDescr,
+        sysName, and sysObjectID from SNMP responses for device fingerprinting.
+        """
+        try:
+            from app.protocol_engines.snmp.packets import (
+                build_snmp_get_request_packet,
+                build_snmp_get_response_packet,
+            )
+            from app.protocol_engines.snmp.types import SNMP_AGENT_PORT, VarBind
+        except ImportError:
+            logger.debug("SNMP engine not available, skipping discovery")
+            return []
+
+        # Schedule next discovery
+        interval_ms = self.config.snmp_discovery_interval_s * 1000
+        jitter = random.uniform(-interval_ms * 0.1, interval_ms * 0.1)
+        scheduler.schedule(current_time_ms + interval_ms + jitter, {
+            "type": "ambient_snmp_discovery",
+            "device_id": device.device_id,
+        })
+
+        # Use gateway as management station (SNMP manager)
+        mgr_ip = device.gateway_ip or "10.0.0.1"
+        mgr_mac = self.config.ntp_server_mac  # locally-administered MAC
+
+        # Extract SNMP identity from fingerprint
+        fp = device.vendor_fingerprint
+        snmp_id = fp.get("protocol_identities", {}).get("snmp", {})
+        if not snmp_id:
+            snmp_id = fp.get("snmp_identity", {}) or {}
+
+        sys_descr = snmp_id.get("sys_descr", f"{device.vendor} {device.device_name or device.device_id}")
+        sys_object_id = snmp_id.get("sys_object_id", "1.3.6.1.4.1.9.1.1")
+        sys_name = snmp_id.get("sys_name", device.device_name or device.device_id)
+        sys_location = snmp_id.get("sys_location", "Industrial Site")
+
+        # MIB-II system OIDs to poll
+        oid_values = [
+            ("1.3.6.1.2.1.1.1.0", sys_descr, "string"),       # sysDescr
+            ("1.3.6.1.2.1.1.2.0", sys_object_id, "oid"),       # sysObjectID
+            ("1.3.6.1.2.1.1.3.0", int(current_time_ms / 10), "timeticks"),  # sysUpTime
+            ("1.3.6.1.2.1.1.5.0", sys_name, "string"),         # sysName
+            ("1.3.6.1.2.1.1.6.0", sys_location, "string"),     # sysLocation
+        ]
+
+        packets: list[PacketEvent] = []
+        request_id = random.randint(1, 0x7FFFFFFF)
+        t = current_time_ms
+
+        for oid, value, val_type in oid_values:
+            src_port = random.randint(49152, 65535)
+
+            # GET request from manager → device
+            req_bytes = build_snmp_get_request_packet(
+                src_mac=mgr_mac,
+                dst_mac=device.mac_address,
+                src_ip=mgr_ip,
+                dst_ip=device.ip_address,
+                src_port=src_port,
+                dst_port=SNMP_AGENT_PORT,
+                community="public",
+                request_id=request_id,
+                oids=[oid],
+            )
+            packets.append(PacketEvent(
+                timestamp_ms=t,
+                flow_id=f"ambient_snmp_{device.device_id}",
+                packet_bytes=req_bytes,
+                direction="request",
+                metadata={"type": "snmp_discovery_get", "device_id": device.device_id},
+            ))
+
+            # Response from device → manager
+            resp_delay = random.uniform(5.0, 30.0)
+            var_bind = VarBind(oid=oid, value=value, value_type=val_type)
+            resp_bytes = build_snmp_get_response_packet(
+                src_mac=device.mac_address,
+                dst_mac=mgr_mac,
+                src_ip=device.ip_address,
+                dst_ip=mgr_ip,
+                src_port=SNMP_AGENT_PORT,
+                dst_port=src_port,
+                community="public",
+                request_id=request_id,
+                var_binds=[var_bind],
+            )
+            packets.append(PacketEvent(
+                timestamp_ms=t + resp_delay,
+                flow_id=f"ambient_snmp_{device.device_id}",
+                packet_bytes=resp_bytes,
+                direction="response",
+                metadata={"type": "snmp_discovery_response", "device_id": device.device_id},
+            ))
+
+            t += resp_delay + random.uniform(10.0, 50.0)
+            request_id += 1
+
+        return packets
 
     # ------------------------------------------------------------------
     # Handlers: DHCP boot (one-shot)
