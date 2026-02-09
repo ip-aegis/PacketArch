@@ -70,7 +70,9 @@ PROTOCOL_PORTS = {
     "s7comm": 102,
     "s7comm_plus": 102,
     "ethernet_ip": 44818,
+    "cip_safety": 44818,
     "profinet": 0,
+    "profisafe": 0,
     "bacnet_ip": 47808,
     "bacnet": 47808,
     "dnp3": 20000,
@@ -92,6 +94,18 @@ PROTOCOL_PORTS = {
     "dcs": 502,
     "cloud_service": 443,
     "https": 443,
+}
+
+# Map variant/safety protocol names to their parent engine ProtocolType values.
+# Scenario templates use specific protocol strings (e.g. "profisafe", "s7comm_plus")
+# but the traffic engine only has parent protocol implementations.
+PROTOCOL_ALIASES = {
+    "profisafe": "profinet",       # PROFIsafe uses PROFINET engine
+    "s7comm_plus": "s7comm",       # S7comm+ uses S7comm engine
+    "cip_safety": "ethernet_ip",   # CIP Safety uses EtherNet/IP engine
+    "modbus": "modbus_tcp",        # Generic modbus alias
+    "enip": "ethernet_ip",         # Short alias
+    "bacnet_ip": "bacnet",         # BACnet/IP alias
 }
 
 
@@ -297,7 +311,9 @@ class OrchestratorPool:
             vertical = ctx.definition.get("vertical")
             flow_count = 0
             for flow_id, flow_def in flows.items():
-                flow_ctx = self._create_flow_context(flow_def, devices, vertical=vertical)
+                flow_ctx = self._create_flow_context(
+                    flow_def, devices, vertical=vertical, scenario_id=ctx.scenario_id,
+                )
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
                     flow_count += 1
@@ -534,6 +550,7 @@ class OrchestratorPool:
         flow_def: dict[str, Any],
         devices: dict[str, dict[str, Any]],
         vertical: str | None = None,
+        scenario_id: str | None = None,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -555,9 +572,12 @@ class OrchestratorPool:
 
             protocol_str = flow_def.get("protocol", "modbus_tcp")
 
+            # Map variant protocol names to their parent engine type
+            engine_protocol_str = PROTOCOL_ALIASES.get(protocol_str, protocol_str)
+
             # Map protocol string to ProtocolType enum
             try:
-                protocol = ProtocolType(protocol_str)
+                protocol = ProtocolType(engine_protocol_str)
             except ValueError:
                 logger.warning(f"Unknown protocol '{protocol_str}', skipping flow")
                 return None
@@ -579,6 +599,8 @@ class OrchestratorPool:
                 ip_address=src_network.get("ipAddress", "10.0.0.1"),
                 port=flow_def.get("protocolConfig", {}).get("sourcePort", 50000),
                 vendor_fingerprint=src_fingerprint,
+                scenario_id=scenario_id,
+                device_name=source_device.get("name"),
             )
 
             # Build destination DeviceContext
@@ -608,6 +630,8 @@ class OrchestratorPool:
                     port=flow_def.get("protocolConfig", {}).get("port", default_port),
                     unit_id=flow_def.get("protocolConfig", {}).get("unitId", 1),
                     vendor_fingerprint=dst_fingerprint,
+                    scenario_id=scenario_id,
+                    device_name=target_device.get("name"),
                 )
 
             # Timing model
