@@ -64,7 +64,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Cisco IOS Software, IE3300 Software (IE3300-UNIVERSALK9-M)",
+            "sys_descr": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.12.02, RELEASE SOFTWARE",
             "sys_object_id": "1.3.6.1.4.1.9.1.2824",
         },
     ),
@@ -121,7 +121,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Cisco IOS Software, IE4000 Software (IE4000-UNIVERSAL-M)",
+            "sys_descr": "Cisco IOS Software, IE4000 Software (IE4000-UNIVERSAL-M) V15.2(8)E",
             "sys_object_id": "1.3.6.1.4.1.9.1.2238",
         },
     ),

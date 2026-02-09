@@ -69,6 +69,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 501,
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Omron NJ501 Machine Controller V1.64",
+            "sys_object_id": "1.3.6.1.4.1.1103.116.46",
+            "sys_name": "NJ501-MACHIN-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="omron/cj2m/cj2m-cpu35",
@@ -119,6 +126,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-34151"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Omron CJ2M CPU Unit V2.1",
+            "sys_object_id": "1.3.6.1.4.1.1103.345.37",
+            "sys_name": "CJ2M-CPU-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="mitsubishi/iq-r/r08cpu",
@@ -176,6 +190,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-40265", "CVE-2021-20609"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Mitsubishi MELSEC iQ-R CPU V53",
+            "sys_object_id": "1.3.6.1.4.1.18296.234.67",
+            "sys_name": "MELSEC-IQ-R-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="mitsubishi/fx5/fx5u-32mt",
@@ -226,5 +247,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-25164"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Mitsubishi MELSEC FX5U Compact PLC V1.280",
+            "sys_object_id": "1.3.6.1.4.1.18296.583.7",
+            "sys_name": "MELSEC-FX5U-001",
+            "sys_location": "Production Floor",
+        },
     ),
 ]

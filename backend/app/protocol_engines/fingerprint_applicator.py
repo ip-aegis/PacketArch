@@ -342,9 +342,9 @@ class FingerprintApplicator:
         combination will always produce the same serial number.
         """
         try:
-            from app.services.serial_number_generator import SerialNumberGenerator
+            from app.protocol_engines.serial_number_generator import SerialNumberGenerator
         except ImportError:
-            logger.debug("SerialNumberGenerator not available (agent context), skipping unique serials")
+            logger.debug("SerialNumberGenerator not available, skipping unique serials")
             return
 
         vendor = self.fingerprint.get("vendor", "")
@@ -404,9 +404,9 @@ class FingerprintApplicator:
         produces the same values.
         """
         try:
-            from app.services.unique_identifier_generator import UniqueIdentifierGenerator
+            from app.protocol_engines.unique_identifier_generator import UniqueIdentifierGenerator
         except ImportError:
-            logger.debug("UniqueIdentifierGenerator not available (agent context), skipping unique identifiers")
+            logger.debug("UniqueIdentifierGenerator not available, skipping unique identifiers")
             return
 
         model = self.fingerprint.get("model", "")

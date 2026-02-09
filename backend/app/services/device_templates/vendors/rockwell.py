@@ -109,6 +109,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "enip_encap_timeout_ms": 10000,
             "cip_connection_timeout_multiplier": 32,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation ControlLogix 5580 V34.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.583.86",
+            "sys_name": "CONTRO-5580-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/compactlogix/l33er",
@@ -183,6 +190,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "1769-L33ER COMPACTLOGIX",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation CompactLogix 5370 V34.014",
+            "sys_object_id": "1.3.6.1.4.1.53148.591.21",
+            "sys_name": "COMPAC-5370-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/panelview/plus7-15",
@@ -246,6 +260,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 773,
             "product_name": "2711P-T15C22D9P PANELVIEW PLUS 7",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PanelView Plus 7 - 15 inch V14.00",
+            "sys_object_id": "1.3.6.1.4.1.53148.192.56",
+            "sys_name": "PANELV-PLUS-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -328,7 +349,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation 1756-L85E/B ControlLogix 5580",
+            "sys_descr": "Rockwell Automation 1756-L85E/B ControlLogix 5580 V35.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
@@ -397,6 +418,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "1756-L83ES/B GUARDLOGIX",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation GuardLogix 5580 Safety V35.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.956.43",
+            "sys_name": "GUARDL-5580-001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="rockwell/pointio/1734-aent",
@@ -461,6 +489,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "1734-AENT POINT I/O",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation Point I/O EtherNet/IP Adapter V7.013",
+            "sys_object_id": "1.3.6.1.4.1.53148.291.16",
+            "sys_name": "POINT-I-O-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="rockwell/flex5000/5094-aen2tr",
@@ -519,6 +554,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 196,
             "product_name": "5094-AEN2TR FLEX 5000",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation FLEX 5000 EtherNet/IP Adapter V3.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.324.85",
+            "sys_name": "FLEX-5000-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -590,6 +632,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "PowerFlex 753 AC DRIVE",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PowerFlex 753 AC Drive V20.007",
+            "sys_object_id": "1.3.6.1.4.1.53148.386.2",
+            "sys_name": "POWERF-753-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="rockwell/panelview/800",
@@ -654,6 +703,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "2711R-T7T PANELVIEW 800",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PanelView 800 - 7 inch V10.00",
+            "sys_object_id": "1.3.6.1.4.1.53148.3.2",
+            "sys_name": "PANELV-800-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="rockwell/stratix/5700",
@@ -712,7 +768,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation Stratix 5700 Managed Switch",
+            "sys_descr": "Rockwell Automation Stratix 5700 Managed Switch V15.2.7",
             "sys_object_id": "1.3.6.1.4.1.9.1.2505",
         },
 
@@ -794,7 +850,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation 1756-L73 ControlLogix 5570",
+            "sys_descr": "Rockwell Automation 1756-L73 ControlLogix 5570 V33.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
@@ -860,6 +916,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "1769-L33ERMS COMPACTGUARDLOGIX",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation CompactGuardLogix 5370 V33.013",
+            "sys_object_id": "1.3.6.1.4.1.53148.991.45",
+            "sys_name": "COMPAC-5370-001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="rockwell/panelview/plus7-10",
@@ -914,6 +977,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "2711P-T10C22D9P PANELVIEW PLUS 7",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PanelView Plus 7 - 10 inch V13.0",
+            "sys_object_id": "1.3.6.1.4.1.53148.330.51",
+            "sys_name": "PANELV-PLUS-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="rockwell/panelview/800",
@@ -966,6 +1036,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 800,
             "product_name": "2711R-T7T PANELVIEW 800",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PanelView 800 V8.0",
+            "sys_object_id": "1.3.6.1.4.1.53148.3.2",
+            "sys_name": "PANELV-800-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -1027,6 +1104,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "25B-D030N104 POWERFLEX 525",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PowerFlex 525 V6.003",
+            "sys_object_id": "1.3.6.1.4.1.53148.927.37",
+            "sys_name": "POWERF-525-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="rockwell/drives/powerflex-753",
@@ -1080,6 +1164,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 753,
             "product_name": "20F-D052N103 POWERFLEX 753",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PowerFlex 753 V20.003",
+            "sys_object_id": "1.3.6.1.4.1.53148.193.65",
+            "sys_name": "POWERF-753-001",
+            "sys_location": "Motor Control Center",
         },
     ),
     DeviceTemplate(
@@ -1136,6 +1227,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "2198-D012-ERS3 KINETIX 5500",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation Kinetix 5500 V12.001",
+            "sys_object_id": "1.3.6.1.4.1.53148.662.62",
+            "sys_name": "KINETI-5500-001",
+            "sys_location": "Machine",
+        },
     ),
     DeviceTemplate(
         id="rockwell/io/flex5000-aen2tr",
@@ -1189,6 +1287,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "5094-AEN2TR FLEX 5000",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation FLEX 5000 EtherNet/IP V3.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.143.71",
+            "sys_name": "FLEX-5000-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="rockwell/io/1734-aent",
@@ -1241,6 +1346,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 1734,
             "product_name": "1734-AENT POINT I/O",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation POINT I/O EtherNet/IP V7.003",
+            "sys_object_id": "1.3.6.1.4.1.53148.544.31",
+            "sys_name": "POINT-I-O-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -1312,7 +1424,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation 1756-L85E ControlLogix 5580",
+            "sys_descr": "Rockwell Automation 1756-L85E ControlLogix 5580 V35.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
     ),
@@ -1370,6 +1482,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 183,
             "product_name": "1756-L83ES/B GUARDLOGIX",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation GuardLogix 5580S V35.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.956.43",
+            "sys_name": "GUARDL-5580S-001",
+            "sys_location": "Safety Cabinet",
         },
     ),
     DeviceTemplate(
@@ -1438,6 +1557,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.rockwellautomation.com",
             "product_name": "MicroLogix 1400",
             "model_name": "MicroLogix",
+        },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation MicroLogix 1400 V21.003",
+            "sys_object_id": "1.3.6.1.4.1.53148.369.86",
+            "sys_name": "MICROL-1400-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -1508,6 +1634,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "CompactLogix 5370 L24ER",
             "model_name": "CompactLogix",
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation CompactLogix 5370 L24ER V33.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.99.69",
+            "sys_name": "COMPAC-5370-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/powerflex/525",
@@ -1567,6 +1700,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "25B-D030N104 POWERFLEX 525",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PowerFlex 525 AC Drive V7.001",
+            "sys_object_id": "1.3.6.1.4.1.53148.112.96",
+            "sys_name": "POWERF-525-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="rockwell/controllogix/1756-en2t",
@@ -1605,6 +1745,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "1756-EN2T/D",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-EN2T V11.003",
+            "sys_object_id": "1.3.6.1.4.1.53148.60.29",
+            "sys_name": "1756-EN2T-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="rockwell/guardlogix/1756-l73s",
@@ -1666,6 +1813,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "1756-L73S/B GUARDLOGIX5573S",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L73S V32.012",
+            "sys_object_id": "1.3.6.1.4.1.53148.409.23",
+            "sys_name": "1756-L73S-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/controllogix/1756-l81e",
@@ -1722,6 +1876,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L81E V32.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.480.74",
+            "sys_name": "1756-L81E-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/controllogix/1756-l82e",
@@ -1778,6 +1939,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L82E V32.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.368.68",
+            "sys_name": "1756-L82E-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/controllogix/1756-l84e",
@@ -1834,6 +2002,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1756-L84E V32.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.303.55",
+            "sys_name": "1756-L84E-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/micrologix/1763-l16bwa",
@@ -1889,6 +2064,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1763-L16BWA V14.000",
+            "sys_object_id": "1.3.6.1.4.1.53148.908.83",
+            "sys_name": "1763-L16BWA-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/micrologix/1766-l32awaa",
@@ -1947,6 +2129,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1766-L32AWAA V21.007",
+            "sys_object_id": "1.3.6.1.4.1.53148.11.75",
+            "sys_name": "1766-L32AWAA-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/micrologix/1766-l32bwaa",
@@ -2005,6 +2194,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1766-L32BWAA V21.007",
+            "sys_object_id": "1.3.6.1.4.1.53148.486.11",
+            "sys_name": "1766-L32BWAA-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/micrologix/1766-l32bxb",
@@ -2063,6 +2259,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1766-L32BXB V21.007",
+            "sys_object_id": "1.3.6.1.4.1.53148.818.76",
+            "sys_name": "1766-L32BXB-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/micrologix/1766-l32bxba",
@@ -2121,6 +2324,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1766-L32BXBA V21.007",
+            "sys_object_id": "1.3.6.1.4.1.53148.774.34",
+            "sys_name": "1766-L32BXBA-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/compactlogix/1769-l30erm",
@@ -2177,6 +2387,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1769-L30ERM V33.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.670.54",
+            "sys_name": "1769-L30ERM-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/compact-guardlogix/1769-l31es",
@@ -2236,6 +2453,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1769-L31ES V33.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.912.53",
+            "sys_name": "1769-L31ES-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/compact-guardlogix/1769-l32es",
@@ -2295,6 +2519,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "state": 3,
                 "status": 0,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation 1769-L32ES V33.011",
+            "sys_object_id": "1.3.6.1.4.1.53148.693.7",
+            "sys_name": "1769-L32ES-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="rockwell/powerflex/powerflex-755",
@@ -2333,5 +2564,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "PowerFlex 755",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Rockwell Automation PowerFlex 755 V20.013",
+            "sys_object_id": "1.3.6.1.4.1.53148.556.48",
+            "sys_name": "POWERF-755-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
 ]

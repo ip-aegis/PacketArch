@@ -67,6 +67,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "LCNP4M",
             "product_name": "ControlEdge PLC",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell ControlEdge PLC VR431.2",
+            "sys_object_id": "1.3.6.1.4.1.2879.492.38",
+            "sys_name": "CONTRO-PLC-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="honeywell/experion-pks/c300",
@@ -134,7 +141,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Honeywell Experion PKS C300 Controller",
+            "sys_descr": "Honeywell Experion PKS C300 Controller VR520.2",
             "sys_object_id": "1.3.6.1.4.1.2879.1.3.300",
         },
     ),
@@ -204,7 +211,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Honeywell Experion PKS C200 Controller",
+            "sys_descr": "Honeywell Experion PKS C200 Controller VR520.2",
             "sys_object_id": "1.3.6.1.4.1.2879.1.3.200",
         },
     ),
@@ -271,6 +278,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "Experion-Server",
             "product_name": "Experion PKS Server",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion PKS Server VR520.2",
+            "sys_object_id": "1.3.6.1.4.1.2879.60.74",
+            "sys_name": "EXPERI-PKS-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/experion-pks/safety-manager",
@@ -334,6 +348,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "Safety-Manager",
             "product_name": "Experion Safety Manager",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion Safety Manager V12.5",
+            "sys_object_id": "1.3.6.1.4.1.2879.245.34",
+            "sys_name": "EXPERI-SAFETY-001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="honeywell/experion-pks/series-c-io",
@@ -390,6 +411,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Honeywell International Inc.",
             "product_code": "Series-C-IO",
             "product_name": "Experion Series C I/O",
+        },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion Series C I/O V5.3",
+            "sys_object_id": "1.3.6.1.4.1.2879.507.16",
+            "sys_name": "EXPERI-SERIES-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -449,6 +477,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Honeywell International Inc.",
             "product_code": "Experion-Station",
             "product_name": "Experion Operator Station",
+        },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Experion Operator Station VR520.2",
+            "sys_object_id": "1.3.6.1.4.1.2879.724.18",
+            "sys_name": "EXPERI-OPERAT-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -518,6 +553,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Tridium, Inc.",
             "model_name": "JACE 8000",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell JACE 8000 Controller VN4.13",
+            "sys_object_id": "1.3.6.1.4.1.2879.507.41",
+            "sys_name": "JACE-8000-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/excel/xl-web",
@@ -586,6 +628,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Honeywell",
             "model_name": "Excel Web",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Excel Web Boiler Controller V5.2",
+            "sys_object_id": "1.3.6.1.4.1.2879.154.4",
+            "sys_name": "EXCEL-WEB-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/enraf/optiflex-6000",
@@ -648,6 +697,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "Optiflex-6000",
             "product_name": "Optiflex 6000 Level Gauge",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Optiflex 6000 Level Gauge V4.3.1",
+            "sys_object_id": "1.3.6.1.4.1.2879.114.18",
+            "sys_name": "OPTIFL-6000-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/rtu/2020",
@@ -703,6 +759,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Honeywell International Inc.",
             "product_code": "RTU2020",
             "product_name": "RTU2020 Remote Terminal Unit",
+        },
+
+        snmp_identity={
+            "sys_descr": "Honeywell RTU2020 Remote Terminal Unit V3.6.0",
+            "sys_object_id": "1.3.6.1.4.1.2879.202.67",
+            "sys_name": "RTU202-REMOTE-001",
+            "sys_location": "Remote Site",
         },
     ),
     DeviceTemplate(
@@ -766,6 +829,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "PUB6438S",
             "product_name": "Spyder Unitary Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Spyder Unitary Controller V4.0.3",
+            "sys_object_id": "1.3.6.1.4.1.2879.843.87",
+            "sys_name": "SPYDER-UNITAR-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/hc900/hc900-controller",
@@ -802,6 +872,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "HC900 Hybrid Controller",
                 "model_name": "HC900",
             },
+
+        snmp_identity={
+            "sys_descr": "Honeywell HC900 Controller V7.3",
+            "sys_object_id": "1.3.6.1.4.1.2879.935.2",
+            "sys_name": "HC900-CONTRO-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/lds/pipeline-lds",
@@ -847,6 +924,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Pipeline Leak Detection System",
                 "model_name": "LDS Server",
             },
+
+        snmp_identity={
+            "sys_descr": "Honeywell Pipeline LDS V3.2.0",
+            "sys_object_id": "1.3.6.1.4.1.2879.659.68",
+            "sys_name": "PIPELI-LDS-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/stt/stt850",
@@ -883,6 +967,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "STT850 SmartLine Temperature Transmitter",
                 "model_name": "STT850",
             },
+
+        snmp_identity={
+            "sys_descr": "Honeywell STT850 V4.2",
+            "sys_object_id": "1.3.6.1.4.1.2879.656.72",
+            "sys_name": "STT850-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/uda/uda2182",
@@ -928,6 +1019,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "UDA2182 Universal Dual Analyzer",
                 "model_name": "Process Analyzer",
             },
+
+        snmp_identity={
+            "sys_descr": "Honeywell UDA2182 V2.50",
+            "sys_object_id": "1.3.6.1.4.1.2879.200.39",
+            "sys_name": "UDA2182-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="honeywell/udc/udc3500",
@@ -964,5 +1062,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "UDC3500 Universal Digital Controller",
                 "model_name": "UDC3500",
             },
+
+        snmp_identity={
+            "sys_descr": "Honeywell UDC3500 V6.1",
+            "sys_object_id": "1.3.6.1.4.1.2879.380.92",
+            "sys_name": "UDC3500-001",
+            "sys_location": "Industrial Network",
+        },
     ),
 ]

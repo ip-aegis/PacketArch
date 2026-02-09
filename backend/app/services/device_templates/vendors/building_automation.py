@@ -69,7 +69,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine",
+            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine V12.0.3",
             "sys_object_id": "1.3.6.1.4.1.4399.2.1.10",
         },
     ),
@@ -140,6 +140,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "FEC26",
             "product_name": "Facility Explorer FEC26",
         },
+
+        snmp_identity={
+            "sys_descr": "Johnson Controls FEC26 Field Equipment Controller V3.5.1",
+            "sys_object_id": "1.3.6.1.4.1.21239.857.19",
+            "sys_name": "FEC26-FIELD-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="johnson_controls/metasys/nae55",
@@ -198,7 +205,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine",
+            "sys_descr": "Johnson Controls Metasys NAE55 Network Automation Engine V12.0",
             "sys_object_id": "1.3.6.1.4.1.4399.2.1.10",
         },
     ),
@@ -251,6 +258,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 5,
             "model_name": "FEC26",
             "device_instance": 0,
+        },
+
+        snmp_identity={
+            "sys_descr": "Johnson Controls FEC26 Field Equipment Controller V7.0",
+            "sys_object_id": "1.3.6.1.4.1.21239.459.75",
+            "sys_name": "FEC26-FIELD-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -310,6 +324,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "model_name": "WebCTRL Server",
             "device_instance": 0,
         },
+
+        snmp_identity={
+            "sys_descr": "Automated Logic WebCTRL Server V8.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.189.91",
+            "sys_name": "WEBCTR-SERVER-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="delta_controls/entelibus/manager",
@@ -360,6 +381,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 8,
             "model_name": "enteliBUS Manager",
             "device_instance": 0,
+        },
+
+        snmp_identity={
+            "sys_descr": "Delta Controls enteliBUS Manager V4.2",
+            "sys_object_id": "1.3.6.1.4.1.12412.270.52",
+            "sys_name": "ENTELI-MANAGE-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -424,6 +452,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "Tracer SC+",
             "product_name": "Tracer SC+ System Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Trane Tracer SC+ System Controller V6.20",
+            "sys_object_id": "1.3.6.1.4.1.11108.263.80",
+            "sys_name": "TRACER-SC+-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="trane/thermostat/xl950",
@@ -479,6 +514,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 2,
             "device_type": "Thermostat",
             "model_name": "XL950",
+        },
+
+        snmp_identity={
+            "sys_descr": "Trane XL950 ComfortLink II Thermostat V3.1.0",
+            "sys_object_id": "1.3.6.1.4.1.11108.836.55",
+            "sys_name": "XL950-COMFOR-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -537,6 +579,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_type": "Automation Server",
             "model_name": "i-Vu Pro",
         },
+
+        snmp_identity={
+            "sys_descr": "Carrier i-Vu Pro Building Automation Server V8.0.0.1",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.342.16",
+            "sys_name": "I-VU-PRO-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="carrier/thermostat/33cs2pp",
@@ -592,6 +641,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 56,
             "device_type": "Thermostat",
             "model_name": "33CS2PP",
+        },
+
+        snmp_identity={
+            "sys_descr": "Carrier 33CS2PP Programmable Thermostat V2.15",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.279.0",
+            "sys_name": "33CS2P-PROGRA-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -650,6 +706,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_type": "VAV Controller",
             "model_name": "EC-BOS-8",
         },
+
+        snmp_identity={
+            "sys_descr": "Distech Controls ECLYPSE Connected BACnet/IP Controller V1.6.0",
+            "sys_object_id": "1.3.6.1.4.1.37567.258.70",
+            "sys_name": "ECLYPS-CONNEC-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="delta-controls/entelibus/vav",
@@ -705,6 +768,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 8,  # Delta Controls
             "device_type": "Building Controller",
             "model_name": "enteliBUS",
+        },
+
+        snmp_identity={
+            "sys_descr": "Delta Controls enteliBUS Building Controller V4.6.0",
+            "sys_object_id": "1.3.6.1.4.1.12412.552.78",
+            "sys_name": "ENTELI-BUILDI-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -762,6 +832,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 108,  # Automated Logic
             "device_type": "Automation Server",
             "model_name": "WebCTRL",
+        },
+
+        snmp_identity={
+            "sys_descr": "Automated Logic WebCTRL Building Automation System V8.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.610.39",
+            "sys_name": "WEBCTR-BUILDI-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -826,6 +903,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "model_name": "pCO5+",
             "firmware_revision": "V3.5.0",
         },
+
+        snmp_identity={
+            "sys_descr": "Carel pCO5+ HVAC Controller V3.5.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.737.55",
+            "sys_name": "PCO5+-HVAC-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="notifier/nfs2/3030",
@@ -881,6 +965,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 188,  # Notifier
             "device_type": "Fire Alarm Panel",
             "model_name": "NFS2-3030",
+        },
+
+        snmp_identity={
+            "sys_descr": "Notifier NFS2-3030 Fire Alarm Control Panel V4.2.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.260.78",
+            "sys_name": "NFS2-3-FIRE-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -939,6 +1030,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_type": "Lighting Controller",
             "model_name": "Quantum",
         },
+
+        snmp_identity={
+            "sys_descr": "Lutron Quantum Total Light Management V15.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.610.20",
+            "sys_name": "QUANTU-TOTAL-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="automated-logic/webctrl/me812u",
@@ -984,6 +1082,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "device_instance": 11002,
                 "object_name": "ME812U-001",
             },
+
+        snmp_identity={
+            "sys_descr": "Automated Logic ME812U V6.2.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.835.48",
+            "sys_name": "ME812U-001",
+            "sys_location": "Mechanical Room",
+        },
     ),
     DeviceTemplate(
         id="carrier/i-vu/pro-open",
@@ -1033,6 +1138,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "device_instance": 5001,
                 "object_name": "IVU-SERVER-001",
             },
+
+        snmp_identity={
+            "sys_descr": "Carrier Pro Open V7.0.2",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.392.20",
+            "sys_name": "PRO-OPEN-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="delta-controls/entelibus/manager",
@@ -1083,6 +1195,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "object_name": "ENTBUS-MGR-001",
                 "description": "enteliBUS Building Controller",
             },
+
+        snmp_identity={
+            "sys_descr": "Delta Controls Manager V4.8.0",
+            "sys_object_id": "1.3.6.1.4.1.12412.692.50",
+            "sys_name": "MANAGER-001",
+            "sys_location": "Mechanical Room",
+        },
     ),
     DeviceTemplate(
         id="delta-controls/entelibus/ebcon",
@@ -1128,6 +1247,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "device_instance": 8002,
                 "object_name": "EBCON-001",
             },
+
+        snmp_identity={
+            "sys_descr": "Delta Controls eBCON V3.5.0",
+            "sys_object_id": "1.3.6.1.4.1.12412.245.83",
+            "sys_name": "EBCON-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="distech-controls/ecy/ecy-vav",
@@ -1173,6 +1299,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "device_instance": 9002,
                 "object_name": "ECY-VAV-001",
             },
+
+        snmp_identity={
+            "sys_descr": "Distech Controls ECY-VAV V2.5.0",
+            "sys_object_id": "1.3.6.1.4.1.37567.293.8",
+            "sys_name": "ECY-VAV-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="johnson-controls/metasys/snc",
@@ -1223,6 +1356,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "object_name": "SNC-001",
                 "description": "Metasys Supervisory Controller",
             },
+
+        snmp_identity={
+            "sys_descr": "Johnson Controls SNC V11.0.2",
+            "sys_object_id": "1.3.6.1.4.1.21239.439.98",
+            "sys_name": "SNC-001",
+            "sys_location": "Mechanical Room",
+        },
     ),
     DeviceTemplate(
         id="trane/tracer/uc600",
@@ -1268,5 +1408,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "device_instance": 4002,
                 "object_name": "UC600-AHU-001",
             },
+
+        snmp_identity={
+            "sys_descr": "Trane UC600 V3.5.2",
+            "sys_object_id": "1.3.6.1.4.1.11108.595.83",
+            "sys_name": "UC600-001",
+            "sys_location": "Mechanical Room",
+        },
     ),
 ]

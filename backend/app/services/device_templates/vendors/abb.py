@@ -77,6 +77,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "ABB",
             "im0_order_id": "PM5630-2ETH",
         },
+
+        snmp_identity={
+            "sys_descr": "ABB AC500-eCo PM5630 V3.5.2",
+            "sys_object_id": "1.3.6.1.4.1.26381.711.49",
+            "sys_name": "AC500--PM5630-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="abb/ac500/pm590-eth",
@@ -144,6 +151,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "PM590-ETH AC500 CPU",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "ABB AC500 PM590-ETH V3.1.2",
+            "sys_object_id": "1.3.6.1.4.1.26381.649.92",
+            "sys_name": "AC500-PM590--001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="abb/ac500/pm583-eth",
@@ -198,6 +212,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "AC500 PM583",
             "model_name": "AC500",
         },
+
+        snmp_identity={
+            "sys_descr": "ABB AC500 PM583-ETH V3.0.4",
+            "sys_object_id": "1.3.6.1.4.1.26381.724.51",
+            "sys_name": "AC500-PM583--001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="abb/ac500-eco/pm554-tp-eth",
@@ -250,6 +271,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.abb.com",
             "product_name": "AC500-eCo PM554",
             "model_name": "AC500-eCo",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB AC500-eCo PM554-TP-ETH V2.4.1",
+            "sys_object_id": "1.3.6.1.4.1.26381.418.23",
+            "sys_name": "AC500--PM554--001",
+            "sys_location": "Remote Site",
         },
     ),
     DeviceTemplate(
@@ -317,6 +345,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "ACS880-01 INDUSTRIAL DRIVE",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "ABB ACS880-01 Industrial Drive V2.60",
+            "sys_object_id": "1.3.6.1.4.1.26381.643.45",
+            "sys_name": "ACS880-INDUST-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="abb/ac500/ci501",
@@ -369,6 +404,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.abb.com",
             "product_name": "CI501 Remote I/O",
             "model_name": "AC500",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB CI501 Remote I/O V3.1.0",
+            "sys_object_id": "1.3.6.1.4.1.26381.305.43",
+            "sys_name": "CI501-REMOTE-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -431,6 +473,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "REF615",
             "product_name": "Relion REF615 Feeder Protection",
         },
+
+        snmp_identity={
+            "sys_descr": "ABB REF615 Feeder Protection Relay V5.1 FP2",
+            "sys_object_id": "1.3.6.1.4.1.26381.291.40",
+            "sys_name": "REF615-FEEDER-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="abb/relion/rex640",
@@ -487,6 +536,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "ABB",
             "product_code": "REX640",
             "product_name": "Relion REX640 Protection IED",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB REX640 Protection and Control IED V2.2.1",
+            "sys_object_id": "1.3.6.1.4.1.26381.332.59",
+            "sys_name": "REX640-PROTEC-001",
+            "sys_location": "Substation",
         },
     ),
     DeviceTemplate(
@@ -552,6 +608,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "ABB",
             "im0_order_id": "ACS580-01-073A-4",
         },
+
+        snmp_identity={
+            "sys_descr": "ABB ACS580 General Purpose Drive V2.10",
+            "sys_object_id": "1.3.6.1.4.1.26381.813.48",
+            "sys_name": "ACS580-GENERA-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="abb/hmi/cp620",
@@ -607,6 +670,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "ABB",
             "product_code": "CP620",
             "product_name": "CP620 Control Panel",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB CP620 Control Panel V1.80",
+            "sys_object_id": "1.3.6.1.4.1.26381.919.0",
+            "sys_name": "CP620-CONTRO-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -664,6 +734,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "RTU560",
             "product_name": "RTU560 Remote Terminal Unit",
         },
+
+        snmp_identity={
+            "sys_descr": "ABB RTU560 Remote Terminal Unit V12.4.3",
+            "sys_object_id": "1.3.6.1.4.1.26381.236.90",
+            "sys_name": "RTU560-REMOTE-001",
+            "sys_location": "Remote Site",
+        },
     ),
     DeviceTemplate(
         id="abb/acs580/acs580",
@@ -720,6 +797,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "ACS580-01 General Purpose Drive",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "ABB ACS580 V2.76",
+            "sys_object_id": "1.3.6.1.4.1.26381.820.58",
+            "sys_name": "ACS580-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="abb/m2bax/m2bax-180mlb",
@@ -765,5 +849,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "M2BAX 180MLB Induction Motor",
                 "model_name": "Electric Motor",
             },
+
+        snmp_identity={
+            "sys_descr": "ABB M2BAX 180MLB V1.0",
+            "sys_object_id": "1.3.6.1.4.1.26381.756.21",
+            "sys_name": "M2BAX-180MLB-001",
+            "sys_location": "Industrial Network",
+        },
     ),
 ]

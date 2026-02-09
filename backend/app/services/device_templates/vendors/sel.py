@@ -66,6 +66,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "SEL-751",
             "product_name": "SEL-751 Feeder Protection Relay",
         },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-751 Feeder Protection Relay VR151-V4",
+            "sys_object_id": "1.3.6.1.4.1.1027.139.51",
+            "sys_name": "SEL-75-FEEDER-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="sel/rtac/sel-3530",
@@ -122,6 +129,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schweitzer Engineering Laboratories",
             "product_code": "SEL-3530",
             "product_name": "SEL-3530 Real-Time Automation Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-3530 RTAC VR150-V5",
+            "sys_object_id": "1.3.6.1.4.1.1027.124.87",
+            "sys_name": "SEL-35-RTAC-001",
+            "sys_location": "Remote Site",
         },
     ),
     DeviceTemplate(
@@ -184,6 +198,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "SEL-451",
             "product_name": "SEL-451 Bay Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-451 Bay Controller VR160-V5",
+            "sys_object_id": "1.3.6.1.4.1.1027.672.79",
+            "sys_name": "SEL-45-BAY-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="sel/controller/sel-2411",
@@ -240,6 +261,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schweitzer Engineering Laboratories",
             "product_code": "SEL-2411",
             "product_name": "SEL-2411 Programmable Automation Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-2411 Programmable Automation Controller VR133-V4",
+            "sys_object_id": "1.3.6.1.4.1.1027.134.57",
+            "sys_name": "SEL-24-PROGRA-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -302,6 +330,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "SEL-311C",
             "product_name": "SEL-311C Line Protection Relay",
         },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-311C Line Protection Relay VR111-V6",
+            "sys_object_id": "1.3.6.1.4.1.1027.93.27",
+            "sys_name": "SEL-31-LINE-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="sel/relay/sel-487e",
@@ -362,6 +397,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schweitzer Engineering Laboratories",
             "product_code": "SEL-487E",
             "product_name": "SEL-487E Transformer Protection Relay",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-487E Transformer Protection Relay VR160-V4",
+            "sys_object_id": "1.3.6.1.4.1.1027.351.42",
+            "sys_name": "SEL-48-TRANSF-001",
+            "sys_location": "Substation",
         },
     ),
 ]

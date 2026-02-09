@@ -62,7 +62,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "ASC/3-2100 Cobalt Traffic Signal Controller",
+            "sys_descr": "ASC/3-2100 Cobalt Traffic Signal Controller V7.16",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",  # NTCIP
             "sys_contact": "traffic-ops@city.gov",
         },
@@ -113,7 +113,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Econolite Cobalt ATC Traffic Signal Controller",
+            "sys_descr": "Econolite Cobalt ATC Traffic Signal Controller V7.16",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
@@ -168,7 +168,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "McCain 2070 ATC Traffic Signal Controller",
+            "sys_descr": "McCain 2070 ATC Traffic Signal Controller V3.2.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
@@ -218,7 +218,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "McCain 170E Detector Rack",
+            "sys_descr": "McCain 170E Detector Rack V2.5",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
         },
     ),
@@ -273,7 +273,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 1500 Dynamic Message Sign",
+            "sys_descr": "Daktronics Venus 1500 Dynamic Message Sign V8.3.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
@@ -328,7 +328,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 7000 Large Format DMS",
+            "sys_descr": "Daktronics Venus 7000 Large Format DMS V12.1.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
@@ -383,7 +383,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Wavetronix SmartSensor HD Radar Detector",
+            "sys_descr": "Wavetronix SmartSensor HD Radar Detector V7.5.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
         },
     ),
@@ -438,7 +438,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Wavetronix SmartSensor Advance Vehicle Classifier",
+            "sys_descr": "Wavetronix SmartSensor Advance Vehicle Classifier V4.5.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.5.1",
         },
     ),
@@ -494,7 +494,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "FLIR TrafiOne Thermal Traffic Sensor",
+            "sys_descr": "FLIR TrafiOne Thermal Traffic Sensor V2.8.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
         },
     ),
@@ -549,7 +549,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Q-Free RSU 5000 Roadside Unit",
+            "sys_descr": "Q-Free RSU 5000 Roadside Unit V4.2.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
         },
     ),
@@ -605,7 +605,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Kapsch TCS 2000 Toll Collection System",
+            "sys_descr": "Kapsch TCS 2000 Toll Collection System V5.4.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
         },
     ),
@@ -662,7 +662,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1455-LE Network Camera",
+            "sys_descr": "AXIS P1455-LE Network Camera V11.6.94",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),
@@ -719,7 +719,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1448-LE Network Camera",
+            "sys_descr": "AXIS P1448-LE Network Camera V11.8.92",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),
@@ -780,7 +780,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera",
+            "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera V5.7.14",
             "sys_object_id": "1.3.6.1.4.1.39165.1.1",
         },
     ),
@@ -835,7 +835,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Pelco Spectra Enhanced PTZ Camera",
+            "sys_descr": "Pelco Spectra Enhanced PTZ Camera V2.8.3",
             "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",  # Pelco enterprise OID
         },
     ),

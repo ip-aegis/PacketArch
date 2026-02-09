@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.21.0"
+VERSION = "1.22.0"
 
 # Version history:
+# 1.22.0 - CV fingerprint gap fix: 301/301 templates with explicit snmp_identity, SNMP pre-startup timing (sysName before protocol flows), fix duplicate CIP serials (SerialNumberGenerator moved to protocol_engines), sysName priority = device_name over template
 # 1.21.0 - Fix OUI misattributions (KUKA/Fanuc/SICK/HMS), early-burst discovery (3 cycles in first 90s for faster CV fingerprinting)
 # 1.20.0 - Universal SNMP discovery: all fingerprinted devices get SNMP GET/Response for CV fingerprinting, vendor-specific sysObjectID synthesis, merge device definition protocols into ambient discovery
 # 1.19.1 - Eliminate phantom devices: all ambient handlers use real scenario devices as query sources instead of fake gateway IPs (02:00:00:00:00:01)

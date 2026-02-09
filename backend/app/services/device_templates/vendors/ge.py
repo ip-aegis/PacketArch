@@ -75,6 +75,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 400,
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "GE PACSystems RX3i CPE400 V10.10",
+            "sys_object_id": "1.3.6.1.4.1.3861.897.0",
+            "sys_name": "PACSYS-RX3I-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="ge/mark-vie/is420ucsbh1a",
@@ -163,6 +170,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "modbus_max_registers": 125,
             "redundancy_support": True,
         },
+
+        snmp_identity={
+            "sys_descr": "GE Mark VIe Controller V06.03.09",
+            "sys_object_id": "1.3.6.1.4.1.3861.43.57",
+            "sys_name": "MARK-VIE-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="ge/proficy/historian",
@@ -235,6 +249,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-23127"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "GE Proficy Historian V8.0",
+            "sys_object_id": "1.3.6.1.4.1.3861.820.39",
+            "sys_name": "PROFIC-HISTOR-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="ge/multilin/850",
@@ -296,6 +317,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "850",
             "product_name": "Multilin 850 Feeder Protection",
         },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin 850 Feeder Protection System V8.00",
+            "sys_object_id": "1.3.6.1.4.1.3861.156.0",
+            "sys_name": "MULTIL-850-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="ge/multilin/f650",
@@ -351,6 +379,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "GE Grid Solutions",
             "product_code": "F650",
             "product_name": "Multilin F650 Bay Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin F650 Digital Bay Controller V6.40",
+            "sys_object_id": "1.3.6.1.4.1.3861.367.15",
+            "sys_name": "MULTIL-F650-001",
+            "sys_location": "Substation",
         },
     ),
     DeviceTemplate(
@@ -413,6 +448,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "T60",
             "product_name": "Multilin T60 Transformer Protection",
         },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin T60 Transformer Protection V8.2",
+            "sys_object_id": "1.3.6.1.4.1.3861.998.60",
+            "sys_name": "MULTIL-T60-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="ge/versamax/ic200udd104",
@@ -456,6 +498,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "VersaMax Micro PLC",
                 "model_name": "VersaMax Micro",
             },
+
+        snmp_identity={
+            "sys_descr": "GE IC200UDD104 V4.21",
+            "sys_object_id": "1.3.6.1.4.1.3861.867.40",
+            "sys_name": "IC200UDD104-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="ge/pacsystems/ic695cpe310",
@@ -510,6 +559,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "PACSystems RX3i CPE310",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "GE IC695CPE310 V10.80",
+            "sys_object_id": "1.3.6.1.4.1.3861.325.76",
+            "sys_name": "IC695CPE310-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="ge/proficy/proficy-historian-7-2",
@@ -573,5 +629,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "build_number": "5678",
                 "build_date": "2020-06-10T12:00:00Z",
             },
+
+        snmp_identity={
+            "sys_descr": "GE Proficy Historian 7.2 V7.2",
+            "sys_object_id": "1.3.6.1.4.1.3861.128.27",
+            "sys_name": "PROFIC-HISTOR-001",
+            "sys_location": "Industrial Network",
+        },
     ),
 ]

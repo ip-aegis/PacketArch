@@ -69,6 +69,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 30,
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Fanuc R-30iB Plus Robot Controller V9.40",
+            "sys_object_id": "1.3.6.1.4.1.5765.288.76",
+            "sys_name": "R-30IB-PLUS-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="fanuc/cnc/0i-tf-plus",
@@ -125,6 +132,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Fanuc Corporation",
             "product_code": "0i-TF Plus",
             "product_name": "Series 0i-TF Plus CNC",
+        },
+
+        snmp_identity={
+            "sys_descr": "Fanuc Series 0i-TF Plus CNC V34.2",
+            "sys_object_id": "1.3.6.1.4.1.5765.547.76",
+            "sys_name": "SERIES-0I-TF-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -198,6 +212,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "KUKA Roboter GmbH",
             "im0_order_id": "KR C4",
         },
+
+        snmp_identity={
+            "sys_descr": "KUKA KR C4 Robot Controller V8.6.8",
+            "sys_object_id": "1.3.6.1.4.1.25882.690.66",
+            "sys_name": "KR-C4-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="cognex/dataman/dataman-280",
@@ -236,6 +257,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "DataMan 280 Barcode Reader",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Cognex DataMan 280 V6.1.5",
+            "sys_object_id": "1.3.6.1.4.1.10642.229.56",
+            "sys_name": "DATAMA-280-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="cognex/dataman/dataman-370",
@@ -282,6 +310,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "DataMan 370 Barcode Reader",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Cognex DataMan 370 V6.2.0",
+            "sys_object_id": "1.3.6.1.4.1.10642.456.95",
+            "sys_name": "DATAMA-370-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="cognex/in-sight/in-sight-7802",
@@ -323,6 +358,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "In-Sight 7802 Vision System",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Cognex In-Sight 7802 V6.3.2",
+            "sys_object_id": "1.3.6.1.4.1.10642.490.35",
+            "sys_name": "IN-SIG-7802-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="dematic/iq-platform/iq-wcs-controller",
@@ -370,6 +412,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Dematic iQ WCS",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Dematic iQ WCS Controller V5.4.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.207.7",
+            "sys_name": "IQ-WCS-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="impinj/speedway/speedway-r420",
@@ -517,6 +566,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 3,
                 "im0_sw_revision": "V8.6.0",
             },
+
+        snmp_identity={
+            "sys_descr": "KUKA KMP 1500 V8.6.0",
+            "sys_object_id": "1.3.6.1.4.1.25882.439.16",
+            "sys_name": "KMP-1500-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="kuka/kmp-mobile-platform/kmp-600",
@@ -567,6 +623,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_manufacturer": "KUKA Roboter GmbH",
                 "im0_order_id": "KMP 600",
             },
+
+        snmp_identity={
+            "sys_descr": "KUKA KMP 600 V8.5.2",
+            "sys_object_id": "1.3.6.1.4.1.25882.964.11",
+            "sys_name": "KMP-600-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="kuka/fleet-management/kuka-fleetmanager",
@@ -626,6 +689,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 2,
                 "im0_sw_revision": "V3.2.1",
             },
+
+        snmp_identity={
+            "sys_descr": "KUKA .FleetManager V3.2.1",
+            "sys_object_id": "1.3.6.1.4.1.25882.41.37",
+            "sys_name": "KUKA.FLEETMA-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="mir/mir-fleet/mir-fleet",
@@ -674,6 +744,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "MiR Fleet Management System",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "MiR Fleet V3.8.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.814.34",
+            "sys_name": "MIR-FLEET-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="mir/mir-mobile-robots/mir100",
@@ -729,6 +806,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "MiR100",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "MiR 100 V3.12.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.651.70",
+            "sys_name": "MIR100-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="mir/mir-mobile-robots/mir250",
@@ -777,6 +861,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "MiR250",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "MiR 250 V3.12.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.811.60",
+            "sys_name": "MIR250-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="mir/mir-mobile-robots/mir500",
@@ -825,6 +916,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "MiR500",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "MiR 500 V3.12.0",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.271.9",
+            "sys_name": "MIR500-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="zebra/fixed-rfid/fx7500",

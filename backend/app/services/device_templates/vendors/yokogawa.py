@@ -68,6 +68,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.yokogawa.com",
             "product_name": "CENTUM VP Field Control Unit",
         },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa CENTUM VP Field Control Unit VR6.06",
+            "sys_object_id": "1.3.6.1.4.1.2745.633.62",
+            "sys_name": "CENTUM-VP-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/prosafe-rs/ssu",
@@ -124,6 +131,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Yokogawa Electric Corporation",
             "product_code": "SSC60D",
             "product_name": "ProSafe-RS Safety Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa ProSafe-RS Safety Controller VR4.06",
+            "sys_object_id": "1.3.6.1.4.1.2745.531.95",
+            "sys_name": "PROSAF-SAFETY-001",
+            "sys_location": "Safety Cabinet",
         },
     ),
     DeviceTemplate(
@@ -182,6 +196,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "GC8000",
             "product_name": "GC8000 Gas Chromatograph",
         },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa GC8000 Gas Chromatograph V4.5",
+            "sys_object_id": "1.3.6.1.4.1.2745.986.19",
+            "sys_name": "GC8000-GAS-001",
+            "sys_location": "Process Area",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/analyzer/tdls8000",
@@ -239,6 +260,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TDLS8000",
             "product_name": "TDLS8000 Laser Analyzer",
         },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa TDLS8000 Laser Analyzer V3.2",
+            "sys_object_id": "1.3.6.1.4.1.2745.587.19",
+            "sys_name": "TDLS80-LASER-001",
+            "sys_location": "Process Area",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/transmitter/eja530a",
@@ -294,6 +322,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Yokogawa Electric Corporation",
             "product_code": "EJA530A",
             "product_name": "EJA530A Pressure Transmitter",
+        },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa EJA530A Pressure Transmitter V6.0",
+            "sys_object_id": "1.3.6.1.4.1.2745.495.57",
+            "sys_name": "EJA530-PRESSU-001",
+            "sys_location": "Field",
         },
     ),
     DeviceTemplate(
@@ -351,6 +386,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "FLXA402",
             "product_name": "FLXA402 Multi-Parameter Analyzer",
         },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa FLXA402 Multi-Parameter Analyzer V2.5",
+            "sys_object_id": "1.3.6.1.4.1.2745.640.21",
+            "sys_name": "FLXA40-MULTI--001",
+            "sys_location": "Process Area",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/centum-vp/his",
@@ -397,6 +439,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Yokogawa CENTUM VP Human Interface Station VR6.05",
+            "sys_object_id": "1.3.6.1.4.1.2745.30.15",
+            "sys_name": "CENTUM-VP-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/centum-vp/ews",
@@ -443,6 +492,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Yokogawa CENTUM VP Engineering Workstation VR6.05",
+            "sys_object_id": "1.3.6.1.4.1.2745.799.51",
+            "sys_name": "CENTUM-VP-001",
+            "sys_location": "Engineering Office",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/exaopc/server",
@@ -489,6 +545,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Yokogawa Exaopc OPC Server VR3.80",
+            "sys_object_id": "1.3.6.1.4.1.2745.815.60",
+            "sys_name": "EXAOPC-OPC-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/centum-vp/centum-vp",
@@ -535,6 +598,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "CENTUM VP Field Control Station",
                 "model_name": "CENTUM VP",
             },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa CENTUM VP VR6.08.00",
+            "sys_object_id": "1.3.6.1.4.1.2745.964.66",
+            "sys_name": "CENTUM-VP-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/prosafe-rs/prosafe-rs",
@@ -581,6 +651,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "ProSafe-RS Safety Instrumented System",
                 "model_name": "ProSafe-RS",
             },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa ProSafe-RS VR4.05.00",
+            "sys_object_id": "1.3.6.1.4.1.2745.681.54",
+            "sys_name": "PROSAFE-RS-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/rc400g/rc400g",
@@ -627,6 +704,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "RC400G Residual Chlorine Analyzer",
                 "model_name": "Chlorine Analyzer",
             },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa RC400G V1.05",
+            "sys_object_id": "1.3.6.1.4.1.2745.405.66",
+            "sys_name": "RC400G-001",
+            "sys_location": "Remote Site",
+        },
     ),
     DeviceTemplate(
         id="yokogawa/sc450g/sc450g",
@@ -673,5 +757,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "SC450G Turbidity Analyzer",
                 "model_name": "Turbidity Analyzer",
             },
+
+        snmp_identity={
+            "sys_descr": "Yokogawa SC450G V1.04",
+            "sys_object_id": "1.3.6.1.4.1.2745.155.2",
+            "sys_name": "SC450G-001",
+            "sys_location": "Remote Site",
+        },
     ),
 ]

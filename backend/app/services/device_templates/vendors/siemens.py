@@ -131,6 +131,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "s7_max_pdu_size": 960,
             "s7_connection_type": 0x01,  # PG connection
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1516-3 PN/DP V3.0.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.66.23",
+            "sys_name": "CPU-1516-3-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-1200/cpu-1214c",
@@ -208,6 +215,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 214-1AG40-0XB0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1214C DC/DC/DC V4.6.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.523.66",
+            "sys_name": "CPU-1214C-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/hmi/ktp700",
@@ -270,6 +284,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 123-2GB03-0AX0",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC HMI KTP700 Basic V18.0.0.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.613.68",
+            "sys_name": "KTP700-BASIC-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -374,6 +395,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "s7_max_pdu_size": 960,
             "s7_connection_type": 0x01,
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1517-3 PN/DP V3.0.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.737.50",
+            "sys_name": "CPU-1517-3-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-1500/cpu-1516-3-v1",
@@ -441,6 +469,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 516-3AN01-0AB0",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1516-3 PN/DP V2.9.7",
+            "sys_object_id": "1.3.6.1.4.1.4329.244.74",
+            "sys_name": "CPU-1516-3-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -511,6 +546,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "copyright": "Original Siemens Equipment",
             "module_name": "PLC_1",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1511-1 PN V3.0.1",
+            "sys_object_id": "1.3.6.1.4.1.4329.884.86",
+            "sys_name": "CPU-1511-1-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-1500/cpu-1516f-3",
@@ -579,6 +621,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 516-3FN01-0AB0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1516F-3 PN/DP V3.0.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.747.88",
+            "sys_name": "CPU-1516F--001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="siemens/hmi/tp1200-comfort",
@@ -637,6 +686,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 124-0MC01-0AX0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC HMI TP1200 Comfort V18.0.0.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.519.27",
+            "sys_name": "TP1200-COMFOR-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="siemens/hmi/ktp900-basic",
@@ -689,6 +745,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 123-2JB03-0AX0",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC HMI KTP900 Basic V18.0.0.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.998.50",
+            "sys_name": "KTP900-BASIC-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -750,6 +813,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6SL3210-1PE21-1UL0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS G120C V4.8",
+            "sys_object_id": "1.3.6.1.4.1.4329.733.62",
+            "sys_name": "SINAMI-G120C-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="siemens/drives/s120",
@@ -805,6 +875,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6SL3310-1TE32-6AA3",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS S120 V5.2",
+            "sys_object_id": "1.3.6.1.4.1.4329.431.69",
+            "sys_name": "SINAMI-S120-001",
+            "sys_location": "Machine",
+        },
     ),
     DeviceTemplate(
         id="siemens/drives/g115d",
@@ -857,6 +934,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6SL3525-0PE21-5AA1",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS G115D V1.1",
+            "sys_object_id": "1.3.6.1.4.1.4329.224.64",
+            "sys_name": "SINAMI-G115D-001",
+            "sys_location": "Motor Control Center",
         },
     ),
     DeviceTemplate(
@@ -911,6 +995,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7155-6AU01-0BN0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC ET 200SP IM155-6 PN V4.2.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.285.77",
+            "sys_name": "ET-200SP-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="siemens/network/scalance-xb208",
@@ -958,7 +1049,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SCALANCE XB208 Industrial Ethernet Switch",
+            "sys_descr": "Siemens SCALANCE XB208 Industrial Ethernet Switch V4.4",
             "sys_object_id": "1.3.6.1.4.1.4329.6.1.2.208",
         },
 
@@ -1023,7 +1114,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SCALANCE XM-400 Managed Industrial Ethernet Switch",
+            "sys_descr": "Siemens SCALANCE XM-400 Managed Industrial Ethernet Switch V6.5",
             "sys_object_id": "1.3.6.1.4.1.4329.6.1.2.400",
         },
 
@@ -1081,7 +1172,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SCALANCE X-200 Industrial Ethernet Switch",
+            "sys_descr": "Siemens SCALANCE X-200 Industrial Ethernet Switch V5.5.2",
             "sys_object_id": "1.3.6.1.4.1.4329.6.1.2.200",
         },
 
@@ -1146,7 +1237,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC CP-8000 Traffic Controller",
+            "sys_descr": "Siemens SITRAFFIC CP-8000 Traffic Controller V1.3.0",
             "sys_object_id": "1.3.6.1.4.1.4329.10.8000",
         },
     ),
@@ -1196,7 +1287,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC C600 Signal Controller",
+            "sys_descr": "Siemens SITRAFFIC C600 Signal Controller V2.5",
             "sys_object_id": "1.3.6.1.4.1.4329.10.600",
         },
 
@@ -1260,7 +1351,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC M60 Master Controller",
+            "sys_descr": "Siemens SITRAFFIC M60 Master Controller V3.1",
             "sys_object_id": "1.3.6.1.4.1.4329.10.60",
         },
     ),
@@ -1324,7 +1415,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Siemens Desigo CC Building Management System",
+            "sys_descr": "Siemens Desigo CC Building Management System V5.0",
             "sys_object_id": "1.3.6.1.4.1.4329.20.255",
         },
     ),
@@ -1387,6 +1478,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 315-2EH14-0AB0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 315-2 PN/DP V3.2.16",
+            "sys_object_id": "1.3.6.1.4.1.4329.489.26",
+            "sys_name": "CPU-315-2-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-400/cpu-416-3-pn-dp",
@@ -1447,6 +1545,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 416-3XS07-0AB0",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 416-3 PN/DP V7.0.9",
+            "sys_object_id": "1.3.6.1.4.1.4329.809.6",
+            "sys_name": "CPU-416-3-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/et200mp/im155-5-pn",
@@ -1499,6 +1604,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 155-5AA01-0AB0",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC ET 200MP IM155-5 PN V4.2.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.303.87",
+            "sys_name": "ET-200MP-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -1558,6 +1670,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 214-1HF40-0XB0",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC CPU 1214FC DC/DC/DC V4.6.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.119.94",
+            "sys_name": "CPU-1214FC-001",
+            "sys_location": "Safety Cabinet",
         },
     ),
     DeviceTemplate(
@@ -1637,6 +1756,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-32260"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC WinCC Professional V18.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.369.26",
+            "sys_name": "WINCC-PROFES-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="siemens/siprotec/7sj85",
@@ -1698,6 +1824,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "7SJ85",
             "product_name": "SIPROTEC 7SJ85 Overcurrent Protection",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7SJ85 Overcurrent Protection V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.577.53",
+            "sys_name": "SIPROT-7SJ85-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="siemens/siprotec/7sd87",
@@ -1753,6 +1886,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Siemens AG",
             "product_code": "7SD87",
             "product_name": "SIPROTEC 7SD87 Differential Protection",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7SD87 Differential Protection V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.579.75",
+            "sys_name": "SIPROT-7SD87-001",
+            "sys_location": "Substation",
         },
     ),
     DeviceTemplate(
@@ -1815,6 +1955,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "7SL87",
             "product_name": "SIPROTEC 7SL87 Line Differential",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7SL87 Line Differential V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.75.97",
+            "sys_name": "SIPROT-7SL87-001",
+            "sys_location": "Substation",
+        },
     ),
     DeviceTemplate(
         id="siemens/siprotec/7ut87",
@@ -1875,6 +2022,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Siemens AG",
             "product_code": "7UT87",
             "product_name": "SIPROTEC 7UT87 Transformer Differential",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7UT87 Transformer Differential V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.277.26",
+            "sys_name": "SIPROT-7UT87-001",
+            "sys_location": "Substation",
         },
     ),
     DeviceTemplate(
@@ -1945,6 +2099,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "SINAMICS G120",
             "product_name": "SINAMICS G120 Drive",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS G120 Drive V4.8 SP7",
+            "sys_object_id": "1.3.6.1.4.1.4329.325.24",
+            "sys_name": "SINAMI-G120-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="siemens/hmi/tp1500-comfort",
@@ -2003,6 +2164,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 124-0QC02-0AX1",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC HMI TP1500 Comfort Panel V19.0.0.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.879.27",
+            "sys_name": "TP1500-COMFOR-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="siemens/desigo/cc",
@@ -2060,6 +2228,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 10,  # Siemens Building Technologies
             "device_type": "Management Platform",
             "model_name": "Desigo CC",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens Desigo CC Management Platform V6.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.424.24",
+            "sys_name": "DESIGO-CC-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -2129,6 +2304,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "DXR2.E12",
             "product_name": "Desigo DXR2 Room Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Siemens Desigo DXR2 Room Controller V4.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.241.20",
+            "sys_name": "DESIGO-DXR2-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="siemens-its/m60/atc",
@@ -2181,7 +2363,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens M60 ATC Traffic Signal Controller",
+            "sys_descr": "Siemens M60 ATC Traffic Signal Controller V10.3.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
@@ -2243,7 +2425,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens CP-8000 Central Traffic Controller",
+            "sys_descr": "Siemens CP-8000 Central Traffic Controller V12.5.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
         },
 
@@ -2311,7 +2493,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "SCALANCE XM416-4C Managed Switch",
+            "sys_descr": "SCALANCE XM416-4C Managed Switch V6.6",
             "sys_object_id": "1.3.6.1.4.1.4329.6.3.1.6",
         },
 
@@ -2375,7 +2557,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "SCALANCE X208 Unmanaged Switch",
+            "sys_descr": "SCALANCE X208 Unmanaged Switch V5.5",
             "sys_object_id": "1.3.6.1.4.1.4329.6.3.1.2",
         },
 
@@ -2451,6 +2633,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC TIA Portal Engineering Station V18.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.180.43",
+            "sys_name": "TIA-PORTAL-001",
+            "sys_location": "Engineering Office",
+        },
     ),
     DeviceTemplate(
         id="siemens/wincc/unified",
@@ -2515,6 +2704,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC HMI WinCC Unified Comfort Panel V18.0",
+            "sys_object_id": "1.3.6.1.4.1.4329.954.5",
+            "sys_name": "WINCC-UNIFIE-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="siemens/et-200mp/6es7-155-5aa01-0ab0",
@@ -2564,6 +2760,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 1,
                 "im0_sw_revision": "V4.1.3",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 155-5AA01-0AB0 V4.1.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.311.38",
+            "sys_name": "6ES7-155-5A-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="siemens/et-200sp/6es7-155-6au01-0bn0",
@@ -2616,6 +2819,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 1,
                 "im0_sw_revision": "V4.2.5",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 155-6AU01-0BN0 V4.2.5",
+            "sys_object_id": "1.3.6.1.4.1.4329.568.54",
+            "sys_name": "6ES7-155-6A-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-1200f/6es7-214-1hf40-0xb0",
@@ -2682,6 +2892,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "firmware_version": "V4.5.2",
                 "hardware_version": "4",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 214-1HF40-0XB0 V4.5.2",
+            "sys_object_id": "1.3.6.1.4.1.4329.759.44",
+            "sys_name": "6ES7-214-1H-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-300/6es7-315-2eh14-0ab0",
@@ -2747,6 +2964,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "firmware_version": "V3.2.17",
                 "hardware_version": "14",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 315-2EH14-0AB0 V3.2.17",
+            "sys_object_id": "1.3.6.1.4.1.4329.614.56",
+            "sys_name": "6ES7-315-2E-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-400/6es7-416-3es07-0ab0",
@@ -2812,6 +3036,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "firmware_version": "V6.0.9",
                 "hardware_version": "7",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 416-3ES07-0AB0 V6.0.9",
+            "sys_object_id": "1.3.6.1.4.1.4329.226.6",
+            "sys_name": "6ES7-416-3E-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/s7-1500f/6es7-516-3fn02-0ab0",
@@ -2883,6 +3114,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "firmware_version": "V3.0.3",
                 "hardware_version": "2",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIMATIC 6ES7 516-3FN02-0AB0 V3.0.3",
+            "sys_object_id": "1.3.6.1.4.1.4329.156.12",
+            "sys_name": "6ES7-516-3F-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="siemens/scalance/6gk5-208-0ba00-2ab2",
@@ -2994,6 +3232,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 1,
                 "im0_sw_revision": "V5.2",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS 6SL3130-7TE25-5AA3 V5.2",
+            "sys_object_id": "1.3.6.1.4.1.4329.739.25",
+            "sys_name": "6SL3130-7TE2-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="siemens/sinamics/6sl3210-1ke21-7uf1",
@@ -3050,6 +3295,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 1,
                 "im0_sw_revision": "V4.8",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS 6SL3210-1KE21-7UF1 V4.8",
+            "sys_object_id": "1.3.6.1.4.1.4329.320.41",
+            "sys_name": "6SL3210-1KE2-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="siemens/sinamics/6sl3544-0fb21-1fa0",
@@ -3099,6 +3351,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "im0_hw_revision": 1,
                 "im0_sw_revision": "V1.2",
             },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINAMICS 6SL3544-0FB21-1FA0 V1.2",
+            "sys_object_id": "1.3.6.1.4.1.4329.407.31",
+            "sys_name": "6SL3544-0FB2-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="siemens/traffic-management/cp-8000",

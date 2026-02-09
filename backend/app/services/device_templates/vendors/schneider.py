@@ -98,6 +98,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "modbus_max_registers": 125,
             "modbus_max_coils": 2000,
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M580 ePAC CPU V4.10",
+            "sys_object_id": "1.3.6.1.4.1.3833.228.23",
+            "sys_name": "M580-EPAC-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m241/tm241ce40r",
@@ -160,6 +167,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TM241CE40R",
             "product_name": "Modicon M241 Logic Controller",
             "model_name": "TM241CE40R",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M241 Logic Controller V5.2.6",
+            "sys_object_id": "1.3.6.1.4.1.3833.91.56",
+            "sys_name": "M241-LOGIC-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -251,6 +265,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Schneider Electric",
             "im0_order_id": "ATV630D15N4",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Altivar Process ATV630 V1.7IE61",
+            "sys_object_id": "1.3.6.1.4.1.3833.344.72",
+            "sys_name": "ALTIVA-PROCES-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m580/bmep582040",
@@ -325,6 +346,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "BMEP582040 M580 ePAC",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M580 ePAC CPU V4.10",
+            "sys_object_id": "1.3.6.1.4.1.3833.280.22",
+            "sys_name": "M580-EPAC-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m340/bmxp3420302",
@@ -397,6 +425,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "BMXP3420302 M340 PROCESSOR",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M340 Processor V3.40",
+            "sys_object_id": "1.3.6.1.4.1.3833.147.96",
+            "sys_name": "M340-PROCES-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m251/tm251mese",
@@ -459,6 +494,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TM251MESE",
             "product_name": "Modicon M251 Logic Controller",
             "model_name": "TM251MESE",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M251 Logic Controller V5.2.6",
+            "sys_object_id": "1.3.6.1.4.1.3833.334.98",
+            "sys_name": "M251-LOGIC-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -532,6 +574,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 262,
             "product_name": "TM262L20MESE8T M262 MOTION",
             "state": 3,
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M262 Motion Controller V1.5.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.81.19",
+            "sys_name": "M262-MOTION-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -614,6 +663,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_manufacturer": "Schneider Electric",
             "im0_order_id": "ATV930D15N4",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Altivar Process ATV930 V3.6IE50",
+            "sys_object_id": "1.3.6.1.4.1.3833.996.82",
+            "sys_name": "ALTIVA-PROCES-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="schneider/altivar/atv320",
@@ -677,6 +733,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.schneider-electric.com",
             "product_name": "Altivar Machine ATV320",
             "model_name": "ATV320U22N4C",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Altivar Machine ATV320 V1.8IE22",
+            "sys_object_id": "1.3.6.1.4.1.3833.47.88",
+            "sys_name": "ALTIVA-MACHIN-001",
+            "sys_location": "Motor Control Center",
         },
     ),
     DeviceTemplate(
@@ -744,6 +807,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "STBNIP2311 STB ETHERNET/IP",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric STB EtherNet/IP Adapter V6.20",
+            "sys_object_id": "1.3.6.1.4.1.3833.957.78",
+            "sys_name": "STB-ETHERN-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="schneider/tm3/tm3di32k",
@@ -800,6 +870,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TM3DI32K",
             "product_name": "TM3 32-Input Module",
             "model_name": "TM3DI32K",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric TM3 32-Input Module V2.1",
+            "sys_object_id": "1.3.6.1.4.1.3833.594.54",
+            "sys_name": "TM3-32-INP-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -859,7 +936,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Schneider Electric ConneXium Managed Switch",
+            "sys_descr": "Schneider Electric ConneXium Managed Switch V8.5",
             "sys_object_id": "1.3.6.1.4.1.3833.1.100.1",
         },
 
@@ -932,6 +1009,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Magelis STM6 HMI",
             "model_name": "HMISTM6",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Magelis STM6 HMI V3.5.2",
+            "sys_object_id": "1.3.6.1.4.1.3833.73.60",
+            "sys_name": "MAGELI-STM6-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-premium/tsxp57204m",
@@ -998,6 +1082,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Modicon Premium CPU",
             "model_name": "TSXP57204M",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Premium CPU V5.3",
+            "sys_object_id": "1.3.6.1.4.1.3833.609.79",
+            "sys_name": "PREMIU-CPU-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/tm5-safety/tm5cslc100fs",
@@ -1063,6 +1154,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "TM5 Safety Logic Controller",
             "model_name": "TM5CSLC100FS",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric TM5 Safety Logic Controller V1.4.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.839.95",
+            "sys_name": "TM5-SAFETY-001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="schneider/power/pm8000",
@@ -1118,7 +1216,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Schneider Electric PowerLogic PM8000 Power Quality Meter",
+            "sys_descr": "Schneider Electric PowerLogic PM8000 Power Quality Meter V4.0.0",
             "sys_object_id": "1.3.6.1.4.1.3833.1.100.8000",
         },
 
@@ -1187,6 +1285,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "BMEH586040 M580 HP ePAC",
             "state": 3,
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M580 High-Performance ePAC V4.10",
+            "sys_object_id": "1.3.6.1.4.1.3833.502.93",
+            "sys_name": "M580-HIGH-P-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m340/bmxp342020",
@@ -1238,6 +1343,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "BMXP342020",
             "product_name": "Modicon M340 Processor",
             "model_name": "M340",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M340 Processor V3.60",
+            "sys_object_id": "1.3.6.1.4.1.3833.749.92",
+            "sys_name": "M340-PROCES-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -1291,6 +1403,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Modicon M580 Safety ePAC",
             "model_name": "M580S",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric M580 Safety ePAC V4.10",
+            "sys_object_id": "1.3.6.1.4.1.3833.251.90",
+            "sys_name": "M580-SAFETY-001",
+            "sys_location": "Safety Cabinet",
+        },
     ),
     DeviceTemplate(
         id="schneider/lexium32/lxm32md18n4",
@@ -1342,6 +1461,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "LXM32MD18N4",
             "product_name": "Lexium 32 Servo Drive",
             "model_name": "Lexium 32",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Lexium 32 Servo Drive V2.60",
+            "sys_object_id": "1.3.6.1.4.1.3833.811.96",
+            "sys_name": "LEXIUM-32-001",
+            "sys_location": "Machine",
         },
     ),
     DeviceTemplate(
@@ -1396,6 +1522,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Premium PLC",
             "model_name": "Premium",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Premium TSXP57154M V6.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.254.86",
+            "sys_name": "PREMIU-TSXP57-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="schneider/advantys/stb-nip-2311",
@@ -1448,6 +1581,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Advantys STB Network Interface",
             "model_name": "Advantys STB",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Advantys STB Network Interface V4.50",
+            "sys_object_id": "1.3.6.1.4.1.3833.661.20",
+            "sys_name": "ADVANT-STB-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="schneider/inrow/dx",
@@ -1495,7 +1635,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Schneider Electric InRow DX Precision Cooling",
+            "sys_descr": "Schneider Electric InRow DX Precision Cooling V7.0.2",
             "sys_object_id": "1.3.6.1.4.1.318.1.3.14.5",
         },
 
@@ -1564,7 +1704,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Schneider Electric Galaxy VM UPS",
+            "sys_descr": "Schneider Electric Galaxy VM UPS V2.5.0",
             "sys_object_id": "1.3.6.1.4.1.318.1.3.27",
         },
 
@@ -1626,7 +1766,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Schneider Electric Switched Rack PDU",
+            "sys_descr": "Schneider Electric Switched Rack PDU V6.9.6",
             "sys_object_id": "1.3.6.1.4.1.318.1.3.4.5",
         },
 
@@ -1704,6 +1844,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "CX9680",
             "product_name": "Andover Continuum CX9680",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Andover Continuum CX9680 V2.8.5",
+            "sys_object_id": "1.3.6.1.4.1.3833.461.43",
+            "sys_name": "ANDOVE-CONTIN-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="schneider/hmi/hmist6700",
@@ -1759,6 +1906,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schneider Electric",
             "product_code": "HMIST6700",
             "product_name": "Harmony STU 6700 HMI",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric Harmony STU 6700 HMI V6.0.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.256.48",
+            "sys_name": "HARMON-STU-001",
+            "sys_location": "Control Room",
         },
     ),
     DeviceTemplate(
@@ -1816,6 +1970,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TBox MS-CPU32",
             "product_name": "TBox MS RTU",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric TBox MS RTU V5.3.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.335.91",
+            "sys_name": "TBOX-MS-001",
+            "sys_location": "Remote Site",
+        },
     ),
     DeviceTemplate(
         id="schneider/ion/8650",
@@ -1871,6 +2032,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schneider Electric",
             "product_code": "ION8650",
             "product_name": "ION8650 Power Quality Meter",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric ION8650 Power Quality Meter V4.005",
+            "sys_object_id": "1.3.6.1.4.1.3833.994.30",
+            "sys_name": "ION865-POWER-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -1928,6 +2096,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "SCADAPack-350",
             "product_name": "SCADAPack 350 RTU",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric SCADAPack 350 RTU V8.5.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.365.46",
+            "sys_name": "SCADAP-350-001",
+            "sys_location": "Remote Site",
+        },
     ),
     DeviceTemplate(
         id="schneider/tbox/lt2",
@@ -1984,6 +2159,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "TBox-LT2",
             "product_name": "TBox LT2 Lite RTU",
         },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric TBox LT2 Lite RTU V2.8.0",
+            "sys_object_id": "1.3.6.1.4.1.3833.273.46",
+            "sys_name": "TBOX-LT2-001",
+            "sys_location": "Remote Site",
+        },
     ),
     DeviceTemplate(
         id="schneider/altivar/atv320",
@@ -2027,6 +2209,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Altivar Machine ATV320",
                 "model_name": "ATV320",
             },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric ATV320 V1.7IE18",
+            "sys_object_id": "1.3.6.1.4.1.3833.47.88",
+            "sys_name": "ATV320-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="schneider/altivar/atv930-generic",
@@ -2078,6 +2267,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "revision_minor": 1,
                 "product_name": "Altivar Process ATV930",
             },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric ATV930 V2.1IE26",
+            "sys_object_id": "1.3.6.1.4.1.3833.574.69",
+            "sys_name": "ATV930-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="schneider/modicon-m580/bmep586040",
@@ -2182,6 +2378,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Magelis GTO Advanced HMI",
                 "model_name": "HMIGTO5310",
             },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric HMIGTO5310 V5.1",
+            "sys_object_id": "1.3.6.1.4.1.3833.430.72",
+            "sys_name": "HMIGTO5310-001",
+            "sys_location": "Control Room",
+        },
     ),
     DeviceTemplate(
         id="schneider/tbox/lt2",
@@ -2284,6 +2487,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "LXM32MD18M2",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "Schneider Electric LXM32MD18M2 V2.62",
+            "sys_object_id": "1.3.6.1.4.1.3833.495.26",
+            "sys_name": "LXM32MD18M2-001",
+            "sys_location": "Motor Control Center",
+        },
     ),
     DeviceTemplate(
         id="schneider/tbox/ms-cpu32",

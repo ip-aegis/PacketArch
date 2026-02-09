@@ -68,6 +68,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "DeltaV-S",
             "product_name": "DeltaV S-series Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Emerson DeltaV S-series Controller V15.3",
+            "sys_object_id": "1.3.6.1.4.1.3530.364.28",
+            "sys_name": "DELTAV-S-SERI-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="emerson/roc/800l",
@@ -131,7 +138,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Emerson ROC800L Remote Operations Controller",
+            "sys_descr": "Emerson ROC800L Remote Operations Controller V3.91",
             "sys_object_id": "1.3.6.1.4.1.3530.10.800",
         },
     ),
@@ -192,6 +199,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "DeltaV-MD-Plus",
             "product_name": "DeltaV MD Plus Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Emerson DeltaV MD Plus Controller V15.3",
+            "sys_object_id": "1.3.6.1.4.1.3530.284.81",
+            "sys_name": "DELTAV-MD-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="emerson/roc/800",
@@ -250,7 +264,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Emerson ROC800 Remote Operations Controller",
+            "sys_descr": "Emerson ROC800 Remote Operations Controller V3.91",
             "sys_object_id": "1.3.6.1.4.1.3530.10.800",
         },
     ),
@@ -309,6 +323,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "3051S",
             "product_name": "Rosemount 3051S Pressure Transmitter",
         },
+
+        snmp_identity={
+            "sys_descr": "Emerson Rosemount 3051S Pressure Transmitter V11.3",
+            "sys_object_id": "1.3.6.1.4.1.3530.996.65",
+            "sys_name": "ROSEMO-3051S-001",
+            "sys_location": "Field",
+        },
     ),
     DeviceTemplate(
         id="emerson/micromotion/5700",
@@ -364,6 +385,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Emerson Process Management",
             "product_code": "5700",
             "product_name": "Micro Motion 5700 Transmitter",
+        },
+
+        snmp_identity={
+            "sys_descr": "Emerson Micro Motion 5700 Transmitter V8.2",
+            "sys_object_id": "1.3.6.1.4.1.3530.595.18",
+            "sys_name": "MICRO-MOTION-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -421,6 +449,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "DVC6200",
             "product_name": "DVC6200 Digital Valve Controller",
         },
+
+        snmp_identity={
+            "sys_descr": "Emerson DVC6200 Digital Valve Controller V6.4",
+            "sys_object_id": "1.3.6.1.4.1.3530.946.2",
+            "sys_name": "DVC620-DIGITA-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="emerson/deltav/historian",
@@ -467,6 +502,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Emerson DeltaV Continuous Historian V14.3",
+            "sys_object_id": "1.3.6.1.4.1.3530.826.1",
+            "sys_name": "DELTAV-CONTIN-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="emerson/deltav/ows",
@@ -513,5 +555,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Emerson DeltaV Operator Workstation V14.3",
+            "sys_object_id": "1.3.6.1.4.1.3530.752.60",
+            "sys_name": "DELTAV-OPERAT-001",
+            "sys_location": "Control Room",
+        },
     ),
 ]

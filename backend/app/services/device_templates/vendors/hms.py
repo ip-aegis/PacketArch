@@ -83,6 +83,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "HMS Anybus X-gateway Protocol Converter V2.30",
+            "sys_object_id": "1.3.6.1.4.1.8284.459.94",
+            "sys_name": "ANYBUS-X-GATE-001",
+            "sys_location": "Network Cabinet",
+        },
     ),
     DeviceTemplate(
         id="hms/anybus/anybus-communicator",
@@ -139,6 +146,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Anybus Communicator",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "HMS Anybus Communicator V1.50",
+            "sys_object_id": "1.3.6.1.4.1.8284.903.70",
+            "sys_name": "ANYBUS-COMMUN-001",
+            "sys_location": "Network Cabinet",
+        },
     ),
     DeviceTemplate(
         id="hms/ewon/cosy-131",

@@ -177,9 +177,38 @@ class BackgroundNoiseGenerator:
                 })
 
         # Phase 4: Periodic broadcast types (staggered per device)
+        #
+        # TIMING NOTE — CV device naming race condition:
+        # Protocol flow startups fire at 0-2s (SCADA), 2-10s (PLC), 5-20s
+        # (field devices).  CV names a device from the FIRST protocol it
+        # sees.  If Modbus/S7 fires before SNMP sysName arrives, CV names
+        # the device by IP address instead of the human-readable sysName.
+        #
+        # Fix: schedule SNMP discovery BEFORE protocol flow startups
+        # (~100-500ms after warmup, i.e. 600-1000ms absolute) so CV
+        # receives sysName before any protocol traffic.
         for device in self.devices:
             base_t = warmup_ms
 
+            # --- SNMP discovery FIRST (must beat protocol flow startup) ---
+            if self._should_snmp_discovery(device):
+                scheduler.schedule(base_t + random.uniform(100.0, 500.0), {
+                    "type": "ambient_snmp_discovery",
+                    "device_id": device.device_id,
+                })
+                # Early burst: extra one-shot cycles at ~30s and ~90s so CV
+                # can fingerprint devices before the regular 300s cadence.
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_snmp_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
+
+            # --- Layer 2 broadcasts (STP/LLDP/CDP) ---
             if self._should_stp(device):
                 scheduler.schedule(base_t + random.uniform(100.0, 2000.0), {
                     "type": "ambient_stp_bpdu",
@@ -198,6 +227,53 @@ class BackgroundNoiseGenerator:
                     "device_id": device.device_id,
                 })
 
+            # --- Protocol-specific discovery (before flow startup) ---
+            if self._should_modbus_discovery(device):
+                scheduler.schedule(base_t + random.uniform(500.0, 1500.0), {
+                    "type": "ambient_modbus_discovery",
+                    "device_id": device.device_id,
+                })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_modbus_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
+
+            if self._should_enip_discovery(device):
+                scheduler.schedule(base_t + random.uniform(500.0, 1500.0), {
+                    "type": "ambient_enip_discovery",
+                    "device_id": device.device_id,
+                })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_enip_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
+
+            if self._should_s7_discovery(device):
+                scheduler.schedule(base_t + random.uniform(500.0, 1500.0), {
+                    "type": "ambient_s7_discovery",
+                    "device_id": device.device_id,
+                })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_s7_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
+
+            # --- Multicast discovery (can be later) ---
             if self._should_bacnet_whois(device):
                 scheduler.schedule(base_t + random.uniform(2000.0, 10000.0), {
                     "type": "ambient_bacnet_whois",
@@ -215,68 +291,6 @@ class BackgroundNoiseGenerator:
                     "type": "ambient_igmp_join",
                     "device_id": device.device_id,
                 })
-
-            if self._should_snmp_discovery(device):
-                scheduler.schedule(base_t + random.uniform(3000.0, 8000.0), {
-                    "type": "ambient_snmp_discovery",
-                    "device_id": device.device_id,
-                })
-                # Early burst: extra one-shot cycles at ~30s and ~90s so CV
-                # can fingerprint devices before the regular 300s cadence.
-                for burst_offset in (30_000.0, 90_000.0):
-                    scheduler.schedule(
-                        base_t + burst_offset + random.uniform(0, 5000.0),
-                        {
-                            "type": "ambient_snmp_discovery",
-                            "device_id": device.device_id,
-                            "burst": True,
-                        },
-                    )
-
-            if self._should_modbus_discovery(device):
-                scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
-                    "type": "ambient_modbus_discovery",
-                    "device_id": device.device_id,
-                })
-                for burst_offset in (30_000.0, 90_000.0):
-                    scheduler.schedule(
-                        base_t + burst_offset + random.uniform(0, 5000.0),
-                        {
-                            "type": "ambient_modbus_discovery",
-                            "device_id": device.device_id,
-                            "burst": True,
-                        },
-                    )
-
-            if self._should_enip_discovery(device):
-                scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
-                    "type": "ambient_enip_discovery",
-                    "device_id": device.device_id,
-                })
-                for burst_offset in (30_000.0, 90_000.0):
-                    scheduler.schedule(
-                        base_t + burst_offset + random.uniform(0, 5000.0),
-                        {
-                            "type": "ambient_enip_discovery",
-                            "device_id": device.device_id,
-                            "burst": True,
-                        },
-                    )
-
-            if self._should_s7_discovery(device):
-                scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
-                    "type": "ambient_s7_discovery",
-                    "device_id": device.device_id,
-                })
-                for burst_offset in (30_000.0, 90_000.0):
-                    scheduler.schedule(
-                        base_t + burst_offset + random.uniform(0, 5000.0),
-                        {
-                            "type": "ambient_s7_discovery",
-                            "device_id": device.device_id,
-                            "burst": True,
-                        },
-                    )
 
     # ------------------------------------------------------------------
     # Event dispatch
@@ -926,7 +940,10 @@ class BackgroundNoiseGenerator:
         if not sys_object_id:
             from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
             sys_object_id = get_enterprise_oid_for_vendor(device.vendor)
-        sys_name = snmp_id.get("sys_name", device.device_name or device.device_id)
+        # Always prefer scenario device_name for sysName — CV uses this for
+        # display.  Template snmp_identity.sys_name is a generic placeholder
+        # shared across devices; device_name is unique per scenario instance.
+        sys_name = device.device_name or snmp_id.get("sys_name", device.device_id)
         sys_location = snmp_id.get("sys_location", "Industrial Site")
 
         # MIB-II system OIDs to poll

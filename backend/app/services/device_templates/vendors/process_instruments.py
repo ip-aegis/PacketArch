@@ -76,6 +76,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Inspector P631 Vision Sensor",
             "model_name": "Inspector P631",
         },
+
+        snmp_identity={
+            "sys_descr": "SICK Inspector P631 Vision Sensor V2.4.1",
+            "sys_object_id": "1.3.6.1.4.1.1713.109.88",
+            "sys_name": "INSPEC-P631-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="sick/clv/clv650-0120",
@@ -147,6 +154,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "CLV650 Barcode Scanner",
             "model_name": "CLV650",
         },
+
+        snmp_identity={
+            "sys_descr": "SICK CLV650 Barcode Scanner V2.10",
+            "sys_object_id": "1.3.6.1.4.1.1713.61.26",
+            "sys_name": "CLV650-BARCOD-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="endress_hauser/promag/400",
@@ -199,6 +213,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.endress.com",
             "product_name": "Promag 400",
             "model_name": "Promag",
+        },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Promag 400 Electromagnetic Flow Meter V01.06.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.66.17",
+            "sys_name": "PROMAG-400-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -253,6 +274,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Levelflex FMP50",
             "model_name": "Levelflex",
         },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Levelflex FMP50 Level Transmitter V01.05.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.348.75",
+            "sys_name": "LEVELF-FMP50-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="endress_hauser/cerabar/pmc71",
@@ -305,6 +333,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.endress.com",
             "product_name": "Cerabar PMC71",
             "model_name": "Cerabar",
+        },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Cerabar PMC71 Pressure Transmitter V01.06.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.768.21",
+            "sys_name": "CERABA-PMC71-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -362,6 +397,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "Promag 400",
             "product_name": "Electromagnetic Flowmeter",
         },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Promag 400 Electromagnetic Flowmeter V01.05.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.149.15",
+            "sys_name": "PROMAG-400-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="endress-hauser/liquiline/cm442",
@@ -418,6 +460,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "CM442",
             "product_name": "Liquiline Multiparameter Transmitter",
         },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Liquiline CM442 Transmitter V01.08.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.868.54",
+            "sys_name": "LIQUIL-CM442-001",
+            "sys_location": "Process Area",
+        },
     ),
     DeviceTemplate(
         id="vaisala/rwis/500",
@@ -470,7 +519,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Vaisala RWIS500 Road Weather Station",
+            "sys_descr": "Vaisala RWIS500 Road Weather Station V2.5.0",
             "sys_object_id": "1.3.6.1.4.1.10395.1.1",
         },
     ),
@@ -519,6 +568,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Prosonic S FMU90 Ultrasonic Level",
                 "model_name": "Ultrasonic Level Transmitter",
             },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser FMU90 V01.04.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.29.87",
+            "sys_name": "FMU90-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="endress-hauser/promag/promag-w-400",
@@ -565,6 +621,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "Proline Promag W 400 Water Flowmeter",
                 "model_name": "Water Flowmeter",
             },
+
+        snmp_identity={
+            "sys_descr": "Endress+Hauser Promag W 400 V01.07.00",
+            "sys_object_id": "1.3.6.1.4.1.8714.36.65",
+            "sys_name": "PROMAG-W-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="sick/clv/sick-clv650",
@@ -610,5 +673,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 "product_name": "CLV650 Barcode Scanner",
                 "state": 3,
             },
+
+        snmp_identity={
+            "sys_descr": "SICK CLV650 V5.60",
+            "sys_object_id": "1.3.6.1.4.1.1713.660.74",
+            "sys_name": "SICK-CLV650-001",
+            "sys_location": "Industrial Network",
+        },
     ),
 ]

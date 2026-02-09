@@ -63,6 +63,13 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2022-44019", "CVE-2021-21003"],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Beckhoff CX5130 Embedded PC V3.1.4024.35",
+            "sys_object_id": "1.3.6.1.4.1.2510.953.39",
+            "sys_name": "CX5130-EMBEDD-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="phoenix-contact/plcnext/axc-f-2152",
@@ -127,6 +134,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Phoenix Contact",
             "im0_order_id": "AXC F 2152",
+        },
+
+        snmp_identity={
+            "sys_descr": "Phoenix Contact PLCnext Control AXC F 2152 V2024.0.0",
+            "sys_object_id": "1.3.6.1.4.1.4346.700.42",
+            "sys_name": "PLCNEX-CONTRO-001",
+            "sys_location": "Production Floor",
         },
     ),
     DeviceTemplate(
@@ -193,6 +207,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "PFC200 G2 2ETH RS",
             "model_name": "750-8212",
         },
+
+        snmp_identity={
+            "sys_descr": "WAGO PFC200 Controller VFW24",
+            "sys_object_id": "1.3.6.1.4.1.13576.65.83",
+            "sys_name": "PFC200-CONTRO-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="moxa/iologik/e1210",
@@ -255,6 +276,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "ioLogik E1210",
             "product_name": "ioLogik E1210 Remote I/O",
         },
+
+        snmp_identity={
+            "sys_descr": "Moxa ioLogik E1210 Remote I/O V3.3",
+            "sys_object_id": "1.3.6.1.4.1.8691.907.72",
+            "sys_name": "IOLOGI-E1210-001",
+            "sys_location": "Industrial Network",
+        },
     ),
     DeviceTemplate(
         id="moxa/switch/eds-408a",
@@ -312,7 +340,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "EDS-408A-MM-SC Managed Industrial Ethernet Switch",
+            "sys_descr": "EDS-408A-MM-SC Managed Industrial Ethernet Switch V3.12",
             "sys_object_id": "1.3.6.1.4.1.8691.7.116",
         },
     ),
@@ -377,6 +405,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": "X20CP1586",
             "product_name": "X20 Compact PLC",
         },
+
+        snmp_identity={
+            "sys_descr": "B&R X20 Compact PLC V5.20",
+            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.504.32",
+            "sys_name": "X20-COMPAC-001",
+            "sys_location": "Production Floor",
+        },
     ),
     DeviceTemplate(
         id="hirschmann/switch/rs20-0800",
@@ -429,7 +464,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "RS20-0800M2M2SDAE Managed Industrial Ethernet Switch",
+            "sys_descr": "RS20-0800M2M2SDAE Managed Industrial Ethernet Switch V09.1.00",
             "sys_object_id": "1.3.6.1.4.1.248.11.1.1",
         },
     ),
@@ -487,6 +522,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Advantech Co., Ltd.",
             "product_code": "ADAM-6052",
             "product_name": "Digital I/O Module",
+        },
+
+        snmp_identity={
+            "sys_descr": "Advantech ADAM-6052 Digital I/O Module V2.05",
+            "sys_object_id": "1.3.6.1.4.1.10297.475.34",
+            "sys_name": "ADAM-6-DIGITA-001",
+            "sys_location": "Industrial Network",
         },
     ),
     DeviceTemplate(
@@ -572,5 +614,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=[],
             ),
         ],
+
+        snmp_identity={
+            "sys_descr": "Kepware KEPServerEX OPC UA Gateway V6.14",
+            "sys_object_id": "1.3.6.1.4.1.49374.502.34",
+            "sys_name": "KEPSER-OPC-001",
+            "sys_location": "Network Cabinet",
+        },
     ),
 ]
