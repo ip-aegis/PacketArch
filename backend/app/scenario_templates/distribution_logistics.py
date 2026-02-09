@@ -457,7 +457,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "role": "Distribution Operations"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dc_core",
-             "name": "DC_Historian", "protocols": ["s7comm"],
+             "name": "DC_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "role": "Data Historian"},
             {"type": "switch", "vendor": "siemens", "count": 1, "zone": "dc_core",

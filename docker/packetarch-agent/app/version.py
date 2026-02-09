@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.18.2"
+VERSION = "1.19.0"
 
 # Version history:
+# 1.19.0 - Ambient discovery: self-response for BACnet/PROFINET/ENIP/S7 (source-only devices), BACnet ReadProperty identity, fix property_type encoding, fix FingerprintApplicator/DeviceContext kwargs
 # 1.18.2 - Fix TCP stack fingerprinting in OPC UA/DNP3/IEC104/SLMP/FINS engines; BACnet/SNMP engine robustness for missing identity data
 # 1.18.1 - Ambient SNMP discovery: periodic GET/Response for devices with SNMP protocol (CV fingerprints EWON/gateway devices)
 # 1.18.0 - Fix protocol alias mapping: profisafe→profinet, s7comm_plus→s7comm, cip_safety→ethernet_ip; add scenario_id/device_name to DeviceContext

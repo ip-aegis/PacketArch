@@ -52,6 +52,7 @@ class DeviceExpectation:
     fingerprint: dict[str, Any]  # Full vendor_fingerprint dict
     expected_oui_prefixes: list[str]
     protocols_serving: set[str]  # Protocols where this device is TARGET
+    all_protocols: set[str] = field(default_factory=set)  # ALL device protocols
 
 
 @dataclass
@@ -225,12 +226,38 @@ class PcapFingerprintValidator:
         report.checks.extend(self._check_tcp_stack(exp))
 
         # 3. Protocol-specific identity checks
+        # Validate ALL protocols the device has — both target-served
+        # (from normal flows) and ambient-discoverable (from BackgroundNoiseGenerator).
+        # Every device must be on-the-wire fingerprintable for CV.
+        all_protos = exp.all_protocols or exp.protocols_serving
         resolved_protocols = set()
-        for proto_raw in exp.protocols_serving:
+        for proto_raw in all_protos:
             parent = resolve_protocol(proto_raw)
             resolved_protocols.add(parent)
 
         for parent_proto in sorted(resolved_protocols):
+            # Check that device has identity data for this protocol
+            identity_key = PROTOCOL_TO_IDENTITY_KEY.get(parent_proto)
+            if not identity_key:
+                continue  # No validator for this protocol (e.g., opc_ua)
+            identities = exp.fingerprint.get("protocol_identities", {})
+            identity = identities.get(
+                identity_key.replace("_identity", "")
+            ) or exp.fingerprint.get(identity_key)
+            if not identity:
+                # Device has the protocol but no identity data — FAIL
+                report.checks.append(CheckResult(
+                    device_name=exp.device_name,
+                    device_ip=exp.ip_address,
+                    protocol=parent_proto,
+                    check_name=f"{parent_proto} identity data",
+                    expected="present in fingerprint",
+                    actual="MISSING",
+                    passed=False,
+                    detail=f"No {identity_key} in fingerprint — CV cannot fingerprint this device via {parent_proto}",
+                ))
+                continue
+
             validator_name = PROTOCOL_TO_VALIDATOR.get(parent_proto)
             if validator_name:
                 validator_fn = getattr(self, validator_name, None)
@@ -507,7 +534,9 @@ class PcapFingerprintValidator:
             rosctr = payload[s7_offset + 1]
             if rosctr == 0x07:  # Userdata (SZL)
                 data = payload[s7_offset:]
-                text = data.decode("ascii", errors="replace")
+                # Strip null padding before decoding so fixed-width SZL
+                # fields (module_type, order_code) are searchable as strings.
+                text = data.replace(b"\x00", b"").decode("ascii", errors="replace")
                 szl_data_parts.append(text)
 
         if not szl_data_parts:
@@ -545,8 +574,10 @@ class PcapFingerprintValidator:
             expected_val = s7_id.get(field_key, "")
             if not expected_val:
                 continue
-            # For order_code, match first 8 chars (shortened in SZL)
-            search_val = expected_val[:8] if field_key == "order_code" else expected_val
+            # SZL fields are fixed-width; truncate search to match SZL limits
+            szl_field_widths = {"order_code": 20, "module_type": 24, "firmware_version": 8}
+            max_len = szl_field_widths.get(field_key, len(expected_val))
+            search_val = expected_val[:max_len]
             found = search_val in combined
             results.append(CheckResult(
                 device_name=exp.device_name,

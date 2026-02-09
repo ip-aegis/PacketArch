@@ -250,7 +250,10 @@ def build_scenario_from_template(
         if fc:
             flow_contexts.append(fc)
 
-    # ── Step 5: Build DeviceExpectations ─────────────────────────
+    # ── Step 5: Build DeviceExpectations for ALL devices ─────────
+    # Every device must be on-the-wire fingerprintable, not just targets.
+    # Source-only devices get fingerprinted via ambient discovery
+    # (Modbus MEI, EtherNet/IP ListIdentity, S7 SZL, SNMP GET, etc.)
     device_expectations: dict[str, DeviceExpectation] = {}
     for did, dev in devices.items():
         fp = dev.get("vendorFingerprint", {})
@@ -258,8 +261,9 @@ def build_scenario_from_template(
             continue  # Skip devices with no fingerprint
         mac = dev["network"]["macAddress"].upper()
         serving = target_protocols.get(did, set())
-        if not serving:
-            continue  # Skip devices not serving as target in any flow
+
+        # Determine all protocols this device has (for ambient discovery)
+        device_protocols = set(dev.get("protocols", []))
 
         device_expectations[mac] = DeviceExpectation(
             device_id=did,
@@ -271,6 +275,7 @@ def build_scenario_from_template(
             fingerprint=fp,
             expected_oui_prefixes=fp.get("oui_prefixes", []),
             protocols_serving=serving,
+            all_protocols=device_protocols,
         )
 
     return ScenarioBuildResult(

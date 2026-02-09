@@ -40,6 +40,10 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 from scapy.all import rdpcap
 
+from app.protocol_engines.ambient.noise_generator import (
+    AmbientDevice,
+    BackgroundNoiseGenerator,
+)
 from app.protocol_engines.output import PcapOutput
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
 
@@ -132,6 +136,15 @@ def validate_template(
         )
         for fc in result.flow_contexts:
             orchestrator.add_flow(fc)
+
+        # Register ambient noise generator so source-only devices
+        # get protocol identity discovery (Modbus MEI, EtherNet/IP
+        # ListIdentity, S7 SZL, SNMP GET, BACnet Who-Is, PROFINET DCP)
+        ambient_devices = _build_ambient_devices(result)
+        if ambient_devices:
+            noise_gen = BackgroundNoiseGenerator(ambient_devices)
+            orchestrator.register_ambient_generator(noise_gen)
+
         orch_result = orchestrator.run()
         output.close()
         gen_time = (time.monotonic() - t0) * 1000
@@ -336,6 +349,37 @@ def main() -> int:
         print(f"\n  PCAPs saved in: {output_dir}/")
 
     return 0 if not has_failures else 1
+
+
+def _build_ambient_devices(result: ScenarioBuildResult) -> list[AmbientDevice]:
+    """Convert scenario devices into AmbientDevice objects for noise generator."""
+    ambient_devices = []
+    for did, dev in result.devices.items():
+        net = dev.get("network", {})
+        ip = net.get("ipAddress", "")
+        mac = net.get("macAddress", "")
+        if not ip or not mac:
+            continue
+
+        # Compute gateway IP from device IP (x.x.x.1)
+        parts = ip.rsplit(".", 1)
+        gateway = f"{parts[0]}.1" if len(parts) == 2 else None
+
+        fp = dev.get("vendorFingerprint", {})
+
+        ambient_devices.append(AmbientDevice(
+            device_id=did,
+            mac_address=mac,
+            ip_address=ip,
+            gateway_ip=gateway,
+            protocols=dev.get("protocols", []),
+            device_type=dev.get("type", ""),
+            vendor=dev.get("vendor", ""),
+            device_name=dev.get("name", ""),
+            zone_id=dev.get("zone"),
+            vendor_fingerprint=fp,
+        ))
+    return ambient_devices
 
 
 def _crit(ok: bool, label: str) -> None:
