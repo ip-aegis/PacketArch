@@ -612,3 +612,88 @@ class TestVendorEnterpriseOids:
     def test_case_insensitive(self):
         from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
         assert get_enterprise_oid_for_vendor("SIEMENS") == get_enterprise_oid_for_vendor("siemens")
+
+
+# ======================================================================
+# Discovery burst tests
+# ======================================================================
+
+
+class TestDiscoveryBurst:
+    """Test early-burst discovery scheduling for faster CV fingerprinting."""
+
+    def test_snmp_burst_events_scheduled(self):
+        """SNMP discovery gets 2 extra burst events at ~30s and ~90s."""
+        device = _make_device(
+            device_type="plc",
+            vendor="Siemens",
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": "Siemens"},
+        )
+        gen = BackgroundNoiseGenerator([device])
+        scheduler = FakeScheduler()
+        gen.schedule_initial_events(scheduler, warmup_ms=500.0)
+
+        snmp_events = [
+            (t, e) for t, e in scheduler.events
+            if e.get("type") == "ambient_snmp_discovery"
+        ]
+        # 1 regular + 2 burst = 3 initial SNMP events
+        assert len(snmp_events) == 3
+        burst_events = [e for _, e in snmp_events if e.get("burst")]
+        assert len(burst_events) == 2
+
+    def test_modbus_burst_events_scheduled(self):
+        """Modbus discovery gets 2 extra burst events."""
+        device = _make_device(
+            device_type="plc",
+            protocols=["modbus_tcp"],
+            vendor_fingerprint={"vendor": "Schneider"},
+        )
+        gen = BackgroundNoiseGenerator([device])
+        scheduler = FakeScheduler()
+        gen.schedule_initial_events(scheduler, warmup_ms=500.0)
+
+        modbus_events = [
+            (t, e) for t, e in scheduler.events
+            if e.get("type") == "ambient_modbus_discovery"
+        ]
+        assert len(modbus_events) == 3
+        burst_events = [e for _, e in modbus_events if e.get("burst")]
+        assert len(burst_events) == 2
+
+    def test_burst_events_fire_before_regular_interval(self):
+        """Burst events are scheduled before the 300s regular interval."""
+        device = _make_device(
+            device_type="plc",
+            protocols=["ethernet_ip"],
+            vendor_fingerprint={"vendor": "Rockwell"},
+        )
+        gen = BackgroundNoiseGenerator([device])
+        scheduler = FakeScheduler()
+        gen.schedule_initial_events(scheduler, warmup_ms=500.0)
+
+        enip_events = [
+            (t, e) for t, e in scheduler.events
+            if e.get("type") == "ambient_enip_discovery"
+        ]
+        burst_times = [t for t, e in enip_events if e.get("burst")]
+        # Burst events should be at ~30s and ~90s (well under 300s)
+        for t in burst_times:
+            assert t < 100_000, f"Burst event at {t}ms should be < 100s"
+
+    def test_burst_does_not_reschedule(self):
+        """_reschedule skips when event has burst=True."""
+        gen = BackgroundNoiseGenerator([_make_device()])
+        scheduler = FakeScheduler()
+        burst_event = {"type": "ambient_snmp_discovery", "device_id": "x", "burst": True}
+        gen._reschedule(scheduler, 1000.0, 300.0, burst_event)
+        assert len(scheduler.events) == 0, "Burst events must not reschedule"
+
+    def test_regular_event_reschedules_normally(self):
+        """_reschedule works normally for non-burst events."""
+        gen = BackgroundNoiseGenerator([_make_device()])
+        scheduler = FakeScheduler()
+        regular_event = {"type": "ambient_snmp_discovery", "device_id": "x"}
+        gen._reschedule(scheduler, 1000.0, 300.0, regular_event)
+        assert len(scheduler.events) == 1, "Regular events must reschedule"

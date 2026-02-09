@@ -119,8 +119,7 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:05:7C",  # Pilz GmbH & Co
     ],
     "sick": [
-        "00:0B:2D",  # SICK AG
-        "00:06:8C",  # SICK AG
+        "00:06:77",  # SICK AG (IEEE MA-L, verified)
     ],
     "turck": [
         "00:12:4D",  # Turck Inc
@@ -288,12 +287,13 @@ VENDOR_OUIS: dict[str, list[str]] = {
 
     # Logistics / AGV / Warehouse Automation Vendors
     "kuka": [
-        "00:1A:28",  # KUKA Roboter GmbH
-        "00:1F:29",  # KUKA Roboter GmbH
-        "00:10:DC",  # KUKA Roboter GmbH (verified IEEE)
+        "00:60:C8",  # KUKA Welding Systems & Robots (IEEE MA-L, verified)
     ],
     "mir": [
         "00:1E:06",  # Mobile Industrial Robots A/S
+    ],
+    "fanuc": [
+        "00:E0:E4",  # Fanuc Robotics North America (IEEE MA-L, verified)
     ],
     "cognex": [
         "00:04:3E",  # Cognex Corporation
@@ -492,6 +492,7 @@ VENDOR_DISPLAY_NAMES: dict[str, str] = {
     "vaisala": "Vaisala",
     # Logistics / AGV / Warehouse Automation
     "kuka": "KUKA",
+    "fanuc": "Fanuc",
     "mir": "MiR (Mobile Industrial Robots)",
     "cognex": "Cognex",
     "impinj": "Impinj",

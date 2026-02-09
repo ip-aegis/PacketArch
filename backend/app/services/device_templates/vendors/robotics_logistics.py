@@ -15,7 +15,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="robot_controller",
         description="Latest generation robot controller with integrated motion control",
 
-        oui_prefixes=["00:E0:E4", "00:E0:E5"],
+        oui_prefixes=["00:E0:E4"],
 
         tcp_stack={
             "ttl": 128,  # Windows CE based
@@ -79,7 +79,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="cnc_controller",
         description="High-performance CNC controller for turning and milling",
 
-        oui_prefixes=["00:E0:E4", "00:E0:E5"],
+        oui_prefixes=["00:E0:E4"],
 
         tcp_stack={
             "ttl": 128,
@@ -136,7 +136,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="robot_controller",
         description="8th generation robot controller for KUKA industrial robots",
 
-        oui_prefixes=["00:1A:28", "00:1F:29"],
+        oui_prefixes=["00:60:C8"],
 
         tcp_stack={
             "ttl": 128,  # Windows based
@@ -466,7 +466,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="KMP 1500",
         device_type="agv",
         description="KUKA KMP 1500",
-        oui_prefixes=['00:1A:28', '00:1F:29', '00:10:DC'],
+        oui_prefixes=["00:60:C8"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -526,7 +526,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="KMP 600",
         device_type="agv",
         description="KUKA KMP 600",
-        oui_prefixes=['00:1A:28', '00:1F:29', '00:10:DC'],
+        oui_prefixes=["00:60:C8"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -576,7 +576,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="KUKA.FleetManager",
         device_type="fleet_manager",
         description="KUKA KUKA.FleetManager",
-        oui_prefixes=['00:1A:28', '00:1F:29', '00:10:DC'],
+        oui_prefixes=["00:60:C8"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 65535,

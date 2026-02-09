@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.20.0"
+VERSION = "1.21.0"
 
 # Version history:
+# 1.21.0 - Fix OUI misattributions (KUKA/Fanuc/SICK/HMS), early-burst discovery (3 cycles in first 90s for faster CV fingerprinting)
 # 1.20.0 - Universal SNMP discovery: all fingerprinted devices get SNMP GET/Response for CV fingerprinting, vendor-specific sysObjectID synthesis, merge device definition protocols into ambient discovery
 # 1.19.1 - Eliminate phantom devices: all ambient handlers use real scenario devices as query sources instead of fake gateway IPs (02:00:00:00:00:01)
 # 1.19.0 - Ambient discovery: self-response for BACnet/PROFINET/ENIP/S7 (source-only devices), BACnet ReadProperty identity, fix property_type encoding, fix FingerprintApplicator/DeviceContext kwargs

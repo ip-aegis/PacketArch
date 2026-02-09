@@ -272,7 +272,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Flexy 205",
         device_type="remote_access",
         description="HMS Flexy 205",
-        oui_prefixes=['00:06:71'],
+        oui_prefixes=["00:30:11"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,

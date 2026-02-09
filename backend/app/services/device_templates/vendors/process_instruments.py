@@ -15,7 +15,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="vision_sensor",
         description="2D vision sensor for quality inspection applications",
 
-        oui_prefixes=["00:06:B6", "00:1E:0E"],
+        oui_prefixes=["00:06:77"],
 
         tcp_stack={
             "ttl": 64,
@@ -86,7 +86,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="barcode_scanner",
         description="Industrial barcode scanner for logistics and manufacturing",
 
-        oui_prefixes=["00:06:B6", "00:1E:0E"],
+        oui_prefixes=["00:06:77"],
 
         tcp_stack={
             "ttl": 64,
@@ -574,7 +574,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="SICK CLV650",
         device_type="barcode_scanner",
         description="SICK SICK CLV650",
-        oui_prefixes=['00:06:6F', '00:10:BE'],
+        oui_prefixes=["00:06:77"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,

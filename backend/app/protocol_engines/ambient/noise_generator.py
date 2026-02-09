@@ -221,24 +221,62 @@ class BackgroundNoiseGenerator:
                     "type": "ambient_snmp_discovery",
                     "device_id": device.device_id,
                 })
+                # Early burst: extra one-shot cycles at ~30s and ~90s so CV
+                # can fingerprint devices before the regular 300s cadence.
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_snmp_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
 
             if self._should_modbus_discovery(device):
                 scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
                     "type": "ambient_modbus_discovery",
                     "device_id": device.device_id,
                 })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_modbus_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
 
             if self._should_enip_discovery(device):
                 scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
                     "type": "ambient_enip_discovery",
                     "device_id": device.device_id,
                 })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_enip_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
 
             if self._should_s7_discovery(device):
                 scheduler.schedule(base_t + random.uniform(2000.0, 8000.0), {
                     "type": "ambient_s7_discovery",
                     "device_id": device.device_id,
                 })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_s7_discovery",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
 
     # ------------------------------------------------------------------
     # Event dispatch
@@ -861,13 +899,14 @@ class BackgroundNoiseGenerator:
             logger.debug("SNMP engine not available, skipping discovery")
             return []
 
-        # Schedule next discovery
-        interval_ms = self.config.snmp_discovery_interval_s * 1000
-        jitter = random.uniform(-interval_ms * 0.1, interval_ms * 0.1)
-        scheduler.schedule(current_time_ms + interval_ms + jitter, {
-            "type": "ambient_snmp_discovery",
-            "device_id": device.device_id,
-        })
+        # Schedule next discovery (burst events are one-shot)
+        if not event.get("burst"):
+            interval_ms = self.config.snmp_discovery_interval_s * 1000
+            jitter = random.uniform(-interval_ms * 0.1, interval_ms * 0.1)
+            scheduler.schedule(current_time_ms + interval_ms + jitter, {
+                "type": "ambient_snmp_discovery",
+                "device_id": device.device_id,
+            })
 
         # Use a real device as the SNMP manager instead of phantom gateway
         mgr = self._pick_query_source(device)
@@ -1433,7 +1472,13 @@ class BackgroundNoiseGenerator:
         event: dict[str, Any],
         jitter_pct: float = 0.1,
     ) -> None:
-        """Reschedule an event with jitter."""
+        """Reschedule an event with jitter.
+
+        Burst events (``event["burst"] == True``) are one-shot and do NOT
+        reschedule — the regular recurring chain handles steady-state cadence.
+        """
+        if event.get("burst"):
+            return
         interval_ms = interval_s * 1000.0
         jitter = random.uniform(-interval_ms * jitter_pct, interval_ms * jitter_pct)
         scheduler.schedule(current_time_ms + interval_ms + jitter, event)
