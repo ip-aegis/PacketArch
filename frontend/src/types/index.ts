@@ -230,7 +230,7 @@ export interface PayloadTemplate {
   description?: string;
 }
 
-export interface DeviceProfile {
+export interface PaletteDevice {
   id: string;
   name: string;
   device_type: DeviceType | string;
@@ -238,28 +238,16 @@ export interface DeviceProfile {
   description: string | null;
   supported_protocols: ProtocolType[] | null;
   timing_model: TimingModel | null;
-  payload_templates: PayloadTemplate[] | null;
-  behavior_model: Record<string, unknown> | null;
-  vendor_fingerprint: VendorFingerprint | null;
+  vendor_fingerprint: Record<string, string> | null;
   vertical_hints: VerticalType[] | null;
   is_builtin: boolean;
-  created_at: string;
+  template_id: string | null;
+  created_at: string | null;
 }
 
-export interface DeviceProfileCreate {
-  name: string;
-  device_type: string;
-  role?: string;
-  description?: string;
-  supported_protocols?: ProtocolType[];
-  timing_model?: TimingModel;
-  payload_templates?: PayloadTemplate[];
-  behavior_model?: Record<string, unknown>;
-  vendor_fingerprint?: VendorFingerprint;
-  vertical_hints?: VerticalType[];
-}
+/** @deprecated Use PaletteDevice instead */
+export type DeviceProfile = PaletteDevice;
 
-export interface DeviceProfileUpdate extends Partial<DeviceProfileCreate> {}
 
 // Protocol Template types
 export interface ProtocolTemplate {

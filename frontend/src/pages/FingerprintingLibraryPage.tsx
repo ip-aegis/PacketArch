@@ -1,5 +1,5 @@
 /**
- * Fingerprinting Library Page - Browse protocols, vendors, and fingerprints
+ * Device Library Page - Browse protocols, vendors, device templates, and fingerprints
  */
 
 import React, { useState, useMemo } from 'react';
@@ -31,7 +31,6 @@ import {
   CheckCircleOutlined,
   ApiOutlined,
   ClusterOutlined,
-  SafetyCertificateOutlined,
   BuildOutlined,
   NodeIndexOutlined,
   WifiOutlined,
@@ -233,11 +232,11 @@ const FingerprintingLibraryPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <Title level={2} style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <SafetyCertificateOutlined style={{ color: '#049FD9' }} />
-              Fingerprinting Library
+              <DatabaseOutlined style={{ color: '#049FD9' }} />
+              Device Library
             </Title>
             <Text style={{ color: '#8b8fa3' }}>
-              Browse protocols, vendors, and device fingerprints for traffic generation
+              Browse protocols, vendors, and device templates for traffic generation
             </Text>
           </div>
           <Button

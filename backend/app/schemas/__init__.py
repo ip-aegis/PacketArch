@@ -17,12 +17,6 @@ from app.schemas.common import (
     MessageResponse,
     PaginatedResponse,
 )
-from app.schemas.device_profile import (
-    DeviceProfileCreate,
-    DeviceProfileUpdate,
-    DeviceProfileResponse,
-    DeviceProfileListResponse,
-)
 from app.schemas.scenario import (
     ScenarioCreate,
     ScenarioUpdate,
@@ -71,11 +65,6 @@ __all__ = [
     # Common schemas
     "MessageResponse",
     "PaginatedResponse",
-    # Device profile schemas
-    "DeviceProfileCreate",
-    "DeviceProfileUpdate",
-    "DeviceProfileResponse",
-    "DeviceProfileListResponse",
     # Scenario schemas
     "ScenarioCreate",
     "ScenarioUpdate",

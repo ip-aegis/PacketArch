@@ -2,7 +2,7 @@
  * Device Type Registry — single source of truth for all device type metadata.
  *
  * Replaces the 4 duplicate hardcoded DEVICE_TYPE_CONFIG maps that were scattered
- * across DeviceNode, PaletteItem, DeviceLibraryPage, and DevicePalette.
+ * across DeviceNode, PaletteItem, and DevicePalette.
  *
  * Handles 60+ device types across all verticals with category-based grouping
  * and smart fallback for unknown types.
@@ -143,7 +143,7 @@ function entry(
  *  - backend/app/protocol_engines/vendor_oui.py  DEVICE_TYPE_VENDORS
  *  - backend/app/scenario_templates/*.py
  *  - backend/app/services/seed_data.py  DEVICE_PROFILES
- *  - backend/app/services/device_profiles/ vendor profiles
+ *  - backend/app/services/device_templates/ vendor templates
  */
 export const DEVICE_TYPE_REGISTRY: Record<string, DeviceTypeMeta> = {
   // ---- Controllers ----

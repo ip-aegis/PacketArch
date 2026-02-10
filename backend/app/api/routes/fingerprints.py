@@ -7,13 +7,16 @@ This module provides REST API endpoints for:
 """
 
 from typing import Any
+from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from app.core.exceptions import NotFoundError
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, DBSession
+from app.models.device_template import DeviceTemplate as DeviceTemplateModel, TemplateSource
 from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
 from app.services.fingerprint_cache import get_fingerprint_cache
 from app.scenario_templates.base import (
@@ -106,6 +109,65 @@ class ErrorConfigResponse(BaseModel):
     timeout_rate: float
     retry_behavior: bool
     max_retries: int
+
+
+# ========== Palette Response Models ==========
+
+
+class PaletteDeviceResponse(BaseModel):
+    """Device template formatted for the Scenario Studio palette."""
+
+    id: str
+    name: str
+    device_type: str
+    role: str | None = None
+    description: str | None = None
+    supported_protocols: list[str] | None = None
+    timing_model: dict[str, Any] | None = None
+    vendor_fingerprint: dict[str, Any] | None = None
+    vertical_hints: list[str] | None = None
+    is_builtin: bool = True
+    template_id: str | None = None
+    created_at: str | None = None
+
+
+class PaletteDeviceListResponse(BaseModel):
+    """Paginated palette device list."""
+
+    items: list[PaletteDeviceResponse]
+    total: int
+
+
+class DeviceTemplateCreateRequest(BaseModel):
+    """Request to create a user-defined device template."""
+
+    name: str
+    device_type: str
+    role: str | None = None
+    description: str | None = None
+    vendor: str | None = None
+    model: str | None = None
+    supported_protocols: list[str] | None = None
+    vertical_hints: list[str] | None = None
+    timing_model: dict[str, Any] | None = None
+    payload_templates: list[dict[str, Any]] | None = None
+    behavior_model: dict[str, Any] | None = None
+
+
+class DeviceTemplateUpdateRequest(BaseModel):
+    """Request to update a user-defined device template."""
+
+    name: str | None = None
+    device_type: str | None = None
+    role: str | None = None
+    description: str | None = None
+    vendor: str | None = None
+    model: str | None = None
+    supported_protocols: list[str] | None = None
+    vertical_hints: list[str] | None = None
+    timing_model: dict[str, Any] | None = None
+    payload_templates: list[dict[str, Any]] | None = None
+    behavior_model: dict[str, Any] | None = None
 
 
 # ========== API Endpoints ==========
@@ -1169,3 +1231,277 @@ async def list_template_firmwares(
         firmwares = template.firmware_variants
 
     return [_firmware_to_response(fw) for fw in firmwares]
+
+
+# ========== Palette Endpoints ==========
+
+
+def _db_template_to_palette(row: DeviceTemplateModel) -> PaletteDeviceResponse:
+    """Convert a DB DeviceTemplate row to a palette response."""
+    timing_model = None
+    if row.palette_config and isinstance(row.palette_config, dict):
+        timing_model = row.palette_config.get("timing_model")
+
+    vendor_fingerprint = None
+    if row.vendor and row.model:
+        vendor_fingerprint = {
+            "fingerprint_vendor": row.vendor,
+            "fingerprint_model": row.model,
+        }
+    elif row.vendor:
+        vendor_fingerprint = {"fingerprint_vendor": row.vendor}
+
+    # Use name, falling back to model or vendor_family
+    name = row.name or row.model or row.vendor_family or f"{row.vendor or 'Unknown'} {row.device_type or 'Device'}"
+
+    return PaletteDeviceResponse(
+        id=str(row.id),
+        name=name,
+        device_type=row.device_type or "other",
+        role=row.role,
+        description=row.description,
+        supported_protocols=row.active_protocols,
+        timing_model=timing_model,
+        vendor_fingerprint=vendor_fingerprint,
+        vertical_hints=row.vertical_hints,
+        is_builtin=row.source == TemplateSource.VENDOR_BUILTIN.value,
+        template_id=row.name,  # The string template ID for fingerprint lookup
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
+
+
+@router.get("/palette", response_model=PaletteDeviceListResponse)
+async def list_palette_devices(
+    db: DBSession,
+    _current_user: CurrentUser,
+    device_type: str | None = Query(None, description="Filter by device type"),
+    protocol: str | None = Query(None, description="Filter by protocol"),
+    vertical: str | None = Query(None, description="Filter by industry vertical"),
+    search: str | None = Query(None, description="Search name/description"),
+    page_size: int = Query(200, ge=1, le=500, description="Max items to return"),
+) -> PaletteDeviceListResponse:
+    """List device templates for the Scenario Studio palette.
+
+    Returns device templates in a shape compatible with the drag-and-drop palette,
+    replacing the old /api/v1/devices endpoint.
+    """
+    query = select(DeviceTemplateModel).where(DeviceTemplateModel.is_active == True)
+
+    if device_type:
+        query = query.where(DeviceTemplateModel.device_type == device_type)
+
+    if protocol:
+        query = query.where(DeviceTemplateModel.active_protocols.contains([protocol]))
+
+    if vertical:
+        query = query.where(DeviceTemplateModel.vertical_hints.contains([vertical]))
+
+    if search:
+        search_filter = f"%{search}%"
+        query = query.where(
+            DeviceTemplateModel.name.ilike(search_filter)
+            | DeviceTemplateModel.description.ilike(search_filter)
+        )
+
+    query = query.order_by(DeviceTemplateModel.name).limit(page_size)
+
+    # Count total
+    count_query = select(func.count(DeviceTemplateModel.id)).where(DeviceTemplateModel.is_active == True)
+    if device_type:
+        count_query = count_query.where(DeviceTemplateModel.device_type == device_type)
+    if protocol:
+        count_query = count_query.where(DeviceTemplateModel.active_protocols.contains([protocol]))
+    if vertical:
+        count_query = count_query.where(DeviceTemplateModel.vertical_hints.contains([vertical]))
+    if search:
+        count_query = count_query.where(
+            DeviceTemplateModel.name.ilike(f"%{search}%")
+            | DeviceTemplateModel.description.ilike(f"%{search}%")
+        )
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    total = await db.scalar(count_query) or 0
+
+    return PaletteDeviceListResponse(
+        items=[_db_template_to_palette(row) for row in rows],
+        total=total,
+    )
+
+
+# ========== User-Created Device Template CRUD ==========
+
+
+@router.post(
+    "/device-templates",
+    response_model=PaletteDeviceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_device_template(
+    request: DeviceTemplateCreateRequest,
+    db: DBSession,
+    _current_user: CurrentUser,
+) -> PaletteDeviceResponse:
+    """Create a new user-defined device template."""
+    palette_config: dict[str, Any] = {}
+    if request.timing_model:
+        palette_config["timing_model"] = request.timing_model
+    if request.payload_templates:
+        palette_config["payload_templates"] = request.payload_templates
+    if request.behavior_model:
+        palette_config["behavior_model"] = request.behavior_model
+
+    template = DeviceTemplateModel(
+        source=TemplateSource.USER_CREATED.value,
+        name=request.name,
+        device_type=request.device_type,
+        role=request.role,
+        description=request.description,
+        vendor=request.vendor,
+        model=request.model,
+        active_protocols=request.supported_protocols,
+        vertical_hints=request.vertical_hints,
+        palette_config=palette_config if palette_config else None,
+        is_active=True,
+        confidence=1.0,
+        sample_count=1,
+        consistency_score=1.0,
+    )
+
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+
+    return _db_template_to_palette(template)
+
+
+@router.put("/device-templates/{template_id}", response_model=PaletteDeviceResponse)
+async def update_device_template(
+    template_id: UUID,
+    request: DeviceTemplateUpdateRequest,
+    db: DBSession,
+    _current_user: CurrentUser,
+) -> PaletteDeviceResponse:
+    """Update a user-created device template."""
+    result = await db.execute(
+        select(DeviceTemplateModel).where(DeviceTemplateModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+
+    if not template:
+        raise NotFoundError("Device template", str(template_id))
+
+    if template.source != TemplateSource.USER_CREATED.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot modify built-in device templates",
+        )
+
+    # Update basic fields
+    update_fields = request.model_dump(exclude_unset=True, exclude={"timing_model", "payload_templates", "behavior_model"})
+    for field_name, value in update_fields.items():
+        if field_name == "supported_protocols":
+            setattr(template, "active_protocols", value)
+        else:
+            setattr(template, field_name, value)
+
+    # Update palette_config sub-fields
+    palette_config = dict(template.palette_config or {})
+    if request.timing_model is not None:
+        palette_config["timing_model"] = request.timing_model
+    if request.payload_templates is not None:
+        palette_config["payload_templates"] = request.payload_templates
+    if request.behavior_model is not None:
+        palette_config["behavior_model"] = request.behavior_model
+    template.palette_config = palette_config if palette_config else None
+
+    await db.commit()
+    await db.refresh(template)
+
+    return _db_template_to_palette(template)
+
+
+@router.delete("/device-templates/{template_id}")
+async def delete_device_template(
+    template_id: UUID,
+    db: DBSession,
+    _current_user: CurrentUser,
+) -> dict[str, str]:
+    """Delete a user-created device template."""
+    result = await db.execute(
+        select(DeviceTemplateModel).where(DeviceTemplateModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+
+    if not template:
+        raise NotFoundError("Device template", str(template_id))
+
+    if template.source != TemplateSource.USER_CREATED.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot delete built-in device templates",
+        )
+
+    await db.delete(template)
+    await db.commit()
+
+    return {"message": "Device template deleted successfully"}
+
+
+@router.post(
+    "/device-templates/{template_id}/duplicate",
+    response_model=PaletteDeviceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_device_template(
+    template_id: UUID,
+    db: DBSession,
+    _current_user: CurrentUser,
+    new_name: str = Query(..., min_length=1, max_length=255),
+) -> PaletteDeviceResponse:
+    """Duplicate a device template with a new name."""
+    result = await db.execute(
+        select(DeviceTemplateModel).where(DeviceTemplateModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+
+    if not template:
+        raise NotFoundError("Device template", str(template_id))
+
+    new_template = DeviceTemplateModel(
+        source=TemplateSource.USER_CREATED.value,
+        name=new_name,
+        device_type=template.device_type,
+        role=template.role,
+        description=template.description,
+        vendor=template.vendor,
+        vendor_family=template.vendor_family,
+        model=template.model,
+        active_protocols=template.active_protocols,
+        vertical_hints=template.vertical_hints,
+        palette_config=template.palette_config,
+        oui_patterns=template.oui_patterns,
+        tcp_signature=template.tcp_signature,
+        protocol_identities=template.protocol_identities,
+        modbus_identity=template.modbus_identity,
+        ethernet_ip_identity=template.ethernet_ip_identity,
+        profinet_identity=template.profinet_identity,
+        s7_identity=template.s7_identity,
+        snmp_identity=template.snmp_identity,
+        bacnet_identity=template.bacnet_identity,
+        opc_ua_identity=template.opc_ua_identity,
+        response_timings=template.response_timings,
+        typical_ports=template.typical_ports,
+        protocol_quirks=template.protocol_quirks,
+        error_behavior=template.error_behavior,
+        is_active=True,
+        confidence=1.0,
+        sample_count=1,
+        consistency_score=1.0,
+    )
+
+    db.add(new_template)
+    await db.commit()
+    await db.refresh(new_template)
+
+    return _db_template_to_palette(new_template)

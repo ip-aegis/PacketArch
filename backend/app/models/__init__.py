@@ -3,7 +3,6 @@
 from app.models.user import User
 from app.models.settings import SystemSetting
 from app.models.scenario import Scenario
-from app.models.device_profile import DeviceProfile
 from app.models.protocol_template import ProtocolTemplate
 from app.models.docker_host import DockerHost
 from app.models.remote_deployment import RemoteDeployment, DeploymentStatus
@@ -21,7 +20,6 @@ __all__ = [
     "User",
     "SystemSetting",
     "Scenario",
-    "DeviceProfile",
     "ProtocolTemplate",
     "DockerHost",
     "RemoteDeployment",

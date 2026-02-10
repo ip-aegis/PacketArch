@@ -9,7 +9,8 @@ import { useReactFlow } from '@xyflow/react';
 import { useScenarioStore } from '../../../stores/scenarioStore';
 import { useHistoryStore } from '../../../stores/historyStore';
 import { ipManagementApi } from '../../../api/ipManagement';
-import type { DeviceProfile, ScenarioDevice, DeviceType } from '../../../types';
+import type { PaletteDeviceResponse } from '../../../api/fingerprints';
+import type { ScenarioDevice, DeviceType } from '../../../types';
 
 export const useNodeDrag = () => {
   const { screenToFlowPosition } = useReactFlow();
@@ -21,7 +22,7 @@ export const useNodeDrag = () => {
   const pushHistory = useHistoryStore((state) => state.push);
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>, deviceProfile: DeviceProfile) => {
+    async (event: React.DragEvent<HTMLDivElement>, paletteDevice: PaletteDeviceResponse) => {
       event.preventDefault();
 
       // Get the position on the canvas
@@ -33,13 +34,19 @@ export const useNodeDrag = () => {
       // Generate unique ID
       const deviceId = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Create device from profile with default empty network config
+      // Extract timing from palette config
+      const tm = paletteDevice.timing_model as Record<string, number> | null;
+
+      // Create device from template with default empty network config
       const newDevice: ScenarioDevice = {
         id: deviceId,
-        profileId: deviceProfile.id,
-        name: deviceProfile.name,
-        type: deviceProfile.device_type as DeviceType,
-        role: deviceProfile.role || undefined,
+        profileId: paletteDevice.id,
+        templateId: paletteDevice.template_id || undefined,
+        name: paletteDevice.name,
+        type: paletteDevice.device_type as DeviceType,
+        role: paletteDevice.role || undefined,
+        vendor: paletteDevice.vendor_fingerprint?.fingerprint_vendor || undefined,
+        fingerprintModel: paletteDevice.vendor_fingerprint?.fingerprint_model || undefined,
         position,
         network: {
           macAddress: '',
@@ -49,13 +56,13 @@ export const useNodeDrag = () => {
           vlanId: undefined,
           hostname: undefined,
         },
-        protocols: deviceProfile.supported_protocols || [],
-        timing: deviceProfile.timing_model
+        protocols: paletteDevice.supported_protocols || [],
+        timing: tm
           ? {
-              intervalMs: deviceProfile.timing_model.polling_interval_ms,
-              jitterMs: deviceProfile.timing_model.jitter_max_ms,
-              burstSize: deviceProfile.timing_model.burst_size,
-              burstIntervalMs: deviceProfile.timing_model.burst_interval_ms,
+              intervalMs: tm.polling_interval_ms,
+              jitterMs: tm.jitter_max_ms,
+              burstSize: tm.burst_size,
+              burstIntervalMs: tm.burst_interval_ms,
             }
           : undefined,
       };

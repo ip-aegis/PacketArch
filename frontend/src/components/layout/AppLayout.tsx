@@ -23,7 +23,6 @@ import {
   BugOutlined,
   LockOutlined,
   EyeOutlined,
-  SafetyCertificateOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
@@ -98,7 +97,7 @@ const AppLayout: React.FC = () => {
       label: 'Scenarios',
     },
     {
-      key: '/devices',
+      key: '/fingerprints',
       icon: <DatabaseOutlined />,
       label: 'Device Library',
     },
@@ -126,11 +125,6 @@ const AppLayout: React.FC = () => {
       key: '/cyber-vision',
       icon: <EyeOutlined />,
       label: 'Cyber Vision',
-    },
-    {
-      key: '/fingerprints',
-      icon: <SafetyCertificateOutlined />,
-      label: 'Fingerprinting Library',
     },
     {
       key: '/help',

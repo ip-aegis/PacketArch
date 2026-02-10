@@ -3,11 +3,9 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.device_profile import DeviceProfile
-from app.models.device_template import DeviceTemplate, TemplateSource
+from app.models.device_template import DeviceTemplate as DeviceTemplateDB, TemplateSource
 from app.models.protocol_template import ProtocolTemplate
 from app.services.device_templates import DEVICE_TEMPLATES
-from app.services.device_profiles import get_all_vendor_profiles
 
 # Built-in device profiles for OT/ICS environments
 DEVICE_PROFILES = [
@@ -972,33 +970,6 @@ PROTOCOL_TEMPLATES = [
 ]
 
 
-async def seed_device_profiles(db: AsyncSession) -> int:
-    """Seed built-in device profiles including vendor-specific profiles."""
-    created = 0
-
-    # Combine generic profiles with vendor-specific profiles
-    all_profiles = DEVICE_PROFILES + get_all_vendor_profiles()
-
-    for profile_data in all_profiles:
-        # Check if profile already exists by name
-        result = await db.execute(
-            select(DeviceProfile).where(
-                DeviceProfile.name == profile_data["name"],
-                DeviceProfile.is_builtin == True,
-            )
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing is None:
-            profile = DeviceProfile(**profile_data)
-            db.add(profile)
-            created += 1
-
-    if created > 0:
-        await db.commit()
-
-    return created
-
 
 async def seed_protocol_templates(db: AsyncSession) -> int:
     """Seed built-in protocol templates."""
@@ -1025,27 +996,164 @@ async def seed_protocol_templates(db: AsyncSession) -> int:
     return created
 
 
+def _infer_vertical_hints(device_type: str, vendor: str, protocols: list[str]) -> list[str]:
+    """Infer industry verticals from device type, vendor, and protocols."""
+    hints: set[str] = set()
+
+    # Protocol-based hints
+    proto_set = set(protocols)
+    if proto_set & {"modbus_tcp", "modbus"}:
+        hints.update(["manufacturing", "water", "oil_gas"])
+    if proto_set & {"ethernet_ip", "cip", "cip_safety"}:
+        hints.update(["manufacturing"])
+    if proto_set & {"profinet", "profisafe"}:
+        hints.update(["manufacturing"])
+    if proto_set & {"s7comm", "s7comm_plus"}:
+        hints.update(["manufacturing", "water"])
+    if proto_set & {"bacnet", "bacnet_ip"}:
+        hints.update(["building_automation"])
+    if proto_set & {"snmp", "ntcip"}:
+        hints.update(["transportation"])
+
+    # Device-type hints
+    type_lower = device_type.lower()
+    if type_lower in ("plc", "hmi", "drive", "vfd", "servo", "robot"):
+        hints.add("manufacturing")
+    elif type_lower in ("rtu", "scada_server", "flow_computer"):
+        hints.update(["water", "oil_gas", "energy"])
+    elif type_lower in ("relay", "ied", "protection_relay", "power_meter"):
+        hints.add("energy")
+    elif type_lower in ("building_controller", "hvac", "vav"):
+        hints.add("building_automation")
+    elif type_lower in ("traffic_controller", "its_device", "dms"):
+        hints.add("transportation")
+    elif type_lower in ("gateway", "switch", "router", "firewall"):
+        hints.update(["manufacturing", "water", "energy"])
+
+    return sorted(hints) if hints else ["manufacturing"]
+
+
+def _infer_timing_model(device_type: str, protocols: list[str]) -> dict:
+    """Infer default timing model from device type and protocols."""
+    type_lower = device_type.lower()
+
+    if type_lower in ("plc", "safety_plc"):
+        return {
+            "polling_interval_ms": 100,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 1,
+            "jitter_max_ms": 10,
+        }
+    elif type_lower in ("hmi", "scada_server"):
+        return {
+            "polling_interval_ms": 1000,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 5,
+            "jitter_max_ms": 50,
+        }
+    elif type_lower in ("drive", "vfd", "servo"):
+        return {
+            "polling_interval_ms": 50,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 0,
+            "jitter_max_ms": 5,
+        }
+    elif type_lower in ("rtu", "flow_computer"):
+        return {
+            "polling_interval_ms": 5000,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 10,
+            "jitter_max_ms": 100,
+        }
+    elif type_lower in ("relay", "ied", "protection_relay"):
+        return {
+            "polling_interval_ms": 2000,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 5,
+            "jitter_max_ms": 30,
+        }
+    elif type_lower in ("building_controller", "hvac", "vav"):
+        return {
+            "polling_interval_ms": 10000,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 50,
+            "jitter_max_ms": 500,
+        }
+    elif type_lower in ("sensor", "io_module", "io"):
+        return {
+            "polling_interval_ms": 200,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 1,
+            "jitter_max_ms": 15,
+        }
+    else:
+        return {
+            "polling_interval_ms": 1000,
+            "jitter_type": "gaussian",
+            "jitter_min_ms": 5,
+            "jitter_max_ms": 30,
+        }
+
+
+def _infer_role(device_type: str) -> str:
+    """Infer a human-readable role from device type."""
+    role_map = {
+        "plc": "Process Controller",
+        "safety_plc": "Safety Controller",
+        "hmi": "Operator Interface",
+        "scada_server": "SCADA Server",
+        "drive": "Variable Frequency Drive",
+        "vfd": "Variable Frequency Drive",
+        "servo": "Servo Drive",
+        "rtu": "Remote Terminal Unit",
+        "gateway": "Protocol Gateway",
+        "switch": "Network Switch",
+        "router": "Network Router",
+        "firewall": "Industrial Firewall",
+        "sensor": "Field Sensor",
+        "io_module": "I/O Module",
+        "io": "I/O Module",
+        "relay": "Protection Relay",
+        "ied": "Intelligent Electronic Device",
+        "protection_relay": "Protection Relay",
+        "power_meter": "Power Meter",
+        "building_controller": "Building Controller",
+        "hvac": "HVAC Controller",
+        "vav": "VAV Controller",
+        "flow_computer": "Flow Computer",
+        "robot": "Industrial Robot",
+        "camera": "IP Camera",
+        "traffic_controller": "Traffic Controller",
+        "dms": "Dynamic Message Sign",
+    }
+    return role_map.get(device_type.lower(), "Industrial Device")
+
+
 async def seed_device_templates_db(db: AsyncSession) -> int:
     """Seed built-in device templates to the DeviceTemplate DB table.
 
-    This is the NEW authoritative source for vendor fingerprints.
-    Seeds from the Python dataclass library (device_templates.py) into the
-    DeviceTemplate DB table with source=VENDOR_BUILTIN.
-
-    The DeviceTemplate table consolidates:
-    - VendorFingerprint (legacy, built-in fingerprints)
-    - LearnedDeviceFingerprint (PCAP-learned fingerprints)
-    - User-created fingerprints
+    Seeds from the Python dataclass library into the DeviceTemplate DB table
+    with source=VENDOR_BUILTIN. Also populates palette_config and
+    vertical_hints so all templates are available in the Scenario Studio palette.
 
     Returns:
         Number of templates created
     """
     from app.services.device_templates import get_fingerprint_from_template
 
+    # Build cross-reference from generic DEVICE_PROFILES for palette enrichment
+    profile_lookup: dict[tuple[str, str], dict] = {}
+    for p in DEVICE_PROFILES:
+        vfp = p.get("vendor_fingerprint", {})
+        key_vendor = vfp.get("fingerprint_vendor", "").lower()
+        key_model = vfp.get("fingerprint_model", "")
+        if key_vendor and key_model:
+            profile_lookup[(key_vendor, key_model.lower())] = p
+
     # Pre-load all existing builtin (vendor, model) combos in a single query
     result = await db.execute(
-        select(DeviceTemplate.vendor, DeviceTemplate.model).where(
-            DeviceTemplate.source == TemplateSource.VENDOR_BUILTIN.value,
+        select(DeviceTemplateDB.vendor, DeviceTemplateDB.model).where(
+            DeviceTemplateDB.source == TemplateSource.VENDOR_BUILTIN.value,
         )
     )
     existing_combos = {
@@ -1053,7 +1161,6 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
     }
 
     # Track combos from the Python library to avoid duplicates
-    # (some templates share vendor/model with different IDs)
     seen_combos = set()
     new_templates = []
 
@@ -1069,7 +1176,38 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
         if not fp_dict:
             continue
 
-        new_templates.append(DeviceTemplate(
+        # Determine vertical hints: from dataclass, then cross-ref, then infer
+        vertical_hints = template.vertical_hints if template.vertical_hints else None
+        profile_match = profile_lookup.get((template.vendor.lower(), template.model.lower()))
+        if not vertical_hints and profile_match:
+            vertical_hints = profile_match.get("vertical_hints")
+        if not vertical_hints:
+            vertical_hints = _infer_vertical_hints(
+                template.device_type, template.vendor, template.supported_protocols
+            )
+
+        # Determine palette_config: from cross-ref or infer defaults
+        palette_config = dict(template.palette_config) if template.palette_config else {}
+        if profile_match:
+            if not palette_config.get("timing_model") and profile_match.get("timing_model"):
+                palette_config["timing_model"] = profile_match["timing_model"]
+            if not palette_config.get("payload_templates") and profile_match.get("payload_templates"):
+                palette_config["payload_templates"] = profile_match["payload_templates"]
+            if not palette_config.get("behavior_model") and profile_match.get("behavior_model"):
+                palette_config["behavior_model"] = profile_match["behavior_model"]
+        if not palette_config.get("timing_model"):
+            palette_config["timing_model"] = _infer_timing_model(
+                template.device_type, template.supported_protocols
+            )
+
+        # Determine role
+        role = None
+        if profile_match:
+            role = profile_match.get("role")
+        if not role:
+            role = _infer_role(template.device_type)
+
+        new_templates.append(DeviceTemplateDB(
             source=TemplateSource.VENDOR_BUILTIN.value,
             vendor=template.vendor,
             vendor_family=template.vendor_family,
@@ -1089,9 +1227,13 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
             # Response timing
             response_timings={"default": template.response_timing} if template.response_timing else None,
             # Behavioral patterns
+            role=role,
             active_protocols=template.supported_protocols,
             protocol_quirks=template.protocol_quirks if template.protocol_quirks else None,
             error_behavior=template.error_behavior if template.error_behavior else None,
+            # Palette data
+            vertical_hints=vertical_hints,
+            palette_config=palette_config if palette_config else None,
             # Quality metrics (builtin = high confidence)
             confidence=1.0,
             sample_count=1,
@@ -1100,6 +1242,46 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
             name=f"{template.vendor} {template.model_name}",
             description=template.description,
             is_active=True,
+        ))
+
+    # Also seed generic device profiles that don't map to specific templates
+    existing_names_result = await db.execute(
+        select(DeviceTemplateDB.name).where(
+            DeviceTemplateDB.source == TemplateSource.VENDOR_BUILTIN.value,
+        )
+    )
+    existing_names = {row[0] for row in existing_names_result.all() if row[0]}
+
+    for profile in DEVICE_PROFILES:
+        name = profile["name"]
+        if name in existing_names:
+            continue
+        # Skip profiles that were cross-referenced to a real template
+        vfp = profile.get("vendor_fingerprint", {})
+        if vfp.get("fingerprint_vendor") and vfp.get("fingerprint_model"):
+            continue  # Already covered via template match
+
+        palette_cfg = {}
+        if profile.get("timing_model"):
+            palette_cfg["timing_model"] = profile["timing_model"]
+        if profile.get("payload_templates"):
+            palette_cfg["payload_templates"] = profile["payload_templates"]
+        if profile.get("behavior_model"):
+            palette_cfg["behavior_model"] = profile["behavior_model"]
+
+        new_templates.append(DeviceTemplateDB(
+            source=TemplateSource.VENDOR_BUILTIN.value,
+            name=name,
+            device_type=profile.get("device_type", "other"),
+            role=profile.get("role"),
+            description=profile.get("description"),
+            active_protocols=profile.get("supported_protocols"),
+            vertical_hints=profile.get("vertical_hints"),
+            palette_config=palette_cfg if palette_cfg else None,
+            is_active=True,
+            confidence=1.0,
+            sample_count=1,
+            consistency_score=1.0,
         ))
 
     if new_templates:
@@ -1238,15 +1420,12 @@ async def run_seed_data(db: AsyncSession) -> dict:
     """Run all seed data operations."""
     results = {}
 
-    profiles_created = await seed_device_profiles(db)
-    results["device_profiles"] = f"Seeded {profiles_created} device profiles"
-
     templates_created = await seed_protocol_templates(db)
     results["protocol_templates"] = f"Seeded {templates_created} protocol templates"
 
-    # Seed DeviceTemplate DB table (NEW authoritative source)
+    # Seed DeviceTemplate DB table (unified source for palette + fingerprints)
     device_templates_created = await seed_device_templates_db(db)
-    results["device_templates"] = f"Seeded {device_templates_created} device templates (new)"
+    results["device_templates"] = f"Seeded {device_templates_created} device templates"
 
     # Seed CVE vulnerabilities and vulnerable variants
     cve_count = await seed_cve_vulnerabilities(db)

@@ -379,3 +379,39 @@ export function getVendorCategory(vendorId: string): string {
   }
   return 'Other';
 }
+
+// ========== Palette API ==========
+
+export interface PaletteDeviceResponse {
+  id: string;
+  name: string;
+  device_type: string;
+  role: string | null;
+  description: string | null;
+  supported_protocols: string[] | null;
+  timing_model: Record<string, unknown> | null;
+  vendor_fingerprint: Record<string, string> | null;
+  vertical_hints: string[] | null;
+  is_builtin: boolean;
+  template_id: string | null;
+  created_at: string | null;
+}
+
+export interface PaletteDeviceListResponse {
+  items: PaletteDeviceResponse[];
+  total: number;
+}
+
+export async function listPaletteDevices(params?: {
+  device_type?: string;
+  protocol?: string;
+  vertical?: string;
+  search?: string;
+  page_size?: number;
+}): Promise<PaletteDeviceListResponse> {
+  const response = await apiClient.get<PaletteDeviceListResponse>(
+    '/api/v1/fingerprints/palette',
+    { params },
+  );
+  return response.data;
+}

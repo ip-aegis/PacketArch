@@ -8,8 +8,7 @@ import { Input, Collapse, Typography, Spin, Empty } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import PaletteItem from './PaletteItem';
-import { devicesApi } from '../../api/devices';
-import type { DeviceProfile } from '../../types';
+import { listPaletteDevices, type PaletteDeviceResponse } from '../../api/fingerprints';
 import {
   getDeviceTypeMeta,
   DEVICE_CATEGORY_LABELS,
@@ -24,8 +23,8 @@ const DevicePalette: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['device-profiles', { builtin_only: true }],
-    queryFn: () => devicesApi.list({ builtin_only: true, page_size: 100 }),
+    queryKey: ['palette-devices'],
+    queryFn: () => listPaletteDevices({ page_size: 500 }),
   });
 
   const devices = data?.items || [];
@@ -47,7 +46,7 @@ const DevicePalette: React.FC = () => {
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(device);
     return acc;
-  }, {} as Record<DeviceCategory, DeviceProfile[]>);
+  }, {} as Record<DeviceCategory, PaletteDeviceResponse[]>);
 
   return (
     <div

@@ -90,6 +90,10 @@ class DeviceTemplate:
     # Protocol-specific quirks
     protocol_quirks: dict[str, Any] = field(default_factory=dict)
 
+    # Palette/usage metadata
+    vertical_hints: list[str] = field(default_factory=list)
+    palette_config: dict[str, Any] = field(default_factory=dict)
+
     # Metadata
     is_builtin: bool = True
 

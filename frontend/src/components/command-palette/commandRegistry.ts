@@ -14,7 +14,6 @@ import {
   GlobalOutlined,
   BugOutlined,
   EyeOutlined,
-  SafetyCertificateOutlined,
   SettingOutlined,
   QuestionCircleOutlined,
   ZoomInOutlined,
@@ -93,14 +92,13 @@ export function buildCommandRegistry(deps: RegistryDeps): CommandDefinition[] {
     { path: '/', label: 'Go to Dashboard', icon: e(DashboardOutlined), keywords: ['home', 'overview'] },
     { path: '/scenarios', label: 'Go to Scenarios', icon: e(FolderOutlined), keywords: ['list', 'projects'] },
     { path: '/studio', label: 'Go to Scenario Studio', icon: e(LayoutOutlined), keywords: ['canvas', 'editor', 'design'] },
-    { path: '/devices', label: 'Go to Device Library', icon: e(DatabaseOutlined), keywords: ['templates', 'profiles'] },
+    { path: '/fingerprints', label: 'Go to Device Library', icon: e(DatabaseOutlined), keywords: ['templates', 'profiles', 'fingerprints', 'signatures'] },
 
     { path: '/deployments', label: 'Go to Deployments', icon: e(CloudServerOutlined), keywords: ['running', 'active'] },
     { path: '/live-traffic', label: 'Go to Live Traffic', icon: e(BarChartOutlined), keywords: ['dashboard', 'monitoring'] },
     { path: '/ip-management', label: 'Go to IP Management', icon: e(GlobalOutlined), keywords: ['addresses', 'ranges', 'subnets'] },
     { path: '/cves', label: 'Go to CVE Browser', icon: e(BugOutlined), keywords: ['vulnerabilities', 'security'] },
     { path: '/cyber-vision', label: 'Go to Cyber Vision', icon: e(EyeOutlined), keywords: ['cisco', 'comparison', 'enrichment'] },
-    { path: '/fingerprints', label: 'Go to Fingerprinting Library', icon: e(SafetyCertificateOutlined), keywords: ['signatures', 'templates'] },
     { path: '/admin/settings', label: 'Go to Settings', icon: e(SettingOutlined), keywords: ['admin', 'configuration', 'preferences'] },
     { path: '/help', label: 'Go to Help', icon: e(QuestionCircleOutlined), keywords: ['documentation', 'guide'] },
   ];

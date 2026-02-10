@@ -4,7 +4,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
-import DeviceLibraryPage from './pages/DeviceLibraryPage';
 import ScenariosPage from './pages/ScenariosPage';
 
 import DeploymentsPage from './pages/DeploymentsPage';
@@ -39,7 +38,7 @@ function App() {
         <Route path="scenarios" element={<ScenariosPage />} />
         <Route path="scenarios/ai-create" element={<AIScenarioWizardPage />} />
         <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
-        <Route path="devices" element={<DeviceLibraryPage />} />
+        <Route path="devices" element={<Navigate to="/fingerprints" replace />} />
 
         <Route path="deployments" element={<DeploymentsPage />} />
         <Route path="live-traffic" element={<LiveTrafficDashboardPage />} />

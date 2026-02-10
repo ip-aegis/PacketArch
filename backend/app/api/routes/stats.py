@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DBSession
 from app.models.scenario import Scenario
-from app.models.device_profile import DeviceProfile
+from app.models.device_template import DeviceTemplate
 from app.core.config import settings
 
 router = APIRouter(prefix="/stats", tags=["Stats"])
@@ -38,8 +38,8 @@ async def get_overview_stats(
         select(func.count(Scenario.id)).where(Scenario.user_id == current_user.id)
     ) or 0
 
-    # Count device profiles (global, not user-specific)
-    device_count = await db.scalar(select(func.count(DeviceProfile.id))) or 0
+    # Count device templates (global, not user-specific)
+    device_count = await db.scalar(select(func.count(DeviceTemplate.id))) or 0
 
     # Count unique protocols used across user's scenarios
     protocols_set: set[str] = set()

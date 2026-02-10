@@ -160,9 +160,9 @@ class DeviceTemplate(Base):
 
     # ==================== BEHAVIORAL PATTERNS ====================
     role: Mapped[str | None] = mapped_column(
-        String(20),
+        String(255),
         nullable=True,
-        comment="Typical device role: master, slave, both, unknown",
+        comment="Device role (e.g., 'Process Controller', 'Operator Interface', 'master', 'slave')",
     )
 
     active_protocols: Mapped[list | None] = mapped_column(
@@ -210,6 +210,19 @@ class DeviceTemplate(Base):
         default=1.0,
         nullable=False,
         comment="How consistent aggregated observations were (for learned templates)",
+    )
+
+    # ==================== PALETTE/USAGE METADATA ====================
+    vertical_hints: Mapped[list | None] = mapped_column(
+        ARRAY(String(50)),
+        nullable=True,
+        comment="Industry verticals: manufacturing, water, energy, oil_gas, building_automation, transportation",
+    )
+
+    palette_config: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Palette/canvas config: {timing_model, payload_templates, behavior_model}",
     )
 
     # ==================== METADATA ====================

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Card, Tag, Typography, Tooltip } from 'antd';
-import type { DeviceProfile } from '../../types';
+import type { PaletteDeviceResponse } from '../../api/fingerprints';
 import {
   PROTOCOL_COLORS,
   PROTOCOL_SHORT_NAMES,
@@ -15,7 +15,7 @@ import { getDeviceTypeMeta, getDeviceTypeIcon } from '../../constants/deviceType
 const { Text } = Typography;
 
 interface PaletteItemProps {
-  device: DeviceProfile;
+  device: PaletteDeviceResponse;
 }
 
 const PaletteItem: React.FC<PaletteItemProps> = ({ device }) => {
