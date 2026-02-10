@@ -5,8 +5,9 @@
  * None of these functions mutate state or use React hooks.
  */
 
-import type { ScenarioDevice, ScenarioFlow, ScenarioZone, DeviceType, ProtocolType } from '../types';
-import { DEVICE_TYPE_COLORS, DEVICE_TYPE_LABELS, PROTOCOL_COLORS, PROTOCOL_SHORT_NAMES } from '../constants/protocols';
+import type { ScenarioDevice, ScenarioFlow, ScenarioZone, ProtocolType } from '../types';
+import { PROTOCOL_COLORS, PROTOCOL_SHORT_NAMES } from '../constants/protocols';
+import { getDeviceTypeColor, getDeviceTypeLabel } from '../constants/deviceTypeRegistry';
 import {
   vendorColor,
   PURDUE_LEVEL_COLORS,
@@ -254,10 +255,10 @@ export function groupByDeviceType(
     if (!cluster) {
       cluster = {
         id: `cluster-type-${key}`,
-        label: DEVICE_TYPE_LABELS[key as DeviceType] || key.toUpperCase(),
+        label: getDeviceTypeLabel(key),
         groupKey: key,
         deviceIds: [],
-        color: DEVICE_TYPE_COLORS[key as DeviceType] || '#6a9fd4',
+        color: getDeviceTypeColor(key),
         stats: { deviceCount: 0, deviceTypes: {}, protocols: {}, vendors: [] },
       };
       clusters.set(key, cluster);

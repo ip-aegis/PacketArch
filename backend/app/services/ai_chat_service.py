@@ -65,22 +65,32 @@ def detect_convergence(tool_calls_history: list[dict]) -> tuple[bool, str]:
     Returns (should_stop, reason) tuple.
 
     Detection rules:
-    1. Same tool called 5+ times consecutively = stuck loop
-    2. add_device called after device limit warning = should stop
-    3. No tool calls for 2+ iterations = natural completion
+    1. Any tool called 5+ times consecutively by name = stuck loop
+    2. Same tool + same parameters 3+ times = exact duplicate loop
+    3. Oscillating A-B-A-B-A-B pattern = ping-pong loop
     """
     if len(tool_calls_history) < 3:
         return False, ""
 
-    # Check for add_device loop (same tool called 5+ times consecutively)
+    # Rule 1: Same tool name called 5+ times consecutively
     last_5_names = [tc.get("name") for tc in tool_calls_history[-5:]]
     if len(last_5_names) == 5 and len(set(last_5_names)) == 1:
-        if last_5_names[0] == "add_device":
-            return True, "Detected add_device loop - stopping to prevent device explosion"
-        elif last_5_names[0] == "add_flow":
-            return True, "Detected add_flow loop - stopping"
+        return True, f"Detected {last_5_names[0]} loop - same tool called 5 times consecutively"
 
-    # Check for oscillating patterns (A, B, A, B, A, B)
+    # Rule 2: Same tool + identical parameters 3+ times consecutively
+    if len(tool_calls_history) >= 3:
+        last_3 = tool_calls_history[-3:]
+        sigs = []
+        for tc in last_3:
+            try:
+                sig = (tc.get("name", ""), json.dumps(tc.get("input", {}), sort_keys=True))
+            except (TypeError, ValueError):
+                sig = (tc.get("name", ""), str(tc.get("input", {})))
+            sigs.append(sig)
+        if len(set(sigs)) == 1:
+            return True, f"Detected exact duplicate loop: {sigs[0][0]} called 3 times with identical parameters"
+
+    # Rule 3: Oscillating patterns (A, B, A, B, A, B)
     if len(tool_calls_history) >= 6:
         last_6_names = [tc.get("name") for tc in tool_calls_history[-6:]]
         if (

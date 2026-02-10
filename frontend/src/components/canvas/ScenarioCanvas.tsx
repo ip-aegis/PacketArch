@@ -35,7 +35,7 @@ import { useUIStore } from '../../stores/uiStore';
 import type { ClusterViewMode } from '../../stores/uiStore';
 import type { ScenarioFlow } from '../../types';
 import type { DeviceNodeData } from './nodes/DeviceNode';
-import { DEVICE_TYPE_COLORS } from '../../constants/protocols';
+import { getDeviceTypeColor } from '../../constants/deviceTypeRegistry';
 import { validateProtocolVendorAffinity } from '../../utils/protocolVendorAffinity';
 import { message } from 'antd';
 import { registerCanvasDeps } from '../command-palette/CommandPalette';
@@ -411,7 +411,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     }
     if (node.type === 'deviceNode' && node.data) {
       const deviceType = (node.data as DeviceNodeData).type;
-      return DEVICE_TYPE_COLORS[deviceType] || '#6a9fd4';
+      return getDeviceTypeColor(deviceType);
     }
     return '#6a9fd4';
   }, []);

@@ -30,47 +30,25 @@ import {
 } from 'antd';
 import {
   SearchOutlined,
-  FilterOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
   CopyOutlined,
   EyeOutlined,
   ClockCircleOutlined,
-  ApiOutlined,
-  ControlOutlined,
-  DesktopOutlined,
-  CloudServerOutlined,
-  ThunderboltOutlined,
-  DashboardOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  DatabaseOutlined,
-  NodeIndexOutlined,
-  GlobalOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { devicesApi, type DeviceProfileFilters } from '../api/devices';
-import type { DeviceProfile, DeviceProfileCreate, DeviceType, ProtocolType, VerticalType } from '../types';
+import type { DeviceProfile, DeviceProfileCreate, ProtocolType, VerticalType } from '../types';
 import { extractErrorMessage } from '../utils/errorUtils';
-import { PROTOCOL_COLORS, DEVICE_TYPE_COLORS_EXTENDED } from '../constants/protocols';
+import { PROTOCOL_COLORS } from '../constants/protocols';
+import { getDeviceTypeMeta, getDeviceTypeIcon, getDeviceTypeOptions } from '../constants/deviceTypeRegistry';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-// Device type icons and colors - colors sourced from constants
-const deviceTypeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  plc: { icon: <ControlOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.plc, label: 'PLC' },
-  hmi: { icon: <DesktopOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.hmi, label: 'HMI' },
-  rtu: { icon: <CloudServerOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.rtu, label: 'RTU' },
-  drive: { icon: <ThunderboltOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.drive, label: 'Drive' },
-  sensor: { icon: <DashboardOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.sensor, label: 'Sensor' },
-  relay: { icon: <SafetyCertificateOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.relay, label: 'Relay' },
-  ews: { icon: <SettingOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.ews, label: 'EWS' },
-  historian: { icon: <DatabaseOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.historian, label: 'Historian' },
-  network: { icon: <NodeIndexOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.network, label: 'Network' },
-  gateway: { icon: <GlobalOutlined />, color: DEVICE_TYPE_COLORS_EXTENDED.gateway, label: 'Gateway' },
-};
+// Device type config helper - backed by device type registry
+const deviceTypeOptions = getDeviceTypeOptions();
 
 // Protocol colors - sourced from constants
 const protocolColors: Record<string, string> = { ...PROTOCOL_COLORS };
@@ -175,7 +153,8 @@ const DeviceLibraryPage: React.FC = () => {
   };
 
   const getDeviceTypeConfig = (type: string) => {
-    return deviceTypeConfig[type] || { icon: <ControlOutlined />, color: '#6b6b8a', label: type };
+    const meta = getDeviceTypeMeta(type);
+    return { icon: getDeviceTypeIcon(type), color: meta.color, label: meta.label };
   };
 
   const renderDeviceCard = (device: DeviceProfile) => {
@@ -582,11 +561,11 @@ const DeviceLibraryPage: React.FC = () => {
               style={{ width: 150 }}
               popupClassName="dark-dropdown"
             >
-              {Object.entries(deviceTypeConfig).map(([key, config]) => (
-                <Option key={key} value={key}>
+              {deviceTypeOptions.map(({ value, label }) => (
+                <Option key={value} value={value}>
                   <Space>
-                    {config.icon}
-                    {config.label}
+                    {getDeviceTypeIcon(value)}
+                    {label}
                   </Space>
                 </Option>
               ))}
@@ -757,11 +736,11 @@ const DeviceLibraryPage: React.FC = () => {
                 rules={[{ required: true, message: 'Please select a device type' }]}
               >
                 <Select placeholder="Select device type">
-                  {Object.entries(deviceTypeConfig).map(([key, config]) => (
-                    <Option key={key} value={key}>
+                  {deviceTypeOptions.map(({ value, label }) => (
+                    <Option key={value} value={value}>
                       <Space>
-                        {config.icon}
-                        {config.label}
+                        {getDeviceTypeIcon(value)}
+                        {label}
                       </Space>
                     </Option>
                   ))}

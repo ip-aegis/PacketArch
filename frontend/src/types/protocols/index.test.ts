@@ -38,7 +38,7 @@ const profinetConfig: ProtocolConfig = {
 };
 
 const s7Config: ProtocolConfig = {
-  protocol: 's7',
+  protocol: 's7comm',
   config: { ...DEFAULT_S7_CONFIG },
 };
 
@@ -127,7 +127,7 @@ describe('isS7Config', () => {
   });
 
   it('returns false for all other protocol configs', () => {
-    for (const cfg of allConfigs.filter((c) => c.protocol !== 's7')) {
+    for (const cfg of allConfigs.filter((c) => c.protocol !== 's7comm')) {
       expect(isS7Config(cfg)).toBe(false);
     }
   });
@@ -177,7 +177,7 @@ describe('getDefaultConfig', () => {
     'modbus_tcp',
     'ethernet_ip',
     'profinet',
-    's7',
+    's7comm',
     'bacnet',
     'snmp',
   ];
@@ -211,8 +211,8 @@ describe('getDefaultConfig', () => {
   });
 
   it('returns correct protocol discriminator for s7', () => {
-    const cfg = getDefaultConfig('s7');
-    expect(cfg.protocol).toBe('s7');
+    const cfg = getDefaultConfig('s7comm');
+    expect(cfg.protocol).toBe('s7comm');
     expect(isS7Config(cfg)).toBe(true);
   });
 
@@ -257,7 +257,7 @@ describe('getDefaultConfig', () => {
   });
 
   it('s7 default has rack and slot', () => {
-    const cfg = getDefaultConfig('s7');
+    const cfg = getDefaultConfig('s7comm');
     if (isS7Config(cfg)) {
       expect(cfg.config.rack).toBe(0);
       expect(cfg.config.slot).toBe(1);
@@ -300,7 +300,7 @@ describe('PROTOCOL_LABELS', () => {
       'modbus_tcp',
       'ethernet_ip',
       'profinet',
-      's7',
+      's7comm',
       'bacnet',
       'snmp',
     ];
@@ -315,7 +315,7 @@ describe('PROTOCOL_LABELS', () => {
     expect(PROTOCOL_LABELS.modbus_tcp).toBe('Modbus TCP');
     expect(PROTOCOL_LABELS.ethernet_ip).toBe('EtherNet/IP');
     expect(PROTOCOL_LABELS.profinet).toBe('PROFINET');
-    expect(PROTOCOL_LABELS.s7).toBe('S7comm');
+    expect(PROTOCOL_LABELS.s7comm).toBe('S7comm');
     expect(PROTOCOL_LABELS.bacnet).toBe('BACnet/IP');
     expect(PROTOCOL_LABELS.snmp).toBe('SNMP');
   });
@@ -330,7 +330,7 @@ describe('PROTOCOL_PORTS', () => {
       'modbus_tcp',
       'ethernet_ip',
       'profinet',
-      's7',
+      's7comm',
       'bacnet',
       'snmp',
     ];
@@ -344,7 +344,7 @@ describe('PROTOCOL_PORTS', () => {
   it('maps to expected port numbers', () => {
     expect(PROTOCOL_PORTS.modbus_tcp).toBe(502);
     expect(PROTOCOL_PORTS.ethernet_ip).toBe(44818);
-    expect(PROTOCOL_PORTS.s7).toBe(102);
+    expect(PROTOCOL_PORTS.s7comm).toBe(102);
     expect(PROTOCOL_PORTS.bacnet).toBe(47808);
     expect(PROTOCOL_PORTS.snmp).toBe(161);
   });

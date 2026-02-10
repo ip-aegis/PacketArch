@@ -34,7 +34,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
 import type { ClusterViewMode } from '../../stores/uiStore';
-import { useScenarioStore } from '../../stores/scenarioStore';
+import { useScenarioStore, useScenarioIsDirty } from '../../stores/scenarioStore';
 import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
 import { scenariosApi } from '../../api/scenarios';
 import { scenarioVersionsApi } from '../../api/scenarioVersions';
@@ -58,6 +58,7 @@ const CanvasControls: React.FC = () => {
   const toggleMinimap = useUIStore((state) => state.toggleMinimap);
   const clusterViewMode = useUIStore((state) => state.clusterViewMode);
   const setClusterViewMode = useUIStore((state) => state.setClusterViewMode);
+  const isDirty = useScenarioIsDirty();
   const { applyLayout } = useAutoLayout();
 
   // Version history drawer state
@@ -384,7 +385,7 @@ const CanvasControls: React.FC = () => {
       {/* Version group */}
       <div style={groupStyle}>
         <span style={groupLabelStyle}>Version</span>
-        <div style={groupButtonsStyle}>
+        <div style={{ ...groupButtonsStyle, alignItems: 'center' }}>
           <Tooltip title="Save Version (Ctrl+S)">
             <Button
               icon={<SaveOutlined />}
@@ -402,6 +403,21 @@ const CanvasControls: React.FC = () => {
               disabled={!scenarioId}
             />
           </Tooltip>
+          {scenarioId && (
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: isDirty ? 'rgba(250, 140, 22, 0.15)' : 'rgba(82, 196, 26, 0.15)',
+                color: isDirty ? '#fa8c16' : '#52c41a',
+                border: `1px solid ${isDirty ? 'rgba(250, 140, 22, 0.3)' : 'rgba(82, 196, 26, 0.3)'}`,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {isDirty ? 'Unsaved' : 'Saved'}
+            </span>
+          )}
         </div>
       </div>
 

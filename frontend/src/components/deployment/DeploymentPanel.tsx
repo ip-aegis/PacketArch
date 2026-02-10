@@ -22,7 +22,7 @@ import type {
   NetworkInterface,
   RunMode,
 } from '../../types/docker';
-import type { AgentInterface } from '../../types/agent';
+import type { AgentInterface, DeploymentCreate } from '../../types/agent';
 import { extractErrorMessage } from '../../utils/errorUtils';
 
 import { PanelContainer, ErrorAlert, EmptyState } from '../common';
@@ -61,7 +61,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     useState<DeploymentRequest | null>(null);
   const [pendingAgentDeploy, setPendingAgentDeploy] = useState<{
     agentId: string;
-    deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> };
+    deployData: DeploymentCreate;
   } | null>(null);
 
   const {
@@ -236,7 +236,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
 
       if (!validation || validation.warnings.length === 0) {
         try {
-          const deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> } = {
+          const deployData: DeploymentCreate = {
             scenario_id: scenarioId,
             interface: values.network_interface,
           };
@@ -264,7 +264,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
           );
         }
       } else {
-        const deployData: { scenario_id: string; interface: string; adaptive_config?: Record<string, unknown>; attack_playbook?: Record<string, unknown> } = {
+        const deployData: DeploymentCreate = {
           scenario_id: scenarioId,
           interface: values.network_interface,
         };

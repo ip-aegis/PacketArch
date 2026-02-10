@@ -185,8 +185,12 @@ class AIScenarioDesigner:
                 reason="AI provider not configured",
             )
 
-        # Build prompts
-        system_prompt = self._get_system_prompt()
+        # Build prompts (pre-filter fingerprints by user context)
+        system_prompt = self._get_system_prompt(
+            vertical=vertical,
+            preferred_vendors=preferred_vendors,
+            preferred_protocols=preferred_protocols,
+        )
         user_prompt = self._build_design_prompt(
             description=description,
             vertical=vertical,
@@ -262,10 +266,40 @@ class AIScenarioDesigner:
             logger.error(f"Failed to build scenario from AI design: {e}")
             raise RuntimeError(f"Failed to build scenario from AI design: {e}") from e
 
-    def _get_system_prompt(self) -> str:
-        """Get the system prompt for Claude."""
+    def _get_system_prompt(
+        self,
+        vertical: str | None = None,
+        preferred_vendors: list[str] | None = None,
+        preferred_protocols: list[str] | None = None,
+    ) -> str:
+        """Get the system prompt for Claude with pre-filtered fingerprints."""
         # Get available fingerprints with complete protocol identity data
         fingerprints = get_all_fingerprints()
+
+        # Pre-filter fingerprints by user context to reduce prompt size
+        if preferred_vendors or vertical or preferred_protocols:
+            filtered = []
+            vendor_lower = {v.lower() for v in (preferred_vendors or [])}
+            proto_set = set(preferred_protocols or [])
+            for fp in fingerprints:
+                fp_vendor = (fp.get("vendor") or "").lower()
+                fp_protos = set(fp.get("supported_protocols") or [])
+                # Include if vendor matches user preference
+                if vendor_lower and fp_vendor in vendor_lower:
+                    filtered.append(fp)
+                    continue
+                # Include if fingerprint supports a preferred protocol
+                if proto_set and fp_protos & proto_set:
+                    filtered.append(fp)
+                    continue
+                # Include if fingerprint's verticals match
+                fp_verticals = fp.get("vertical_hints") or []
+                if vertical and vertical in fp_verticals:
+                    filtered.append(fp)
+                    continue
+            # Use filtered list if it has enough variety, otherwise keep all
+            if len(filtered) >= 5:
+                fingerprints = filtered
 
         # Group fingerprints by vendor, showing model and supported protocols
         vendor_fingerprints: dict[str, list[str]] = {}

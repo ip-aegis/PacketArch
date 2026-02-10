@@ -41,26 +41,21 @@ export interface SettingsResponse {
   system: SystemSetting[];
 }
 
-// Device types
-export type DeviceType =
-  | 'plc'
-  | 'hmi'
-  | 'rtu'
-  | 'drive'
-  | 'sensor'
-  | 'relay'
-  | 'ews'
-  | 'historian';
+// Device types — string-based for extensibility.
+// The canonical set of known types lives in constants/deviceTypeRegistry.ts.
+export type DeviceType = string;
 
 // Protocol types
 export type ProtocolType =
   | 'modbus_tcp'
   | 'ethernet_ip'
   | 'profinet'
+  | 's7comm'
+  | 'bacnet'
+  | 'snmp'
   | 'opc_ua'
   | 'dnp3'
-  | 'iec104'
-  | 'bacnet';
+  | 'iec_104';
 
 // Vertical types
 export type VerticalType =

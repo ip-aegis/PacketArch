@@ -14,6 +14,7 @@ from app.mcp_server.server import mcp_server
 from app.mcp_server.tools import (
     addressing_tools,
     ai_generation_tools,
+    attack_tools,
     deployment_tools,
     device_tools,
     external_comm_tools,
@@ -1321,5 +1322,50 @@ Use list_scenario_templates first to see available templates.""",
         },
         handler=lambda vertical, scenario_name, template_name="default", description="", total_duration_ms=300000: create_from_template(
             db, user_id, vertical, template_name, scenario_name, description, total_duration_ms
+        ),
+    )
+
+    # ==================== Attack Simulation Tools ====================
+    mcp_server.register_tool(
+        name="list_attack_playbooks",
+        description="List all available attack simulation playbooks with their kill chain stages and MITRE ATT&CK techniques",
+        input_schema={
+            "type": "object",
+            "properties": {},
+        },
+        handler=lambda: attack_tools.list_attack_playbooks(),
+    )
+
+    mcp_server.register_tool(
+        name="get_playbook_details",
+        description="Get full details of an attack playbook including kill chain stages, actions, and MITRE techniques",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "playbook_id": {"type": "string", "description": "Playbook ID (e.g., 'triton_like', 'pipedream_like')"},
+            },
+            "required": ["playbook_id"],
+        },
+        handler=lambda playbook_id: attack_tools.get_playbook_details(playbook_id),
+    )
+
+    mcp_server.register_tool(
+        name="suggest_attack_for_scenario",
+        description="Recommend attack playbooks based on the scenario's protocols and industry vertical",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scenario_id": {"type": "string", "description": "Scenario UUID"},
+                "protocols": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Protocols used in the scenario (e.g., ['modbus_tcp', 's7comm'])",
+                },
+                "vertical": {"type": "string", "description": "Industry vertical (e.g., 'manufacturing', 'energy')"},
+            },
+            "required": ["scenario_id"],
+        },
+        handler=lambda scenario_id, protocols=None, vertical=None: attack_tools.suggest_attack_for_scenario(
+            scenario_id, protocols, vertical
         ),
     )

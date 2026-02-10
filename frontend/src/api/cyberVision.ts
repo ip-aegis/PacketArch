@@ -180,8 +180,13 @@ export const cyberVisionApi = {
     offset?: number;
     search?: string;
   }): Promise<CVDeviceListResponse> => {
+    // Backend expects 'size' (not 'limit') and 'start' (not 'offset')
     const response = await apiClient.get<CVDeviceListResponse>('/api/v1/cyber-vision/devices', {
-      params,
+      params: params ? {
+        size: params.limit,
+        start: params.offset,
+        search: params.search,
+      } : undefined,
     });
     return response.data;
   },

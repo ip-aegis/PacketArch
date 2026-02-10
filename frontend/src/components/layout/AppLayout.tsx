@@ -24,6 +24,7 @@ import {
   LockOutlined,
   EyeOutlined,
   SafetyCertificateOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
@@ -130,6 +131,11 @@ const AppLayout: React.FC = () => {
       key: '/fingerprints',
       icon: <SafetyCertificateOutlined />,
       label: 'Fingerprinting Library',
+    },
+    {
+      key: '/help',
+      icon: <QuestionCircleOutlined />,
+      label: 'Help',
     },
   ];
 

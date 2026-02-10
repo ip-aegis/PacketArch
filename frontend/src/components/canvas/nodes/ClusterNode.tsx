@@ -8,13 +8,12 @@ import React, { useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { Tag, Tooltip } from 'antd';
-import type { DeviceType, ProtocolType } from '../../../types';
+import type { ProtocolType } from '../../../types';
 import {
   PROTOCOL_COLORS,
   PROTOCOL_SHORT_NAMES,
-  DEVICE_TYPE_COLORS,
-  DEVICE_TYPE_LABELS,
 } from '../../../constants/protocols';
+import { getDeviceTypeColor, getDeviceTypeLabel } from '../../../constants/deviceTypeRegistry';
 
 export interface ClusterNodeData extends Record<string, unknown> {
   clusterId: string;
@@ -115,19 +114,19 @@ const ClusterNode: React.FC<NodeProps<ClusterNodeData>> = React.memo((props) => 
       {deviceTypeEntries.length > 0 && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
           {deviceTypeEntries.map(([type, count]) => (
-            <Tooltip key={type} title={`${count} ${DEVICE_TYPE_LABELS[type as DeviceType] || type}`}>
+            <Tooltip key={type} title={`${count} ${getDeviceTypeLabel(type)}`}>
               <div
                 style={{
                   width: 24,
                   height: 24,
                   borderRadius: 6,
-                  background: `${DEVICE_TYPE_COLORS[type as DeviceType] || '#6a9fd4'}20`,
+                  background: `${getDeviceTypeColor(type)}20`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 10,
                   fontWeight: 600,
-                  color: DEVICE_TYPE_COLORS[type as DeviceType] || '#6a9fd4',
+                  color: getDeviceTypeColor(type),
                 }}
               >
                 {count}

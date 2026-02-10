@@ -30,7 +30,6 @@ export interface ScenarioSummary {
   total_duration_ms: number;
   device_count: number;
   flow_count: number;
-  zone_count: number;
   version: number;
   readiness: ReadinessSummary;
   created_at: string;
@@ -40,6 +39,7 @@ export interface ScenarioSummary {
 export interface ScenarioDetail extends ScenarioSummary {
   definition: Record<string, unknown>;
   addressing_config: Record<string, unknown> | null;
+  user_id?: string;
 }
 
 export interface ScenarioCreate {
@@ -74,66 +74,6 @@ export interface ScenarioFilters {
   search?: string;
   page?: number;
   page_size?: number;
-}
-
-// Pattern integration types
-export interface DevicePatternSuggestion {
-  device_id: string;
-  device_name: string;
-  device_type: string;
-  protocol: string;
-  suggestions: {
-    protocol_patterns: Array<{
-      id: string;
-      sample_count: number;
-      confidence: number;
-      has_function_codes: boolean;
-      has_address_patterns: boolean;
-      has_timing: boolean;
-    }>;
-    fingerprints: Array<{
-      id: string;
-      ip_address: string;
-      vendor: string | null;
-      role: string;
-      has_tcp_signature: boolean;
-      has_response_timings: boolean;
-      confidence: number;
-    }>;
-    sequences: Array<{
-      id: string;
-      name: string;
-      sequence_type: string;
-      step_count: number;
-      confidence: number;
-    }>;
-  };
-}
-
-export interface ScenarioPatternSuggestionsResponse {
-  scenario_id: string;
-  scenario_name: string;
-  device_suggestions: DevicePatternSuggestion[];
-  total_patterns_available: number;
-}
-
-export interface ApplyPatternsRequest {
-  device_pattern_mappings: Array<{
-    device_id: string;
-    fingerprint_id?: string;
-    pattern_id?: string;
-    sequence_ids?: string[];
-  }>;
-  apply_timing?: boolean;
-  apply_fingerprints?: boolean;
-  apply_sequences?: boolean;
-}
-
-export interface ApplyPatternsResponse {
-  scenario_id: string;
-  devices_updated: number;
-  patterns_applied: number;
-  message: string;
 }
 
 // AI device naming types
@@ -211,21 +151,6 @@ export const scenariosApi = {
   async validate(id: string): Promise<ScenarioValidationResponse> {
     const response = await apiClient.get<ScenarioValidationResponse>(
       `${PREFIX}/${id}/validate`
-    );
-    return response.data;
-  },
-
-  async getPatternSuggestions(id: string): Promise<ScenarioPatternSuggestionsResponse> {
-    const response = await apiClient.get<ScenarioPatternSuggestionsResponse>(
-      `${PREFIX}/${id}/pattern-suggestions`
-    );
-    return response.data;
-  },
-
-  async applyPatterns(id: string, request: ApplyPatternsRequest): Promise<ApplyPatternsResponse> {
-    const response = await apiClient.post<ApplyPatternsResponse>(
-      `${PREFIX}/${id}/apply-patterns`,
-      request
     );
     return response.data;
   },

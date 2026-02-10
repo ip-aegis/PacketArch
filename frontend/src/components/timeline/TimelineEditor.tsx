@@ -190,12 +190,12 @@ const TimelineEditor: React.FC = () => {
           left: `${(i / numMarks) * 100}%`,
           top: 0,
           bottom: 0,
-          borderLeft: '1px solid #d9d9d9',
+          borderLeft: '1px solid #2a3f54',
           paddingLeft: '4px',
           paddingTop: '4px',
         }}
       >
-        <Text type="secondary" style={{ fontSize: '10px' }}>
+        <Text style={{ fontSize: '10px', color: '#6b6b8a' }}>
           {timeSec.toFixed(0)}s
         </Text>
       </div>
@@ -207,8 +207,8 @@ const TimelineEditor: React.FC = () => {
       style={{
         width: '100%',
         height: '200px',
-        background: 'white',
-        borderTop: '1px solid #d9d9d9',
+        background: '#1a2734',
+        borderTop: '1px solid #2a3f54',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -217,14 +217,14 @@ const TimelineEditor: React.FC = () => {
       <div
         style={{
           padding: '12px 16px',
-          borderBottom: '1px solid #d9d9d9',
-          background: '#fafafa',
+          borderBottom: '1px solid #2a3f54',
+          background: '#253545',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <Text strong style={{ fontSize: '14px' }}>
+        <Text strong style={{ fontSize: '14px', color: '#e0e8f0' }}>
           Timeline
         </Text>
         <Button
@@ -242,8 +242,8 @@ const TimelineEditor: React.FC = () => {
         style={{
           position: 'relative',
           height: '30px',
-          background: '#f5f5f5',
-          borderBottom: '1px solid #d9d9d9',
+          background: '#1e3040',
+          borderBottom: '1px solid #2a3f54',
         }}
       >
         {timeMarks}
@@ -254,7 +254,7 @@ const TimelineEditor: React.FC = () => {
         style={{
           position: 'relative',
           flex: 1,
-          background: '#fafafa',
+          background: '#1a2734',
           padding: '16px',
         }}
       >

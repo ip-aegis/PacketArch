@@ -9,21 +9,16 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import PaletteItem from './PaletteItem';
 import { devicesApi } from '../../api/devices';
-import type { DeviceProfile, DeviceType } from '../../types';
+import type { DeviceProfile } from '../../types';
+import {
+  getDeviceTypeMeta,
+  DEVICE_CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  DeviceCategory,
+} from '../../constants/deviceTypeRegistry';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
-
-const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  plc: 'PLCs',
-  hmi: 'HMIs',
-  rtu: 'RTUs',
-  drive: 'Drives',
-  sensor: 'Sensors',
-  relay: 'Relays',
-  ews: 'Engineering Workstations',
-  historian: 'Historians',
-};
 
 const DevicePalette: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,15 +40,14 @@ const DevicePalette: React.FC = () => {
     );
   });
 
-  // Group devices by type
-  const groupedDevices = filteredDevices.reduce((acc, device) => {
-    const type = device.device_type as DeviceType;
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-    acc[type].push(device);
+  // Group devices by category
+  const groupedByCategory = filteredDevices.reduce((acc, device) => {
+    const meta = getDeviceTypeMeta(device.device_type);
+    const cat = meta.category;
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(device);
     return acc;
-  }, {} as Record<DeviceType, DeviceProfile[]>);
+  }, {} as Record<DeviceCategory, DeviceProfile[]>);
 
   return (
     <div
@@ -111,24 +105,24 @@ const DevicePalette: React.FC = () => {
           />
         ) : (
           <Collapse
-            defaultActiveKey={[]}
+            defaultActiveKey={[CATEGORY_ORDER[0]]}
             ghost
             expandIconPosition="end"
           >
-            {Object.entries(DEVICE_TYPE_LABELS).map(([type, label]) => {
-              const devicesOfType = groupedDevices[type as DeviceType];
-              if (!devicesOfType || devicesOfType.length === 0) return null;
+            {CATEGORY_ORDER.map((cat) => {
+              const devicesInCategory = groupedByCategory[cat];
+              if (!devicesInCategory || devicesInCategory.length === 0) return null;
 
               return (
                 <Panel
                   header={
                     <Text strong style={{ fontSize: '13px', color: '#b8c9dc' }}>
-                      {label} ({devicesOfType.length})
+                      {DEVICE_CATEGORY_LABELS[cat]} ({devicesInCategory.length})
                     </Text>
                   }
-                  key={type}
+                  key={cat}
                 >
-                  {devicesOfType.map((device) => (
+                  {devicesInCategory.map((device) => (
                     <PaletteItem key={device.id} device={device} />
                   ))}
                 </Panel>

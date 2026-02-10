@@ -2,7 +2,7 @@
  * Right Side Panel - AI Assistant, Properties, and Deploy tabs
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, Typography, Badge, Input, Button, Space, Divider } from 'antd';
 import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { TEXT_BODY, TEXT_MUTED, BG_CARD, BG_PANEL, BG_CODE, BORDER_DEFAULT } from '../../constants/theme';
@@ -42,6 +42,20 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const scenarioName = useScenarioStore((state) => state.name);
   const scenarioDescription = useScenarioStore((state) => state.description);
   const setMetadata = useScenarioStore((state) => state.setMetadata);
+
+  // Auto-switch to Properties tab when a device or flow is selected
+  const prevContextType = useRef(activePropertyContext.type);
+  useEffect(() => {
+    if (
+      activePropertyContext.type &&
+      activePropertyContext.type !== 'multi' &&
+      activePropertyContext.ids.length > 0 &&
+      prevContextType.current !== activePropertyContext.type
+    ) {
+      setActiveTab('properties');
+    }
+    prevContextType.current = activePropertyContext.type;
+  }, [activePropertyContext.type, activePropertyContext.ids]);
 
   // Handle tab change - open AI session when switching to AI tab
   const handleTabChange = (activeKey: string) => {
@@ -227,7 +241,7 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           activeKey={activeTab}
           onChange={handleTabChange}
           items={items}
-          destroyInactiveTabPane
+          destroyInactiveTabPane={false}
           style={{ height: '100%' }}
           tabBarStyle={{
             margin: 0,

@@ -184,6 +184,24 @@ async def start_generation(
     )
 
 
+@router.get("/protocols/supported", response_model=SupportedProtocolsResponse)
+async def get_supported_protocols(
+    current_user: User = Depends(get_current_user),
+) -> SupportedProtocolsResponse:
+    """Get list of supported protocol types.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        List of supported protocols
+    """
+    protocols = list_supported_protocols()
+    protocol_names = [p.value for p in protocols]
+
+    return SupportedProtocolsResponse(protocols=protocol_names)
+
+
 @router.get("/{job_id}", response_model=GenerationJobResponse)
 async def get_generation_status(
     job_id: str,
@@ -404,21 +422,3 @@ async def delete_job(
     await db.flush()
 
     logger.info(f"Deleted job {job_id}")
-
-
-@router.get("/protocols/supported", response_model=SupportedProtocolsResponse)
-async def get_supported_protocols(
-    current_user: User = Depends(get_current_user),
-) -> SupportedProtocolsResponse:
-    """Get list of supported protocol types.
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        List of supported protocols
-    """
-    protocols = list_supported_protocols()
-    protocol_names = [p.value for p in protocols]
-
-    return SupportedProtocolsResponse(protocols=protocol_names)

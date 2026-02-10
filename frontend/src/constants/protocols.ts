@@ -15,10 +15,12 @@ export const PROTOCOL_COLORS: Record<ProtocolType, string> = {
   modbus_tcp: '#049FD9',
   ethernet_ip: '#6CC04A',
   profinet: '#FBAB18',
+  s7comm: '#52c41a',
+  bacnet: '#00BCD4',
+  snmp: '#E91E63',
   opc_ua: '#9C27B0',
   dnp3: '#FF5722',
-  iec104: '#E91E63',
-  bacnet: '#00BCD4',
+  iec_104: '#E91E63',
 };
 
 /**
@@ -90,10 +92,12 @@ export const PROTOCOL_SHORT_NAMES: Record<ProtocolType, string> = {
   modbus_tcp: 'MB',
   ethernet_ip: 'EIP',
   profinet: 'PN',
+  s7comm: 'S7',
+  bacnet: 'BAC',
+  snmp: 'SNMP',
   opc_ua: 'OPC',
   dnp3: 'DNP3',
-  iec104: '104',
-  bacnet: 'BAC',
+  iec_104: '104',
 };
 
 /** Slightly longer names used for FlowEdge labels. */
@@ -101,10 +105,12 @@ export const PROTOCOL_EDGE_LABELS: Record<ProtocolType, string> = {
   modbus_tcp: 'MODBUS',
   ethernet_ip: 'EIP',
   profinet: 'PROFINET',
+  s7comm: 'S7',
+  bacnet: 'BACnet',
+  snmp: 'SNMP',
   opc_ua: 'OPC UA',
   dnp3: 'DNP3',
-  iec104: 'IEC 104',
-  bacnet: 'BACnet',
+  iec_104: 'IEC 104',
 };
 
 // ---------------------------------------------------------------------------
@@ -117,61 +123,39 @@ export const PROTOCOL_OPTIONS: { value: ProtocolType; label: string }[] = [
   { value: 'profinet', label: 'PROFINET' },
   { value: 'opc_ua', label: 'OPC UA' },
   { value: 'dnp3', label: 'DNP3' },
-  { value: 'iec104', label: 'IEC 60870-5-104' },
+  { value: 'iec_104', label: 'IEC 60870-5-104' },
   { value: 'bacnet', label: 'BACnet' },
 ];
 
 // ---------------------------------------------------------------------------
-// Device type colors - used for minimap, node backgrounds, badges
+// Device type colors, labels, options — backed by deviceTypeRegistry
 // ---------------------------------------------------------------------------
 
-export const DEVICE_TYPE_COLORS: Record<DeviceType, string> = {
-  plc: '#049FD9',
-  hmi: '#6CC04A',
-  rtu: '#FBAB18',
-  drive: '#FF7043',
-  sensor: '#00BCEB',
-  relay: '#E53935',
-  ews: '#9C27B0',
-  historian: '#607D8B',
-};
+import {
+  DEVICE_TYPE_REGISTRY,
+  getDeviceTypeColor,
+  getDeviceTypeLabel,
+  getDeviceTypeOptions as _getDeviceTypeOptions,
+} from './deviceTypeRegistry';
 
-/**
- * Extended device type color map that includes types beyond the core
- * DeviceType union (e.g. "network", "gateway") used in the Device Library.
- */
+/** Color map for all known device types (backwards-compatible Record<string, string>). */
+export const DEVICE_TYPE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.values(DEVICE_TYPE_REGISTRY).map((m) => [m.key, m.color]),
+);
+
+/** Extended color map — same as DEVICE_TYPE_COLORS (registry covers all types). */
 export const DEVICE_TYPE_COLORS_EXTENDED: Record<string, string> = {
   ...DEVICE_TYPE_COLORS,
-  network: '#00BCD4',
-  gateway: '#795548',
 };
 
-// ---------------------------------------------------------------------------
-// Device type labels - human-readable display names
-// ---------------------------------------------------------------------------
+/** Label map for all known device types. */
+export const DEVICE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(DEVICE_TYPE_REGISTRY).map((m) => [m.key, m.label]),
+);
 
-export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  plc: 'PLC',
-  hmi: 'HMI',
-  rtu: 'RTU',
-  drive: 'Drive',
-  sensor: 'Sensor',
-  relay: 'Relay',
-  ews: 'EWS',
-  historian: 'Historian',
-};
+/** Select options for device type dropdowns. */
+export const DEVICE_TYPE_OPTIONS: { value: string; label: string }[] =
+  _getDeviceTypeOptions().map(({ value, label }) => ({ value, label }));
 
-// ---------------------------------------------------------------------------
-// Device type select options - for Select/dropdown components
-// ---------------------------------------------------------------------------
-
-export const DEVICE_TYPE_OPTIONS: { value: DeviceType; label: string }[] = [
-  { value: 'plc', label: 'PLC' },
-  { value: 'hmi', label: 'HMI' },
-  { value: 'rtu', label: 'RTU' },
-  { value: 'drive', label: 'Drive' },
-  { value: 'sensor', label: 'Sensor' },
-  { value: 'relay', label: 'Relay' },
-  { value: 'ews', label: 'Engineering Workstation' },
-  { value: 'historian', label: 'Historian' },
-];
+// Re-export registry functions for direct use
+export { getDeviceTypeColor, getDeviceTypeLabel };

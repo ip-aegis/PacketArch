@@ -80,6 +80,8 @@ export interface CreateFromTemplateRequest {
   phase_preset?: string;
   auto_assign_addresses?: boolean;
   total_duration_ms?: number;
+  flow_pattern?: string;
+  use_smart_flow_generation?: boolean;
   // AI device naming options
   use_ai_naming?: boolean;  // Default false - templates have meaningful built-in names
   process_context?: string; // User description for AI naming (e.g., "candy factory")

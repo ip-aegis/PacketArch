@@ -90,6 +90,7 @@ export interface DeploymentCreate {
   scenario_id: string;
   interface?: string;
   adaptive_config?: Record<string, unknown>;
+  attack_playbook?: Record<string, unknown>;
 }
 
 /**

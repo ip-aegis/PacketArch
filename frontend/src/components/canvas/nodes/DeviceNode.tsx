@@ -8,31 +8,22 @@ import { Handle, Position } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { useCompactMode } from '../hooks/useCompactMode';
 import {
-  ControlOutlined,
-  DesktopOutlined,
-  CloudServerOutlined,
-  ThunderboltOutlined,
-  DashboardOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  DatabaseOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   BugOutlined,
 } from '@ant-design/icons';
 import { Tag, Tooltip } from 'antd';
-import type { DeviceType, ProtocolType } from '../../../types';
+import type { ProtocolType } from '../../../types';
 import {
   PROTOCOL_COLORS,
   PROTOCOL_SHORT_NAMES,
-  DEVICE_TYPE_COLORS,
-  DEVICE_TYPE_LABELS,
 } from '../../../constants/protocols';
+import { getDeviceTypeMeta, getDeviceTypeIcon } from '../../../constants/deviceTypeRegistry';
 
 export interface DeviceNodeData extends Record<string, unknown> {
   id: string;
   name: string;
-  type: DeviceType;
+  type: string;
   role?: string;
   protocols: ProtocolType[];
   isConfigured: boolean;
@@ -40,18 +31,6 @@ export interface DeviceNodeData extends Record<string, unknown> {
   cveIds?: string[];
   vendor?: string;
 }
-
-// Device type configuration with icons - colors sourced from constants
-const DEVICE_TYPE_CONFIG: Record<DeviceType, { icon: React.ReactNode; color: string; label: string }> = {
-  plc: { icon: <ControlOutlined />, color: DEVICE_TYPE_COLORS.plc, label: DEVICE_TYPE_LABELS.plc },
-  hmi: { icon: <DesktopOutlined />, color: DEVICE_TYPE_COLORS.hmi, label: DEVICE_TYPE_LABELS.hmi },
-  rtu: { icon: <CloudServerOutlined />, color: DEVICE_TYPE_COLORS.rtu, label: DEVICE_TYPE_LABELS.rtu },
-  drive: { icon: <ThunderboltOutlined />, color: DEVICE_TYPE_COLORS.drive, label: DEVICE_TYPE_LABELS.drive },
-  sensor: { icon: <DashboardOutlined />, color: DEVICE_TYPE_COLORS.sensor, label: DEVICE_TYPE_LABELS.sensor },
-  relay: { icon: <SafetyCertificateOutlined />, color: DEVICE_TYPE_COLORS.relay, label: DEVICE_TYPE_LABELS.relay },
-  ews: { icon: <SettingOutlined />, color: DEVICE_TYPE_COLORS.ews, label: DEVICE_TYPE_LABELS.ews },
-  historian: { icon: <DatabaseOutlined />, color: DEVICE_TYPE_COLORS.historian, label: DEVICE_TYPE_LABELS.historian },
-};
 
 const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
   const { data, selected } = props;
@@ -62,8 +41,9 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
   if (!data) return null;
 
   const nodeData = data as DeviceNodeData;
-  const deviceConfig = DEVICE_TYPE_CONFIG[nodeData.type] || DEVICE_TYPE_CONFIG.plc;
-  const deviceColor = deviceConfig.color;
+  const deviceMeta = getDeviceTypeMeta(nodeData.type);
+  const deviceColor = deviceMeta.color;
+  const deviceIcon = getDeviceTypeIcon(nodeData.type);
   const showDetails = selected || hovered;
 
   const handleStyle = (pos: 'top' | 'bottom' | 'left' | 'right') => {
@@ -82,7 +62,7 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
     return (
       <div
         role="treeitem"
-        aria-label={`${deviceConfig.label}: ${nodeData.name}`}
+        aria-label={`${deviceMeta.label}: ${nodeData.name}`}
         aria-selected={selected}
         tabIndex={0}
         onMouseEnter={() => setHovered(true)}
@@ -129,7 +109,7 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
             transition: 'all 0.2s ease',
           }}
         >
-          {deviceConfig.icon}
+          {deviceIcon}
         </div>
 
         {/* Name label */}
@@ -155,7 +135,7 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
   return (
     <div
       role="treeitem"
-      aria-label={`${deviceConfig.label} device: ${nodeData.name}${nodeData.vendor ? `, vendor ${nodeData.vendor}` : ''}${nodeData.ipAddress ? `, IP ${nodeData.ipAddress}` : ''}`}
+      aria-label={`${deviceMeta.label} device: ${nodeData.name}${nodeData.vendor ? `, vendor ${nodeData.vendor}` : ''}${nodeData.ipAddress ? `, IP ${nodeData.ipAddress}` : ''}`}
       aria-selected={selected}
       tabIndex={0}
       onMouseEnter={() => setHovered(true)}
@@ -260,7 +240,7 @@ const DeviceNode: React.FC<NodeProps<DeviceNodeData>> = React.memo((props) => {
             boxShadow: `0 2px 8px ${deviceColor}20`,
           }}
         >
-          {deviceConfig.icon}
+          {deviceIcon}
         </div>
       </div>
 

@@ -2,11 +2,12 @@
  * Chat Input - Text input with send button
  */
 
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, useMemo, KeyboardEvent } from 'react';
 import { Input, Button, Space, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { SendOutlined, BulbOutlined } from '@ant-design/icons';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
+import { useScenarioStore } from '../../stores/scenarioStore';
 
 const { TextArea } = Input;
 
@@ -14,18 +15,58 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
-const SUGGESTED_PROMPTS = [
-  'Validate my scenario topology',
-  'Score the realism of this scenario',
-  'Suggest flows for my devices',
-  'Auto-assign IP addresses',
-  'Add a PLC to the plant floor',
-  'What devices should I add for manufacturing?',
-];
+/** Generate context-aware prompts based on current scenario state. */
+function getSuggestedPrompts(
+  deviceCount: number,
+  flowCount: number,
+  hasFingerprints: boolean,
+): string[] {
+  if (deviceCount === 0) {
+    return [
+      'Create a manufacturing scenario with 10 devices',
+      'Build a water treatment SCADA network',
+      'Design a building automation system',
+      'Add 5 Siemens PLCs and 3 HMIs',
+    ];
+  }
+  if (flowCount === 0) {
+    return [
+      'Connect these devices with appropriate protocol flows',
+      'Suggest flows for my devices',
+      'Create Modbus polling flows between PLCs and HMIs',
+      'Validate my scenario topology',
+    ];
+  }
+  if (!hasFingerprints) {
+    return [
+      'Assign vendor fingerprints to all devices',
+      'Set Siemens identities on the PLCs',
+      'Validate my scenario topology',
+      'Score the realism of this scenario',
+    ];
+  }
+  return [
+    'Validate my scenario topology',
+    'Score the realism of this scenario',
+    'Add a vulnerable device for security testing',
+    'Optimize timing intervals for realism',
+  ];
+}
 
 const ChatInput: React.FC<ChatInputProps> = ({ disabled = false }) => {
   const [message, setMessage] = useState('');
   const { sendMessage, isProcessing } = useAIAssistantStore();
+
+  const deviceCount = useScenarioStore((s) => Object.keys(s.devices).length);
+  const flowCount = useScenarioStore((s) => Object.keys(s.flows).length);
+  const hasFingerprints = useScenarioStore((s) =>
+    Object.values(s.devices).some((d) => d.templateId || d.fingerprintModel),
+  );
+
+  const suggestedPrompts = useMemo(
+    () => getSuggestedPrompts(deviceCount, flowCount, hasFingerprints),
+    [deviceCount, flowCount, hasFingerprints],
+  );
 
   const handleSend = async () => {
     if (!message.trim() || disabled || isProcessing) return;
@@ -46,7 +87,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ disabled = false }) => {
     setMessage(prompt);
   };
 
-  const menuItems: MenuProps['items'] = SUGGESTED_PROMPTS.map((prompt, index) => ({
+  const menuItems: MenuProps['items'] = suggestedPrompts.map((prompt, index) => ({
     key: index.toString(),
     label: prompt,
     onClick: () => handleSuggestedPrompt(prompt),

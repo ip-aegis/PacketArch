@@ -5,37 +5,14 @@
 
 import React from 'react';
 import { Card, Tag, Typography, Tooltip } from 'antd';
-import {
-  ControlOutlined,
-  DesktopOutlined,
-  CloudServerOutlined,
-  ThunderboltOutlined,
-  DashboardOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  DatabaseOutlined,
-} from '@ant-design/icons';
 import type { DeviceProfile } from '../../types';
 import {
   PROTOCOL_COLORS,
   PROTOCOL_SHORT_NAMES,
-  DEVICE_TYPE_COLORS,
-  DEVICE_TYPE_LABELS,
 } from '../../constants/protocols';
+import { getDeviceTypeMeta, getDeviceTypeIcon } from '../../constants/deviceTypeRegistry';
 
 const { Text } = Typography;
-
-// Device type configuration with icons - colors sourced from constants
-const DEVICE_TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  plc: { icon: <ControlOutlined />, color: DEVICE_TYPE_COLORS.plc, label: DEVICE_TYPE_LABELS.plc },
-  hmi: { icon: <DesktopOutlined />, color: DEVICE_TYPE_COLORS.hmi, label: DEVICE_TYPE_LABELS.hmi },
-  rtu: { icon: <CloudServerOutlined />, color: DEVICE_TYPE_COLORS.rtu, label: DEVICE_TYPE_LABELS.rtu },
-  drive: { icon: <ThunderboltOutlined />, color: DEVICE_TYPE_COLORS.drive, label: DEVICE_TYPE_LABELS.drive },
-  sensor: { icon: <DashboardOutlined />, color: DEVICE_TYPE_COLORS.sensor, label: DEVICE_TYPE_LABELS.sensor },
-  relay: { icon: <SafetyCertificateOutlined />, color: DEVICE_TYPE_COLORS.relay, label: DEVICE_TYPE_LABELS.relay },
-  ews: { icon: <SettingOutlined />, color: DEVICE_TYPE_COLORS.ews, label: DEVICE_TYPE_LABELS.ews },
-  historian: { icon: <DatabaseOutlined />, color: DEVICE_TYPE_COLORS.historian, label: DEVICE_TYPE_LABELS.historian },
-};
 
 interface PaletteItemProps {
   device: DeviceProfile;
@@ -47,8 +24,9 @@ const PaletteItem: React.FC<PaletteItemProps> = ({ device }) => {
     e.dataTransfer.setData('application/json', JSON.stringify(device));
   };
 
-  const config = DEVICE_TYPE_CONFIG[device.device_type] || DEVICE_TYPE_CONFIG.plc;
-  const deviceColor = config.color;
+  const meta = getDeviceTypeMeta(device.device_type);
+  const deviceColor = meta.color;
+  const deviceIcon = getDeviceTypeIcon(device.device_type);
 
   return (
     <div
@@ -87,7 +65,7 @@ const PaletteItem: React.FC<PaletteItemProps> = ({ device }) => {
               flexShrink: 0,
             }}
           >
-            {config.icon}
+            {deviceIcon}
           </div>
 
           {/* Device info */}

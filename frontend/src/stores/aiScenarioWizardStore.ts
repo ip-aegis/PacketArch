@@ -52,7 +52,7 @@ export const PROTOCOLS = [
   { id: 'ethernet_ip', name: 'EtherNet/IP', description: 'Rockwell/ODVA protocol' },
   { id: 'profinet', name: 'PROFINET', description: 'Siemens/PROFINET' },
   { id: 'dnp3', name: 'DNP3', description: 'Distributed Network Protocol' },
-  { id: 'iec104', name: 'IEC 104', description: 'IEC 60870-5-104' },
+  { id: 'iec_104', name: 'IEC 104', description: 'IEC 60870-5-104' },
   { id: 'opcua', name: 'OPC UA', description: 'Open Platform Communications' },
   { id: 'snmp', name: 'SNMP/NTCIP', description: 'Transportation ITS protocol' },
   { id: 'bacnet', name: 'BACnet/IP', description: 'Building automation protocol' },

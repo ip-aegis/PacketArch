@@ -63,6 +63,11 @@ from app.mcp_server.tools.external_comm_tools import (
     remove_external_communication,
     get_external_comm_patterns,
 )
+from app.mcp_server.tools.attack_tools import (
+    list_attack_playbooks,
+    get_playbook_details,
+    suggest_attack_for_scenario,
+)
 
 __all__ = [
     # AI generation tools
@@ -130,4 +135,8 @@ __all__ = [
     "update_phase_timing",
     "reorder_phases",
     "list_phase_presets",
+    # Attack simulation tools
+    "list_attack_playbooks",
+    "get_playbook_details",
+    "suggest_attack_for_scenario",
 ]

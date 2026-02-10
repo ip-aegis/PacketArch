@@ -49,7 +49,7 @@ export type Protocol =
   | 'modbus_tcp'
   | 'ethernet_ip'
   | 'profinet'
-  | 's7'
+  | 's7comm'
   | 'bacnet'
   | 'snmp';
 
@@ -78,7 +78,7 @@ export type ProtocolConfig =
   | { protocol: 'modbus_tcp'; config: ModbusConfig }
   | { protocol: 'ethernet_ip'; config: EtherNetIPConfig }
   | { protocol: 'profinet'; config: ProfinetConfig }
-  | { protocol: 's7'; config: S7Config }
+  | { protocol: 's7comm'; config: S7Config }
   | { protocol: 'bacnet'; config: BACnetConfig }
   | { protocol: 'snmp'; config: SNMPConfig };
 
@@ -129,12 +129,12 @@ export function isProfinetConfig(
  */
 export function isS7Config(
   config: ProtocolConfig | unknown
-): config is { protocol: 's7'; config: S7Config } {
+): config is { protocol: 's7comm'; config: S7Config } {
   return (
     typeof config === 'object' &&
     config !== null &&
     'protocol' in config &&
-    (config as ProtocolConfig).protocol === 's7'
+    (config as ProtocolConfig).protocol === 's7comm'
   );
 }
 
@@ -186,9 +186,9 @@ export function getDefaultConfig(protocol: Protocol): ProtocolConfig {
         protocol: 'profinet',
         config: { ...DEFAULT_PROFINET_CONFIG },
       };
-    case 's7':
+    case 's7comm':
       return {
-        protocol: 's7',
+        protocol: 's7comm',
         config: { ...DEFAULT_S7_CONFIG },
       };
     case 'bacnet':
@@ -211,7 +211,7 @@ export const PROTOCOL_LABELS: Record<Protocol, string> = {
   modbus_tcp: 'Modbus TCP',
   ethernet_ip: 'EtherNet/IP',
   profinet: 'PROFINET',
-  s7: 'S7comm',
+  s7comm: 'S7comm',
   bacnet: 'BACnet/IP',
   snmp: 'SNMP',
 };
@@ -223,7 +223,7 @@ export const PROTOCOL_PORTS: Record<Protocol, number> = {
   modbus_tcp: 502,
   ethernet_ip: 44818,
   profinet: 34964, // UDP for RT
-  s7: 102,
+  s7comm: 102,
   bacnet: 47808,
   snmp: 161,
 };

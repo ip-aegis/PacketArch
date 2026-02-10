@@ -9,7 +9,7 @@ import { CopyOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import type { ScenarioDevice } from '../../types';
-import { DEVICE_TYPE_LABELS } from '../../constants/protocols';
+import { getDeviceTypeLabel } from '../../constants/deviceTypeRegistry';
 
 const { Text } = Typography;
 
@@ -84,7 +84,7 @@ const DeviceContextMenu: React.FC<DeviceContextMenuProps> = ({
   const similarDevices = Object.values(devices).filter(
     (d) => d.id !== deviceId && d.type === sourceDevice.type,
   );
-  const typeLabel = DEVICE_TYPE_LABELS[sourceDevice.type] || sourceDevice.type;
+  const typeLabel = getDeviceTypeLabel(sourceDevice.type);
 
   const handleDuplicate = () => {
     const newId = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

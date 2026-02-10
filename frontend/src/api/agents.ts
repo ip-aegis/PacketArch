@@ -67,6 +67,10 @@ export const agentsApi = {
     await apiClient.delete(`${PREFIX}/${agentId}/deploy/${scenarioId}`);
   },
 
+  async stopOrphanScenario(agentId: string, scenarioId: string): Promise<void> {
+    await apiClient.post(`${PREFIX}/${agentId}/stop-scenario/${scenarioId}`);
+  },
+
   async listDeployments(agentId: string, activeOnly = true): Promise<AgentDeployment[]> {
     const params = new URLSearchParams({ active_only: activeOnly.toString() });
     const response = await apiClient.get<AgentDeployment[]>(
@@ -106,8 +110,24 @@ export const agentsApi = {
     return response.data;
   },
 
-  async getImageStatus(): Promise<{ available: boolean; path?: string; size?: number; modified?: string }> {
-    const response = await apiClient.get<{ available: boolean; path?: string; size?: number; modified?: string }>(`${PREFIX}/image-status`);
+  async getImageStatus(): Promise<{
+    available: boolean;
+    size_bytes?: number;
+    size_mb?: number;
+    modified_at?: string;
+    standard_version?: string | null;
+    checksum?: string | null;
+    message?: string;
+  }> {
+    const response = await apiClient.get<{
+      available: boolean;
+      size_bytes?: number;
+      size_mb?: number;
+      modified_at?: string;
+      standard_version?: string | null;
+      checksum?: string | null;
+      message?: string;
+    }>(`${PREFIX}/image-status`);
     return response.data;
   },
 
