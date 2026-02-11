@@ -108,7 +108,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     return () => {
       stopPolling();
     };
-  }, [fetchHosts, fetchAgents, fetchDeployments, scenarioId, stopPolling]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioId]);
 
   // ── Poll active deployments ─────────────────────────────────────
   useEffect(() => {

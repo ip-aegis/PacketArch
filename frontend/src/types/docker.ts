@@ -125,6 +125,24 @@ export interface UnifiedDeployment {
   started_at: string | null;
   stopped_at: string | null;
   created_at: string;
+  // Real-time state from agent (null for docker deployments or if not available)
+  attack: {
+    playbook_id: string;
+    playbook_name: string;
+    is_active: boolean;
+    is_paused: boolean;
+    is_completed: boolean;
+    current_stage: string;
+    current_stage_name: string;
+    current_stage_color: string;
+    current_stage_index: number;
+    stage_progress_pct: number;
+    stage_remaining_s: number;
+    stages_completed: number;
+    total_stages: number;
+    actions_completed: number;
+    attack_packets_generated: number;
+  } | null;
 }
 
 export interface DeploymentRequest {

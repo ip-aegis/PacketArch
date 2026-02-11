@@ -163,6 +163,9 @@ async def list_deployments(
             await db.commit()
 
         # Fetch related agents and scenarios for agent deployments
+        # Also get real-time attack state from traffic_dashboard
+        from app.services.traffic_dashboard import traffic_dashboard
+
         for d in agent_deployments:
             # Get agent
             agent_result = await db.execute(
@@ -176,8 +179,15 @@ async def list_deployments(
             )
             scenario = scenario_result.scalar_one_or_none()
 
+            # Get real-time attack state from traffic_dashboard (if running)
+            attack_state = None
+            if d.state == "running":
+                deployment_status = traffic_dashboard.get_deployment_status(str(d.scenario_id))
+                if deployment_status and "attack" in deployment_status:
+                    attack_state = deployment_status["attack"]
+
             all_deployments.append(
-                UnifiedDeploymentResponse.from_agent_deployment(d, agent, scenario)
+                UnifiedDeploymentResponse.from_agent_deployment(d, agent, scenario, attack_state)
             )
 
     # Sort all deployments by created_at descending

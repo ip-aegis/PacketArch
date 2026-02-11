@@ -282,6 +282,30 @@ class AttackOrchestrator:
                 f"Attack {'paused' if self._is_paused else 'resumed'}"
             )
 
+    def check_wall_time_advancement(self, scheduler: Any, current_time_ms: float) -> None:
+        """Advance stage if wall-clock says it's expired.
+
+        Called from the event loop on every iteration (not just tick events).
+        This prevents virtual-time lag from causing the UI to show "0s left"
+        for extended periods while the scheduler catches up.
+        """
+        if not self._is_active or self._is_paused or self._is_completed:
+            return
+        if self._current_stage_idx >= len(self._stages):
+            return
+
+        stage = self._stages[self._current_stage_idx]
+        elapsed_s = time.monotonic() - self._stage_start_monotonic
+
+        if elapsed_s >= stage.duration_seconds and self._config.auto_advance:
+            self._advance_stage()
+            # Schedule an immediate tick so the new stage generates packets
+            if not self._is_completed:
+                scheduler.schedule(
+                    current_time_ms + 1,
+                    {"type": "attack_stage_tick"},
+                )
+
     # ------------------------------------------------------------------
     # Stage management
     # ------------------------------------------------------------------

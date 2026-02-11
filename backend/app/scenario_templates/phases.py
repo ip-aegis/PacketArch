@@ -267,6 +267,78 @@ VERTICAL_PHASE_VARIATIONS: dict[str, dict[str, dict[str, Any]]] = {
             ],
         },
     },
+    "transportation": {
+        "startup": {
+            "duration_pct": 5,
+            "behaviors": [
+                "connection_establishment",
+                "controller_handshake",
+                "detector_calibration",
+                "time_sync",
+            ],
+        },
+        "steady_state": {
+            "duration_pct": 85,
+            "behaviors": [
+                "signal_coordination",
+                "detector_polling",
+                "dms_update",
+                "camera_keepalive",
+                "weather_monitoring",
+            ],
+        },
+        "maintenance": {
+            "duration_pct": 5,
+            "behaviors": [
+                "timing_plan_download",
+                "detector_test",
+                "firmware_update",
+            ],
+        },
+        "shutdown": {
+            "duration_pct": 5,
+            "behaviors": [
+                "signal_safe_state",
+                "detector_standby",
+            ],
+        },
+    },
+    "building_automation": {
+        "startup": {
+            "duration_pct": 5,
+            "behaviors": [
+                "connection_establishment",
+                "bacnet_discovery",
+                "schedule_load",
+                "setpoint_init",
+            ],
+        },
+        "steady_state": {
+            "duration_pct": 80,
+            "behaviors": [
+                "cov_subscription",
+                "periodic_poll",
+                "setpoint_tracking",
+                "schedule_events",
+            ],
+        },
+        "maintenance": {
+            "duration_pct": 10,
+            "behaviors": [
+                "setpoint_change",
+                "schedule_override",
+                "trend_download",
+                "firmware_update",
+            ],
+        },
+        "shutdown": {
+            "duration_pct": 5,
+            "behaviors": [
+                "unoccupied_setback",
+                "schedule_save",
+            ],
+        },
+    },
 }
 
 # Preset phase sequences

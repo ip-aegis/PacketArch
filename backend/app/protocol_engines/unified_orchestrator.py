@@ -94,6 +94,8 @@ class UnifiedOrchestrator:
         self._ambient_generator: BackgroundNoiseGenerator | None = None
         self._process_sim: ProcessSimController | None = None
         self._last_process_phase: str | None = None
+        # Pending hot-attach injection (atomic swap from WebSocket thread)
+        self._pending_attack_injection: dict[str, Any] | None = None
 
     def add_flow(self, flow_context: FlowContext) -> None:
         """Add a flow to be generated.
@@ -180,6 +182,61 @@ class UnifiedOrchestrator:
         attack_orch.schedule_initial_events(self.scheduler, warmup_ms)
         logger.info("Attack orchestrator registered")
 
+    def set_pending_attack_injection(self, config: dict[str, Any]) -> None:
+        """Queue an attack playbook injection for the scenario thread.
+
+        Uses atomic reference swap — safe without locks under Python GIL.
+        The scenario thread picks this up on the next event-loop iteration
+        via ``_check_pending_attack_injection()``.
+
+        Args:
+            config: Dict with ``playbook_id``, ``config``, and ``devices`` keys.
+        """
+        self._pending_attack_injection = config
+
+    def _check_pending_attack_injection(self) -> None:
+        """Check for and process a pending attack injection.
+
+        Called from the scenario thread's event loop so that
+        ``register_attack_orchestrator()`` (which touches the heap)
+        runs in the correct thread.
+        """
+        injection = self._pending_attack_injection
+        if injection is None:
+            return
+        self._pending_attack_injection = None
+
+        try:
+            from app.protocol_engines.attacks import (
+                AttackOrchestrator,
+                get_playbook,
+            )
+            from app.protocol_engines.attacks.types import AttackPlaybookConfig
+
+            playbook_id = injection.get("playbook_id")
+            playbook = get_playbook(playbook_id)
+            if not playbook:
+                logger.warning(
+                    f"INJECT_ATTACK: playbook '{playbook_id}' not found"
+                )
+                return
+
+            # Config fields may be at the top level (from injection) or nested
+            # under a "config" key (from deploy-time).  Support both.
+            raw_config = injection.get("config") or injection
+            config = AttackPlaybookConfig.from_dict(raw_config)
+            devices = injection.get("devices", [])
+
+            attack_orch = AttackOrchestrator(
+                playbook=playbook,
+                devices=devices,
+                config=config,
+            )
+            self.register_attack_orchestrator(attack_orch)
+            logger.info(f"Hot-attached attack playbook '{playbook.name}'")
+        except Exception as exc:
+            logger.error(f"Failed to hot-attach attack: {exc}", exc_info=True)
+
     def register_ambient_generator(self, generator: BackgroundNoiseGenerator) -> None:
         """Register a background noise generator for ambient traffic.
 
@@ -242,6 +299,15 @@ class UnifiedOrchestrator:
 
             # Phase 3: Main event loop
             while self.scheduler.has_events():
+                # Check for hot-attach attack injection (atomic swap)
+                self._check_pending_attack_injection()
+
+                # Check wall-time stage advancement (prevents virtual-time lag)
+                if self._attack_orchestrator:
+                    self._attack_orchestrator.check_wall_time_advancement(
+                        self.scheduler, self.current_time_ms,
+                    )
+
                 # Check external stop signal
                 if stop_event and stop_event.is_set():
                     logger.info("Stop event received, initiating shutdown")

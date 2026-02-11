@@ -29,6 +29,17 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "detection zone, weather zone, and camera networks.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "SNMP-based ITS infrastructure is vulnerable to network scanning"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "TMC operator with DMS control access"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "transportation",
+            "description": "Intersection signal control with vehicle counts, queue lengths, average speed, detector occupancy",
+            "key_variables": ["vehicle_count", "queue_length", "average_speed", "detector_occupancy", "ped_demand"],
+            "available_faults": ["detector_failure", "signal_stuck_red", "coordination_loss"],
+        },
         "devices": [
             # ============================================================
             # TMC CORE ZONE (Level 3) - 4 devices
@@ -195,25 +206,15 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["broadcast_storm"],
             "security": ["unauthorized_remote_access", "snmp_community_scan"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "NTCIP 1203 DMS polling patterns from TMC to signs"},
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "NTCIP 1204 ESS polling patterns from TMC to weather stations"},
-            {"protocol": "snmp", "flow_type": "detection", "priority": "high",
-             "description": "Vehicle detection sensor polling patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["13.56.142.1", "54.95.198.117"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 300000,  # 5 minutes
     },
@@ -231,6 +232,17 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "ATMS core, main intersections, minor intersections, detection, and camera zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Urban signal controller enumeration via SNMP"},
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Traffic signal phase manipulation risk"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "transportation",
+            "description": "Intersection signal control with vehicle counts, queue lengths, average speed, detector occupancy",
+            "key_variables": ["vehicle_count", "queue_length", "average_speed", "detector_occupancy", "ped_demand"],
+            "available_faults": ["detector_failure", "signal_stuck_red", "coordination_loss"],
+        },
         "devices": [
             # ============================================================
             # ATMS CORE ZONE (Level 3) - 4 devices
@@ -395,25 +407,15 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["broadcast_storm", "controller_offline"],
             "security": ["unauthorized_remote_access", "phase_manipulation"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "NTCIP 1202 ASC polling patterns from ATMS to controllers"},
-            {"protocol": "snmp", "flow_type": "coordination", "priority": "high",
-             "description": "Signal coordination sync patterns between controllers"},
-            {"protocol": "snmp", "flow_type": "detection", "priority": "medium",
-             "description": "Detector polling patterns from controllers"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["54.95.198.117", "51.38.74.240"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 300000,  # 5 minutes
     },
@@ -432,6 +434,17 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "master, ventilation, lighting, detection, safety, and portal zones.",
         "vertical": "transportation",
         "phase_preset": "full_lifecycle",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Tunnel ventilation and safety systems are life-safety critical"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Tunnel SCADA network mapping"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "transportation",
+            "description": "Intersection signal control with vehicle counts, queue lengths, average speed, detector occupancy",
+            "key_variables": ["vehicle_count", "queue_length", "average_speed", "detector_occupancy", "ped_demand"],
+            "available_faults": ["detector_failure", "signal_stuck_red", "coordination_loss"],
+        },
         "devices": [
             # ============================================================
             # TUNNEL MASTER ZONE (Level 3) - 5 devices
@@ -652,25 +665,15 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["controller_offline", "communication_loss"],
             "security": ["unauthorized_remote_access", "safety_system_bypass"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "Ventilation controller polling patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
-             "description": "Safety system RTU polling patterns"},
-            {"protocol": "bacnet", "flow_type": "polling", "priority": "medium",
-             "description": "Lighting controller BACnet patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "medium",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["51.38.74.240", "87.98.169.126"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 600000,  # 10 minutes
     },
@@ -688,6 +691,17 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "30 devices across toll center, ETC lanes, manual lanes, ANPR, and signage zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Toll system financial data and lane controller discovery"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "Toll revenue manipulation via controller access"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "transportation",
+            "description": "Intersection signal control with vehicle counts, queue lengths, average speed, detector occupancy",
+            "key_variables": ["vehicle_count", "queue_length", "average_speed", "detector_occupancy", "ped_demand"],
+            "available_faults": ["detector_failure", "signal_stuck_red", "coordination_loss"],
+        },
         "devices": [
             # ============================================================
             # TOLL CENTER ZONE (Level 3) - 4 devices
@@ -833,25 +847,15 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["controller_offline", "camera_offline"],
             "security": ["unauthorized_remote_access", "transaction_manipulation"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "ETC controller polling patterns for transactions"},
-            {"protocol": "snmp", "flow_type": "polling", "priority": "high",
-             "description": "ANPR camera polling patterns for plate capture"},
-            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
-             "description": "Lane status and barrier monitoring patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "Revenue sync via EWON Talk2M cloud"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["13.56.142.1", "54.95.198.117"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 300000,  # 5 minutes
     },

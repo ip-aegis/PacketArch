@@ -11,6 +11,7 @@ import {
   ApiOutlined,
   CarOutlined,
   HomeOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 
 /** Vertical display metadata (icon, color, label) */
@@ -24,6 +25,7 @@ export const verticalConfig: Record<
   oil_gas: { icon: <ApiOutlined />, color: '#FF7043', label: 'Oil & Gas' },
   transportation: { icon: <CarOutlined />, color: '#9C27B0', label: 'Transportation' },
   building_automation: { icon: <HomeOutlined />, color: '#00BCD4', label: 'Building Automation' },
+  distribution_logistics: { icon: <InboxOutlined />, color: '#78909C', label: 'Distribution & Logistics' },
 };
 
 /** Human-readable duration from milliseconds */

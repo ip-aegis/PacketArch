@@ -368,6 +368,14 @@ function humanize(type: string): string {
  * Falls back to category inference → OTHER for unknown types.
  */
 export function getDeviceTypeMeta(type: string): DeviceTypeMeta {
+  if (!type) {
+    return {
+      key: 'unknown',
+      label: 'Unknown',
+      category: DeviceCategory.OTHER,
+      color: CATEGORY_DEFAULTS[DeviceCategory.OTHER].color,
+    };
+  }
   const existing = DEVICE_TYPE_REGISTRY[type];
   if (existing) return existing;
 

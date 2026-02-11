@@ -71,6 +71,44 @@ class AttackService:
             scenario_id, "PAUSE_ATTACK", paused=paused,
         )
 
+    async def inject_attack(
+        self,
+        scenario_id: str,
+        playbook_id: str,
+        config: dict[str, Any] | None = None,
+    ) -> bool:
+        """Inject an attack playbook into an already-running deployment.
+
+        Args:
+            scenario_id: Target scenario UUID string
+            playbook_id: Playbook to inject
+            config: Optional config overrides (auto_advance, intensity, etc.)
+
+        Returns:
+            True if the injection command was sent
+        """
+        from app.services.agent_manager import agent_manager
+
+        # Clear any previous injection result (allows retries)
+        agent_manager.clear_injection_result(scenario_id)
+
+        playbook = get_playbook(playbook_id)
+        if not playbook:
+            logger.warning(f"inject_attack: playbook '{playbook_id}' not found")
+            return False
+
+        attack_playbook = {
+            "playbook_id": playbook_id,
+            "start_mode": "manual",
+            **(config or {}),
+        }
+
+        return await self._send_attack_command(
+            scenario_id,
+            "INJECT_ATTACK",
+            attack_playbook=attack_playbook,
+        )
+
     def get_attack_state(self, scenario_id: str) -> dict[str, Any] | None:
         """Get attack state from the traffic dashboard.
 
@@ -83,6 +121,38 @@ class AttackService:
         if not deployment:
             return None
         return deployment.get("attack")
+
+    def get_injection_status(self, scenario_id: str) -> dict[str, Any]:
+        """Poll injection outcome after POST /inject.
+
+        Checks two sources:
+        1. agent_manager._injection_results for explicit agent rejection
+        2. traffic_dashboard for attack state appearance (confirms success)
+
+        Returns:
+            {"status": "pending"} — no result yet
+            {"status": "confirmed", "attack": {...}} — attack state appeared
+            {"status": "failed", "message": "..."} — agent rejected
+        """
+        from app.services.agent_manager import agent_manager
+        from app.services.traffic_dashboard import traffic_dashboard
+
+        # Check for explicit failure from agent
+        result = agent_manager.get_injection_result(scenario_id)
+        if result and result.get("status") == "failed":
+            return {
+                "status": "failed",
+                "message": result.get("message", "Agent rejected injection"),
+            }
+
+        # Check if attack state appeared in traffic dashboard
+        deployment = traffic_dashboard.get_deployment(scenario_id)
+        if deployment:
+            attack = deployment.get("attack")
+            if attack and (attack.get("playbook_name") or attack.get("playbook_id")):
+                return {"status": "confirmed", "attack": attack}
+
+        return {"status": "pending"}
 
     def get_all_playbooks(self) -> list[dict[str, Any]]:
         """Return all available playbooks as dicts."""

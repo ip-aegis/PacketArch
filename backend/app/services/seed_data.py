@@ -1157,7 +1157,7 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
         )
     )
     existing_combos = {
-        (row[0].lower(), row[1]) for row in result.all()
+        (row[0].lower(), row[1]) for row in result.all() if row[0] is not None
     }
 
     # Track combos from the Python library to avoid duplicates

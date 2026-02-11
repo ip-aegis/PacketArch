@@ -26,6 +26,19 @@ export const attacksApi = {
     return response.data;
   },
 
+  async injectAttack(
+    scenarioId: string,
+    playbookId: string,
+    config?: { auto_advance?: boolean; start_mode?: string; intensity?: number },
+  ): Promise<void> {
+    await apiClient.post(`${PREFIX}/${scenarioId}/inject`, {
+      playbook_id: playbookId,
+      auto_advance: config?.auto_advance ?? true,
+      start_mode: config?.start_mode ?? 'manual',
+      intensity: config?.intensity ?? 1.0,
+    });
+  },
+
   async startAttack(scenarioId: string, playbookId: string): Promise<void> {
     await apiClient.post(`${PREFIX}/${scenarioId}/start`, { playbook_id: playbookId });
   },
@@ -44,6 +57,15 @@ export const attacksApi = {
 
   async getAttackState(scenarioId: string): Promise<AttackState> {
     const response = await apiClient.get<AttackState>(`${PREFIX}/${scenarioId}/state`);
+    return response.data;
+  },
+
+  async getInjectionStatus(scenarioId: string): Promise<{
+    status: 'pending' | 'confirmed' | 'failed';
+    message?: string;
+    attack?: AttackState;
+  }> {
+    const response = await apiClient.get(`${PREFIX}/${scenarioId}/injection-status`);
     return response.data;
   },
 };

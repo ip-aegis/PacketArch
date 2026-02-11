@@ -3,7 +3,7 @@
  * Modeled on PhaseTimeline but with red-tinted attack styling.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Space, Tag, Tooltip, Typography } from 'antd';
 import {
   ForwardOutlined,
@@ -44,6 +44,45 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
 
   // Use external state if provided (from dashboard polling), else poll ourselves
   const currentState = externalState ?? state;
+
+  // --- Client-side interpolation for smooth 1s countdown ---
+  const lastServerUpdate = useRef<{ time: number; remaining: number; progress: number; stageIdx: number } | null>(null);
+  const [displayRemaining, setDisplayRemaining] = useState<number>(0);
+  const [displayProgress, setDisplayProgress] = useState<number>(0);
+
+  // Sync from server state whenever it changes
+  useEffect(() => {
+    if (!currentState?.is_active || currentState.is_completed || currentState.is_paused) return;
+    const serverRemaining = currentState.stage_remaining_s;
+    const serverProgress = currentState.stage_progress_pct;
+    lastServerUpdate.current = {
+      time: Date.now(),
+      remaining: serverRemaining,
+      progress: serverProgress,
+      stageIdx: currentState.current_stage_index,
+    };
+    setDisplayRemaining(serverRemaining);
+    setDisplayProgress(serverProgress);
+  }, [currentState?.stage_remaining_s, currentState?.stage_progress_pct, currentState?.current_stage_index, currentState?.is_active, currentState?.is_completed, currentState?.is_paused]);
+
+  // 1s local timer to interpolate between server updates
+  useEffect(() => {
+    if (!currentState?.is_active || currentState.is_completed || currentState.is_paused) return;
+    const timer = setInterval(() => {
+      const ref = lastServerUpdate.current;
+      if (!ref) return;
+      const elapsedSinceUpdate = (Date.now() - ref.time) / 1000;
+      const interpolatedRemaining = Math.max(0, ref.remaining - elapsedSinceUpdate);
+      setDisplayRemaining(interpolatedRemaining);
+      // Interpolate progress: advance proportionally
+      const totalDuration = ref.remaining / Math.max(0.01, (100 - ref.progress) / 100);
+      const interpolatedProgress = totalDuration > 0
+        ? Math.min(100, ref.progress + (elapsedSinceUpdate / totalDuration) * 100)
+        : ref.progress;
+      setDisplayProgress(interpolatedProgress);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentState?.is_active, currentState?.is_completed, currentState?.is_paused]);
 
   const fetchState = useCallback(async () => {
     if (externalState !== undefined) return; // Using external state
@@ -143,7 +182,7 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
           </Text>
           {currentState.is_active && !currentState.is_completed && (
             <Text style={{ color: '#6a8caf', fontSize: 10 }}>
-              {formatDuration(currentState.stage_remaining_s)} left
+              {formatDuration(displayRemaining)} left
             </Text>
           )}
           {currentState.is_completed && (
@@ -258,7 +297,7 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
                       top: 0,
                       left: 0,
                       height: '100%',
-                      width: `${currentState.stage_progress_pct}%`,
+                      width: `${displayProgress}%`,
                       background: s.color,
                       opacity: 0.6,
                       transition: 'width 1s linear',

@@ -113,6 +113,8 @@ class UnifiedDeploymentResponse(BaseModel):
     started_at: datetime | None = None
     stopped_at: datetime | None = None
     created_at: datetime
+    # Real-time state from agent (null for docker deployments or if not available)
+    attack: dict | None = None
 
     class Config:
         from_attributes = True
@@ -143,8 +145,21 @@ class UnifiedDeploymentResponse(BaseModel):
         )
 
     @classmethod
-    def from_agent_deployment(cls, deployment, agent=None, scenario=None) -> "UnifiedDeploymentResponse":
-        """Create from Agent deployment model."""
+    def from_agent_deployment(
+        cls,
+        deployment,
+        agent=None,
+        scenario=None,
+        attack=None,
+    ) -> "UnifiedDeploymentResponse":
+        """Create from Agent deployment model.
+
+        Args:
+            deployment: AgentDeployment model instance
+            agent: Optional TrafficAgent model instance
+            scenario: Optional Scenario model instance
+            attack: Optional attack state dict from traffic_dashboard
+        """
         return cls(
             id=deployment.id,
             deployment_type=DeploymentType.AGENT,
@@ -165,6 +180,7 @@ class UnifiedDeploymentResponse(BaseModel):
             started_at=deployment.started_at,
             stopped_at=deployment.stopped_at,
             created_at=deployment.started_at,  # AgentDeployment uses started_at as creation time
+            attack=attack,
         )
 
 

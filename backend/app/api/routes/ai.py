@@ -1254,7 +1254,7 @@ async def create_scenario_from_preview(
         device_def = {
             "id": device_id,
             "name": d["name"],
-            "device_type": device_type,  # Fixed: was 'type', should be 'device_type'
+            "type": device_type,
             "protocols": validated_protocols,  # Use validated protocols
             "position": {"x": device_x, "y": device_y},
             "zoneId": zone_name,

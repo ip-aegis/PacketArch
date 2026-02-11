@@ -27,6 +27,18 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
                        "45 devices across WMS core, fleet management, conveyor, AGV, and pick zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Warehouse operational disruption via conveyor/AGV manipulation"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Large flat network with many EtherNet/IP endpoints"},
+            {"playbook_id": "pipedream_like", "relevance": "medium", "rationale": "Rockwell ControlLogix conveyor PLCs targeted by PIPEDREAM"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "distribution_logistics",
+            "description": "Fulfillment conveyor line with package throughput, zone fill level, AGV utilization, cold storage temperature",
+            "key_variables": ["conveyor_speed", "throughput", "zone_fill_level", "agv_utilization", "cold_storage_temp"],
+            "available_faults": ["conveyor_jam", "agv_fleet_failure", "cold_chain_breach"],
+        },
         "devices": [
             # ============================================================
             # WMS CORE ZONE (Level 3) - 4 devices
@@ -448,6 +460,17 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
                        "40 devices across operations core, receiving, shipping, and conveyor zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Distribution center operational sabotage"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Multi-zone warehouse network mapping"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "distribution_logistics",
+            "description": "Fulfillment conveyor line with package throughput, zone fill level, AGV utilization, cold storage temperature",
+            "key_variables": ["conveyor_speed", "throughput", "zone_fill_level", "agv_utilization", "cold_storage_temp"],
+            "available_faults": ["conveyor_jam", "agv_fleet_failure", "cold_chain_breach"],
+        },
         "devices": [
             # ============================================================
             # DC CORE ZONE (Level 3) - 4 devices
@@ -851,6 +874,17 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
                        "and monitoring zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Temperature manipulation causing cold chain compromise"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Cold storage monitoring network discovery"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "distribution_logistics",
+            "description": "Fulfillment conveyor line with package throughput, zone fill level, AGV utilization, cold storage temperature",
+            "key_variables": ["conveyor_speed", "throughput", "zone_fill_level", "agv_utilization", "cold_storage_temp"],
+            "available_faults": ["conveyor_jam", "agv_fleet_failure", "cold_chain_breach"],
+        },
         "devices": [
             # ============================================================
             # HVAC CONTROL ZONE (Level 3) - 6 devices
@@ -1224,6 +1258,17 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
                        "sort loop, scan tunnel, and chute zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Sorting system disruption and package misdirection"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "High-speed sorting network with many barcode/RFID endpoints"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "distribution_logistics",
+            "description": "Fulfillment conveyor line with package throughput, zone fill level, AGV utilization, cold storage temperature",
+            "key_variables": ["conveyor_speed", "throughput", "zone_fill_level", "agv_utilization", "cold_storage_temp"],
+            "available_faults": ["conveyor_jam", "agv_fleet_failure", "cold_chain_breach"],
+        },
         "devices": [
             # ============================================================
             # SORT CONTROL ZONE (Level 3) - 5 devices

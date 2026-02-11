@@ -27,6 +27,18 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "S7comm+ HMI connectivity. 35 devices across control, cell, and field zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "PIPEDREAM toolkit targets Siemens S7/PROFINET environments"},
+            {"playbook_id": "triton_like", "relevance": "medium", "rationale": "PROFIsafe safety controllers present TRITON-relevant target"},
+            {"playbook_id": "havex_like", "relevance": "medium", "rationale": "Manufacturing IP theft via OPC/remote access vectors"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "CNC machining cell with spindle speed, feed rate, coolant temperature, vibration, and tool wear simulation",
+            "key_variables": ["spindle_speed", "feed_rate", "coolant_temp", "vibration", "tool_wear"],
+            "available_faults": ["tool_breakage", "coolant_failure", "drive_overload"],
+        },
         "devices": [
             # ============================================================
             # CONTROL ZONE (Level 2) - 11 devices
@@ -287,18 +299,6 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": [],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "Learn PROFINET RT cycle timing from S7-1500 PLCs"},
-            {"protocol": "s7comm_plus", "flow_type": "hmi_polling", "priority": "high",
-             "description": "Capture S7comm+ HMI communication patterns"},
-            {"protocol": "profisafe", "flow_type": "safety", "priority": "high",
-             "description": "PROFIsafe safety communication patterns"},
-            {"protocol": "profinet", "flow_type": "servo_control", "priority": "medium",
-             "description": "SINAMICS S120 servo telegram timing patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
@@ -307,7 +307,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_c2": True,
             "c2_protocol": "http",
             "c2_pattern": "jittered_30s",
-            "enable_exfil": False,
+            "enable_exfil": True,
             "enable_exploits": True,
             "exploit_patterns": ["s7_stop_cpu", "s7_unauthorized_read"],
             "enable_recon": True,
@@ -329,6 +329,17 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "across control, cell, and field zones with robust safety infrastructure.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "PIPEDREAM natively targets Rockwell ControlLogix via CIP"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "Automotive IP and production sabotage risk"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "CNC machining simulation applied to automotive body shop welding and assembly",
+            "key_variables": ["spindle_speed", "feed_rate", "coolant_temp", "vibration", "tool_wear"],
+            "available_faults": ["tool_breakage", "coolant_failure", "drive_overload"],
+        },
         "devices": [
             # ============================================================
             # CONTROL ZONE (Level 2) - 16 devices
@@ -610,18 +621,6 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["jitter_spike"],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
-             "description": "Critical: Capture 2ms EtherNet/IP motion control timing"},
-            {"protocol": "cip_safety", "flow_type": "safety", "priority": "high",
-             "description": "CIP Safety GuardLogix communication patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "servo_control", "priority": "high",
-             "description": "Kinetix 5500 servo drive CIP motion timing"},
-            {"protocol": "ethernet_ip", "flow_type": "explicit_messaging", "priority": "medium",
-             "description": "HMI explicit messaging patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
@@ -634,7 +633,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "exfil_protocol": "http",
             "enable_exploits": True,
             "exploit_patterns": ["cip_stop_plc", "cip_unauthorized_write"],
-            "enable_recon": False,
+            "enable_recon": True,
             "target_device_types": ["hmi", "plc"],
         },
         "total_duration_ms": 600000,
@@ -655,6 +654,18 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "boundary jump server. Ideal for Cisco Cyber Vision grouping and vulnerability detection demos.",
         "vertical": "manufacturing",
         "phase_preset": "full_lifecycle",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "Multi-vendor environment exercises PIPEDREAM cross-protocol capabilities"},
+            {"playbook_id": "havex_like", "relevance": "high", "rationale": "Enterprise manufacturing with OPC UA is prime HAVEX target"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "Large multi-vendor plant with many access points"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "CNC machining simulation for multi-vendor enterprise plant",
+            "key_variables": ["spindle_speed", "feed_rate", "coolant_temp", "vibration", "tool_wear"],
+            "available_faults": ["tool_breakage", "coolant_failure", "drive_overload"],
+        },
         "devices": [
             # ============================================================
             # INDUSTRIAL DMZ (Level 3.5) - 11 devices
@@ -1501,26 +1512,6 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["broadcast_storm"],
             "security": ["unauthorized_access", "scan_activity", "replay_attack", "unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "profinet", "flow_type": "cyclic_io", "priority": "high",
-             "description": "PROFINET RT cycle timing from S7-1500 PLCs"},
-            {"protocol": "profisafe", "flow_type": "safety", "priority": "high",
-             "description": "PROFIsafe safety PLC communication patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
-             "description": "EtherNet/IP RPI timing from ControlLogix PLCs"},
-            {"protocol": "cip_safety", "flow_type": "safety", "priority": "high",
-             "description": "CIP Safety GuardLogix communication patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
-             "description": "Modbus TCP polling patterns from Schneider/ABB PLCs"},
-            {"protocol": "opc_ua", "flow_type": "subscription", "priority": "medium",
-             "description": "OPC UA subscription patterns for SCADA/Historian"},
-            {"protocol": "modbus_tcp", "flow_type": "cross_zone", "priority": "high",
-             "description": "Cross-zone Modbus handoff coordination traffic"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "Windows Jump Server TeamViewer relay communication"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
@@ -1577,6 +1568,17 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 99, "vlan": 999, "security_level": "external",
              "is_external": True},
         ],
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "Tests PIPEDREAM lateral movement against Purdue segmentation"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Strict Purdue model tests reconnaissance containment"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "CNC machining simulation for segmented Purdue architecture",
+            "key_variables": ["spindle_speed", "feed_rate", "coolant_temp", "vibration", "tool_wear"],
+            "available_faults": ["tool_breakage", "coolant_failure", "drive_overload"],
+        },
         "devices": [
             # ============================================================
             # IDMZ (Level 3.5) - 9 devices

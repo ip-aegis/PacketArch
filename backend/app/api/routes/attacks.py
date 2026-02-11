@@ -9,6 +9,8 @@ from app.schemas.attack import (
     AttackPlaybookOut,
     AttackPlaybookSummary,
     AttackStateResponse,
+    InjectAttackRequest,
+    InjectionStatusResponse,
     PauseAttackRequest,
     StartAttackRequest,
 )
@@ -117,13 +119,89 @@ async def get_compatible_playbooks(scenario_id: str) -> list[dict[str, Any]]:
 # ------------------------------------------------------------------
 
 
+@router.get("/{scenario_id}/injection-status", response_model=InjectionStatusResponse)
+async def get_injection_status(scenario_id: str) -> dict[str, Any]:
+    """Poll injection outcome after POST /inject.
+
+    Returns:
+      - ``pending`` — agent hasn't responded yet
+      - ``confirmed`` — attack state appeared in traffic dashboard
+      - ``failed`` — agent rejected the injection
+    """
+    return attack_service.get_injection_status(scenario_id)
+
+
+@router.post("/{scenario_id}/inject")
+async def inject_attack(
+    scenario_id: str,
+    request: InjectAttackRequest,
+) -> dict[str, Any]:
+    """Inject an attack playbook into an already-running deployment.
+
+    Unlike ``start_attack``, the playbook does NOT need to have been
+    configured before deployment.  The agent hot-attaches the playbook
+    to the running scenario.  After injection the playbook is loaded
+    but not started (unless ``start_mode`` is ``"with_deployment"``).
+    Use ``POST /{scenario_id}/start`` to begin the attack.
+    """
+    # Pre-check: reject early if scenario already has an attack
+    existing = attack_service.get_attack_state(scenario_id)
+    if existing and existing.get("is_active"):
+        raise HTTPException(
+            status_code=409,
+            detail="This scenario already has an active attack running.",
+        )
+    if existing and existing.get("playbook_name"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"This scenario already has attack playbook "
+                f"'{existing['playbook_name']}' configured."
+            ),
+        )
+
+    playbook = attack_service.get_playbook_by_id(request.playbook_id)
+    if not playbook:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Playbook '{request.playbook_id}' not found",
+        )
+
+    config = {
+        "playbook_id": request.playbook_id,
+        "auto_advance": request.auto_advance,
+        "start_mode": request.start_mode,
+        "intensity": request.intensity,
+    }
+
+    success = await attack_service.inject_attack(
+        scenario_id,
+        request.playbook_id,
+        config=config,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active deployment for scenario {scenario_id}.",
+        )
+    return {
+        "status": "ok",
+        "message": (
+            f"Attack playbook '{playbook['name']}' injected. "
+            f"Send START_ATTACK to begin."
+        ),
+        "playbook_id": request.playbook_id,
+    }
+
+
 @router.post("/{scenario_id}/start")
 async def start_attack(scenario_id: str, request: StartAttackRequest) -> dict[str, Any]:
     """Start an attack playbook on a deployed scenario.
 
     The playbook must be configured in the scenario's definition
-    (attack_playbook field) before deployment. This command triggers
-    the attack orchestrator on the agent.
+    (attack_playbook field) before deployment, OR injected via the
+    ``/inject`` endpoint.  This command triggers the attack
+    orchestrator on the agent.
     """
     success = await attack_service.start_attack(scenario_id)
     if not success:

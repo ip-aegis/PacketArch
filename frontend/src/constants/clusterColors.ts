@@ -25,6 +25,7 @@ export const VENDOR_COLORS: Record<string, string> = {
 
 /** Fallback color derived from a string hash. */
 export function vendorColor(vendor: string): string {
+  if (!vendor) return '#6a9fd4';
   const key = vendor.toLowerCase().trim();
   if (VENDOR_COLORS[key]) return VENDOR_COLORS[key];
 

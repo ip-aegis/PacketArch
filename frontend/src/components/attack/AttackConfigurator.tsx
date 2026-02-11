@@ -9,9 +9,14 @@ import { useAttackStore } from '../../stores/attackStore';
 
 const { Text, Title } = Typography;
 
+type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
+
 interface AttackConfiguratorProps {
   onBack: () => void;
   onApply: () => void;
+  isDeployed?: boolean;
+  onInject?: () => void;
+  injectionStatus?: InjectionStatus;
 }
 
 function formatDuration(seconds: number): string {
@@ -29,7 +34,7 @@ const severityColors: Record<string, string> = {
   low: '#52c41a',
 };
 
-const AttackConfigurator: React.FC<AttackConfiguratorProps> = ({ onBack, onApply }) => {
+const AttackConfigurator: React.FC<AttackConfiguratorProps> = ({ onBack, onApply, isDeployed, onInject, injectionStatus = 'idle' }) => {
   const { selectedPlaybook, playbookConfig, setConfig } = useAttackStore();
 
   if (!selectedPlaybook || !playbookConfig) return null;
@@ -210,17 +215,34 @@ const AttackConfigurator: React.FC<AttackConfiguratorProps> = ({ onBack, onApply
         ]}
       />
 
-      {/* Apply button */}
-      <Button
-        type="primary"
-        danger
-        block
-        icon={<ThunderboltOutlined />}
-        onClick={onApply}
-        style={{ marginTop: 12 }}
-      >
-        Apply to Scenario
-      </Button>
+      {/* Action buttons */}
+      {isDeployed ? (
+        <Button
+          type="primary"
+          danger
+          block
+          icon={<ThunderboltOutlined />}
+          loading={injectionStatus === 'injecting' || injectionStatus === 'polling'}
+          disabled={injectionStatus === 'polling'}
+          onClick={onInject}
+          style={{ marginTop: 12 }}
+        >
+          {injectionStatus === 'polling'
+            ? 'Confirming with agent...'
+            : 'Inject Into Running Deployment'}
+        </Button>
+      ) : (
+        <Button
+          type="primary"
+          danger
+          block
+          icon={<ThunderboltOutlined />}
+          onClick={onApply}
+          style={{ marginTop: 12 }}
+        >
+          Apply to Scenario
+        </Button>
+      )}
     </div>
   );
 };

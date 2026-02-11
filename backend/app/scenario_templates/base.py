@@ -1,10 +1,10 @@
 """Base types for enhanced scenario templates.
 
 This module provides base types for scenario templates that integrate
-with Sprint 1-6 capabilities including:
+with platform capabilities including:
 - Vendor fingerprint references for hyper-realistic device emulation
 - Suggested anomalies for testing
-- PCAP learning hints for pattern extraction
+- Attack playbook and traffic schedule recommendations
 """
 
 from dataclasses import dataclass, field
@@ -112,52 +112,6 @@ class SuggestedAnomalies:
 
 
 @dataclass
-class PcapLearningHint:
-    """Hint for PCAP learning - suggests which patterns to extract.
-
-    Helps guide users on which PCAP flows would be most valuable
-    to capture and learn from.
-    """
-
-    protocol: str  # e.g., "modbus_tcp", "profinet"
-    flow_type: str  # e.g., "plc_to_drive", "hmi_polling"
-    priority: str = "medium"  # "high", "medium", "low"
-    description: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format."""
-        result = {
-            "protocol": self.protocol,
-            "flow_type": self.flow_type,
-            "priority": self.priority,
-        }
-        if self.description:
-            result["description"] = self.description
-        return result
-
-
-@dataclass
-class LearnedTimingProfile:
-    """Learned timing profile from PCAP analysis."""
-
-    source: str = "learned"  # "learned" or "synthetic"
-    confidence: float = 0.8
-    sample_count: int = 0
-    distribution: str = "gaussian"  # "gaussian", "uniform", "exponential"
-    params: dict = field(default_factory=dict)  # Distribution parameters
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format."""
-        return {
-            "source": self.source,
-            "confidence": self.confidence,
-            "sample_count": self.sample_count,
-            "distribution": self.distribution,
-            "params": self.params,
-        }
-
-
-@dataclass
 class EnhancedFlowSpec:
     """Enhanced flow specification."""
 
@@ -171,10 +125,6 @@ class EnhancedFlowSpec:
     # Jitter configuration
     jitter_ms: int = 0
     jitter_type: str = "uniform"  # "uniform", "gaussian", "exponential"
-    # Learned pattern flags - when True, dynamic lookup applies learned values
-    learned_function_codes: bool = False
-    learned_address_ranges: bool = False
-    learned_timing_profile: str | None = None  # Reference to LEARNED_TIMING_PROFILES
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
@@ -190,12 +140,6 @@ class EnhancedFlowSpec:
         if self.jitter_ms > 0:
             result["jitter_ms"] = self.jitter_ms
             result["jitter_type"] = self.jitter_type
-        if self.learned_function_codes:
-            result["learned_function_codes"] = True
-        if self.learned_address_ranges:
-            result["learned_address_ranges"] = True
-        if self.learned_timing_profile:
-            result["learned_timing_profile"] = self.learned_timing_profile
         return result
 
 
@@ -394,149 +338,3 @@ def get_fingerprint_models_for_vendor(vendor: str) -> list[str]:
     """Get available fingerprint models for a vendor."""
     return FINGERPRINT_MODEL_MAP.get(vendor.lower(), [])
 
-
-# =============================================================================
-# LEARNED DEFAULTS FROM PCAP ANALYSIS
-# =============================================================================
-# These values were extracted from 264 training PCAPs containing real OT traffic.
-# They provide realistic defaults for timing, function codes, and address ranges.
-
-LEARNED_DEFAULTS: dict[str, dict[str, Any]] = {
-    "dnp3": {
-        "poll_interval_ms": 2500,  # Typical SCADA polling (2.5s)
-        "jitter_ms": 500,
-        "jitter_type": "exponential",  # WAN/satellite links
-        "response_time_ms": {"mean": 50, "min": 10, "max": 200},
-        "sample_count": 828,
-    },
-    "ethernet_ip": {
-        "poll_interval_ms": 20,  # Fast I/O (20ms)
-        "jitter_ms": 5,
-        "jitter_type": "gaussian",  # LAN, deterministic
-        "response_time_ms": {"mean": 5, "min": 1, "max": 15},
-        "sample_count": 18374,
-    },
-    "modbus_tcp": {
-        "poll_interval_ms": 100,  # Typical Modbus polling
-        "jitter_ms": 10,
-        "jitter_type": "gaussian",
-        "response_time_ms": {"mean": 5, "min": 1, "max": 50},
-        # Function code distribution from 67,696 samples
-        "function_codes": {
-            1: {"name": "read_coils", "frequency": 0.097},
-            2: {"name": "read_discrete_inputs", "frequency": 0.039},
-            3: {"name": "read_holding_registers", "frequency": 0.107},
-            4: {"name": "read_input_registers", "frequency": 0.638},
-            5: {"name": "write_single_coil", "frequency": 0.041},
-            6: {"name": "write_single_register", "frequency": 0.015},
-            15: {"name": "write_multiple_coils", "frequency": 0.063},
-        },
-        # Address ranges from learned patterns
-        "address_ranges": {
-            "coils": {"start": 0, "end": 65535},
-            "discrete_inputs": {"start": 0, "end": 1213},
-            "input_registers": {"start": 0, "end": 62464},
-            "holding_registers": {"start": 0, "end": 51200},
-        },
-        "sample_count": 67696,
-    },
-    "s7comm": {
-        "poll_interval_ms": 50,  # Fast S7 polling
-        "jitter_ms": 5,
-        "jitter_type": "gaussian",
-        "response_time_ms": {"mean": 10, "min": 1, "max": 100},
-        # Function code distribution from 189,510 samples
-        "function_codes": {
-            0: {"name": "cpu_services", "frequency": 0.020},
-            4: {"name": "read_var", "frequency": 0.591},
-            5: {"name": "write_var", "frequency": 0.024},
-            27: {"name": "download_block", "frequency": 0.364},
-            240: {"name": "setup_communication", "frequency": 0.001},
-        },
-        # Address ranges
-        "address_ranges": {
-            "db": {"start": 0, "end": 8016},
-            "flags": {"start": 0, "end": 128},
-            "inputs": {"start": 0, "end": 128},
-            "outputs": {"start": 0, "end": 128},
-            "timer": {"start": 0, "end": 100},
-            "counter": {"start": 0, "end": 100},
-        },
-        "sample_count": 189510,
-    },
-    "profinet": {
-        "poll_interval_ms": 4,  # PROFINET RT cycle time
-        "jitter_ms": 1,
-        "jitter_type": "gaussian",  # Deterministic
-        "response_time_ms": {"mean": 1, "min": 0.5, "max": 3},
-        "sample_count": 0,  # Limited PROFINET training data
-    },
-}
-
-
-# Learned timing profiles for reference in templates
-LEARNED_TIMING_PROFILES: dict[str, LearnedTimingProfile] = {
-    "modbus_realistic": LearnedTimingProfile(
-        source="learned",
-        confidence=0.85,
-        sample_count=67696,
-        distribution="gaussian",
-        params={"mean": 100, "std": 10, "min": 50, "max": 200},
-    ),
-    "s7comm_realistic": LearnedTimingProfile(
-        source="learned",
-        confidence=0.90,
-        sample_count=189510,
-        distribution="gaussian",
-        params={"mean": 50, "std": 5, "min": 20, "max": 100},
-    ),
-    "dnp3_scada": LearnedTimingProfile(
-        source="learned",
-        confidence=0.75,
-        sample_count=828,
-        distribution="exponential",
-        params={"mean": 2500, "std": 500, "min": 1000, "max": 10000},
-    ),
-    "ethernet_ip_fast": LearnedTimingProfile(
-        source="learned",
-        confidence=0.80,
-        sample_count=18374,
-        distribution="gaussian",
-        params={"mean": 20, "std": 5, "min": 10, "max": 50},
-    ),
-    "profinet_cyclic": LearnedTimingProfile(
-        source="learned",
-        confidence=0.70,
-        sample_count=500,
-        distribution="gaussian",
-        params={"mean": 4, "std": 0.5, "min": 1, "max": 8},
-    ),
-}
-
-
-def get_learned_defaults(protocol: str) -> dict[str, Any]:
-    """Get learned defaults for a protocol.
-
-    Args:
-        protocol: Protocol name (normalized, e.g., 'modbus_tcp', 's7comm')
-
-    Returns:
-        Dict with timing, function codes, address ranges, etc.
-    """
-    # Normalize protocol name
-    protocol = protocol.lower()
-    if protocol in ("modbus", "modbus-tcp"):
-        protocol = "modbus_tcp"
-    elif protocol in ("s7", "s7-comm"):
-        protocol = "s7comm"
-    elif protocol in ("enip", "cip"):
-        protocol = "ethernet_ip"
-    elif protocol in ("pn", "profinet-rt"):
-        protocol = "profinet"
-
-    return LEARNED_DEFAULTS.get(protocol, {})
-
-
-def get_learned_timing_profile(name: str) -> LearnedTimingProfile | None:
-    """Get a learned timing profile by name."""
-    return LEARNED_TIMING_PROFILES.get(name)

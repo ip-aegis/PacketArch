@@ -1,0 +1,1399 @@
+"""Energy and power industry scenario templates.
+
+Primary Vendors: SEL, GE Grid Solutions, ABB Relion, Siemens SIPROTEC, Schneider Electric
+Supporting Vendors: Honeywell (Experion), HMS Networks, Cisco Industrial
+Protocol Focus: Modbus TCP (relay polling), DNP3 (WAN/SCADA), SNMP (infrastructure monitoring)
+
+Templates cover:
+- Electrical substations (transmission/distribution protection IEDs)
+- Gas turbine combined-cycle power plants (GE Mark VIe DCS)
+- Regional grid control centers (EMS/SCADA with remote substations)
+- Solar farms with battery energy storage (microgrid/DER)
+
+Enhanced templates with:
+- CVE vulnerable firmware on protection relays and controllers
+- 35-45 devices per template with realistic zone architecture
+- Realistic traffic flows based on substation/generation timing
+- Proper fingerprinting with protocol identities
+"""
+
+from typing import Any
+
+
+ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
+    # ============================================================
+    # TEMPLATE 1: ELECTRICAL SUBSTATION IED NETWORK (38 devices)
+    # 138kV/13.8kV substation with bay-level protection
+    # ============================================================
+    "electrical_substation": {
+        "name": "Electrical Substation IED Network",
+        "description": "138kV/13.8kV electrical substation with bay-level protection, transformer "
+                       "differential relays, and feeder protection IEDs. Features SEL protection "
+                       "relays (SEL-487E transformer, SEL-311C line, SEL-751 feeder) with SEL-3530 "
+                       "RTAC as substation gateway, ABB REX640 bus protection, and Schneider ION8650 "
+                       "revenue meters. Modbus TCP for relay polling, SNMP for network monitoring. "
+                       "38 devices across substation SCADA, bay control, feeder, transformer, "
+                       "metering, and WAN zones.",
+        "vertical": "energy_power",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "industroyer_like", "relevance": "high", "rationale": "INDUSTROYER specifically targets electrical substation IEDs and breakers"},
+            {"playbook_id": "havex_like", "relevance": "high", "rationale": "Energy sector reconnaissance matches HAVEX targeting profile"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Substation network mapping for relay enumeration"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "energy_power",
+            "description": "Synchronous generator unit with power output, grid frequency, transformer loading, exhaust temperature",
+            "key_variables": ["active_power", "grid_frequency", "generator_voltage", "transformer_loading", "exhaust_temp"],
+            "available_faults": ["governor_failure", "transformer_overload", "grid_frequency_deviation"],
+        },
+        "devices": [
+            # ============================================================
+            # SUBSTATION LAN (Level 3) - 6 devices
+            # RTAC gateway, historian, HMI, core switch, remote access
+            # ============================================================
+            # SEL-3530 RTAC - Substation Gateway
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Gateway_RTAC", "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             "fingerprint_model": "SEL-3530",
+             "role": "Substation Gateway"},
+
+            # GE Proficy Historian
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Process_Historian", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Process Historian"},
+
+            # ABB CP620 HMI - Local Operator Panel
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Local_HMI", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Local Operator Panel"},
+
+            # Cisco IE-4000 - Core Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Core_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # HMS Flexy 205 - Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # SEL-2411 PAC - Automation Controller
+            {"type": "plc", "vendor": "sel", "count": 1, "zone": "substation_lan",
+             "name": "Substation_Automation_Controller", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-2411",
+             "role": "Automation Controller"},
+
+            # ============================================================
+            # BAY CONTROL (Level 2) - 6 devices
+            # Bay controllers, bus protection, overcurrent, switches
+            # ============================================================
+            # SEL-451 Bay Controllers
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "bay_control",
+             "name_pattern": "Bus_Section_{n:02d}_Bay_Controller",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-451",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Bay Controller"},
+
+            # ABB REX640 - Bus Tie Protection (IEC 61850 + Modbus)
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "bay_control",
+             "name": "Bus_Tie_Protection_IED", "protocols": ["modbus_tcp", "iec61850"],
+             "fingerprint_model": "REX640",
+             "role": "Bus Protection"},
+
+            # Siemens 7SJ85 - Bus Overcurrent (IEC 61850 + Modbus)
+            {"type": "protection_relay", "vendor": "siemens", "count": 1, "zone": "bay_control",
+             "name": "Bus_Overcurrent_Protection", "protocols": ["modbus_tcp", "iec61850"],
+             "fingerprint_model": "7SJ85",
+             "cve_ids": ["CVE-2022-32528"],
+             "role": "Overcurrent Protection"},
+
+            # Cisco IE-3300 - Bay Network Switches
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bay_control",
+             "name_pattern": "Bay_Network_Switch_{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Bay Network Switch"},
+
+            # ============================================================
+            # FEEDER PROTECTION (Level 1) - 10 devices
+            # Feeder relays and backup relays
+            # ============================================================
+            # SEL-751 Feeder Protection Relays
+            {"type": "protection_relay", "vendor": "sel", "count": 6, "zone": "feeder_zone",
+             "name_pattern": "Feeder_{n:02d}_Protection_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-751",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Feeder Protection"},
+
+            # GE Multilin 850 - Feeder Backup Relays
+            {"type": "protection_relay", "vendor": "ge", "count": 4, "zone": "feeder_zone",
+             "name_pattern": "Feeder_{n:02d}_Backup_Relay",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "850",
+             "cve_ids": ["CVE-2022-21805"],
+             "role": "Feeder Backup Protection"},
+
+            # ============================================================
+            # TRANSFORMER PROTECTION (Level 1) - 8 devices
+            # Transformer differential, line distance, line differential
+            # ============================================================
+            # SEL-487E Transformer Differential Relays
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "transformer_zone",
+             "name_pattern": "Transformer_{n:02d}_Differential_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-487E",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential"},
+
+            # Siemens 7UT87 Transformer Backup Differential (IEC 61850 + Modbus)
+            {"type": "protection_relay", "vendor": "siemens", "count": 2, "zone": "transformer_zone",
+             "name_pattern": "Transformer_{n:02d}_Backup_Differential",
+             "protocols": ["modbus_tcp", "iec61850"],
+             "fingerprint_model": "7UT87",
+             "cve_ids": ["CVE-2022-32528"],
+             "role": "Transformer Backup"},
+
+            # SEL-311C Line Distance Relays
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "transformer_zone",
+             "name_pattern": "Transmission_Line_{n:02d}_Distance_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-311C",
+             "role": "Line Distance Protection"},
+
+            # Siemens 7SD87 Line Differential (IEC 61850 + Modbus)
+            {"type": "protection_relay", "vendor": "siemens", "count": 2, "zone": "transformer_zone",
+             "name_pattern": "Transmission_Line_{n:02d}_Differential",
+             "protocols": ["modbus_tcp", "iec61850"],
+             "fingerprint_model": "7SD87",
+             "role": "Line Differential"},
+
+            # ============================================================
+            # METERING (Level 1) - 6 devices
+            # Revenue meters and power quality meters
+            # ============================================================
+            # Schneider ION8650 Revenue Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 4, "zone": "metering_zone",
+             "name_pattern": "Feeder_{n:02d}_Revenue_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "role": "Revenue Meter"},
+
+            # Schneider PM8000 Power Quality Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 2, "zone": "metering_zone",
+             "name_pattern": "Transformer_{n:02d}_Power_Quality_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "role": "Power Quality Meter"},
+
+            # ============================================================
+            # WAN ZONE (Level 4) - 2 devices
+            # WAN communication RTU and edge switch
+            # ============================================================
+            # Schneider SCADAPack 350 - WAN Gateway RTU
+            {"type": "rtu", "vendor": "schneider", "count": 1, "zone": "wan_zone",
+             "name": "WAN_Communication_RTU", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SCADAPack 350",
+             "role": "WAN Gateway RTU"},
+
+            # Cisco IE-3300 - WAN Edge Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wan_zone",
+             "name": "WAN_Edge_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "WAN Edge Switch"},
+        ],
+        "flows": [
+            # RTAC polling feeder relays (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["feeder_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # RTAC polling transformer relays (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["transformer_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # RTAC polling bay controllers (500ms - faster for bus protection)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["bay_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # RTAC polling revenue meters (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["power_meter"],
+             "source_zones": ["substation_lan"], "target_zones": ["metering_zone"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Historian collecting from RTAC (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["rtu"],
+             "source_zones": ["substation_lan"], "target_zones": ["substation_lan"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # HMI polling RTAC (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["hmi"], "target_types": ["rtu"],
+             "source_zones": ["substation_lan"], "target_zones": ["substation_lan"],
+             "jitter_ms": 200, "jitter_type": "uniform"},
+
+            # WAN DNP3 integrity polls from remote SCADA (2500ms with exponential jitter)
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2500,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["wan_zone"], "target_zones": ["substation_lan"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+
+            # DNP3 unsolicited responses - event-driven (Class 1/2/3 events)
+            {"protocol": "dnp3", "pattern": "unsolicited", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["substation_lan"], "target_zones": ["wan_zone"],
+             "jitter_ms": 2000, "jitter_type": "exponential"},
+
+            # SNMP monitoring switches (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["rtu"], "target_types": ["switch"],
+             "source_zones": ["substation_lan"],
+             "target_zones": ["substation_lan", "bay_control", "wan_zone"]},
+
+            # Automation controller polling bay relays (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["bay_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # SNMP monitoring relays (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"],
+             "target_zones": ["bay_control", "feeder_zone", "transformer_zone"]},
+
+            # Feeder backup relay cross-polling (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["feeder_zone"], "target_zones": ["feeder_zone"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Remote gateway polling RTAC (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["rtu"],
+             "source_zones": ["substation_lan"], "target_zones": ["substation_lan"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # IEC 61850 MMS reporting - bay controller to automation controller (2000ms)
+            {"protocol": "iec61850", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["bay_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian",
+             "config": {"mode": "mms"}},
+
+            # IEC 61850 MMS reporting - transformer IED data (5000ms)
+            {"protocol": "iec61850", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_lan"], "target_zones": ["transformer_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian",
+             "config": {"mode": "mms"}},
+
+            # IEC 61850 GOOSE - protection relay trip signals (4ms multicast)
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["bay_control"], "target_zones": ["bay_control", "transformer_zone"],
+             "jitter_ms": 1, "jitter_type": "gaussian",
+             "config": {"mode": "goose"}},
+        ],
+        "zones": [
+            {"id": "substation_lan", "name": "Substation LAN", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "bay_control", "name": "Bay Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "feeder_zone", "name": "Feeder Protection Network", "level": 1,
+             "subnet_offset": 2, "vlan": 121, "security_level": "high"},
+            {"id": "transformer_zone", "name": "Transformer Protection Network", "level": 1,
+             "subnet_offset": 3, "vlan": 122, "security_level": "high"},
+            {"id": "metering_zone", "name": "Revenue Metering Network", "level": 1,
+             "subnet_offset": 4, "vlan": 130, "security_level": "standard"},
+            {"id": "wan_zone", "name": "WAN/SCADA Backhaul", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "protection_trip_delay", "polling_gap"],
+            "protocol": ["modbus_exception", "dnp3_timeout", "snmp_error"],
+            "sequence": ["out_of_order", "duplicate", "unsolicited_event"],
+            "payload": ["voltage_spike", "frequency_deviation", "power_factor_upset"],
+            "network": ["wan_latency_spike", "link_failover"],
+            "security": ["unauthorized_relay_setting_change", "snmp_community_scan"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "relay_setting_change"],
+            "enable_recon": True,
+            "target_device_types": ["protection_relay", "rtu"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 2: GAS TURBINE POWER GENERATION PLANT (42 devices)
+    # Combined-cycle with GE Mark VIe turbine control
+    # ============================================================
+    "gas_turbine_generation": {
+        "name": "Gas Turbine Power Generation Plant",
+        "description": "Combined-cycle gas turbine power plant with GE Mark VIe turbine control "
+                       "system, steam turbine governor control, and balance-of-plant automation. "
+                       "Features dual-redundant Mark VIe controllers for GT and ST, ABB AC500 PLCs "
+                       "for balance-of-plant (cooling, fuel gas), GE Proficy Historian, and ABB/SEL "
+                       "protection relays for generator protection. Modbus TCP for DCS polling, "
+                       "SNMP for infrastructure monitoring. 40 devices across plant SCADA, turbine "
+                       "control, balance-of-plant, generator protection, and auxiliary zones.",
+        "vertical": "energy_power",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "triton_like", "relevance": "high", "rationale": "Turbine safety systems are prime TRITON-style targets"},
+            {"playbook_id": "havex_like", "relevance": "medium", "rationale": "Power generation IP theft via remote access"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "energy_power",
+            "description": "Synchronous generator unit with power output, grid frequency, transformer loading, exhaust temperature",
+            "key_variables": ["active_power", "grid_frequency", "generator_voltage", "transformer_loading", "exhaust_temp"],
+            "available_faults": ["governor_failure", "transformer_overload", "grid_frequency_deviation"],
+        },
+        "devices": [
+            # ============================================================
+            # PLANT SCADA (Level 3) - 7 devices
+            # DCS server, historian, HMI, switches, remote access, WAN RTU
+            # ============================================================
+            # Honeywell Experion Server - Plant DCS Server
+            {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "plant_scada",
+             "name": "Plant_DCS_Server", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Server",
+             "role": "Plant DCS Server"},
+
+            # GE Proficy Historian
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "plant_scada",
+             "name": "Plant_Process_Historian", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Process Historian"},
+
+            # Honeywell Experion Station - Operator Workstations
+            {"type": "hmi", "vendor": "honeywell", "count": 2, "zone": "plant_scada",
+             "name_pattern": "Plant_Operator_Workstation_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Workstation"},
+
+            # Cisco IE-4000 - Core Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "plant_scada",
+             "name": "Plant_SCADA_Core_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # HMS Flexy 205 - Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "plant_scada",
+             "name": "Plant_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # Schneider SCADAPack 350 - WAN RTU
+            {"type": "rtu", "vendor": "schneider", "count": 1, "zone": "plant_scada",
+             "name": "Plant_WAN_RTU", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SCADAPack 350",
+             "role": "WAN SCADA Gateway"},
+
+            # ============================================================
+            # TURBINE CONTROL (Level 2) - 10 devices
+            # Mark VIe controllers (GT, ST), HRSG PLCs, HMIs, switches
+            # ============================================================
+            # GE Mark VIe - Gas Turbine Controllers (Primary + Redundant)
+            {"type": "dcs_controller", "vendor": "ge", "count": 2, "zone": "turbine_control",
+             "name_pattern": "Gas_Turbine_Mark_VIe_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "IS420UCSBH1A",
+             "cve_ids": ["CVE-2022-37953"],
+             "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
+             "role": "Gas Turbine Controller"},
+
+            # GE Mark VIe - Steam Turbine Controllers (Primary + Redundant)
+            {"type": "dcs_controller", "vendor": "ge", "count": 2, "zone": "turbine_control",
+             "name_pattern": "Steam_Turbine_Mark_VIe_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "IS420UCSBH1A",
+             "cve_ids": ["CVE-2022-37953"],
+             "role": "Steam Turbine Controller"},
+
+            # ABB CP620 HMI - Turbine Floor Panels
+            {"type": "hmi", "vendor": "abb", "count": 2, "zone": "turbine_control",
+             "name_pattern": "Turbine_Floor_HMI_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Turbine Floor Panel"},
+
+            # GE PACSystems RX3i - HRSG Control PLCs
+            {"type": "plc", "vendor": "ge", "count": 2, "zone": "turbine_control",
+             "name_pattern": "HRSG_Control_PLC_{n:02d}",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "IC695CPE400",
+             "cve_ids": ["CVE-2022-2893"],
+             "role": "Heat Recovery Steam Generator"},
+
+            # Cisco IE-3300 - Turbine Network Switches
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "turbine_control",
+             "name_pattern": "Turbine_Network_Switch_{n:02d}",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Turbine Network Switch"},
+
+            # ============================================================
+            # BALANCE-OF-PLANT CONTROL (Level 2) - 8 devices
+            # BOP PLCs, drives for pumps and fans
+            # ============================================================
+            # ABB AC500 PM590 - Cooling Tower PLC
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
+             "name": "Cooling_Tower_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "PM590-ETH",
+             "role": "Cooling Tower Controller"},
+
+            # ABB AC500 PM590 - Fuel Gas System PLC
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
+             "name": "Fuel_Gas_System_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "PM590-ETH",
+             "role": "Fuel Gas Controller"},
+
+            # ABB AC500 PM5630 - Water Treatment PLC
+            {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
+             "name": "Water_Treatment_PLC", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM5630-2ETH",
+             "role": "Water Treatment Controller"},
+
+            # ABB ACS880 - Cooling Water Pump VFDs
+            {"type": "drive", "vendor": "abb", "count": 2, "zone": "bop_control",
+             "name_pattern": "Cooling_Water_Pump_VFD_{n:02d}",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Cooling Water Pump"},
+
+            # ABB ACS880 - ID Fan VFD
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "bop_control",
+             "name": "ID_Fan_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Induced Draft Fan"},
+
+            # ABB ACS580 - Boiler Feed Pump VFDs
+            {"type": "drive", "vendor": "abb", "count": 2, "zone": "bop_control",
+             "name_pattern": "Boiler_Feed_Pump_VFD_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ACS580",
+             "role": "Boiler Feed Pump"},
+
+            # ============================================================
+            # GENERATOR PROTECTION (Level 1) - 10 devices
+            # Generator differential, excitation, GSU transformer, tie line
+            # ============================================================
+            # SEL-487E Generator Differential Relays
+            {"type": "protection_relay", "vendor": "sel", "count": 2,
+             "zone": "generator_protection",
+             "name_pattern": "Generator_{n:02d}_Differential_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-487E",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Generator Differential"},
+
+            # ABB REX640 Generator Excitation Protection
+            {"type": "protection_relay", "vendor": "abb", "count": 2,
+             "zone": "generator_protection",
+             "name_pattern": "Generator_{n:02d}_Excitation_Protection",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "REX640",
+             "role": "Excitation Protection"},
+
+            # GE Multilin T60 - GSU Transformer Protection
+            {"type": "protection_relay", "vendor": "ge", "count": 2,
+             "zone": "generator_protection",
+             "name_pattern": "GSU_Transformer_{n:02d}_Protection",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "T60",
+             "cve_ids": ["CVE-2022-21805"],
+             "role": "GSU Transformer Protection"},
+
+            # SEL-311C - Generator Tie Line Protection
+            {"type": "protection_relay", "vendor": "sel", "count": 2,
+             "zone": "generator_protection",
+             "name_pattern": "Generator_Tie_Line_{n:02d}_Protection",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-311C",
+             "role": "Tie Line Protection"},
+
+            # Siemens 7SJ85 - Generator Overcurrent Relays
+            {"type": "protection_relay", "vendor": "siemens", "count": 2,
+             "zone": "generator_protection",
+             "name_pattern": "Generator_{n:02d}_Overcurrent_Relay",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "7SJ85",
+             "cve_ids": ["CVE-2022-32528"],
+             "role": "Generator Overcurrent"},
+
+            # ============================================================
+            # AUXILIARY (Level 1) - 5 devices
+            # Revenue meters, power quality, distributed I/O
+            # ============================================================
+            # Schneider ION8650 Revenue Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 2, "zone": "auxiliary",
+             "name_pattern": "Generator_{n:02d}_Revenue_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "role": "Revenue Meter"},
+
+            # Schneider PM8000 Power Quality Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 2, "zone": "auxiliary",
+             "name_pattern": "Plant_Aux_Power_Meter_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "role": "Power Quality Meter"},
+
+            # ABB CI501 Distributed I/O
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "auxiliary",
+             "name": "Aux_Distributed_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Auxiliary I/O"},
+        ],
+        "flows": [
+            # DCS server polling Mark VIe controllers (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["scada_server"], "target_types": ["dcs_controller"],
+             "source_zones": ["plant_scada"], "target_zones": ["turbine_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # DCS server polling BOP PLCs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["plant_scada"], "target_zones": ["bop_control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Mark VIe polling HRSG PLCs (200ms - fast turbine-HRSG coordination)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["dcs_controller"], "target_types": ["plc"],
+             "source_zones": ["turbine_control"], "target_zones": ["turbine_control"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+
+            # BOP PLCs polling drives (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["bop_control"], "target_zones": ["bop_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # Turbine HMI polling Mark VIe controllers (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["dcs_controller"],
+             "source_zones": ["turbine_control"], "target_zones": ["turbine_control"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # Plant HMI polling DCS server (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["scada_server"],
+             "source_zones": ["plant_scada"], "target_zones": ["plant_scada"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # Historian collecting from all controllers (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["dcs_controller", "plc"],
+             "source_zones": ["plant_scada"],
+             "target_zones": ["turbine_control", "bop_control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # DCS server polling generator protection relays (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["protection_relay"],
+             "source_zones": ["plant_scada"], "target_zones": ["generator_protection"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # DCS server polling revenue meters (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["scada_server"], "target_types": ["power_meter"],
+             "source_zones": ["plant_scada"], "target_zones": ["auxiliary"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # SNMP infrastructure monitoring (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["plant_scada"],
+             "target_zones": ["plant_scada", "turbine_control"]},
+
+            # WAN RTU polling DCS server (2500ms with WAN jitter)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2500,
+             "source_types": ["rtu"], "target_types": ["scada_server"],
+             "source_zones": ["plant_scada"], "target_zones": ["plant_scada"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+
+            # Generator relay coordination (250ms - fast protection)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["generator_protection"],
+             "target_zones": ["generator_protection"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+
+            # BOP PLCs polling I/O modules (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["bop_control"], "target_zones": ["auxiliary"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # Remote gateway polling DCS server (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["scada_server"],
+             "source_zones": ["plant_scada"], "target_zones": ["plant_scada"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "plant_scada", "name": "Plant SCADA Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "turbine_control", "name": "Turbine Control Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "critical"},
+            {"id": "bop_control", "name": "Balance-of-Plant Control", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+            {"id": "generator_protection", "name": "Generator Protection Network", "level": 1,
+             "subnet_offset": 3, "vlan": 131, "security_level": "high"},
+            {"id": "auxiliary", "name": "Auxiliary Systems Network", "level": 1,
+             "subnet_offset": 4, "vlan": 140, "security_level": "standard"},
+            {"id": "external", "name": "External/WAN", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "turbine_trip_delay", "polling_gap"],
+            "protocol": ["modbus_exception", "timeout"],
+            "sequence": ["out_of_order", "duplicate"],
+            "payload": ["frequency_deviation", "voltage_excursion", "bearing_vibration_spike"],
+            "network": ["link_failover"],
+            "security": ["unauthorized_setpoint_change", "turbine_control_injection"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "historian_sqli"],
+            "enable_recon": True,
+            "target_device_types": ["dcs_controller", "plc"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 3: REGIONAL GRID CONTROL CENTER (45 devices)
+    # EMS/SCADA monitoring 8 remote substations
+    # ============================================================
+    "grid_control_center": {
+        "name": "Regional Grid Control Center",
+        "description": "Regional energy management system (EMS) and SCADA control center monitoring "
+                       "8 remote substations via WAN. Features Honeywell Experion PKS as the central "
+                       "SCADA/EMS platform with GE Proficy Historian for grid data archival. Remote "
+                       "substations use SEL-3530 RTACs and ABB RTU560s communicating over Modbus TCP "
+                       "WAN links. Schneider SCADAPack RTUs provide backup communication paths. "
+                       "45 devices across EMS core, engineering, communications hub, remote "
+                       "substations, and WAN zones.",
+        "vertical": "energy_power",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "industroyer_like", "relevance": "high", "rationale": "Grid control center is the primary INDUSTROYER target architecture"},
+            {"playbook_id": "havex_like", "relevance": "high", "rationale": "HAVEX energy sector espionage pattern"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "EMS/SCADA operator access to grid-wide controls"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "energy_power",
+            "description": "Synchronous generator unit with power output, grid frequency, transformer loading, exhaust temperature",
+            "key_variables": ["active_power", "grid_frequency", "generator_voltage", "transformer_loading", "exhaust_temp"],
+            "available_faults": ["governor_failure", "transformer_overload", "grid_frequency_deviation"],
+        },
+        "devices": [
+            # ============================================================
+            # EMS CORE (Level 3) - 8 devices
+            # Dual SCADA servers, historian, operator consoles, core switch
+            # ============================================================
+            # Honeywell Experion Server - Primary SCADA
+            {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
+             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Server",
+             "role": "Primary SCADA Server"},
+
+            # Honeywell Experion Server - Backup SCADA
+            {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
+             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Server",
+             "role": "Backup SCADA Server"},
+
+            # GE Proficy Historian
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "ems_core",
+             "name": "EMS_Grid_Historian", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Grid Historian"},
+
+            # Honeywell Experion Station - Operator Consoles
+            {"type": "hmi", "vendor": "honeywell", "count": 3, "zone": "ems_core",
+             "name_pattern": "EMS_Operator_Console_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Console"},
+
+            # Cisco IE-4000 - Core Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "ems_core",
+             "name": "EMS_Core_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # HMS Flexy 205 - Remote Access Gateway
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "ems_core",
+             "name": "EMS_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # ============================================================
+            # ENGINEERING (Level 3) - 3 devices
+            # Application server, engineering workstation, switch
+            # ============================================================
+            # GE PACSystems RX3i - EMS Application Server
+            {"type": "plc", "vendor": "ge", "count": 1, "zone": "engineering",
+             "name": "EMS_Application_Server",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "IC695CPE400",
+             "role": "EMS Application Engine"},
+
+            # ABB CP620 - Engineering Workstation
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "engineering",
+             "name": "Engineering_Workstation", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Engineering Workstation"},
+
+            # Cisco IE-3300 - Engineering Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "engineering",
+             "name": "Engineering_Network_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Engineering Network Switch"},
+
+            # ============================================================
+            # COMMUNICATIONS HUB (Level 2) - 4 devices
+            # Front-end processors (dual RTAC) and WAN switches
+            # ============================================================
+            # SEL-3530 RTAC - Primary Comm Front-End
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "comm_hub",
+             "name": "Comm_Hub_RTAC_Primary",
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             "fingerprint_model": "SEL-3530",
+             "role": "Primary Communications Front-End"},
+
+            # SEL-3530 RTAC - Redundant Comm Front-End
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "comm_hub",
+             "name": "Comm_Hub_RTAC_Redundant",
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             "fingerprint_model": "SEL-3530",
+             "role": "Redundant Communications Front-End"},
+
+            # Cisco IE-4000 - WAN Switches
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "comm_hub",
+             "name_pattern": "Comm_Hub_WAN_Switch_{n:02d}",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Communications WAN Switch"},
+
+            # ============================================================
+            # REMOTE SUBSTATIONS A - Group 1-4 (Level 1) - 14 devices
+            # SEL RTACs, protection relays, revenue meters
+            # ============================================================
+            # SEL-3530 RTAC - Substation Gateways (4 substations)
+            {"type": "rtu", "vendor": "sel", "count": 4, "zone": "remote_sub_a",
+             "name_pattern": "Substation_{n:02d}_RTAC",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-3530",
+             "role": "Remote Substation Gateway"},
+
+            # SEL-751 Feeder Relays (1 per substation)
+            {"type": "protection_relay", "vendor": "sel", "count": 4, "zone": "remote_sub_a",
+             "name_pattern": "Substation_{n:02d}_Feeder_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-751",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Feeder Protection"},
+
+            # SEL-487E Transformer Relays (substations 1-2)
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "remote_sub_a",
+             "name_pattern": "Substation_{n:02d}_Transformer_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-487E",
+             "role": "Transformer Protection"},
+
+            # Schneider ION8650 Revenue Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 4, "zone": "remote_sub_a",
+             "name_pattern": "Substation_{n:02d}_Revenue_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "role": "Revenue Meter"},
+
+            # ============================================================
+            # REMOTE SUBSTATIONS B - Group 5-8 (Level 1) - 14 devices
+            # ABB RTU560s, protection relays, power meters
+            # ============================================================
+            # ABB RTU560 - Substation RTUs (4 substations)
+            {"type": "rtu", "vendor": "abb", "count": 4, "zone": "remote_sub_b",
+             "name_pattern": "Substation_{n:02d}_RTU",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "RTU560",
+             "role": "Remote Substation RTU"},
+
+            # ABB REF615 Feeder Relays
+            {"type": "protection_relay", "vendor": "abb", "count": 4, "zone": "remote_sub_b",
+             "name_pattern": "Substation_{n:02d}_Feeder_Relay",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "REF615",
+             "cve_ids": ["CVE-2022-28613"],
+             "role": "Feeder Protection"},
+
+            # GE Multilin T60 Transformer Relays (substations 5-6)
+            {"type": "protection_relay", "vendor": "ge", "count": 2, "zone": "remote_sub_b",
+             "name_pattern": "Substation_{n:02d}_Transformer_Relay",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "T60",
+             "cve_ids": ["CVE-2022-21805"],
+             "role": "Transformer Protection"},
+
+            # Schneider PM8000 Power Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 4, "zone": "remote_sub_b",
+             "name_pattern": "Substation_{n:02d}_Power_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "role": "Power Meter"},
+
+            # ============================================================
+            # WAN (Level 4) - 2 devices
+            # Backup communication RTUs
+            # ============================================================
+            # Schneider SCADAPack 350 - WAN Backup RTUs
+            {"type": "rtu", "vendor": "schneider", "count": 2, "zone": "wan",
+             "name_pattern": "WAN_Backup_RTU_{n:02d}",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SCADAPack 350",
+             "role": "WAN Backup Path"},
+        ],
+        "flows": [
+            # Comm Hub RTAC DNP3 integrity polls to remote substations A (2500ms - WAN)
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2500,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["comm_hub"], "target_zones": ["remote_sub_a"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+
+            # Comm Hub RTAC DNP3 integrity polls to remote substations B (2500ms - WAN)
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2500,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["comm_hub"], "target_zones": ["remote_sub_b"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+
+            # DNP3 unsolicited responses from remote substations (event-driven)
+            {"protocol": "dnp3", "pattern": "unsolicited", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["remote_sub_a", "remote_sub_b"],
+             "target_zones": ["comm_hub"],
+             "jitter_ms": 2000, "jitter_type": "exponential"},
+
+            # EMS SCADA polling Comm Hub RTACs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["rtu"],
+             "source_zones": ["ems_core"], "target_zones": ["comm_hub"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Historian collecting from Comm Hub (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["rtu"],
+             "source_zones": ["ems_core"], "target_zones": ["comm_hub"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # HMI polling SCADA servers (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["scada_server"],
+             "source_zones": ["ems_core"], "target_zones": ["ems_core"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # Engineering polling application server (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["engineering"], "target_zones": ["engineering"],
+             "jitter_ms": 200, "jitter_type": "uniform"},
+
+            # SCADA server polling application server (1000ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["ems_core"], "target_zones": ["engineering"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # SNMP monitoring all switches (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["ems_core"],
+             "target_zones": ["ems_core", "engineering", "comm_hub"]},
+
+            # Remote relay polling revenue meters (10s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["rtu"], "target_types": ["power_meter"],
+             "source_zones": ["remote_sub_a", "remote_sub_b"],
+             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # WAN backup DNP3 polling (5000ms)
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["wan"], "target_zones": ["comm_hub"],
+             "jitter_ms": 1000, "jitter_type": "exponential"},
+
+            # SNMP monitoring remote relays (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["comm_hub"],
+             "target_zones": ["remote_sub_a", "remote_sub_b"]},
+
+            # Remote gateway polling SCADA (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["scada_server"],
+             "source_zones": ["ems_core"], "target_zones": ["ems_core"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "ems_core", "name": "EMS Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "engineering", "name": "Engineering Network", "level": 3,
+             "subnet_offset": 1, "vlan": 105, "security_level": "critical"},
+            {"id": "comm_hub", "name": "Communications Hub", "level": 2,
+             "subnet_offset": 2, "vlan": 110, "security_level": "high"},
+            {"id": "remote_sub_a", "name": "Remote Substations A (1-4)", "level": 1,
+             "subnet_offset": 3, "vlan": 121, "security_level": "high"},
+            {"id": "remote_sub_b", "name": "Remote Substations B (5-8)", "level": 1,
+             "subnet_offset": 4, "vlan": 122, "security_level": "high"},
+            {"id": "wan", "name": "WAN/Telecom", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "wan_timeout", "polling_gap"],
+            "protocol": ["modbus_exception", "dnp3_timeout"],
+            "sequence": ["out_of_order", "unsolicited_event"],
+            "payload": ["frequency_deviation", "voltage_excursion", "load_imbalance"],
+            "network": ["wan_latency_spike", "communication_failover"],
+            "security": ["unauthorized_scada_access", "relay_setting_change"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "scada_auth_bypass"],
+            "enable_recon": True,
+            "target_device_types": ["scada_server", "rtu"],
+        },
+        "total_duration_ms": 600000,  # 10 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 4: SOLAR FARM WITH BESS MICROGRID (35 devices)
+    # Utility-scale solar + battery energy storage
+    # ============================================================
+    "solar_bess_microgrid": {
+        "name": "Solar Farm with Battery Energy Storage",
+        "description": "Utility-scale solar farm with co-located battery energy storage system "
+                       "(BESS) and microgrid controller. Features ABB AC500 PLCs for inverter "
+                       "string monitoring, GE PACSystems for BESS management, and SEL-2411 as "
+                       "the microgrid controller for islanding/grid-tie decisions. ABB protection "
+                       "relays at the point of interconnection (POI), Schneider ION8650 meters "
+                       "for net metering, and Schneider TBox RTUs for remote weather station "
+                       "and irradiance monitoring. 35 devices across microgrid control, inverter "
+                       "field, BESS, POI protection, and environmental monitoring zones.",
+        "vertical": "energy_power",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "DER/microgrid discovery and capability mapping"},
+            {"playbook_id": "industroyer_like", "relevance": "medium", "rationale": "Grid-connected DER can be leveraged for grid destabilization"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "energy_power",
+            "description": "Synchronous generator unit with power output, grid frequency, transformer loading, exhaust temperature",
+            "key_variables": ["active_power", "grid_frequency", "generator_voltage", "transformer_loading", "exhaust_temp"],
+            "available_faults": ["governor_failure", "transformer_overload", "grid_frequency_deviation"],
+        },
+        "devices": [
+            # ============================================================
+            # MICROGRID CONTROL (Level 3) - 7 devices
+            # Master controller, historian, HMI, RTAC, core switch
+            # ============================================================
+            # SEL-2411 PAC - Microgrid Master Controller
+            {"type": "plc", "vendor": "sel", "count": 1, "zone": "microgrid_control",
+             "name": "Microgrid_Master_Controller",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-2411",
+             "role": "Microgrid Controller"},
+
+            # GE Proficy Historian
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "microgrid_control",
+             "name": "Plant_Process_Historian", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "Process Historian"},
+
+            # ABB CP620 HMI - Plant Control Room
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "microgrid_control",
+             "name": "Plant_Control_Room_HMI", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Control Room HMI"},
+
+            # Honeywell Experion Station - Operator Workstation
+            {"type": "hmi", "vendor": "honeywell", "count": 1, "zone": "microgrid_control",
+             "name": "Plant_Operator_Workstation", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Experion Station",
+             "role": "Operator Workstation"},
+
+            # Cisco IE-4000 - Core Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "microgrid_control",
+             "name": "Microgrid_Core_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Core Network Switch"},
+
+            # HMS Flexy 205 - Remote Access
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "microgrid_control",
+             "name": "Solar_Farm_Remote_Access", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+
+            # SEL-3530 RTAC - SCADA Gateway
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "microgrid_control",
+             "name": "Plant_SCADA_Gateway_RTAC",
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             "fingerprint_model": "SEL-3530",
+             "role": "SCADA Gateway"},
+
+            # ============================================================
+            # INVERTER FIELD (Level 2) - 8 devices
+            # String controllers, central inverter PLCs, switches
+            # ============================================================
+            # ABB AC500 PM583 - Inverter String Controllers
+            {"type": "plc", "vendor": "abb", "count": 4, "zone": "inverter_field",
+             "name_pattern": "Inverter_String_{n:02d}_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM583-ETH",
+             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
+             "role": "Inverter String Controller"},
+
+            # ABB AC500 PM590 - Central Inverter PLCs
+            {"type": "plc", "vendor": "abb", "count": 2, "zone": "inverter_field",
+             "name_pattern": "Central_Inverter_PLC_{n:02d}",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "PM590-ETH",
+             "role": "Central Inverter Controller"},
+
+            # Cisco IE-3300 - Inverter Field Switches
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "inverter_field",
+             "name_pattern": "Inverter_Field_Switch_{n:02d}",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Inverter Field Switch"},
+
+            # ============================================================
+            # BESS CONTROL (Level 2) - 6 devices
+            # Battery rack controllers, master, power converter, HMI
+            # ============================================================
+            # GE PACSystems RX3i - BESS Rack Controllers
+            {"type": "plc", "vendor": "ge", "count": 2, "zone": "bess_control",
+             "name_pattern": "BESS_Rack_{n:02d}_Controller",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "IC695CPE400",
+             "cve_ids": ["CVE-2022-2893"],
+             "role": "Battery Rack Controller"},
+
+            # GE PACSystems RX3i - BESS Master Controller
+            {"type": "plc", "vendor": "ge", "count": 1, "zone": "bess_control",
+             "name": "BESS_Master_Controller",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "IC695CPE310",
+             "role": "BESS Master Controller"},
+
+            # ABB ACS880 - Power Converter VFD
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "bess_control",
+             "name": "BESS_Power_Converter_VFD",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Power Converter"},
+
+            # ABB CP620 HMI - BESS Local Panel
+            {"type": "hmi", "vendor": "abb", "count": 1, "zone": "bess_control",
+             "name": "BESS_Local_Panel", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "BESS Local Panel"},
+
+            # Cisco IE-3300 - BESS Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "bess_control",
+             "name": "BESS_Network_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "BESS Network Switch"},
+
+            # ============================================================
+            # POI PROTECTION (Level 1) - 6 devices
+            # Interconnection relays and net meters
+            # ============================================================
+            # ABB REX640 - POI Main Protection
+            {"type": "protection_relay", "vendor": "abb", "count": 1,
+             "zone": "poi_protection",
+             "name": "POI_Main_Protection_IED", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "REX640",
+             "role": "POI Main Protection"},
+
+            # ABB REF615 - POI Feeder Protection
+            {"type": "protection_relay", "vendor": "abb", "count": 1,
+             "zone": "poi_protection",
+             "name": "POI_Feeder_Protection", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "REF615",
+             "cve_ids": ["CVE-2022-28613"],
+             "role": "POI Feeder Protection"},
+
+            # SEL-751 - Anti-Islanding Relay
+            {"type": "protection_relay", "vendor": "sel", "count": 1,
+             "zone": "poi_protection",
+             "name": "POI_Anti_Islanding_Relay",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SEL-751",
+             "role": "Anti-Islanding Protection"},
+
+            # Siemens 7UT87 - POI Transformer Protection
+            {"type": "protection_relay", "vendor": "siemens", "count": 1,
+             "zone": "poi_protection",
+             "name": "POI_Transformer_Protection", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "7UT87",
+             "cve_ids": ["CVE-2022-32528"],
+             "role": "POI Transformer Protection"},
+
+            # Schneider ION8650 - Net Revenue Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 2,
+             "zone": "poi_protection",
+             "name_pattern": "POI_Net_Meter_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ION8650",
+             "role": "Net Revenue Meter"},
+
+            # ============================================================
+            # ENVIRONMENTAL MONITORING (Level 1) - 6 devices
+            # Weather RTUs, AC power meters, sensor I/O
+            # ============================================================
+            # Schneider TBox LT2 - Weather Station RTUs
+            {"type": "rtu", "vendor": "schneider", "count": 3, "zone": "environmental",
+             "name_pattern": "Weather_Station_RTU_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "LT2",
+             "role": "Weather/Irradiance Station"},
+
+            # Schneider PM8000 - Inverter AC Power Meters
+            {"type": "power_meter", "vendor": "schneider", "count": 2, "zone": "environmental",
+             "name_pattern": "Inverter_AC_Power_Meter_{n:02d}",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PM8000",
+             "role": "Inverter AC Power Meter"},
+
+            # ABB CI501 - Environmental Sensor I/O
+            {"type": "io_module", "vendor": "abb", "count": 1, "zone": "environmental",
+             "name": "Environmental_Sensor_IO", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CI501",
+             "role": "Environment Sensor I/O"},
+
+            # ============================================================
+            # WAN (Level 4) - 2 devices
+            # Utility WAN RTU and edge switch
+            # ============================================================
+            # Schneider SCADAPack 350 - Utility WAN RTU
+            {"type": "rtu", "vendor": "schneider", "count": 1, "zone": "wan",
+             "name": "Utility_WAN_RTU", "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "SCADAPack 350",
+             "role": "Utility SCADA Gateway"},
+
+            # Cisco IE-3300 - WAN Edge Switch
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wan",
+             "name": "WAN_Edge_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "WAN Edge Switch"},
+        ],
+        "flows": [
+            # Microgrid controller polling inverter PLCs (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"], "target_zones": ["inverter_field"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # Microgrid controller polling BESS controllers (250ms - fast)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"], "target_zones": ["bess_control"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+
+            # Microgrid controller polling POI relays (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["protection_relay"],
+             "source_zones": ["microgrid_control"], "target_zones": ["poi_protection"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # Central inverter PLC polling string PLCs (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["inverter_field"], "target_zones": ["inverter_field"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # BESS master polling rack controllers (500ms)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["bess_control"], "target_zones": ["bess_control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # BESS master polling power converter (250ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["bess_control"], "target_zones": ["bess_control"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+
+            # RTAC polling microgrid controller (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"], "target_zones": ["microgrid_control"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # Historian collecting from all controllers (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"],
+             "target_zones": ["inverter_field", "bess_control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # HMI polling microgrid controller (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"], "target_zones": ["microgrid_control"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # Microgrid controller polling revenue meters (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["power_meter"],
+             "source_zones": ["microgrid_control"],
+             "target_zones": ["poi_protection", "environmental"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Microgrid controller polling weather RTUs (30s - slow)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["plc"], "target_types": ["rtu"],
+             "source_zones": ["microgrid_control"], "target_zones": ["environmental"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # SNMP infrastructure monitoring (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["rtu"], "target_types": ["switch"],
+             "source_zones": ["microgrid_control"],
+             "target_zones": ["microgrid_control", "inverter_field", "bess_control"]},
+
+            # WAN RTU polling RTAC (2500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2500,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["wan"], "target_zones": ["microgrid_control"],
+             "jitter_ms": 500, "jitter_type": "exponential"},
+
+            # Remote gateway polling controller (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["microgrid_control"], "target_zones": ["microgrid_control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "microgrid_control", "name": "Microgrid Control Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "inverter_field", "name": "Inverter String Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "bess_control", "name": "Battery Storage Control", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+            {"id": "poi_protection", "name": "Point of Interconnection", "level": 1,
+             "subnet_offset": 3, "vlan": 131, "security_level": "high"},
+            {"id": "environmental", "name": "Environmental Monitoring", "level": 1,
+             "subnet_offset": 4, "vlan": 140, "security_level": "standard"},
+            {"id": "wan", "name": "WAN/Utility Backhaul", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["remote_gateway"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "inverter_dropout", "polling_gap"],
+            "protocol": ["modbus_exception", "timeout"],
+            "sequence": ["out_of_order", "duplicate"],
+            "payload": ["irradiance_spike", "battery_soc_upset", "frequency_deviation"],
+            "network": ["wan_latency_spike"],
+            "security": ["unauthorized_islanding_command", "bess_setpoint_injection"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["modbus_write_scan", "bess_setpoint_attack"],
+            "enable_recon": True,
+            "target_device_types": ["plc", "protection_relay"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+}

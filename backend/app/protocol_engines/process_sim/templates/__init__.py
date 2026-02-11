@@ -25,7 +25,15 @@ def _register() -> None:
     if _REGISTRY:
         return
 
-    from . import building_automation, manufacturing, oil_gas, water
+    from . import (
+        building_automation,
+        distribution_logistics,
+        energy,
+        manufacturing,
+        oil_gas,
+        transportation,
+        water,
+    )
 
     _REGISTRY["manufacturing"] = (manufacturing.build_model, manufacturing.build_faults)
     _REGISTRY["water_wastewater"] = (water.build_model, water.build_faults)
@@ -35,6 +43,13 @@ def _register() -> None:
         building_automation.build_faults,
     )
     _REGISTRY["oil_gas"] = (oil_gas.build_model, oil_gas.build_faults)
+    _REGISTRY["energy_power"] = (energy.build_model, energy.build_faults)
+    _REGISTRY["energy"] = (energy.build_model, energy.build_faults)
+    _REGISTRY["transportation"] = (transportation.build_model, transportation.build_faults)
+    _REGISTRY["distribution_logistics"] = (
+        distribution_logistics.build_model,
+        distribution_logistics.build_faults,
+    )
 
 
 def get_available_verticals() -> list[str]:

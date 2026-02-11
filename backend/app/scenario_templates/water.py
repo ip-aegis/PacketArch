@@ -35,6 +35,18 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
                        "45 devices across SCADA, control, and field zones.",
         "vertical": "water_wastewater",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "PIPEDREAM targets water/wastewater PLCs (Schneider M580)"},
+            {"playbook_id": "industroyer_like", "relevance": "medium", "rationale": "Critical infrastructure disruption pattern applicable to water utilities"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "Chemical dosing manipulation via insider access"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "water_wastewater",
+            "description": "Water treatment train: intake flow, coagulation, filtration, chlorination, pH control",
+            "key_variables": ["intake_flow", "pump_speed", "coag_dose_rate", "chlorine_residual", "ph_level"],
+            "available_faults": ["pump_failure", "chemical_feed_loss", "filter_clog"],
+        },
         "devices": [
             # ============================================================
             # SCADA ZONE (Level 3) - 5 devices
@@ -315,26 +327,16 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": [],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "high",
-             "description": "Modbus TCP polling patterns from M580 PLCs"},
-            {"protocol": "ethernet_ip", "flow_type": "polling", "priority": "medium",
-             "description": "EtherNet/IP communication with CompactLogix field PLCs"},
-            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "high",
-             "description": "Water quality analyzer communication patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["13.56.142.1", "54.95.198.117"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
             "enable_exploits": True,
             "exploit_patterns": ["modbus_write_scan", "historian_sqli"],
-            "enable_recon": False,
+            "enable_recon": True,
             "target_device_types": ["hmi", "plc"],
         },
         "total_duration_ms": 300000,  # 5 minutes
@@ -353,6 +355,17 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
                        "storage tank monitoring. 52 devices with realistic WAN-aware timing.",
         "vertical": "water_wastewater",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "industroyer_like", "relevance": "high", "rationale": "Distributed WAN architecture mirrors INDUSTROYER grid targeting"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Multi-site WAN topology for reconnaissance mapping"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "water_wastewater",
+            "description": "Distributed pump station operations with flow, level, and pressure monitoring",
+            "key_variables": ["intake_flow", "pump_speed", "raw_water_level", "clearwell_level"],
+            "available_faults": ["pump_failure", "chemical_feed_loss"],
+        },
         "devices": [
             # ============================================================
             # CENTRAL CONTROL (Level 3) - 8 devices
@@ -636,22 +649,12 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["wan_outage"],
             "security": ["unauthorized_remote_access", "rdp_bruteforce"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "modbus_tcp", "flow_type": "wan_scada", "priority": "high",
-             "description": "WAN SCADA polling patterns from Experion to RTUs"},
-            {"protocol": "modbus_tcp", "flow_type": "local_control", "priority": "high",
-             "description": "Local RTU to VFD control patterns"},
-            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
-             "description": "RTU health monitoring via SNMP"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M and TeamViewer cloud patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["54.95.198.117", "51.38.74.240", "185.188.32.1"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
             "enable_exploits": True,
             "exploit_patterns": ["modbus_write_scan", "rdp_bluekeep"],
@@ -676,6 +679,17 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
                        "58 devices across SCADA, control, and 5 process zones.",
         "vertical": "water_wastewater",
         "phase_preset": "full_lifecycle",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "PIPEDREAM targets wastewater treatment PLC environments"},
+            {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "Effluent quality manipulation via process tampering"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "water_wastewater",
+            "description": "Wastewater treatment process with aeration, settling, and effluent monitoring",
+            "key_variables": ["intake_flow", "pump_speed", "coag_dose_rate", "ph_level"],
+            "available_faults": ["pump_failure", "chemical_feed_loss"],
+        },
         "devices": [
             # ============================================================
             # SCADA/DMZ (Level 3.5) - 6 devices
@@ -1004,24 +1018,12 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["jitter_spike"],
             "security": ["unauthorized_remote_access", "cip_stop_plc"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "ethernet_ip", "flow_type": "implicit_io", "priority": "high",
-             "description": "EtherNet/IP implicit messaging from ControlLogix PLCs"},
-            {"protocol": "cip_safety", "flow_type": "safety", "priority": "high",
-             "description": "CIP Safety GuardLogix communication patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "high",
-             "description": "Water quality analyzer Modbus polling patterns"},
-            {"protocol": "ethernet_ip", "flow_type": "drive_control", "priority": "medium",
-             "description": "ABB ACS880/ACS580 EtherNet/IP control patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["13.56.142.1", "54.95.198.117", "185.188.32.1"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
             "enable_exploits": True,
             "exploit_patterns": ["cip_stop_plc", "modbus_write_scan", "rdp_bluekeep"],
@@ -1045,6 +1047,17 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
                        "26 devices representing realistic small utility constraints.",
         "vertical": "water_wastewater",
         "phase_preset": "normal_operation",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Small utility with limited security posture, easy reconnaissance target"},
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Small staff increases insider threat risk"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "water_wastewater",
+            "description": "Small utility SCADA with basic water treatment monitoring",
+            "key_variables": ["intake_flow", "pump_speed", "chlorine_residual"],
+            "available_faults": ["pump_failure"],
+        },
         "devices": [
             # ============================================================
             # CONTROL ROOM (Level 2-3) - 5 devices
@@ -1291,26 +1304,16 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["wan_latency"],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "modbus_tcp", "flow_type": "legacy_polling", "priority": "high",
-             "description": "Legacy Modicon Premium slow polling patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "modern_polling", "priority": "high",
-             "description": "M241 Modbus TCP polling patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "instrumentation", "priority": "medium",
-             "description": "Field instrument communication patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["54.95.198.117"],
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
             "enable_exploits": True,
             "exploit_patterns": ["modbus_write_scan", "legacy_device_exploit"],
-            "enable_recon": False,
+            "enable_recon": True,
             "target_device_types": ["hmi", "plc"],
         },
         "total_duration_ms": 300000,  # 5 minutes

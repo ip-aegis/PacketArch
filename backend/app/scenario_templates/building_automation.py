@@ -27,6 +27,17 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "BMS core, HVAC control, and floor zone networks.",
         "vertical": "building_automation",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Building systems accessible from corporate network"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "BACnet device discovery via Who-Is scanning"}
+        ],
+        "recommended_traffic_schedule": "office_hours",
+        "process_sim": {
+            "template": "building_automation",
+            "description": "HVAC zone control with setpoint tracking, supply/return air temps, damper position, humidity",
+            "key_variables": ["setpoint", "zone_temp", "supply_air_temp", "damper_position", "humidity"],
+            "available_faults": ["fan_failure", "sensor_drift"],
+        },
         "devices": [
             # ============================================================
             # BMS CORE ZONE (Level 3) - 5 devices
@@ -209,27 +220,15 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["broadcast_storm"],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "bacnet", "flow_type": "subscription", "priority": "high",
-             "description": "BACnet COV subscription patterns from NAE55 controllers"},
-            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
-             "description": "BACnet ReadProperty polling patterns to VAV controllers"},
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "medium",
-             "description": "Modbus polling patterns to chiller controllers"},
-            {"protocol": "snmp", "flow_type": "monitoring", "priority": "low",
-             "description": "SNMP infrastructure monitoring patterns"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["13.56.142.1", "54.95.198.117"],  # Talk2M VPN server IPs
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 300000,  # 5 minutes
     },
@@ -247,6 +246,17 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "core, cooling zone, power zone, and rack-level monitoring.",
         "vertical": "building_automation",
         "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "DCIM/BMS access can disrupt cooling and power to IT infrastructure"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "BACnet/Modbus/SNMP multi-protocol discovery surface"}
+        ],
+        "recommended_traffic_schedule": "data_center",
+        "process_sim": {
+            "template": "building_automation",
+            "description": "Precision cooling with CRAC/chiller control and rack-level temperature monitoring",
+            "key_variables": ["setpoint", "zone_temp", "supply_air_temp", "fan_speed", "humidity"],
+            "available_faults": ["fan_failure", "sensor_drift"],
+        },
         "devices": [
             # ============================================================
             # DCIM CORE ZONE (Level 3) - 4 devices
@@ -413,25 +423,15 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": [],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
-             "description": "BACnet polling patterns to InRow CRAC units"},
-            {"protocol": "modbus_tcp", "flow_type": "power_monitoring", "priority": "high",
-             "description": "Modbus power monitoring from Galaxy UPS and Rack PDUs"},
-            {"protocol": "snmp", "flow_type": "monitoring", "priority": "medium",
-             "description": "SNMP monitoring patterns for UPS and PDU"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["54.95.198.117", "51.38.74.240"],  # Talk2M VPN server IPs
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 300000,  # 5 minutes
     },
@@ -450,6 +450,17 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
                        "and distributed field devices.",
         "vertical": "building_automation",
         "phase_preset": "full_lifecycle",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "Campus-wide BMS with minimal segmentation from academic network"},
+            {"playbook_id": "network_recon", "relevance": "high", "rationale": "Multi-building BACnet campus network discovery"}
+        ],
+        "recommended_traffic_schedule": "office_hours",
+        "process_sim": {
+            "template": "building_automation",
+            "description": "Campus HVAC with multi-building zone control and central plant",
+            "key_variables": ["setpoint", "zone_temp", "supply_air_temp", "damper_position", "humidity"],
+            "available_faults": ["fan_failure", "sensor_drift"],
+        },
         "devices": [
             # ============================================================
             # CAMPUS CORE (Level 3) - 5 devices
@@ -745,29 +756,15 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "network": ["broadcast_storm", "multicast_flood"],
             "security": ["unauthorized_remote_access"],
         },
-        "pcap_learning_hints": [
-            {"protocol": "bacnet", "flow_type": "subscription", "priority": "high",
-             "description": "BACnet COV subscription patterns from JACE 8000 to NAE55"},
-            {"protocol": "bacnet", "flow_type": "polling", "priority": "high",
-             "description": "BACnet ReadProperty polling from various vendors"},
-            {"protocol": "bacnet", "flow_type": "cov", "priority": "high",
-             "description": "BACnet Change-of-Value notification patterns"},
-            {"protocol": "modbus_tcp", "flow_type": "polling", "priority": "medium",
-             "description": "Modbus polling to Carel chillers and Schneider controllers"},
-            {"protocol": "snmp", "flow_type": "monitoring", "priority": "low",
-             "description": "SNMP infrastructure monitoring from campus servers"},
-            {"protocol": "https", "flow_type": "remote_access", "priority": "high",
-             "description": "EWON Talk2M cloud communication patterns"},
-        ],
         "external_comms": {
             "enable_remote_access": True,
             "remote_access_gateway": "ewon",
             "cloud_service": "talk2m",
             "cloud_ips": ["51.38.74.240", "87.98.169.126"],  # Talk2M VPN server IPs
-            "enable_c2": False,
+            "enable_c2": True,
             "enable_exfil": False,
-            "enable_exploits": False,
-            "enable_recon": False,
+            "enable_exploits": True,
+            "enable_recon": True,
         },
         "total_duration_ms": 600000,  # 10 minutes
     },

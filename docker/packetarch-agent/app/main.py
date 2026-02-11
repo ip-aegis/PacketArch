@@ -113,6 +113,8 @@ class PacketArchAgent:
                 # For event-driven updates, get fresh rich stats
                 fresh = self.pool.get_status(scenario_id)
                 if fresh:
+                    adaptation = self.pool.get_adaptation_state(scenario_id)
+                    attack = self.pool.get_attack_state(scenario_id)
                     await self.ws.send_status(
                         scenario_id, state.value, fresh.packets_sent, error,
                         bytes_sent=fresh.bytes_sent,
@@ -120,6 +122,8 @@ class PacketArchAgent:
                         flow_count=fresh.flow_count,
                         packets_per_second=fresh.packets_per_second,
                         bytes_per_second=fresh.bytes_per_second,
+                        adaptation=adaptation,
+                        attack=attack,
                     )
                 else:
                     await self.ws.send_status(scenario_id, state.value, packets_sent, error)
@@ -227,6 +231,9 @@ class PacketArchAgent:
 
             elif cmd_type == "PAUSE_ATTACK":
                 await self._handle_attack_command(command, "pause")
+
+            elif cmd_type == "INJECT_ATTACK":
+                await self._handle_inject_attack(command)
 
             else:
                 logger.warning(f"Unknown command type: {cmd_type}")
@@ -474,6 +481,48 @@ class PacketArchAgent:
                 scenario_id,
                 "Scenario not found or adaptive traffic not enabled",
                 "ADAPT_FAILED",
+            )
+
+    async def _handle_inject_attack(self, command: dict[str, Any]) -> None:
+        """Handle INJECT_ATTACK — hot-attach a playbook to a running scenario."""
+        scenario_id = command.get("scenario_id")
+        attack_playbook = command.get("attack_playbook", {})
+
+        if not scenario_id:
+            await self.ws.send_error(None, "Missing scenario_id", "INVALID_COMMAND")
+            return
+
+        playbook_id = attack_playbook.get("playbook_id")
+        if not playbook_id:
+            await self.ws.send_error(
+                scenario_id,
+                "Missing playbook_id in attack_playbook",
+                "INVALID_COMMAND",
+            )
+            return
+
+        success = self.pool.inject_attack(scenario_id, {
+            "playbook_id": playbook_id,
+            "config": attack_playbook,
+        })
+
+        if success:
+            logger.info(
+                f"Attack playbook '{playbook_id}' injection queued "
+                f"for scenario {scenario_id}"
+            )
+            # Trigger an immediate status report so attack state
+            # reaches the server faster (instead of waiting 5s).
+            status = self.pool.get_status(scenario_id)
+            if status:
+                self._on_status_change(
+                    scenario_id, status.state, status.packets_sent, None,
+                )
+        else:
+            await self.ws.send_error(
+                scenario_id,
+                "Scenario not found, not running, or already has an attack configured",
+                "INJECT_ATTACK_FAILED",
             )
 
     async def _handle_attack_command(self, command: dict[str, Any], cmd_type: str) -> None:

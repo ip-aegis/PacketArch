@@ -70,10 +70,30 @@ class StartAttackRequest(BaseModel):
     playbook_id: str = Field(..., description="Playbook ID to execute")
 
 
+class InjectAttackRequest(BaseModel):
+    """Request body for injecting an attack into a running deployment."""
+
+    playbook_id: str = Field(..., description="Playbook ID to inject")
+    auto_advance: bool = Field(True, description="Auto-advance through stages")
+    start_mode: str = Field(
+        "manual",
+        description="'manual' (wait for START_ATTACK) or 'with_deployment' (auto-start)",
+    )
+    intensity: float = Field(1.0, ge=0.1, le=3.0, description="Rate multiplier")
+
+
 class PauseAttackRequest(BaseModel):
     """Request body for pausing/resuming an attack."""
 
     paused: bool = Field(..., description="True to pause, False to resume")
+
+
+class InjectionStatusResponse(BaseModel):
+    """Response for polling injection outcome."""
+
+    status: str = Field("pending", description="pending | confirmed | failed")
+    message: str = ""
+    attack: dict[str, Any] | None = None
 
 
 class AttackStateResponse(BaseModel):
