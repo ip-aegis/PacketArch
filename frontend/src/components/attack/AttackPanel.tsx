@@ -2,25 +2,38 @@
  * AttackPanel - Container for attack simulation in the right side panel.
  *
  * State machine:
- * 1. No playbook selected → PlaybookLibrary
- * 2. Playbook selected → Configurator
- * 3. Configured → Summary (included in next deployment)
- * 4. Active attack → KillChainTimeline + controls
+ * 1. No playbook selected -> PlaybookLibrary
+ * 2. Playbook selected -> Configurator
+ * 3. Configured -> Summary (inject now if deployed, or included in next deploy)
+ * 4. Active attack -> KillChainTimeline + controls
  */
 
-import React, { useState, useCallback } from 'react';
-import { Button, Space, Tag, Typography, notification } from 'antd';
-import { DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Alert, Button, Space, Tag, Typography, message } from 'antd';
+import {
+  DeleteOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { PanelContainer } from '../common';
 import { useAttackStore } from '../../stores/attackStore';
 import AttackPlaybookLibrary from './AttackPlaybookLibrary';
 import AttackConfigurator from './AttackConfigurator';
 import KillChainTimeline from './KillChainTimeline';
+import type { AttackState } from '../../types/attackPlaybook';
 
 const { Text } = Typography;
 
+type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
+
 interface AttackPanelProps {
   scenarioId: string | null;
+  deploymentId?: string;
+  isDeployed?: boolean;
+  deploymentAgentName?: string;
+  deploymentStatus?: string;
+  attackState?: AttackState | null;
 }
 
 const severityColors: Record<string, string> = {
@@ -30,16 +43,81 @@ const severityColors: Record<string, string> = {
   low: '#52c41a',
 };
 
-const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
+/** Deployment context bar shown at the top of every view */
+const DeploymentContextBar: React.FC<{
+  isDeployed?: boolean;
+  agentName?: string;
+  status?: string;
+}> = ({ isDeployed, agentName, status }) => {
+  const dotColor = isDeployed && status === 'running' ? '#52c41a' : '#4a6a8a';
+  const label = isDeployed && agentName
+    ? `Deployed on ${agentName}`
+    : isDeployed
+      ? 'Deployment active'
+      : 'No active deployment';
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '5px 8px',
+        marginBottom: 8,
+        background: '#0d1117',
+        borderRadius: 4,
+        border: `1px solid ${isDeployed ? '#1a3a2a' : '#1a2332'}`,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: dotColor,
+          display: 'inline-block',
+          flexShrink: 0,
+          animation: isDeployed ? 'pulse-green 2s ease-in-out infinite' : undefined,
+        }}
+      />
+      <Text style={{ color: isDeployed ? '#8cc8a0' : '#4a6a8a', fontSize: 10 }}>
+        {label}
+      </Text>
+    </div>
+  );
+};
+
+const AttackPanel: React.FC<AttackPanelProps> = ({
+  scenarioId,
+  deploymentId,
+  isDeployed,
+  deploymentAgentName,
+  deploymentStatus,
+  attackState,
+}) => {
   const [view, setView] = useState<'library' | 'configure' | 'summary'>('library');
 
   const {
     selectedPlaybook,
     playbookConfig,
-    attackState,
+    injectionStatus: injectionStatusMap,
+    injectionError: injectionErrorMap,
     selectPlaybook,
     clearSelection,
+    injectAndPoll,
+    resetInjection,
   } = useAttackStore();
+
+  // Get per-scenario injection state
+  const injectionStatus = scenarioId ? (injectionStatusMap[scenarioId] ?? 'idle') : 'idle';
+  const injectionError = scenarioId ? injectionErrorMap[scenarioId] : null;
+
+  // Auto-transition to live timeline when injection is confirmed
+  useEffect(() => {
+    if (injectionStatus === 'confirmed') {
+      message.success(`${selectedPlaybook?.name ?? 'Attack'} injected successfully.`);
+    }
+  }, [injectionStatus, selectedPlaybook]);
 
   const handleSelectPlaybook = useCallback(async (playbookId: string) => {
     await selectPlaybook(playbookId);
@@ -48,13 +126,8 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
 
   const handleApply = useCallback(() => {
     if (!playbookConfig) return;
-    // Config is stored in the attack store, DeploymentPanel will include it
     setView('summary');
-    notification.success({
-      message: 'Attack playbook applied',
-      description: `${selectedPlaybook?.name} will be included in the next deployment.`,
-      duration: 3,
-    });
+    message.success(`${selectedPlaybook?.name} will be included in the next deployment.`);
   }, [playbookConfig, selectedPlaybook]);
 
   const handleRemove = useCallback(() => {
@@ -67,10 +140,30 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
     setView('library');
   }, [clearSelection]);
 
+  const handleInjectNow = useCallback(async () => {
+    if (!scenarioId) {
+      message.warning('No scenario selected');
+      return;
+    }
+    await injectAndPoll(scenarioId);
+  }, [scenarioId, injectAndPoll]);
+
+  const handleRetry = useCallback(() => {
+    if (scenarioId) {
+      resetInjection(scenarioId);
+    }
+  }, [scenarioId, resetInjection]);
+
   // If there's an active attack state, show the live timeline
   if (attackState && (attackState.is_active || attackState.is_completed) && scenarioId) {
     return (
       <PanelContainer>
+        <DeploymentContextBar
+          isDeployed={isDeployed}
+          agentName={deploymentAgentName}
+          status={deploymentStatus}
+        />
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
           <ThunderboltOutlined style={{ color: '#ff4d4f' }} />
           <Text style={{ color: '#ffa39e', fontSize: 13, fontWeight: 500 }}>
@@ -107,6 +200,12 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
   if (view === 'summary' && selectedPlaybook && playbookConfig) {
     return (
       <PanelContainer>
+        <DeploymentContextBar
+          isDeployed={isDeployed}
+          agentName={deploymentAgentName}
+          status={deploymentStatus}
+        />
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <Space size={4}>
             <ThunderboltOutlined style={{ color: '#ff4d4f' }} />
@@ -142,12 +241,76 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
             Intensity: {Math.round((playbookConfig.intensity ?? 1) * 100)}% ·{' '}
             {playbookConfig.start_mode === 'manual' ? 'Manual start' : 'Auto-start on deploy'}
           </Text>
-          <Tag
-            color="volcano"
-            style={{ fontSize: 9, lineHeight: '16px' }}
-          >
-            Included in next deployment
-          </Tag>
+
+          {isDeployed ? (
+            <>
+              <Button
+                type="primary"
+                danger
+                block
+                size="small"
+                icon={<ThunderboltOutlined />}
+                loading={injectionStatus === 'injecting' || injectionStatus === 'polling'}
+                disabled={injectionStatus === 'polling'}
+                onClick={handleInjectNow}
+                style={{ marginTop: 4 }}
+              >
+                {injectionStatus === 'polling'
+                  ? 'Confirming with agent...'
+                  : 'Inject Into Running Deployment'}
+              </Button>
+
+              {/* Polling status bar */}
+              {injectionStatus === 'polling' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginTop: 6,
+                    padding: '4px 8px',
+                    background: '#111a24',
+                    borderRadius: 4,
+                    border: '1px solid #1a2f44',
+                  }}
+                >
+                  <LoadingOutlined style={{ color: '#5a9fd4', fontSize: 11 }} />
+                  <Text style={{ color: '#5a9fd4', fontSize: 10 }}>
+                    Waiting for agent confirmation...
+                  </Text>
+                </div>
+              )}
+
+              {/* Injection error */}
+              {injectionStatus === 'failed' && (
+                <div style={{ marginTop: 6 }}>
+                  <Alert
+                    type="error"
+                    message={injectionError || 'Injection failed'}
+                    showIcon
+                    style={{ fontSize: 11, padding: '4px 8px' }}
+                    action={
+                      <Button
+                        size="small"
+                        icon={<ReloadOutlined />}
+                        onClick={handleRetry}
+                        style={{ fontSize: 10 }}
+                      >
+                        Retry
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <Tag
+              color="volcano"
+              style={{ fontSize: 9, lineHeight: '16px' }}
+            >
+              Included in next deployment
+            </Tag>
+          )}
         </div>
 
         <Button
@@ -166,7 +329,18 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
   if (view === 'configure' && selectedPlaybook) {
     return (
       <PanelContainer>
-        <AttackConfigurator onBack={handleBack} onApply={handleApply} />
+        <DeploymentContextBar
+          isDeployed={isDeployed}
+          agentName={deploymentAgentName}
+          status={deploymentStatus}
+        />
+        <AttackConfigurator
+          onBack={handleBack}
+          onApply={handleApply}
+          isDeployed={isDeployed}
+          onInject={handleInjectNow}
+          injectionStatus={injectionStatus}
+        />
       </PanelContainer>
     );
   }
@@ -174,6 +348,11 @@ const AttackPanel: React.FC<AttackPanelProps> = ({ scenarioId }) => {
   // Library view (default)
   return (
     <PanelContainer>
+      <DeploymentContextBar
+        isDeployed={isDeployed}
+        agentName={deploymentAgentName}
+        status={deploymentStatus}
+      />
       <AttackPlaybookLibrary scenarioId={scenarioId} onSelect={handleSelectPlaybook} />
     </PanelContainer>
   );

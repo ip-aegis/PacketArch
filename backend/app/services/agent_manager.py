@@ -65,12 +65,16 @@ class ScenarioDeployment:
 class AgentManager:
     """Manages connected WebSocket agents and routes commands."""
 
+    # Error codes that are attack-injection-specific (don't kill deployment)
+    _INJECTION_ERROR_CODES = frozenset({"INJECT_ATTACK_FAILED", "INVALID_COMMAND"})
+
     def __init__(self):
         """Initialize the agent manager."""
         self._connections: dict[UUID, AgentConnection] = {}
         self._deployments: dict[str, ScenarioDeployment] = {}  # scenario_id -> deployment
         self._pending_requests: dict[str, asyncio.Future] = {}  # request_id -> future
         self._update_statuses: dict[UUID, AgentUpdateStatus] = {}  # agent_id -> update status
+        self._injection_results: dict[str, dict[str, Any]] = {}  # scenario_id -> injection outcome
         self._lock = asyncio.Lock()
 
     @property
@@ -206,27 +210,36 @@ class AgentManager:
         Returns:
             True if stop command sent successfully
         """
+        success = False
+
         # First try in-memory deployment tracking
         deployment = self._deployments.get(scenario_id)
         if deployment:
-            return await self.send_command(deployment.agent_id, {
+            success = await self.send_command(deployment.agent_id, {
                 "type": "STOP_SCENARIO",
                 "scenario_id": scenario_id,
             })
+        else:
+            # If not found in deployments, search connected agents' running_scenarios
+            # This handles cases where backend was restarted but agents are still running
+            async with self._lock:
+                for agent_id, conn in self._connections.items():
+                    if scenario_id in conn.running_scenarios:
+                        logger.info(f"Found scenario {scenario_id} running on agent {agent_id} via running_scenarios")
+                        success = await self.send_command(agent_id, {
+                            "type": "STOP_SCENARIO",
+                            "scenario_id": scenario_id,
+                        })
+                        break
 
-        # If not found in deployments, search connected agents' running_scenarios
-        # This handles cases where backend was restarted but agents are still running
-        async with self._lock:
-            for agent_id, conn in self._connections.items():
-                if scenario_id in conn.running_scenarios:
-                    logger.info(f"Found scenario {scenario_id} running on agent {agent_id} via running_scenarios")
-                    return await self.send_command(agent_id, {
-                        "type": "STOP_SCENARIO",
-                        "scenario_id": scenario_id,
-                    })
+        if success:
+            # Clear injection result cache to prevent stale status after stop
+            async with self._lock:
+                self._injection_results.pop(scenario_id, None)
+        else:
+            logger.warning(f"No deployment found for scenario {scenario_id}")
 
-        logger.warning(f"No deployment found for scenario {scenario_id}")
-        return False
+        return success
 
     def get_deployment(self, scenario_id: str) -> Any:
         """Get deployment info for a scenario.
@@ -403,8 +416,19 @@ class AgentManager:
         state = message.get("state", "unknown")
 
         async with self._lock:
-            # Update in-memory deployment if it exists
+            # Update in-memory deployment if it exists, or recreate after restart
             deployment = self._deployments.get(scenario_id)
+            if not deployment and state not in ("stopped", "error"):
+                # Recreate deployment tracking lost after backend restart
+                deployment = ScenarioDeployment(
+                    scenario_id=scenario_id,
+                    agent_id=agent_id,
+                )
+                self._deployments[scenario_id] = deployment
+                logger.info(
+                    f"Restored deployment tracking for scenario {scenario_id} "
+                    f"on agent {agent_id}"
+                )
             if deployment:
                 deployment.state = state
                 deployment.packets_sent = message.get("packets_sent", 0)
@@ -416,7 +440,6 @@ class AgentManager:
                 deployment.error_message = message.get("error")
 
             # Always update connection's running scenarios based on status
-            # This ensures we track scenarios even after server restart
             conn = self._connections.get(agent_id)
             if conn:
                 if state in ("stopped", "error"):
@@ -463,14 +486,33 @@ class AgentManager:
 
         if scenario_id:
             async with self._lock:
-                deployment = self._deployments.get(scenario_id)
-                if deployment:
-                    deployment.state = "error"
-                    deployment.error_message = error_msg
+                if error_code in self._INJECTION_ERROR_CODES:
+                    # Attack injection failed — the deployment itself is fine
+                    self._injection_results[scenario_id] = {
+                        "status": "failed",
+                        "message": error_msg,
+                        "code": error_code,
+                    }
+                    logger.warning(
+                        f"Attack injection failed for scenario {scenario_id}: {error_msg}"
+                    )
+                else:
+                    deployment = self._deployments.get(scenario_id)
+                    if deployment:
+                        deployment.state = "error"
+                        deployment.error_message = error_msg
 
     def get_deployment(self, scenario_id: str) -> ScenarioDeployment | None:
         """Get deployment info for a scenario."""
         return self._deployments.get(scenario_id)
+
+    def get_injection_result(self, scenario_id: str) -> dict[str, Any] | None:
+        """Get the injection result for a scenario (if any)."""
+        return self._injection_results.get(scenario_id)
+
+    def clear_injection_result(self, scenario_id: str) -> None:
+        """Clear a previous injection result (called before retry)."""
+        self._injection_results.pop(scenario_id, None)
 
     def get_agent_deployments(self, agent_id: UUID) -> list[ScenarioDeployment]:
         """Get all deployments for an agent."""

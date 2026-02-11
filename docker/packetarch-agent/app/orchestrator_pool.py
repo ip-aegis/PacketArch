@@ -210,8 +210,33 @@ class OrchestratorPool:
         logger.info(f"Started scenario {scenario_id} on interface {interface}")
         return True
 
+    def stop_attack(self, scenario_id: str) -> bool:
+        """Stop the attack orchestrator for a scenario.
+
+        Args:
+            scenario_id: Scenario to stop attack for
+
+        Returns:
+            True if attack was stopped, False if none was running
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if not ctx:
+                return False
+            self._sync_attack_orchestrator(ctx)
+            if ctx.attack_orchestrator:
+                # Send stop command to attack orchestrator
+                try:
+                    ctx.attack_orchestrator.set_pending_command({"type": "stop"})
+                    logger.info(f"Stopped attack orchestrator for scenario {scenario_id}")
+                except Exception as e:
+                    logger.warning(f"Error stopping attack orchestrator: {e}")
+                ctx.attack_orchestrator = None
+                return True
+            return False
+
     def stop(self, scenario_id: str) -> bool:
-        """Stop a running scenario.
+        """Stop a running scenario and its attack if present.
 
         Args:
             scenario_id: Scenario to stop
@@ -229,6 +254,10 @@ class OrchestratorPool:
                 logger.warning(f"Scenario {scenario_id} is not running (state: {ctx.status.state})")
                 return False
 
+        # Stop attack orchestrator first (outside lock to avoid deadlock)
+        self.stop_attack(scenario_id)
+
+        # Then stop the scenario
         ctx.stop_event.set()
         ctx.status.state = ScenarioState.STOPPING
         self._notify_status_change(ctx)
@@ -554,6 +583,16 @@ class OrchestratorPool:
             ctx.status.stopped_at = time.time()
             self._notify_status_change(ctx)
 
+        finally:
+            # Cleanup attack orchestrator on exit (normal/error/crash)
+            if ctx.attack_orchestrator:
+                try:
+                    ctx.attack_orchestrator.set_pending_command({"type": "stop"})
+                    ctx.attack_orchestrator = None
+                    logger.info(f"Cleaned up attack orchestrator for {ctx.scenario_id}")
+                except Exception as e:
+                    logger.error(f"Error stopping attack orchestrator in finally: {e}")
+
     def _create_flow_context(
         self,
         flow_def: dict[str, Any],
@@ -764,6 +803,19 @@ class OrchestratorPool:
                 return ctx.adaptive_controller.get_state_snapshot()
             return None
 
+    def _sync_attack_orchestrator(self, ctx: ScenarioContext) -> None:
+        """Lazily sync ctx.attack_orchestrator from the UnifiedOrchestrator.
+
+        After a hot-attach injection, the scenario thread creates the
+        AttackOrchestrator and stores it on the UnifiedOrchestrator.
+        This helper pulls the reference into ScenarioContext so that
+        send_attack_command() and get_attack_state() work.
+        """
+        if ctx.attack_orchestrator is None and ctx.orchestrator is not None:
+            orch_ref = getattr(ctx.orchestrator, "_attack_orchestrator", None)
+            if orch_ref is not None:
+                ctx.attack_orchestrator = orch_ref
+
     def send_attack_command(self, scenario_id: str, command: dict) -> bool:
         """Send a runtime command to the attack orchestrator.
 
@@ -778,7 +830,10 @@ class OrchestratorPool:
         """
         with self._lock:
             ctx = self._scenarios.get(scenario_id)
-            if not ctx or not ctx.attack_orchestrator:
+            if not ctx:
+                return False
+            self._sync_attack_orchestrator(ctx)
+            if not ctx.attack_orchestrator:
                 return False
             ctx.attack_orchestrator.set_pending_command(command)
             logger.info(f"Sent attack command '{command.get('type')}' to scenario {scenario_id}")
@@ -795,9 +850,59 @@ class OrchestratorPool:
         """
         with self._lock:
             ctx = self._scenarios.get(scenario_id)
-            if ctx and ctx.attack_orchestrator:
+            if not ctx:
+                return None
+            self._sync_attack_orchestrator(ctx)
+            if ctx.attack_orchestrator:
                 return ctx.attack_orchestrator.get_state_snapshot()
             return None
+
+    def inject_attack(self, scenario_id: str, attack_config: dict) -> bool:
+        """Hot-attach an attack playbook to a running scenario.
+
+        Thread-safe: sets a pending injection on the UnifiedOrchestrator
+        via atomic swap.  The scenario thread picks it up on the next
+        event-loop iteration and creates the AttackOrchestrator.
+
+        Args:
+            scenario_id: Target scenario
+            attack_config: Dict with ``playbook_id`` and ``config``
+
+        Returns:
+            True if injection was queued
+        """
+        with self._lock:
+            ctx = self._scenarios.get(scenario_id)
+            if not ctx:
+                logger.warning(f"inject_attack: scenario {scenario_id} not found")
+                return False
+            self._sync_attack_orchestrator(ctx)
+            if ctx.attack_orchestrator is not None:
+                logger.warning(
+                    f"inject_attack: scenario {scenario_id} already has "
+                    f"an attack orchestrator"
+                )
+                return False
+            if not ctx.orchestrator:
+                logger.warning(
+                    f"inject_attack: scenario {scenario_id} has no orchestrator"
+                )
+                return False
+
+            # Collect device list from the scenario definition
+            devices = ctx.definition.get("devices", {})
+            device_list = (
+                list(devices.values()) if isinstance(devices, dict) else list(devices)
+            )
+            attack_config["devices"] = device_list
+
+            # Atomic swap — scenario thread picks this up
+            ctx.orchestrator.set_pending_attack_injection(attack_config)
+            logger.info(
+                f"Attack injection queued for scenario {scenario_id} "
+                f"(playbook={attack_config.get('playbook_id')})"
+            )
+            return True
 
     def _notify_status_change(self, ctx: ScenarioContext) -> None:
         """Notify callback of status change."""

@@ -20,6 +20,7 @@ import {
   LoadingOutlined,
   ClockCircleOutlined,
   RocketOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import type { UnifiedDeployment } from '../../types/docker';
 import { formatElapsedTime } from '../../utils/dateUtils';
@@ -154,6 +155,17 @@ const DeploymentCard: React.FC<{
             {isPerpetual && (
               <Tag color="purple" style={{ margin: 0 }}>
                 Perpetual
+              </Tag>
+            )}
+            {deployment.attack && (
+              <Tag
+                color={deployment.attack.is_active ? 'red' : 'orange'}
+                icon={<ThunderboltOutlined />}
+                style={{ margin: 0 }}
+              >
+                {deployment.attack.is_active
+                  ? deployment.attack.current_stage_name || 'Attack Active'
+                  : 'Attack Configured'}
               </Tag>
             )}
           </div>

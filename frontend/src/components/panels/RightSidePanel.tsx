@@ -1,15 +1,18 @@
 /**
- * Right Side Panel - AI Assistant, Properties, and Deploy tabs
+ * Right Side Panel - AI Assistant, Properties, Deploy, and Attack tabs.
+ * Uses icon-only tabs with tooltips and status indicator dots.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Tabs, Typography, Badge, Input, Button, Space, Divider } from 'antd';
-import { ControlOutlined, RobotOutlined, CloudUploadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Tabs, Tooltip, Typography, Badge, Input, Button, Divider } from 'antd';
+import { ControlOutlined, RobotOutlined, CloudUploadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { TEXT_BODY, TEXT_MUTED, BG_CARD, BG_PANEL, BG_CODE, BORDER_DEFAULT } from '../../constants/theme';
 import { PanelContainer, EmptyState } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
+import { useDeploymentsStore } from '../../stores/deploymentsStore';
+import { useAttackStore } from '../../stores/attackStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
 import ChatInterface from '../ai/ChatInterface';
@@ -43,6 +46,33 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const scenarioDescription = useScenarioStore((state) => state.description);
   const setMetadata = useScenarioStore((state) => state.setMetadata);
 
+  // Deployment state
+  const deployments = useDeploymentsStore((state) => state.deployments);
+  const fetchDeployments = useDeploymentsStore((state) => state.fetchDeployments);
+
+  const activeDeployment = useMemo(
+    () => deployments.find(
+      (d) => d.scenario_id === scenarioId && d.status === 'running',
+    ),
+    [deployments, scenarioId],
+  );
+  const isDeployed = !!activeDeployment;
+
+  // Attack state from deployment (not global store)
+  const deploymentAttackState = activeDeployment?.attack ?? null;
+  const selectedPlaybook = useAttackStore((s) => s.selectedPlaybook);
+  const injectionStatusMap = useAttackStore((s) => s.injectionStatus);
+  const scenarioInjectionStatus = scenarioId ? (injectionStatusMap[scenarioId] ?? 'idle') : 'idle';
+  const hasActiveAttack = deploymentAttackState?.is_active === true;
+  const hasConfiguredPlaybook = deploymentAttackState?.playbook_name !== null && !hasActiveAttack;
+
+  // Ensure deployments are loaded
+  useEffect(() => {
+    if (scenarioId) {
+      fetchDeployments({ scenario_id: scenarioId });
+    }
+  }, [scenarioId, fetchDeployments]);
+
   // Auto-switch to Properties tab when a device or flow is selected
   const prevContextType = useRef(activePropertyContext.type);
   useEffect(() => {
@@ -57,7 +87,14 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     prevContextType.current = activePropertyContext.type;
   }, [activePropertyContext.type, activePropertyContext.ids]);
 
-  // Handle tab change - open AI session when switching to AI tab
+  // Auto-switch to Attack tab when injection is confirmed
+  useEffect(() => {
+    if (scenarioInjectionStatus === 'confirmed') {
+      setActiveTab('attack');
+    }
+  }, [scenarioInjectionStatus]);
+
+  // Handle tab change
   const handleTabChange = (activeKey: string) => {
     setActiveTab(activeKey);
     if (activeKey === 'ai' && !isAIOpen && scenarioId) {
@@ -65,7 +102,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     }
   };
 
-  // Handle description save from modal
   const handleSaveDescription = async (description: string) => {
     setMetadata({ description });
   };
@@ -150,7 +186,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         height: '100%',
       }}
     >
-      {/* Chat messages - scrollable area */}
       <div
         style={{
           flex: 1,
@@ -161,8 +196,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
       >
         <ChatInterface />
       </div>
-
-      {/* Input area - fixed at bottom */}
       <div
         style={{
           padding: '12px',
@@ -180,46 +213,80 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   );
 
   const attackContent = (
-    <AttackPanel scenarioId={scenarioId} />
+    <AttackPanel
+      scenarioId={scenarioId}
+      deploymentId={activeDeployment?.id}
+      isDeployed={isDeployed}
+      deploymentAgentName={activeDeployment?.agent_name ?? undefined}
+      deploymentStatus={activeDeployment?.status}
+      attackState={deploymentAttackState}
+    />
+  );
+
+  /** Icon-only tab label with optional status dot */
+  const tabIcon = (
+    icon: React.ReactNode,
+    tooltip: string,
+    dotColor?: string,
+    pulse?: boolean,
+    badgeCount?: number,
+  ) => (
+    <Tooltip title={tooltip} placement="bottom">
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+        {icon}
+        {dotColor && (
+          <span
+            className={pulse ? (dotColor === '#ff4d4f' ? 'status-dot-pulse-red' : 'status-dot-pulse-green') : undefined}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: dotColor,
+              display: 'inline-block',
+            }}
+          />
+        )}
+        {badgeCount != null && badgeCount > 0 && (
+          <Badge count={badgeCount} size="small" style={{ fontSize: 8 }} />
+        )}
+      </span>
+    </Tooltip>
   );
 
   const items = [
     {
       key: 'ai',
-      label: (
-        <span style={{ color: isConnected ? '#52c41a' : undefined }}>
-          <RobotOutlined /> AI Assistant
-          {pendingActions.length > 0 && (
-            <Badge dot style={{ marginLeft: 4 }} />
-          )}
-        </span>
+      label: tabIcon(
+        <RobotOutlined />,
+        'AI Assistant',
+        isConnected ? '#52c41a' : undefined,
+        false,
+        pendingActions.length > 0 ? pendingActions.length : undefined,
       ),
       children: aiContent,
     },
     {
       key: 'properties',
-      label: (
-        <span>
-          <ControlOutlined /> Properties
-        </span>
-      ),
+      label: tabIcon(<ControlOutlined />, 'Properties'),
       children: propertiesContent,
     },
     {
       key: 'deploy',
-      label: (
-        <span>
-          <CloudUploadOutlined /> Deploy
-        </span>
+      label: tabIcon(
+        <CloudUploadOutlined />,
+        'Deploy',
+        isDeployed ? '#52c41a' : undefined,
+        isDeployed,
       ),
       children: deployContent,
     },
     {
       key: 'attack',
-      label: (
-        <span>
-          <ThunderboltOutlined /> Attack
-        </span>
+      label: tabIcon(
+        <ThunderboltOutlined />,
+        'Attack',
+        hasActiveAttack ? '#ff4d4f' : hasConfiguredPlaybook ? '#fa8c16' : undefined,
+        hasActiveAttack,
       ),
       children: attackContent,
     },
@@ -245,7 +312,7 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           style={{ height: '100%' }}
           tabBarStyle={{
             margin: 0,
-            padding: '0 12px',
+            padding: '0 8px',
             background: BG_PANEL,
             borderBottom: `1px solid ${BORDER_DEFAULT}`,
           }}
@@ -260,24 +327,54 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           .right-side-panel-tabs .ant-tabs-content {
             height: 100%;
           }
-          .right-side-panel-tabs .ant-tabs-tabpane {
+          .right-side-panel-tabs .ant-tabs-tabpane-active {
             height: 100%;
-            display: flex;
+            display: flex !important;
             flex-direction: column;
           }
           .right-side-panel-tabs .ant-tabs-nav {
             margin-bottom: 0;
           }
+          .right-side-panel-tabs .ant-tabs-nav-list {
+            justify-content: space-around;
+            width: 100%;
+          }
           .right-side-panel-tabs .ant-tabs-tab {
             color: #8aa4bc;
+            padding: 10px 0;
+            margin: 0 !important;
+            flex: 1;
+            justify-content: center;
           }
           .right-side-panel-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
             color: #5a9fd4;
           }
+          .right-side-panel-tabs .ant-tabs-ink-bar {
+            height: 2px;
+            background: #5a9fd4;
+          }
+
+          @keyframes pulse-green-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+          @keyframes pulse-red-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+          @keyframes pulse-green {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(82, 196, 106, 0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(82, 196, 106, 0); }
+          }
+          .status-dot-pulse-green {
+            animation: pulse-green-dot 2s ease-in-out infinite;
+          }
+          .status-dot-pulse-red {
+            animation: pulse-red-dot 1.5s ease-in-out infinite;
+          }
         `}</style>
       </div>
 
-      {/* Generate Description Modal */}
       {scenarioId && (
         <GenerateDescriptionModal
           open={generateDescModalOpen}

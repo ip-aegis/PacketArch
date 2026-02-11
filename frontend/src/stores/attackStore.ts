@@ -12,6 +12,8 @@ import type {
   AttackState,
 } from '../types/attackPlaybook';
 
+type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
+
 interface AttackStore {
   // Playbook library
   playbooks: AttackPlaybookSummary[];
@@ -24,8 +26,9 @@ interface AttackStore {
   // Configuration
   playbookConfig: AttackPlaybookConfig | null;
 
-  // Runtime state (live from dashboard polling)
-  attackState: AttackState | null;
+  // Injection tracking (per-scenario, keyed by scenarioId)
+  injectionStatus: Record<string, InjectionStatus>;
+  injectionError: Record<string, string | null>;
 
   // Actions
   fetchPlaybooks: () => Promise<void>;
@@ -34,14 +37,26 @@ interface AttackStore {
   clearSelection: () => void;
   setConfig: (config: AttackPlaybookConfig) => void;
 
+  // Injection with polling confirmation (now per-scenario)
+  injectAndPoll: (scenarioId: string) => Promise<void>;
+  resetInjection: (scenarioId: string) => void;
+
   // Runtime controls
   startAttack: (scenarioId: string) => Promise<void>;
   stopAttack: (scenarioId: string) => Promise<void>;
   advanceStage: (scenarioId: string) => Promise<void>;
-  togglePause: (scenarioId: string) => Promise<void>;
+  togglePause: (scenarioId: string, isPaused: boolean) => Promise<void>;
+}
 
-  // State updates (called from dashboard polling)
-  setAttackState: (state: AttackState | null) => void;
+// Internal timer refs per scenario (not in store state to avoid serialization issues)
+const _injectionPollTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
+
+function stopInjectionPolling(scenarioId: string) {
+  const timer = _injectionPollTimers.get(scenarioId);
+  if (timer) {
+    clearInterval(timer);
+    _injectionPollTimers.delete(scenarioId);
+  }
 }
 
 export const useAttackStore = create<AttackStore>((set, get) => ({
@@ -50,7 +65,8 @@ export const useAttackStore = create<AttackStore>((set, get) => ({
   selectedPlaybook: null,
   isLoadingPlaybook: false,
   playbookConfig: null,
-  attackState: null,
+  injectionStatus: {},
+  injectionError: {},
 
   fetchPlaybooks: async () => {
     set({ isLoadingPlaybooks: true });
@@ -97,11 +113,99 @@ export const useAttackStore = create<AttackStore>((set, get) => ({
   },
 
   clearSelection: () => {
-    set({ selectedPlaybook: null, playbookConfig: null });
+    set({
+      selectedPlaybook: null,
+      playbookConfig: null,
+    });
+    // Don't clear injection status - that's per-deployment and persists
   },
 
   setConfig: (config: AttackPlaybookConfig) => {
     set({ playbookConfig: config });
+  },
+
+  injectAndPoll: async (scenarioId: string) => {
+    const config = get().playbookConfig;
+    if (!config) return;
+
+    stopInjectionPolling(scenarioId);
+    set((state) => ({
+      injectionStatus: { ...state.injectionStatus, [scenarioId]: 'injecting' },
+      injectionError: { ...state.injectionError, [scenarioId]: null },
+    }));
+
+    // Step 1: Send the inject request
+    try {
+      await attacksApi.injectAttack(scenarioId, config.playbook_id, {
+        auto_advance: config.auto_advance,
+        start_mode: config.start_mode,
+        intensity: config.intensity,
+      });
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      const errorMsg = typeof detail === 'string' ? detail : 'Injection failed';
+      set((state) => ({
+        injectionStatus: { ...state.injectionStatus, [scenarioId]: 'failed' },
+        injectionError: { ...state.injectionError, [scenarioId]: errorMsg },
+      }));
+      return;
+    }
+
+    // Step 2: POST succeeded — poll for agent confirmation
+    set((state) => ({
+      injectionStatus: { ...state.injectionStatus, [scenarioId]: 'polling' },
+    }));
+    const startedAt = Date.now();
+    const TIMEOUT_MS = 15_000;
+    const POLL_MS = 1_000;
+
+    const timer = setInterval(async () => {
+      // Timeout check
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        stopInjectionPolling(scenarioId);
+        set((state) => ({
+          injectionStatus: { ...state.injectionStatus, [scenarioId]: 'failed' },
+          injectionError: {
+            ...state.injectionError,
+            [scenarioId]: 'Injection timed out — agent may not be responding.',
+          },
+        }));
+        return;
+      }
+
+      try {
+        const result = await attacksApi.getInjectionStatus(scenarioId);
+
+        if (result.status === 'confirmed') {
+          stopInjectionPolling(scenarioId);
+          set((state) => ({
+            injectionStatus: { ...state.injectionStatus, [scenarioId]: 'confirmed' },
+          }));
+        } else if (result.status === 'failed') {
+          stopInjectionPolling(scenarioId);
+          set((state) => ({
+            injectionStatus: { ...state.injectionStatus, [scenarioId]: 'failed' },
+            injectionError: {
+              ...state.injectionError,
+              [scenarioId]: result.message || 'Agent rejected injection',
+            },
+          }));
+        }
+        // 'pending' → keep polling
+      } catch {
+        // Network error during poll — keep trying
+      }
+    }, POLL_MS);
+
+    _injectionPollTimers.set(scenarioId, timer);
+  },
+
+  resetInjection: (scenarioId: string) => {
+    stopInjectionPolling(scenarioId);
+    set((state) => ({
+      injectionStatus: { ...state.injectionStatus, [scenarioId]: 'idle' },
+      injectionError: { ...state.injectionError, [scenarioId]: null },
+    }));
   },
 
   startAttack: async (scenarioId: string) => {
@@ -130,17 +234,11 @@ export const useAttackStore = create<AttackStore>((set, get) => ({
     }
   },
 
-  togglePause: async (scenarioId: string) => {
-    const state = get().attackState;
-    if (!state) return;
+  togglePause: async (scenarioId: string, isPaused: boolean) => {
     try {
-      await attacksApi.pauseAttack(scenarioId, !state.is_paused);
+      await attacksApi.pauseAttack(scenarioId, !isPaused);
     } catch (err) {
       console.error('Failed to toggle pause:', err);
     }
-  },
-
-  setAttackState: (state) => {
-    set({ attackState: state });
   },
 }));

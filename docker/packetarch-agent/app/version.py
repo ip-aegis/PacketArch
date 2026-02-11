@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.24.0"
+VERSION = "1.25.0"
 
 # Version history:
+# 1.25.0 - Synchronized attack lifecycle with deployment - STOP_SCENARIO now auto-stops attack orchestrator, prevents orphaned attacks
 # 1.24.0 - Add 15 Snort/Suricata rule-triggering attack actions for IDS validation (SNORT_VALIDATION playbook, ICS/OT, C2, exfiltration signatures)
 # 1.23.2 - Fix attack stage stuck at 0s: wall-time stage advancement on every event loop iteration (prevents virtual-time lag), fix injection config mapping
 # 1.23.1 - Fix attack state in event-driven STATUS path, trigger immediate status after injection for faster confirmation
