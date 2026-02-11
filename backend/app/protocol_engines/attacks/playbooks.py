@@ -1372,6 +1372,344 @@ NETWORK_RECON = AttackPlaybook(
 
 
 # ---------------------------------------------------------------------------
+# 7. SNORT_VALIDATION -- IDS/IPS Rule Validation Suite
+# ---------------------------------------------------------------------------
+
+SNORT_VALIDATION = AttackPlaybook(
+    playbook_id="snort_validation",
+    name="Snort/Suricata IDS Validation Suite",
+    description=(
+        "Comprehensive IDS testing playbook that generates traffic specifically "
+        "designed to trigger Snort and Suricata detection rules. Covers 15 "
+        "signatures across ICS/OT protocols (Modicon M580 UMAS), C2 beaconing "
+        "(Emotet, Trickbot, TRITON), data exfiltration (DNS tunneling), anomaly "
+        "detection, and polyglot malware patterns. Ideal for validating IDS "
+        "deployments, tuning rule sets, and demonstrating detection capabilities."
+    ),
+    mitre_software_id="",  # Multiple malware families covered
+    severity="low",  # Testing playbook, not simulating actual attack
+    category="ids_testing",
+    required_protocols=["modbus_tcp", "http", "dns"],
+    industry_verticals=["all"],
+    reference_url="https://github.com/ip-aegis/PacketArch/blob/master/docs/SNORT_VALIDATION.md",
+    stages=[
+        # Stage 1: Reconnaissance
+        KillChainStage(
+            stage_id="reconnaissance",
+            name="Reconnaissance & Enumeration",
+            description="Port scanning and service discovery to establish baseline traffic.",
+            duration_seconds=120,
+            color="#91d5ff",  # Light blue
+            mitre_tactics=["TA0043"],  # Reconnaissance
+            expected_cv_alerts=["Port scan detected from external source"],
+            actions=[
+                AttackAction(
+                    action_id="snort_port_scan",
+                    name="OT Port Scanning",
+                    action_type="port_scan",
+                    description="Scan common OT ports (21, 53, 80, 443, 502, 102, 44818, 47808, 161).",
+                    parameters={"scan_ot_ports": True, "scan_type": "syn"},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="SYN scan across OT protocol ports",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 2: ICS/OT Protocol Probing
+        KillChainStage(
+            stage_id="ics_probing",
+            name="ICS/OT Protocol Exploitation",
+            description=(
+                "Trigger ICS-specific Snort rules using Modicon M580 UMAS vulnerability "
+                "patterns (CVE-2018-7842, CVE-2019-6806, CVE-2019-6807). Generates "
+                "Modbus TCP traffic with UMAS function codes 0x30, 0x22, 0x23."
+            ),
+            duration_seconds=180,
+            color="#ffa39e",  # Light red
+            mitre_tactics=["TA0104"],  # Impair Process Control
+            expected_cv_alerts=[
+                "Modicon M580 UMAS 0x30 vulnerability (sid:5800420)",
+                "Modicon M580 UMAS READ_VARIABLES (sid:5800061)",
+                "Modicon M580 UMAS WRITE_VARIABLES (sid:5800073)",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="snort_umas_0x30",
+                    name="UMAS Function Code 0x30",
+                    action_type="modicon_umas_0x30",
+                    description="Trigger sid:5800420 with UMAS 0x30 burst (20+ packets/sec).",
+                    parameters={"interval_ms": 50, "burst_count": 25, "unit_id": 1},
+                    target_selector="plc",
+                    mitre_technique="T0869",
+                    expected_cv_detection="Modicon M580 UMAS function code 0x30 exploit attempt",
+                    delay_after_ms=2000,
+                ),
+                AttackAction(
+                    action_id="snort_umas_0x22",
+                    name="UMAS READ_VARIABLES",
+                    action_type="modicon_umas_0x22",
+                    description="Trigger sid:5800061 with unauthorized variable read pattern.",
+                    parameters={"interval_ms": 50, "burst_count": 25, "unit_id": 1},
+                    target_selector="plc",
+                    mitre_technique="T0868",
+                    expected_cv_detection="Modicon M580 UMAS READ_VARIABLES attempt",
+                    delay_after_ms=2000,
+                ),
+                AttackAction(
+                    action_id="snort_umas_0x23",
+                    name="UMAS WRITE_VARIABLES",
+                    action_type="modicon_umas_0x23",
+                    description="Trigger sid:5800073 with malicious write to safety controller.",
+                    parameters={"interval_ms": 100, "repeat_count": 5, "unit_id": 1},
+                    target_selector="plc",
+                    mitre_technique="T0836",
+                    expected_cv_detection="Modicon M580 UMAS WRITE_VARIABLES exploit",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 3: C2 Beaconing & Exfiltration
+        KillChainStage(
+            stage_id="c2_beaconing",
+            name="C2 Beaconing & Data Exfiltration",
+            description=(
+                "Simulate malware C2 communication patterns (Emotet, TRITON) and DNS "
+                "exfiltration to trigger C2 and data theft signatures."
+            ),
+            duration_seconds=300,
+            color="#ffbb96",  # Light orange
+            mitre_tactics=["TA0011", "TA0010"],  # Command and Control, Exfiltration
+            expected_cv_alerts=[
+                "Emotet malware C2 beacon (sid:51971)",
+                "DNS exfiltration via .c0m.li (sid:27737)",
+                "TRITON DNS beacon to mooo.com (sid:50300)",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="snort_emotet",
+                    name="Emotet C2 Beacon",
+                    action_type="emotet_beacon",
+                    description="Trigger sid:51971 with HTTP POST to /balloon/ringin/chunk/.",
+                    parameters={
+                        "interval_ms": 60000,
+                        "beacon_count": 5,
+                        "c2_server": "emotet-c2.malicious.com",
+                        "dst_port": 443,
+                    },
+                    target_selector="ews",
+                    mitre_technique="T1071.001",
+                    expected_cv_detection="Emotet malware beaconing from engineering workstation",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="snort_dns_exfil",
+                    name="DNS Data Exfiltration",
+                    action_type="dns_exfil",
+                    description="Trigger sid:27737 with DNS queries to .c0m.li typo domain.",
+                    parameters={"interval_ms": 30000, "query_count": 10},
+                    target_selector="any",
+                    mitre_technique="T1048.003",
+                    expected_cv_detection="DNS exfiltration attempt via suspicious TLD",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="snort_triton_dns",
+                    name="TRITON DNS Beacon",
+                    action_type="triton_dns_beacon",
+                    description="Trigger sid:50300 with TRITON-specific DNS pattern (udp-*.mooo.com).",
+                    parameters={"interval_ms": 300000, "beacon_count": 2, "base_domain": "mooo.com"},
+                    target_selector="ews",
+                    mitre_technique="T1071.004",
+                    expected_cv_detection="TRITON malware DNS C2 beacon detected",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 4: Advanced C2 Techniques
+        KillChainStage(
+            stage_id="advanced_c2",
+            name="Advanced C2 Patterns",
+            description=(
+                "Multi-protocol C2 communication using Trickbot, OlympicDestroyer, "
+                "and vsFTPd backdoor techniques to trigger advanced malware signatures."
+            ),
+            duration_seconds=300,
+            color="#ffccc7",  # Lighter red
+            mitre_tactics=["TA0011"],  # Command and Control
+            expected_cv_alerts=[
+                "Trickbot malware C2 (sid:54201)",
+                "OlympicDestroyer C2 with header anomalies (sid:48435)",
+                "vsFTPd backdoor exploitation (sid:19415)",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="snort_trickbot",
+                    name="Trickbot Command Retrieval",
+                    action_type="trickbot_command",
+                    description="Trigger sid:54201 with HTTP GET to /images/imgpaper.png and WinHTTP UA.",
+                    parameters={
+                        "interval_ms": 300000,
+                        "command_count": 2,
+                        "c2_server": "trickbot-c2.evil.com",
+                        "dst_port": 443,
+                    },
+                    target_selector="ews",
+                    mitre_technique="T1071.001",
+                    expected_cv_detection="Trickbot C2 command retrieval detected",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="snort_olympic",
+                    name="OlympicDestroyer C2 Check-in",
+                    action_type="olympic_destroyer_c2",
+                    description="Trigger sid:48435 with HTTP POST missing User-Agent/Referer headers.",
+                    parameters={
+                        "interval_ms": 180000,
+                        "checkin_count": 2,
+                        "c2_server": "olympic-c2.hostile.net",
+                    },
+                    target_selector="ews",
+                    mitre_technique="T1071.001",
+                    expected_cv_detection="OlympicDestroyer C2 with anomalous headers",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="snort_vsftpd",
+                    name="vsFTPd Backdoor Exploit",
+                    action_type="vsftpd_backdoor",
+                    description="Trigger sid:19415 with FTP USER command containing :) smiley.",
+                    parameters={"target_port": 21, "username": "backdoor:)", "attempt_count": 3},
+                    target_selector="any",
+                    mitre_technique="T1190",
+                    expected_cv_detection="vsFTPd 2.3.4 backdoor exploitation attempt",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 5: Data Exfiltration & Keylogging
+        KillChainStage(
+            stage_id="data_exfiltration",
+            name="Data Exfiltration & Keylogging",
+            description=(
+                "Credential theft via DNS tunneling (UDPOS) and keylogger data "
+                "exfiltration (HawkEye) to trigger data theft signatures."
+            ),
+            duration_seconds=240,
+            color="#fff1b8",  # Yellow
+            mitre_tactics=["TA0010", "TA0009"],  # Exfiltration, Collection
+            expected_cv_alerts=[
+                "UDPOS credential exfiltration (sid:45964)",
+                "HawkEye keylogger data theft (sid:49778)",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="snort_udpos",
+                    name="UDPOS DNS Credential Theft",
+                    action_type="udpos_credential_exfil",
+                    description="Trigger sid:45964 with DNS queries containing \\x03bin pattern.",
+                    parameters={"interval_ms": 30000, "exfil_count": 8},
+                    target_selector="any",
+                    mitre_technique="T1048.003",
+                    expected_cv_detection="UDPOS credential exfiltration via DNS",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="snort_hawkeye",
+                    name="HawkEye Keylogger Exfil",
+                    action_type="hawkeye_keylogger",
+                    description="Trigger sid:49778 with file data containing HawkEye signature.",
+                    parameters={
+                        "interval_ms": 120000,
+                        "exfil_count": 2,
+                        "exfil_method": "smtp",
+                        "smtp_server": "mail.exfil.com",
+                    },
+                    target_selector="ews",
+                    mitre_technique="T1056.001",
+                    expected_cv_detection="HawkEye Keylogger data exfiltration via SMTP",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 6: Anomaly Detection & Binary Signatures
+        KillChainStage(
+            stage_id="anomaly_detection",
+            name="Anomaly Detection & Binary Patterns",
+            description=(
+                "Advanced malware patterns including APT keepalives (Night Dragon), "
+                "temporal anomalies (Angler EK), spyware authentication (iSpyoo), "
+                "and PE file markers (Dridex) to trigger anomaly-based and binary signatures."
+            ),
+            duration_seconds=360,
+            color="#d3adf7",  # Purple
+            mitre_tactics=["TA0011", "TA0043"],  # C&C, Reconnaissance
+            expected_cv_alerts=[
+                "Night Dragon APT keepalive (sid:18459)",
+                "Angler Exploit Kit temporal anomaly (sid:32390)",
+                "iSpyoo spyware authentication (sid:50438)",
+                "Dridex banking trojan file marker (sid:45932)",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="snort_night_dragon",
+                    name="Night Dragon APT Keepalive",
+                    action_type="night_dragon_keepalive",
+                    description="Trigger sid:18459 with binary pattern \\xFF\\x00\\x00\\x00\\x07.",
+                    parameters={"interval_ms": 60000, "keepalive_count": 6, "target_port": 443},
+                    target_selector="ews",
+                    mitre_technique="T1071.001",
+                    expected_cv_detection="Night Dragon backdoor keepalive packets",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="snort_angler_ek",
+                    name="Angler EK Landing Page",
+                    action_type="angler_ek_landing",
+                    description="Trigger sid:32390 with HTTP response containing future date (year 2099).",
+                    parameters={"serve_count": 3, "interval_ms": 60000},
+                    target_selector="any",
+                    mitre_technique="T1189",
+                    expected_cv_detection="Angler Exploit Kit temporal anomaly detected",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="snort_ispyoo",
+                    name="iSpyoo Spyware Authentication",
+                    action_type="ispyoo_auth",
+                    description="Trigger sid:50438 with POST /authenticate.aspx and form fields.",
+                    parameters={
+                        "interval_ms": 90000,
+                        "attempt_count": 4,
+                        "target_path": "/authenticate.aspx",
+                    },
+                    target_selector="any",
+                    mitre_technique="T1437.001",
+                    expected_cv_detection="iSpyoo Android spyware authentication attempt",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="snort_dridex",
+                    name="Dridex PE File Delivery",
+                    action_type="dridex_file_marker",
+                    description="Trigger sid:45932 with PE file containing .coda and .crt sections.",
+                    parameters={
+                        "interval_ms": 180000,
+                        "delivery_count": 2,
+                        "delivery_method": "http_download",
+                    },
+                    target_selector="any",
+                    mitre_technique="T1566.001",
+                    expected_cv_detection="Dridex banking trojan PE file marker",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -1382,6 +1720,7 @@ _ALL_PLAYBOOKS = [
     HAVEX_LIKE,
     INSIDER_THREAT,
     NETWORK_RECON,
+    SNORT_VALIDATION,
 ]
 
 PLAYBOOK_REGISTRY: dict[str, AttackPlaybook] = {p.playbook_id: p for p in _ALL_PLAYBOOKS}

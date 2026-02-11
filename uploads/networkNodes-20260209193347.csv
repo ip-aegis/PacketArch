@@ -1,0 +1,154 @@
+Device Name;Device Custom Name;Device Type;Component Name;Component Custom Name;Group;First Activity;Last Activity;IP;MAC;Risk Score;External Communication;Tags;Activities;Vuln;Var;VLAN ID;Vendor;OS;Model;Project;Hardware Version;Firmware Version;Serial Number;Sensors;License Required
+;;;Siemens ef:7c:be;;;2026-02-09 19:24:50.541 +0000 UTC;2026-02-09 19:26:13.336 +0000 UTC;;00:1b:1b:ef:7c:be;;No;IO Module;11;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Siemens 6d:2c:1e;;;2026-02-09 19:24:51.465 +0000 UTC;2026-02-09 19:26:13.336 +0000 UTC;;00:1b:1b:6d:2c:1e;;No;IO Module;11;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;1756-L83ES/B GUARDLOGIX;;;2026-02-09 19:24:51.862 +0000 UTC;2026-02-09 19:26:13.323 +0000 UTC;10.1.2.12;5c:88:16:14:10:77;;No;OPC server/Controller/Rockwell Automation;8;8;0;;Rockwell Automation;;;;;35.11;c6d999a5;CVTrafficGen01;No
+;;;1756-L84E/B LOGIX5584E;;;2026-02-09 19:24:52.177 +0000 UTC;2026-02-09 19:26:13.323 +0000 UTC;10.1.2.11;5c:88:16:a9:b2:7a;;No;OPC server/Controller/Rockwell Automation/SNMP Agent;13;19;0;;Rockwell Automation/Allen-Bradley;;1756-L84E/B;;;32.011;3ac43ad8;CVTrafficGen01;No
+;;;Siemens da:af:e;;;2026-02-09 19:25:12.754 +0000 UTC;2026-02-09 19:26:13.3 +0000 UTC;;00:1b:1b:da:af:0e;;No;IO Module;3;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;5094-AEN2TR FLEX 5000;;;2026-02-09 19:24:55.641 +0000 UTC;2026-02-09 19:26:13.286 +0000 UTC;10.1.2.21;08:61:95:64:bb:96;;No;Rockwell Automation;4;0;0;;Rockwell Automation;;;;;3.11;9204ed1e;CVTrafficGen01;No
+;;;BMEP586040;;;2026-02-09 19:24:53.049 +0000 UTC;2026-02-09 19:26:13.275 +0000 UTC;10.1.3.10;ec:fa:aa:bd:ac:73;;No;Engineering Station/OPC server/Controller/SNMP Agent;12;22;0;;Schneider Electric;;BMEP586040;;;3.30;37716407;CVTrafficGen01;No
+;;;10.1.3.16;;;2026-02-09 19:24:58.902 +0000 UTC;2026-02-09 19:26:13.275 +0000 UTC;10.1.3.16;ec:fa:aa:2e:fa:5a;;No;Controller;3;1;0;;Schneider Electric;;ATV630D15N4;;;V1.7IE61;;CVTrafficGen01;No
+;;;1756-L85E LOGIX5580;;;2026-02-09 19:24:52.868 +0000 UTC;2026-02-09 19:26:13.231 +0000 UTC;10.1.2.10;e4:90:69:f9:c5:92;;No;OPC server/Controller/Rockwell Automation/SNMP Agent;15;8;0;;Rockwell Automation/Allen-Bradley;;1756-L85E;;;35.11;2223e914;CVTrafficGen01;No
+;;;20F-D052N103 POWERFLEX 753;;;2026-02-09 19:24:55.275 +0000 UTC;2026-02-09 19:26:13.231 +0000 UTC;10.1.2.20;08:61:95:bc:d6:c2;;No;Rockwell Automation;3;0;0;;Rockwell Automation;;;;;20.3;fdfd0e82;CVTrafficGen01;No
+;;;2711P-T15C22D9P PANELVIEW PLUS 7;;;2026-02-09 19:24:57.666 +0000 UTC;2026-02-09 19:26:13.205 +0000 UTC;10.1.2.13;00:00:bc:89:93:95;;No;Operator Panel/Rockwell Automation;3;0;0;;Rockwell Automation;;;;;14.0;d612a31a;CVTrafficGen01;No
+;;;1734-AENT POINT I/O;;;2026-02-09 19:24:55.955 +0000 UTC;2026-02-09 19:26:13.178 +0000 UTC;10.1.2.23;00:00:bc:85:07:58;;No;Rockwell Automation;4;0;0;;Rockwell Automation;;;;;7.3;802979d6;CVTrafficGen01;No
+;;;5094-AEN2TR FLEX 5000;;;2026-02-09 19:24:55.846 +0000 UTC;2026-02-09 19:26:13.129 +0000 UTC;10.1.2.22;08:61:95:29:d0:37;;No;Rockwell Automation;4;0;0;;Rockwell Automation;;;;;3.11;9204ed1e;CVTrafficGen01;No
+;;;KR C4 Weld_Robot_1_Controller;;;2026-02-09 19:24:53.139 +0000 UTC;2026-02-09 19:26:13.064 +0000 UTC;10.1.2.15;00:1a:28:c6:73:7c;;No;;4;0;0;;ASWT Co., LTD. Taiwan Branch H.K.;;;;;8.6;eb7d0ce0;CVTrafficGen01;No
+;;;Siemens 89:60:32;;;2026-02-09 19:25:33.592 +0000 UTC;2026-02-09 19:26:13.029 +0000 UTC;;00:1b:1b:89:60:32;;No;IO Module;3;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Siemens 39:f5:83;;;2026-02-09 19:24:50.439 +0000 UTC;2026-02-09 19:26:13.029 +0000 UTC;;00:0e:8c:39:f5:83;;No;IO Module;12;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;Siemens 3c:17:b3;;;2026-02-09 19:25:17.793 +0000 UTC;2026-02-09 19:26:12.997 +0000 UTC;;00:0e:8c:3c:17:b3;;No;IO Module;3;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;2198-D012-ERS3 KINETIX 5500;;;2026-02-09 19:24:54.056 +0000 UTC;2026-02-09 19:26:12.969 +0000 UTC;10.1.2.17;00:1d:9c:e3:bb:ac;;No;Rockwell Automation;4;1;0;;Rockwell Automation;;;;;12.1;b2b24143;CVTrafficGen01;No
+;;;Siemens 95:d4:e8;;;2026-02-09 19:24:56.419 +0000 UTC;2026-02-09 19:26:12.866 +0000 UTC;;00:1c:06:95:d4:e8;;No;IO Module;3;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;Siemens 10:a0:42;;;2026-02-09 19:24:58.336 +0000 UTC;2026-02-09 19:26:12.817 +0000 UTC;;00:1b:1b:10:a0:42;;No;IO Module;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;2711P-T10C22D9P PANELVIEW PLUS 7;;;2026-02-09 19:24:57.998 +0000 UTC;2026-02-09 19:26:12.642 +0000 UTC;10.1.2.14;00:00:bc:29:d0:56;;No;Operator Panel/Rockwell Automation;3;0;0;;Rockwell Automation;;;;;13.0;c70a8381;CVTrafficGen01;No
+;;;25B-D030N104 POWERFLEX 525;;;2026-02-09 19:24:54.757 +0000 UTC;2026-02-09 19:26:12.204 +0000 UTC;10.1.2.18;00:1d:9c:54:20:ee;;No;Rockwell Automation;3;1;0;;Rockwell Automation;;;;;7.1;12eba866;CVTrafficGen01;No
+;;;10.1.4.11;;;2026-02-09 19:24:53.254 +0000 UTC;2026-02-09 19:26:12.14 +0000 UTC;10.1.4.11;00:24:cb:87:6a:f1;;No;Engineering Station/OPC server/Controller/SNMP Agent;12;0;0;;ABB;;PM583-ETH;;;V3.0.4;;CVTrafficGen01;No
+;;;10.1.4.19;;;2026-02-09 19:24:59.773 +0000 UTC;2026-02-09 19:26:12.14 +0000 UTC;10.1.4.19;00:d0:c9:2e:37:97;;No;Controller;3;0;0;;Advantech Co., Ltd.;;ADAM-6052;;;V2.05;;CVTrafficGen01;No
+;;;10.1.1.10;;;2026-02-09 19:24:51.612 +0000 UTC;2026-02-09 19:26:10.673 +0000 UTC;10.1.1.10;00:0e:8c:39:f5:83;;No;OPC server/Controller/Siemens/SNMP Agent;18;0;0;;Siemens AG;;6ES7 517-3AP00-0AB0;;;V3.0.3;;CVTrafficGen01;No
+;;;10.1.1.13;;;2026-02-09 19:24:51.279 +0000 UTC;2026-02-09 19:26:10.673 +0000 UTC;10.1.1.13;00:1b:1b:28:36:75;;No;Engineering Station/Net Management Server;69;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.0.15;;;2026-02-09 19:24:53.532 +0000 UTC;2026-02-09 19:26:10.357 +0000 UTC;10.1.0.15;00:0e:8c:38:65:90;;No;Engineering Station;10;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;Plant_Central_SCADA;;;2026-02-09 19:24:51.862 +0000 UTC;2026-02-09 19:26:07.372 +0000 UTC;10.1.0.10;00:1b:1b:8e:88:92;;No;Cisco/Net Management Server/Controller/SNMP Agent;25;0;0;;Siemens AG;;WinCC Professional;;;V18.0;;CVTrafficGen01;No
+;;;ASSEMBLY-UPLINK-SWITCH-3F7F;;;2026-02-09 19:24:54.674 +0000 UTC;2026-02-09 19:26:07.372 +0000 UTC;10.1.2.25;00:26:98:a2:c6:97;;No;Cisco/SNMP Agent;4;0;0;;Cisco Systems, Inc;;;;;;;CVTrafficGen01;No
+;;;PM590-ETH AC500 CPU;;;2026-02-09 19:24:52.942 +0000 UTC;2026-02-09 19:26:06.236 +0000 UTC;10.1.4.10;00:24:cb:96:72:d1;;No;Engineering Station/OPC server/Controller/SNMP Agent;12;0;0;;ABB;;PM590-ETH;;;V3.1.2;864065d0;CVTrafficGen01;No
+;;;ACS880-01 INDUSTRIAL DRIVE;;;2026-02-09 19:25:04.956 +0000 UTC;2026-02-09 19:26:06.236 +0000 UTC;10.1.4.13;00:21:99:c3:86:e6;;No;Controller;3;0;0;;ABB;;ACS880-01;;;2.60;3b7cceeb;CVTrafficGen01;No
+;;;10.1.0.11;;;2026-02-09 19:24:54.973 +0000 UTC;2026-02-09 19:26:05.322 +0000 UTC;10.1.0.11;00:12:a9:d7:5c:2f;;No;Controller;10;0;0;;GE Digital;;Proficy Historian;;;8.0;;CVTrafficGen01;No
+;;;10.1.1.12;;;2026-02-09 19:24:55.451 +0000 UTC;2026-02-09 19:26:04.719 +0000 UTC;10.1.1.12;00:1b:1b:6d:2c:1e;;No;OPC server;11;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.4.16;;;2026-02-09 19:24:55.231 +0000 UTC;2026-02-09 19:26:04.515 +0000 UTC;10.1.4.16;cc:da:0c:45:2d:56;;No;Controller;3;0;0;;ABB;;ACS580-01;;;V2.76;;CVTrafficGen01;No
+;;;10.1.3.14;;;2026-02-09 19:24:56.887 +0000 UTC;2026-02-09 19:26:04.423 +0000 UTC;10.1.3.14;00:80:f4:57:b6:80;;No;Controller;3;1;0;;Schneider Electric;;ATV930D15N4;;;V3.6IE50;;CVTrafficGen01;No
+;;;10.1.1.11;;;2026-02-09 19:24:52.755 +0000 UTC;2026-02-09 19:26:04.405 +0000 UTC;10.1.1.11;00:1b:1b:ef:7c:be;;No;OPC server/Controller/Siemens/SNMP Agent;17;0;0;;Siemens AG;;6ES7 511-1AK02-0AB0;;;V3.0.1;;CVTrafficGen01;No
+;;;KEPServerEX EtherNet/IP Driver;;;2026-02-09 19:24:51.612 +0000 UTC;2026-02-09 19:26:04.405 +0000 UTC;10.1.0.12;02:00:00:db:d4:6d;;No;Locally Administered MAC/Controller/Rockwell Automation/SNMP Agent;10;0;0;;Kepware Technologies;;KEPServerEX;;;6.14;cbd45d6c;CVTrafficGen01;No
+;;;224.0.0.2;;;2026-02-09 19:25:14.112 +0000 UTC;2026-02-09 19:25:58.384 +0000 UTC;224.0.0.2;01:00:5e:00:00:02;;No;;17;0;0;;IPv4 Multicast;;;;;;;CVTrafficGen01;No
+;;;Profinet DCP Multicast 0:0:0;;;2026-02-09 19:24:13.455 +0000 UTC;2026-02-09 19:25:57.325 +0000 UTC;;01:0e:cf:00:00:00;;No;;22;0;0;;Profinet DCP Multicast;;;;;;;CVTrafficGen01;No
+;;;Siemens 8a:b2:e3;;;2026-02-09 19:25:55.656 +0000 UTC;2026-02-09 19:25:55.656 +0000 UTC;;00:0e:8c:8a:b2:e3;;No;IO Module;3;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;IDMZ-EWON-GATEWAY-D41B;;;2026-02-09 19:24:52.942 +0000 UTC;2026-02-09 19:25:54.794 +0000 UTC;10.1.0.13;00:06:71:75:79:b5;;No;Engineering Station/Ewon/Remote Access Gateway/Controller/SNMP Agent;11;0;0;;Ewon Inc.;;Flexy205;;;14.5;;CVTrafficGen01;No
+;;;Aswt c6:73:7c;;;2026-02-09 19:25:54.142 +0000 UTC;2026-02-09 19:25:54.142 +0000 UTC;;00:1a:28:c6:73:7c;;No;;1;0;0;;ASWT Co., LTD. Taiwan Branch H.K.;;;;;;;CVTrafficGen01;No
+;;;10.1.1.19;;;2026-02-09 19:24:56.027 +0000 UTC;2026-02-09 19:25:54.119 +0000 UTC;10.1.1.19;00:1c:06:95:d4:e8;;No;Controller;5;0;0;;Siemens AG;;6SL3210-1KE21-7UF1;;;V4.8;;CVTrafficGen01;No
+;;;10.1.3.11;;;2026-02-09 19:24:52.025 +0000 UTC;2026-02-09 19:25:52.396 +0000 UTC;10.1.3.11;00:00:54:c7:48:90;;No;Engineering Station/OPC server/Controller/SNMP Agent;12;5;0;;Schneider Electric;;BMXP3420302;;;V3.40;;CVTrafficGen01;No
+;;;10.1.1.23;;;2026-02-09 19:24:56.336 +0000 UTC;2026-02-09 19:25:50.219 +0000 UTC;10.1.1.23;00:0e:8c:8a:b2:e3;;No;;7;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;CNC_Operator_HMI;;;2026-02-09 19:24:50.962 +0000 UTC;2026-02-09 19:25:49.871 +0000 UTC;;00:1b:1b:28:36:75;;No;;2;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Siemens 6a:a2:cc;;;2026-02-09 19:25:48.204 +0000 UTC;2026-02-09 19:25:48.204 +0000 UTC;;00:1b:1b:6a:a2:cc;;No;IO Module;2;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.3.21;;;2026-02-09 19:25:02.582 +0000 UTC;2026-02-09 19:25:48.144 +0000 UTC;10.1.3.21;00:00:54:71:70:8a;;No;Controller;3;0;0;;Schneider Electric;;TM3DI32K;;;V2.1;;CVTrafficGen01;No
+;;;10.1.1.21;;;2026-02-09 19:24:54.042 +0000 UTC;2026-02-09 19:25:47.079 +0000 UTC;10.1.1.21;00:1b:1b:10:a0:42;;No;;7;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.1.16;;;2026-02-09 19:24:55.715 +0000 UTC;2026-02-09 19:25:46.88 +0000 UTC;10.1.1.16;00:0e:8c:3c:17:b3;;No;;5;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.1.17;;;2026-02-09 19:24:55.832 +0000 UTC;2026-02-09 19:25:46.354 +0000 UTC;10.1.1.17;00:1b:1b:89:60:32;;No;;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;IDMZ-SOUTH-FIREWALL-SWITCH-2B30;;;2026-02-09 19:24:53.781 +0000 UTC;2026-02-09 19:25:46.164 +0000 UTC;10.1.0.17;70:7d:b9:57:2c:a4;;No;Cisco/SNMP Agent;3;0;0;;Cisco Systems, Inc;Cisco IOS;Cisco IOS Software [Cupertino], Catalyst IE3500 Software (IE3500-UNIVERSALK9-M);;;17.15.01;;CVTrafficGen01;No
+;;;Siemens 83:1b:da;;;2026-02-09 19:25:46.091 +0000 UTC;2026-02-09 19:25:46.091 +0000 UTC;;00:1b:1b:83:1b:da;;No;IO Module;2;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.4.18;;;2026-02-09 19:24:57.005 +0000 UTC;2026-02-09 19:25:44.446 +0000 UTC;10.1.4.18;00:90:e8:ec:5e:ce;;No;Controller;3;0;0;;Moxa Inc.;;ioLogik E1210;;;V3.3;;CVTrafficGen01;No
+;;;10.1.3.13;;;2026-02-09 19:24:52.025 +0000 UTC;2026-02-09 19:25:43.874 +0000 UTC;10.1.3.13;00:80:f4:e3:b6:66;;No;Engineering Station/Controller;4;17;0;;Schneider Electric;;HMIGTO5310;;;5.1;;CVTrafficGen01;No
+;;;10.1.1.15;;;2026-02-09 19:24:55.367 +0000 UTC;2026-02-09 19:25:43.748 +0000 UTC;10.1.1.15;00:1b:1b:6a:a2:cc;;No;;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Aswt 80:1d:63;;;2026-02-09 19:25:36.598 +0000 UTC;2026-02-09 19:25:36.598 +0000 UTC;;00:1a:28:80:1d:63;;No;;1;0;0;;ASWT Co., LTD. Taiwan Branch H.K.;;;;;;;CVTrafficGen01;No
+;;;ASSEMBLY-UPLINK-SWITCH-3F7F;;;2026-02-09 19:24:51.58 +0000 UTC;2026-02-09 19:25:35.299 +0000 UTC;10.1.1.25;f8:c2:88:90:78:9a;;No;Cisco/SNMP Agent;4;0;0;;Cisco Systems, Inc;;;;;;;CVTrafficGen01;No
+;;;1783-BMS10CGL STRATIX 5700;;;2026-02-09 19:24:54.606 +0000 UTC;2026-02-09 19:25:34.569 +0000 UTC;10.1.2.24;00:00:bc:b8:55:b4;;No;Cisco/Rockwell Automation/SNMP Agent;4;0;0;;Rockwell;;;;;15.2;da7cac73;CVTrafficGen01;No
+;;;CNC-CELL-SWITCH-D0FD;;;2026-02-09 19:24:54.396 +0000 UTC;2026-02-09 19:25:34.551 +0000 UTC;10.1.1.24;00:1b:1b:8a:bd:80;;No;SNMP Agent;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.1.20;;;2026-02-09 19:24:56.207 +0000 UTC;2026-02-09 19:25:31.803 +0000 UTC;10.1.1.20;00:1b:1b:da:af:0e;;No;Controller;5;0;0;;Siemens AG;;6SL3210-1KE21-7UF1;;;V4.8;;CVTrafficGen01;No
+;;;IDMZ-JUMP-SERVER-9DE2;;;2026-02-09 19:24:51.58 +0000 UTC;2026-02-09 19:25:30.729 +0000 UTC;10.1.0.14;7c:1e:52:96:e7:d0;;No;Net Management Server/SNMP Agent/Windows;10;0;0;;Microsoft Corporation;;;;;;;CVTrafficGen01;No
+;;;ASSEMBLY-UPLINK-SWITCH-3F7F;;;2026-02-09 19:24:54.831 +0000 UTC;2026-02-09 19:25:30.179 +0000 UTC;10.1.3.23;3c:08:f6:63:6d:1c;;No;Cisco/SNMP Agent;4;0;0;;Cisco Systems, Inc;;;;;;;CVTrafficGen01;No
+;;;Siemens e:63:c8;;;2026-02-09 19:25:29.952 +0000 UTC;2026-02-09 19:25:29.952 +0000 UTC;;00:1c:06:0e:63:c8;;No;IO Module;3;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;ASSEMBLY-CELL-SWITCH-AC2E;;;2026-02-09 19:24:54.9 +0000 UTC;2026-02-09 19:25:28.287 +0000 UTC;10.1.4.20;00:80:63:34:f1:aa;;No;SNMP Agent;4;0;0;;Hirschmann Automation and Control GmbH;;;;;;;CVTrafficGen01;No
+;;;25B-D030N104 POWERFLEX 525;;;2026-02-09 19:24:55.018 +0000 UTC;2026-02-09 19:25:27.803 +0000 UTC;10.1.2.19;00:00:bc:8a:3a:4e;;No;Rockwell Automation;3;1;0;;Rockwell Automation;;;;;7.1;12eba866;CVTrafficGen01;No
+;;;10.1.4.12;;;2026-02-09 19:24:53.605 +0000 UTC;2026-02-09 19:25:27.322 +0000 UTC;10.1.4.12;00:24:2b:7a:2b:6c;;No;Engineering Station/Controller;4;0;0;;ABB;;CP620;;;V1.80;;CVTrafficGen01;No
+;;;10.1.3.20;;;2026-02-09 19:25:02.46 +0000 UTC;2026-02-09 19:25:26.421 +0000 UTC;10.1.3.20;00:80:f4:f3:f8:f7;;No;Controller;3;0;0;;Schneider Electric;;STBNIP2311;;;V6.20;;CVTrafficGen01;No
+;;;10.1.1.22;;;2026-02-09 19:24:56.299 +0000 UTC;2026-02-09 19:25:26.21 +0000 UTC;10.1.1.22;00:1c:06:0e:63:c8;;No;;7;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;IDMZ-SOUTH-FIREWALL-SWITCH-2B30;;;2026-02-09 19:24:54.177 +0000 UTC;2026-02-09 19:25:23.477 +0000 UTC;10.1.0.18;00:26:98:2d:8d:45;;No;Cisco/SNMP Agent;3;0;0;;Cisco Systems, Inc;Cisco IOS;Cisco IOS Software [Cupertino], Catalyst IE3500 Software (IE3500-UNIVERSALK9-M);;;17.15.01;;CVTrafficGen01;No
+;;;CNC_Setup_HMI;;;2026-02-09 19:24:51.119 +0000 UTC;2026-02-09 19:25:22.458 +0000 UTC;;00:1b:1b:74:49:0b;;No;;2;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.3.15;;;2026-02-09 19:25:00.326 +0000 UTC;2026-02-09 19:25:21.619 +0000 UTC;10.1.3.15;ec:fa:aa:1a:a1:67;;No;Controller;3;1;0;;Schneider Electric;;ATV930D15N4;;;V3.6IE50;;CVTrafficGen01;No
+;;;10.1.3.18;;;2026-02-09 19:24:54.736 +0000 UTC;2026-02-09 19:25:21.201 +0000 UTC;10.1.3.18;00:50:c2:7c:0f:ee;;No;Controller;3;0;0;;Endress+Hauser;;CM442;;;V01.08.00;;CVTrafficGen01;No
+;;;ASSEMBLY-UPLINK-SWITCH-3F7F;;;2026-02-09 19:24:55.005 +0000 UTC;2026-02-09 19:25:21.119 +0000 UTC;10.1.4.21;00:17:0e:c8:68:0a;;No;Cisco/SNMP Agent;4;0;0;;Cisco Systems, Inc;;;;;;;CVTrafficGen01;No
+;;;10.1.3.19;;;2026-02-09 19:25:03.43 +0000 UTC;2026-02-09 19:25:20.652 +0000 UTC;10.1.3.19;00:a0:f8:28:8a:d0;;No;Controller;3;0;0;;Emerson Process Management;;3051S;;;V11.3;;CVTrafficGen01;No
+;;;IDMZ-CORE-SWITCH-449B;;;2026-02-09 19:24:53.728 +0000 UTC;2026-02-09 19:25:20.205 +0000 UTC;10.1.0.16;70:7d:b9:92:68:4b;;No;Cisco/SNMP Agent;3;0;0;;Cisco Systems, Inc;Cisco IOS;Cisco IOS Software [Cupertino], Catalyst IE9300 Software (IE9300-UNIVERSALK9-M);;;17.15.01;;CVTrafficGen01;No
+;;;10.1.3.12;;;2026-02-09 19:25:09.489 +0000 UTC;2026-02-09 19:25:20.148 +0000 UTC;10.1.3.12;00:80:f4:3a:ca:12;;No;OPC server/Controller;3;2;0;;Schneider Electric;;TM5CSLC100FS;;;V1.4.0;;CVTrafficGen01;No
+;;;ACS880-01 INDUSTRIAL DRIVE;;;2026-02-09 19:24:54.213 +0000 UTC;2026-02-09 19:25:16.195 +0000 UTC;10.1.4.14;00:24:cb:09:72:36;;No;Controller;3;0;0;;ABB;;ACS880-01;;;2.60;3b7cceeb;CVTrafficGen01;No
+;;;Broadcast ff:ff:ff;;;2026-02-09 19:24:55.127 +0000 UTC;2026-02-09 19:25:15.629 +0000 UTC;;ff:ff:ff:ff:ff:ff;;No;;67;0;0;;Broadcast;;;;;;;CVTrafficGen01;No
+;;;ECOAT-CELL-SWITCH-BFEF;;;2026-02-09 19:24:54.694 +0000 UTC;2026-02-09 19:25:14.186 +0000 UTC;10.1.3.22;00:80:f4:73:4d:cc;;No;SNMP Agent;4;0;0;;Schneider;;;;;;;CVTrafficGen01;No
+;;;ACS580-01 General Purpose Drive;;;2026-02-09 19:24:58.52 +0000 UTC;2026-02-09 19:25:12.49 +0000 UTC;10.1.4.15;00:20:99:30:a5:25;;No;Controller;3;0;0;;ABB;;ACS580-01;;;2.76;d74b193c;CVTrafficGen01;No
+;;;10.1.1.14;;;2026-02-09 19:24:51.078 +0000 UTC;2026-02-09 19:25:11.369 +0000 UTC;10.1.1.14;00:1b:1b:74:49:0b;;No;;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;R-30iB Plus Assembly_Robot_Contr;;;2026-02-09 19:24:54.866 +0000 UTC;2026-02-09 19:25:07.286 +0000 UTC;10.1.4.17;00:e0:e5:7b:b6:5c;;No;;4;0;0;;CINCO NETWORKS, INC.;;;;;9.40;34879127;CVTrafficGen01;No
+;;;KR C4 Weld_Robot_1_Controller;;;2026-02-09 19:24:53.635 +0000 UTC;2026-02-09 19:25:05.365 +0000 UTC;10.1.2.16;00:1a:28:80:1d:63;;No;;4;0;0;;ASWT Co., LTD. Taiwan Branch H.K.;;;;;8.6;eb7d0ce0;CVTrafficGen01;No
+;;;10.1.3.17;;;2026-02-09 19:25:00.877 +0000 UTC;2026-02-09 19:25:04.759 +0000 UTC;10.1.3.17;00:80:f4:30:e4:78;;No;Controller;3;1;0;;Schneider Electric;;ATV630D15N4;;;V1.7IE61;;CVTrafficGen01;No
+;;;Siemens 8a:bd:80;;;2026-02-09 19:25:01.015 +0000 UTC;2026-02-09 19:25:01.015 +0000 UTC;;00:1b:1b:8a:bd:80;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.1.18;;;2026-02-09 19:24:55.937 +0000 UTC;2026-02-09 19:24:58.741 +0000 UTC;10.1.1.18;00:1b:1b:83:1b:da;;No;;5;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Assembly_Operator_HMI;;;2026-02-09 19:24:52.01 +0000 UTC;2026-02-09 19:24:52.833 +0000 UTC;;00:24:2b:7a:2b:6c;;No;;1;0;0;;Hon Hai Precision Ind. Co.,Ltd.;;;;;;;CVTrafficGen01;No
+;;;Plant_Overview_HMI;;;2026-02-09 19:24:52.16 +0000 UTC;2026-02-09 19:24:52.447 +0000 UTC;;00:0e:8c:38:65:90;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;ECoat_Operator_HMI;;;2026-02-09 19:24:51.547 +0000 UTC;2026-02-09 19:24:51.756 +0000 UTC;;00:80:f4:e3:b6:66;;No;;1;0;0;;TELEMECANIQUE ELECTRIQUE;;;;;;;CVTrafficGen01;No
+;;;Weld_Cell_Station_HMI;;;2026-02-09 19:24:51.45 +0000 UTC;2026-02-09 19:24:51.517 +0000 UTC;;00:00:bc:29:d0:56;;No;;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;Weld_Cell_Main_HMI;;;2026-02-09 19:24:51.214 +0000 UTC;2026-02-09 19:24:51.371 +0000 UTC;;00:00:bc:89:93:95;;No;;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.1.14;;;2026-02-09 19:24:13.558 +0000 UTC;2026-02-09 19:24:22.538 +0000 UTC;10.1.1.14;00:0e:8c:cd:0c:02;;No;;3;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.1.31;;;2026-02-09 19:24:22.461 +0000 UTC;2026-02-09 19:24:22.538 +0000 UTC;10.1.1.31;00:1b:1b:72:4b:45;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.0.10;;;2026-02-09 19:24:13.426 +0000 UTC;2026-02-09 19:24:22.419 +0000 UTC;10.1.0.10;00:1b:1b:af:59:9d;;No;Net Management Server;11;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.3.12;;;2026-02-09 19:24:14.658 +0000 UTC;2026-02-09 19:24:22.419 +0000 UTC;10.1.3.12;00:80:f4:aa:69:2e;;No;Engineering Station/OPC server/Controller;6;5;0;;Schneider Electric;;BMXP3420302;;;V3.40;;CVTrafficGen01;No
+;;;Siemens cd:c:2;;;2026-02-09 19:24:13.455 +0000 UTC;2026-02-09 19:24:22.387 +0000 UTC;;00:0e:8c:cd:0c:02;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.0.19;;;2026-02-09 19:24:22.212 +0000 UTC;2026-02-09 19:24:22.272 +0000 UTC;10.1.0.19;00:06:71:3b:68:31;;No;Engineering Station;1;0;0;;Softing AG;;;;;;;CVTrafficGen01;No
+;;;10.1.3.11;;;2026-02-09 19:24:15.018 +0000 UTC;2026-02-09 19:24:22.272 +0000 UTC;10.1.3.11;00:00:54:64:35:90;;No;OPC server/Controller;3;22;0;;Schneider Electric;;BMEP586040;;;3.30;;CVTrafficGen01;No
+;;;10.1.4.10;;;2026-02-09 19:24:13.336 +0000 UTC;2026-02-09 19:24:22.194 +0000 UTC;10.1.4.10;00:24:cb:91:69:b5;;No;Engineering Station/Controller;5;0;0;;ABB;;PM590-ETH;;;V3.1.2;;CVTrafficGen01;No
+;;;10.1.4.16;;;2026-02-09 19:24:22.113 +0000 UTC;2026-02-09 19:24:22.194 +0000 UTC;10.1.4.16;00:24:cb:56:a0:a7;;No;Controller;1;0;0;;ABB;;ACS880-01;;;V2.60;;CVTrafficGen01;No
+;;;10.1.0.12;;;2026-02-09 19:24:15.264 +0000 UTC;2026-02-09 19:24:22.161 +0000 UTC;10.1.0.12;02:00:00:17:1c:90;;No;Locally Administered MAC/OPC server;5;0;0;;;;;;;;;CVTrafficGen01;No
+;;;10.1.1.10;;;2026-02-09 19:24:15.551 +0000 UTC;2026-02-09 19:24:22.161 +0000 UTC;10.1.1.10;00:0e:8c:b9:a7:b4;;No;;5;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.2.12;;;2026-02-09 19:24:15.264 +0000 UTC;2026-02-09 19:24:22.064 +0000 UTC;10.1.2.12;00:1d:9c:2a:33:fd;;No;;3;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.0.16;;;2026-02-09 19:24:15.72 +0000 UTC;2026-02-09 19:24:22.064 +0000 UTC;10.1.0.16;00:1b:1b:95:47:61;;No;Engineering Station;3;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.1.23;;;2026-02-09 19:24:21.73 +0000 UTC;2026-02-09 19:24:21.939 +0000 UTC;10.1.1.23;00:0e:8c:22:f5:04;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.4.13;;;2026-02-09 19:24:13.66 +0000 UTC;2026-02-09 19:24:21.711 +0000 UTC;10.1.4.13;00:21:99:d7:ed:52;;No;OPC server/Controller;4;0;0;;ABB;;PM583-ETH;;;V3.0.4;;CVTrafficGen01;No
+;;;10.1.0.15;;;2026-02-09 19:24:21.603 +0000 UTC;2026-02-09 19:24:21.711 +0000 UTC;10.1.0.15;00:30:11:d4:ba:28;;No;Engineering Station;1;0;0;;HMS Industrial Networks;;;;;;;CVTrafficGen01;No
+;;;Siemens b9:a7:b4;;;2026-02-09 19:24:15.319 +0000 UTC;2026-02-09 19:24:21.561 +0000 UTC;;00:0e:8c:b9:a7:b4;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.3.13;;;2026-02-09 19:24:15.72 +0000 UTC;2026-02-09 19:24:21.486 +0000 UTC;10.1.3.13;00:00:54:6d:e8:66;;No;Engineering Station/OPC server/Controller;3;5;0;;Schneider Electric;;BMXP3420302;;;V3.40;;CVTrafficGen01;No
+;;;10.1.0.18;;;2026-02-09 19:24:15.071 +0000 UTC;2026-02-09 19:24:21.406 +0000 UTC;10.1.0.18;00:06:71:f5:25:a8;;No;Engineering Station;2;0;0;;Softing AG;;;;;;;CVTrafficGen01;No
+;;;10.1.3.21;;;2026-02-09 19:24:21.242 +0000 UTC;2026-02-09 19:24:21.361 +0000 UTC;10.1.3.21;ec:fa:aa:e8:64:be;;No;Controller;1;0;0;;Schneider Electric;;LXM32MD18M2;;;V2.62;;CVTrafficGen01;No
+;;;10.1.0.11;;;2026-02-09 19:24:15.929 +0000 UTC;2026-02-09 19:24:21.157 +0000 UTC;10.1.0.11;00:12:a9:d5:01:06;;No;;3;0;0;;3Com Ltd;;;;;;;CVTrafficGen01;No
+;;;10.1.2.11;;;2026-02-09 19:24:14.47 +0000 UTC;2026-02-09 19:24:21.157 +0000 UTC;10.1.2.11;00:1d:9c:48:52:54;;No;Engineering Station/OPC server/Controller;6;0;0;;Rockwell Automation/Allen-Bradley;;1756-L85E;;;V35.011;;CVTrafficGen01;No
+;;;10.1.4.18;;;2026-02-09 19:24:20.97 +0000 UTC;2026-02-09 19:24:21.025 +0000 UTC;10.1.4.18;00:20:99:a1:0b:ef;;No;Controller;1;0;0;;ABB;;ACS880-01;;;V2.60;;CVTrafficGen01;No
+;;;10.1.4.12;;;2026-02-09 19:24:14.775 +0000 UTC;2026-02-09 19:24:21.025 +0000 UTC;10.1.4.12;00:24:cb:e3:fd:46;;No;Engineering Station/Controller;4;0;0;;ABB;;PM583-ETH;;;V3.0.4;;CVTrafficGen01;No
+;;;10.1.2.14;;;2026-02-09 19:24:16.419 +0000 UTC;2026-02-09 19:24:20.955 +0000 UTC;10.1.2.14;08:61:95:db:c9:e2;;No;OPC server;5;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.2.13;;;2026-02-09 19:24:15.332 +0000 UTC;2026-02-09 19:24:20.955 +0000 UTC;10.1.2.13;e4:90:69:31:01:7c;;No;OPC server;3;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.3.10;;;2026-02-09 19:24:14.239 +0000 UTC;2026-02-09 19:24:20.842 +0000 UTC;10.1.3.10;00:00:54:f8:2f:c6;;No;Engineering Station;3;0;0;;Schneider Electric;;;;;;;CVTrafficGen01;No
+;;;10.1.7.12;;;2026-02-09 19:24:20.774 +0000 UTC;2026-02-09 19:24:20.842 +0000 UTC;10.1.7.12;00:00:54:c4:0b:45;;No;Controller;1;0;0;;Schneider Electric;;TM3DI32K;;;V2.1;;CVTrafficGen01;No
+;;;10.1.2.28;;;2026-02-09 19:24:19.831 +0000 UTC;2026-02-09 19:24:20.719 +0000 UTC;10.1.2.28;08:61:95:4c:aa:ca;;No;;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.1.11;;;2026-02-09 19:24:13.479 +0000 UTC;2026-02-09 19:24:20.603 +0000 UTC;10.1.1.11;00:0e:8c:65:86:e3;;No;Engineering Station/Controller/Siemens;3;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.4.26;;;2026-02-09 19:24:19.264 +0000 UTC;2026-02-09 19:24:20.317 +0000 UTC;10.1.4.26;00:0e:b3:de:a1:69;;No;;1;0;0;;Hewlett Packard;;;;;;;CVTrafficGen01;No
+;;;10.1.3.15;;;2026-02-09 19:24:19.932 +0000 UTC;2026-02-09 19:24:20.118 +0000 UTC;10.1.3.15;00:80:f4:c8:83:6c;;No;Engineering Station;1;0;0;;TELEMECANIQUE ELECTRIQUE;;;;;;;CVTrafficGen01;No
+;;;10.1.2.30;;;2026-02-09 19:24:19.055 +0000 UTC;2026-02-09 19:24:19.9 +0000 UTC;10.1.2.30;00:00:bc:8f:ec:2e;;No;;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.1.12;;;2026-02-09 19:24:16.282 +0000 UTC;2026-02-09 19:24:19.758 +0000 UTC;10.1.1.12;00:1b:1b:27:19:2c;;No;Controller/Siemens;2;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.1.13;;;2026-02-09 19:24:14.098 +0000 UTC;2026-02-09 19:24:19.58 +0000 UTC;10.1.1.13;00:1c:06:bd:cc:19;;No;OPC server/Controller/Siemens;4;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;10.1.0.14;;;2026-02-09 19:24:13.479 +0000 UTC;2026-02-09 19:24:19.58 +0000 UTC;10.1.0.14;5c:88:16:85:5d:14;;No;;2;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.3.23;;;2026-02-09 19:24:19.462 +0000 UTC;2026-02-09 19:24:19.553 +0000 UTC;10.1.3.23;00:80:f4:2a:f7:94;;No;Controller;1;0;0;;Schneider Electric;;LXM32MD18M2;;;V2.62;;CVTrafficGen01;No
+;;;10.1.2.10;;;2026-02-09 19:24:14.006 +0000 UTC;2026-02-09 19:24:19.429 +0000 UTC;10.1.2.10;00:00:bc:1d:9d:96;;No;OPC server;2;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.2.27;;;2026-02-09 19:24:18.131 +0000 UTC;2026-02-09 19:24:18.6 +0000 UTC;10.1.2.27;08:61:95:34:5c:d4;;No;;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.1.17;;;2026-02-09 19:24:18.401 +0000 UTC;2026-02-09 19:24:18.571 +0000 UTC;10.1.1.17;00:0e:8c:b9:be:f8;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.1.28;;;2026-02-09 19:24:18.104 +0000 UTC;2026-02-09 19:24:18.256 +0000 UTC;10.1.1.28;00:1b:1b:fc:22:24;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.4.23;;;2026-02-09 19:24:17.106 +0000 UTC;2026-02-09 19:24:18.062 +0000 UTC;10.1.4.23;00:06:b6:96:3f:c9;;No;;1;0;0;;Nir-Or Israel Ltd.;;;;;;;CVTrafficGen01;No
+;;;10.1.4.11;;;2026-02-09 19:24:16.763 +0000 UTC;2026-02-09 19:24:18.062 +0000 UTC;10.1.4.11;00:20:99:af:79:2c;;No;OPC server;2;0;0;;BON ELECTRIC CO., LTD.;;;;;;;CVTrafficGen01;No
+;;;Siemens 65:86:e3;;;2026-02-09 19:24:17.963 +0000 UTC;2026-02-09 19:24:17.963 +0000 UTC;;00:0e:8c:65:86:e3;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.1.26;;;2026-02-09 19:24:17.605 +0000 UTC;2026-02-09 19:24:17.87 +0000 UTC;10.1.1.26;00:1c:06:6c:bf:7e;;No;;1;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;Siemens bd:cc:19;;;2026-02-09 19:24:17.425 +0000 UTC;2026-02-09 19:24:17.425 +0000 UTC;;00:1c:06:bd:cc:19;;No;;1;0;0;;Siemens Numerical Control Ltd., Nanjing;;;;;;;CVTrafficGen01;No
+;;;10.1.1.16;;;2026-02-09 19:24:16.645 +0000 UTC;2026-02-09 19:24:17.062 +0000 UTC;10.1.1.16;00:0e:8c:88:2e:69;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.3.17;;;2026-02-09 19:24:16.584 +0000 UTC;2026-02-09 19:24:16.911 +0000 UTC;10.1.3.17;ec:fa:aa:8e:bf:36;;No;Controller;1;1;0;;Schneider Electric;;ATV930D15N4;;;V3.6IE50;;CVTrafficGen01;No
+;;;10.1.1.19;;;2026-02-09 19:24:16.282 +0000 UTC;2026-02-09 19:24:16.402 +0000 UTC;10.1.1.19;00:1b:1b:ab:90:53;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;Siemens 27:19:2c;;;2026-02-09 19:24:16.213 +0000 UTC;2026-02-09 19:24:16.213 +0000 UTC;;00:1b:1b:27:19:2c;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.7.10;;;2026-02-09 19:24:15.819 +0000 UTC;2026-02-09 19:24:15.901 +0000 UTC;10.1.7.10;00:00:54:bf:a8:07;;No;Controller;1;0;0;;Schneider Electric;;TM3DI32K;;;V2.1;;CVTrafficGen01;No
+;;;10.1.5.12;;;2026-02-09 19:24:15.551 +0000 UTC;2026-02-09 19:24:15.678 +0000 UTC;10.1.5.12;00:1b:1b:d8:85:7e;;No;;1;0;0;;Siemens AG,;;;;;;;CVTrafficGen01;No
+;;;10.1.4.24;;;2026-02-09 19:24:14.775 +0000 UTC;2026-02-09 19:24:15.305 +0000 UTC;10.1.4.24;00:06:b6:e8:6b:7f;;No;;1;0;0;;Nir-Or Israel Ltd.;;;;;;;CVTrafficGen01;No
+;;;10.1.0.20;;;2026-02-09 19:24:13.379 +0000 UTC;2026-02-09 19:24:15.234 +0000 UTC;10.1.0.20;00:15:5d:bd:05:72;;No;Net Management Server;1;0;0;;Microsoft Corporation;;;;;;;CVTrafficGen01;No
+;;;Rockwell_Zone_Switch_1;;;2026-02-09 19:24:13.379 +0000 UTC;2026-02-09 19:24:15.234 +0000 UTC;10.1.2.33;00:1d:9c:01:89:e1;;No;Cisco/SNMP Agent;1;0;0;;Rockwell;;;;;;;CVTrafficGen01;No
+;;;Rockwell_Zone_Switch_2;;;2026-02-09 19:24:13.426 +0000 UTC;2026-02-09 19:24:14.869 +0000 UTC;10.1.2.34;00:1d:9c:b1:c2:14;;No;Cisco/SNMP Agent;1;0;0;;Rockwell Automation;;;;;;;CVTrafficGen01;No
+;;;10.1.3.26;;;2026-02-09 19:24:14.658 +0000 UTC;2026-02-09 19:24:14.743 +0000 UTC;10.1.3.26;00:80:f4:83:ad:32;;No;Controller;1;0;0;;Schneider Electric;;STBNIP2311;;;V6.20;;CVTrafficGen01;No
+;;;10.1.3.24;;;2026-02-09 19:24:14.239 +0000 UTC;2026-02-09 19:24:14.369 +0000 UTC;10.1.3.24;00:80:f4:e9:48:1b;;No;Controller;1;0;0;;Schneider Electric;;STBNIP2311;;;V6.20;;CVTrafficGen01;No
+;;;10.1.4.25;;;2026-02-09 19:24:13.66 +0000 UTC;2026-02-09 19:24:14.312 +0000 UTC;10.1.4.25;00:06:b6:85:1f:1c;;No;;1;0;0;;Nir-Or Israel Ltd.;;;;;;;CVTrafficGen01;No
+;;;10.1.1.30;;;2026-02-09 19:24:13.558 +0000 UTC;2026-02-09 19:24:13.71 +0000 UTC;10.1.1.30;00:0e:8c:de:61:dd;;No;;1;0;0;;Siemens AG;;;;;;;CVTrafficGen01;No
+;;;10.1.4.14;;;2026-02-09 19:24:13.336 +0000 UTC;2026-02-09 19:24:13.393 +0000 UTC;10.1.4.14;00:24:2b:f4:87:f6;;No;Engineering Station;1;0;0;;Hon Hai Precision Ind. Co.,Ltd.;;;;;;;CVTrafficGen01;No

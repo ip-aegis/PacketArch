@@ -28,6 +28,7 @@ from .types import (
 
 # Ensure ICS action generators are registered on import
 from . import ics_actions as _ics_actions  # noqa: F401
+from . import snort_actions as _snort_actions  # noqa: F401
 
 __all__ = [
     "ATTACK_FLOW_PREFIX",

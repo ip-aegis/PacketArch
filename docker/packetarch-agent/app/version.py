@@ -4,9 +4,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.22.0"
+VERSION = "1.24.0"
 
 # Version history:
+# 1.24.0 - Add 15 Snort/Suricata rule-triggering attack actions for IDS validation (SNORT_VALIDATION playbook, ICS/OT, C2, exfiltration signatures)
+# 1.23.2 - Fix attack stage stuck at 0s: wall-time stage advancement on every event loop iteration (prevents virtual-time lag), fix injection config mapping
+# 1.23.1 - Fix attack state in event-driven STATUS path, trigger immediate status after injection for faster confirmation
+# 1.23.0 - Hot-attach attack playbooks: INJECT_ATTACK command for mid-run playbook injection into running deployments
 # 1.22.0 - CV fingerprint gap fix: 301/301 templates with explicit snmp_identity, SNMP pre-startup timing (sysName before protocol flows), fix duplicate CIP serials (SerialNumberGenerator moved to protocol_engines), sysName priority = device_name over template
 # 1.21.0 - Fix OUI misattributions (KUKA/Fanuc/SICK/HMS), early-burst discovery (3 cycles in first 90s for faster CV fingerprinting)
 # 1.20.0 - Universal SNMP discovery: all fingerprinted devices get SNMP GET/Response for CV fingerprinting, vendor-specific sysObjectID synthesis, merge device definition protocols into ambient discovery
