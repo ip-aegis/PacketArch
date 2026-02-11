@@ -182,7 +182,7 @@ async def list_deployments(
             # Get real-time attack state from traffic_dashboard (if running)
             attack_state = None
             if d.state == "running":
-                deployment_status = traffic_dashboard.get_deployment_status(str(d.scenario_id))
+                deployment_status = traffic_dashboard.get_deployment(str(d.scenario_id))
                 if deployment_status and "attack" in deployment_status:
                     attack_state = deployment_status["attack"]
 
