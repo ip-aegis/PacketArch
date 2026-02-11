@@ -66,11 +66,19 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const hasActiveAttack = deploymentAttackState?.is_active === true;
   const hasConfiguredPlaybook = deploymentAttackState?.playbook_name !== null && !hasActiveAttack;
 
-  // Ensure deployments are loaded
+  // Poll deployments to keep attack state fresh
   useEffect(() => {
-    if (scenarioId) {
+    if (!scenarioId) return;
+
+    // Fetch immediately
+    fetchDeployments({ scenario_id: scenarioId });
+
+    // Then poll every 3s to update attack state
+    const interval = setInterval(() => {
       fetchDeployments({ scenario_id: scenarioId });
-    }
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [scenarioId, fetchDeployments]);
 
   // Auto-switch to Properties tab when a device or flow is selected
