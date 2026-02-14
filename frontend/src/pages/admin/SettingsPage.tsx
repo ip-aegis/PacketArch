@@ -24,7 +24,6 @@ import {
   DatabaseOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  CloudServerOutlined,
   TeamOutlined,
   RobotOutlined,
   EyeOutlined,
@@ -32,7 +31,6 @@ import {
   DownloadOutlined,
   FileOutlined,
 } from '@ant-design/icons';
-import DockerHostsTab from '../../components/admin/DockerHostsTab';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
 import AgentsTab from '../../components/admin/AgentsTab';
@@ -210,17 +208,17 @@ const AIProviderTab: React.FC<{
   };
 
   const anthropicModels = [
-    { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (Latest)' },
-    { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
-    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+    { value: 'claude-opus-4-6', label: 'Claude Opus 4.6 (Latest)' },
+    { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
+    { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
   ];
 
   const openaiModels = [
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'o3', label: 'o3 (Reasoning)' },
+    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+    { value: 'o4-mini', label: 'o4-mini (Fast Reasoning)' },
   ];
 
   return (
@@ -471,15 +469,6 @@ const SettingsPage: React.FC = () => {
           ))}
         </Space>
       ),
-    },
-    {
-      key: 'docker_hosts',
-      label: (
-        <span>
-          <CloudServerOutlined /> Docker Hosts
-        </span>
-      ),
-      children: <DockerHostsTab />,
     },
     {
       key: 'agents',

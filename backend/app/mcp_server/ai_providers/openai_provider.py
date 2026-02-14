@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(AIProvider):
     """OpenAI GPT provider."""
 
-    def __init__(self, api_key: str, model: str = "gpt-4-turbo") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-4.1") -> None:
         """Initialize OpenAI provider.
 
         Args:
             api_key: OpenAI API key
-            model: Model to use (default: gpt-4-turbo)
+            model: Model to use (default: GPT-4.1)
         """
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
@@ -28,7 +28,7 @@ class OpenAIProvider(AIProvider):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> dict[str, Any]:
         """Send a chat request to OpenAI.
 
@@ -71,7 +71,7 @@ class OpenAIProvider(AIProvider):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to OpenAI.
 

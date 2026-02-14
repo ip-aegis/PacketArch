@@ -12,7 +12,7 @@ class AIProvider(ABC):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> dict[str, Any]:
         """Send a chat request to the AI.
 
@@ -31,7 +31,7 @@ class AIProvider(ABC):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to the AI.
 

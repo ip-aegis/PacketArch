@@ -1,6 +1,5 @@
 """Anthropic Claude AI provider implementation."""
 
-import json
 import logging
 from typing import Any, AsyncIterator
 
@@ -10,25 +9,51 @@ from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
 
+# Models that support extended thinking
+THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-sonnet-4-5"}
+# Models that support adaptive thinking (preferred over manual budget_tokens)
+ADAPTIVE_THINKING_MODELS = {"claude-opus-4-6"}
+
 
 class AnthropicProvider(AIProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, api_key: str, model: str = "claude-opus-4-5-20251101") -> None:
+    def __init__(self, api_key: str, model: str = "claude-opus-4-6") -> None:
         """Initialize Anthropic provider.
 
         Args:
             api_key: Anthropic API key
-            model: Model to use (default: Claude Opus 4.5)
+            model: Model to use (default: Claude Opus 4.6)
         """
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
+
+    def _supports_thinking(self) -> bool:
+        """Check if the current model supports extended thinking."""
+        return self.model in THINKING_MODELS
+
+    def _supports_adaptive_thinking(self) -> bool:
+        """Check if the current model supports adaptive thinking."""
+        return self.model in ADAPTIVE_THINKING_MODELS
+
+    def _add_thinking_params(self, kwargs: dict[str, Any]) -> None:
+        """Add thinking parameters based on model capabilities.
+
+        Opus 4.6: Uses adaptive thinking (model decides when to think deeply).
+        Sonnet 4.5: Uses extended thinking with a budget.
+        """
+        if self._supports_adaptive_thinking():
+            kwargs["thinking"] = {"type": "adaptive"}
+        elif self._supports_thinking():
+            max_tokens = kwargs.get("max_tokens", 16384)
+            budget = min(10000, max(1024, max_tokens - 1024))
+            kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
 
     async def chat(
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> dict[str, Any]:
         """Send a chat request to Claude.
 
@@ -61,11 +86,21 @@ class AnthropicProvider(AIProvider):
                 "messages": chat_messages,
             }
 
+            # System message with prompt caching
             if system_message:
-                kwargs["system"] = system_message
+                kwargs["system"] = [
+                    {
+                        "type": "text",
+                        "text": system_message,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ]
 
             if claude_tools:
                 kwargs["tools"] = claude_tools
+
+            # Enable thinking for supported models
+            self._add_thinking_params(kwargs)
 
             response = await self.client.messages.create(**kwargs)
 
@@ -79,7 +114,7 @@ class AnthropicProvider(AIProvider):
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to Claude.
 
@@ -112,11 +147,21 @@ class AnthropicProvider(AIProvider):
                 "messages": chat_messages,
             }
 
+            # System message with prompt caching
             if system_message:
-                kwargs["system"] = system_message
+                kwargs["system"] = [
+                    {
+                        "type": "text",
+                        "text": system_message,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ]
 
             if claude_tools:
                 kwargs["tools"] = claude_tools
+
+            # Enable thinking for supported models
+            self._add_thinking_params(kwargs)
 
             async with self.client.messages.stream(**kwargs) as stream:
                 async for event in stream:
@@ -131,6 +176,8 @@ class AnthropicProvider(AIProvider):
         self, mcp_tools: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """Convert MCP tool definitions to Claude's format.
+
+        Adds cache_control to the last tool definition for prompt caching.
 
         Args:
             mcp_tools: List of MCP tool definitions
@@ -147,6 +194,10 @@ class AnthropicProvider(AIProvider):
             }
             claude_tools.append(claude_tool)
 
+        # Cache the full set of tool definitions
+        if claude_tools:
+            claude_tools[-1]["cache_control"] = {"type": "ephemeral"}
+
         return claude_tools
 
     def _format_response(self, response: Any) -> dict[str, Any]:
@@ -158,16 +209,23 @@ class AnthropicProvider(AIProvider):
         Returns:
             Formatted response
         """
+        usage: dict[str, Any] = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+        # Include cache metrics if available
+        if hasattr(response.usage, "cache_creation_input_tokens"):
+            usage["cache_creation_input_tokens"] = response.usage.cache_creation_input_tokens
+        if hasattr(response.usage, "cache_read_input_tokens"):
+            usage["cache_read_input_tokens"] = response.usage.cache_read_input_tokens
+
         formatted = {
             "id": response.id,
             "role": response.role,
             "content": [],
             "model": response.model,
             "stop_reason": response.stop_reason,
-            "usage": {
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            "usage": usage,
         }
 
         # Format content blocks
@@ -175,6 +233,10 @@ class AnthropicProvider(AIProvider):
             if block.type == "text":
                 formatted["content"].append(
                     {"type": "text", "text": block.text}
+                )
+            elif block.type == "thinking":
+                formatted["content"].append(
+                    {"type": "thinking", "thinking": block.thinking}
                 )
             elif block.type == "tool_use":
                 formatted["content"].append(
@@ -215,6 +277,8 @@ class AnthropicProvider(AIProvider):
             formatted["delta"] = {"type": event.delta.type}
             if hasattr(event.delta, "text"):
                 formatted["delta"]["text"] = event.delta.text
+            if hasattr(event.delta, "thinking"):
+                formatted["delta"]["thinking"] = event.delta.thinking
         elif event_type == "content_block_stop":
             formatted["index"] = event.index
         elif event_type == "message_delta":

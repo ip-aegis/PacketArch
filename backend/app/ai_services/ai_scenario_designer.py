@@ -201,8 +201,8 @@ class AIScenarioDesigner:
         )
 
         # Use maximum tokens for all scenarios to prevent truncation
-        # Claude Opus 4.5 supports up to 16384 output tokens
-        max_tokens = 16384
+        # Claude Opus 4.6 supports up to 128K output tokens
+        max_tokens = 32768
 
         # Call Claude with timeout (2 minutes to allow for complex scenarios)
         try:

@@ -1,7 +1,6 @@
 """AI-powered help system endpoints.
 
 This module provides AI-powered help for topics like:
-- Docker host setup
 - Deployment troubleshooting
 - General PacketArch usage
 """
@@ -28,7 +27,7 @@ class HelpChatRequest(BaseModel):
     question: str = Field(..., description="User's help question")
     context: str = Field(
         default="general",
-        description="Help context: docker_host_setup, deployment, general",
+        description="Help context: deployment, general",
     )
 
 
@@ -40,43 +39,19 @@ class HelpChatResponse(BaseModel):
 
 # Context-specific system prompts for help
 HELP_CONTEXTS = {
-    "docker_host_setup": """You are a helpful technical assistant specializing in Docker configuration for OT (Operational Technology) traffic simulation.
-
-Your expertise includes:
-- Docker Engine installation on Linux (Ubuntu, Debian, RHEL, CentOS)
-- Docker TLS certificate generation and configuration
-- Docker daemon configuration (daemon.json)
-- SystemD service configuration for Docker
-- Firewall configuration (UFW, firewalld, iptables)
-- Network interface management for traffic injection
-- Troubleshooting Docker connectivity issues
-
-When answering questions:
-1. Provide clear, step-by-step instructions when appropriate
-2. Include relevant command examples
-3. Mention security best practices (always recommend TLS for remote access)
-4. Consider the user may be working on a production network
-5. Offer troubleshooting tips for common issues
-
-Important notes:
-- Docker must be configured for TLS-authenticated remote access on port 2376
-- Self-signed certificates are acceptable for internal networks
-- The ca.pem, cert.pem, and key.pem files are required for PacketArch to connect
-""",
     "deployment": """You are a helpful technical assistant specializing in OT traffic deployment and simulation.
 
 Your expertise includes:
-- Traffic generation deployment to remote Docker hosts
+- Traffic generation deployment to remote traffic agents
 - Network interface selection for traffic injection
 - Deployment status monitoring and troubleshooting
-- PCAP file generation and analysis
-- Common deployment issues and solutions
+- Agent connection and management
 
 When answering questions:
 1. Focus on practical troubleshooting steps
 2. Explain deployment status codes and their meanings
 3. Help diagnose connectivity and configuration issues
-4. Provide guidance on log analysis
+4. Provide guidance on agent setup and management
 """,
     "general": """You are a helpful technical assistant for PacketArch, an OT Traffic Simulation Platform.
 
@@ -84,7 +59,7 @@ Your expertise includes:
 - Scenario creation and management
 - Device configuration and protocols
 - Traffic generation and deployment
-- Docker host setup
+- Traffic agent setup and management
 - System administration
 """,
 }
@@ -116,8 +91,8 @@ async def help_chat(
 ) -> HelpChatResponse:
     """Answer help questions using AI without scenario context.
 
-    This endpoint provides AI-powered help for topics like Docker host setup,
-    deployment troubleshooting, and general PacketArch usage.
+    This endpoint provides AI-powered help for topics like
+    deployment troubleshooting and general PacketArch usage.
 
     Args:
         request: Help question and context
@@ -150,7 +125,7 @@ Please provide a helpful, clear answer to the user's question."""
 
         response = await provider.chat(
             messages=messages,
-            max_tokens=2000,
+            max_tokens=4096,
         )
 
         # Extract text from response

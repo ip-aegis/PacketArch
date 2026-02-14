@@ -178,7 +178,7 @@ async def test_api_connection(
         # Make a minimal API call to verify the key works
         # Using a simple messages request with minimal tokens
         response = client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-haiku-4-5-20251001",
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )

@@ -71,14 +71,14 @@ DEFAULT_SETTINGS = [
     },
     {
         "key": "anthropic_model",
-        "value": "claude-sonnet-4-20250514",
+        "value": "claude-opus-4-6",
         "is_secret": False,
         "category": "ai",
         "description": "Anthropic model to use for AI features",
     },
     {
         "key": "openai_model",
-        "value": "gpt-4o",
+        "value": "gpt-4.1",
         "is_secret": False,
         "category": "ai",
         "description": "OpenAI model to use for AI features",
