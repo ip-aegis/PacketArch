@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+from app.api.deps import CurrentUser, DBSession
 from app.schemas.attack import (
     AttackPlaybookOut,
     AttackPlaybookSummary,
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/attacks", tags=["attacks"])
 
 
 @router.get("/playbooks", response_model=list[AttackPlaybookSummary])
-async def list_playbooks() -> list[dict[str, Any]]:
+async def list_playbooks(_user: CurrentUser) -> list[dict[str, Any]]:
     """List all available attack playbooks.
 
     Returns abbreviated summaries suitable for a card grid UI.
@@ -50,7 +51,7 @@ async def list_playbooks() -> list[dict[str, Any]]:
 
 
 @router.get("/playbooks/{playbook_id}", response_model=AttackPlaybookOut)
-async def get_playbook(playbook_id: str) -> dict[str, Any]:
+async def get_playbook(playbook_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Get full playbook details including stages and actions."""
     playbook = attack_service.get_playbook_by_id(playbook_id)
     if not playbook:
@@ -62,13 +63,12 @@ async def get_playbook(playbook_id: str) -> dict[str, Any]:
     "/playbooks/compatible/{scenario_id}",
     response_model=list[AttackPlaybookSummary],
 )
-async def get_compatible_playbooks(scenario_id: str) -> list[dict[str, Any]]:
+async def get_compatible_playbooks(scenario_id: str, _user: CurrentUser, db: DBSession) -> list[dict[str, Any]]:
     """List playbooks compatible with a scenario's protocols.
 
     Inspects the scenario's flows to determine which protocols are in use,
     then returns playbooks whose required_protocols overlap.
     """
-    from app.core.database import async_session_maker
     from app.models.scenario import Scenario
     from sqlalchemy import select
     from uuid import UUID
@@ -78,23 +78,22 @@ async def get_compatible_playbooks(scenario_id: str) -> list[dict[str, Any]]:
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid scenario_id format")
 
-    async with async_session_maker() as db:
-        result = await db.execute(
-            select(Scenario).where(Scenario.id == scenario_uuid)
-        )
-        scenario = result.scalar_one_or_none()
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
+    result = await db.execute(
+        select(Scenario).where(Scenario.id == scenario_uuid)
+    )
+    scenario = result.scalar_one_or_none()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
 
-        # Extract protocols from flows
-        definition = scenario.definition or {}
-        flows = definition.get("flows", {})
-        if isinstance(flows, list):
-            protocols = list({f.get("protocol", "") for f in flows if f.get("protocol")})
-        elif isinstance(flows, dict):
-            protocols = list({f.get("protocol", "") for f in flows.values() if f.get("protocol")})
-        else:
-            protocols = []
+    # Extract protocols from flows
+    definition = scenario.definition or {}
+    flows = definition.get("flows", {})
+    if isinstance(flows, list):
+        protocols = list({f.get("protocol", "") for f in flows if f.get("protocol")})
+    elif isinstance(flows, dict):
+        protocols = list({f.get("protocol", "") for f in flows.values() if f.get("protocol")})
+    else:
+        protocols = []
 
     compatible = attack_service.get_compatible_playbooks(protocols)
     summaries = []
@@ -120,7 +119,7 @@ async def get_compatible_playbooks(scenario_id: str) -> list[dict[str, Any]]:
 
 
 @router.get("/{scenario_id}/injection-status", response_model=InjectionStatusResponse)
-async def get_injection_status(scenario_id: str) -> dict[str, Any]:
+async def get_injection_status(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Poll injection outcome after POST /inject.
 
     Returns:
@@ -135,6 +134,7 @@ async def get_injection_status(scenario_id: str) -> dict[str, Any]:
 async def inject_attack(
     scenario_id: str,
     request: InjectAttackRequest,
+    _user: CurrentUser,
 ) -> dict[str, Any]:
     """Inject an attack playbook into an already-running deployment.
 
@@ -195,7 +195,7 @@ async def inject_attack(
 
 
 @router.post("/{scenario_id}/start")
-async def start_attack(scenario_id: str, request: StartAttackRequest) -> dict[str, Any]:
+async def start_attack(scenario_id: str, request: StartAttackRequest, _user: CurrentUser) -> dict[str, Any]:
     """Start an attack playbook on a deployed scenario.
 
     The playbook must be configured in the scenario's definition
@@ -213,7 +213,7 @@ async def start_attack(scenario_id: str, request: StartAttackRequest) -> dict[st
 
 
 @router.post("/{scenario_id}/stop")
-async def stop_attack(scenario_id: str) -> dict[str, Any]:
+async def stop_attack(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Stop the running attack playbook."""
     success = await attack_service.stop_attack(scenario_id)
     if not success:
@@ -225,7 +225,7 @@ async def stop_attack(scenario_id: str) -> dict[str, Any]:
 
 
 @router.post("/{scenario_id}/advance")
-async def advance_stage(scenario_id: str) -> dict[str, Any]:
+async def advance_stage(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Advance to the next kill-chain stage."""
     success = await attack_service.advance_stage(scenario_id)
     if not success:
@@ -238,7 +238,7 @@ async def advance_stage(scenario_id: str) -> dict[str, Any]:
 
 @router.post("/{scenario_id}/pause")
 async def pause_attack(
-    scenario_id: str, request: PauseAttackRequest,
+    scenario_id: str, request: PauseAttackRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
     """Pause or resume the attack playbook."""
     success = await attack_service.pause_attack(scenario_id, request.paused)
@@ -252,7 +252,7 @@ async def pause_attack(
 
 
 @router.get("/{scenario_id}/state", response_model=AttackStateResponse)
-async def get_attack_state(scenario_id: str) -> dict[str, Any]:
+async def get_attack_state(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Get current attack state for a running scenario."""
     state = attack_service.get_attack_state(scenario_id)
     if state is None:
