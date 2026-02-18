@@ -439,6 +439,7 @@ class SmartFlowGenerator:
         min_flows_per_device: int = 1,
         max_flows_per_device: int = 20,
         default_protocol: str = "modbus_tcp",
+        conduits: dict[str, dict[str, Any]] | None = None,
     ):
         """Initialize the flow generator.
 
@@ -446,10 +447,14 @@ class SmartFlowGenerator:
             min_flows_per_device: Minimum flows for each device
             max_flows_per_device: Maximum flows from each initiator (20 for ITS/BMS scenarios)
             default_protocol: Default protocol when not specified
+            conduits: Optional conduit definitions (IEC 62443). When provided,
+                cross-zone flows are checked against conduit rules instead of
+                the role-based CROSS_ZONE_CONNECTIONS fallback.
         """
         self.min_flows_per_device = min_flows_per_device
         self.max_flows_per_device = max_flows_per_device
         self.default_protocol = default_protocol
+        self.conduits = conduits
         self._flow_counter = 0
 
     def generate_flows(
@@ -526,13 +531,13 @@ class SmartFlowGenerator:
                         if source.device_id == target.device_id:
                             continue
 
-                        if not self._is_zone_allowed(source, target):
-                            continue
-
                         if targets_added >= self.max_flows_per_device:
                             break
 
                         protocol = self._select_protocol(source, target, protocols)
+                        if not self._is_zone_allowed(source, target, protocol):
+                            continue
+
                         flow = self._create_flow(source, target, protocol)
                         flows.append(flow)
                         targets_added += 1
@@ -577,9 +582,9 @@ class SmartFlowGenerator:
             for source in sources:
                 # Distribute targets among sources
                 for target in targets:
-                    if not self._is_zone_allowed(source, target):
-                        continue
                     protocol = self._select_protocol(source, target, protocols)
+                    if not self._is_zone_allowed(source, target, protocol):
+                        continue
                     flow = self._create_flow(source, target, protocol)
                     flows.append(flow)
 
@@ -606,10 +611,10 @@ class SmartFlowGenerator:
                 if source.device_id == target.device_id:
                     continue
 
-                if not self._is_zone_allowed(source, target):
+                protocol = self._select_protocol(source, target, protocols)
+                if not self._is_zone_allowed(source, target, protocol):
                     continue
 
-                protocol = self._select_protocol(source, target, protocols)
                 flow = self._create_flow(source, target, protocol)
                 flows.append(flow)
 
@@ -652,10 +657,10 @@ class SmartFlowGenerator:
             if device.device_id == central.device_id:
                 continue
 
-            if not self._is_zone_allowed(central, device):
+            protocol = self._select_protocol(central, device, protocols)
+            if not self._is_zone_allowed(central, device, protocol):
                 continue
 
-            protocol = self._select_protocol(central, device, protocols)
             flow = self._create_flow(central, device, protocol)
             flows.append(flow)
 
@@ -703,9 +708,9 @@ class SmartFlowGenerator:
 
             for j in range(start, end):
                 target = sorted_devices[j]
-                if not self._is_zone_allowed(device, target):
-                    continue
                 protocol = self._select_protocol(device, target, protocols)
+                if not self._is_zone_allowed(device, target, protocol):
+                    continue
                 flow = self._create_flow(device, target, protocol)
                 flows.append(flow)
 
@@ -801,24 +806,107 @@ class SmartFlowGenerator:
 
         return flows
 
-    @staticmethod
-    def _is_zone_allowed(source: DeviceSpec, target: DeviceSpec) -> bool:
+    def _is_zone_allowed(
+        self,
+        source: DeviceSpec,
+        target: DeviceSpec,
+        protocol: str | None = None,
+    ) -> bool:
         """Check if a flow between source and target respects zone boundaries.
 
         Rules:
         - If either device has no zone info, allow (backward compat).
         - Same zone: always allowed.
-        - Cross zone: only if source role is in CROSS_ZONE_CONNECTIONS
-          AND target role is in its allowed list.
+        - Cross zone with conduits: check conduit rules (protocol + direction).
+        - Cross zone without conduits: fall back to role-based CROSS_ZONE_CONNECTIONS.
+
+        Args:
+            source: Source device specification.
+            target: Target device specification.
+            protocol: Protocol for the proposed flow. Used for conduit
+                protocol-allow-list checking. When ``None``, the conduit
+                check is skipped and only direction / existence is verified.
         """
         if not source.zone or not target.zone:
             return True
         if source.zone == target.zone:
             return True
+
+        # --- Conduit-aware path ---
+        if self.conduits:
+            return self._conduit_allows(source.zone, target.zone, protocol)
+
+        # --- Legacy role-based fallback ---
         allowed_targets = CROSS_ZONE_CONNECTIONS.get(source.role)
         if allowed_targets is None:
             return False
         return target.role in allowed_targets
+
+    # Protocol alias mapping: variant protocol names → parent protocol.
+    # Conduit allowed_protocols lists use parent names; flows may use variants.
+    PROTOCOL_ALIASES: dict[str, str] = {
+        "profisafe": "profinet",
+        "s7comm_plus": "s7comm",
+        "cip_safety": "ethernet_ip",
+        "modbus": "modbus_tcp",
+        "enip": "ethernet_ip",
+        "bacnet_ip": "bacnet",
+    }
+
+    @classmethod
+    def _resolve_protocol(cls, protocol: str) -> str:
+        """Resolve a protocol alias to its parent protocol."""
+        return cls.PROTOCOL_ALIASES.get(protocol, protocol)
+
+    def _conduit_allows(
+        self,
+        source_zone: str,
+        target_zone: str,
+        protocol: str | None,
+    ) -> bool:
+        """Check if any conduit permits a cross-zone flow.
+
+        Args:
+            source_zone: Source device zone ID.
+            target_zone: Target device zone ID.
+            protocol: Protocol name (may be an alias). ``None`` skips
+                the protocol allow-list check.
+
+        Returns:
+            ``True`` if a matching conduit exists that permits the flow.
+        """
+        if not self.conduits:
+            return False
+
+        resolved = self._resolve_protocol(protocol) if protocol else None
+
+        for conduit in self.conduits.values():
+            src = conduit.get("sourceZoneId", conduit.get("source_zone_id", ""))
+            tgt = conduit.get("targetZoneId", conduit.get("target_zone_id", ""))
+            direction = conduit.get("direction", "bidirectional")
+            allowed = conduit.get("allowedProtocols", conduit.get("allowed_protocols", []))
+
+            forward_match = src == source_zone and tgt == target_zone
+            reverse_match = src == target_zone and tgt == source_zone
+
+            if not forward_match and not reverse_match:
+                continue
+
+            # Direction check
+            if direction == "a_to_b" and not forward_match:
+                continue
+            if direction == "b_to_a" and not reverse_match:
+                continue
+
+            # Protocol check (skip when protocol is unknown at call site)
+            if resolved is not None and allowed:
+                resolved_allowed = {self._resolve_protocol(p) for p in allowed}
+                if resolved not in resolved_allowed:
+                    continue
+
+            return True
+
+        return False
 
     # TCP/UDP protocols that generate IP traffic
     # Layer 2 protocols like PROFINET don't include IP addresses in packets
@@ -1028,6 +1116,7 @@ def generate_flows_for_scenario(
     devices: list[dict[str, Any]],
     pattern: str = "realistic",
     protocols: list[str] | None = None,
+    conduits: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Convenience function to generate flows from device dictionaries.
 
@@ -1035,6 +1124,10 @@ def generate_flows_for_scenario(
         devices: List of device dictionaries
         pattern: Flow pattern name
         protocols: Allowed protocols
+        conduits: Optional conduit definitions (IEC 62443). When provided,
+            cross-zone flows are checked against conduit rules (protocol
+            allow-lists and direction) instead of the default role-based
+            CROSS_ZONE_CONNECTIONS heuristic.
 
     Returns:
         List of flow dictionaries
@@ -1049,7 +1142,7 @@ def generate_flows_for_scenario(
         flow_pattern = FlowPattern.REALISTIC
 
     # Generate flows
-    generator = SmartFlowGenerator()
+    generator = SmartFlowGenerator(conduits=conduits)
     flows = generator.generate_flows(device_specs, flow_pattern, protocols)
 
     # Convert to dicts

@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { getOverviewStats } from '../api/stats';
-import type { Deployment } from '../types/docker';
+import type { UnifiedDeployment } from '../types/docker';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -30,7 +30,7 @@ const formatElapsedTime = (startedAt: string | null): string => {
   return `${minutes}m`;
 };
 
-const calculateProgress = (deployment: Deployment): number => {
+const calculateProgress = (deployment: UnifiedDeployment): number => {
   if (!deployment.started_at || !deployment.duration_ms) return 0;
   const elapsed = Date.now() - new Date(deployment.started_at).getTime();
   return Math.min(100, Math.round((elapsed / deployment.duration_ms) * 100));
@@ -170,7 +170,7 @@ const DashboardPage: React.FC = () => {
                       }
                       description={
                         <Space direction="vertical" size={0}>
-                          <Text type="secondary">Host: {deployment.docker_host_name}</Text>
+                          <Text type="secondary">Agent: {deployment.agent_name || 'Unknown'}</Text>
                           <Text type="secondary">
                             {isPerpetual
                               ? `Running for ${formatElapsedTime(deployment.started_at)}`

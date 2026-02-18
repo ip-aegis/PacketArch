@@ -4,8 +4,6 @@ from app.models.user import User
 from app.models.settings import SystemSetting
 from app.models.scenario import Scenario
 from app.models.protocol_template import ProtocolTemplate
-from app.models.docker_host import DockerHost
-from app.models.remote_deployment import RemoteDeployment, DeploymentStatus
 from app.models.device_template import DeviceTemplate, TemplateSource
 from app.models.anomaly_template import AnomalyTemplate, AnomalyCategory, AnomalySeverity
 from app.models.ip_range_allocation import IPRangeAllocation
@@ -21,9 +19,6 @@ __all__ = [
     "SystemSetting",
     "Scenario",
     "ProtocolTemplate",
-    "DockerHost",
-    "RemoteDeployment",
-    "DeploymentStatus",
     "DeviceTemplate",
     "TemplateSource",
     "AnomalyTemplate",

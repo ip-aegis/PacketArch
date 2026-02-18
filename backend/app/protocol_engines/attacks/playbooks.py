@@ -272,7 +272,7 @@ PIPEDREAM_LIKE = AttackPlaybook(
     severity="critical",
     category="apt",
     required_protocols=["modbus_tcp", "ethernet_ip", "s7comm"],
-    industry_verticals=["manufacturing", "energy", "water"],
+    industry_verticals=["manufacturing", "energy", "water", "oil_gas"],
     reference_url="https://attack.mitre.org/software/S1045/",
     stages=[
         # Stage 1: Initial Access
@@ -1710,6 +1710,512 @@ SNORT_VALIDATION = AttackPlaybook(
 
 
 # ---------------------------------------------------------------------------
+# 8. BAS_COMPROMISE -- Building Automation System Attack
+# ---------------------------------------------------------------------------
+
+BAS_COMPROMISE = AttackPlaybook(
+    playbook_id="bas_compromise",
+    name="Building Automation System Compromise",
+    description=(
+        "Targets commercial building BACnet/IP infrastructure through a "
+        "multi-stage campaign: compromising a workstation, discovering BACnet "
+        "controllers via Who-Is broadcasts, enumerating device properties, "
+        "then manipulating HVAC setpoints and flooding the BMS to cause "
+        "building-wide climate disruption. Inspired by real-world BAS attacks "
+        "including the 2016 Finnish building heating disruption."
+    ),
+    mitre_software_id="",
+    severity="high",
+    category="apt",
+    required_protocols=["bacnet"],
+    industry_verticals=["building_automation"],
+    reference_url="https://attack.mitre.org/tactics/TA0104/",
+    stages=[
+        # Stage 1: Initial Access
+        KillChainStage(
+            stage_id="initial_access",
+            name="Initial Access",
+            description=(
+                "Attacker gains foothold on building management workstation "
+                "via compromised credentials or supply chain. C2 beacon activates "
+                "from the corporate/facilities network."
+            ),
+            duration_seconds=120,
+            color="#faad14",
+            mitre_tactics=["TA0108"],
+            expected_cv_alerts=[
+                "New external communication detected",
+                "Periodic beaconing pattern",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="bas_c2_establish",
+                    name="Establish C2 Channel",
+                    action_type="c2_beacon",
+                    description="C2 beacon from compromised BMS workstation.",
+                    parameters={
+                        "pattern": "jittered_1m",
+                        "protocol": "https",
+                        "count": 5,
+                        "duration_ms": 60_000,
+                    },
+                    target_selector="ews",
+                    mitre_technique="T0885",
+                    expected_cv_detection="Periodic HTTPS beaconing from facilities network",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 2: BACnet Discovery
+        KillChainStage(
+            stage_id="bacnet_discovery",
+            name="BACnet Device Discovery",
+            description=(
+                "Attacker broadcasts BACnet Who-Is to discover all controllers, "
+                "then reads device properties to fingerprint firmware, vendor, "
+                "and controllable objects."
+            ),
+            duration_seconds=180,
+            color="#ffc53d",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=[
+                "BACnet Who-Is broadcast from non-BMS source",
+                "BACnet device enumeration",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="bas_whois_scan",
+                    name="BACnet Who-Is Broadcast",
+                    action_type="bacnet_whois",
+                    description="Broadcast Who-Is to discover all BACnet controllers.",
+                    parameters={},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="BACnet Who-Is from non-BMS source",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="bas_property_enum",
+                    name="Device Property Enumeration",
+                    action_type="bacnet_read_property",
+                    description=(
+                        "Read object-list, firmware-revision, model-name, and "
+                        "vendor-name from each discovered controller."
+                    ),
+                    parameters={
+                        "property_ids": [76, 44, 70, 121, 120],
+                        "interval_ms": 250,
+                    },
+                    target_selector="any",
+                    mitre_technique="T0802",
+                    expected_cv_detection="Extensive BACnet property read sweep",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 3: Lateral Movement
+        KillChainStage(
+            stage_id="lateral_movement",
+            name="Network Lateral Movement",
+            description=(
+                "Map the management network by probing cross-zone BACnet "
+                "paths and SNMP-managed infrastructure devices."
+            ),
+            duration_seconds=150,
+            color="#fa8c16",
+            mitre_tactics=["TA0109", "TA0108"],
+            expected_cv_alerts=[
+                "Cross-zone BACnet traffic",
+                "SNMP enumeration from non-NMS source",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="bas_cross_device",
+                    name="Cross-Zone BACnet Traffic",
+                    action_type="cross_device_comm",
+                    description="Generate BACnet traffic between unrelated controllers.",
+                    parameters={"count": 8, "interval_ms": 2000},
+                    target_selector="any",
+                    mitre_technique="T0867",
+                    expected_cv_detection="Anomalous BACnet communication pair",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="bas_snmp_mgmt",
+                    name="SNMP Management Plane Walk",
+                    action_type="snmp_walk",
+                    description="Walk SNMP MIB of network infrastructure devices.",
+                    parameters={"community": "public", "num_requests": 10},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="SNMP MIB walk from non-NMS source",
+                    delay_after_ms=2000,
+                ),
+            ],
+        ),
+        # Stage 4: HVAC Manipulation
+        KillChainStage(
+            stage_id="hvac_manipulation",
+            name="HVAC Setpoint Manipulation",
+            description=(
+                "Write extreme temperature setpoints and rapidly cycle fan "
+                "outputs to disrupt building climate control."
+            ),
+            duration_seconds=240,
+            color="#ff4d4f",
+            mitre_tactics=["TA0104"],
+            expected_cv_alerts=[
+                "Unauthorized BACnet WriteProperty",
+                "Setpoint anomaly detected",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="bas_temp_write",
+                    name="Temperature Setpoint Override",
+                    action_type="bacnet_write_property",
+                    description="Write extreme values to temperature setpoints.",
+                    parameters={
+                        "object_type": 2,
+                        "instance": 1,
+                        "property_id": 85,
+                        "values": [5.0, 40.0, 5.0, 40.0, 5.0, 40.0],
+                        "interval_ms": 2000,
+                    },
+                    target_selector="device",
+                    mitre_technique="T0836",
+                    expected_cv_detection="Unauthorized BACnet write to HVAC setpoint",
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="bas_fan_cycle",
+                    name="Fan Output Rapid Cycling",
+                    action_type="bacnet_write_property",
+                    description="Rapidly toggle fan binary outputs on/off.",
+                    parameters={
+                        "object_type": 4,
+                        "instance": 1,
+                        "property_id": 85,
+                        "values": [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0],
+                        "interval_ms": 500,
+                    },
+                    target_selector="device",
+                    mitre_technique="T0836",
+                    expected_cv_detection="Rapid BACnet binary output cycling",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 5: Denial of Service
+        KillChainStage(
+            stage_id="bms_dos",
+            name="BMS Denial of Service",
+            description=(
+                "Flood the BACnet network with Who-Is broadcasts and inject "
+                "spoofed I-Am responses to disrupt BMS communication."
+            ),
+            duration_seconds=120,
+            color="#cf1322",
+            mitre_tactics=["TA0105"],
+            expected_cv_alerts=[
+                "BACnet broadcast flood",
+                "BACnet device spoofing",
+                "BMS communication disruption",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="bas_whois_flood",
+                    name="BACnet Who-Is Flood",
+                    action_type="bacnet_whois_flood",
+                    description="Rapid-fire Who-Is broadcasts to exhaust controllers.",
+                    parameters={"count": 200, "rate_ms": 15},
+                    target_selector="any",
+                    mitre_technique="T0814",
+                    expected_cv_detection="BACnet broadcast flood detected",
+                    delay_after_ms=2000,
+                ),
+                AttackAction(
+                    action_id="bas_iam_spoof",
+                    name="I-Am Device Spoofing",
+                    action_type="bacnet_iam_spoof",
+                    description="Inject false I-Am responses with fabricated device instances.",
+                    parameters={"count": 30, "interval_ms": 300, "start_instance": 9000},
+                    target_selector="any",
+                    mitre_technique="T0830",
+                    expected_cv_detection="Duplicate/spoofed BACnet device instances",
+                    delay_after_ms=0,
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
+# 9. ITS_SIGNAL_DISRUPTION -- Traffic Infrastructure Attack
+# ---------------------------------------------------------------------------
+
+ITS_SIGNAL_DISRUPTION = AttackPlaybook(
+    playbook_id="its_signal_disruption",
+    name="Traffic Infrastructure Disruption",
+    description=(
+        "Targets intelligent transportation system (ITS) infrastructure via "
+        "SNMP/NTCIP: brute-forces community strings on field devices, performs "
+        "deep MIB enumeration of signal controllers and dynamic message signs, "
+        "then tampers with device configurations and floods the traffic "
+        "management center with traps. Modeled after academic ITS security "
+        "research demonstrating traffic signal and DMS vulnerabilities."
+    ),
+    mitre_software_id="",
+    severity="high",
+    category="apt",
+    required_protocols=["snmp"],
+    industry_verticals=["transportation"],
+    reference_url="https://attack.mitre.org/techniques/T0836/",
+    stages=[
+        # Stage 1: Initial Access
+        KillChainStage(
+            stage_id="initial_access",
+            name="Initial Access",
+            description=(
+                "Attacker gains access to the ITS management network and "
+                "begins probing OT-adjacent ports on field cabinets."
+            ),
+            duration_seconds=120,
+            color="#faad14",
+            mitre_tactics=["TA0108"],
+            expected_cv_alerts=[
+                "New external communication detected",
+                "Port scanning on OT network",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="its_c2_establish",
+                    name="Establish C2 Channel",
+                    action_type="c2_beacon",
+                    description="C2 beacon from compromised TMC workstation.",
+                    parameters={
+                        "pattern": "jittered_1m",
+                        "protocol": "https",
+                        "count": 5,
+                        "duration_ms": 60_000,
+                    },
+                    target_selector="ews",
+                    mitre_technique="T0885",
+                    expected_cv_detection="Periodic HTTPS beaconing from TMC network",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="its_port_probe",
+                    name="OT Port Probe",
+                    action_type="port_scan",
+                    description="Scan SNMP and common OT ports on field devices.",
+                    parameters={"scan_ot_ports": True},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Port scanning activity on ITS field network",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 2: Credential Discovery
+        KillChainStage(
+            stage_id="credential_discovery",
+            name="SNMP Credential Discovery",
+            description=(
+                "Brute-force SNMP community strings on field devices. ITS "
+                "equipment commonly uses default or weak community strings."
+            ),
+            duration_seconds=180,
+            color="#ffc53d",
+            mitre_tactics=["TA0006"],
+            expected_cv_alerts=[
+                "SNMP brute force attempt",
+                "Multiple community strings from single source",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="its_community_brute",
+                    name="Community String Brute Force",
+                    action_type="snmp_community_brute",
+                    description=(
+                        "Try common community strings against signal controllers, "
+                        "DMS, and detection devices."
+                    ),
+                    parameters={
+                        "communities": [
+                            "public", "private", "community", "admin",
+                            "NTCIP", "ntcip", "traffic", "dms", "signal",
+                            "field", "default", "manager", "readonly",
+                        ],
+                        "interval_ms": 120,
+                    },
+                    target_selector="any",
+                    mitre_technique="T0866",
+                    expected_cv_detection="SNMP community string brute force",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 3: Infrastructure Profiling
+        KillChainStage(
+            stage_id="infrastructure_profiling",
+            name="Infrastructure Profiling",
+            description=(
+                "Aggressive MIB walk across signal controllers, DMS, sensors, "
+                "and cameras to build a complete inventory of the corridor."
+            ),
+            duration_seconds=200,
+            color="#fa8c16",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=[
+                "SNMP mass enumeration",
+                "Extensive MIB walk from single source",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="its_getbulk_sweep",
+                    name="Deep MIB Enumeration",
+                    action_type="snmp_getbulk_sweep",
+                    description=(
+                        "GetBulk walk of system, interfaces, IP, and enterprise "
+                        "MIB subtrees on all field devices."
+                    ),
+                    parameters={
+                        "community": "public",
+                        "subtrees": [
+                            "1.3.6.1.2.1.1",
+                            "1.3.6.1.2.1.2",
+                            "1.3.6.1.2.1.4",
+                            "1.3.6.1.2.1.31",
+                            "1.3.6.1.4.1",
+                        ],
+                        "requests_per_subtree": 12,
+                        "interval_ms": 80,
+                    },
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Aggressive SNMP MIB enumeration across subtrees",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 4: Configuration Tampering
+        KillChainStage(
+            stage_id="config_tampering",
+            name="Configuration Tampering",
+            description=(
+                "Use SNMP SET to modify device configurations: alter signal "
+                "timing parameters, change DMS messages, and tamper with "
+                "sensor thresholds."
+            ),
+            duration_seconds=240,
+            color="#ff4d4f",
+            mitre_tactics=["TA0104"],
+            expected_cv_alerts=[
+                "SNMP SET request detected",
+                "Unauthorized configuration change",
+                "Signal controller parameter modification",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="its_signal_tamper",
+                    name="Signal Controller Config Tamper",
+                    action_type="snmp_set",
+                    description=(
+                        "Write to signal controller MIB objects to modify "
+                        "timing parameters and operational state."
+                    ),
+                    parameters={
+                        "community": "private",
+                        "oid_value_pairs": [
+                            {"oid": "1.3.6.1.2.1.1.5.0", "value": "TAMPERED-CONTROLLER"},
+                            {"oid": "1.3.6.1.2.1.1.4.0", "value": "attacker@its.local"},
+                            {"oid": "1.3.6.1.2.1.1.6.0", "value": "COMPROMISED"},
+                        ],
+                        "interval_ms": 500,
+                    },
+                    target_selector="device",
+                    mitre_technique="T0836",
+                    expected_cv_detection="Unauthorized SNMP SET to signal controller",
+                    repeat_count=3,
+                    repeat_interval_ms=5000,
+                    delay_after_ms=5000,
+                ),
+                AttackAction(
+                    action_id="its_dms_tamper",
+                    name="DMS Message Tampering",
+                    action_type="snmp_set",
+                    description="Write to DMS MIB objects to display false messages.",
+                    parameters={
+                        "community": "private",
+                        "oid_value_pairs": [
+                            {"oid": "1.3.6.1.2.1.1.5.0", "value": "ROAD CLOSED"},
+                            {"oid": "1.3.6.1.2.1.1.6.0", "value": "DETOUR AHEAD"},
+                        ],
+                        "interval_ms": 400,
+                    },
+                    target_selector="device",
+                    mitre_technique="T0836",
+                    expected_cv_detection="Unauthorized SNMP SET to DMS device",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 5: Disruption
+        KillChainStage(
+            stage_id="disruption",
+            name="NMS Disruption",
+            description=(
+                "Flood the traffic management center with fake SNMP traps "
+                "to overwhelm operators and mask ongoing tampering."
+            ),
+            duration_seconds=150,
+            color="#cf1322",
+            mitre_tactics=["TA0105"],
+            expected_cv_alerts=[
+                "SNMP trap flood detected",
+                "NMS overload",
+                "Abnormal trap rate",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="its_trap_flood",
+                    name="SNMP Trap Flood",
+                    action_type="snmp_trap_flood",
+                    description=(
+                        "Rapid-fire fake linkDown/authenticationFailure traps "
+                        "to overwhelm the TMC NMS."
+                    ),
+                    parameters={"count": 150, "rate_ms": 20, "community": "public"},
+                    target_selector="any",
+                    mitre_technique="T0814",
+                    expected_cv_detection="Sustained SNMP trap flood from field network",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="its_interface_disable",
+                    name="Interface Disable Attempt",
+                    action_type="snmp_set",
+                    description="Attempt to administratively disable network interfaces.",
+                    parameters={
+                        "community": "private",
+                        "oid_value_pairs": [
+                            {"oid": "1.3.6.1.2.1.2.2.1.7.1", "value": "2"},
+                        ],
+                        "interval_ms": 300,
+                    },
+                    target_selector="any",
+                    mitre_technique="T0816",
+                    expected_cv_detection="SNMP SET to ifAdminStatus — interface disable",
+                    delay_after_ms=0,
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -1721,6 +2227,8 @@ _ALL_PLAYBOOKS = [
     INSIDER_THREAT,
     NETWORK_RECON,
     SNORT_VALIDATION,
+    BAS_COMPROMISE,
+    ITS_SIGNAL_DISRUPTION,
 ]
 
 PLAYBOOK_REGISTRY: dict[str, AttackPlaybook] = {p.playbook_id: p for p in _ALL_PLAYBOOKS}

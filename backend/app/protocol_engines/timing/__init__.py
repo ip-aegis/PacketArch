@@ -26,7 +26,7 @@ Usage:
     # From vendor fingerprint
     model = timing_model_from_fingerprint(device.vendor_fingerprint)
     sample = model.sample()
-    print(f"Delay: {sample.delay_ms}ms, Outlier: {sample.is_outlier}")
+    delay_ms, is_outlier = sample.delay_ms, sample.is_outlier
 
     # From configuration
     config = TimingConfig(

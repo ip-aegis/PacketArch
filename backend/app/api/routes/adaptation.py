@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api.deps import CurrentUser
 from app.services.adaptation_service import adaptation_service
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ class PhasePauseRequest(BaseModel):
 
 
 @router.post("/{scenario_id}/directives")
-async def send_directives(scenario_id: str, request: DirectiveRequest) -> dict[str, Any]:
+async def send_directives(scenario_id: str, request: DirectiveRequest, _user: CurrentUser) -> dict[str, Any]:
     """Send adaptation directives to a running scenario.
 
     Directives adjust traffic behavior mid-deployment without restarting.
@@ -81,7 +82,7 @@ async def send_directives(scenario_id: str, request: DirectiveRequest) -> dict[s
 
 
 @router.get("/{scenario_id}/state")
-async def get_adaptation_state(scenario_id: str) -> dict[str, Any]:
+async def get_adaptation_state(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Get current adaptation state for a running scenario."""
     state = adaptation_service.get_adaptation_state(scenario_id)
     if state is None:
@@ -91,7 +92,7 @@ async def get_adaptation_state(scenario_id: str) -> dict[str, Any]:
 
 @router.post("/{scenario_id}/schedule-override")
 async def set_schedule_override(
-    scenario_id: str, request: ScheduleOverrideRequest,
+    scenario_id: str, request: ScheduleOverrideRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
     """Override the traffic schedule phase for a running scenario.
 
@@ -112,7 +113,7 @@ async def set_schedule_override(
 
 @router.post("/{scenario_id}/protocol-rate")
 async def adjust_protocol_rate(
-    scenario_id: str, request: ProtocolRateRequest,
+    scenario_id: str, request: ProtocolRateRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
     """Adjust traffic rate for a specific protocol.
 
@@ -139,7 +140,7 @@ async def adjust_protocol_rate(
 
 
 @router.delete("/{scenario_id}/directives")
-async def clear_directives(scenario_id: str) -> dict[str, Any]:
+async def clear_directives(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Clear all active adaptation directives for a running scenario.
 
     Resets traffic to default behavior (schedule + micro-variations only).
@@ -159,7 +160,7 @@ async def clear_directives(scenario_id: str) -> dict[str, Any]:
 
 
 @router.post("/{scenario_id}/phase/skip")
-async def skip_to_next_phase(scenario_id: str) -> dict[str, Any]:
+async def skip_to_next_phase(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Skip to the next deployment phase.
 
     Immediately advances the phase scheduler to the next phase in sequence.
@@ -175,7 +176,7 @@ async def skip_to_next_phase(scenario_id: str) -> dict[str, Any]:
 
 @router.post("/{scenario_id}/phase/force")
 async def force_phase(
-    scenario_id: str, request: ForcePhaseRequest,
+    scenario_id: str, request: ForcePhaseRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
     """Force a specific deployment phase.
 
@@ -193,7 +194,7 @@ async def force_phase(
 
 @router.post("/{scenario_id}/phase/pause")
 async def toggle_phase_cycling(
-    scenario_id: str, request: PhasePauseRequest,
+    scenario_id: str, request: PhasePauseRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
     """Pause or resume deployment phase cycling.
 

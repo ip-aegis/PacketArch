@@ -105,12 +105,13 @@ if [ ! -f .env ]; then
     # Generate secure random values
     SECRET_KEY=$(openssl rand -hex 32)
     POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+    ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
 
     cat > .env << ENVEOF
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 SECRET_KEY=${SECRET_KEY}
 ENCRYPTION_KEY=
-ADMIN_PASSWORD=C!sco123
+ADMIN_PASSWORD=${ADMIN_PASSWORD}
 DEBUG=false
 ENVEOF
 
@@ -149,7 +150,7 @@ echo "  API Docs:  http://${SERVER_IP}:8001/api/docs"
 echo ""
 echo "Default Credentials:"
 echo "  Username:  admin"
-echo "  Password:  C!sco123"
+echo "  Password:  (see ADMIN_PASSWORD in .env file)"
 echo ""
 echo "GitHub Actions Secrets Required:"
 echo "  SSH_HOST:          ${SERVER_IP}"
@@ -157,7 +158,7 @@ echo "  SSH_USER:          ${USER}"
 echo "  SSH_PRIVATE_KEY:   (your SSH private key)"
 echo "  POSTGRES_PASSWORD: (from .env file)"
 echo "  SECRET_KEY:        (from .env file)"
-echo "  ADMIN_PASSWORD:    C!sco123"
+echo "  ADMIN_PASSWORD:    (from .env file)"
 echo ""
 echo "To view .env values: cat $INSTALL_DIR/.env"
 echo ""

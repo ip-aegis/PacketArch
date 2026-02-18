@@ -18,7 +18,6 @@ from app.core.exceptions import ConflictError, ExternalServiceError, ValidationE
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob
 from app.models.traffic_agent import AgentDeployment
-from app.models.remote_deployment import RemoteDeployment
 from app.services.device_identity_enricher import enrich_definition_serial_numbers
 from app.services.ip_management import IPManagementService
 from app.protocol_engines.protocols import validate_protocol_vendor_affinity
@@ -35,6 +34,7 @@ from app.schemas.scenario import (
     ScenarioUpdate,
 )
 from app.schemas.common import MessageResponse
+from app.schemas.conduit import ConduitComplianceResponse
 
 router = APIRouter(prefix="/scenarios", tags=["Scenarios"])
 
@@ -180,6 +180,21 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         passed=affinity_ok,
         severity="warning",
         message=None if affinity_ok else f"{len(affinity_warnings)} vendor-protocol affinity warning(s)",
+    ))
+
+    # --- Check: Conduit compliance ---
+    from app.services.conduit_compliance import validate_conduit_compliance
+
+    conduit_result = validate_conduit_compliance(definition)
+    conduit_ok = conduit_result.non_compliant_flows == 0
+    checks.append(ReadinessCheck(
+        name="Conduit compliance",
+        passed=conduit_ok,
+        severity="warning",
+        message=None if conduit_ok else (
+            f"{conduit_result.non_compliant_flows} flow(s) crossing zones "
+            f"without matching conduit"
+        ),
     ))
 
     # Compute score and status
@@ -444,15 +459,6 @@ async def delete_scenario(
     )
     active_agent_count = active_agent_deployments.scalar() or 0
 
-    # Check for active docker deployments
-    active_docker_deployments = await db.execute(
-        select(func.count()).select_from(RemoteDeployment).where(
-            RemoteDeployment.scenario_id == scenario_id,
-            RemoteDeployment.status.in_(["running", "starting", "stopping"]),
-        )
-    )
-    active_docker_count = active_docker_deployments.scalar() or 0
-
     # Check for generation jobs
     generation_jobs_result = await db.execute(
         select(func.count()).select_from(GenerationJob).where(
@@ -462,13 +468,12 @@ async def delete_scenario(
     generation_job_count = generation_jobs_result.scalar() or 0
 
     # If there are active deployments and not forcing, return error with details
-    if (active_agent_count > 0 or active_docker_count > 0) and not force:
+    if active_agent_count > 0 and not force:
         raise ConflictError(
             "Cannot delete scenario with active deployments",
             resource="Scenario",
             details={
                 "active_agent_deployments": active_agent_count,
-                "active_docker_deployments": active_docker_count,
                 "hint": "Stop deployments first or use force=true to force delete",
             },
         )
@@ -485,18 +490,14 @@ async def delete_scenario(
         await db.execute(
             sql_delete(AgentDeployment).where(AgentDeployment.scenario_id == scenario_id)
         )
-        # Delete all docker deployments (including stopped ones)
-        await db.execute(
-            sql_delete(RemoteDeployment).where(RemoteDeployment.scenario_id == scenario_id)
-        )
 
     # Now delete the scenario
     await db.delete(scenario)
     await db.commit()
 
     cleanup_msg = ""
-    if force and (active_agent_count > 0 or active_docker_count > 0 or generation_job_count > 0):
-        cleanup_msg = f" (cleaned up {generation_job_count} generation jobs, {active_agent_count + active_docker_count} deployments)"
+    if force and (active_agent_count > 0 or generation_job_count > 0):
+        cleanup_msg = f" (cleaned up {generation_job_count} generation jobs, {active_agent_count} deployments)"
 
     return MessageResponse(message=f"Scenario deleted successfully{cleanup_msg}")
 
@@ -806,6 +807,30 @@ async def validate_scenario(
         flow_count=len(flows),
         protocols_used=list(protocols_used),
     )
+
+
+@router.get("/{scenario_id}/conduit-compliance", response_model=ConduitComplianceResponse)
+async def get_conduit_compliance(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> ConduitComplianceResponse:
+    """Check all flows against conduit rules.
+
+    Returns compliance findings for flows that cross zone boundaries
+    without a matching conduit, or use protocols not allowed by the conduit.
+    """
+    from app.services.conduit_compliance import validate_conduit_compliance
+
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
+    )
+
+    return validate_conduit_compliance(scenario.definition or {})
 
 
 class RepairProtocolsResponse(BaseModel):

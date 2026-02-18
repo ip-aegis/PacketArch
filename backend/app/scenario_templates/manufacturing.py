@@ -230,30 +230,36 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # PROFINET cyclic IO - Main PLC to Servo Drives (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
              "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
             # PROFINET cyclic IO - Main PLC to VFDs (8ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
              "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # PROFINET cyclic IO - Main PLC to I/O Modules (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
              "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
 
             # PROFIsafe safety communication (4ms)
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"]},
+             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"],
+             "source_zones": ["control"], "target_zones": ["control", "cell"]},
 
             # HMI polling via S7comm+ (500ms)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
             # Aux PLC to Main PLC coordination (32ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 32,
              "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 4, "jitter_type": "gaussian"},
 
             # Main PLC to Field I/O (16ms)
@@ -264,7 +270,8 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # SNMP monitoring of switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"]},
+             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["control"], "target_zones": ["control"]},
 
             # EWON Modbus polling to drives (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
@@ -282,6 +289,26 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "external", "name": "External/Internet", "level": 4,
              "subnet_offset": 99, "vlan": 999, "security_level": "external",
              "is_external": True},
+        ],
+        "conduits": [
+            {"id": "ctrl_cell", "name": "Control \u2194 Cell",
+             "source_zone": "control", "target_zone": "cell",
+             "direction": "bidirectional",
+             "allowed_protocols": ["profinet", "profisafe", "s7comm_plus", "modbus_tcp"],
+             "security_level": "high",
+             "description": "PLCs communicate with drives, servos, and I/O modules via PROFINET cyclic I/O; EWON gateway polls drives via Modbus TCP"},
+            {"id": "ctrl_field", "name": "Control \u2194 Field",
+             "source_zone": "control", "target_zone": "field",
+             "direction": "bidirectional",
+             "allowed_protocols": ["profinet"],
+             "security_level": "high",
+             "description": "Main PLCs poll remote field I/O modules via PROFINET cyclic I/O"},
+            {"id": "ctrl_external", "name": "Control \u2194 External",
+             "source_zone": "control", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway heartbeat to Talk2M cloud service"},
         ],
         "cloud_services": [
             {
@@ -560,35 +587,42 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # EtherNet/IP implicit - Line PLC to Cell PLCs (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # EtherNet/IP implicit - Cell PLC to VFDs (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # CIP Safety communication (4ms Safety RPI)
             {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"]},
+             "source_types": ["safety_plc"], "target_types": ["plc", "drive", "io_module"],
+             "source_zones": ["control"], "target_zones": ["control", "cell"]},
 
             # HMI polling via EtherNet/IP explicit (500ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 50, "jitter_type": "uniform"},
 
             # Cell PLC to Remote I/O (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # Cell PLC to Point I/O (20ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
              "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
             # SNMP monitoring of switches (30s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"]},
+             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["control"], "target_zones": ["control"]},
 
             # EWON EtherNet/IP polling to PLCs (10s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 10000,
@@ -604,6 +638,20 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "external", "name": "External/Internet", "level": 4,
              "subnet_offset": 99, "vlan": 999, "security_level": "external",
              "is_external": True},
+        ],
+        "conduits": [
+            {"id": "ctrl_cell", "name": "Control \u2194 Cell",
+             "source_zone": "control", "target_zone": "cell",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "cip_safety"],
+             "security_level": "high",
+             "description": "PLCs communicate with servo drives, VFDs, and remote I/O via EtherNet/IP implicit messaging; CIP Safety for safety PLCs"},
+            {"id": "ctrl_external", "name": "Control \u2194 External",
+             "source_zone": "control", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway heartbeat to Talk2M cloud service"},
         ],
         "cloud_services": [
             {
@@ -1490,6 +1538,84 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "subnet_offset": 99, "vlan": 999, "security_level": "external",
              "is_external": True},
         ],
+        "conduits": [
+            # DMZ to production zone conduits (L3.5 -> L2)
+            {"id": "dmz_siemens", "name": "DMZ \u2194 Siemens Production",
+             "source_zone": "dmz", "target_zone": "siemens_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm_plus", "s7comm", "profinet", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions, engineering station S7comm programming, central HMI polling, SNMP infrastructure monitoring"},
+            {"id": "dmz_rockwell", "name": "DMZ \u2194 Rockwell Production",
+             "source_zone": "dmz", "target_zone": "rockwell_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions, engineering station and EWON EtherNet/IP polling, SNMP monitoring"},
+            {"id": "dmz_schneider", "name": "DMZ \u2194 Schneider Production",
+             "source_zone": "dmz", "target_zone": "schneider_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions, gateway and EWON Modbus TCP polling, SNMP monitoring"},
+            {"id": "dmz_abb", "name": "DMZ \u2194 ABB Production",
+             "source_zone": "dmz", "target_zone": "abb_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions, gateway and EWON Modbus TCP polling, SNMP monitoring"},
+            # Production zone to field zone conduits (L2 -> L1)
+            {"id": "siemens_field", "name": "Siemens Production \u2194 Siemens Field",
+             "source_zone": "siemens_zone", "target_zone": "field_siemens",
+             "direction": "bidirectional",
+             "allowed_protocols": ["profinet", "profisafe"],
+             "security_level": "high",
+             "description": "Siemens PLCs poll field I/O modules via PROFINET cyclic I/O and PROFIsafe safety"},
+            {"id": "rockwell_field", "name": "Rockwell Production \u2194 Rockwell Field",
+             "source_zone": "rockwell_zone", "target_zone": "field_rockwell",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "cip_safety"],
+             "security_level": "high",
+             "description": "Rockwell PLCs poll field I/O modules via EtherNet/IP implicit messaging and CIP Safety"},
+            {"id": "schneider_field", "name": "Schneider Production \u2194 Schneider Field",
+             "source_zone": "schneider_zone", "target_zone": "field_schneider",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Schneider PLCs poll field I/O modules via Modbus TCP"},
+            {"id": "abb_field", "name": "ABB Production \u2194 ABB Field",
+             "source_zone": "abb_zone", "target_zone": "field_abb",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "ABB PLCs poll field I/O modules via Modbus TCP"},
+            # Cross-zone material handoff conduits (L2 -> L2)
+            {"id": "siemens_rockwell_handoff", "name": "Siemens \u2194 Rockwell Handoff",
+             "source_zone": "siemens_zone", "target_zone": "rockwell_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Cross-zone material handoff coordination between Siemens and Rockwell production lines via Modbus TCP"},
+            {"id": "rockwell_schneider_handoff", "name": "Rockwell \u2194 Schneider Handoff",
+             "source_zone": "rockwell_zone", "target_zone": "schneider_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Cross-zone material handoff coordination between Rockwell and Schneider production lines via Modbus TCP"},
+            {"id": "schneider_abb_handoff", "name": "Schneider \u2194 ABB Handoff",
+             "source_zone": "schneider_zone", "target_zone": "abb_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Cross-zone material handoff coordination between Schneider and ABB production lines via Modbus TCP"},
+            # DMZ to external conduit (L3.5 -> L4)
+            {"id": "dmz_external", "name": "DMZ \u2194 External",
+             "source_zone": "dmz", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https", "rdp"],
+             "security_level": "critical",
+             "description": "EWON remote gateway heartbeat to Talk2M cloud; Jump server RDP for IT/OT boundary access"},
+        ],
         "cloud_services": [
             {
                 "provider": "talk2m",
@@ -1567,6 +1693,40 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "external", "name": "External/Internet", "level": 4,
              "subnet_offset": 99, "vlan": 999, "security_level": "external",
              "is_external": True},
+        ],
+        "conduits": [
+            # IDMZ to cell conduits (L3.5 -> L2, strict northbound-only data collection)
+            {"id": "idmz_cell1_cnc", "name": "IDMZ \u2194 Cell 1 CNC",
+             "source_zone": "idmz", "target_zone": "cell1_cnc",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm_plus", "s7comm", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Siemens PLCs, central HMI S7comm+ polling, EWON Modbus TCP polling, SNMP infrastructure monitoring"},
+            {"id": "idmz_cell2_weld", "name": "IDMZ \u2194 Cell 2 Welding",
+             "source_zone": "idmz", "target_zone": "cell2_weld",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Rockwell PLCs, central HMI EtherNet/IP polling, EWON Modbus TCP polling, SNMP monitoring"},
+            {"id": "idmz_cell3_ecoat", "name": "IDMZ \u2194 Cell 3 E-Coat",
+             "source_zone": "idmz", "target_zone": "cell3_ecoat",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Schneider PLCs, central HMI and EWON Modbus TCP polling, SNMP monitoring"},
+            {"id": "idmz_cell4_assembly", "name": "IDMZ \u2194 Cell 4 Assembly",
+             "source_zone": "idmz", "target_zone": "cell4_assembly",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to ABB PLCs, central HMI and EWON Modbus TCP polling, SNMP monitoring"},
+            # IDMZ to external (L3.5 -> L4)
+            {"id": "idmz_external", "name": "IDMZ \u2194 External",
+             "source_zone": "idmz", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https", "rdp"],
+             "security_level": "critical",
+             "description": "EWON remote gateway heartbeat to Talk2M cloud; Jump server RDP for remote IT/OT administration"},
         ],
         "recommended_attack_playbooks": [
             {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "Tests PIPEDREAM lateral movement against Purdue segmentation"},

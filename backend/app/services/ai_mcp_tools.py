@@ -15,7 +15,6 @@ from app.mcp_server.tools import (
     addressing_tools,
     ai_generation_tools,
     attack_tools,
-    deployment_tools,
     device_tools,
     external_comm_tools,
     fingerprint_tools,
@@ -927,70 +926,6 @@ def register_mcp_tools(db: AsyncSession, user_id: str | None = None) -> None:
         },
         handler=lambda scenario_id, flow_id, gocb_ref=None, dataset=None, app_id=None, conf_rev=None, min_time_ms=None, max_time_ms=None: protocol_tools.configure_goose_publisher(
             db, scenario_id, flow_id, gocb_ref, dataset, app_id, conf_rev, min_time_ms, max_time_ms
-        ),
-    )
-
-    # ==================== Deployment Control Tools ====================
-    mcp_server.register_tool(
-        name="list_docker_hosts",
-        description="List available Docker hosts for traffic generation deployment. Returns host name, hostname, port, and default network interface.",
-        input_schema={"type": "object", "properties": {}},
-        handler=lambda: deployment_tools.list_docker_hosts(db),
-    )
-
-    mcp_server.register_tool(
-        name="start_deployment",
-        description="Start a traffic generation deployment on a Docker host. Deploys a container that generates traffic according to the scenario.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "scenario_id": {"type": "string", "description": "Scenario UUID"},
-                "docker_host_id": {"type": "string", "description": "Docker host UUID (use list_docker_hosts to find available hosts)"},
-                "network_interface": {"type": "string", "description": "Network interface for packet injection (uses host default if not specified)"},
-                "run_mode": {"type": "string", "enum": ["timed", "perpetual"], "description": "Run mode: 'timed' stops after duration, 'perpetual' runs until stopped"},
-                "duration_ms": {"type": "integer", "description": "Duration in milliseconds for timed mode (default 60000)"},
-            },
-            "required": ["scenario_id", "docker_host_id"],
-        },
-        handler=lambda scenario_id, docker_host_id, network_interface=None, run_mode="timed", duration_ms=60000: deployment_tools.start_deployment(
-            db, scenario_id, docker_host_id, network_interface, run_mode, duration_ms
-        ),
-    )
-
-    mcp_server.register_tool(
-        name="stop_deployment",
-        description="Stop a running deployment. Stops the traffic generation container.",
-        input_schema={
-            "type": "object",
-            "properties": {"deployment_id": {"type": "string", "description": "Deployment UUID"}},
-            "required": ["deployment_id"],
-        },
-        handler=lambda deployment_id: deployment_tools.stop_deployment(db, deployment_id),
-    )
-
-    mcp_server.register_tool(
-        name="get_deployment_status",
-        description="Get current deployment status including run statistics, elapsed time, and packet count.",
-        input_schema={
-            "type": "object",
-            "properties": {"deployment_id": {"type": "string", "description": "Deployment UUID"}},
-            "required": ["deployment_id"],
-        },
-        handler=lambda deployment_id: deployment_tools.get_deployment_status(db, deployment_id),
-    )
-
-    mcp_server.register_tool(
-        name="list_deployments",
-        description="List deployments with optional filters. Shows recent deployments with their status.",
-        input_schema={
-            "type": "object",
-            "properties": {
-                "scenario_id": {"type": "string", "description": "Filter by scenario UUID"},
-                "status_filter": {"type": "string", "enum": ["pending", "starting", "running", "stopping", "stopped", "failed"], "description": "Filter by deployment status"},
-            },
-        },
-        handler=lambda scenario_id=None, status_filter=None: deployment_tools.list_deployments(
-            db, scenario_id, status_filter
         ),
     )
 

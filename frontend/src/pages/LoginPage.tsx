@@ -186,17 +186,19 @@ const LoginPage: React.FC = () => {
           </Form>
 
           {/* Footer info */}
-          <div
-            style={{
-              textAlign: 'center',
-              paddingTop: 16,
-              borderTop: '1px solid #2d2d52',
-            }}
-          >
-            <Text style={{ color: '#6b6b8a', fontSize: 12 }}>
-              Default: <span style={{ color: '#a8a8c0' }}>admin</span> / <span style={{ color: '#a8a8c0' }}>C!sco123</span>
-            </Text>
-          </div>
+          {import.meta.env.DEV && (
+            <div
+              style={{
+                textAlign: 'center',
+                paddingTop: 16,
+                borderTop: '1px solid #2d2d52',
+              }}
+            >
+              <Text style={{ color: '#6b6b8a', fontSize: 12 }}>
+                Default: <span style={{ color: '#a8a8c0' }}>admin</span> / <span style={{ color: '#a8a8c0' }}>C!sco123</span>
+              </Text>
+            </div>
+          )}
         </Space>
       </Card>
 

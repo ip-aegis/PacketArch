@@ -214,7 +214,6 @@ import { adminSettingsArticle } from './admin-settings';
 import { templatesArticle } from './templates';
 import { anomaliesArticle } from './anomalies';
 import { glossaryArticle } from './glossary';
-import { dockerHostSetupArticle } from './docker-host-setup';
 
 // Register all articles
 registerHelpArticle(gettingStartedArticle);
@@ -229,4 +228,3 @@ registerHelpArticle(adminSettingsArticle);
 registerHelpArticle(templatesArticle);
 registerHelpArticle(anomaliesArticle);
 registerHelpArticle(glossaryArticle);
-registerHelpArticle(dockerHostSetupArticle);

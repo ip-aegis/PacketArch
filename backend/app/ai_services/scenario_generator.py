@@ -601,6 +601,7 @@ class GeneratedScenario:
     flows: list[GeneratedFlow]
     zones: list[dict[str, Any]]
     duration_ms: int
+    conduits: dict[str, dict[str, Any]] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

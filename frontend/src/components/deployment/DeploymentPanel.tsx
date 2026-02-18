@@ -1,5 +1,5 @@
 /**
- * Deployment Panel - Deploy scenarios to remote Docker hosts or traffic agents
+ * Deployment Panel - Deploy scenarios to traffic agents
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -11,15 +11,12 @@ import {
   message,
 } from 'antd';
 import { CloudServerOutlined } from '@ant-design/icons';
-import { useDockerHostsStore } from '../../stores/dockerHostsStore';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { scenariosApi, type ScenarioValidationResponse } from '../../api/scenarios';
 import type {
   UnifiedDeployment,
-  DeploymentRequest,
-  NetworkInterface,
   RunMode,
 } from '../../types/docker';
 import type { AgentInterface, DeploymentCreate } from '../../types/agent';
@@ -28,10 +25,9 @@ import { extractErrorMessage } from '../../utils/errorUtils';
 import { PanelContainer, ErrorAlert, EmptyState } from '../common';
 import { useAttackStore } from '../../stores/attackStore';
 import DeploymentCard from './DeploymentCard';
-import DeploymentForm, { type TargetType, type PhaseScheduleConfig } from './DeploymentForm';
+import DeploymentForm, { type PhaseScheduleConfig } from './DeploymentForm';
 import ReadinessChecklist from './ReadinessChecklist';
 import ValidationModal from './ValidationModal';
-import LogsModal from './LogsModal';
 
 const { Title } = Typography;
 
@@ -43,33 +39,18 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   scenarioId,
 }) => {
   const [form] = Form.useForm();
-  const [targetType, setTargetType] = useState<TargetType>('agent');
-  const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
-  const [agentInterfaces, setAgentInterfaces] = useState<AgentInterface[]>(
-    [],
-  );
+  const [agentInterfaces, setAgentInterfaces] = useState<AgentInterface[]>([]);
   const [loadingInterfaces, setLoadingInterfaces] = useState(false);
-  const [logsModalVisible, setLogsModalVisible] = useState(false);
-  const [validationModalVisible, setValidationModalVisible] =
-    useState(false);
+  const [validationModalVisible, setValidationModalVisible] = useState(false);
   const [validationResult, setValidationResult] =
     useState<ScenarioValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [hasReadinessErrors, setHasReadinessErrors] = useState(false);
-  const [pendingDeployData, setPendingDeployData] =
-    useState<DeploymentRequest | null>(null);
   const [pendingAgentDeploy, setPendingAgentDeploy] = useState<{
     agentId: string;
     deployData: DeploymentCreate;
   } | null>(null);
-
-  const {
-    hosts,
-    fetchHosts,
-    fetchInterfaces,
-    isLoading: hostsLoading,
-  } = useDockerHostsStore();
 
   const {
     agents,
@@ -81,18 +62,11 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
 
   const {
     deployments,
-    activeDeployment,
-    logs,
     isLoading: deploymentsLoading,
     error,
     fetchDeployments,
-    startDeployment,
-    stopDeployment,
     removeDeployment,
-    fetchLogs,
-    setActiveDeployment,
     clearError,
-    stopPolling,
   } = useDeploymentsStore();
 
   const scenarioDeployments = useMemo(
@@ -102,12 +76,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
 
   // ── Fetch on mount ──────────────────────────────────────────────
   useEffect(() => {
-    fetchHosts();
     fetchAgents();
     if (scenarioId) fetchDeployments({ scenario_id: scenarioId });
-    return () => {
-      stopPolling();
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioId]);
 
@@ -124,42 +94,6 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
 
     return () => clearInterval(pollInterval);
   }, [scenarioDeployments, scenarioId, fetchDeployments]);
-
-  // ── Target type change ──────────────────────────────────────────
-  const handleTargetTypeChange = (type: TargetType) => {
-    setTargetType(type);
-    setInterfaces([]);
-    setAgentInterfaces([]);
-    form.setFieldValue('docker_host_id', undefined);
-    form.setFieldValue('agent_id', undefined);
-    form.setFieldValue('network_interface', undefined);
-  };
-
-  // ── Host selection ──────────────────────────────────────────────
-  const handleHostChange = async (hostId: string) => {
-    setLoadingInterfaces(true);
-    setInterfaces([]);
-    form.setFieldValue('network_interface', undefined);
-    try {
-      const result = await fetchInterfaces(hostId);
-      setInterfaces(result.interfaces);
-      const host = hosts.find((h) => h.id === hostId);
-      if (host?.default_interface) {
-        const hasDefault = result.interfaces.some(
-          (i) => i.name === host.default_interface,
-        );
-        if (hasDefault)
-          form.setFieldValue(
-            'network_interface',
-            host.default_interface,
-          );
-      }
-    } catch {
-      // Error handled in store
-    } finally {
-      setLoadingInterfaces(false);
-    }
-  };
 
   // ── Agent selection ─────────────────────────────────────────────
   const handleAgentChange = async (agentId: string) => {
@@ -201,111 +135,52 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
       }
     };
 
-  // ── Execute deployment ──────────────────────────────────────────
-  const executeDeployment = async (data: DeploymentRequest) => {
-    try {
-      await startDeployment(data);
-      form.resetFields();
-      setInterfaces([]);
-      setPendingDeployData(null);
-    } catch {
-      // Error handled in store
-    }
-  };
-
   // ── Deploy handler ──────────────────────────────────────────────
   const handleDeploy = async (values: {
-    docker_host_id?: string;
     agent_id?: string;
     network_interface: string;
     run_mode: RunMode;
     duration_minutes?: number;
     phase_schedule?: PhaseScheduleConfig;
   }) => {
-    if (!scenarioId) return;
+    if (!scenarioId || !values.agent_id) return;
 
     const validation = await validateScenario();
 
-    if (targetType === 'agent') {
-      if (!values.agent_id) return;
+    const deployData: DeploymentCreate = {
+      scenario_id: scenarioId,
+      interface: values.network_interface,
+    };
+    if (values.phase_schedule?.enabled) {
+      deployData.adaptive_config = { phase_schedule: values.phase_schedule };
+    }
+    // Include attack playbook config if configured
+    const attackConfig = useAttackStore.getState().playbookConfig;
+    if (attackConfig?.playbook_id) {
+      deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
+    }
 
-      const agentDeployData = {
-        scenario_id: scenarioId,
-        agent_id: values.agent_id,
-        interface: values.network_interface,
-      };
-
-      if (!validation || validation.warnings.length === 0) {
-        try {
-          const deployData: DeploymentCreate = {
-            scenario_id: scenarioId,
-            interface: values.network_interface,
-          };
-          if (values.phase_schedule?.enabled) {
-            deployData.adaptive_config = { phase_schedule: values.phase_schedule };
-          }
-          // Include attack playbook config if configured
-          const attackConfig = useAttackStore.getState().playbookConfig;
-          if (attackConfig?.playbook_id) {
-            deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
-          }
-          await deployToAgent(values.agent_id, deployData);
-          message.success(
-            'Scenario deployed to agent successfully! Traffic generation started.',
-          );
-          form.resetFields(['agent_id', 'network_interface']);
-          setAgentInterfaces([]);
-          await fetchDeployments({ scenario_id: scenarioId });
-        } catch (err: unknown) {
-          message.error(
-            extractErrorMessage(
-              err,
-              'Failed to deploy scenario to agent',
-            ),
-          );
-        }
-      } else {
-        const deployData: DeploymentCreate = {
-          scenario_id: scenarioId,
-          interface: values.network_interface,
-        };
-        if (values.phase_schedule?.enabled) {
-          deployData.adaptive_config = { phase_schedule: values.phase_schedule };
-        }
-        const attackConfig = useAttackStore.getState().playbookConfig;
-        if (attackConfig?.playbook_id) {
-          deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
-        }
-        setPendingAgentDeploy({ agentId: values.agent_id, deployData });
-        setValidationResult(validation);
-        setValidationModalVisible(true);
+    if (!validation || validation.warnings.length === 0) {
+      try {
+        await deployToAgent(values.agent_id, deployData);
+        message.success(
+          'Scenario deployed to agent successfully! Traffic generation started.',
+        );
+        form.resetFields(['agent_id', 'network_interface']);
+        setAgentInterfaces([]);
+        await fetchDeployments({ scenario_id: scenarioId });
+      } catch (err: unknown) {
+        message.error(
+          extractErrorMessage(
+            err,
+            'Failed to deploy scenario to agent',
+          ),
+        );
       }
     } else {
-      if (!values.docker_host_id) return;
-
-      const data: DeploymentRequest = {
-        scenario_id: scenarioId,
-        docker_host_id: values.docker_host_id,
-        network_interface: values.network_interface,
-        run_mode: values.run_mode,
-        duration_ms:
-          values.run_mode === 'perpetual'
-            ? undefined
-            : (values.duration_minutes ?? 5) * 60 * 1000,
-      };
-
-      if (!validation) {
-        await executeDeployment(data);
-        return;
-      }
-
-      if (validation.warnings.length > 0) {
-        setPendingDeployData(data);
-        setValidationResult(validation);
-        setValidationModalVisible(true);
-      } else {
-        await executeDeployment(data);
-      }
+      setPendingAgentDeploy({ agentId: values.agent_id, deployData });
+      setValidationResult(validation);
+      setValidationModalVisible(true);
     }
   };
 
@@ -328,8 +203,6 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
       } finally {
         setPendingAgentDeploy(null);
       }
-    } else if (pendingDeployData) {
-      await executeDeployment(pendingDeployData);
     }
   };
 
@@ -362,10 +235,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   // ── Stop deployment ─────────────────────────────────────────────
   const handleStop = async (deployment: UnifiedDeployment) => {
     try {
-      if (
-        deployment.deployment_type === 'agent' &&
-        deployment.agent_id
-      ) {
+      if (deployment.agent_id) {
         const { stopDeployment: stopAgentDeployment } =
           useAgentsStore.getState();
         await stopAgentDeployment(
@@ -374,9 +244,6 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
         );
         message.success('Stop command sent to agent');
         await fetchDeployments({ scenario_id: scenarioId! });
-      } else {
-        await stopDeployment(deployment.id);
-        message.success('Deployment stopped');
       }
     } catch (err: unknown) {
       message.error(
@@ -385,7 +252,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     }
   };
 
-  // ── Remove / logs ───────────────────────────────────────────────
+  // ── Remove ───────────────────────────────────────────────────
   const handleRemove = async (deploymentId: string) => {
     try {
       await removeDeployment(deploymentId);
@@ -394,32 +261,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     }
   };
 
-  const handleViewLogs = async (deployment: UnifiedDeployment) => {
-    setActiveDeployment(deployment);
-    setLogsModalVisible(true);
-    try {
-      await fetchLogs(deployment.id);
-    } catch {
-      // Error handled in store
-    }
-  };
-
-  const handleRefreshLogs = async () => {
-    if (activeDeployment) {
-      try {
-        await fetchLogs(activeDeployment.id);
-      } catch {
-        // Error handled in store
-      }
-    }
-  };
-
   const scenarioPhases = useScenarioStore((s) => s.phases);
 
-  const activeHosts = useMemo(
-    () => hosts.filter((h) => h.is_active),
-    [hosts],
-  );
   const onlineAgents = useMemo(
     () => agents.filter((a) => a.status === 'online' && a.is_active),
     [agents],
@@ -450,16 +293,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
       {/* New Deployment Form */}
       <DeploymentForm
         form={form}
-        targetType={targetType}
-        onTargetTypeChange={handleTargetTypeChange}
         onlineAgents={onlineAgents}
         agentsLoading={agentsLoading}
         agentInterfaces={agentInterfaces}
         onAgentChange={handleAgentChange}
-        activeHosts={activeHosts}
-        hostsLoading={hostsLoading}
-        interfaces={interfaces}
-        onHostChange={handleHostChange}
         phases={scenarioPhases}
         loadingInterfaces={loadingInterfaces}
         validating={validating}
@@ -496,21 +333,12 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
                   deployment={deployment}
                   onStop={handleStop}
                   onRemove={handleRemove}
-                  onViewLogs={handleViewLogs}
                 />
               ))}
             </Space>
           </div>
         </>
       )}
-
-      {/* Logs Modal */}
-      <LogsModal
-        open={logsModalVisible}
-        logs={logs}
-        onClose={() => setLogsModalVisible(false)}
-        onRefresh={handleRefreshLogs}
-      />
 
       {/* Validation Modal */}
       <ValidationModal
@@ -520,7 +348,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
         repairing={repairing}
         onCancel={() => {
           setValidationModalVisible(false);
-          setPendingDeployData(null);
+          setPendingAgentDeploy(null);
         }}
         onProceed={handleProceedWithDeployment}
         onRepair={handleRepairProtocols}

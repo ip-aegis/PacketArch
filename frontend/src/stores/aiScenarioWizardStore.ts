@@ -145,6 +145,12 @@ interface AIScenarioWizardState {
   preview: AIScenarioPreviewResponse | null;
   previewError: string | null;
 
+  // Streaming progress
+  generationPhase: string | null;
+  generationStep: number;
+  generationTotalSteps: number;
+  abortController: AbortController | null;
+
   // Creating scenario
   isCreating: boolean;
   createError: string | null;
@@ -167,6 +173,7 @@ interface AIScenarioWizardState {
   goToStep: (step: WizardStep) => void;
 
   generatePreview: () => Promise<void>;
+  cancelGeneration: () => void;
   createScenario: () => Promise<string | null>;
 
   reset: () => void;
@@ -195,6 +202,11 @@ const initialState = {
   isGenerating: false,
   preview: null as AIScenarioPreviewResponse | null,
   previewError: null as string | null,
+  // Streaming progress
+  generationPhase: null as string | null,
+  generationStep: 0,
+  generationTotalSteps: 6,
+  abortController: null as AbortController | null,
   isCreating: false,
   createError: null as string | null,
 };
@@ -277,28 +289,84 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
 
   generatePreview: async () => {
     const state = get();
+    const abortController = new AbortController();
 
-    set({ isGenerating: true, previewError: null });
+    set({
+      isGenerating: true,
+      previewError: null,
+      preview: null,
+      generationPhase: 'Initializing...',
+      generationStep: 0,
+      generationTotalSteps: 6,
+      abortController,
+    });
 
     try {
-      const preview = await aiScenarioApi.generatePreview({
-        name: state.scenarioName,
-        vertical: state.vertical || 'manufacturing',
-        description: state.description,
-        vendors: state.letAiDecideVendors ? null : state.selectedVendors,
-        protocols: state.letAiDecideProtocols ? null : state.selectedProtocols,
-        // Device count parameters
-        total_device_count: state.letAiDecideDevices ? state.totalDeviceCount : null,
-        device_counts: state.letAiDecideDevices ? null : state.deviceCounts,
-        // CVE vulnerability option
-        include_vulnerable_devices: state.includeVulnerableDevices,
-      });
-
-      set({ preview, isGenerating: false });
+      await aiScenarioApi.generatePreviewStream(
+        {
+          name: state.scenarioName,
+          vertical: state.vertical || 'manufacturing',
+          description: state.description,
+          vendors: state.letAiDecideVendors ? null : state.selectedVendors,
+          protocols: state.letAiDecideProtocols ? null : state.selectedProtocols,
+          total_device_count: state.letAiDecideDevices ? state.totalDeviceCount : null,
+          device_counts: state.letAiDecideDevices ? null : state.deviceCounts,
+          include_vulnerable_devices: state.includeVulnerableDevices,
+        },
+        {
+          onPhase: (event) => {
+            set({
+              generationPhase: event.message,
+              generationStep: event.step,
+              generationTotalSteps: event.total,
+            });
+          },
+          onDone: (event) => {
+            set({
+              preview: event.preview,
+              isGenerating: false,
+              generationPhase: null,
+              generationStep: 0,
+              abortController: null,
+            });
+          },
+          onError: (event) => {
+            set({
+              previewError: event.message,
+              isGenerating: false,
+              generationPhase: null,
+              generationStep: 0,
+              abortController: null,
+            });
+          },
+        },
+        abortController.signal,
+      );
     } catch (error) {
+      // AbortError means user cancelled — don't show an error
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Failed to generate preview';
-      set({ previewError: message, isGenerating: false });
+      set({
+        previewError: message,
+        isGenerating: false,
+        generationPhase: null,
+        generationStep: 0,
+        abortController: null,
+      });
     }
+  },
+
+  cancelGeneration: () => {
+    const { abortController } = get();
+    abortController?.abort();
+    set({
+      isGenerating: false,
+      generationPhase: null,
+      generationStep: 0,
+      abortController: null,
+    });
   },
 
   createScenario: async () => {

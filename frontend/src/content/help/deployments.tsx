@@ -6,10 +6,7 @@ import React from 'react';
 import { Typography, Space, Card, Table, Tag, Divider, Alert } from 'antd';
 import {
   CloudServerOutlined,
-  PlayCircleOutlined,
   PauseCircleOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
   ClockCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
@@ -64,11 +61,11 @@ const DeploymentsContent: React.FC = () => {
         </Title>
         <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
           <li>Open a scenario in Scenario Studio</li>
-          <li>Click the "Deploy" button in the toolbar</li>
-          <li>Select the Docker host (where traffic will be generated)</li>
+          <li>Click the "Deploy" tab in the right panel</li>
+          <li>Select a traffic agent</li>
           <li>Choose the network interface</li>
-          <li>Select deployment mode (Timed or Perpetual)</li>
-          <li>Click "Start Deployment"</li>
+          <li>Optionally configure phase scheduling</li>
+          <li>Click "Deploy"</li>
         </ol>
         <Alert
           type="info"
@@ -120,22 +117,6 @@ const DeploymentsContent: React.FC = () => {
         </Title>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
-            <Tag color="blue">
-              <FileTextOutlined /> View Logs
-            </Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Stream real-time logs from the traffic generator
-            </Text>
-          </div>
-          <div>
-            <Tag color="green">
-              <DownloadOutlined /> Download PCAP
-            </Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Download generated capture file (available after completion)
-            </Text>
-          </div>
-          <div>
             <Tag color="orange">
               <PauseCircleOutlined /> Stop
             </Tag>
@@ -148,32 +129,6 @@ const DeploymentsContent: React.FC = () => {
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Remove a completed/failed deployment from the list
             </Text>
-          </div>
-        </Space>
-      </div>
-
-      <Divider style={{ borderColor: BORDER_DEFAULT }} />
-
-      <div>
-        <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
-          Docker Hosts
-        </Title>
-        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Traffic is generated on Docker hosts configured in Admin Settings. Each host can
-          inject traffic on any of its network interfaces. Configure hosts with:
-        </Paragraph>
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Host Address</Text>
-            <Text style={{ color: '#6b6b8a' }}> - IP or hostname of Docker host</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Docker API Port</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Usually 2375 (TCP) or 2376 (TLS)</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>TLS Certificates</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Optional for secure connections</Text>
           </div>
         </Space>
       </div>
@@ -194,10 +149,10 @@ export const deploymentsArticle: HelpArticle = {
   title: 'Deployments',
   category: 'traffic-generation',
   keywords: [
-    'deploy', 'deployment', 'generate', 'traffic', 'pcap', 'run', 'start',
-    'stop', 'download', 'logs', 'docker', 'host', 'interface'
+    'deploy', 'deployment', 'generate', 'traffic', 'run', 'start',
+    'stop', 'agent', 'interface'
   ],
-  summary: 'Deploy scenarios to generate PCAP files or inject live traffic onto network interfaces.',
+  summary: 'Deploy scenarios to traffic agents for live traffic injection onto network interfaces.',
   content: DeploymentsContent,
   relatedArticles: ['scenarios', 'scenario-studio', 'admin-settings'],
   relatedPages: ['/deployments'],

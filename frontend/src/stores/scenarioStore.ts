@@ -8,6 +8,7 @@ import type {
   ScenarioDevice,
   ScenarioFlow,
   ScenarioZone,
+  ScenarioConduit,
   Phase,
   VerticalType,
 } from '../types';
@@ -34,6 +35,7 @@ interface ScenarioState {
   devices: Record<string, ScenarioDevice>;
   flows: Record<string, ScenarioFlow>;
   zones: Record<string, ScenarioZone>;
+  conduits: Record<string, ScenarioConduit>;
   phases: Phase[];
 
   // State flags
@@ -56,6 +58,11 @@ interface ScenarioState {
   updateZone: (id: string, updates: Partial<ScenarioZone>) => void;
   removeZone: (id: string) => void;
 
+  // Conduit actions
+  addConduit: (conduit: ScenarioConduit) => void;
+  updateConduit: (id: string, updates: Partial<ScenarioConduit>) => void;
+  removeConduit: (id: string) => void;
+
   // Bulk actions for layout
   bulkMoveDevices: (positions: Record<string, { x: number; y: number }>) => void;
   bulkUpdateZones: (updates: Record<string, { position?: { x: number; y: number }; dimensions?: { width: number; height: number } }>) => void;
@@ -75,6 +82,7 @@ interface ScenarioState {
     devices: Record<string, ScenarioDevice>;
     flows: Record<string, ScenarioFlow>;
     zones: Record<string, ScenarioZone>;
+    conduits?: Record<string, ScenarioConduit>;
     phases: Phase[];
     addressingConfig?: {
       ip_range?: string;
@@ -130,6 +138,7 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
   devices: {},
   flows: {},
   zones: {},
+  conduits: {},
   phases: DEFAULT_PHASES,
   isDirty: false,
   isLoading: false,
@@ -262,9 +271,47 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
         ])
       );
 
+      // Remove conduits referencing this zone
+      const remainingConduits = Object.fromEntries(
+        Object.entries(state.conduits).filter(
+          ([, conduit]) => conduit.sourceZoneId !== id && conduit.targetZoneId !== id
+        )
+      );
+
       return {
         zones: remainingZones,
         devices: updatedDevices,
+        conduits: remainingConduits,
+        isDirty: true,
+      };
+    }),
+
+  // Conduit actions
+  addConduit: (conduit) =>
+    set((state) => ({
+      conduits: { ...state.conduits, [conduit.id]: conduit },
+      isDirty: true,
+    })),
+
+  updateConduit: (id, updates) =>
+    set((state) => {
+      const conduit = state.conduits[id];
+      if (!conduit) return state;
+
+      return {
+        conduits: {
+          ...state.conduits,
+          [id]: { ...conduit, ...updates },
+        },
+        isDirty: true,
+      };
+    }),
+
+  removeConduit: (id) =>
+    set((state) => {
+      const { [id]: removed, ...remainingConduits } = state.conduits;
+      return {
+        conduits: remainingConduits,
         isDirty: true,
       };
     }),
@@ -340,6 +387,7 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
       devices: scenario.devices,
       flows: scenario.flows,
       zones: scenario.zones,
+      conduits: scenario.conduits || {},
       phases: scenario.phases.length > 0 ? scenario.phases : DEFAULT_PHASES,
       isDirty: false,
       isLoading: false,
@@ -357,6 +405,7 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
       devices: {},
       flows: {},
       zones: {},
+      conduits: {},
       phases: DEFAULT_PHASES,
       isDirty: false,
       isLoading: false,
@@ -381,10 +430,14 @@ export const useFlowList = () =>
   useScenarioStore((s) => Object.values(s.flows));
 export const useZoneList = () =>
   useScenarioStore((s) => Object.values(s.zones));
+export const useConduitList = () =>
+  useScenarioStore((s) => Object.values(s.conduits));
 export const useDeviceCount = () =>
   useScenarioStore((s) => Object.keys(s.devices).length);
 export const useFlowCount = () =>
   useScenarioStore((s) => Object.keys(s.flows).length);
+export const useConduitCount = () =>
+  useScenarioStore((s) => Object.keys(s.conduits).length);
 export const useScenarioName = () =>
   useScenarioStore((s) => s.name);
 export const useScenarioId = () =>

@@ -36,7 +36,7 @@ def compute_definition_diff(
     changes: list[dict[str, Any]] = []
 
     # Diff each Record<id, object> category
-    for category in ("devices", "flows", "zones"):
+    for category in ("devices", "flows", "zones", "conduits"):
         base_items: dict[str, Any] = base_def.get(category, {})
         compare_items: dict[str, Any] = compare_def.get(category, {})
 

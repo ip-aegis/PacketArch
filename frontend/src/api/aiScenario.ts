@@ -4,7 +4,7 @@
  * Used by the AI Scenario Creation Wizard
  */
 
-import apiClient from './client';
+import apiClient, { getAccessToken } from './client';
 
 export interface AIScenarioGenerateRequest {
   name: string;
@@ -69,6 +69,36 @@ export interface AIScenarioCreateResponse {
   flow_count: number;
 }
 
+// ---- Streaming event types ----
+
+export interface ScenarioStreamPhaseEvent {
+  type: 'phase';
+  step: number;
+  total: number;
+  message: string;
+}
+
+export interface ScenarioStreamDoneEvent {
+  type: 'done';
+  preview: AIScenarioPreviewResponse;
+}
+
+export interface ScenarioStreamErrorEvent {
+  type: 'error';
+  message: string;
+}
+
+export type ScenarioStreamEvent =
+  | ScenarioStreamPhaseEvent
+  | ScenarioStreamDoneEvent
+  | ScenarioStreamErrorEvent;
+
+export interface ScenarioStreamCallbacks {
+  onPhase?: (event: ScenarioStreamPhaseEvent) => void;
+  onDone?: (event: ScenarioStreamDoneEvent) => void;
+  onError?: (event: ScenarioStreamErrorEvent) => void;
+}
+
 export const aiScenarioApi = {
   /**
    * Generate a scenario preview from natural language description
@@ -81,6 +111,83 @@ export const aiScenarioApi = {
       request
     );
     return response.data;
+  },
+
+  /**
+   * Generate a scenario preview with streaming progress events (SSE).
+   * Uses the same Fetch + ReadableStream pattern as ai.ts:sendMessageStream.
+   */
+  generatePreviewStream: async (
+    request: AIScenarioGenerateRequest,
+    callbacks: ScenarioStreamCallbacks,
+    abortSignal?: AbortSignal,
+  ): Promise<void> => {
+    const token = getAccessToken();
+    const baseUrl = apiClient.defaults.baseURL || '';
+    const url = `${baseUrl}/api/v1/ai/scenarios/generate-preview-stream`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify(request),
+      signal: abortSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Stream request failed: ${response.status} ${errorText}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE events (data: {...}\n\n)
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const eventStr of events) {
+          if (!eventStr.trim()) continue;
+
+          const dataMatch = eventStr.match(/^data: (.+)$/m);
+          if (!dataMatch) continue;
+
+          try {
+            const event = JSON.parse(dataMatch[1]) as ScenarioStreamEvent;
+
+            switch (event.type) {
+              case 'phase':
+                callbacks.onPhase?.(event);
+                break;
+              case 'done':
+                callbacks.onDone?.(event);
+                break;
+              case 'error':
+                callbacks.onError?.(event);
+                break;
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse SSE event:', eventStr, parseError);
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   },
 
   /**

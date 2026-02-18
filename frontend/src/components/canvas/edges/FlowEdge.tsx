@@ -25,6 +25,8 @@ export interface FlowEdgeData extends Record<string, unknown> {
   parallelIndex?: number;
   /** Total number of parallel edges between the same node pair */
   parallelCount?: number;
+  /** Conduit compliance status for cross-zone flows */
+  complianceReason?: 'same_zone' | 'compliant' | 'no_conduit' | 'protocol_not_allowed' | 'wrong_direction' | 'no_zone_info';
 }
 
 /** Perpendicular pixel offset between parallel edges */
@@ -49,6 +51,7 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
   const protocol = edgeData?.protocol || 'modbus_tcp';
   const color = PROTOCOL_COLORS[protocol] || '#6a9fd4';
   const isAggregate = edgeData?.flowCount != null && edgeData.flowCount > 0;
+  const complianceReason = edgeData?.complianceReason;
 
   // Compute perpendicular offset for parallel edges between the same node pair
   const pIndex = edgeData?.parallelIndex ?? 0;
@@ -134,6 +137,18 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
             className="nodrag nopan"
           >
             {label}
+            {complianceReason === 'compliant' && (
+              <span title="Compliant with conduit" style={{ marginLeft: 4, fontSize: 10 }}>{'\u2705'}</span>
+            )}
+            {complianceReason === 'no_conduit' && (
+              <span title="No conduit between zones" style={{ marginLeft: 4, fontSize: 10 }}>{'\u26A0\uFE0F'}</span>
+            )}
+            {complianceReason === 'protocol_not_allowed' && (
+              <span title="Protocol not allowed by conduit" style={{ marginLeft: 4, fontSize: 10 }}>{'\u274C'}</span>
+            )}
+            {complianceReason === 'wrong_direction' && (
+              <span title="Wrong direction for conduit" style={{ marginLeft: 4, fontSize: 10 }}>{'\u274C'}</span>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

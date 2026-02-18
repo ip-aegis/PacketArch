@@ -388,39 +388,8 @@ class MCPToolError(PacketArchError):
 
 
 # ============================================================================
-# Docker/Deployment Errors
+# Deployment Errors
 # ============================================================================
-
-
-class DockerHostError(ExternalServiceError):
-    """Docker host communication error.
-
-    Use for:
-    - Connection failures
-    - TLS certificate issues
-    - Container management errors
-    """
-
-    def __init__(
-        self,
-        message: str,
-        host_id: str | None = None,
-        host_name: str | None = None,
-        original_error: str | None = None,
-        details: dict[str, Any] | None = None,
-    ):
-        _details = details or {}
-        if host_id:
-            _details["host_id"] = host_id
-        if host_name:
-            _details["host_name"] = host_name
-        super().__init__(
-            service="docker",
-            message=message,
-            original_error=original_error,
-            details=_details,
-        )
-        self.code = "DOCKER_HOST_ERROR"
 
 
 class DeploymentError(PacketArchError):

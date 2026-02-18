@@ -300,7 +300,7 @@ async def chat_with_ai(
             response = await provider.chat(
                 messages=current_messages,
                 tools=tools_list,
-                max_tokens=4096,
+                max_tokens=16384,
             )
 
             # Log the full response for debugging
@@ -591,7 +591,7 @@ async def chat_with_ai_stream(
                 response = await provider.chat(
                     messages=current_messages,
                     tools=tools_list,
-                    max_tokens=4096,
+                    max_tokens=16384,
                 )
 
                 # Extract text and tool calls
@@ -1028,6 +1028,229 @@ async def generate_scenario_preview(
     )
 
 
+@router.post("/scenarios/generate-preview-stream")
+async def generate_scenario_preview_stream(
+    request: AIScenarioGenerateRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> StreamingResponse:
+    """Generate a scenario preview with real-time SSE progress events.
+
+    Streams phased progress to the client so they see what's happening
+    instead of staring at a spinner for minutes.
+
+    SSE Event types:
+    - ``phase``: ``{step, total, message}`` — progress update
+    - ``done``:  ``{preview: AIScenarioPreviewResponse}`` — complete
+    - ``error``: ``{message}`` — failure
+
+    Args:
+        request: Generation request with name, vertical, description
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Server-Sent Events stream
+    """
+    from app.ai_services.ai_scenario_designer import AIScenarioDesigner
+
+    def _sse(event_type: str, **data: Any) -> str:
+        return f"data: {json.dumps({'type': event_type, **data})}\n\n"
+
+    async def event_generator():  # noqa: C901
+        try:
+            # Phase 1: Initialize
+            yield _sse("phase", step=1, total=6, message="Initializing AI scenario designer...")
+            designer = AIScenarioDesigner(db, range_index=1)
+
+            try:
+                provider = await designer.phase_get_provider()
+            except ValueError:
+                # Fall back to rule-based generation
+                yield _sse("phase", step=2, total=6, message="AI not configured — using rule-based generation...")
+                result = designer._fallback_to_rules(
+                    description=request.description,
+                    name=request.name,
+                    duration_ms=request.duration_ms,
+                    vertical=request.vertical,
+                    preferred_vendors=request.vendors,
+                    preferred_protocols=request.protocols,
+                    total_device_count=request.total_device_count,
+                    device_counts=request.device_counts,
+                    reason="AI provider not configured",
+                )
+                # Skip to finalize with the fallback result
+                yield _sse("phase", step=5, total=6, message="Building devices, flows, and zones...")
+                # Build preview from fallback result and jump to finalize
+                preview_response = await _finalize_preview(
+                    request, result, current_user, db
+                )
+                yield _sse("done", preview=preview_response)
+                return
+
+            # Phase 2: Build prompts
+            yield _sse("phase", step=2, total=6, message="Building prompts from device fingerprints...")
+            system_prompt, user_prompt = designer.phase_build_prompts(
+                description=request.description,
+                vertical=request.vertical,
+                preferred_vendors=request.vendors,
+                preferred_protocols=request.protocols,
+                total_device_count=request.total_device_count,
+                device_counts=request.device_counts,
+            )
+
+            # Phase 3: Call AI (the slow part)
+            yield _sse("phase", step=3, total=6, message="Waiting for AI response (this may take a minute)...")
+            response = await designer.phase_call_ai(
+                provider=provider,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                total_device_count=request.total_device_count,
+            )
+
+            # Phase 4: Parse response
+            yield _sse("phase", step=4, total=6, message="Parsing AI response...")
+            ai_design = designer.phase_parse_response(response)
+
+            # Phase 5: Build scenario
+            yield _sse("phase", step=5, total=6, message="Building devices, flows, and zones...")
+            result = designer.phase_build_scenario(
+                ai_design=ai_design,
+                name=request.name,
+                description=request.description,
+                duration_ms=request.duration_ms,
+                vertical=request.vertical,
+            )
+
+            # Phase 6: Finalize
+            yield _sse("phase", step=6, total=6, message="Finalizing preview...")
+            preview_response = await _finalize_preview(
+                request, result, current_user, db
+            )
+
+            yield _sse("done", preview=preview_response)
+
+        except Exception as e:
+            logger.error(f"Streaming preview generation error: {e}", exc_info=True)
+            yield _sse("error", message=str(e))
+
+    async def _finalize_preview(
+        req: AIScenarioGenerateRequest,
+        result: Any,
+        user: Any,
+        session: Any,
+    ) -> dict[str, Any]:
+        """Build preview response, apply CVEs, store in Redis."""
+        scenario = result.scenario
+
+        if len(scenario.devices) > MAX_DEVICES_PER_SCENARIO:
+            raise ValidationError(
+                f"Generated scenario exceeds device limit "
+                f"({len(scenario.devices)} > {MAX_DEVICES_PER_SCENARIO}). "
+                "Please request fewer devices."
+            )
+
+        devices = [
+            AIScenarioPreviewDevice(
+                device_id=d.device_id,
+                name=d.name,
+                device_type=d.device_type,
+                vendor=d.vendor,
+                ip_address=d.ip_address,
+                mac_address=d.mac_address,
+                zone=d.zone,
+                protocols=d.protocols,
+                fingerprint_model=d.fingerprint_model,
+            )
+            for d in scenario.devices
+        ]
+
+        # Apply CVE vulnerabilities
+        vulnerable_device_count = 0
+        cve_ids_used: set[str] = set()
+
+        if req.include_vulnerable_devices:
+            import random
+            from app.services.cve_data import get_cves_for_vendor
+
+            high_value_types = {"plc", "rtu", "hmi", "scada_server"}
+            for device in devices:
+                if not device.vendor:
+                    continue
+                vendor_cves = get_cves_for_vendor(device.vendor)
+                if not vendor_cves:
+                    continue
+                prob = 0.40 if device.device_type in high_value_types else 0.25
+                if random.random() < prob:
+                    selected_cve = random.choice(vendor_cves)
+                    device.cve_ids = [selected_cve["cve_id"]]
+                    device.is_vulnerable = True
+                    vulnerable_device_count += 1
+                    cve_ids_used.add(selected_cve["cve_id"])
+
+        flows = [
+            AIScenarioPreviewFlow(
+                flow_id=f.flow_id,
+                source_device_id=f.source_device_id,
+                destination_device_id=f.destination_device_id,
+                protocol=f.protocol,
+                description=f.description,
+            )
+            for f in scenario.flows
+        ]
+
+        protocols_used = list(set(f.protocol for f in scenario.flows))
+        vendors_used = list(set(d.vendor for d in scenario.devices if d.vendor))
+
+        # Store in Redis
+        preview_data = {
+            "name": req.name,
+            "vertical": req.vertical,
+            "description": req.description,
+            "duration_ms": req.duration_ms,
+            "devices": [d.model_dump() for d in devices],
+            "flows": [f.model_dump() for f in flows],
+            "zones": scenario.zones,
+            "conduits": scenario.conduits,
+            "protocols_used": protocols_used,
+            "vendors_used": vendors_used,
+            "include_vulnerable_devices": req.include_vulnerable_devices,
+        }
+
+        preview_id = await AIScenarioPreviewService.store_preview(
+            str(user.id), preview_data
+        )
+
+        return AIScenarioPreviewResponse(
+            preview_id=preview_id,
+            name=req.name,
+            vertical=req.vertical,
+            description=req.description,
+            devices=devices,
+            flows=flows,
+            device_count=len(devices),
+            flow_count=len(flows),
+            protocols_used=protocols_used,
+            vendors_used=vendors_used,
+            zones=scenario.zones,
+            ai_enhanced=result.ai_enhanced,
+            ai_features=result.ai_features,
+            design_rationale=result.design_rationale,
+            vulnerable_device_count=vulnerable_device_count,
+            cve_ids_used=list(cve_ids_used),
+        ).model_dump()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/scenarios/create-from-preview", response_model=AIScenarioCreateFromPreviewResponse)
 async def create_scenario_from_preview(
     request: AIScenarioCreateFromPreviewRequest,
@@ -1341,11 +1564,21 @@ async def create_scenario_from_preview(
             },
         }
 
+    # Build conduits from preview or auto-generate from Purdue adjacency
+    preview_conduits = preview.get("conduits", {})
+    if preview_conduits:
+        conduits = preview_conduits
+    else:
+        # Auto-generate from zone Purdue levels as fallback
+        from app.services.conduit_service import generate_default_conduits
+        conduits = generate_default_conduits(list(zones.values()))
+
     # Update scenario definition (scenario was created earlier for IP allocation)
     db_scenario.definition = {
         "devices": devices,
         "flows": flows,
         "zones": zones,
+        "conduits": conduits,
         "phases": [],
         "events": [],
     }
@@ -1492,6 +1725,485 @@ Write ONLY the description text. Do not include any preamble, labels, or formatt
         device_count=len(devices),
         flow_count=len(flows),
         protocols=list(protocols),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scenario Review / Critique
+# ---------------------------------------------------------------------------
+
+from app.schemas.scenario_review import (
+    ReviewFinding,
+    ScenarioReviewResponse,
+    RemediationAction,
+    RemediateRequest,
+    RemediateResponse,
+    RemediationResult,
+)
+
+SCENARIO_REVIEW_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "overall_score", "findings"],
+    "properties": {
+        "summary": {"type": "string"},
+        "overall_score": {"type": "integer"},
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "category",
+                    "severity",
+                    "title",
+                    "description",
+                    "suggestion",
+                    "affected_device_ids",
+                    "affected_flow_ids",
+                    "remediation",
+                ],
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "topology",
+                            "protocols",
+                            "timing",
+                            "realism",
+                            "security",
+                        ],
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": ["critical", "warning", "suggestion", "info"],
+                    },
+                    "title": {"type": "string"},
+                    "description": {"type": "string"},
+                    "suggestion": {"type": "string"},
+                    "affected_device_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "affected_flow_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "remediation": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["action_type", "params_json"],
+                                "properties": {
+                                    "action_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "assign_fingerprint",
+                                            "repair_protocols",
+                                            "update_flow_timing",
+                                            "add_flow",
+                                            "assign_ips",
+                                            "regenerate_macs",
+                                            "apply_cve",
+                                            "remove_device",
+                                        ],
+                                    },
+                                    "params_json": {
+                                        "type": "string",
+                                        "description": "JSON-encoded params object",
+                                    },
+                                },
+                            },
+                            {"type": "null"},
+                        ],
+                    },
+                },
+            },
+        },
+    },
+}
+
+_REVIEW_SYSTEM_PROMPT = """\
+You are an OT network scenario quality reviewer for PacketArch, an industrial \
+traffic simulation platform. Analyze the scenario and return structured findings.
+
+SCORING GUIDE:
+- 90-100: Production-ready. Realistic topology, proper fingerprints, appropriate \
+protocols, good flow coverage, security considerations addressed.
+- 70-89: Good but has improvement areas. Missing some best practices.
+- 50-69: Needs work. Significant topology, protocol, or realism issues.
+- Below 50: Major problems. Missing devices, no flows, or critical misconfigurations.
+
+REVIEW CATEGORIES:
+1. topology — Network structure, Purdue model compliance, zone organization, device \
+hierarchy (PLCs, HMIs, SCADA, switches), orphan devices, missing infrastructure.
+2. protocols — Protocol selection per device vendor, vendor-protocol affinity \
+(Siemens→PROFINET+S7comm, Rockwell→EtherNet/IP, Schneider→Modbus TCP), missing \
+flow types, protocol identity data coverage.
+3. timing — Poll interval appropriateness by device role (safety: 50-200ms, \
+PLCs: 500-2000ms, trending: 2000-10000ms), phase configuration, traffic schedule.
+4. realism — Fingerprint coverage, vendor consistency, device naming quality, \
+MAC/IP uniqueness, zone diversity, flow-to-device ratio (ideal: 2:1 to 4:1).
+5. security — CVE exposure on critical devices, safety system isolation, network \
+segmentation between Purdue levels, attack surface considerations.
+
+EXPERT HEURISTICS:
+- Every device should participate in at least one flow.
+- Each zone should have at least one infrastructure device (switch/router).
+- Purdue Level 0-1 devices should not directly communicate with Level 3+.
+- Manufacturing scenarios need 3+ zones (field, cell/control, supervisory).
+- HMIs typically connect to PLCs via S7comm or EtherNet/IP, not Modbus.
+- Safety PLCs need PROFIsafe or CIP Safety protocol flows.
+
+REMEDIATION ACTIONS:
+For each finding, if the issue can be fixed automatically, include a "remediation" \
+object with "action_type" and "params_json" (a JSON-encoded string of the params object). \
+Set remediation to null if manual intervention is required or the fix is ambiguous.
+
+Supported action_types and their params_json values:
+- "assign_fingerprint": "{\"device_id\": \"...\", \"vendor\": \"...\", \"model\": \"...\"}"
+  Use when a device lacks a fingerprint. Pick the best vendor/model for the device type.
+- "repair_protocols": "{\"device_ids\": [\"...\"]}"
+  Use when devices have protocols not supported by their fingerprint.
+- "update_flow_timing": "{\"flow_id\": \"...\", \"interval_ms\": 1000}"
+  Use when poll intervals are inappropriate for the device role.
+- "add_flow": "{\"source_device_id\": \"...\", \"target_device_id\": \"...\", \"protocol\": \"...\", \"interval_ms\": 1000}"
+  Use when orphan devices need flows or critical connections are missing.
+- "assign_ips": "{\"device_ids\": [\"...\"]}"
+  Use when devices are missing IP addresses.
+- "regenerate_macs": "{\"device_ids\": [\"...\"]}"
+  Use when MAC addresses are duplicated or missing.
+- "apply_cve": "{\"device_id\": \"...\", \"cve_id\": \"...\"}"
+  Use when a critical device should have a known vulnerability applied.
+- "remove_device": "{\"device_id\": \"...\"}"
+  Use only when a device is clearly extraneous or misconfigured beyond repair.
+
+IMPORTANT:
+- The readiness check results are included — build on them, don't duplicate.
+- Focus on qualitative improvements binary checks cannot detect.
+- Each finding must have a specific, actionable suggestion.
+- Use actual device and flow names when referencing items.
+- Return device IDs and flow IDs in the affected_*_ids arrays.
+- Write a concise summary paragraph (2-4 sentences) assessing overall quality.
+- Only include remediation when you are confident the fix is correct.
+- For complex issues requiring human judgment, set remediation to null.
+- For "assign_fingerprint" actions, you MUST use a vendor/model pair from the \
+"available_fingerprints" dict in the context. NEVER invent model names.
+- CRITICAL: All device_id and flow_id values in remediation params MUST be the \
+actual UUID strings from the context (the "id" field), NOT device/flow names. \
+Use the "device_id_map" to look up UUIDs by name if needed.
+"""
+
+
+def _get_available_fingerprints() -> dict[str, list[str]]:
+    """Return vendor → [model, ...] mapping from fingerprint cache."""
+    from app.services.fingerprint_cache import get_fingerprint_cache
+
+    cache = get_fingerprint_cache()
+    vendor_models: dict[str, list[str]] = {}
+    for fp in cache.get_all():
+        vendor = fp.get("vendor", "")
+        model = fp.get("model", "")
+        if vendor and model:
+            vendor_models.setdefault(vendor, []).append(model)
+    return vendor_models
+
+
+def _build_review_context(definition: dict) -> dict[str, Any]:
+    """Build a compact scenario representation for the AI review prompt."""
+    devices = definition.get("devices", {})
+    flows = definition.get("flows", {})
+    zones = definition.get("zones", {})
+    phases = definition.get("phases", [])
+
+    # Build device ID-to-name map for flow resolution
+    device_name_map: dict[str, str] = {}
+    for did, d in devices.items():
+        device_name_map[did] = d.get("name", did)
+
+    compact_devices = []
+    for did, d in devices.items():
+        fp = d.get("vendorFingerprint") or {}
+        network = d.get("network", {})
+        ip = network.get("ipAddress") or network.get("ip_address") or ""
+        cve_ids = d.get("cve_ids") or []
+        compact_devices.append({
+            "id": did,
+            "name": d.get("name", did),
+            "type": d.get("type", "unknown"),
+            "vendor": d.get("vendor", ""),
+            "protocols": d.get("protocols") or [],
+            "zone_id": d.get("zone_id", ""),
+            "role": d.get("role", ""),
+            "has_fingerprint": bool(fp.get("vendor")),
+            "has_ip": bool(ip),
+            "cve_count": len(cve_ids),
+        })
+
+    compact_flows = []
+    flow_items = list(flows.items())
+    truncated = False
+    if len(flow_items) > 80:
+        flow_items = flow_items[:80]
+        truncated = True
+    for fid, f in flow_items:
+        src_id = f.get("sourceDeviceId") or f.get("source_device_id") or ""
+        tgt_id = f.get("targetDeviceId") or f.get("target_device_id") or ""
+        config = f.get("config", {})
+        compact_flows.append({
+            "id": fid,
+            "source_name": device_name_map.get(src_id, src_id),
+            "target_name": device_name_map.get(tgt_id, tgt_id) if tgt_id else "(external)",
+            "protocol": f.get("protocol", ""),
+            "poll_interval_ms": config.get("pollIntervalMs") or config.get("poll_interval_ms", 1000),
+        })
+
+    # Zone summaries with device counts
+    zone_device_counts: dict[str, int] = {}
+    for d in devices.values():
+        zid = d.get("zone_id", "")
+        if zid:
+            zone_device_counts[zid] = zone_device_counts.get(zid, 0) + 1
+
+    compact_zones = []
+    for zid, z in zones.items():
+        compact_zones.append({
+            "id": zid,
+            "name": z.get("name", zid),
+            "purdue_level": z.get("purdue_level"),
+            "device_count": zone_device_counts.get(zid, 0),
+        })
+
+    compact_phases = []
+    for p in (phases or []):
+        compact_phases.append({
+            "name": p.get("name") or p.get("displayName", ""),
+            "duration_seconds": p.get("duration_seconds", 0),
+            "rate_multiplier": p.get("rate_multiplier", 1.0),
+        })
+
+    device_count = len(devices)
+    flow_count = len(flows)
+
+    # Collect vendors present in this scenario for fingerprint suggestions
+    scenario_vendors = {d.get("vendor", "") for d in devices.values() if d.get("vendor")}
+    available_fps = _get_available_fingerprints()
+    # Include fingerprints for scenario vendors + a few common ones
+    relevant_fps: dict[str, list[str]] = {}
+    always_include = {"Siemens", "Rockwell Automation", "Schneider Electric", "GE", "Honeywell", "ABB", "Cisco"}
+    for vendor in scenario_vendors | always_include:
+        if vendor in available_fps:
+            relevant_fps[vendor] = available_fps[vendor]
+
+    return {
+        "devices": compact_devices,
+        "flows": compact_flows,
+        "flows_truncated": truncated,
+        "zones": compact_zones,
+        "phases": compact_phases,
+        "stats": {
+            "device_count": device_count,
+            "flow_count": flow_count,
+            "zone_count": len(zones),
+            "flow_to_device_ratio": round(flow_count / device_count, 2) if device_count else 0,
+        },
+        "device_id_map": {v: k for k, v in device_name_map.items()},
+        "available_fingerprints": relevant_fps,
+    }
+
+
+@router.post("/scenarios/{scenario_id}/review", response_model=ScenarioReviewResponse)
+async def review_scenario(
+    scenario_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> ScenarioReviewResponse:
+    """AI-powered scenario review returning categorized quality findings.
+
+    Analyzes topology, protocols, timing, realism, and security to provide
+    actionable improvement suggestions with an overall quality score.
+    """
+    from app.api.routes.scenarios import compute_scenario_readiness
+
+    # Fetch scenario
+    result = await db.execute(
+        select(Scenario).where(
+            Scenario.id == scenario_id,
+            Scenario.user_id == current_user.id,
+        )
+    )
+    scenario = result.scalar_one_or_none()
+    if not scenario:
+        raise NotFoundError("Scenario", scenario_id)
+
+    definition = scenario.definition or {}
+    devices = definition.get("devices", {})
+
+    # Early return for empty scenarios
+    if not devices:
+        return ScenarioReviewResponse(
+            scenario_id=scenario_id,
+            summary="This scenario has no devices. Add devices and flows to get a meaningful review.",
+            overall_score=0,
+            findings=[
+                ReviewFinding(
+                    category="topology",
+                    severity="critical",
+                    title="Empty scenario",
+                    description="The scenario contains no devices or flows.",
+                    suggestion="Add devices from the palette and connect them with protocol flows.",
+                )
+            ],
+            category_counts={"topology": 1},
+            severity_counts={"critical": 1},
+        )
+
+    # Run existing readiness checks for context
+    readiness = compute_scenario_readiness(definition)
+    failed_checks = [
+        {"name": c.name, "severity": c.severity, "message": c.message}
+        for c in readiness.checks
+        if not c.passed
+    ]
+
+    # Build compact context
+    context = _build_review_context(definition)
+
+    user_content = json.dumps(
+        {
+            "scenario_name": scenario.name,
+            "vertical": scenario.vertical or "not specified",
+            "readiness_score": readiness.score,
+            "readiness_status": readiness.status,
+            "failed_readiness_checks": failed_checks,
+            **context,
+        },
+        indent=None,
+        default=str,
+    )
+
+    messages = [
+        {"role": "system", "content": _REVIEW_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Review this OT scenario:\n\n{user_content}"},
+    ]
+
+    try:
+        provider = await _get_ai_provider(db)
+        response = await provider.chat(
+            messages=messages,
+            max_tokens=8192,
+            output_config={
+                "format": {
+                    "type": "json_schema",
+                    "schema": SCENARIO_REVIEW_JSON_SCHEMA,
+                }
+            },
+        )
+
+        # Extract JSON from structured output
+        from app.api.routes.ai_help import _extract_response_text
+
+        raw_text = _extract_response_text(response)
+        if not raw_text:
+            raise ExternalServiceError(
+                service="ai",
+                message="AI returned empty response for scenario review.",
+            )
+
+        data = json.loads(raw_text)
+
+        # Transform params_json string → params dict in remediation objects
+        for f in data.get("findings", []):
+            rem = f.get("remediation")
+            if rem and "params_json" in rem:
+                try:
+                    rem["params"] = json.loads(rem.pop("params_json"))
+                except (json.JSONDecodeError, TypeError):
+                    rem["params"] = {}
+                    rem.pop("params_json", None)
+
+        # Compute aggregated counts
+        findings = [ReviewFinding(**f) for f in data.get("findings", [])]
+        cat_counts: dict[str, int] = {}
+        sev_counts: dict[str, int] = {}
+        for f in findings:
+            cat_counts[f.category] = cat_counts.get(f.category, 0) + 1
+            sev_counts[f.severity] = sev_counts.get(f.severity, 0) + 1
+
+        score = data.get("overall_score", 50)
+        score = max(0, min(100, score))
+
+        return ScenarioReviewResponse(
+            scenario_id=scenario_id,
+            summary=data.get("summary", "Review completed."),
+            overall_score=score,
+            findings=findings,
+            category_counts=cat_counts,
+            severity_counts=sev_counts,
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI review response: {e}")
+        raise ExternalServiceError(
+            service="ai",
+            message="Failed to parse AI review response.",
+            original_error=e,
+        )
+    except (ValidationError, NotFoundError, ExternalServiceError):
+        raise
+    except Exception as e:
+        logger.error(f"Scenario review error: {e}")
+        raise ExternalServiceError(
+            service="ai",
+            message="Failed to generate scenario review. Please ensure AI provider is configured.",
+            original_error=e,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Scenario Remediation (deterministic — no AI call)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/scenarios/{scenario_id}/remediate", response_model=RemediateResponse)
+async def remediate_scenario(
+    scenario_id: str,
+    request: RemediateRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> RemediateResponse:
+    """Execute remediation actions on a scenario.
+
+    Applies deterministic fixes suggested by the AI review.
+    No AI call — actions are executed using existing MCP tool functions.
+    """
+    from app.services.scenario_remediation import execute_actions
+
+    # Verify scenario ownership
+    result = await db.execute(
+        select(Scenario).where(
+            Scenario.id == scenario_id,
+            Scenario.user_id == current_user.id,
+        )
+    )
+    scenario = result.scalar_one_or_none()
+    if not scenario:
+        raise NotFoundError("Scenario", scenario_id)
+
+    results = await execute_actions(db, str(scenario.id), request.actions)
+
+    applied = sum(1 for r in results if r.success)
+    failed = sum(1 for r in results if not r.success)
+
+    # Re-fetch scenario for final version
+    await db.refresh(scenario)
+
+    return RemediateResponse(
+        scenario_id=scenario_id,
+        applied=applied,
+        failed=failed,
+        results=results,
     )
 
 

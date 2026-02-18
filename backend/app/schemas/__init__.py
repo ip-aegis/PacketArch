@@ -32,22 +32,16 @@ from app.schemas.protocol_template import (
     ProtocolTemplateResponse,
     ProtocolTemplateListResponse,
 )
-from app.schemas.docker_host import (
-    DockerHostCreate,
-    DockerHostUpdate,
-    DockerHostResponse,
-    DockerHostListResponse,
-    DockerHostTestRequest,
-    DockerHostTestResult,
-    DockerHostInterface,
-    DockerHostInterfaceList,
-)
 from app.schemas.deployment import (
-    DeploymentRequest,
-    DeploymentResponse,
-    DeploymentListResponse,
-    DeploymentStatusUpdate,
-    DeploymentLogsResponse,
+    UnifiedDeploymentResponse,
+    UnifiedDeploymentListResponse,
+)
+from app.schemas.conduit import (
+    ScenarioConduit,
+    ComplianceFinding,
+    ConduitComplianceResponse,
+    ConduitDirection,
+    SecurityLevel,
 )
 
 __all__ = [
@@ -78,19 +72,13 @@ __all__ = [
     "ProtocolTemplateUpdate",
     "ProtocolTemplateResponse",
     "ProtocolTemplateListResponse",
-    # Docker host schemas
-    "DockerHostCreate",
-    "DockerHostUpdate",
-    "DockerHostResponse",
-    "DockerHostListResponse",
-    "DockerHostTestRequest",
-    "DockerHostTestResult",
-    "DockerHostInterface",
-    "DockerHostInterfaceList",
     # Deployment schemas
-    "DeploymentRequest",
-    "DeploymentResponse",
-    "DeploymentListResponse",
-    "DeploymentStatusUpdate",
-    "DeploymentLogsResponse",
+    "UnifiedDeploymentResponse",
+    "UnifiedDeploymentListResponse",
+    # Conduit schemas
+    "ScenarioConduit",
+    "ComplianceFinding",
+    "ConduitComplianceResponse",
+    "ConduitDirection",
+    "SecurityLevel",
 ]

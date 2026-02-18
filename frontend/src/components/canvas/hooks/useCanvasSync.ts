@@ -8,8 +8,11 @@ import type { Node, Edge } from '@xyflow/react';
 import { useScenarioStore } from '../../../stores/scenarioStore';
 import type { DeviceNodeData } from '../nodes/DeviceNode';
 import type { FlowEdgeData } from '../edges/FlowEdge';
+import type { ConduitEdgeData } from '../edges/ConduitEdge';
 import type { ZoneNodeData } from '../nodes/ZoneNode';
+import type { ComplianceStatus } from '../../../types';
 import { useShallow } from 'zustand/react/shallow';
+import { useConduitCompliance } from './useConduitCompliance';
 
 // Stable marker object to avoid recreation
 const ARROW_MARKER = {
@@ -23,6 +26,10 @@ export const useCanvasSync = () => {
   const devices = useScenarioStore(useShallow((state) => state.devices));
   const zones = useScenarioStore(useShallow((state) => state.zones));
   const flows = useScenarioStore(useShallow((state) => state.flows));
+  const conduits = useScenarioStore(useShallow((state) => state.conduits));
+
+  // Compliance data
+  const { flowCompliance, conduitCompliance } = useConduitCompliance();
 
   // Convert devices to React Flow nodes
   const nodes = useMemo(() => {
@@ -111,6 +118,10 @@ export const useCanvasSync = () => {
       const parallelIndex = pairIndices.get(key) ?? 0;
       pairIndices.set(key, parallelIndex + 1);
 
+      // Attach compliance reason if available
+      const compliance = flowCompliance[flow.id];
+      const complianceReason = compliance?.reason;
+
       return {
         id: flow.id,
         source: flow.sourceDeviceId,
@@ -121,14 +132,35 @@ export const useCanvasSync = () => {
           name: flow.name,
           parallelIndex,
           parallelCount,
+          complianceReason,
         },
         animated: false,
         markerEnd: ARROW_MARKER,
       };
     });
 
-    return flowEdges;
-  }, [flows]);
+    // Convert conduits to React Flow edges (zone-to-zone)
+    const conduitEdges: Edge<ConduitEdgeData>[] = Object.values(conduits).map((conduit) => ({
+      id: conduit.id,
+      source: conduit.sourceZoneId,
+      target: conduit.targetZoneId,
+      type: 'conduitEdge',
+      sourceHandle: 'conduit-bottom',
+      targetHandle: 'conduit-target-top',
+      data: {
+        conduitId: conduit.id,
+        name: conduit.name,
+        direction: conduit.direction,
+        allowedProtocols: conduit.allowedProtocols,
+        complianceStatus: (conduitCompliance[conduit.id] || 'unchecked') as ComplianceStatus,
+        color: undefined,
+      },
+      animated: false,
+      zIndex: -1,
+    }));
+
+    return [...flowEdges, ...conduitEdges];
+  }, [flows, conduits, flowCompliance, conduitCompliance]);
 
   return { nodes, edges };
 };

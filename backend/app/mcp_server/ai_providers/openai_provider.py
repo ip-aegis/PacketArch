@@ -29,6 +29,8 @@ class OpenAIProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to OpenAI.
 
@@ -36,6 +38,8 @@ class OpenAIProvider(AIProvider):
             messages: List of message objects with role and content
             tools: Optional list of MCP tool definitions
             max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (None = OpenAI default)
+            output_config: Structured output config (mapped to response_format)
 
         Returns:
             OpenAI's response in standard format
@@ -59,6 +63,20 @@ class OpenAIProvider(AIProvider):
                 kwargs["tools"] = openai_tools
                 kwargs["tool_choice"] = "auto"
 
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            # Map output_config to OpenAI's response_format
+            if output_config and output_config.get("format", {}).get("type") == "json_schema":
+                kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "scenario_design",
+                        "schema": output_config["format"]["schema"],
+                        "strict": True,
+                    },
+                }
+
             response = await self.client.chat.completions.create(**kwargs)
 
             return self._format_response(response)
@@ -72,6 +90,8 @@ class OpenAIProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to OpenAI.
 

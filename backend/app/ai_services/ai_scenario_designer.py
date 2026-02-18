@@ -89,6 +89,18 @@ class AIFlowDesign(BaseModel):
     pattern: str = "polling"
 
 
+class AIConduitDesign(BaseModel):
+    """Conduit design from AI (IEC 62443 zone-to-zone boundary)."""
+    id: str
+    name: str
+    source_zone: str  # zone id
+    target_zone: str  # zone id
+    direction: str = "bidirectional"  # bidirectional, a_to_b, b_to_a
+    allowed_protocols: list[str] = Field(default_factory=list)
+    security_level: str = "standard"  # minimal, standard, high, critical
+    description: str | None = None
+
+
 class AIScenarioDesign(BaseModel):
     """Complete scenario design from AI."""
     vertical: str = "manufacturing"
@@ -97,7 +109,126 @@ class AIScenarioDesign(BaseModel):
     zones: list[AIZoneDesign] = Field(default_factory=list)
     devices: list[AIDeviceDesign] = Field(default_factory=list)
     flows: list[AIFlowDesign] = Field(default_factory=list)
+    conduits: list[AIConduitDesign] = Field(default_factory=list)
     design_rationale: str | None = None
+
+
+# ==================== Structured Output JSON Schema ====================
+# Schema for Claude's output_config (structured outputs).
+# Guarantees schema-compliant JSON via constrained decoding — no JSON
+# repair or regex extraction needed.  All objects use
+# additionalProperties: false and list every field in required (nullable
+# fields use anyOf with null).
+
+SCENARIO_DESIGN_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "vertical", "recommended_vendors", "recommended_protocols",
+        "zones", "devices", "flows", "conduits", "design_rationale",
+    ],
+    "properties": {
+        "vertical": {"type": "string"},
+        "recommended_vendors": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "recommended_protocols": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "zones": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "name", "description", "subnet_offset", "level", "vlan"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "description": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "subnet_offset": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+                    "level": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+                    "vlan": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+                },
+            },
+        },
+        "devices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "name", "device_type", "vendor", "fingerprint_model",
+                    "zone_id", "role", "protocols",
+                ],
+                "properties": {
+                    "name": {"type": "string"},
+                    "device_type": {"type": "string"},
+                    "vendor": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "fingerprint_model": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "zone_id": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "role": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "protocols": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "flows": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "source_name", "target_name", "protocol",
+                    "description", "poll_interval_ms", "pattern",
+                ],
+                "properties": {
+                    "source_name": {"type": "string"},
+                    "target_name": {"type": "string"},
+                    "protocol": {"type": "string"},
+                    "description": {"type": "string"},
+                    "poll_interval_ms": {"type": "integer"},
+                    "pattern": {"type": "string"},
+                },
+            },
+        },
+        "conduits": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "id", "name", "source_zone", "target_zone",
+                    "direction", "allowed_protocols", "security_level",
+                    "description",
+                ],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "source_zone": {"type": "string"},
+                    "target_zone": {"type": "string"},
+                    "direction": {
+                        "type": "string",
+                        "enum": ["bidirectional", "a_to_b", "b_to_a"],
+                    },
+                    "allowed_protocols": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "security_level": {
+                        "type": "string",
+                        "enum": ["minimal", "standard", "high", "critical"],
+                    },
+                    "description": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                },
+            },
+        },
+        "design_rationale": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    },
+}
 
 
 # ==================== Result Dataclass ====================
@@ -140,6 +271,174 @@ class AIScenarioDesigner:
         self._mac_counter = 1
         self._zone_subnet_map: dict[str, int] = {}  # zone_id -> subnet_offset
 
+    # ---- Phased methods (used by streaming endpoint) ----
+
+    async def phase_get_provider(self) -> Any:
+        """Phase 1: Get the AI provider.
+
+        Returns:
+            AI provider instance
+
+        Raises:
+            ValueError: If provider is not configured
+        """
+        return await AIProviderFactory.create(self.db)
+
+    def phase_build_prompts(
+        self,
+        description: str,
+        vertical: str | None = None,
+        preferred_vendors: list[str] | None = None,
+        preferred_protocols: list[str] | None = None,
+        total_device_count: int | None = None,
+        device_counts: dict[str, int] | None = None,
+    ) -> tuple[str, str]:
+        """Phase 2: Build system and user prompts.
+
+        Returns:
+            (system_prompt, user_prompt) tuple
+        """
+        system_prompt = self._get_system_prompt(
+            vertical=vertical,
+            preferred_vendors=preferred_vendors,
+            preferred_protocols=preferred_protocols,
+        )
+        user_prompt = self._build_design_prompt(
+            description=description,
+            vertical=vertical,
+            preferred_vendors=preferred_vendors,
+            preferred_protocols=preferred_protocols,
+            total_device_count=total_device_count,
+            device_counts=device_counts,
+        )
+        return system_prompt, user_prompt
+
+    async def phase_call_ai(
+        self,
+        provider: Any,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 32768,
+        total_device_count: int | None = None,
+    ) -> dict[str, Any]:
+        """Phase 3: Call the AI provider.
+
+        Uses structured outputs (output_config with json_schema) to guarantee
+        schema-compliant JSON responses via constrained decoding.
+
+        Returns:
+            Raw AI response dict
+
+        Raises:
+            RuntimeError: On timeout, truncation, refusal, or API error
+        """
+        try:
+            response = await asyncio.wait_for(
+                provider.chat(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    output_config={
+                        "format": {
+                            "type": "json_schema",
+                            "schema": SCENARIO_DESIGN_JSON_SCHEMA,
+                        },
+                    },
+                ),
+                timeout=300.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("AI design timed out after 300 seconds")
+            raise RuntimeError(
+                "AI scenario generation timed out. Try reducing the number of devices "
+                "or simplifying the scenario description."
+            )
+        except Exception as e:
+            logger.error(f"AI API call failed: {e}")
+            raise RuntimeError(f"AI scenario generation failed: {e}") from e
+
+        # Check for refusal (safety-related)
+        stop_reason = response.get("stop_reason")
+        if stop_reason == "refusal":
+            logger.warning("AI refused to generate scenario")
+            raise RuntimeError(
+                "AI declined to generate this scenario. Try rephrasing the "
+                "description or adjusting the parameters."
+            )
+
+        # Check for truncation
+        if stop_reason == "max_tokens":
+            output_tokens = response.get("usage", {}).get("output_tokens", 0)
+            logger.error(
+                f"AI response was truncated (stop_reason=max_tokens, output_tokens={output_tokens}). "
+                f"Requested max_tokens={max_tokens}."
+            )
+            raise RuntimeError(
+                f"AI response was truncated after {output_tokens} tokens. "
+                f"Try reducing the number of devices (currently {total_device_count or 'unspecified'}) "
+                "or simplifying the scenario description."
+            )
+
+        # Log usage for monitoring
+        usage = response.get("usage", {})
+        cache_read = usage.get("cache_read_input_tokens", 0)
+        cache_create = usage.get("cache_creation_input_tokens", 0)
+        logger.info(
+            f"AI scenario generation completed: "
+            f"input={usage.get('input_tokens', 0)}, "
+            f"output={usage.get('output_tokens', 0)}, "
+            f"cache_read={cache_read}, cache_create={cache_create}"
+        )
+
+        return response
+
+    def phase_parse_response(self, response: dict[str, Any]) -> "AIScenarioDesign":
+        """Phase 4: Parse the AI response JSON.
+
+        Returns:
+            Parsed AIDesignSpec
+        """
+        try:
+            return self._parse_ai_response(response)
+        except Exception as e:
+            logger.error(f"Failed to parse AI response: {e}")
+            raise RuntimeError(f"AI returned invalid response: {e}") from e
+
+    def phase_build_scenario(
+        self,
+        ai_design: "AIScenarioDesign",
+        name: str | None,
+        description: str,
+        duration_ms: int,
+        vertical: str | None,
+    ) -> AIDesignResult:
+        """Phase 5: Build the scenario from parsed AI design.
+
+        Returns:
+            AIDesignResult with generated scenario
+        """
+        try:
+            scenario = self._build_scenario_from_ai_design(
+                ai_design=ai_design,
+                name=name,
+                description=description,
+                duration_ms=duration_ms,
+                vertical=vertical or ai_design.vertical,
+            )
+            return AIDesignResult(
+                scenario=scenario,
+                ai_enhanced=True,
+                ai_features=["vendors", "protocols", "device_names", "flow_descriptions", "zones", "conduits"],
+                design_rationale=ai_design.design_rationale,
+            )
+        except Exception as e:
+            logger.error(f"Failed to build scenario from AI design: {e}")
+            raise RuntimeError(f"Failed to build scenario from AI design: {e}") from e
+
+    # ---- Original monolithic method (backwards compat) ----
+
     async def design_scenario(
         self,
         description: str,
@@ -168,9 +467,9 @@ class AIScenarioDesigner:
         Returns:
             AIDesignResult with generated scenario and metadata
         """
-        # Try to get AI provider
+        # Phase 1: Get AI provider
         try:
-            provider = await AIProviderFactory.create(self.db)
+            provider = await self.phase_get_provider()
         except ValueError as e:
             logger.warning(f"AI provider not available: {e}")
             return self._fallback_to_rules(
@@ -185,13 +484,8 @@ class AIScenarioDesigner:
                 reason="AI provider not configured",
             )
 
-        # Build prompts (pre-filter fingerprints by user context)
-        system_prompt = self._get_system_prompt(
-            vertical=vertical,
-            preferred_vendors=preferred_vendors,
-            preferred_protocols=preferred_protocols,
-        )
-        user_prompt = self._build_design_prompt(
+        # Phase 2: Build prompts
+        system_prompt, user_prompt = self.phase_build_prompts(
             description=description,
             vertical=vertical,
             preferred_vendors=preferred_vendors,
@@ -200,71 +494,25 @@ class AIScenarioDesigner:
             device_counts=device_counts,
         )
 
-        # Use maximum tokens for all scenarios to prevent truncation
-        # Claude Opus 4.6 supports up to 128K output tokens
-        max_tokens = 32768
+        # Phase 3: Call AI
+        response = await self.phase_call_ai(
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            total_device_count=total_device_count,
+        )
 
-        # Call Claude with timeout (2 minutes to allow for complex scenarios)
-        try:
-            response = await asyncio.wait_for(
-                provider.chat(
-                    messages=[
-                        {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}
-                    ],
-                    max_tokens=max_tokens,
-                ),
-                timeout=180.0,  # Increase timeout for large scenarios
-            )
-        except asyncio.TimeoutError:
-            logger.warning("AI design timed out after 180 seconds")
-            raise RuntimeError(
-                "AI scenario generation timed out. Try reducing the number of devices "
-                "or simplifying the scenario description."
-            )
-        except Exception as e:
-            logger.error(f"AI API call failed: {e}")
-            raise RuntimeError(f"AI scenario generation failed: {e}") from e
+        # Phase 4: Parse response
+        ai_design = self.phase_parse_response(response)
 
-        # Check for truncation - stop_reason will be "max_tokens" if response was cut off
-        stop_reason = response.get("stop_reason")
-        if stop_reason == "max_tokens":
-            output_tokens = response.get("usage", {}).get("output_tokens", 0)
-            logger.error(
-                f"AI response was truncated (stop_reason=max_tokens, output_tokens={output_tokens}). "
-                f"Requested max_tokens={max_tokens}."
-            )
-            raise RuntimeError(
-                f"AI response was truncated after {output_tokens} tokens. "
-                f"Try reducing the number of devices (currently {total_device_count or 'unspecified'}) "
-                "or simplifying the scenario description."
-            )
-
-        # Parse AI response
-        try:
-            ai_design = self._parse_ai_response(response)
-        except Exception as e:
-            logger.error(f"Failed to parse AI response: {e}")
-            raise RuntimeError(f"AI returned invalid response: {e}") from e
-
-        # Build scenario from AI design
-        try:
-            scenario = self._build_scenario_from_ai_design(
-                ai_design=ai_design,
-                name=name,
-                description=description,
-                duration_ms=duration_ms,
-                vertical=vertical or ai_design.vertical,
-            )
-
-            return AIDesignResult(
-                scenario=scenario,
-                ai_enhanced=True,
-                ai_features=["vendors", "protocols", "device_names", "flow_descriptions", "zones"],
-                design_rationale=ai_design.design_rationale,
-            )
-        except Exception as e:
-            logger.error(f"Failed to build scenario from AI design: {e}")
-            raise RuntimeError(f"Failed to build scenario from AI design: {e}") from e
+        # Phase 5: Build scenario
+        return self.phase_build_scenario(
+            ai_design=ai_design,
+            name=name,
+            description=description,
+            duration_ms=duration_ms,
+            vertical=vertical,
+        )
 
     def _get_system_prompt(
         self,
@@ -339,14 +587,11 @@ class AIScenarioDesigner:
                 entry = f"{model} → {protocols_str}"
             vendor_fingerprints[vendor].append(entry)
 
-        # Format as organized list with protocols shown
+        # Format as organized list with protocols shown (all models included)
         fingerprint_lines = []
         for vendor in sorted(vendor_fingerprints.keys()):
-            models = vendor_fingerprints[vendor][:10]  # Limit to 10 models per vendor
-            if len(vendor_fingerprints[vendor]) > 10:
-                models.append("... (more available)")
             fingerprint_lines.append(f"**{vendor}**:")
-            for m in models:
+            for m in vendor_fingerprints[vendor]:
                 fingerprint_lines.append(f"  - {m}")
 
         fingerprint_list = "\n".join(fingerprint_lines)
@@ -374,6 +619,7 @@ Each model shows its supported protocols after the arrow (→). ONLY use protoco
 - water: RTUs, PLCs, pump controllers, flow meters, level sensors (Schneider, Honeywell, GE)
 - energy: RTUs, IEDs, PMUs, meters (GE, ABB, Siemens)
 - oil_gas: RTUs, PLCs, flow computers, compressor controllers (Emerson, Honeywell, ABB)
+- building_automation: BMS controllers, HVAC units, energy meters, lighting controllers (Johnson Controls, Trane, Carrier, Automated Logic, Distech)
 - transportation: Traffic controllers, DMS, radars, cameras, RSUs, weather stations (Econolite, Siemens ITS, McCain, Wavetronix, Axis, FLIR)
 
 ## Vendor Selection Guidelines
@@ -390,38 +636,46 @@ Each model shows its supported protocols after the arrow (→). ONLY use protoco
 - Device IPs are auto-assigned within their zone's /24 subnet
 - Do NOT hardcode specific IP addresses - they will be auto-assigned
 
+## IEC 62443 Conduit Rules (MUST FOLLOW)
+
+Conduits define allowed communication boundaries between zones per IEC 62443.
+
+1. **Every cross-zone flow MUST have a conduit** between its source and target zones.
+   - If a flow connects device in Zone A to device in Zone B, a conduit between Zone A and Zone B must exist.
+   - The conduit's allowed_protocols MUST include the protocol used in that flow.
+
+2. **Purdue adjacency**: Conduits should follow Purdue model adjacency where possible:
+   - L0 (Field) <-> L1 (Control)
+   - L1 (Control) <-> L2 (Supervisory)
+   - L2 (Supervisory) <-> L3 (Operations)
+   - L3 (Operations) <-> L3.5 (DMZ)
+   - L3.5 (DMZ) <-> L4 (Enterprise)
+   - Non-adjacent zone communication (e.g., L0 <-> L2) is allowed but should use security_level "high" or "critical".
+
+3. **Security levels**:
+   - "minimal": intra-level conduits, same trust domain
+   - "standard": adjacent Purdue levels (e.g., L1 <-> L2)
+   - "high": non-adjacent levels or crossing safety boundaries
+   - "critical": anything touching DMZ or enterprise zones
+
+4. **Direction**: Use "bidirectional" for poll/response flows (most common in OT).
+   Use "a_to_b" or "b_to_a" for unidirectional data diodes or one-way monitoring.
+
+5. **Conduit naming**: Use descriptive names reflecting the zones connected.
+   - GOOD: "Control_to_Field_Modbus", "Supervisory_HMI_Link"
+   - BAD: "Conduit_1", "C1"
+
+6. **Do NOT create conduits for intra-zone flows** (flows within the same zone).
+
 ## Output Format
-Respond with ONLY valid JSON (no markdown, no explanation outside JSON):
-{{
-  "vertical": "manufacturing|water|energy|oil_gas",
-  "recommended_vendors": ["vendor1", "vendor2"],
-  "recommended_protocols": ["protocol1", "protocol2"],
-  "zones": [
-    {{"id": "zone_1", "name": "Descriptive_Zone_Name", "description": "Purpose of this zone", "subnet_offset": 0, "level": 2, "vlan": 100}}
-  ],
-  "devices": [
-    {{
-      "name": "Descriptive_Device_Name",
-      "device_type": "plc|hmi|rtu|drive|sensor|robot|ied|meter|pump_controller|flow_meter|level_sensor|flow_computer|traffic_controller|dms|rsu|radar_sensor|lidar_sensor|weather_station|camera|thermal_sensor|lighting_controller|ventilation_controller|toll_controller|anpr_camera|jump_server|remote_gateway|cloud_connector|ewon_gateway",
-      "vendor": "rockwell|siemens|schneider|abb|honeywell|emerson|ge|econolite|siemens_its|mccain|wavetronix|flir|vaisala|daktronics|axis|pelco|hikvision|bosch|kapsch|q-free|hms|microsoft|teamviewer",
-      "fingerprint_model": "REQUIRED: EXACT model from fingerprint list (e.g., '6ES7 517-3AP00-0AB0', '1756-L85E')",
-      "zone_id": "zone_1",
-      "role": "Brief description of device's role in the scenario",
-      "protocols": ["modbus_tcp"]
-    }}
-  ],
-  "flows": [
-    {{
-      "source_name": "Device_Name",
-      "target_name": "Device_Name",
-      "protocol": "modbus_tcp|ethernet_ip|profinet|snmp",
-      "description": "Contextual description of this communication flow",
-      "poll_interval_ms": 1000,
-      "pattern": "polling|event|periodic"
-    }}
-  ],
-  "design_rationale": "Brief explanation of why you made these design choices"
-}}
+Your response format is enforced by the system (JSON schema). Fill every field.
+- vertical: one of manufacturing, water, energy, oil_gas, building_automation, transportation
+- device_type examples: plc, hmi, rtu, drive, sensor, robot, ied, meter, pump_controller, flow_meter, level_sensor, flow_computer, traffic_controller, dms, rsu, radar_sensor, weather_station, camera, lighting_controller, ventilation_controller, toll_controller, jump_server, remote_gateway
+- vendor examples: rockwell, siemens, schneider, abb, honeywell, emerson, ge, econolite, siemens_its, mccain, wavetronix, flir, vaisala, daktronics, axis, bosch, hms
+- pattern: polling, event, or periodic
+- conduit direction: bidirectional, a_to_b, or b_to_a
+- conduit security_level: minimal, standard, high, or critical
+- design_rationale: brief explanation of why you made these design choices
 
 ## CRITICAL CONNECTIVITY RULES (MUST FOLLOW)
 
@@ -531,96 +785,44 @@ Constraints:
 
 Generate the JSON response with realistic device names, appropriate vendors/protocols, meaningful zones, and contextual flow descriptions."""
 
-    def _repair_json(self, json_str: str) -> str:
-        """Attempt to repair common JSON issues from AI responses.
-
-        Fixes:
-        - Trailing commas in arrays and objects
-        - Missing commas between elements (common AI mistake)
-        - Control characters in strings
-        """
-        # Remove trailing commas before ] or }
-        json_str = re.sub(r',(\s*[\]}])', r'\1', json_str)
-
-        # Fix missing commas between array elements (e.g., "}" followed by "{" without comma)
-        # This handles: }{ -> },{
-        json_str = re.sub(r'\}(\s*)\{', r'},\1{', json_str)
-
-        # Fix missing commas between string values and objects
-        # e.g., "value" { -> "value", {
-        json_str = re.sub(r'\"(\s*)\{', r'",\1{', json_str)
-
-        # Fix missing commas between } and "
-        # e.g., } "key" -> }, "key"
-        json_str = re.sub(r'\}(\s*)\"', r'},\1"', json_str)
-
-        # Fix missing commas between ] and "
-        json_str = re.sub(r'\](\s*)\"', r'],\1"', json_str)
-
-        # Fix missing commas between ] and {
-        json_str = re.sub(r'\](\s*)\{', r'],\1{', json_str)
-
-        # Fix missing commas between numbers/booleans and "
-        json_str = re.sub(r'(\d)(\s*)\"', r'\1,\2"', json_str)
-        json_str = re.sub(r'(true|false|null)(\s*)\"', r'\1,\2"', json_str)
-
-        return json_str
-
     def _parse_ai_response(self, response: dict[str, Any]) -> AIScenarioDesign:
-        """Parse and validate AI response."""
-        # Extract text content from response
+        """Parse and validate AI response.
+
+        With structured outputs (output_config.format.json_schema), the API
+        guarantees schema-compliant JSON in response.content[0].text.  We
+        still validate via Pydantic for field normalization (clean_name,
+        normalize_device_type) and to catch edge cases (refusal, truncation).
+        """
         content = response.get("content", [])
         text = ""
         for block in content:
             if block.get("type") == "text":
                 text += block.get("text", "")
 
-        logger.debug(f"Raw AI response length: {len(text)} chars")
+        if not text:
+            raise ValueError("AI response contained no text content")
 
-        # Try to extract JSON from the response
-        # Handle cases where AI might wrap JSON in markdown code blocks
-        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            # Try to find raw JSON
-            json_str = text.strip()
+        logger.debug(f"AI response length: {len(text)} chars")
 
-        # Parse JSON with repair attempts
-        parse_attempts = [
-            ("direct", json_str),
-            ("repaired", self._repair_json(json_str)),
-        ]
+        try:
+            data = json.loads(text)
+            return AIScenarioDesign.model_validate(data)
+        except (json.JSONDecodeError, Exception) as e:
+            # Structured outputs should prevent this, but handle gracefully.
+            # Try extracting JSON object if there's surrounding text.
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            if start >= 0 and end > start:
+                try:
+                    data = json.loads(text[start:end])
+                    logger.info("Parsed AI response using JSON extraction fallback")
+                    return AIScenarioDesign.model_validate(data)
+                except Exception:
+                    pass
 
-        # Also try extracting just the JSON object if wrapped in text
-        start = text.find('{')
-        end = text.rfind('}') + 1
-        if start >= 0 and end > start:
-            extracted = text[start:end]
-            parse_attempts.extend([
-                ("extracted", extracted),
-                ("extracted_repaired", self._repair_json(extracted)),
-            ])
-
-        last_error = None
-        for attempt_name, json_to_try in parse_attempts:
-            try:
-                data = json.loads(json_to_try)
-                if attempt_name != "direct":
-                    logger.info(f"JSON parsed successfully using '{attempt_name}' method")
-                return AIScenarioDesign.model_validate(data)
-            except json.JSONDecodeError as e:
-                last_error = e
-                logger.debug(f"JSON parse attempt '{attempt_name}' failed: {e}")
-            except Exception as e:
-                last_error = e
-                logger.debug(f"Validation attempt '{attempt_name}' failed: {e}")
-
-        # All attempts failed - log context for debugging
-        logger.error(f"All JSON parse attempts failed. Last error: {last_error}")
-        logger.error(f"JSON string around error (chars 24000-25500): {json_str[24000:25500] if len(json_str) > 25500 else json_str[-1500:]}")
-
-        raise ValueError(f"Could not parse AI JSON response: {last_error}")
+            logger.error(f"Failed to parse AI response: {e}")
+            logger.error(f"Response tail: {text[-1500:]}")
+            raise ValueError(f"Could not parse AI JSON response: {e}") from e
 
     def _build_scenario_from_ai_design(
         self,
@@ -864,6 +1066,9 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         for warning in hierarchy_warnings:
             logger.warning(f"Hierarchy issue: {warning}")
 
+        # Build conduits from AI design, then backfill missing cross-zone conduits
+        conduits = self._build_conduits(ai_design, zones, devices, flows, device_name_to_id)
+
         # Create scenario
         scenario = GeneratedScenario(
             scenario_id=str(uuid.uuid4()),
@@ -873,6 +1078,7 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
             devices=devices,
             flows=flows,
             zones=zones,
+            conduits=conduits,
             duration_ms=duration_ms,
             metadata={
                 "ai_enhanced": True,
@@ -886,9 +1092,123 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
 
         logger.info(
             f"Built AI-designed scenario '{scenario.name}' with "
-            f"{len(devices)} devices and {len(flows)} flows"
+            f"{len(devices)} devices, {len(flows)} flows, and {len(conduits)} conduits"
         )
         return scenario
+
+    def _build_conduits(
+        self,
+        ai_design: "AIScenarioDesign",
+        zones: list[dict[str, Any]],
+        devices: list[GeneratedDevice],
+        flows: list[GeneratedFlow],
+        device_name_to_id: dict[str, str],
+    ) -> dict[str, dict[str, Any]]:
+        """Build conduit dict from AI-generated conduits, backfilling any missing cross-zone pairs.
+
+        Converts AI conduit designs to the camelCase dict format used by the
+        scenario definition, then ensures every cross-zone flow has a covering
+        conduit by auto-generating missing ones via Purdue adjacency defaults.
+
+        Args:
+            ai_design: Parsed AI design with conduits list
+            zones: Zone list (already built)
+            devices: Device list (already built)
+            flows: Flow list (already built, including orphan-fix flows)
+            device_name_to_id: Mapping of device name -> device_id
+
+        Returns:
+            Dict of conduit_id -> conduit definition (camelCase keys)
+        """
+        zone_id_set = {z["id"] for z in zones}
+        conduits: dict[str, dict[str, Any]] = {}
+
+        # Convert AI-generated conduits
+        for ai_conduit in ai_design.conduits:
+            # Skip conduits referencing non-existent zones
+            if ai_conduit.source_zone not in zone_id_set:
+                logger.warning(
+                    f"Skipping conduit '{ai_conduit.name}': source_zone "
+                    f"'{ai_conduit.source_zone}' not found"
+                )
+                continue
+            if ai_conduit.target_zone not in zone_id_set:
+                logger.warning(
+                    f"Skipping conduit '{ai_conduit.name}': target_zone "
+                    f"'{ai_conduit.target_zone}' not found"
+                )
+                continue
+
+            conduits[ai_conduit.id] = {
+                "id": ai_conduit.id,
+                "name": ai_conduit.name,
+                "sourceZoneId": ai_conduit.source_zone,
+                "targetZoneId": ai_conduit.target_zone,
+                "direction": ai_conduit.direction,
+                "allowedProtocols": ai_conduit.allowed_protocols,
+                "securityLevel": ai_conduit.security_level,
+                "description": ai_conduit.description,
+                "autoGenerated": False,
+            }
+
+        # Determine which zone pairs already have conduits (order-agnostic)
+        covered_pairs: set[tuple[str, str]] = set()
+        for c in conduits.values():
+            pair = tuple(sorted([c["sourceZoneId"], c["targetZoneId"]]))
+            covered_pairs.add(pair)
+
+        # Build device_id -> zone_id lookup
+        device_zone_map: dict[str, str] = {}
+        for zone in zones:
+            for did in zone.get("device_ids", []):
+                device_zone_map[did] = zone["id"]
+
+        # Find cross-zone flow pairs that lack a conduit
+        missing_pairs: dict[tuple[str, str], set[str]] = {}  # (z1, z2) -> protocols
+        for flow in flows:
+            src_zone = device_zone_map.get(flow.source_device_id)
+            dst_zone = device_zone_map.get(flow.destination_device_id)
+            if not src_zone or not dst_zone or src_zone == dst_zone:
+                continue
+            pair = tuple(sorted([src_zone, dst_zone]))
+            if pair not in covered_pairs:
+                if pair not in missing_pairs:
+                    missing_pairs[pair] = set()
+                missing_pairs[pair].add(flow.protocol)
+
+        # Auto-generate conduits for missing cross-zone pairs
+        if missing_pairs:
+            zone_name_map = {z["id"]: z.get("name", z["id"]) for z in zones}
+            conduit_idx = len(conduits)
+            for (z1, z2), protocols in missing_pairs.items():
+                conduit_idx += 1
+                cid = f"conduit_{conduit_idx:03d}"
+                z1_name = zone_name_map.get(z1, z1)
+                z2_name = zone_name_map.get(z2, z2)
+                conduits[cid] = {
+                    "id": cid,
+                    "name": f"{z1_name} \u2194 {z2_name}",
+                    "sourceZoneId": z1,
+                    "targetZoneId": z2,
+                    "direction": "bidirectional",
+                    "allowedProtocols": sorted(protocols),
+                    "securityLevel": "standard",
+                    "description": None,
+                    "autoGenerated": True,
+                }
+                covered_pairs.add((z1, z2))
+
+            logger.info(
+                f"Auto-generated {len(missing_pairs)} conduit(s) for "
+                f"cross-zone flows missing AI-designed conduits"
+            )
+
+        logger.info(
+            f"Built {len(conduits)} conduit(s) "
+            f"({len(ai_design.conduits)} from AI, "
+            f"{len(conduits) - len([c for c in conduits.values() if not c.get('autoGenerated')])} auto-generated)"
+        )
+        return conduits
 
     def _generate_ip(self, zone_id: str) -> str:
         """Generate an IP address within a zone's /24 subnet.

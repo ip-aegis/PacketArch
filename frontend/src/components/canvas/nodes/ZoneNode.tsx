@@ -5,6 +5,8 @@
 
 import React from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import { useUIStore } from '../../../stores/uiStore';
 
 export interface ZoneNodeData extends Record<string, unknown> {
   id: string;
@@ -32,16 +34,44 @@ const ZONE_BORDER_COLORS: Record<string, string> = {
   logical: '#FBAB18',
 };
 
+const HANDLE_STYLE: React.CSSProperties = {
+  width: 8,
+  height: 8,
+  background: '#049FD9',
+  border: '2px solid #1e2a3a',
+  borderRadius: '50%',
+};
+
+const HANDLE_STYLE_HIDDEN: React.CSSProperties = {
+  ...HANDLE_STYLE,
+  visibility: 'hidden',
+  width: 1,
+  height: 1,
+};
+
 const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = React.memo((props) => {
   const { data, selected } = props;
+  const activeTool = useUIStore((s) => s.tool.activeTool);
+  const isConduitMode = activeTool === 'conduit';
+
   if (!data) return null;
 
   const nodeData = data as ZoneNodeData;
   const backgroundColor = ZONE_COLORS[nodeData.type] || ZONE_COLORS.logical;
   const borderColor = ZONE_BORDER_COLORS[nodeData.type] || ZONE_BORDER_COLORS.logical;
+  const handleStyle = isConduitMode ? HANDLE_STYLE : HANDLE_STYLE_HIDDEN;
 
   return (
     <>
+      {/* Conduit connection handles — visible only in conduit tool mode */}
+      <Handle type="source" position={Position.Top} id="conduit-top" style={handleStyle} />
+      <Handle type="source" position={Position.Bottom} id="conduit-bottom" style={handleStyle} />
+      <Handle type="source" position={Position.Left} id="conduit-left" style={handleStyle} />
+      <Handle type="source" position={Position.Right} id="conduit-right" style={handleStyle} />
+      <Handle type="target" position={Position.Top} id="conduit-target-top" style={handleStyle} />
+      <Handle type="target" position={Position.Bottom} id="conduit-target-bottom" style={handleStyle} />
+      <Handle type="target" position={Position.Left} id="conduit-target-left" style={handleStyle} />
+      <Handle type="target" position={Position.Right} id="conduit-target-right" style={handleStyle} />
       <div
         role="group"
         aria-label={`${nodeData.type} zone: ${nodeData.name}${nodeData.network?.subnet ? `, subnet ${nodeData.network.subnet}` : ''}`}

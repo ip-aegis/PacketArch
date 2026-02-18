@@ -158,6 +158,8 @@ def build_system_prompt(
         "water": "SCADA systems with RTUs at remote sites. Modbus/DNP3 polling. Focus on pump/valve control, flow monitoring, chemical dosing, tank levels.",
         "energy": "Substations with IEDs, RTUs. IEC 104 and DNP3. Focus on protection relays, breaker control, power metering, fault detection.",
         "oil_gas": "Pipeline SCADA, offshore platforms. Modbus/OPC UA. Focus on safety systems (ESD), compressor stations, wellhead monitoring.",
+        "building_automation": "Building management systems with BACnet/IP controllers, Modbus TCP meters, HVAC units, lighting controllers. Focus on HVAC optimization, energy metering, access control.",
+        "transportation": "ITS infrastructure with SNMP/NTCIP traffic controllers, DMS signs, radar/video detectors, weather stations, cameras. Focus on signal coordination, incident detection, traveler information.",
     }
 
     if compact:
@@ -176,7 +178,7 @@ Current Scenario: {scenario_name} | Vertical: {vertical} - {vertical_context}
 Devices: {device_count} | Flows: {flow_count}
 
 TOOL SELECTION: For new scenarios with devices, use generate_scenario_from_nl. Only use add_device for 1-3 device additions.
-Apply vendor fingerprints for realism, suggest CVEs for security testing, and use learned patterns when available.
+Apply vendor fingerprints for realism and suggest CVEs for security testing.
 When done, stop calling tools and provide a summary."""
 
     vertical_context = vertical_contexts.get(vertical, "General OT environment with industrial devices and protocols.")
@@ -237,7 +239,6 @@ When done, stop calling tools and provide a summary."""
 **Realism Enhancement**:
 - Apply vendor fingerprints (TCP stack signatures, protocol identities, response timing)
 - Configure protocol-specific parameters (Modbus unit IDs, EtherNet/IP classes, S7 memory areas)
-- Apply learned patterns from PCAP analysis for realistic traffic profiles
 
 **Security Testing**:
 - Inject CVE vulnerabilities into devices using `apply_cve_to_device`
@@ -257,10 +258,9 @@ When done, stop calling tools and provide a summary."""
 ## Best Practices
 1. Apply vendor fingerprints after adding devices for realistic traffic signatures
 2. Suggest relevant CVEs based on device vendor, model, and firmware when asked
-3. Use learned patterns when available to match real-world traffic captures
-4. Validate topology before deployment to catch configuration issues
-5. Prefer specific vendors (Siemens, Rockwell, Schneider, Omron, Mitsubishi) over generic types
-6. Protocol selection by context:
+3. Validate topology before deployment to catch configuration issues
+4. Prefer specific vendors (Siemens, Rockwell, Schneider, Omron, Mitsubishi) over generic types
+5. Protocol selection by context:
    - Manufacturing: EtherNet/IP (Rockwell), PROFINET (Siemens), PCCC (legacy AB), Codesys (WAGO/Beckhoff)
    - Utilities (Water/Gas): Modbus TCP, DNP3
    - Power substations: IEC 61850 (protection relays), IEC 104 (telecontrol)

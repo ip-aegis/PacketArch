@@ -23,6 +23,7 @@ class ScenarioCreate(ScenarioBase):
         "devices": {},
         "flows": {},
         "zones": {},
+        "conduits": {},
         "phases": [],
         "events": []
     })

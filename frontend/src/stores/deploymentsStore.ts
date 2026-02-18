@@ -3,160 +3,61 @@
  */
 
 import { create } from 'zustand';
-import type {
-  Deployment,
-  UnifiedDeployment,
-  DeploymentRequest,
-  DeploymentLogsResponse,
-} from '../types/docker';
+import type { UnifiedDeployment } from '../types/docker';
 import { deploymentsApi, type DeploymentFilters } from '../api/deployments';
 import { extractErrorMessage } from '../utils/errorUtils';
-import { createResourceSlice } from './createResourceStore';
-
-// Adapter: the factory expects a standard CRUD api shape.
-// start/stop are non-standard so we stub create/update (unused).
-const crudApi = {
-  list: deploymentsApi.list,
-  get: deploymentsApi.get,
-  create: deploymentsApi.start as any,
-  update: (() => { throw new Error('not used'); }) as any,
-  delete: deploymentsApi.remove,
-};
-
-const crud = createResourceSlice<UnifiedDeployment, DeploymentRequest, never>({
-  resourceName: 'deployment',
-  api: crudApi,
-  listExtractor: (r) => r.items,
-  itemsKey: 'deployments',
-  selectedKey: 'activeDeployment',
-});
 
 interface DeploymentsState {
   deployments: UnifiedDeployment[];
   activeDeployment: UnifiedDeployment | null;
-  logs: DeploymentLogsResponse | null;
   isLoading: boolean;
   error: string | null;
-  pollingInterval: NodeJS.Timeout | null;
 
   fetchDeployments: (filters?: DeploymentFilters) => Promise<void>;
-  fetchDeployment: (id: string) => Promise<UnifiedDeployment>;
-  startDeployment: (data: DeploymentRequest) => Promise<Deployment>;
-  stopDeployment: (id: string) => Promise<Deployment>;
   removeDeployment: (id: string) => Promise<void>;
-  fetchLogs: (id: string, tail?: number) => Promise<DeploymentLogsResponse>;
   setActiveDeployment: (deployment: UnifiedDeployment | null) => void;
-  startPolling: (scenarioId?: string) => void;
-  stopPolling: () => void;
   clearError: () => void;
 }
 
-export const useDeploymentsStore = create<DeploymentsState>()((set, get) => {
-  const { fetchAll, fetchOne, deleteOne, clearError } = crud(set, get);
+export const useDeploymentsStore = create<DeploymentsState>()((set) => ({
+  deployments: [],
+  activeDeployment: null,
+  isLoading: false,
+  error: null,
 
-  return {
-    deployments: [],
-    activeDeployment: null,
-    logs: null,
-    isLoading: false,
-    error: null,
-    pollingInterval: null,
+  fetchDeployments: async (filters?: DeploymentFilters) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await deploymentsApi.list(filters || {});
+      set({ deployments: response.items, isLoading: false });
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to fetch deployments');
+      set({ error: message, isLoading: false });
+    }
+  },
 
-    fetchDeployments: fetchAll,
-    fetchDeployment: fetchOne,
-    removeDeployment: deleteOne,
-    clearError,
+  removeDeployment: async (id: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await deploymentsApi.remove(id);
+      set((state) => ({
+        deployments: state.deployments.filter((d) => d.id !== id),
+        activeDeployment:
+          state.activeDeployment?.id === id ? null : state.activeDeployment,
+        isLoading: false,
+      }));
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to remove deployment');
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
 
-    startDeployment: async (data: DeploymentRequest) => {
-      set({ isLoading: true, error: null });
-      try {
-        const deployment = await deploymentsApi.start(data);
-        set((state) => ({
-          deployments: [deployment, ...state.deployments],
-          activeDeployment: deployment,
-          isLoading: false,
-        }));
-        get().startPolling(data.scenario_id);
-        return deployment;
-      } catch (error: unknown) {
-        const message = extractErrorMessage(error, 'Failed to start deployment');
-        set({ error: message, isLoading: false });
-        throw error;
-      }
-    },
+  setActiveDeployment: (deployment: UnifiedDeployment | null) => {
+    set({ activeDeployment: deployment });
+  },
 
-    stopDeployment: async (id: string) => {
-      set({ isLoading: true, error: null });
-      try {
-        const deployment = await deploymentsApi.stop(id);
-        set((state) => ({
-          deployments: state.deployments.map((d) => (d.id === id ? deployment : d)),
-          activeDeployment:
-            state.activeDeployment?.id === id ? deployment : state.activeDeployment,
-          isLoading: false,
-        }));
-        return deployment;
-      } catch (error: unknown) {
-        const message = extractErrorMessage(error, 'Failed to stop deployment');
-        set({ error: message, isLoading: false });
-        throw error;
-      }
-    },
-
-    fetchLogs: async (id: string, tail: number = 100) => {
-      try {
-        const logs = await deploymentsApi.getLogs(id, tail);
-        set({ logs });
-        return logs;
-      } catch (error: unknown) {
-        const message = extractErrorMessage(error, 'Failed to fetch logs');
-        set({ error: message });
-        throw error;
-      }
-    },
-
-    setActiveDeployment: (deployment: UnifiedDeployment | null) => {
-      set({ activeDeployment: deployment, logs: null });
-    },
-
-    startPolling: (scenarioId?: string) => {
-      const { pollingInterval } = get();
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-
-      const interval = setInterval(async () => {
-        const { activeDeployment, fetchDeployment, fetchDeployments, stopPolling } = get();
-
-        if (activeDeployment) {
-          try {
-            const updated = await fetchDeployment(activeDeployment.id);
-            if (['stopped', 'failed'].includes(updated.status)) {
-              stopPolling();
-            }
-          } catch {
-            // Ignore errors during polling
-          }
-        } else if (scenarioId) {
-          try {
-            await fetchDeployments({ scenario_id: scenarioId });
-          } catch {
-            // Ignore errors during polling
-          }
-        }
-      }, 3000);
-
-      set({ pollingInterval: interval });
-    },
-
-    stopPolling: () => {
-      const { pollingInterval } = get();
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        set({ pollingInterval: null });
-      }
-    },
-  };
-});
+  clearError: () => set({ error: null }),
+}));
 
 export default useDeploymentsStore;

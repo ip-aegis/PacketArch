@@ -3,7 +3,6 @@
 import pytest
 
 from app.traffic_generator.flow_generator import (
-    DEFAULT_POLL_RATES,
     DeviceRole,
     DeviceSpec,
     FlowPattern,
@@ -118,7 +117,7 @@ class TestSmartFlowGenerator:
         """Test default initialization."""
         gen = SmartFlowGenerator()
         assert gen.min_flows_per_device == 1
-        assert gen.max_flows_per_device == 5
+        assert gen.max_flows_per_device == 20
         assert gen.default_protocol == "modbus_tcp"
 
     def test_empty_devices(self):

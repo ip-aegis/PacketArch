@@ -44,13 +44,6 @@ from app.mcp_server.tools.protocol_tools import (
     configure_iec61850_ied,
     configure_goose_publisher,
 )
-from app.mcp_server.tools.deployment_tools import (
-    list_docker_hosts,
-    start_deployment,
-    stop_deployment,
-    get_deployment_status,
-    list_deployments,
-)
 from app.mcp_server.tools.layout_tools import (
     set_device_position,
     set_zone_bounds,
@@ -114,12 +107,6 @@ __all__ = [
     "configure_opcua_subscription",
     "configure_iec61850_ied",
     "configure_goose_publisher",
-    # Deployment tools
-    "list_docker_hosts",
-    "start_deployment",
-    "stop_deployment",
-    "get_deployment_status",
-    "list_deployments",
     # Layout tools
     "set_device_position",
     "set_zone_bounds",

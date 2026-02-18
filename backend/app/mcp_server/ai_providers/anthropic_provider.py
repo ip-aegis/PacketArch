@@ -10,7 +10,12 @@ from app.mcp_server.ai_providers.base import AIProvider
 logger = logging.getLogger(__name__)
 
 # Models that support extended thinking
-THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-sonnet-4-5"}
+THINKING_MODELS = {
+    "claude-opus-4-6",
+    "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5-20250929",
+    "claude-sonnet-4-5",
+}
 # Models that support adaptive thinking (preferred over manual budget_tokens)
 ADAPTIVE_THINKING_MODELS = {"claude-opus-4-6"}
 
@@ -46,7 +51,7 @@ class AnthropicProvider(AIProvider):
             kwargs["thinking"] = {"type": "adaptive"}
         elif self._supports_thinking():
             max_tokens = kwargs.get("max_tokens", 16384)
-            budget = min(10000, max(1024, max_tokens - 1024))
+            budget = min(5000, max(1024, max_tokens - 1024))
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
 
     async def chat(
@@ -54,6 +59,8 @@ class AnthropicProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to Claude.
 
@@ -61,6 +68,10 @@ class AnthropicProvider(AIProvider):
             messages: List of message objects with role and content
             tools: Optional list of MCP tool definitions
             max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (None = Claude default 1.0)
+            output_config: Structured output config for guaranteed JSON schema
+                compliance. Example: {"format": {"type": "json_schema",
+                "schema": {...}}}
 
         Returns:
             Claude's response
@@ -99,10 +110,27 @@ class AnthropicProvider(AIProvider):
             if claude_tools:
                 kwargs["tools"] = claude_tools
 
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            # Structured output config for guaranteed JSON schema compliance
+            if output_config:
+                kwargs["output_config"] = output_config
+
             # Enable thinking for supported models
             self._add_thinking_params(kwargs)
 
-            response = await self.client.messages.create(**kwargs)
+            try:
+                response = await self.client.messages.create(**kwargs)
+            except ValueError as e:
+                if "Streaming is required" in str(e):
+                    # SDK requires streaming for high max_tokens requests;
+                    # collect the full response via stream
+                    logger.info("Falling back to streaming collection for long request")
+                    async with self.client.messages.stream(**kwargs) as stream:
+                        response = await stream.get_final_message()
+                else:
+                    raise
 
             return self._format_response(response)
 
@@ -115,6 +143,8 @@ class AnthropicProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to Claude.
 
@@ -122,6 +152,8 @@ class AnthropicProvider(AIProvider):
             messages: List of message objects
             tools: Optional list of MCP tool definitions
             max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (None = Claude default 1.0)
+            output_config: Structured output config for guaranteed JSON schema
 
         Yields:
             Streaming response chunks
@@ -160,6 +192,12 @@ class AnthropicProvider(AIProvider):
             if claude_tools:
                 kwargs["tools"] = claude_tools
 
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            if output_config:
+                kwargs["output_config"] = output_config
+
             # Enable thinking for supported models
             self._add_thinking_params(kwargs)
 
@@ -177,20 +215,27 @@ class AnthropicProvider(AIProvider):
     ) -> list[dict[str, Any]]:
         """Convert MCP tool definitions to Claude's format.
 
-        Adds cache_control to the last tool definition for prompt caching.
+        Enables strict mode for guaranteed schema-compliant tool inputs and
+        adds cache_control to the last tool definition for prompt caching.
 
         Args:
             mcp_tools: List of MCP tool definitions
 
         Returns:
-            List of Claude-formatted tool definitions
+            List of Claude-formatted tool definitions with strict validation
         """
         claude_tools = []
         for tool in mcp_tools:
-            claude_tool = {
+            input_schema = dict(tool["input_schema"])
+            # Ensure additionalProperties is false for strict mode
+            if "type" in input_schema and input_schema["type"] == "object":
+                input_schema["additionalProperties"] = False
+
+            claude_tool: dict[str, Any] = {
                 "name": tool["name"],
                 "description": tool["description"],
-                "input_schema": tool["input_schema"],
+                "input_schema": input_schema,
+                "strict": True,
             }
             claude_tools.append(claude_tool)
 

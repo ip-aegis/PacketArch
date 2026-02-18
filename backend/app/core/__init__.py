@@ -15,7 +15,6 @@ from app.core.exceptions import (
     DatabaseError,
     AIProviderError,
     MCPToolError,
-    DockerHostError,
     DeploymentError,
     CyberVisionError,
 )
@@ -35,7 +34,6 @@ __all__ = [
     "DatabaseError",
     "AIProviderError",
     "MCPToolError",
-    "DockerHostError",
     "DeploymentError",
     "CyberVisionError",
 ]

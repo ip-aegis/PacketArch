@@ -337,6 +337,43 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["dcs_controller", "safety_plc"],
         },
+        "conduits": [
+            # L3 (operations) <-> L2 (control): OWS/Historian to DCS controllers
+            {"id": "operations_to_control", "name": "Operations \u2194 DCS Control",
+             "source_zone": "operations", "target_zone": "control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Operator workstations, historian, and remote access gateway polling DeltaV S-series and MD Plus controllers"},
+            # L2 (control) <-> L1 (process): DCS controllers to field instruments
+            {"id": "control_to_process", "name": "DCS Control \u2194 Process Field",
+             "source_zone": "control", "target_zone": "process",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "DCS controllers polling pressure transmitters, flow meters, valve positioners, analyzers, and VFDs"},
+            # L2 (control) <-> L1 (safety): DCS controllers to safety system (SIS/DCS interlock)
+            {"id": "control_to_safety", "name": "DCS Control \u2194 Safety System",
+             "source_zone": "control", "target_zone": "safety",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "critical",
+             "description": "Safety PLCs polling DCS controllers for SIS/DCS interlock; dedicated safety communication path"},
+            # L2 (control) <-> L0 (field): DCS controllers to remote wellhead RTUs
+            {"id": "control_to_field", "name": "DCS Control \u2194 Field Instruments",
+             "source_zone": "control", "target_zone": "field",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "DCS controllers polling remote wellhead RTUs and ROC800L flow computers"},
+            # L1 (process) <-> L0 (field): Field RTUs to custody transfer meters
+            {"id": "process_to_field", "name": "Process Field \u2194 Field Instruments",
+             "source_zone": "field", "target_zone": "process",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "ROC800L flow computers polling custody transfer Micro Motion meters"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -626,6 +663,29 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["dcs_controller", "rtu"],
         },
+        "conduits": [
+            # L3 (scada) <-> L2 (compressor): SCADA to compressor control
+            {"id": "scada_to_compressor", "name": "SCADA \u2194 Compressor Control",
+             "source_zone": "scada", "target_zone": "compressor",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA server, historian, and OPC gateway polling C300 controllers and SNMP monitoring switches"},
+            # L3 (scada) <-> L0 (remote_stations): SCADA to remote block valve RTUs
+            {"id": "scada_to_remote", "name": "SCADA \u2194 Remote Block Valves",
+             "source_zone": "scada", "target_zone": "remote_stations",
+             "direction": "bidirectional",
+             "allowed_protocols": ["dnp3"],
+             "security_level": "high",
+             "description": "SCADA server DNP3 polling and receiving unsolicited responses from remote block valve station RTUs"},
+            # L2 (compressor) <-> L1 (metering): Compressor control to fiscal metering
+            {"id": "compressor_to_metering", "name": "Compressor Control \u2194 Metering",
+             "source_zone": "compressor", "target_zone": "metering",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "C300 controllers coordinating with ROC800 flow computers and custody transfer meters"},
+        ],
         "total_duration_ms": 600000,  # 10 minutes
     },
 
@@ -969,6 +1029,29 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["dcs_controller", "safety_plc"],
         },
+        "conduits": [
+            # L3 (engineering) <-> L2 (control): Engineering to DCS control
+            {"id": "engineering_to_control", "name": "Engineering \u2194 DCS Control",
+             "source_zone": "engineering", "target_zone": "control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Engineering workstation, Exaopc historian, and Proficy historian polling CENTUM VP FCUs and switches"},
+            # L2 (control) <-> L1 (process_field): DCS controllers to process field instruments
+            {"id": "control_to_process", "name": "DCS Control \u2194 Process Field",
+             "source_zone": "control", "target_zone": "process_field",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "CENTUM VP FCUs polling transmitters, valves, analyzers, level sensors, flow meters, and VFDs"},
+            # L2 (control) <-> L1 (safety): DCS controllers to safety system (SIS/DCS interlock)
+            {"id": "control_to_safety", "name": "DCS Control \u2194 Safety System",
+             "source_zone": "control", "target_zone": "safety",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "critical",
+             "description": "ProSafe-RS safety PLCs polling DCS FCUs for safety interlock; dedicated SIS communication path"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -1289,6 +1372,43 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["dcs_controller", "safety_plc"],
         },
+        "conduits": [
+            # L3 (operations) <-> L2 (control): Operations to Experion control
+            {"id": "operations_to_control", "name": "Operations \u2194 Experion Control",
+             "source_zone": "operations", "target_zone": "control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Experion server, historian, and OPC gateway polling C300/C200 controllers and SNMP monitoring switches"},
+            # L2 (control) <-> L1 (tank_farm): Experion controllers to tank farm instruments
+            {"id": "control_to_tank_farm", "name": "Experion Control \u2194 Tank Farm",
+             "source_zone": "control", "target_zone": "tank_farm",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "C300/C200 controllers polling tank gauges, pressure transmitters, and cryogenic temperature sensors"},
+            # L2 (control) <-> L1 (regasification): Experion controllers to regasification
+            {"id": "control_to_regas", "name": "Experion Control \u2194 Regasification",
+             "source_zone": "control", "target_zone": "regasification",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "C300 controllers polling valve positioners, BOG compressor VFDs, and fiscal send-out meters"},
+            # L2 (control) <-> L1 (safety): Experion controllers to safety system (SIS interlock)
+            {"id": "control_to_safety", "name": "Experion Control \u2194 Safety System",
+             "source_zone": "control", "target_zone": "safety",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "critical",
+             "description": "Safety Manager PLCs polling DCS controllers for cryogenic safety interlock and gas detection"},
+            # L3 (operations) <-> L0 (marine_terminal): Operations to marine terminal RTUs
+            {"id": "operations_to_marine", "name": "Operations \u2194 Marine Terminal",
+             "source_zone": "operations", "target_zone": "marine_terminal",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "SCADA server polling marine berth RTUs for loading/unloading operations via WAN link"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 }

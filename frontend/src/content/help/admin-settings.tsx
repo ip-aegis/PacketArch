@@ -8,7 +8,6 @@ import {
   SettingOutlined,
   KeyOutlined,
   RobotOutlined,
-  CloudServerOutlined,
   UserOutlined,
   DatabaseOutlined,
 } from '@ant-design/icons';
@@ -26,7 +25,7 @@ const AdminSettingsContent: React.FC = () => {
           Admin Settings
         </Title>
         <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
-          Configure system-wide settings including AI providers, Docker hosts, user
+          Configure system-wide settings including AI providers, traffic agents, user
           management, and default configurations. Admin access required.
         </Paragraph>
       </div>
@@ -81,16 +80,6 @@ const AdminSettingsContent: React.FC = () => {
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
               View system information, version details, and general application settings.
-            </Paragraph>
-          </div>
-
-          <div>
-            <Tag color="orange" icon={<CloudServerOutlined />} style={{ marginBottom: 4 }}>
-              Docker Hosts
-            </Tag>
-            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              Configure remote Docker hosts for traffic generation. Add, edit, and
-              test connectivity to Docker endpoints.
             </Paragraph>
           </div>
 
@@ -154,39 +143,6 @@ const AdminSettingsContent: React.FC = () => {
 
       <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
-          <CloudServerOutlined style={{ marginRight: 8 }} />
-          Docker Host Configuration
-        </Title>
-        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Docker hosts are remote machines that run the traffic generator containers.
-          Configure each host with:
-        </Paragraph>
-        <Space direction="vertical" size="small" style={{ width: '100%', marginTop: 12 }}>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Name</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Friendly identifier for the host</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Host Address</Text>
-            <Text style={{ color: '#6b6b8a' }}> - IP address or hostname</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Port</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Docker API port (default: 2375 or 2376 for TLS)</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>TLS Enabled</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Enable for secure connections</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Certificates</Text>
-            <Text style={{ color: '#6b6b8a' }}> - CA cert, client cert, client key (if TLS enabled)</Text>
-          </div>
-        </Space>
-      </Card>
-
-      <Card style={CARD_STYLE}>
-        <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           <UserOutlined style={{ marginRight: 8 }} />
           User Management
         </Title>
@@ -215,9 +171,9 @@ export const adminSettingsArticle: HelpArticle = {
   category: 'administration',
   keywords: [
     'admin', 'settings', 'configuration', 'api', 'token', 'ai', 'provider',
-    'docker', 'host', 'user', 'management', 'anthropic', 'openai'
+    'agent', 'user', 'management', 'anthropic', 'openai'
   ],
-  summary: 'Configure system settings including AI providers, Docker hosts, and user management.',
+  summary: 'Configure system settings including AI providers, traffic agents, and user management.',
   content: AdminSettingsContent,
   relatedArticles: ['deployments'],
   relatedPages: ['/admin/settings'],

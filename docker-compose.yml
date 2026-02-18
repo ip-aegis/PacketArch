@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: packetarch
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-packetarch_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: packetarch
     ports:
       - "5432:5432"
@@ -39,11 +39,11 @@ services:
     security_opt:
       - label:disable  # Disable SELinux label separation for Docker socket access
     environment:
-      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:-packetarch_dev}@postgres:5432/packetarch
+      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/packetarch
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-C!sco123}
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       DEBUG: ${DEBUG:-false}
     # Backend is only accessible via nginx proxy (not exposed to host)
     expose:
@@ -70,9 +70,9 @@ services:
     restart: unless-stopped
     command: celery -A app.traffic_generator.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
-      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:-packetarch_dev}@postgres:5432/packetarch
+      DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/packetarch
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     volumes:
       - pcap_output:/app/output/pcap

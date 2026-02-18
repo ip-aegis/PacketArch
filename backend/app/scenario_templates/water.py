@@ -339,6 +339,36 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["hmi", "plc"],
         },
+        "conduits": [
+            # L3 (scada) <-> L2 (control): SCADA/OPC/Historian to PLCs
+            {"id": "scada_to_control", "name": "SCADA \u2194 Control",
+             "source_zone": "scada", "target_zone": "control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA server, OPC gateway, historian, and remote access gateway polling main PLCs and safety controller"},
+            # L2 (control) <-> L1 (intake): PLCs to intake field devices
+            {"id": "control_to_intake", "name": "Control \u2194 Intake",
+             "source_zone": "control", "target_zone": "intake",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "ethernet_ip"],
+             "security_level": "high",
+             "description": "Main PLCs polling intake field PLC, VFDs, flow meters, and level transmitters"},
+            # L2 (control) <-> L1 (treatment): PLCs to treatment field devices
+            {"id": "control_to_treatment", "name": "Control \u2194 Treatment",
+             "source_zone": "control", "target_zone": "treatment",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "ethernet_ip"],
+             "security_level": "high",
+             "description": "Main PLCs polling treatment remote I/O, analyzers, VFDs, and turbidity sensors"},
+            # L2 (control) <-> L1 (distribution): PLCs to distribution field devices
+            {"id": "control_to_distribution", "name": "Control \u2194 Distribution",
+             "source_zone": "control", "target_zone": "distribution",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "ethernet_ip"],
+             "security_level": "high",
+             "description": "Main PLCs polling distribution field PLC, chlorine analyzers, flow meters, and VFDs"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -662,6 +692,36 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "scan_ot_ports": True,
             "target_device_types": ["hmi", "rtu", "jump_server"],
         },
+        "conduits": [
+            # L3 (central) <-> L1 (station1): Central DCS to high-capacity pump station
+            {"id": "central_to_station1", "name": "Central \u2194 Pump Station 1",
+             "source_zone": "central", "target_zone": "station1",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "security_level": "high",
+             "description": "Central DCS polling high-capacity pump station RTU and sensors via WAN"},
+            # L3 (central) <-> L1 (station_medium): Central DCS to medium pump stations
+            {"id": "central_to_station_medium", "name": "Central \u2194 Medium Stations",
+             "source_zone": "central", "target_zone": "station_medium",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "Central DCS polling medium pump station RTUs and sensors via WAN"},
+            # L3 (central) <-> L1 (station_booster): Central DCS to booster stations
+            {"id": "central_to_station_booster", "name": "Central \u2194 Booster Stations",
+             "source_zone": "central", "target_zone": "station_booster",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Central DCS polling booster station PLCs and sensors"},
+            # L3 (central) <-> L1 (storage): Central DCS to storage tanks
+            {"id": "central_to_storage", "name": "Central \u2194 Storage Tanks",
+             "source_zone": "central", "target_zone": "storage",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "Central DCS polling storage tank RTUs, level transmitters, and flow meters via WAN"},
+        ],
         "total_duration_ms": 600000,  # 10 minutes
     },
 
@@ -1031,6 +1091,50 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "scan_ot_ports": True,
             "target_device_types": ["hmi", "plc", "jump_server"],
         },
+        "conduits": [
+            # L3.5 (dmz) <-> L2 (control): DMZ historian/OPC/HMI to main PLCs
+            {"id": "dmz_to_control", "name": "DMZ \u2194 Control",
+             "source_zone": "dmz", "target_zone": "control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Historian, OPC gateway, central HMI, and remote access gateway polling main PLCs and safety PLC"},
+            # L2 (control) <-> L1 (headworks): PLCs to headworks field devices
+            {"id": "control_to_headworks", "name": "Control \u2194 Headworks",
+             "source_zone": "control", "target_zone": "headworks",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp", "cip_safety"],
+             "security_level": "high",
+             "description": "Main PLCs and safety PLC polling headworks field PLC, VFDs, flow meters, and I/O"},
+            # L2 (control) <-> L1 (primary): PLCs to primary treatment
+            {"id": "control_to_primary", "name": "Control \u2194 Primary Treatment",
+             "source_zone": "control", "target_zone": "primary",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLCs polling primary clarifier I/O modules, drives, and level sensors"},
+            # L2 (control) <-> L1 (secondary): PLCs to secondary treatment
+            {"id": "control_to_secondary", "name": "Control \u2194 Secondary Treatment",
+             "source_zone": "control", "target_zone": "secondary",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLCs polling secondary aeration I/O, blower VFDs, and DO/pH analyzers"},
+            # L2 (control) <-> L1 (tertiary): PLCs to tertiary/UV
+            {"id": "control_to_tertiary", "name": "Control \u2194 Tertiary/UV",
+             "source_zone": "control", "target_zone": "tertiary",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLCs polling tertiary field PLC, filter VFDs, turbidity analyzers, and UV I/O"},
+            # L2 (control) <-> L1 (sludge): PLCs to sludge processing
+            {"id": "control_to_sludge", "name": "Control \u2194 Sludge Processing",
+             "source_zone": "control", "target_zone": "sludge",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLCs polling sludge field PLC, dewatering VFDs, and digester monitors"},
+        ],
         "total_duration_ms": 900000,  # 15 minutes (full lifecycle)
     },
 
@@ -1316,6 +1420,36 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["hmi", "plc"],
         },
+        "conduits": [
+            # L2.5 (control_room) <-> L1 (well1): Control room to legacy well station
+            {"id": "control_to_well1", "name": "Control Room \u2194 Well 1",
+             "source_zone": "control_room", "target_zone": "well1",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLC polling legacy well field PLC, VFD, and sensors via WAN link"},
+            # L2.5 (control_room) <-> L1 (well2): Control room to upgraded well station
+            {"id": "control_to_well2", "name": "Control Room \u2194 Well 2",
+             "source_zone": "control_room", "target_zone": "well2",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLC polling modern well field PLC, VFD, and sensors via WAN link"},
+            # L2.5 (control_room) <-> L1 (storage): Control room to storage tank/boosters
+            {"id": "control_to_storage", "name": "Control Room \u2194 Storage",
+             "source_zone": "control_room", "target_zone": "storage",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Main PLC polling storage tank PLC, booster VFDs, and level/pressure sensors"},
+            # L2.5 (control_room) <-> L1 (distribution): Control room to distribution network
+            {"id": "control_to_distribution", "name": "Control Room \u2194 Distribution",
+             "source_zone": "control_room", "target_zone": "distribution",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "Main PLC polling remote distribution chlorine analyzers, flow meters, and pressure monitors"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 }

@@ -16,6 +16,7 @@ from app.models.scenario_version import ScenarioVersion
 from app.schemas.scenario_version import (
     CreateVersionRequest,
     DiffEntry,
+    DiffSummaryResponse,
     RollbackResponse,
     UpdateVersionRequest,
     VersionDetail,
@@ -245,6 +246,90 @@ async def diff_versions(
         changes=[DiffEntry(**c) for c in changes],
         summary=summary,
     )
+
+
+@router.post("/diff-summary", response_model=DiffSummaryResponse)
+async def summarize_diff(
+    scenario_id: uuid.UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+    base: int = Query(..., description="Base version number"),
+    compare: int = Query(..., description="Compare version number"),
+) -> DiffSummaryResponse:
+    """Generate an AI plain-English summary of changes between two versions."""
+    from app.api.routes.ai_help import _extract_response_text, _get_ai_provider
+
+    await _get_scenario_for_user(db, scenario_id, current_user.id)
+
+    base_version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.scenario_id == scenario_id,
+        ScenarioVersion.version_number == base,
+        resource_name="Version",
+        identifier=str(base),
+    )
+    compare_version = await get_or_404_where(
+        db, ScenarioVersion,
+        ScenarioVersion.scenario_id == scenario_id,
+        ScenarioVersion.version_number == compare,
+        resource_name="Version",
+        identifier=str(compare),
+    )
+
+    base_meta = {
+        "name": base_version.name,
+        "description": base_version.description,
+        "total_duration_ms": base_version.total_duration_ms,
+    }
+    compare_meta = {
+        "name": compare_version.name,
+        "description": compare_version.description,
+        "total_duration_ms": compare_version.total_duration_ms,
+    }
+
+    changes, summary = compute_definition_diff(
+        base_version.definition or {},
+        compare_version.definition or {},
+        base_meta,
+        compare_meta,
+    )
+
+    if not changes:
+        return DiffSummaryResponse(summary="No changes between these versions.")
+
+    # Serialize changes to a compact representation for the AI
+    import json
+
+    changes_text = json.dumps(changes, indent=None, default=str)
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You summarize OT network scenario changes as a concise plain-English changelog. "
+                "Output 2-5 bullet points using markdown. Each bullet should describe what changed "
+                "and why it matters. Use device names and protocol names when available. "
+                "Do not repeat the raw field names — translate them into human-readable descriptions."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Summarize these changes between version {base} and version {compare}:\n\n"
+                f"Summary: {summary}\n\n"
+                f"Changes:\n{changes_text}"
+            ),
+        },
+    ]
+
+    provider = await _get_ai_provider(db)
+    response = await provider.chat(messages=messages, max_tokens=1024)
+    result = _extract_response_text(response)
+
+    if not result:
+        result = f"{summary.get('added', 0)} added, {summary.get('removed', 0)} removed, {summary.get('modified', 0)} modified."
+
+    return DiffSummaryResponse(summary=result)
 
 
 @router.get("/{version_id}", response_model=VersionDetail)

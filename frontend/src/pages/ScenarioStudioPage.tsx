@@ -100,6 +100,7 @@ const ScenarioStudioPage: React.FC = () => {
         devices?: Record<string, unknown>;
         flows?: Record<string, unknown>;
         zones?: Record<string, unknown>;
+        conduits?: Record<string, unknown>;
         phases?: unknown[];
       };
 
@@ -112,6 +113,7 @@ const ScenarioStudioPage: React.FC = () => {
         devices: (definition?.devices || {}) as Record<string, import('../types').ScenarioDevice>,
         flows: (definition?.flows || {}) as Record<string, import('../types').ScenarioFlow>,
         zones: (definition?.zones || {}) as Record<string, import('../types').ScenarioZone>,
+        conduits: (definition?.conduits || {}) as Record<string, import('../types').ScenarioConduit>,
         phases: (definition?.phases || []) as import('../types').Phase[],
         // Include addressingConfig for IP range info
         addressingConfig: scenarioData.addressing_config as {
@@ -164,6 +166,7 @@ const ScenarioStudioPage: React.FC = () => {
             devices: currentState.devices,
             flows: currentState.flows,
             zones: currentState.zones,
+            conduits: currentState.conduits,
             phases: currentState.phases,
           },
         });
@@ -213,6 +216,7 @@ const ScenarioStudioPage: React.FC = () => {
               devices: currentState.devices,
               flows: currentState.flows,
               zones: currentState.zones,
+              conduits: currentState.conduits,
               phases: currentState.phases,
             },
           });

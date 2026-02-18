@@ -13,6 +13,8 @@ class AIProvider(ABC):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to the AI.
 
@@ -20,6 +22,8 @@ class AIProvider(ABC):
             messages: List of message objects
             tools: Optional list of tool definitions
             max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (None = provider default)
+            output_config: Structured output config (e.g. JSON schema enforcement)
 
         Returns:
             AI response
@@ -32,6 +36,8 @@ class AIProvider(ABC):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int = 16384,
+        temperature: float | None = None,
+        output_config: dict[str, Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to the AI.
 
@@ -39,6 +45,8 @@ class AIProvider(ABC):
             messages: List of message objects
             tools: Optional list of tool definitions
             max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (None = provider default)
+            output_config: Structured output config (e.g. JSON schema enforcement)
 
         Yields:
             Streaming response chunks

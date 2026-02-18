@@ -23,6 +23,7 @@ import ZoneNode from './nodes/ZoneNode';
 import ClusterNode from './nodes/ClusterNode';
 import type { ClusterNodeData } from './nodes/ClusterNode';
 import FlowEdge from './edges/FlowEdge';
+import ConduitEdge from './edges/ConduitEdge';
 import CanvasControls from './CanvasControls';
 import DeviceContextMenu from './DeviceContextMenu';
 import { useCanvasSync } from './hooks/useCanvasSync';
@@ -33,7 +34,7 @@ import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
 import type { ClusterViewMode } from '../../stores/uiStore';
-import type { ScenarioFlow } from '../../types';
+import type { ScenarioFlow, ScenarioConduit } from '../../types';
 import type { DeviceNodeData } from './nodes/DeviceNode';
 import { getDeviceTypeColor } from '../../constants/deviceTypeRegistry';
 import { validateProtocolVendorAffinity } from '../../utils/protocolVendorAffinity';
@@ -48,6 +49,7 @@ const nodeTypes = {
 
 const edgeTypes = {
   flowEdge: FlowEdge,
+  conduitEdge: ConduitEdge,
 } as const satisfies Record<string, React.ComponentType<unknown>>;
 
 interface ScenarioCanvasProps {
@@ -98,8 +100,12 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const addFlow = useScenarioStore((state) => state.addFlow);
   const removeFlow = useScenarioStore((state) => state.removeFlow);
   const removeDevice = useScenarioStore((state) => state.removeDevice);
+  const addConduit = useScenarioStore((state) => state.addConduit);
+  const removeConduit = useScenarioStore((state) => state.removeConduit);
   const pushHistory = useHistoryStore((state) => state.push);
   const setPropertyContext = useUIStore((state) => state.setPropertyContext);
+  const activeTool = useUIStore((state) => state.tool.activeTool);
+  const setActiveTool = useUIStore((state) => state.setActiveTool);
   const setSelection = useUIStore((state) => state.setSelection);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const pendingFitToNode = useUIStore((state) => state.pendingFitToNode);
@@ -204,11 +210,64 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     [removeFlow, addFlow, pushHistory]
   );
 
-  // Handle new connections
+  // Handle new connections (flows or conduits depending on active tool)
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
 
+      const currentTool = useUIStore.getState().tool.activeTool;
+
+      // --- Conduit creation mode ---
+      if (currentTool === 'conduit') {
+        const zones = useScenarioStore.getState().zones;
+        const zoneA = zones[connection.source];
+        const zoneB = zones[connection.target];
+
+        if (!zoneA || !zoneB) {
+          message.warning('Conduits must connect two zones');
+          return;
+        }
+        if (connection.source === connection.target) {
+          message.warning('Cannot create a conduit from a zone to itself');
+          return;
+        }
+
+        // Check for duplicate
+        const existingConduits = useScenarioStore.getState().conduits;
+        const duplicate = Object.values(existingConduits).find(
+          (c) =>
+            (c.sourceZoneId === connection.source && c.targetZoneId === connection.target) ||
+            (c.sourceZoneId === connection.target && c.targetZoneId === connection.source)
+        );
+        if (duplicate) {
+          message.info(`Conduit already exists: ${duplicate.name}`);
+          setPropertyContext('conduit', [duplicate.id]);
+          return;
+        }
+
+        const conduitId = `conduit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newConduit: ScenarioConduit = {
+          id: conduitId,
+          name: `${zoneA.name} \u2194 ${zoneB.name}`,
+          sourceZoneId: connection.source,
+          targetZoneId: connection.target,
+          direction: 'bidirectional',
+          allowedProtocols: [],
+        };
+
+        addConduit(newConduit);
+        pushHistory({
+          type: 'ADD_CONDUIT',
+          undo: () => removeConduit(conduitId),
+          redo: () => addConduit(newConduit),
+          timestamp: Date.now(),
+        });
+        setPropertyContext('conduit', [conduitId]);
+        setActiveTool('select');
+        return;
+      }
+
+      // --- Standard flow creation ---
       const devices = useScenarioStore.getState().devices;
       const sourceDevice = devices[connection.source];
       const targetDevice = devices[connection.target];
@@ -260,8 +319,34 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         redo: () => addFlow(newFlow),
         timestamp: Date.now(),
       });
+
+      // Check cross-zone conduit compliance
+      const storeState = useScenarioStore.getState();
+      const sourceZoneId = sourceDevice.zoneId;
+      const targetZoneId = targetDevice.zoneId;
+      if (sourceZoneId && targetZoneId && sourceZoneId !== targetZoneId) {
+        const conduits = storeState.conduits;
+        const coveringConduit = Object.values(conduits).find(
+          (c) =>
+            (c.sourceZoneId === sourceZoneId && c.targetZoneId === targetZoneId) ||
+            (c.sourceZoneId === targetZoneId && c.targetZoneId === sourceZoneId)
+        );
+
+        if (!coveringConduit) {
+          const zones = storeState.zones;
+          message.warning(
+            `No conduit defined between "${zones[sourceZoneId]?.name || sourceZoneId}" and "${zones[targetZoneId]?.name || targetZoneId}". Flow is non-compliant.`,
+            5
+          );
+        } else if (!coveringConduit.allowedProtocols.includes(protocol)) {
+          message.warning(
+            `Protocol ${protocol} is not allowed by conduit "${coveringConduit.name}". Flow is non-compliant.`,
+            5
+          );
+        }
+      }
     },
-    [addFlow, removeFlow, pushHistory]
+    [addFlow, removeFlow, addConduit, removeConduit, pushHistory, setPropertyContext, setActiveTool]
   );
 
   // Handle node selection
@@ -291,10 +376,14 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     [toggleCluster, fitView]
   );
 
-  // Handle edge selection
+  // Handle edge selection (flow or conduit)
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      setPropertyContext('flow', [edge.id]);
+      if (edge.type === 'conduitEdge') {
+        setPropertyContext('conduit', [edge.id]);
+      } else {
+        setPropertyContext('flow', [edge.id]);
+      }
       setSelection([], [edge.id]);
     },
     [setPropertyContext, setSelection]

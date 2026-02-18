@@ -108,6 +108,19 @@ export const scenarioVersionsApi = {
     return response.data;
   },
 
+  async summarizeDiff(
+    scenarioId: string,
+    baseVersion: number,
+    compareVersion: number
+  ): Promise<{ summary: string }> {
+    const response = await apiClient.post<{ summary: string }>(
+      `${prefix(scenarioId)}/diff-summary`,
+      null,
+      { params: { base: baseVersion, compare: compareVersion } }
+    );
+    return response.data;
+  },
+
   async rollback(
     scenarioId: string,
     versionNumber: number

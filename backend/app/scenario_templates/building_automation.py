@@ -230,6 +230,36 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (bms_core) <-> L2 (hvac_control): Supervisory to HVAC controllers
+            {"id": "bms_core_to_hvac", "name": "BMS Core \u2194 HVAC Control",
+             "source_zone": "bms_core", "target_zone": "hvac_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Supervisory controllers and EWON gateway polling HVAC, AHU, chiller, and building controllers"},
+            # L2 (hvac_control) <-> L1 (floor_zone): HVAC to field controllers
+            {"id": "hvac_to_floor", "name": "HVAC Control \u2194 Floor Zone",
+             "source_zone": "hvac_control", "target_zone": "floor_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "standard",
+             "description": "HVAC and building controllers polling VAV, room, field, and zone controllers"},
+            # L1 (floor_zone) <-> L3 (bms_core): COV notifications from field to supervisory
+            {"id": "floor_to_bms_core", "name": "Floor Zone \u2194 BMS Core",
+             "source_zone": "floor_zone", "target_zone": "bms_core",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "high",
+             "description": "VAV and room controllers sending BACnet COV notifications to supervisory controllers"},
+            # L3 (bms_core) <-> L4 (external): Remote access cloud connectivity
+            {"id": "bms_core_to_external", "name": "BMS Core \u2194 External",
+             "source_zone": "bms_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway Talk2M cloud heartbeat and VPN tunnel"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -433,6 +463,43 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (dcim_core) <-> L2 (cooling_zone): DCIM to precision cooling
+            {"id": "dcim_to_cooling", "name": "DCIM Core \u2194 Cooling Zone",
+             "source_zone": "dcim_core", "target_zone": "cooling_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet", "modbus_tcp"],
+             "security_level": "critical",
+             "description": "DCIM server and building controllers polling CRAC units and chiller controllers"},
+            # L3 (dcim_core) <-> L2 (power_zone): DCIM to power distribution
+            {"id": "dcim_to_power", "name": "DCIM Core \u2194 Power Zone",
+             "source_zone": "dcim_core", "target_zone": "power_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Building controllers polling UPS systems and electrical room cooling; SNMP monitoring of UPS"},
+            # L2 (power_zone) <-> L1 (rack_zone): Power to rack-level PDUs
+            {"id": "power_to_rack", "name": "Power Zone \u2194 Rack Zone",
+             "source_zone": "power_zone", "target_zone": "rack_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "Power distribution monitoring of rack PDUs via Modbus TCP and SNMP"},
+            # L3 (dcim_core) <-> L1 (rack_zone): DCIM direct to rack monitoring
+            {"id": "dcim_to_rack", "name": "DCIM Core \u2194 Rack Zone",
+             "source_zone": "dcim_core", "target_zone": "rack_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "DCIM server SNMP monitoring of rack PDUs and switches"},
+            # L3 (dcim_core) <-> L4 (external): Remote access cloud connectivity
+            {"id": "dcim_to_external", "name": "DCIM Core \u2194 External",
+             "source_zone": "dcim_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway Talk2M cloud heartbeat for remote DCIM monitoring"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -766,6 +833,57 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (campus_core) <-> L2 (building_a): Campus to Building A
+            {"id": "campus_to_building_a", "name": "Campus Core \u2194 Building A",
+             "source_zone": "campus_core", "target_zone": "building_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet", "snmp"],
+             "security_level": "high",
+             "description": "Campus BMS servers and engineering workstation polling Building A supervisors and controllers"},
+            # L3 (campus_core) <-> L2 (building_b): Campus to Building B
+            {"id": "campus_to_building_b", "name": "Campus Core \u2194 Building B",
+             "source_zone": "campus_core", "target_zone": "building_b",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet", "snmp"],
+             "security_level": "high",
+             "description": "Campus BMS servers polling Building B supervisors, room, and zone controllers"},
+            # L3 (campus_core) <-> L2 (central_plant): Campus to Central Plant
+            {"id": "campus_to_central_plant", "name": "Campus Core \u2194 Central Plant",
+             "source_zone": "campus_core", "target_zone": "central_plant",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "EWON gateway Modbus polling to central plant chiller controllers"},
+            # L2 (building_a) <-> L1 (field_devices): Building A to field devices
+            {"id": "building_a_to_field", "name": "Building A \u2194 Field Devices",
+             "source_zone": "building_a", "target_zone": "field_devices",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "standard",
+             "description": "Building A controllers polling field VAV, room, and I/O controllers"},
+            # L2 (building_b) <-> L1 (field_devices): Building B to field devices
+            {"id": "building_b_to_field", "name": "Building B \u2194 Field Devices",
+             "source_zone": "building_b", "target_zone": "field_devices",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "standard",
+             "description": "Building B controllers polling field VAV, room, and I/O controllers"},
+            # L1 (field_devices) <-> L2 (building_a, building_b): COV notifications
+            {"id": "field_to_buildings", "name": "Field Devices \u2194 Buildings",
+             "source_zone": "field_devices", "target_zone": "building_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "standard",
+             "description": "Field VAV and room controllers sending BACnet COV notifications to building supervisors"},
+            # L3 (campus_core) <-> L4 (external): Remote access cloud connectivity
+            {"id": "campus_to_external", "name": "Campus Core \u2194 External",
+             "source_zone": "campus_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway Talk2M cloud heartbeat for campus remote monitoring"},
+        ],
         "total_duration_ms": 600000,  # 10 minutes
     },
 }

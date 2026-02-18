@@ -353,6 +353,57 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["protection_relay", "rtu"],
         },
+        "conduits": [
+            # L3 (substation_lan) <-> L2 (bay_control): RTAC/PAC to bay controllers
+            {"id": "substation_to_bay", "name": "Substation LAN \u2194 Bay Control",
+             "source_zone": "substation_lan", "target_zone": "bay_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "iec61850", "snmp"],
+             "security_level": "critical",
+             "description": "RTAC and automation controller polling bay controllers, bus protection IEDs, and network switches"},
+            # L2 (bay_control) <-> L1 (feeder_zone): Bay controllers to feeder relays
+            {"id": "bay_to_feeder", "name": "Bay Control \u2194 Feeder Protection",
+             "source_zone": "bay_control", "target_zone": "feeder_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["iec61850"],
+             "security_level": "high",
+             "description": "Bay controller GOOSE trip signals to feeder protection relays"},
+            # L2 (bay_control) <-> L1 (transformer_zone): Bay controllers to transformer relays
+            {"id": "bay_to_transformer", "name": "Bay Control \u2194 Transformer Protection",
+             "source_zone": "bay_control", "target_zone": "transformer_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["iec61850"],
+             "security_level": "high",
+             "description": "Bay controller GOOSE trip signals to transformer protection IEDs"},
+            # L3 (substation_lan) <-> L1 (feeder_zone): RTAC to feeder relays
+            {"id": "substation_to_feeder", "name": "Substation LAN \u2194 Feeder Protection",
+             "source_zone": "substation_lan", "target_zone": "feeder_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "RTAC polling feeder protection relays and backup relays for status and event data"},
+            # L3 (substation_lan) <-> L1 (transformer_zone): RTAC to transformer relays
+            {"id": "substation_to_transformer", "name": "Substation LAN \u2194 Transformer Protection",
+             "source_zone": "substation_lan", "target_zone": "transformer_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "iec61850", "snmp"],
+             "security_level": "high",
+             "description": "RTAC polling transformer differential, line distance, and line differential relays"},
+            # L3 (substation_lan) <-> L1 (metering_zone): RTAC to revenue meters
+            {"id": "substation_to_metering", "name": "Substation LAN \u2194 Metering",
+             "source_zone": "substation_lan", "target_zone": "metering_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "RTAC polling revenue meters and power quality meters for energy accounting"},
+            # L4 (wan_zone) <-> L3 (substation_lan): WAN SCADA backhaul to substation
+            {"id": "wan_to_substation", "name": "WAN \u2194 Substation LAN",
+             "source_zone": "wan_zone", "target_zone": "substation_lan",
+             "direction": "bidirectional",
+             "allowed_protocols": ["dnp3"],
+             "security_level": "critical",
+             "description": "Remote SCADA WAN RTU DNP3 polling and unsolicited responses to/from substation RTAC"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -712,6 +763,43 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["dcs_controller", "plc"],
         },
+        "conduits": [
+            # L3 (plant_scada) <-> L2 (turbine_control): Plant SCADA to turbine controllers
+            {"id": "scada_to_turbine", "name": "Plant SCADA \u2194 Turbine Control",
+             "source_zone": "plant_scada", "target_zone": "turbine_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "DCS server and historian polling Mark VIe controllers, HRSG PLCs, and turbine HMIs"},
+            # L3 (plant_scada) <-> L2 (bop_control): Plant SCADA to balance-of-plant
+            {"id": "scada_to_bop", "name": "Plant SCADA \u2194 Balance-of-Plant",
+             "source_zone": "plant_scada", "target_zone": "bop_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "DCS server and historian polling cooling, fuel gas, and water treatment PLCs"},
+            # L3 (plant_scada) <-> L1 (generator_protection): Plant SCADA to generator relays
+            {"id": "scada_to_gen_prot", "name": "Plant SCADA \u2194 Generator Protection",
+             "source_zone": "plant_scada", "target_zone": "generator_protection",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "DCS server polling generator differential, excitation, and overcurrent protection relays"},
+            # L3 (plant_scada) <-> L1 (auxiliary): Plant SCADA to auxiliary systems
+            {"id": "scada_to_auxiliary", "name": "Plant SCADA \u2194 Auxiliary",
+             "source_zone": "plant_scada", "target_zone": "auxiliary",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "DCS server polling revenue meters and power quality meters"},
+            # L2 (bop_control) <-> L1 (auxiliary): BOP PLCs to auxiliary I/O
+            {"id": "bop_to_auxiliary", "name": "Balance-of-Plant \u2194 Auxiliary",
+             "source_zone": "bop_control", "target_zone": "auxiliary",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "BOP PLCs polling distributed I/O modules in auxiliary systems"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -1036,6 +1124,43 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["scada_server", "rtu"],
         },
+        "conduits": [
+            # L3 (ems_core) <-> L2 (comm_hub): EMS SCADA to communications front-end
+            {"id": "ems_to_comm", "name": "EMS Core \u2194 Communications Hub",
+             "source_zone": "ems_core", "target_zone": "comm_hub",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "EMS SCADA servers and historian polling communications hub RTACs and WAN switches"},
+            # L3 (ems_core) <-> L3 (engineering): EMS core to engineering
+            {"id": "ems_to_engineering", "name": "EMS Core \u2194 Engineering",
+             "source_zone": "ems_core", "target_zone": "engineering",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA servers polling application server and SNMP monitoring of engineering switch"},
+            # L2 (comm_hub) <-> L1 (remote_sub_a): Comm hub to remote substations group A
+            {"id": "comm_to_sub_a", "name": "Communications Hub \u2194 Remote Substations A",
+             "source_zone": "comm_hub", "target_zone": "remote_sub_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["dnp3", "snmp"],
+             "security_level": "high",
+             "description": "Comm hub RTACs polling remote substations A (1-4) via WAN DNP3 and SNMP for relay health"},
+            # L2 (comm_hub) <-> L1 (remote_sub_b): Comm hub to remote substations group B
+            {"id": "comm_to_sub_b", "name": "Communications Hub \u2194 Remote Substations B",
+             "source_zone": "comm_hub", "target_zone": "remote_sub_b",
+             "direction": "bidirectional",
+             "allowed_protocols": ["dnp3", "snmp"],
+             "security_level": "high",
+             "description": "Comm hub RTACs polling remote substations B (5-8) via WAN DNP3 and SNMP for relay health"},
+            # L4 (wan) <-> L2 (comm_hub): WAN backup to comm hub
+            {"id": "wan_to_comm", "name": "WAN \u2194 Communications Hub",
+             "source_zone": "wan", "target_zone": "comm_hub",
+             "direction": "bidirectional",
+             "allowed_protocols": ["dnp3"],
+             "security_level": "high",
+             "description": "WAN backup RTUs providing redundant DNP3 communication path to comm hub RTACs"},
+        ],
         "total_duration_ms": 600000,  # 10 minutes
     },
 
@@ -1394,6 +1519,43 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_recon": True,
             "target_device_types": ["plc", "protection_relay"],
         },
+        "conduits": [
+            # L3 (microgrid_control) <-> L2 (inverter_field): Microgrid to inverter PLCs
+            {"id": "microgrid_to_inverter", "name": "Microgrid Control \u2194 Inverter Field",
+             "source_zone": "microgrid_control", "target_zone": "inverter_field",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "Microgrid controller and historian polling inverter string and central PLCs"},
+            # L3 (microgrid_control) <-> L2 (bess_control): Microgrid to BESS
+            {"id": "microgrid_to_bess", "name": "Microgrid Control \u2194 BESS",
+             "source_zone": "microgrid_control", "target_zone": "bess_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "high",
+             "description": "Microgrid controller and historian polling BESS rack controllers and master controller"},
+            # L3 (microgrid_control) <-> L1 (poi_protection): Microgrid to POI
+            {"id": "microgrid_to_poi", "name": "Microgrid Control \u2194 POI Protection",
+             "source_zone": "microgrid_control", "target_zone": "poi_protection",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "Microgrid controller polling POI protection relays and net revenue meters"},
+            # L3 (microgrid_control) <-> L1 (environmental): Microgrid to environmental monitoring
+            {"id": "microgrid_to_environmental", "name": "Microgrid Control \u2194 Environmental",
+             "source_zone": "microgrid_control", "target_zone": "environmental",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "standard",
+             "description": "Microgrid controller polling weather station RTUs, power meters, and environmental I/O"},
+            # L4 (wan) <-> L3 (microgrid_control): WAN to microgrid control
+            {"id": "wan_to_microgrid", "name": "WAN \u2194 Microgrid Control",
+             "source_zone": "wan", "target_zone": "microgrid_control",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "critical",
+             "description": "Utility WAN RTU polling plant SCADA gateway RTAC for grid coordination"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 }

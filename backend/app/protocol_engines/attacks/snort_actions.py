@@ -1048,28 +1048,30 @@ def _night_dragon_keepalive(
 
     **Snort Rule**::
 
-        alert tcp any any -> any any (
-            msg:"MALWARE-BACKDOOR Night Dragon malware keepalive packet";
+        alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (
+            msg:"MALWARE-CNC Night Dragon keepalive message";
             flow:to_server,established;
-            content:"|FF 00 00 00 07|"; depth:5;
+            content:"|68 57 24 13|",depth 4,offset 12;
+            content:"|03 50|",depth 2;
             sid:18459;
         )
 
     **Pattern**:
-    - Binary pattern: ``\\xFF\\x00\\x00\\x00\\x07`` at start of payload (depth:5)
+    - Binary pattern: ``\\x68\\x57\\x24\\x13`` at offset 12 (depth:4)
+    - Followed by: ``\\x03\\x50`` (depth:2)
     - Raw TCP transmission
-    - Periodic keepalive (typically port 443)
+    - Periodic keepalive (typically HTTP ports)
 
     **Parameters**:
     - interval_ms (int): Keepalive interval (default: 60000 = 1 minute)
     - keepalive_count (int): Number of keepalives (default: 10)
-    - target_port (int): Destination port (default: 443)
+    - target_port (int): Destination port (default: 80)
 
     **Expected Detection**: Night Dragon APT backdoor keepalive traffic
     """
     interval_ms = params.get("interval_ms", 60000)
     keepalive_count = params.get("keepalive_count", 10)
-    target_port = params.get("target_port", 443)
+    target_port = params.get("target_port", 80)
 
     current_time = start_time_ms
 
@@ -1086,8 +1088,9 @@ def _night_dragon_keepalive(
             seq_num = random.randint(1000000, 2000000)
             ack_num = random.randint(1000000, 2000000)
 
-            # Night Dragon keepalive pattern: exact 5-byte sequence
-            keepalive_pattern = b"\xFF\x00\x00\x00\x07"
+            # Night Dragon keepalive pattern: 12 bytes padding + signature
+            padding = b"\x00" * 12  # Padding to reach offset 12
+            keepalive_pattern = padding + b"\x68\x57\x24\x13" + b"\x03\x50"
 
             pkt = (
                 Ether()
@@ -1123,24 +1126,24 @@ def _angler_ek_landing(
 
     **Snort Rule**::
 
-        alert tcp any any -> any any (
-            msg:"EXPLOIT-KIT Angler exploit kit landing page anomalous date header";
+        alert tcp $EXTERNAL_NET $HTTP_PORTS -> $HOME_NET any (
+            msg:"EXPLOIT-KIT Angler exploit kit landing page detected";
             flow:to_client,established;
-            content:"Date|3a 20|"; http_header;
-            content:"209"; within:4; distance:7;
+            http_header;
+            content:"Last-Modified|3A| Sat, 26 Jul 2040 05|3A|00|3A|00";
             sid:32390;
         )
 
     **Pattern**:
     - HTTP response from server
-    - Date header containing year "209" (should be "2099" - future date anomaly)
-    - Pattern: ``Date: `` followed by ``209`` within 4 bytes after 7 byte distance
+    - Last-Modified header with anomalous future date: "Sat, 26 Jul 2040 05:00:00"
+    - Pattern: ``Last-Modified: Sat, 26 Jul 2040 05:00:00``
 
     **Parameters**:
     - serve_count (int): Number of landing pages served (default: 5)
     - interval_ms (int): Interval between serves (default: 30000)
 
-    **Expected Detection**: Angler Exploit Kit temporal anomaly
+    **Expected Detection**: Angler Exploit Kit temporal anomaly in Last-Modified header
     """
     serve_count = params.get("serve_count", 5)
     interval_ms = params.get("interval_ms", 30000)
@@ -1161,7 +1164,7 @@ def _angler_ek_landing(
             seq_num = random.randint(1000000, 2000000)
             ack_num = random.randint(1000000, 2000000)
 
-            # Angler EK landing page with anomalous future date (year 2099)
+            # Angler EK landing page with anomalous future date in Last-Modified
             exploit_html = (
                 "<html><head><script src='/exploit.js'></script></head>"
                 "<body>Loading...</body></html>"
@@ -1169,7 +1172,8 @@ def _angler_ek_landing(
 
             http_response = (
                 f"HTTP/1.1 200 OK\r\n"
-                f"Date: Wed, 01 Jan 2099 00:00:00 GMT\r\n"  # Anomalous future date
+                f"Date: Wed, 11 Feb 2026 12:00:00 GMT\r\n"
+                f"Last-Modified: Sat, 26 Jul 2040 05:00:00 GMT\r\n"  # Angler EK signature
                 f"Server: Apache/2.4.41\r\n"
                 f"Content-Type: text/html\r\n"
                 f"Content-Length: {len(exploit_html)}\r\n"

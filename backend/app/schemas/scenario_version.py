@@ -76,6 +76,12 @@ class VersionDiffResponse(BaseModel):
     summary: dict[str, int]
 
 
+class DiffSummaryResponse(BaseModel):
+    """AI-generated plain-English summary of a version diff."""
+
+    summary: str
+
+
 class RollbackResponse(BaseModel):
     """Response after rolling back to a version."""
 

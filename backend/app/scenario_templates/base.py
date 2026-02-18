@@ -168,6 +168,39 @@ class EnhancedZoneSpec:
 
 
 @dataclass
+class EnhancedConduitSpec:
+    """Enhanced conduit specification for IEC 62443 zone-to-zone boundaries.
+
+    Defines allowed communication paths between zones including
+    direction, protocols, and security level.
+    """
+
+    id: str
+    name: str
+    source_zone: str  # zone id
+    target_zone: str  # zone id
+    direction: str = "bidirectional"  # "bidirectional", "a_to_b", "b_to_a"
+    allowed_protocols: list[str] = field(default_factory=list)
+    security_level: str = "standard"  # "minimal", "standard", "high", "critical"
+    description: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary format."""
+        result = {
+            "id": self.id,
+            "name": self.name,
+            "sourceZoneId": self.source_zone,
+            "targetZoneId": self.target_zone,
+            "direction": self.direction,
+            "allowedProtocols": self.allowed_protocols,
+            "securityLevel": self.security_level,
+        }
+        if self.description:
+            result["description"] = self.description
+        return result
+
+
+@dataclass
 class ExternalCommsSpec:
     """External communications configuration for template scenarios.
 

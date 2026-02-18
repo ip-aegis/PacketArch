@@ -22,7 +22,7 @@ interface ViewportState {
 }
 
 interface ToolState {
-  activeTool: 'select' | 'pan' | 'zone' | 'connection';
+  activeTool: 'select' | 'pan' | 'zone' | 'connection' | 'conduit';
 }
 
 export type ClusterViewMode = 'none' | 'zone' | 'protocol' | 'vendor' | 'purdueLevel' | 'deviceType';
@@ -60,10 +60,10 @@ interface UIState {
 
   // Active property context
   activePropertyContext: {
-    type: 'device' | 'flow' | 'zone' | 'multi' | null;
+    type: 'device' | 'flow' | 'zone' | 'conduit' | 'multi' | null;
     ids: string[];
   };
-  setPropertyContext: (type: 'device' | 'flow' | 'zone' | 'multi' | null, ids: string[]) => void;
+  setPropertyContext: (type: 'device' | 'flow' | 'zone' | 'conduit' | 'multi' | null, ids: string[]) => void;
 
   // Modals
   activeModal: string | null;

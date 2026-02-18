@@ -216,6 +216,43 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (tmc_core) <-> L2 (dms_corridor): TMC to DMS signs
+            {"id": "tmc_to_dms", "name": "TMC Core \u2194 DMS Corridor",
+             "source_zone": "tmc_core", "target_zone": "dms_corridor",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "TMC master stations SNMP polling dynamic message signs for status and message updates"},
+            # L3 (tmc_core) <-> L2 (detection_zone): TMC to detection sensors
+            {"id": "tmc_to_detection", "name": "TMC Core \u2194 Detection Zone",
+             "source_zone": "tmc_core", "target_zone": "detection_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "TMC master stations polling radar and thermal detection sensors for vehicle data"},
+            # L3 (tmc_core) <-> L2 (weather_zone): TMC to weather stations
+            {"id": "tmc_to_weather", "name": "TMC Core \u2194 Weather Zone",
+             "source_zone": "tmc_core", "target_zone": "weather_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "TMC master stations polling road weather information stations for ESS data"},
+            # L3 (tmc_core) <-> L1 (camera_zone): TMC to CCTV cameras
+            {"id": "tmc_to_cameras", "name": "TMC Core \u2194 Camera Zone",
+             "source_zone": "tmc_core", "target_zone": "camera_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "TMC master stations polling fixed and PTZ CCTV cameras for status and control"},
+            # L3 (tmc_core) <-> L4 (external): TMC to remote access and RSU
+            {"id": "tmc_to_external", "name": "TMC Core \u2194 External",
+             "source_zone": "tmc_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp", "https"],
+             "security_level": "critical",
+             "description": "SNMP monitoring of remote gateway and RSU; EWON Talk2M cloud heartbeat"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -417,6 +454,43 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (atms_core) <-> L2 (intersection_main): ATMS to main signal controllers
+            {"id": "atms_to_main", "name": "ATMS Core \u2194 Main Intersections",
+             "source_zone": "atms_core", "target_zone": "intersection_main",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "ATMS coordination master high-frequency polling of main arterial signal controllers"},
+            # L3 (atms_core) <-> L2 (intersection_minor): ATMS to minor controllers
+            {"id": "atms_to_minor", "name": "ATMS Core \u2194 Minor Intersections",
+             "source_zone": "atms_core", "target_zone": "intersection_minor",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "ATMS coordination master polling secondary street signal controllers"},
+            # L2 (intersection_main/minor) <-> L1 (detection_zone): Controllers to detectors
+            {"id": "intersections_to_detection", "name": "Intersections \u2194 Detection Zone",
+             "source_zone": "intersection_main", "target_zone": "detection_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "Main and minor intersection controllers fast-polling radar and thermal sensors for signal actuation"},
+            # L3 (atms_core) <-> L1 (camera_zone): ATMS to ANPR and PTZ cameras
+            {"id": "atms_to_cameras", "name": "ATMS Core \u2194 Camera Zone",
+             "source_zone": "atms_core", "target_zone": "camera_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "ATMS master polling ANPR enforcement and PTZ surveillance cameras"},
+            # L3 (atms_core) <-> L4 (external): Remote access cloud connectivity
+            {"id": "atms_to_external", "name": "ATMS Core \u2194 External",
+             "source_zone": "atms_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway Talk2M cloud heartbeat for remote ATMS monitoring"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 
@@ -675,6 +749,57 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (tunnel_master) <-> L2 (ventilation_zone): Master to ventilation
+            {"id": "master_to_ventilation", "name": "Tunnel Master \u2194 Ventilation",
+             "source_zone": "tunnel_master", "target_zone": "ventilation_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp", "modbus_tcp"],
+             "security_level": "critical",
+             "description": "Master station high-frequency polling of ventilation controllers and field RTUs for air quality"},
+            # L3 (tunnel_master) <-> L2 (lighting_zone): Master to lighting
+            {"id": "master_to_lighting", "name": "Tunnel Master \u2194 Lighting",
+             "source_zone": "tunnel_master", "target_zone": "lighting_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["bacnet"],
+             "security_level": "high",
+             "description": "Master station BACnet polling of adaptive tunnel lighting controllers"},
+            # L3 (tunnel_master) <-> L2 (detection_zone): Master to detection
+            {"id": "master_to_detection", "name": "Tunnel Master \u2194 Detection",
+             "source_zone": "tunnel_master", "target_zone": "detection_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Master station polling radar, thermal sensors, and loop detector RTUs for incident detection"},
+            # L3 (tunnel_master) <-> L2 (safety_zone): Master to safety systems
+            {"id": "master_to_safety", "name": "Tunnel Master \u2194 Safety Zone",
+             "source_zone": "tunnel_master", "target_zone": "safety_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Master station polling fire detection RTUs and evacuation signal controllers"},
+            # L2 (safety_zone) <-> L1 (portal_zone): Safety to portal control
+            {"id": "safety_to_portal", "name": "Safety Zone \u2194 Portal Zone",
+             "source_zone": "safety_zone", "target_zone": "portal_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "Evacuation controllers coordinating with portal DMS and barrier controllers"},
+            # L3 (tunnel_master) <-> L1 (portal_zone): Master to portal
+            {"id": "master_to_portal", "name": "Tunnel Master \u2194 Portal Zone",
+             "source_zone": "tunnel_master", "target_zone": "portal_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "Master station polling portal message signs and barrier controllers"},
+            # L3 (tunnel_master) <-> L4 (external): Remote access
+            {"id": "master_to_external", "name": "Tunnel Master \u2194 External",
+             "source_zone": "tunnel_master", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp", "https"],
+             "security_level": "critical",
+             "description": "SNMP monitoring of remote gateway and RSU; EWON Talk2M cloud heartbeat"},
+        ],
         "total_duration_ms": 600000,  # 10 minutes
     },
 
@@ -857,6 +982,43 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             "enable_exploits": True,
             "enable_recon": True,
         },
+        "conduits": [
+            # L3 (toll_center) <-> L2 (etc_lanes): Toll center to ETC lanes
+            {"id": "toll_to_etc", "name": "Toll Center \u2194 ETC Lanes",
+             "source_zone": "toll_center", "target_zone": "etc_lanes",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "Toll master station polling ETC lane controllers and roadside units for transaction processing"},
+            # L3 (toll_center) <-> L2 (manual_lanes): Toll center to manual lanes
+            {"id": "toll_to_manual", "name": "Toll Center \u2194 Manual Lanes",
+             "source_zone": "toll_center", "target_zone": "manual_lanes",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "Toll master station polling manual/cash lane controllers for status and revenue data"},
+            # L3 (toll_center) <-> L1 (anpr_zone): Toll center to ANPR cameras
+            {"id": "toll_to_anpr", "name": "Toll Center \u2194 ANPR Zone",
+             "source_zone": "toll_center", "target_zone": "anpr_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "Toll master station high-frequency polling of ANPR cameras for real-time plate capture"},
+            # L3 (toll_center) <-> L1 (signage_zone): Toll center to lane signs
+            {"id": "toll_to_signage", "name": "Toll Center \u2194 Signage Zone",
+             "source_zone": "toll_center", "target_zone": "signage_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "Toll master station polling lane status and pricing displays"},
+            # L3 (toll_center) <-> L4 (external): Remote access cloud connectivity
+            {"id": "toll_to_external", "name": "Toll Center \u2194 External",
+             "source_zone": "toll_center", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway Talk2M cloud heartbeat for revenue sync and remote monitoring"},
+        ],
         "total_duration_ms": 300000,  # 5 minutes
     },
 }

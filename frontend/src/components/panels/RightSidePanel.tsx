@@ -15,6 +15,7 @@ import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAttackStore } from '../../stores/attackStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
+import ConduitPropertyForm from './ConduitPropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
@@ -177,6 +178,8 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         <DevicePropertyForm deviceId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'flow' ? (
         <FlowPropertyForm flowId={activePropertyContext.ids[0]} />
+      ) : activePropertyContext.type === 'conduit' ? (
+        <ConduitPropertyForm conduitId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'multi' ? (
         <EmptyState
           message="Multiple items selected"

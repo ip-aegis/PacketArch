@@ -30,11 +30,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "https://localhost",
         "https://localhost:443",
-        "https://*:443",
         "http://localhost:3001",  # Dev server
         "http://localhost:5173",  # Vite dev
-        "http://*:3001",
-        "http://*:5173",
     ]
 
     # Database
@@ -44,7 +41,7 @@ class Settings(BaseSettings):
     redis_url: RedisDsn = "redis://localhost:6379/0"  # type: ignore
 
     # JWT Authentication
-    secret_key: str = "your-secret-key-change-in-production-minimum-32-chars"
+    secret_key: str = ""
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -59,13 +56,32 @@ class Settings(BaseSettings):
     # First user (created on startup if no users exist)
     # Note: ADMIN_PASSWORD env var is mapped to FIRST_USER_PASSWORD in docker-compose.yml
     first_user_username: str = "admin"
-    first_user_password: str = "C!sco123"
+    first_user_password: str = ""
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("secret_key", mode="after")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if not v or len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY must be set (min 32 chars). "
+                "Generate one with: openssl rand -hex 32"
+            )
+        return v
+
+    @field_validator("first_user_password", mode="after")
+    @classmethod
+    def validate_first_user_password(cls, v: str) -> str:
+        if not v:
+            raise ValueError(
+                "FIRST_USER_PASSWORD (or ADMIN_PASSWORD) must be set in environment"
+            )
         return v
 
     @property

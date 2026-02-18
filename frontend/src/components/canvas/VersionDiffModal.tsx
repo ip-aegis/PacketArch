@@ -20,6 +20,7 @@ import {
   MinusCircleOutlined,
   EditOutlined,
   SwapOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import {
   scenarioVersionsApi,
@@ -43,11 +44,12 @@ const categoryLabels: Record<string, string> = {
   devices: 'Devices',
   flows: 'Flows',
   zones: 'Zones',
+  conduits: 'Conduits',
   phases: 'Phases',
   metadata: 'Metadata',
 };
 
-const categoryOrder = ['devices', 'flows', 'zones', 'phases', 'metadata'];
+const categoryOrder = ['devices', 'flows', 'zones', 'conduits', 'phases', 'metadata'];
 
 function changeIcon(changeType: string) {
   switch (changeType) {
@@ -87,6 +89,8 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   const [compareVersion, setCompareVersion] = useState<number | null>(null);
   const [diffResult, setDiffResult] = useState<VersionDiffResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
 
   // Set initial versions when modal opens
   React.useEffect(() => {
@@ -104,6 +108,7 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
       setBaseVersion(previousVersion?.version_number ?? null);
       setCompareVersion(initialBaseVersion);
       setDiffResult(null);
+      setSummaryText(null);
     }
   }, [open, initialBaseVersion, versions]);
 
@@ -114,6 +119,7 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
       return;
     }
     setLoading(true);
+    setSummaryText(null);
     try {
       const result = await scenarioVersionsApi.diff(
         scenarioId,
@@ -128,10 +134,28 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
     }
   }, [scenarioId, baseVersion, compareVersion, message]);
 
+  const handleSummarize = useCallback(async () => {
+    if (!scenarioId || baseVersion === null || compareVersion === null) return;
+    setSummarizing(true);
+    try {
+      const result = await scenarioVersionsApi.summarizeDiff(
+        scenarioId,
+        baseVersion,
+        compareVersion
+      );
+      setSummaryText(result.summary);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to generate summary'));
+    } finally {
+      setSummarizing(false);
+    }
+  }, [scenarioId, baseVersion, compareVersion, message]);
+
   const handleSwapVersions = () => {
     setBaseVersion(compareVersion);
     setCompareVersion(baseVersion);
     setDiffResult(null);
+    setSummaryText(null);
   };
 
   // Group changes by category
@@ -157,6 +181,7 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
       onCancel={() => {
         onClose();
         setDiffResult(null);
+        setSummaryText(null);
       }}
       footer={null}
       width={800}
@@ -240,6 +265,9 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
               padding: '10px 16px',
               marginBottom: 16,
               border: '1px solid #3a5068',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}
           >
             <Space size={16}>
@@ -262,7 +290,41 @@ const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
                 <Text style={{ color: '#6b6b8a' }}>No changes</Text>
               )}
             </Space>
+            {diffResult.changes.length > 0 && (
+              <Button
+                type="text"
+                size="small"
+                icon={<RobotOutlined />}
+                loading={summarizing}
+                onClick={handleSummarize}
+                style={{ color: '#6b6b8a' }}
+              >
+                Summarize
+              </Button>
+            )}
           </div>
+
+          {/* AI summary */}
+          {summaryText && (
+            <div
+              style={{
+                background: '#1e2a3a',
+                borderRadius: 8,
+                padding: '12px 16px',
+                marginBottom: 16,
+                border: '1px solid #2d4a5e',
+                borderLeft: '3px solid #1890ff',
+              }}
+            >
+              <Text style={{ color: '#6b6b8a', fontSize: 11, display: 'block', marginBottom: 6 }}>
+                <RobotOutlined style={{ marginRight: 4 }} />
+                AI Summary
+              </Text>
+              <Text style={{ color: '#b8c9dc', fontSize: 13, whiteSpace: 'pre-wrap' }}>
+                {summaryText}
+              </Text>
+            </div>
+          )}
 
           {diffResult.changes.length === 0 ? (
             <Empty

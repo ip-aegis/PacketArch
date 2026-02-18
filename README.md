@@ -4,7 +4,7 @@
 
 ## Overview
 
-PacketArch is a web-based platform for creating and deploying OT (Operational Technology) network traffic scenarios. Design industrial networks visually, generate protocol-accurate PCAP files, and deploy live traffic to remote Docker hosts for real-world testing.
+PacketArch is a web-based platform for creating and deploying OT (Operational Technology) network traffic scenarios. Design industrial networks visually, generate protocol-accurate PCAP files, and deploy live traffic via remote traffic agents for real-world testing.
 
 ### Key Features
 
@@ -12,7 +12,6 @@ PacketArch is a web-based platform for creating and deploying OT (Operational Te
 - **AI-Powered Design** - Natural language scenario generation using Claude AI
 - **Protocol Engines** - Modbus TCP, EtherNet/IP, PROFINET, S7comm, BACnet, SNMP with realistic timing and state machines
 - **Device Templates** - Unified fingerprint system for vendor-accurate device emulation
-- **PCAP Learning** - Analyze existing captures to extract device fingerprints and traffic patterns
 - **Live Traffic Injection** - Deploy scenarios to remote traffic agents via WebSocket for real network testing
 - **Remote Agent Management** - Central versioning, updates, and monitoring of distributed traffic agents
 - **Industry Templates** - Pre-built scenarios for Manufacturing, Water/Wastewater, Energy, Oil & Gas, Building Automation, and Transportation
@@ -131,11 +130,8 @@ Interactive API documentation is available at `/api/docs` when the backend is ru
 | `/api/v1/agents` | Traffic agent management |
 | `/api/v1/agents/build-image` | Build agent Docker image |
 | `/api/v1/agents/{id}/update` | Trigger remote agent update |
-| `/api/v1/docker-hosts` | Remote Docker host management (legacy) |
 | `/api/v1/ai/chat` | AI-powered scenario design |
 | `/api/v1/ai/help` | AI-powered help system |
-| `/api/v1/learning` | PCAP analysis and learning |
-| `/api/v1/learning/sessions` | Learning session management |
 | `/api/v1/ip-management` | IP range allocation |
 | `/api/v1/cyber-vision` | Cisco Cyber Vision integration |
 | `/ws/agent` | WebSocket endpoint for traffic agents |
@@ -150,7 +146,7 @@ Interactive API documentation is available at `/api/docs` when the backend is ru
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `SECRET_KEY` | JWT signing key | (generate for production) |
 | `ENCRYPTION_KEY` | Key for encrypting stored secrets | (auto-generated) |
-| `FIRST_USER_PASSWORD` | Initial admin password | `C!sco123` |
+| `FIRST_USER_PASSWORD` | Initial admin password | (set in .env, required) |
 
 ### Traffic Agent Setup (Recommended)
 
@@ -168,17 +164,6 @@ curl -fsSLk https://your-server/agent/install.sh | sudo bash -s -- \
 - Real-time status and metrics
 
 See **Settings > Agents** in the UI for detailed instructions.
-
-### Docker Host Setup (Legacy)
-
-To deploy traffic generators via Docker API:
-
-1. Install Docker Engine on the target host
-2. Configure TLS certificates for secure API access
-3. Open port 2376 in the firewall
-4. Add the host in PacketArch: **Settings > Docker Hosts**
-
-See the in-app setup guide for detailed instructions.
 
 ## Project Structure
 

@@ -1,5 +1,5 @@
 /**
- * Deployments Page - View all deployment history and logs
+ * Deployments Page - View all deployment history
  */
 
 import React, { useEffect, useState } from 'react';
@@ -10,8 +10,6 @@ import {
   Space,
   Typography,
   Card,
-  Modal,
-  Spin,
   Select,
   Tooltip,
   message,
@@ -21,23 +19,19 @@ import {
   PlayCircleOutlined,
   StopOutlined,
   DeleteOutlined,
-  FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
   LinkOutlined,
-  DownloadOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
-import { useDockerHostsStore } from '../stores/dockerHostsStore';
 import { useAgentsStore } from '../stores/agentsStore';
-import { deploymentsApi } from '../api/deployments';
-import type { UnifiedDeployment, DeploymentStatus, DeploymentType } from '../types/docker';
+import type { UnifiedDeployment, DeploymentStatus } from '../types/docker';
 
 const { Title, Text } = Typography;
 
@@ -89,45 +83,29 @@ const statusConfig: Record<
 
 const DeploymentsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [logsModalVisible, setLogsModalVisible] = useState(false);
-  const [selectedDeployment, setSelectedDeployment] = useState<UnifiedDeployment | null>(null);
   const [statusFilter, setStatusFilter] = useState<DeploymentStatus | undefined>();
-  const [hostFilter, setHostFilter] = useState<string | undefined>();
-  const [typeFilter, setTypeFilter] = useState<DeploymentType | undefined>();
-  const [pcapModalVisible, setPcapModalVisible] = useState(false);
-  const [pcapFiles, setPcapFiles] = useState<string[]>([]);
-  const [pcapLoading, setPcapLoading] = useState(false);
 
   const {
     deployments,
-    logs,
     isLoading,
     fetchDeployments,
-    stopDeployment,
     removeDeployment,
-    fetchLogs,
   } = useDeploymentsStore();
 
-  const { hosts, fetchHosts } = useDockerHostsStore();
   const { agents, fetchAgents } = useAgentsStore();
 
-  // Fetch all deployments, hosts, and agents on mount
+  // Fetch all deployments and agents on mount
   useEffect(() => {
     fetchDeployments();
-    fetchHosts();
     fetchAgents();
-  }, [fetchDeployments, fetchHosts, fetchAgents]);
+  }, [fetchDeployments, fetchAgents]);
 
   // Refetch with filters
   useEffect(() => {
-    fetchDeployments({
-      status: statusFilter,
-      docker_host_id: hostFilter,
-      deployment_type: typeFilter,
-    });
-  }, [statusFilter, hostFilter, typeFilter, fetchDeployments]);
+    fetchDeployments({ status: statusFilter });
+  }, [statusFilter, fetchDeployments]);
 
-  // Poll for updates when there are active deployments (running, starting, stopping, disconnected)
+  // Poll for updates when there are active deployments
   useEffect(() => {
     const hasActiveDeployments = deployments.some(
       (d) => ['running', 'starting', 'stopping', 'disconnected'].includes(d.status)
@@ -136,49 +114,19 @@ const DeploymentsPage: React.FC = () => {
     if (!hasActiveDeployments) return;
 
     const pollInterval = setInterval(() => {
-      fetchDeployments({
-        status: statusFilter,
-        docker_host_id: hostFilter,
-        deployment_type: typeFilter,
-      });
-    }, 3000); // Poll every 3 seconds
+      fetchDeployments({ status: statusFilter });
+    }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [deployments, statusFilter, hostFilter, typeFilter, fetchDeployments]);
-
-  const handleViewLogs = async (deployment: UnifiedDeployment) => {
-    setSelectedDeployment(deployment);
-    setLogsModalVisible(true);
-    try {
-      await fetchLogs(deployment.id, 500);
-    } catch {
-      message.error('Failed to fetch logs');
-    }
-  };
-
-  const handleRefreshLogs = async () => {
-    if (selectedDeployment) {
-      try {
-        await fetchLogs(selectedDeployment.id, 500);
-      } catch {
-        message.error('Failed to refresh logs');
-      }
-    }
-  };
+  }, [deployments, statusFilter, fetchDeployments]);
 
   const handleStop = async (deployment: UnifiedDeployment) => {
     try {
-      if (deployment.deployment_type === 'agent' && deployment.agent_id) {
-        // Agent deployment - use agents API
+      if (deployment.agent_id) {
         const { stopDeployment: stopAgentDeployment } = useAgentsStore.getState();
         await stopAgentDeployment(deployment.agent_id, deployment.scenario_id);
         message.success('Stop command sent to agent');
-        // Refresh deployments list
-        await fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter });
-      } else {
-        // Docker deployment - use deployments API
-        await stopDeployment(deployment.id);
-        message.success('Deployment stopped');
+        await fetchDeployments({ status: statusFilter });
       }
     } catch {
       message.error('Failed to stop deployment');
@@ -195,91 +143,23 @@ const DeploymentsPage: React.FC = () => {
   };
 
   const handleRestart = async (deployment: UnifiedDeployment) => {
-    if (deployment.deployment_type !== 'agent' || !deployment.agent_id) {
-      message.error('Restart only available for agent deployments');
+    if (!deployment.agent_id) {
+      message.error('No agent associated with this deployment');
       return;
     }
 
     try {
       const { deployScenario } = useAgentsStore.getState();
-      await deployScenario(
-        deployment.agent_id,
-        deployment.scenario_id,
-        deployment.network_interface || 'eth0'
-      );
+      await deployScenario(deployment.agent_id, {
+        scenario_id: deployment.scenario_id,
+        interface: deployment.network_interface || 'eth0',
+      });
       message.success('Scenario restarted on agent');
-      // Remove the old disconnected deployment
       await removeDeployment(deployment.id);
-      // Refresh deployments list
-      await fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter });
+      await fetchDeployments({ status: statusFilter });
     } catch {
       message.error('Failed to restart deployment');
     }
-  };
-
-  const handleViewPcap = async (deployment: UnifiedDeployment) => {
-    // PCAP download only available for Docker deployments
-    if (deployment.deployment_type !== 'docker') {
-      message.info('PCAP download not available for agent deployments');
-      return;
-    }
-    setSelectedDeployment(deployment);
-    setPcapModalVisible(true);
-    setPcapLoading(true);
-    try {
-      const result = await deploymentsApi.listPcapFiles(deployment.id);
-      setPcapFiles(result.files);
-      if (result.files.length === 0) {
-        message.info('No PCAP files available yet');
-      }
-    } catch {
-      message.error('Failed to fetch PCAP files');
-      setPcapFiles([]);
-    } finally {
-      setPcapLoading(false);
-    }
-  };
-
-  const handleDownloadPcap = async (filename: string) => {
-    if (!selectedDeployment) return;
-    try {
-      // Get auth token for download
-      const token = localStorage.getItem('access_token');
-      const url = `/api/v1/deployments/${selectedDeployment.id}/pcap/${encodeURIComponent(filename)}`;
-
-      // Create a temporary link to download
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Download failed');
-      }
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
-
-      message.success(`Downloaded ${filename}`);
-    } catch {
-      message.error('Failed to download PCAP file');
-    }
-  };
-
-  const formatDuration = (ms: number | null): string => {
-    if (!ms) return '-';
-    const minutes = Math.floor(ms / 60000);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ${minutes % 60}m`;
   };
 
   const formatTimestamp = (ts: string | null): string => {
@@ -317,19 +197,6 @@ const DeploymentsPage: React.FC = () => {
       },
     },
     {
-      title: 'Type',
-      dataIndex: 'deployment_type',
-      key: 'deployment_type',
-      width: 100,
-      render: (type: string) => (
-        type === 'agent' ? (
-          <Tag color="blue" icon={<RocketOutlined />}>Agent</Tag>
-        ) : (
-          <Tag color="default" icon={<CloudServerOutlined />}>Docker</Tag>
-        )
-      ),
-    },
-    {
       title: 'Scenario',
       dataIndex: 'scenario_name',
       key: 'scenario_name',
@@ -346,21 +213,12 @@ const DeploymentsPage: React.FC = () => {
       ),
     },
     {
-      title: 'Target',
-      key: 'target',
+      title: 'Agent',
+      key: 'agent',
       render: (_: unknown, record: UnifiedDeployment) => (
         <Space>
-          {record.deployment_type === 'agent' ? (
-            <>
-              <RocketOutlined />
-              <span>{record.agent_name || 'Unknown Agent'}</span>
-            </>
-          ) : (
-            <>
-              <CloudServerOutlined />
-              <span>{record.docker_host_name || 'Unknown Host'}</span>
-            </>
-          )}
+          <RocketOutlined />
+          <span>{record.agent_name || 'Unknown Agent'}</span>
         </Space>
       ),
     },
@@ -369,18 +227,6 @@ const DeploymentsPage: React.FC = () => {
       dataIndex: 'network_interface',
       key: 'network_interface',
       render: (iface: string) => <Text code>{iface}</Text>,
-    },
-    {
-      title: 'Mode',
-      key: 'run_mode',
-      width: 100,
-      render: (_: unknown, record: UnifiedDeployment) => (
-        record.run_mode === 'perpetual' ? (
-          <Tag color="purple">Perpetual</Tag>
-        ) : (
-          <Tag>{formatDuration(record.duration_ms)}</Tag>
-        )
-      ),
     },
     {
       title: 'Runtime',
@@ -412,40 +258,18 @@ const DeploymentsPage: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
+      width: 140,
       render: (_: unknown, record: UnifiedDeployment) => {
-        // Only truly running states can be stopped
         const canStop = ['running', 'starting', 'stopping'].includes(record.status);
-        // Disconnected deployments are stale - allow delete and optionally restart
         const isDisconnected = record.status === 'disconnected';
-        const isDocker = record.deployment_type === 'docker';
 
-        // Check if agent is online for restart option
-        const agent = record.deployment_type === 'agent' && record.agent_id
+        const agent = record.agent_id
           ? agents.find(a => a.id === record.agent_id)
           : null;
         const agentOnline = agent?.status === 'online';
 
         return (
           <Space size="small">
-            <Tooltip title={isDocker ? 'View Logs' : 'Logs not available for agent deployments'}>
-              <Button
-                type="text"
-                size="small"
-                icon={<FileTextOutlined />}
-                onClick={() => handleViewLogs(record)}
-                disabled={!isDocker || !record.container_id}
-              />
-            </Tooltip>
-            <Tooltip title={isDocker ? 'Download PCAP' : 'PCAP not available for agent deployments'}>
-              <Button
-                type="text"
-                size="small"
-                icon={<DownloadOutlined />}
-                onClick={() => handleViewPcap(record)}
-                disabled={!isDocker || !record.container_id}
-              />
-            </Tooltip>
             {canStop ? (
               <Tooltip title="Stop">
                 <Button
@@ -493,7 +317,7 @@ const DeploymentsPage: React.FC = () => {
           Deployments
         </Title>
         <Text style={{ color: '#8aa4bc' }}>
-          View deployment history, status, and container logs
+          View deployment history and status
         </Text>
       </div>
 
@@ -503,17 +327,6 @@ const DeploymentsPage: React.FC = () => {
       >
         {/* Filters */}
         <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Select
-            placeholder="Filter by type"
-            allowClear
-            style={{ width: 140 }}
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={[
-              { value: 'docker', label: 'Docker' },
-              { value: 'agent', label: 'Agent' },
-            ]}
-          />
           <Select
             placeholder="Filter by status"
             allowClear
@@ -528,18 +341,9 @@ const DeploymentsPage: React.FC = () => {
               { value: 'pending', label: 'Pending' },
             ]}
           />
-          <Select
-            placeholder="Filter by host"
-            allowClear
-            style={{ width: 200 }}
-            value={hostFilter}
-            onChange={setHostFilter}
-            disabled={typeFilter === 'agent'}
-            options={hosts.map((h) => ({ value: h.id, label: h.name }))}
-          />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => fetchDeployments({ status: statusFilter, docker_host_id: hostFilter, deployment_type: typeFilter })}
+            onClick={() => fetchDeployments({ status: statusFilter })}
           >
             Refresh
           </Button>
@@ -574,11 +378,6 @@ const DeploymentsPage: React.FC = () => {
                   </div>
                 )}
                 <Space size="large">
-                  {record.deployment_type === 'docker' && (
-                    <Text style={{ color: '#6a8caf', fontSize: 12 }}>
-                      <strong>Container:</strong> {record.container_name || record.container_id || 'N/A'}
-                    </Text>
-                  )}
                   <Text style={{ color: '#6a8caf', fontSize: 12 }}>
                     <strong>Packets:</strong> {record.packets_injected.toLocaleString()}
                   </Text>
@@ -593,123 +392,10 @@ const DeploymentsPage: React.FC = () => {
                 </Space>
               </div>
             ),
-            rowExpandable: (record) => !!record.error_message || record.deployment_type === 'docker',
+            rowExpandable: (record) => !!record.error_message,
           }}
         />
       </Card>
-
-      {/* Logs Modal */}
-      <Modal
-        title={
-          <Space>
-            <FileTextOutlined />
-            Container Logs
-            {selectedDeployment && (
-              <Tag color={statusConfig[selectedDeployment.status]?.color}>
-                {selectedDeployment.scenario_name}
-              </Tag>
-            )}
-          </Space>
-        }
-        open={logsModalVisible}
-        onCancel={() => setLogsModalVisible(false)}
-        footer={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={handleRefreshLogs}>
-              Refresh
-            </Button>
-            <Button onClick={() => setLogsModalVisible(false)}>Close</Button>
-          </Space>
-        }
-        width={800}
-      >
-        {logs ? (
-          <pre
-            style={{
-              background: '#0d1117',
-              padding: 16,
-              borderRadius: 6,
-              maxHeight: 500,
-              overflow: 'auto',
-              fontSize: 12,
-              fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-              color: '#c9d1d9',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              margin: 0,
-            }}
-          >
-            {logs.logs || 'No logs available'}
-          </pre>
-        ) : (
-          <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin size="large" />
-          </div>
-        )}
-      </Modal>
-
-      {/* PCAP Download Modal */}
-      <Modal
-        title={
-          <Space>
-            <DownloadOutlined />
-            Download PCAP Files
-            {selectedDeployment && (
-              <Tag color={statusConfig[selectedDeployment.status]?.color}>
-                {selectedDeployment.scenario_name}
-              </Tag>
-            )}
-          </Space>
-        }
-        open={pcapModalVisible}
-        onCancel={() => setPcapModalVisible(false)}
-        footer={
-          <Button onClick={() => setPcapModalVisible(false)}>Close</Button>
-        }
-        width={500}
-      >
-        {pcapLoading ? (
-          <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin size="large" />
-          </div>
-        ) : pcapFiles.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 48, color: '#8aa4bc' }}>
-            No PCAP files available. Traffic generation may still be in progress.
-          </div>
-        ) : (
-          <div>
-            <Text style={{ color: '#8aa4bc', display: 'block', marginBottom: 16 }}>
-              {pcapFiles.length} PCAP file{pcapFiles.length !== 1 ? 's' : ''} available
-            </Text>
-            {pcapFiles.map((file) => (
-              <div
-                key={file}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 12px',
-                  background: '#1a2734',
-                  borderRadius: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <Text code style={{ flex: 1 }}>
-                  {file}
-                </Text>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<DownloadOutlined />}
-                  onClick={() => handleDownloadPcap(file)}
-                >
-                  Download
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };

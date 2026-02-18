@@ -1,21 +1,123 @@
 /**
  * Step 6: Preview Generated Scenario
+ *
+ * Shows phased progress during generation, then the full preview.
  */
 
-import React, { useState } from 'react';
-import { Typography, Spin, Table, Tag, Alert, Statistic, Row, Col, Card, Button, Collapse, Badge } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Typography, Steps, Table, Tag, Alert, Statistic, Row, Col, Card, Button, Collapse } from 'antd';
 import {
-  LoadingOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
   DesktopOutlined,
   SwapOutlined,
   RobotOutlined,
   InfoCircleOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useAIScenarioWizardStore } from '../../stores/aiScenarioWizardStore';
 
 const { Title, Text, Paragraph } = Typography;
+
+const GENERATION_STEPS = [
+  'Initializing AI scenario designer',
+  'Building prompts from device fingerprints',
+  'Waiting for AI response',
+  'Parsing AI response',
+  'Building devices, flows, and zones',
+  'Finalizing preview',
+];
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+const GeneratingView: React.FC = () => {
+  const {
+    generationStep,
+    generationTotalSteps,
+    generationPhase,
+    cancelGeneration,
+  } = useAIScenarioWizardStore();
+
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    startRef.current = Date.now();
+    setElapsed(0);
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Map step number (1-based from backend) to Steps current (0-based)
+  const currentIndex = Math.max(0, generationStep - 1);
+  const total = generationTotalSteps || 6;
+
+  return (
+    <div style={{ padding: '32px 0' }}>
+      <div style={{
+        maxWidth: 480,
+        margin: '0 auto',
+        backgroundColor: '#1a2735',
+        borderRadius: 8,
+        padding: '32px 40px',
+        border: '1px solid #2a3f54',
+      }}>
+        <Title level={4} style={{ color: '#e0e8f0', marginBottom: 24, textAlign: 'center' }}>
+          Generating Scenario Preview
+        </Title>
+
+        <Steps
+          direction="vertical"
+          size="small"
+          current={currentIndex}
+          items={GENERATION_STEPS.slice(0, total).map((label, i) => {
+            let description: string | undefined;
+            // Show the live phase message on the current step
+            if (i === currentIndex && generationPhase) {
+              description = generationPhase;
+            }
+            return {
+              title: <span style={{ color: i <= currentIndex ? '#e0e8f0' : '#556b7f' }}>{label}</span>,
+              description: description ? (
+                <span style={{ color: '#5a9fd4', fontSize: 12 }}>{description}</span>
+              ) : undefined,
+            };
+          })}
+          style={{ marginBottom: 24 }}
+        />
+
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTop: '1px solid #2a3f54',
+          paddingTop: 16,
+        }}>
+          <Text style={{ color: '#8aa4bc' }}>
+            <ClockCircleOutlined style={{ marginRight: 6 }} />
+            Elapsed: {formatElapsed(elapsed)}
+          </Text>
+          <Button
+            icon={<CloseCircleOutlined />}
+            onClick={cancelGeneration}
+            size="small"
+            danger
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PreviewStep: React.FC = () => {
   const {
@@ -27,17 +129,7 @@ const PreviewStep: React.FC = () => {
   } = useAIScenarioWizardStore();
 
   if (isGenerating) {
-    return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 48, color: '#5a9fd4' }} spin />} />
-        <Title level={4} style={{ color: '#e0e8f0', marginTop: 24 }}>
-          Generating Scenario Preview...
-        </Title>
-        <Paragraph style={{ color: '#8aa4bc' }}>
-          AI is analyzing your description and creating devices and communication flows.
-        </Paragraph>
-      </div>
-    );
+    return <GeneratingView />;
   }
 
   if (previewError) {

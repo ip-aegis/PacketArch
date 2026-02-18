@@ -115,6 +115,45 @@ export interface GenerateDescriptionResponse {
   protocols: string[];
 }
 
+// Scenario Review types
+export interface RemediationAction {
+  action_type: string;
+  params: Record<string, unknown>;
+}
+
+export interface ReviewFinding {
+  category: 'topology' | 'protocols' | 'timing' | 'realism' | 'security';
+  severity: 'critical' | 'warning' | 'suggestion' | 'info';
+  title: string;
+  description: string;
+  suggestion: string;
+  affected_device_ids: string[];
+  affected_flow_ids: string[];
+  remediation: RemediationAction | null;
+}
+
+export interface ScenarioReviewResponse {
+  scenario_id: string;
+  summary: string;
+  overall_score: number;
+  findings: ReviewFinding[];
+  category_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+}
+
+export interface RemediationResult {
+  action_type: string;
+  success: boolean;
+  message: string;
+}
+
+export interface RemediateResponse {
+  scenario_id: string;
+  applied: number;
+  failed: number;
+  results: RemediationResult[];
+}
+
 export const aiApi = {
   /**
    * Create or resume an AI session for a scenario.
@@ -288,6 +327,41 @@ export const aiApi = {
     const response = await apiClient.post<GenerateDescriptionResponse>(
       '/api/v1/ai/generate-description',
       { scenario_id: scenarioId }
+    );
+    return response.data;
+  },
+
+  /**
+   * Ask the AI help system a question with a specific context
+   */
+  helpChat: async (question: string, context = 'general'): Promise<string> => {
+    const response = await apiClient.post<{ response: string }>(
+      '/api/v1/ai/help',
+      { question, context }
+    );
+    return response.data.response;
+  },
+
+  /**
+   * AI-powered scenario review with categorized quality findings
+   */
+  reviewScenario: async (scenarioId: string): Promise<ScenarioReviewResponse> => {
+    const response = await apiClient.post<ScenarioReviewResponse>(
+      `/api/v1/ai/scenarios/${scenarioId}/review`
+    );
+    return response.data;
+  },
+
+  /**
+   * Apply remediation actions to fix review findings
+   */
+  remediateScenario: async (
+    scenarioId: string,
+    actions: RemediationAction[]
+  ): Promise<RemediateResponse> => {
+    const response = await apiClient.post<RemediateResponse>(
+      `/api/v1/ai/scenarios/${scenarioId}/remediate`,
+      { actions }
     );
     return response.data;
   },

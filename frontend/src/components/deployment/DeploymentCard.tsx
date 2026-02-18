@@ -2,28 +2,32 @@
  * DeploymentCard - Shows status, progress, and controls for a single deployment
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Typography,
   Tag,
-  Progress,
   Card,
   Tooltip,
   Button,
+  Modal,
+  Spin,
+  App,
 } from 'antd';
 import {
   StopOutlined,
   DeleteOutlined,
-  FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
   ClockCircleOutlined,
-  RocketOutlined,
   ThunderboltOutlined,
+  QuestionCircleOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { UnifiedDeployment } from '../../types/docker';
 import { formatElapsedTime } from '../../utils/dateUtils';
+import { extractErrorMessage } from '../../utils/errorUtils';
+import aiApi from '../../api/ai';
 import PhaseTimeline from './PhaseTimeline';
 
 const { Text } = Typography;
@@ -68,200 +72,241 @@ const DeploymentCard: React.FC<{
   deployment: UnifiedDeployment;
   onStop: (deployment: UnifiedDeployment) => void;
   onRemove: (id: string) => void;
-  onViewLogs: (deployment: UnifiedDeployment) => void;
-}> = ({ deployment, onStop, onRemove, onViewLogs }) => {
+}> = ({ deployment, onStop, onRemove }) => {
+  const { message } = App.useApp();
   const config =
     statusConfig[deployment.status] || statusConfig.pending;
   const isRunning = ['running', 'starting', 'stopping'].includes(
     deployment.status,
   );
   const isPerpetual = (deployment.run_mode ?? 'timed') === 'perpetual';
-  const isAgent = deployment.deployment_type === 'agent';
-  const targetName = isAgent
-    ? deployment.agent_name
-    : deployment.docker_host_name;
+  const targetName = deployment.agent_name;
 
-  // Track current time in state for progress calculation (avoids impure Date.now() in render)
-  const [now, setNow] = useState(() => new Date().getTime());
-  const needsProgress =
-    deployment.started_at &&
-    deployment.status === 'running' &&
-    !isPerpetual &&
-    deployment.duration_ms;
+  const [explainOpen, setExplainOpen] = useState(false);
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!needsProgress) return;
-    const id = setInterval(() => setNow(new Date().getTime()), 1000);
-    return () => clearInterval(id);
-  }, [needsProgress]);
-
-  let computedProgress = 0;
-  if (needsProgress && deployment.started_at && deployment.duration_ms) {
-    const startTime = new Date(deployment.started_at).getTime();
-    const elapsed = now - startTime;
-    computedProgress = Math.min(100, (elapsed / deployment.duration_ms) * 100);
-  }
+  const handleExplainError = useCallback(async () => {
+    if (!deployment.error_message) return;
+    setExplainOpen(true);
+    setExplaining(true);
+    setExplanation(null);
+    try {
+      const result = await aiApi.helpChat(
+        `Explain this deployment error and tell me how to fix it:\n\n${deployment.error_message}`,
+        'deployment_error'
+      );
+      setExplanation(result);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to get explanation'));
+      setExplainOpen(false);
+    } finally {
+      setExplaining(false);
+    }
+  }, [deployment.error_message, message]);
 
   return (
-    <Card
-      size="small"
-      style={{
-        background: '#1a2734',
-        border: '1px solid #2a3f54',
-      }}
-      styles={{ body: { padding: '8px 12px' } }}
-    >
-      <div
+    <>
+      <Card
+        size="small"
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          background: '#1a2734',
+          border: '1px solid #2a3f54',
         }}
+        styles={{ body: { padding: '8px 12px' } }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 4 }}>
-            <Text
-              strong
-              style={{ color: '#e6f1ff', fontSize: 13 }}
-            >
-              {targetName || 'Unknown'}
-            </Text>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 4,
-              marginBottom: 4,
-            }}
-          >
-            <Tag
-              color={config.color}
-              icon={config.icon}
-              style={{ margin: 0 }}
-            >
-              {config.label}
-            </Tag>
-            {isAgent && (
-              <Tag
-                color="blue"
-                icon={<RocketOutlined />}
-                style={{ margin: 0 }}
-              >
-                Agent
-              </Tag>
-            )}
-            {isPerpetual && (
-              <Tag color="purple" style={{ margin: 0 }}>
-                Perpetual
-              </Tag>
-            )}
-            {deployment.attack && (
-              <Tag
-                color={deployment.attack.is_active ? 'red' : 'orange'}
-                icon={<ThunderboltOutlined />}
-                style={{ margin: 0 }}
-              >
-                {deployment.attack.is_active
-                  ? deployment.attack.current_stage_name || 'Attack Active'
-                  : 'Attack Configured'}
-              </Tag>
-            )}
-          </div>
-
-          <div style={{ marginTop: 4 }}>
-            <Text style={{ color: '#6a8caf', fontSize: 11 }}>
-              Interface:{' '}
-              <Text code style={{ fontSize: 10 }}>
-                {deployment.network_interface}
-              </Text>
-            </Text>
-            {deployment.packets_injected > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ marginBottom: 4 }}>
               <Text
-                style={{
-                  color: '#6a8caf',
-                  fontSize: 11,
-                  marginLeft: 12,
-                }}
+                strong
+                style={{ color: '#e6f1ff', fontSize: 13 }}
               >
-                Packets:{' '}
-                {deployment.packets_injected.toLocaleString()}
-              </Text>
-            )}
-          </div>
-
-          {deployment.error_message && (
-            <div style={{ marginTop: 4 }}>
-              <Text type="danger" style={{ fontSize: 11 }}>
-                {deployment.error_message}
+                {targetName || 'Unknown'}
               </Text>
             </div>
-          )}
 
-          {deployment.status === 'running' &&
-            (isPerpetual || isAgent ? (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 4,
+                marginBottom: 4,
+              }}
+            >
+              <Tag
+                color={config.color}
+                icon={config.icon}
+                style={{ margin: 0 }}
+              >
+                {config.label}
+              </Tag>
+              {isPerpetual && (
+                <Tag color="purple" style={{ margin: 0 }}>
+                  Perpetual
+                </Tag>
+              )}
+              {deployment.attack && (
+                <Tag
+                  color={deployment.attack.is_active ? 'red' : 'orange'}
+                  icon={<ThunderboltOutlined />}
+                  style={{ margin: 0 }}
+                >
+                  {deployment.attack.is_active
+                    ? deployment.attack.current_stage_name || 'Attack Active'
+                    : 'Attack Configured'}
+                </Tag>
+              )}
+            </div>
+
+            <div style={{ marginTop: 4 }}>
+              <Text style={{ color: '#6a8caf', fontSize: 11 }}>
+                Interface:{' '}
+                <Text code style={{ fontSize: 10 }}>
+                  {deployment.network_interface}
+                </Text>
+              </Text>
+              {deployment.packets_injected > 0 && (
+                <Text
+                  style={{
+                    color: '#6a8caf',
+                    fontSize: 11,
+                    marginLeft: 12,
+                  }}
+                >
+                  Packets:{' '}
+                  {deployment.packets_injected.toLocaleString()}
+                </Text>
+              )}
+            </div>
+
+            {deployment.error_message && (
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                <Text type="danger" style={{ fontSize: 11, flex: 1 }}>
+                  {deployment.error_message}
+                </Text>
+                <Tooltip title="Explain this error with AI">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<QuestionCircleOutlined />}
+                    onClick={handleExplainError}
+                    style={{ color: '#6a8caf', flexShrink: 0, padding: '0 4px', height: 'auto' }}
+                  />
+                </Tooltip>
+              </div>
+            )}
+
+            {deployment.status === 'running' && (
               <div style={{ marginTop: 8 }}>
                 <Text style={{ color: '#6a8caf', fontSize: 11 }}>
                   Running for{' '}
                   {formatElapsedTime(deployment.started_at)}
                 </Text>
               </div>
+            )}
+
+            {/* Phase timeline */}
+            {deployment.status === 'running' && (
+              <PhaseTimeline
+                scenarioId={deployment.scenario_id}
+                isRunning={deployment.status === 'running'}
+              />
+            )}
+          </div>
+
+          <div
+            style={{ display: 'flex', gap: 2, marginLeft: 8 }}
+          >
+            {isRunning ? (
+              <Tooltip title="Stop">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<StopOutlined />}
+                  onClick={() => onStop(deployment)}
+                />
+              </Tooltip>
             ) : (
-              <Progress
-                percent={Math.round(computedProgress)}
-                size="small"
-                strokeColor="#5a9fd4"
-                style={{ marginTop: 8, marginBottom: 0 }}
-              />
-            ))}
-
-          {/* Phase timeline for agent deployments */}
-          {isAgent && deployment.status === 'running' && (
-            <PhaseTimeline
-              scenarioId={deployment.scenario_id}
-              isRunning={deployment.status === 'running'}
-            />
-          )}
+              <Tooltip title="Remove">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  onClick={() => onRemove(deployment.id)}
+                />
+              </Tooltip>
+            )}
+          </div>
         </div>
+      </Card>
 
+      {/* Error explanation modal */}
+      <Modal
+        title={
+          <span>
+            <RobotOutlined style={{ marginRight: 8 }} />
+            Error Explanation
+          </span>
+        }
+        open={explainOpen}
+        onCancel={() => setExplainOpen(false)}
+        footer={null}
+        width={560}
+        styles={{
+          header: { background: '#141428', borderBottom: '1px solid #2d2d52' },
+          body: { background: '#1a1a2e', padding: 20 },
+          content: { background: '#141428' },
+        }}
+      >
         <div
-          style={{ display: 'flex', gap: 2, marginLeft: 8 }}
+          style={{
+            background: '#2a1a1a',
+            borderRadius: 6,
+            padding: '8px 12px',
+            marginBottom: 16,
+            border: '1px solid #4a2a2a',
+          }}
         >
-          {!isAgent && deployment.container_id && (
-            <Tooltip title="View Logs">
-              <Button
-                type="text"
-                size="small"
-                icon={<FileTextOutlined />}
-                onClick={() => onViewLogs(deployment)}
-              />
-            </Tooltip>
-          )}
-
-          {isRunning ? (
-            <Tooltip title="Stop">
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<StopOutlined />}
-                onClick={() => onStop(deployment)}
-              />
-            </Tooltip>
-          ) : (
-            <Tooltip title="Remove">
-              <Button
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                onClick={() => onRemove(deployment.id)}
-              />
-            </Tooltip>
-          )}
+          <Text style={{ color: '#6b6b8a', fontSize: 11, display: 'block', marginBottom: 4 }}>
+            Error
+          </Text>
+          <Text type="danger" style={{ fontSize: 12 }}>
+            {deployment.error_message}
+          </Text>
         </div>
-      </div>
-    </Card>
+
+        {explaining ? (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <Spin />
+            <div style={{ marginTop: 8 }}>
+              <Text style={{ color: '#6b6b8a', fontSize: 12 }}>Analyzing error...</Text>
+            </div>
+          </div>
+        ) : explanation ? (
+          <div
+            style={{
+              background: '#1e2a3a',
+              borderRadius: 6,
+              padding: '12px 16px',
+              border: '1px solid #2d4a5e',
+              borderLeft: '3px solid #1890ff',
+            }}
+          >
+            <Text style={{ color: '#b8c9dc', fontSize: 13, whiteSpace: 'pre-wrap' }}>
+              {explanation}
+            </Text>
+          </div>
+        ) : null}
+      </Modal>
+    </>
   );
 };
 
