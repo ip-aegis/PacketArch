@@ -57,6 +57,11 @@ from scripts.lib.pcap_validators import (
     PcapFingerprintValidator,
     ScenarioValidationReport,
 )
+from scripts.lib.template_lint import (
+    LintIssue,
+    errors_only,
+    lint_template,
+)
 
 # ─────────────────────────────────────────────────────────────────
 # Console Formatting
@@ -253,6 +258,21 @@ def main() -> int:
         "-v", "--verbose", action="store_true",
         help="Show all checks including passes",
     )
+    parser.add_argument(
+        "--lint-only", action="store_true",
+        help=(
+            "Run only the static template linter (no PCAP generation). "
+            "Catches protocol-consistency bugs in scenario templates. "
+            "Exits non-zero if any errors found."
+        ),
+    )
+    parser.add_argument(
+        "--lint", action="store_true",
+        help=(
+            "Run the static linter in addition to PCAP validation. "
+            "Lint errors are reported but do not fail the run."
+        ),
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -285,6 +305,44 @@ def main() -> int:
         templates_to_run = list_all_templates()
 
     print(f"  Templates: {len(templates_to_run)}")
+
+    # ── Static linter (--lint or --lint-only) ────────────────────
+    lint_report: dict[str, list[LintIssue]] = {}
+    if args.lint or args.lint_only:
+        from app.scenario_templates import VERTICAL_TEMPLATES
+        for vertical, tname in templates_to_run:
+            tpl = VERTICAL_TEMPLATES.get(vertical, {}).get(tname)
+            if tpl is None:
+                continue
+            issues = lint_template(tname, tpl)
+            if issues:
+                lint_report[f"{vertical}/{tname}"] = issues
+
+        print(f"\n{BOLD}{'─' * 70}")
+        print(" STATIC TEMPLATE LINT")
+        print(f"{'─' * 70}{RESET}")
+        if not lint_report:
+            print(f"  {PASS} no lint issues across {len(templates_to_run)} template(s)")
+        else:
+            total_errors = sum(len(errors_only(v)) for v in lint_report.values())
+            total_warnings = sum(
+                len(v) - len(errors_only(v)) for v in lint_report.values()
+            )
+            print(f"  Templates with issues: {len(lint_report)}/{len(templates_to_run)}")
+            print(f"  Errors: {total_errors}  Warnings: {total_warnings}\n")
+            for tkey, issues in sorted(lint_report.items()):
+                err_n = len(errors_only(issues))
+                warn_n = len(issues) - err_n
+                badge = FAIL if err_n else WARN
+                print(f"  [{badge}] {tkey}  ({err_n} errors, {warn_n} warnings)")
+                for issue in issues:
+                    print(issue.format())
+                print()
+
+        if args.lint_only:
+            # Exit non-zero only on errors; warnings don't fail the build.
+            had_errors = any(errors_only(v) for v in lint_report.values())
+            return 1 if had_errors else 0
 
     # Run validation
     all_reports: list[ScenarioValidationReport] = []
@@ -344,6 +402,9 @@ def main() -> int:
     _crit(templates_no_packets == 0, "All templates generate PCAPs")
     _crit(total_failed == 0, "Zero identity check failures")
     _crit(templates_passed == len(all_reports), "All templates all-pass")
+    if args.lint:
+        lint_errors = sum(len(errors_only(v)) for v in lint_report.values())
+        _crit(lint_errors == 0, f"Static linter clean ({lint_errors} errors)")
 
     if args.keep_pcaps:
         print(f"\n  PCAPs saved in: {output_dir}/")

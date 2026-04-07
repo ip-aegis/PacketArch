@@ -69,6 +69,38 @@ IDENTITY_KEY_TO_PROTOCOLS: dict[str, list[str]] = {
     "iec104_identity": ["iec104"],
 }
 
+# Runtime engine alias map.
+#
+# Variant protocols (e.g. PROFIsafe, S7comm-Plus, CIP Safety) are wire-format
+# variants of a parent protocol that share the same engine.  This map lets
+# scenario flows reference the variant by name while the runtime resolves to
+# the engine that actually knows how to emit packets.
+#
+# Values MUST be valid `app.protocol_engines.types.ProtocolType` values, since
+# this map is consumed at the boundary where flow specs become FlowContexts
+# (see `traffic_generator/tasks.py`).  Without this map, variant protocols
+# raise ValueError on `ProtocolType("s7comm_plus")` and the entire flow is
+# silently dropped.
+PROTOCOL_ALIASES: dict[str, str] = {
+    "s7comm_plus": "s7comm",
+    "profisafe":   "profinet",
+    "cip_safety":  "ethernet_ip",
+    "modbus":      "modbus_tcp",
+    "enip":        "ethernet_ip",
+    "bacnet_ip":   "bacnet",
+}
+
+
+def resolve_protocol(name: str) -> str:
+    """Return the engine-level protocol name for a (possibly variant) protocol string.
+
+    Variant protocols (s7comm_plus, profisafe, cip_safety, ...) are mapped
+    to their parent protocol whose engine actually emits packets.  Unknown
+    protocol names are returned unchanged so the caller can decide what to
+    do (typically: try `ProtocolType(name)` and warn on ValueError).
+    """
+    return PROTOCOL_ALIASES.get(name, name)
+
 # Vendor-protocol affinities (for validation warnings)
 # Maps vendor names to their typical/expected protocols
 VENDOR_PROTOCOL_AFFINITIES: dict[str, list[str]] = {

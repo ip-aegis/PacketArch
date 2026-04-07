@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
+from app.protocol_engines.protocols import resolve_protocol
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
 from app.traffic_generator.orchestrator import GenerationConfig, TrafficOrchestrator
@@ -543,12 +544,19 @@ def _build_flow_contexts(
             device_name=get_device_name(destination_device),
         )
 
-        # Get protocol
-        protocol_str = flow.get("protocol", "modbus_tcp")
+        # Get protocol — resolve variant aliases (s7comm_plus, profisafe,
+        # cip_safety, ...) to their parent engine protocol before enum lookup.
+        # Without this, variant flows raise ValueError and are silently dropped,
+        # which is what caused CV DPI failures across 22 of 23 scenario templates.
+        raw_protocol = flow.get("protocol", "modbus_tcp")
+        protocol_str = resolve_protocol(raw_protocol)
         try:
             protocol = ProtocolType(protocol_str)
         except ValueError:
-            logger.warning(f"Unsupported protocol: {protocol_str}")
+            logger.warning(
+                f"Unsupported protocol: {raw_protocol!r} "
+                f"(resolved to {protocol_str!r}) — flow {flow.get('id')} dropped"
+            )
             continue
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)

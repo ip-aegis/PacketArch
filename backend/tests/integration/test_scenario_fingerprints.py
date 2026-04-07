@@ -30,10 +30,42 @@ from app.protocol_engines.output import PcapOutput
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
 from scripts.lib.scenario_builder import build_scenario_from_template, list_all_templates
 from scripts.lib.pcap_validators import PcapFingerprintValidator
+from scripts.lib.template_lint import errors_only, lint_template
 
 # Collect all templates
 ALL_TEMPLATES = list_all_templates()
 DURATION_MS = 10_000  # 10 seconds
+
+
+@pytest.mark.parametrize(
+    "vertical,template_name",
+    ALL_TEMPLATES,
+    ids=[f"{v}/{t}" for v, t in ALL_TEMPLATES],
+)
+def test_scenario_template_lint(vertical: str, template_name: str):
+    """Static-lint every scenario template for protocol consistency.
+
+    Catches the class of bugs where a flow's protocol isn't declared on the
+    source/target device types or doesn't resolve to a runtime engine. These
+    cause silently-dropped flows or wire traffic that doesn't match the
+    device fingerprint, which then breaks Cisco Cyber Vision DPI.
+
+    Errors fail the test; warnings are reported but do not fail.
+    """
+    from app.scenario_templates import VERTICAL_TEMPLATES
+
+    template = VERTICAL_TEMPLATES.get(vertical, {}).get(template_name)
+    assert template is not None, f"Template {vertical}/{template_name} not found"
+
+    issues = lint_template(template_name, template)
+    errors = errors_only(issues)
+
+    if errors:
+        formatted = "\n".join(issue.format() for issue in errors)
+        pytest.fail(
+            f"Template {vertical}/{template_name} has {len(errors)} lint error(s):\n"
+            + formatted
+        )
 
 
 @pytest.mark.integration
