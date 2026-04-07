@@ -51,10 +51,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CP-8000",
              "role": "Traffic Management Center Master Station"},
 
-            # Core Switches - Siemens SCALANCE XM-400
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tmc_core",
+            # Core Switches - Cisco IE-9320-24T4X-E
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "tmc_core",
              "name_pattern": "TMC_Core_Network_Switch_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE XM-400",
+             "fingerprint_model": "IE-9320-24T4X-E",
              "role": "TMC Core Network Switch"},
 
             # ============================================================
@@ -173,16 +173,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["tmc_core"], "target_zones": ["tmc_core", "external"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud (60s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 60000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["external"], "target_zones": ["external"],
-             "external_ip": "13.56.142.1",
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "tmc_core", "name": "TMC Core Network", "level": 3,
              "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
@@ -291,10 +282,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CP-8000",
              "role": "ATMS Coordination Master"},
 
-            # Distribution Switches - Siemens SCALANCE X-200
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "atms_core",
+            # Distribution Switches - Cisco IE-3500-8P3S-E
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "atms_core",
              "name_pattern": "ATMS_Distribution_Switch_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE X-200",
+             "fingerprint_model": "IE-3500-8P3S-E",
              "role": "ATMS Distribution Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
@@ -411,16 +402,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["atms_core"], "target_zones": ["atms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud (30s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["atms_core"], "target_zones": ["external"],
-             "external_ip": "54.95.198.117",
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "atms_core", "name": "ATMS Core Network", "level": 3,
              "subnet_offset": 0, "vlan": 200, "security_level": "critical"},
@@ -526,20 +508,20 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Master Station - Siemens CP-8000
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
-             "name": "Tunnel_Master_Control_Station", "protocols": ["snmp", "modbus_tcp"],
+             "name": "Tunnel_Master_Control_Station", "protocols": ["snmp", "modbus_tcp", "bacnet"],
              "fingerprint_model": "CP-8000",
              "role": "Tunnel Master Control Station"},
 
-            # Core Switches - Siemens SCALANCE XM-400
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
+            # Core Switches - Cisco IE-9320-24T4X-E
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "tunnel_master",
              "name_pattern": "Tunnel_Core_Network_Switch_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE XM-400",
+             "fingerprint_model": "IE-9320-24T4X-E",
              "role": "Tunnel Core Switch"},
 
-            # Distribution Switches - Siemens SCALANCE X-200
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "tunnel_master",
+            # Distribution Switches - Cisco IE-3500-8P3S-E
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "tunnel_master",
              "name_pattern": "Tunnel_Distribution_Switch_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE X-200",
+             "fingerprint_model": "IE-3500-8P3S-E",
              "role": "Tunnel Distribution Switch"},
 
             # ============================================================
@@ -564,7 +546,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Lighting Controllers - Siemens Climatix C600
             {"type": "lighting_controller", "vendor": "siemens", "count": 6, "zone": "lighting_zone",
-             "name_pattern": "Tunnel_Adaptive_Lighting_Controller_{n}", "protocols": ["snmp"],
+             "name_pattern": "Tunnel_Adaptive_Lighting_Controller_{n}", "protocols": ["snmp", "bacnet"],
              "fingerprint_model": "C600",
              "role": "Tunnel Lighting Controller"},
 
@@ -704,16 +686,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["tunnel_master"], "target_zones": ["tunnel_master", "external"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud (30s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["external"], "target_zones": ["external"],
-             "external_ip": "51.38.74.240",
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "tunnel_master", "name": "Tunnel Master Control", "level": 3,
              "subnet_offset": 0, "vlan": 300, "security_level": "critical"},
@@ -838,10 +811,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "CP-8000",
              "role": "Toll Plaza Master Station"},
 
-            # Distribution Switches - Siemens SCALANCE X-200
-            {"type": "switch", "vendor": "siemens", "count": 2, "zone": "toll_center",
+            # Distribution Switches - Cisco IE-3500-8P3S-E
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "toll_center",
              "name_pattern": "Toll_Center_Network_Switch_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "SCALANCE X-200",
+             "fingerprint_model": "IE-3500-8P3S-E",
              "role": "Toll Center Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
@@ -939,16 +912,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["toll_center"], "target_zones": ["toll_center"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud (30s - revenue sync)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["toll_center"], "target_zones": ["external"],
-             "external_ip": "13.56.142.1",
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "toll_center", "name": "Toll Center Network", "level": 3,
              "subnet_offset": 0, "vlan": 400, "security_level": "critical"},

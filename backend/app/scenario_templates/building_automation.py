@@ -46,27 +46,27 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # BMS Server - Automated Logic WebCTRL
             # Fingerprint has: bacnet_identity ONLY
             {"type": "bms_server", "vendor": "automated_logic", "count": 1, "zone": "bms_core",
-             "name_pattern": "WEBCTRL-SVR-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Office_BMS_Server_{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "Server",
              "role": "Central BMS Server"},
 
             # Supervisory Controllers - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "bms_core",
-             "name_pattern": "NAE55-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "BMS_Supervisor_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
              "fingerprint_model": "NAE55",
              "role": "Supervisory Network Controller"},
 
             # Industrial Switches with SNMP monitoring
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bms_core",
-             "name_pattern": "SW-BMS-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "BMS_Core_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "BMS Network Switch"},
 
             # EWON Remote Access Gateway - Talk2M cloud connectivity
             # Fingerprint has: modbus_identity, snmp_identity, external_communications
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "bms_core",
-             "name_pattern": "EWON-FLEXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "BMS_Remote_Access_Gateway_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -78,28 +78,28 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # HVAC Supervisory - Trane Tracer SC+
             # Fingerprint has: bacnet_identity ONLY
             {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "hvac_control",
-             "name_pattern": "TRACER-SC-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "HVAC_Supervisor_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "SC+",
              "role": "HVAC Supervisory Controller"},
 
             # AHU Controllers - Johnson Controls FEC26
             # Fingerprint has: bacnet_identity ONLY
             {"type": "ahu_controller", "vendor": "johnson_controls", "count": 4, "zone": "hvac_control",
-             "name_pattern": "FEC-AHU-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "AHU_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "FEC26",
              "role": "AHU Controller"},
 
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "hvac_control",
-             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Chiller_Controller_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
             # Building Controllers - Schneider CX9680
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "hvac_control",
-             "name_pattern": "CX9680-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "Building_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
              "role": "Building Controller"},
 
@@ -110,28 +110,28 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # VAV Controllers - Distech ECY-VAV
             # Fingerprint has: bacnet_identity ONLY
             {"type": "vav_controller", "vendor": "distech", "count": 8, "zone": "floor_zone",
-             "name_pattern": "ECY-VAV-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Floor_VAV_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "ECY-VAV",
              "role": "VAV Controller"},
 
             # Room Controllers - Siemens DXR2.E12
             # Fingerprint has: bacnet_identity ONLY
             {"type": "room_controller", "vendor": "siemens", "count": 6, "zone": "floor_zone",
-             "name_pattern": "DXR2-RM-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Room_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
              "role": "Room Automation Station"},
 
             # Field Controllers - Delta Controls eBCON
             # Fingerprint has: bacnet_identity ONLY
             {"type": "field_controller", "vendor": "delta_controls", "count": 4, "zone": "floor_zone",
-             "name_pattern": "EBCON-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Floor_Field_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "eBCON",
              "role": "Field Controller"},
 
             # Zone Controllers - Trane UC600
             # Fingerprint has: bacnet_identity ONLY
             {"type": "zone_controller", "vendor": "trane", "count": 2, "zone": "floor_zone",
-             "name_pattern": "UC600-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Floor_Zone_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "UC600",
              "role": "Unit Controller"},
         ],
@@ -184,17 +184,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["bms_core"], "target_zones": ["bms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
-            # Uses actual Talk2M public IPs for Cyber Vision external detection
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["bms_core"], "target_zones": ["external"],
-             "external_ip": "13.56.142.1",  # Talk2M US-West VPN server
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # EWON Modbus polling to HVAC controllers (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["chiller_controller", "building_controller"],
@@ -295,27 +285,27 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # DCIM Server - Automated Logic WebCTRL
             # Fingerprint has: bacnet_identity ONLY
             {"type": "dcim_server", "vendor": "automated_logic", "count": 1, "zone": "dcim_core",
-             "name_pattern": "DCIM-SVR-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "DataCenter_DCIM_Server_{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "Server",
              "role": "DCIM Server"},
 
             # Building Controllers - Schneider CX9680
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "dcim_core",
-             "name_pattern": "CX9680-DC-{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
+             "name_pattern": "DataCenter_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
              "role": "Data Center Controller"},
 
             # Core Switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dcim_core",
-             "name_pattern": "SW-DCIM-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "DCIM_Core_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "DCIM Network Switch"},
 
             # EWON Remote Access Gateway - Talk2M cloud connectivity for remote DCIM
             # Fingerprint has: modbus_identity, snmp_identity, external_communications
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dcim_core",
-             "name_pattern": "EWON-COSY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "DCIM_Remote_Access_Gateway_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Cosy 131",
              "role": "Remote Access Gateway",
              "external_comms": True},
@@ -327,14 +317,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # CRAC Units - Schneider InRow DX
             # Fingerprint has: bacnet_identity, modbus_identity (no snmp_identity)
             {"type": "crac_unit", "vendor": "schneider", "count": 6, "zone": "cooling_zone",
-             "name_pattern": "INROW-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "InRow_Cooling_Unit_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "InRow DX",
              "role": "In-Row Cooling Unit"},
 
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "cooling_zone",
-             "name_pattern": "PCO5-CHILL-{n:02d}", "protocols": ["modbus_tcp"],
+             "name_pattern": "Cooling_Chiller_Controller_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
@@ -345,14 +335,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # UPS Systems - Schneider Galaxy VM
             # Fingerprint has: modbus_identity, snmp_identity (NO bacnet_identity)
             {"type": "ups", "vendor": "schneider", "count": 4, "zone": "power_zone",
-             "name_pattern": "GALAXY-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "DataCenter_UPS_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Galaxy VM",
              "role": "UPS System"},
 
             # AHU/Cooling for electrical room - Trane UC600
             # Fingerprint has: bacnet_identity ONLY
             {"type": "ahu_controller", "vendor": "trane", "count": 2, "zone": "power_zone",
-             "name_pattern": "UC600-ELEC-{n:02d}", "protocols": ["bacnet"],
+             "name_pattern": "Electrical_Room_Cooling_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "UC600",
              "role": "Electrical Room Cooling"},
 
@@ -363,13 +353,13 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Rack PDUs - Schneider Rack PDU
             # Fingerprint has: modbus_identity, snmp_identity (NO bacnet_identity)
             {"type": "pdu", "vendor": "schneider", "count": 8, "zone": "rack_zone",
-             "name_pattern": "RPDU-{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "name_pattern": "Rack_PDU_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Rack PDU",
              "role": "Rack PDU"},
 
             # Switches for rack monitoring
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "rack_zone",
-             "name_pattern": "SW-RACK-{n:02d}", "protocols": ["snmp"],
+             "name_pattern": "Rack_Network_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Rack Network Switch"},
         ],
@@ -415,17 +405,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["dcim_core"], "target_zones": ["power_zone", "rack_zone", "dcim_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
-            # Uses actual Talk2M public IPs for Cyber Vision external detection
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["dcim_core"], "target_zones": ["external"],
-             "external_ip": "54.95.198.117",  # Talk2M Asia-Pacific VPN server
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # EWON Modbus polling to UPS systems (10s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
              "source_types": ["remote_gateway"], "target_types": ["ups"],
@@ -536,7 +516,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Campus BMS Servers - Honeywell JACE 8000
             # Fingerprint has: bacnet_identity ONLY
             {"type": "bms_server", "vendor": "honeywell", "count": 2, "zone": "campus_core",
-             "name_pattern": "Campus_BMS_Server_{n}", "protocols": ["bacnet"],
+             "name_pattern": "Campus_BMS_Server_{n}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "JACE 8000",
              "role": "Campus BMS Server"},
 
@@ -568,7 +548,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_a",
-             "name_pattern": "Building_A_Supervisor_{n}", "protocols": ["bacnet"],
+             "name_pattern": "Building_A_Supervisor_{n}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
              "fingerprint_model": "NAE55",
              "role": "Building Supervisor"},
 
@@ -600,7 +580,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls SNC
             # Fingerprint has: bacnet_identity ONLY
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_b",
-             "name_pattern": "Building_B_Supervisor_{n}", "protocols": ["bacnet"],
+             "name_pattern": "Building_B_Supervisor_{n}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
              "fingerprint_model": "SNC",
              "role": "Building Supervisor"},
 
@@ -632,7 +612,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Chiller Controllers - Carel pCO5+
             # Fingerprint has: bacnet_identity, modbus_identity
             {"type": "chiller_controller", "vendor": "carel", "count": 3, "zone": "central_plant",
-             "name_pattern": "Central_Plant_Chiller_{n}_Controller", "protocols": ["modbus_tcp"],
+             "name_pattern": "Central_Plant_Chiller_{n}_Controller", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
              "role": "Chiller Controller"},
 
@@ -646,7 +626,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Plant Supervisor - Delta Controls Manager
             # Fingerprint has: bacnet_identity ONLY
             {"type": "plant_controller", "vendor": "delta_controls", "count": 1, "zone": "central_plant",
-             "name": "Central_Plant_Manager", "protocols": ["bacnet"],
+             "name": "Central_Plant_Manager", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "Manager",
              "role": "Central Plant Manager"},
 
@@ -783,17 +763,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "target_zones": ["campus_core", "building_a", "field_devices"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # ============================================================
-            # EWON Remote Access - Talk2M Cloud Communication (30s heartbeat)
-            # Uses actual Talk2M public IPs for Cyber Vision external detection
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["campus_core"], "target_zones": ["external"],
-             "external_ip": "51.38.74.240",  # Talk2M Europe VPN server
-             "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # EWON Modbus polling to central plant (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["chiller_controller"],

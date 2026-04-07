@@ -45,11 +45,11 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # Warehouse Management System servers and core infrastructure
             # ============================================================
             {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "wms_core",
-             "name": "WCS_Primary_Server", "protocols": ["ethernet_ip"],
+             "name": "WCS_Primary_Server", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1756-L85E",
              "role": "Warehouse Control System"},
             {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "wms_core",
-             "name": "WCS_Backup_Server", "protocols": ["ethernet_ip"],
+             "name": "WCS_Backup_Server", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1756-L85E",
              "role": "Warehouse Control System"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wms_core",
@@ -84,17 +84,17 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # Conveyor PLCs, VFDs, and sortation controllers
             # ============================================================
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "conveyor_zone",
-             "name": "Conveyor_Main_PLC", "protocols": ["ethernet_ip"],
+             "name": "Conveyor_Main_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Conveyor Master Controller",
              "cve_ids": ["CVE-2022-1159"]},
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "conveyor_zone",
-             "name": "Inbound_Conveyor_PLC", "protocols": ["ethernet_ip"],
+             "name": "Inbound_Conveyor_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L83E",
              "role": "Conveyor Zone Controller"},
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "conveyor_zone",
-             "name": "Outbound_Conveyor_PLC", "protocols": ["ethernet_ip"],
+             "name": "Outbound_Conveyor_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L83E",
              "role": "Conveyor Zone Controller"},
             {"type": "sortation_controller", "vendor": "rockwell", "count": 1, "zone": "conveyor_zone",
@@ -192,7 +192,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # Pick-to-light, barcode scanners, vision systems
             # ============================================================
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "pick_zone",
-             "name": "Pick_Station_Master_PLC", "protocols": ["ethernet_ip"],
+             "name": "Pick_Station_Master_PLC", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
              "role": "Pick Station Controller"},
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "pick_zone",
@@ -375,31 +375,14 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["wms_core"], "target_zones": ["wms_core"]},
 
-            # ============================================================
-            # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
-            # Uses actual Talk2M public IPs for Cyber Vision external detection
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["wms_core"], "target_zones": ["external"],
-             "external_ip": "13.56.142.1", "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["wms_core"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # ============================================================
-            # JUMP SERVER - External RDP Access (simulated admin sessions)
-            # ============================================================
-            {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source_types": ["jump_server"], "target_types": ["cloud"],
-             "source_zones": ["wms_core"], "target_zones": ["external"],
-             "external_ip": "203.0.113.50", "external_port": 3389,
-             "jitter_ms": 15000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "wms_core", "name": "WMS Core", "level": 3,
              "subnet_offset": 0, "vlan": 100, "security_level": "high"},
@@ -513,11 +496,11 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # DC CORE ZONE (Level 3) - 4 devices
             # ============================================================
             {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "dc_core",
-             "name": "DC_Operations_Server", "protocols": ["s7comm_plus"],
+             "name": "DC_Operations_Server", "protocols": ["s7comm_plus", "ethernet_ip", "snmp"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "role": "Distribution Operations"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dc_core",
-             "name": "DC_Historian", "protocols": ["modbus_tcp"],
+             "name": "DC_Historian", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "Proficy Historian",
              "role": "Data Historian"},
             {"type": "switch", "vendor": "siemens", "count": 1, "zone": "dc_core",
@@ -534,7 +517,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # RECEIVING ZONE (Level 2) - 10 devices
             # ============================================================
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "receiving",
-             "name": "Receiving_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Receiving_Main_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "role": "Receiving Controller",
              "cve_ids": ["CVE-2019-13945", "CVE-2022-38465", "CVE-2023-46156"]},
@@ -581,7 +564,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # SHIPPING ZONE (Level 2) - 10 devices
             # ============================================================
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "shipping",
-             "name": "Shipping_Main_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Shipping_Main_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "role": "Shipping Controller",
              "cve_ids": ["CVE-2019-13945", "CVE-2022-38465"]},
@@ -610,7 +593,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "6ES7 155-6AU01-0BN0",
              "role": "Dock I/O"},
             {"type": "safety_plc", "vendor": "siemens", "count": 1, "zone": "shipping",
-             "name": "Dock_Safety_Controller", "protocols": ["profinet", "profisafe"],
+             "name": "Dock_Safety_Controller", "protocols": ["profinet", "profisafe", "s7comm_plus"],
              "fingerprint_model": "6ES7 516-3FN02-0AB0",
              "role": "Dock Safety Controller"},
             {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "shipping",
@@ -626,19 +609,19 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # CONVEYOR BACKBONE (Level 1) - 16 devices
             # ============================================================
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "conveyor_backbone",
-             "name": "Conveyor_Zone_1_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Conveyor_Zone_1_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "role": "Conveyor Zone Controller"},
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "conveyor_backbone",
-             "name": "Conveyor_Zone_2_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Conveyor_Zone_2_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "role": "Conveyor Zone Controller"},
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "conveyor_backbone",
-             "name": "Conveyor_Zone_3_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Conveyor_Zone_3_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 511-1AK02-0AB0",
              "role": "Conveyor Zone Controller"},
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "conveyor_backbone",
-             "name": "Sortation_Controller_PLC", "protocols": ["profinet", "s7comm_plus"],
+             "name": "Sortation_Controller_PLC", "protocols": ["profinet", "s7comm_plus", "modbus_tcp"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "role": "Cross-Dock Sortation"},
             {"type": "drive", "vendor": "siemens", "count": 1, "zone": "conveyor_backbone",
@@ -828,30 +811,14 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["dc_core"], "target_zones": ["dc_core"]},
 
-            # ============================================================
-            # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["dc_core"], "target_zones": ["external"],
-             "external_ip": "54.95.198.117", "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["dc_core"], "target_zones": ["conveyor_backbone"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # ============================================================
-            # JUMP SERVER - External RDP Access
-            # ============================================================
-            {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source_types": ["jump_server"], "target_types": ["cloud"],
-             "source_zones": ["dc_core"], "target_zones": ["external"],
-             "external_ip": "203.0.113.51", "external_port": 3389,
-             "jitter_ms": 15000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "dc_core", "name": "DC Operations Core", "level": 3,
              "subnet_offset": 0, "vlan": 200, "security_level": "high"},
@@ -971,16 +938,16 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # HVAC CONTROL ZONE (Level 3) - 6 devices
             # ============================================================
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "hvac_control",
-             "name": "Refrigeration_Master_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Refrigeration_Master_PLC", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "BMEH586040",
              "role": "Refrigeration Master Controller",
              "cve_ids": ["CVE-2022-45788", "CVE-2022-45789", "CVE-2023-27979"]},
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "hvac_control",
-             "name": "Refrigeration_Backup_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Refrigeration_Backup_PLC", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "BMEH586040",
              "role": "Refrigeration Backup Controller"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "hvac_control",
-             "name": "Temperature_Compliance_Historian", "protocols": ["modbus_tcp"],
+             "name": "Temperature_Compliance_Historian", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "Proficy Historian",
              "role": "Compliance Data Historian"},
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "hvac_control",
@@ -1081,7 +1048,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # AMBIENT/CONVEYOR ZONE (Level 1) - 9 devices
             # ============================================================
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "ambient_zone",
-             "name": "Cold_Conveyor_PLC", "protocols": ["ethernet_ip"],
+             "name": "Cold_Conveyor_PLC", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "1769-L33ER",
              "role": "Conveyor Controller"},
             {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "ambient_zone",
@@ -1260,24 +1227,8 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["hvac_control"], "target_zones": ["hvac_control"]},
 
-            # ============================================================
-            # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["hvac_control"], "target_zones": ["external"],
-             "external_ip": "51.38.74.240", "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
-            # ============================================================
-            # JUMP SERVER - External RDP Access
-            # ============================================================
-            {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source_types": ["jump_server"], "target_types": ["cloud"],
-             "source_zones": ["hvac_control"], "target_zones": ["external"],
-             "external_ip": "203.0.113.52", "external_port": 3389,
-             "jitter_ms": 15000, "jitter_type": "uniform"},
-        ],
+            
+                    ],
         "zones": [
             {"id": "hvac_control", "name": "HVAC/Refrigeration Control", "level": 3,
              "subnet_offset": 0, "vlan": 300, "security_level": "high"},
@@ -1411,7 +1362,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Sortation Master Controller",
              "cve_ids": ["CVE-2022-1159"]},
             {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "sort_control",
-             "name": "Sort_SCADA_Server", "protocols": ["ethernet_ip"],
+             "name": "Sort_SCADA_Server", "protocols": ["ethernet_ip", "snmp", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "role": "Sortation SCADA"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "sort_control",
@@ -1773,30 +1724,14 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["sort_control"], "target_zones": ["sort_control"]},
 
-            # ============================================================
-            # EWON REMOTE ACCESS - Talk2M Cloud Communication (30s heartbeat)
-            # ============================================================
-            {"protocol": "https", "pattern": "external", "interval_ms": 30000,
-             "source_types": ["remote_gateway"], "target_types": ["cloud"],
-             "source_zones": ["sort_control"], "target_zones": ["external"],
-             "external_ip": "87.98.169.126", "external_port": 443,
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-
+            
             # eWON Modbus polling to SCADA (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["scada_server"],
              "source_zones": ["sort_control"], "target_zones": ["sort_control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # ============================================================
-            # JUMP SERVER - External RDP Access
-            # ============================================================
-            {"protocol": "rdp", "pattern": "external", "interval_ms": 60000,
-             "source_types": ["jump_server"], "target_types": ["cloud"],
-             "source_zones": ["sort_control"], "target_zones": ["external"],
-             "external_ip": "203.0.113.53", "external_port": 3389,
-             "jitter_ms": 15000, "jitter_type": "uniform"},
-        ],
+                    ],
         "zones": [
             {"id": "sort_control", "name": "Sort Control Room", "level": 3,
              "subnet_offset": 0, "vlan": 400, "security_level": "high"},

@@ -307,7 +307,7 @@ FINGERPRINT_MODEL_MAP: dict[str, list[str]] = {
         "KTP900 Basic", "TP1200 Comfort",
         # Remote I/O & Infrastructure
         "ET 200SP IM155-6 PN", "ET 200MP IM155-5 PN",
-        "SCALANCE XB208", "RF200",
+        "RF200",
     ],
     "schneider": [
         # PLCs

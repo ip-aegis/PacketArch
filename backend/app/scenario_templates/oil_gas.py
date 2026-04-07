@@ -102,7 +102,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # Honeywell Experion Station - ESD Override Panel
             {"type": "hmi", "vendor": "honeywell", "count": 1, "zone": "control",
-             "name": "ESD_Override_Panel", "protocols": ["modbus_tcp"],
+             "name": "ESD_Override_Panel", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Station",
              "role": "ESD Override Panel"},
 
@@ -293,6 +293,24 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["dcs_controller"],
              "source_zones": ["operations"], "target_zones": ["control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ROC800L polling separator level sensors (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["level_sensor"],
+             "source_zones": ["field"], "target_zones": ["field"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # ESD override panel polling DCS controllers (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["dcs_controller"],
+             "source_zones": ["control"], "target_zones": ["control"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # DCS controllers polling process temperature instruments (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["dcs_controller"], "target_types": ["instrument"],
+             "source_zones": ["control"], "target_zones": ["process"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "operations", "name": "Operations Network", "level": 3,
@@ -411,7 +429,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "scada",
-             "name": "Pipeline_SCADA_Server", "protocols": ["modbus_tcp"],
+             "name": "Pipeline_SCADA_Server", "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "SCADA Server"},
 
@@ -487,7 +505,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             # Emerson ROC800 Flow Computers
             {"type": "rtu", "vendor": "emerson", "count": 2, "zone": "metering",
              "name_pattern": "ROC800_Flow_Computer_{n:02d}",
-             "protocols": ["modbus_tcp"],
+             "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "ROC800",
              "cve_ids": ["CVE-2022-30264"],
              "role": "Fiscal Flow Computer"},
@@ -619,6 +637,18 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["scada_server"],
              "source_zones": ["scada"], "target_zones": ["scada"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # RTU polling gas chromatograph analyzer (10s - slow GC cycle)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["rtu"], "target_types": ["analyzer"],
+             "source_zones": ["metering"], "target_zones": ["metering"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # RTU polling metering pressure transmitters (2000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["transmitter"],
+             "source_zones": ["metering"], "target_zones": ["metering"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "scada", "name": "SCADA Network", "level": 3,
@@ -722,7 +752,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Yokogawa EWS - Engineering Workstation
             {"type": "hmi", "vendor": "yokogawa", "count": 1, "zone": "engineering",
-             "name": "CDU_Engineering_Workstation", "protocols": ["modbus_tcp"],
+             "name": "CDU_Engineering_Workstation", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "EWS",
              "role": "Engineering Workstation"},
 
@@ -984,6 +1014,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["historian"],
              "source_zones": ["engineering"], "target_zones": ["engineering"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # FCUs polling feed flow meters (1000ms - precise flow measurement)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["dcs_controller"], "target_types": ["flow_meter"],
+             "source_zones": ["control"], "target_zones": ["process_field"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "engineering", "name": "Engineering Network", "level": 3,
@@ -1089,7 +1125,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "operations",
-             "name": "LNG_Experion_Server", "protocols": ["modbus_tcp"],
+             "name": "LNG_Experion_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "SCADA/DCS Server"},
 
@@ -1325,6 +1361,24 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["scada_server"], "target_types": ["switch"],
              "source_zones": ["operations"],
              "target_zones": ["operations", "control"]},
+
+            # C300 controllers polling distributed I/O (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["dcs_controller"], "target_types": ["remote_io"],
+             "source_zones": ["control"], "target_zones": ["control"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # SCADA polling OPC gateway (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["scada_server"], "target_types": ["gateway"],
+             "source_zones": ["operations"], "target_zones": ["operations"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Remote gateway polling DCS controllers (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["remote_gateway"], "target_types": ["dcs_controller"],
+             "source_zones": ["operations"], "target_zones": ["control"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "operations", "name": "Operations Network", "level": 3,

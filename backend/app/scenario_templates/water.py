@@ -54,7 +54,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SCADA Server - Schneider ClearSCADA
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "scada",
-             "name": "WTP_SCADA_Server", "protocols": ["modbus_tcp"],
+             "name": "WTP_SCADA_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "HMISTM6",
              "role": "SCADA Server"},
 
@@ -126,10 +126,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "HMISTM6",
              "role": "Operator Interface"},
 
-            # Industrial Switches - Schneider ConneXium
-            {"type": "switch", "vendor": "schneider", "count": 2, "zone": "control",
-             "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "TCSESM083F2CU0",
+            # Industrial Switches - Cisco IE-4000
+            {"type": "switch", "vendor": "Cisco", "count": 2, "zone": "control",
+             "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Control Zone Switch"},
 
             # ============================================================
@@ -403,14 +403,14 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # DCS Controllers - Honeywell Experion C300
             {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
-             "name": "Central_Main_DCS_Controller", "protocols": ["modbus_tcp"],
+             "name": "Central_Main_DCS_Controller", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "C300",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Main DCS Controller"},
 
             # Redundant DCS - Honeywell Experion C200
             {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
-             "name": "Central_Standby_DCS_Controller", "protocols": ["modbus_tcp"],
+             "name": "Central_Standby_DCS_Controller", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "C200",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Standby DCS Controller"},
@@ -455,7 +455,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # RTU - Emerson ROC800
             {"type": "rtu", "vendor": "emerson", "count": 1, "zone": "station1",
-             "name": "Station_1_Lift_RTU", "protocols": ["modbus_tcp"],
+             "name": "Station_1_Lift_RTU", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "ROC800",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Pump Station 1 RTU"},
@@ -763,7 +763,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # OPC UA Gateway - Kepware KEPServerEX
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "dmz",
-             "name": "WWTP_OPC_Gateway", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "WWTP_OPC_Gateway", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "KEPServerEX",
              "role": "OPC UA Gateway"},
 
@@ -773,10 +773,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Central HMI"},
 
-            # Core Switch - Rockwell Stratix 5700
-            {"type": "switch", "vendor": "rockwell", "count": 1, "zone": "dmz",
+            # Core Switch - Cisco IE-9320
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "dmz",
              "name": "WWTP_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "1783-BMS10CGL",
+             "fingerprint_model": "IE-9320-24P4X-E",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
@@ -828,10 +828,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "2711P-T10C22D9P",
              "role": "Local Operator Interface"},
 
-            # Industrial Switches - Rockwell Stratix 5700
-            {"type": "switch", "vendor": "rockwell", "count": 2, "zone": "control",
+            # Industrial Switches - Cisco IE-9320
+            {"type": "switch", "vendor": "Cisco", "count": 2, "zone": "control",
              "name_pattern": "WWTP_Control_Zone_Switch_{n:02d}", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "1783-BMS10CGL",
+             "fingerprint_model": "IE-9320-24P4X-E",
              "role": "Control Zone Switch"},
 
             # FLEX 5000 Remote I/O
@@ -846,7 +846,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "headworks",
-             "name": "Headworks_Screening_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Headworks_Screening_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Headworks Controller"},
@@ -925,7 +925,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "tertiary",
-             "name": "Tertiary_Filtration_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Tertiary_Filtration_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Tertiary Controller"},
@@ -954,7 +954,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Field PLC - Rockwell CompactLogix
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "sludge",
-             "name": "Sludge_Processing_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
+             "name": "Sludge_Processing_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Sludge Controller"},
@@ -1181,15 +1181,15 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "HMISTM6",
              "role": "Operator Interface"},
 
-            # Industrial Switch - Schneider ConneXium
-            {"type": "switch", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name": "Control_Room_Switch", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "TCSESM083F2CU0",
+            # Industrial Switch - Cisco IE-4000
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "control_room",
+             "name": "Control_Room_Switch", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Control Room Switch"},
 
             # SCADA PC - Magelis GTO Advanced HMI (10.4" panel as SCADA workstation)
             {"type": "scada_server", "vendor": "schneider", "count": 1, "zone": "control_room",
-             "name": "SCADA_Workstation", "protocols": ["modbus_tcp"],
+             "name": "SCADA_Workstation", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "HMIGTO5310",
              "role": "SCADA Workstation"},
 

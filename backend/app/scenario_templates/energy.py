@@ -87,7 +87,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # SEL-2411 PAC - Automation Controller
             {"type": "plc", "vendor": "sel", "count": 1, "zone": "substation_lan",
-             "name": "Substation_Automation_Controller", "protocols": ["modbus_tcp", "dnp3"],
+             "name": "Substation_Automation_Controller", "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "SEL-2411",
              "role": "Automation Controller"},
 
@@ -105,13 +105,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # ABB REX640 - Bus Tie Protection (IEC 61850 + Modbus)
             {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "bay_control",
-             "name": "Bus_Tie_Protection_IED", "protocols": ["modbus_tcp", "iec61850"],
+             "name": "Bus_Tie_Protection_IED", "protocols": ["modbus_tcp", "iec61850", "snmp"],
              "fingerprint_model": "REX640",
              "role": "Bus Protection"},
 
             # Siemens 7SJ85 - Bus Overcurrent (IEC 61850 + Modbus)
             {"type": "protection_relay", "vendor": "siemens", "count": 1, "zone": "bay_control",
-             "name": "Bus_Overcurrent_Protection", "protocols": ["modbus_tcp", "iec61850"],
+             "name": "Bus_Overcurrent_Protection", "protocols": ["modbus_tcp", "iec61850", "snmp"],
              "fingerprint_model": "7SJ85",
              "cve_ids": ["CVE-2022-32528"],
              "role": "Overcurrent Protection"},
@@ -440,7 +440,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server - Plant DCS Server
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "plant_scada",
-             "name": "Plant_DCS_Server", "protocols": ["modbus_tcp"],
+             "name": "Plant_DCS_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "Plant DCS Server"},
 
@@ -837,13 +837,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server - Primary SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp"],
+             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "Primary SCADA Server"},
 
             # Honeywell Experion Server - Backup SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp"],
+             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "Backup SCADA Server"},
 
@@ -936,7 +936,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # SEL-751 Feeder Relays (1 per substation)
             {"type": "protection_relay", "vendor": "sel", "count": 4, "zone": "remote_sub_a",
              "name_pattern": "Substation_{n:02d}_Feeder_Relay",
-             "protocols": ["modbus_tcp", "dnp3"],
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "SEL-751",
              "cve_ids": ["CVE-2023-31170"],
              "role": "Feeder Protection"},
@@ -944,7 +944,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # SEL-487E Transformer Relays (substations 1-2)
             {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "remote_sub_a",
              "name_pattern": "Substation_{n:02d}_Transformer_Relay",
-             "protocols": ["modbus_tcp", "dnp3"],
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "SEL-487E",
              "role": "Transformer Protection"},
 
@@ -969,7 +969,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ABB REF615 Feeder Relays
             {"type": "protection_relay", "vendor": "abb", "count": 4, "zone": "remote_sub_b",
              "name_pattern": "Substation_{n:02d}_Feeder_Relay",
-             "protocols": ["modbus_tcp"],
+             "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "REF615",
              "cve_ids": ["CVE-2022-28613"],
              "role": "Feeder Protection"},
@@ -977,7 +977,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # GE Multilin T60 Transformer Relays (substations 5-6)
             {"type": "protection_relay", "vendor": "ge", "count": 2, "zone": "remote_sub_b",
              "name_pattern": "Substation_{n:02d}_Transformer_Relay",
-             "protocols": ["modbus_tcp"],
+             "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "T60",
              "cve_ids": ["CVE-2022-21805"],
              "role": "Transformer Protection"},
@@ -1475,6 +1475,23 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["microgrid_control"], "target_zones": ["microgrid_control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Microgrid controller polling environmental I/O (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["microgrid_control"], "target_zones": ["environmental"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # BESS local panel polling rack controllers (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bess_control"], "target_zones": ["bess_control"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # SNMP monitoring WAN edge switch (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["rtu"], "target_types": ["switch"],
+             "source_zones": ["wan"], "target_zones": ["wan"]},
         ],
         "zones": [
             {"id": "microgrid_control", "name": "Microgrid Control Network", "level": 3,
