@@ -275,34 +275,53 @@ def build_register_session_response(session_handle: int) -> bytes:
 
 
 def build_cip_forward_open_request(
+    session_handle: int = 0,
     connection_path: bytes = b"\x20\x04\x24\x01",  # Default: Class 4, Instance 1
+    sender_context: bytes = b"\x00" * 8,
 ) -> bytes:
-    """Build CIP ForwardOpen request.
+    """Build CIP ForwardOpen request as a complete EtherNet/IP packet.
+
+    Returns wire-format bytes ready to ride directly inside a TCP segment to
+    the EtherNet/IP messaging port (TCP/44818). The full encapsulation chain
+    is built here:
+
+        EIP encap header (cmd=0x6F SendRRData)
+          ↳ Interface handle (4) + Timeout (2)
+          ↳ CPF: ItemCount=2 + Null Address Item + Unconnected Data Item
+            ↳ CIP MR Request:
+                Service=0x54 (ForwardOpen Request)
+                Path size + Path → Class 6 Connection Manager, Instance 1
+                ↳ ForwardOpen data: priority/tick, timeouts, connection IDs,
+                  serial numbers, RPIs, network params, transport class,
+                  connection_path
 
     Args:
-        connection_path: Connection path (default targets Message Router)
+        session_handle: EIP session handle from RegisterSession response
+        connection_path: CIP path the connection should establish to
+                         (default = Class 4 Assembly Object, Instance 1)
+        sender_context: Optional 8-byte sender context placed in the encap
+                        header — the response uses the same value
 
     Returns:
-        CIP ForwardOpen request data
+        Complete TCP payload bytes (24-byte encap header + body)
     """
-    # ForwardOpen parameters (simplified)
-    priority_tick_time = 0x0A  # Priority/tick time
-    timeout_ticks = 0xF0  # Timeout ticks
-    o_to_t_connection_id = 0x12345678  # O->T connection ID
-    t_to_o_connection_id = 0x87654321  # T->O connection ID
-    connection_serial_number = 0x0001  # Connection serial number
-    vendor_id = 0x0001  # Vendor ID
-    originator_serial_number = 0x12345678  # Originator serial number
-    timeout_multiplier = 0x00  # Connection timeout multiplier
-    o_to_t_rpi = 0x00200000  # O->T RPI (32ms)
-    o_to_t_network_params = 0x4321  # O->T network connection parameters
-    t_to_o_rpi = 0x00200000  # T->O RPI (32ms)
-    t_to_o_network_params = 0x4321  # T->O network connection parameters
-    transport_class_trigger = 0xA3  # Transport class/trigger
+    # ─── ForwardOpen request data (the raw CIP service data) ────────
+    priority_tick_time = 0x0A
+    timeout_ticks = 0xF0
+    o_to_t_connection_id = 0x12345678
+    t_to_o_connection_id = 0x87654321
+    connection_serial_number = 0x0001
+    vendor_id = 0x0001
+    originator_serial_number = 0x12345678
+    timeout_multiplier = 0x00
+    o_to_t_rpi = 0x00200000  # 32ms
+    o_to_t_network_params = 0x4321
+    t_to_o_rpi = 0x00200000  # 32ms
+    t_to_o_network_params = 0x4321
+    transport_class_trigger = 0xA3
 
-    # Build ForwardOpen data (simplified version)
-    forward_open = struct.pack(
-        "<BBIIHHIBIIHIHB",
+    forward_open_data = struct.pack(
+        "<BBIIHHIB3sIHIHB",
         priority_tick_time,
         timeout_ticks,
         o_to_t_connection_id,
@@ -311,7 +330,7 @@ def build_cip_forward_open_request(
         vendor_id,
         originator_serial_number,
         timeout_multiplier,
-        0,  # Reserved
+        b"\x00\x00\x00",  # Reserved (3 bytes per CIP spec, not 4)
         o_to_t_rpi,
         o_to_t_network_params,
         t_to_o_rpi,
@@ -319,44 +338,141 @@ def build_cip_forward_open_request(
         transport_class_trigger,
     )
 
-    # Add connection path
-    connection_path_size = len(connection_path) // 2  # Size in words
-    forward_open += struct.pack("B", connection_path_size) + connection_path
+    # Append the connection_path (size in 16-bit words, then path bytes)
+    connection_path_size = len(connection_path) // 2
+    forward_open_data += struct.pack("B", connection_path_size) + connection_path
 
-    return forward_open
+    # ─── Wrap in CIP Message Router Request ─────────────────────────
+    # Service code: 0x54 = ForwardOpen Request
+    # Request path: Class 0x06 (Connection Manager), Instance 0x01
+    # Path encoding: 2 words = "\x20\x06\x24\x01"
+    cip_request_path = b"\x20\x06\x24\x01"
+    cip_request_path_size_words = len(cip_request_path) // 2
+    cip_message = (
+        struct.pack("BB", CIP_SERVICE_FORWARD_OPEN, cip_request_path_size_words)
+        + cip_request_path
+        + forward_open_data
+    )
+
+    # ─── Wrap in CPF (Common Packet Format) ─────────────────────────
+    # Item 1: Null Address Item (type 0x0000, length 0)
+    # Item 2: Unconnected Data Item (type 0x00B2, length=N) carrying CIP message
+    cpf = struct.pack(
+        "<HHHHH",
+        2,                          # Item count
+        CPF_TYPE_NULL,              # Item 1 type: Null address
+        0,                          # Item 1 length: 0
+        CPF_TYPE_UNCONNECTED_DATA,  # Item 2 type: Unconnected data
+        len(cip_message),           # Item 2 length
+    ) + cip_message
+
+    # Interface handle (0 = CIP) + timeout (0)
+    interface_timeout = struct.pack("<IH", 0, 0)
+    body = interface_timeout + cpf
+
+    # ─── EIP encapsulation header (cmd 0x6F SendRRData) ─────────────
+    header = build_encapsulation_header(
+        command=ENIP_CMD_SEND_RR_DATA,
+        length=len(body),
+        session_handle=session_handle,
+        sender_context=sender_context,
+    )
+
+    return header + body
 
 
-def build_cip_forward_open_response(success: bool = True) -> bytes:
-    """Build CIP ForwardOpen response.
+def build_cip_forward_open_response(
+    success: bool = True,
+    session_handle: int = 0,
+    sender_context: bytes = b"\x00" * 8,
+) -> bytes:
+    """Build CIP ForwardOpen response as a complete EtherNet/IP packet.
+
+    Mirrors `build_cip_forward_open_request`. Returns full wire-format bytes
+    (EIP encap header + CPF + CIP MR Reply + ForwardOpen response data).
 
     Args:
-        success: Whether the ForwardOpen was successful
+        success: Whether the ForwardOpen succeeded
+        session_handle: EIP session handle (echoes the request)
+        sender_context: 8-byte sender context echoed back from the request
 
     Returns:
-        CIP ForwardOpen response data
+        Complete TCP payload bytes
     """
+    # ─── ForwardOpen response data ──────────────────────────────────
+    # CIP Vol 1 §3-5.5.4.1 — ForwardOpen Reply structure (success):
+    #   O→T Network Connection ID    (UDINT, 4)
+    #   T→O Network Connection ID    (UDINT, 4)
+    #   Connection Serial Number     (UINT, 2)
+    #   Originator Vendor ID         (UINT, 2)   ← UINT not UDINT
+    #   Originator Serial Number     (UDINT, 4)
+    #   O→T Actual Packet Interval   (UDINT, 4)
+    #   T→O Actual Packet Interval   (UDINT, 4)
+    #   Application Reply Size       (USINT, 1, in 16-bit words)
+    #   Reserved                     (USINT, 1)
+    #   Application Reply Data       (variable, here zero bytes)
+    # = 26 bytes (no app reply data) when success.
     if success:
-        # Success response
         o_to_t_connection_id = 0x12345678
         t_to_o_connection_id = 0x87654321
         connection_serial_number = 0x0001
-        vendor_id = 0x0001
+        vendor_id = 0x0001  # UINT (2 bytes)
         originator_serial_number = 0x12345678
-        o_to_t_api = 0x00200000  # Actual packet interval
-        t_to_o_api = 0x00200000
+        o_to_t_api = 0x00200000  # 32ms
+        t_to_o_api = 0x00200000  # 32ms
 
-        return struct.pack(
-            "<IIHIII",
+        forward_open_reply_data = struct.pack(
+            "<IIHHIIIBB",
             o_to_t_connection_id,
             t_to_o_connection_id,
             connection_serial_number,
             vendor_id,
             originator_serial_number,
             o_to_t_api,
+            t_to_o_api,
+            0,  # Application Reply Size (0 = no application reply data)
+            0,  # Reserved
         )
+        general_status = 0x00
     else:
-        # Error response (simplified)
-        return b"\x00\x00"
+        forward_open_reply_data = b""
+        general_status = 0x01  # Connection failure
+
+    # ─── Wrap in CIP Message Router Reply ───────────────────────────
+    # Reply format:  Service|0x80 (1) | Reserved (1=0) | GenStatus (1) | AddlStatusSize (1=0) | data
+    cip_reply_service = CIP_SERVICE_FORWARD_OPEN | 0x80
+    cip_reply_header = struct.pack(
+        "BBBB",
+        cip_reply_service,
+        0x00,             # Reserved
+        general_status,
+        0x00,             # Additional status size (words)
+    )
+    cip_reply = cip_reply_header + forward_open_reply_data
+
+    # ─── Wrap in CPF (Common Packet Format) ─────────────────────────
+    cpf = struct.pack(
+        "<HHHHH",
+        2,                          # Item count
+        CPF_TYPE_NULL,              # Null address
+        0,                          # Null length
+        CPF_TYPE_UNCONNECTED_DATA,  # Unconnected data
+        len(cip_reply),
+    ) + cip_reply
+
+    # Interface handle + timeout
+    interface_timeout = struct.pack("<IH", 0, 0)
+    body = interface_timeout + cpf
+
+    # ─── EIP encap header (cmd 0x6F SendRRData) ─────────────────────
+    header = build_encapsulation_header(
+        command=ENIP_CMD_SEND_RR_DATA,
+        length=len(body),
+        session_handle=session_handle,
+        sender_context=sender_context,
+    )
+
+    return header + body
 
 
 def build_cip_io_data(data: bytes) -> bytes:

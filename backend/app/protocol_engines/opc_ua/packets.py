@@ -11,6 +11,9 @@ Message structure:
 import struct
 from typing import Any
 
+from scapy.layers.inet import IP, TCP
+from scapy.layers.l2 import Ether
+
 from app.protocol_engines.types import DeviceContext
 
 # OPC UA message types
@@ -174,6 +177,15 @@ def build_open_secure_channel_request(
     # Security policy URI
     policy_bytes = security_policy.encode("utf-8")
 
+    # SecureChannelId — per OPC UA Part 6 §7.1.2.2 the OPN body starts with a
+    # 4-byte SecureChannelId immediately after the 8-byte MessageHeader, BEFORE
+    # the asymmetric security header. For an open-channel REQUEST the channel
+    # does not exist yet, so the client sends 0; the server assigns a real ID
+    # in the response. Omitting this field made Wireshark dissect the next
+    # 4 bytes (SecurityPolicyUri length) as the channel id, then read garbage
+    # for the URI length, and flag the packet as malformed.
+    secure_channel_id = struct.pack("<I", 0)
+
     # Asymmetric security header
     security_header = (
         struct.pack("<I", len(policy_bytes)) + policy_bytes +
@@ -213,7 +225,7 @@ def build_open_secure_channel_request(
         0x40, 0x77, 0x1B, 0x00,
     ])
 
-    body = security_header + sequence_header + request_body
+    body = secure_channel_id + security_header + sequence_header + request_body
 
     # OpenSecureChannel message type
     total_size = 8 + len(body)
@@ -240,6 +252,11 @@ def build_open_secure_channel_response(
     # Security policy (None)
     policy_bytes = SECURITY_POLICY_NONE.encode("utf-8")
 
+    # SecureChannelId — for an OpenSecureChannel RESPONSE the server returns
+    # the channel id it assigned to the new channel. Same wire-format slot
+    # as in the request: immediately after the 8-byte message header.
+    secure_channel_id = struct.pack("<I", channel_id)
+
     # Asymmetric security header
     security_header = (
         struct.pack("<I", len(policy_bytes)) + policy_bytes +
@@ -261,7 +278,7 @@ def build_open_secure_channel_response(
         0xFF, 0xFF, 0xFF, 0xFF,
     ])
 
-    body = security_header + sequence_header + response_body
+    body = secure_channel_id + security_header + sequence_header + response_body
 
     total_size = 8 + len(body)
     header = build_opc_ua_header(MSG_TYPE_OPEN_SECURE_CHANNEL, total_size)
@@ -550,7 +567,7 @@ def build_opc_ua_packet(
         ack: TCP acknowledgment number
 
     Returns:
-        Complete packet bytes
+        Complete packet bytes with valid IP and TCP checksums.
     """
     # Build TCP/IP header
     header = build_tcp_header(src, dst)
@@ -571,4 +588,20 @@ def build_opc_ua_packet(
     total_length = 20 + 20 + len(opc_ua_message)  # IP + TCP + payload
     header_list[16:18] = struct.pack(">H", total_length)
 
-    return bytes(header_list) + opc_ua_message
+    raw_packet = bytes(header_list) + opc_ua_message
+
+    # CRITICAL: build_tcp_header() leaves both the IP header checksum AND
+    # the TCP checksum at zero. CV's DPI engine (and most stack-aware
+    # parsers) treat IP.chksum==0 as an invalid header per RFC 791 and
+    # silently drop the packet before any L7 dissection happens, so
+    # fingerprinting never starts.
+    #
+    # Round-trip the assembled bytes through scapy: clearing chksum on the
+    # IP and TCP layers and re-serializing forces scapy to compute both
+    # checksums correctly using the pseudo-header.
+    parsed = Ether(raw_packet)
+    if parsed.haslayer(IP):
+        del parsed[IP].chksum
+        if parsed.haslayer(TCP):
+            del parsed[TCP].chksum
+    return bytes(parsed)

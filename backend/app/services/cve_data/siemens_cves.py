@@ -79,7 +79,7 @@ SIEMENS_CVES: list[dict] = [
                     "vendor_id": 0x002A,  # Siemens PROFINET vendor ID
                     "device_id": 0x0500,
                     "device_type": "CPU 1516-3 PN/DP",
-                    "device_role": "controller",
+                    "device_role": 0x02,  # PROFINET DCP role byte: 0x02 = IO-Controller
                     "order_id": "6ES7 516-3AN01-0AB0",
                     "sw_release": "V2.8.0",
                 },

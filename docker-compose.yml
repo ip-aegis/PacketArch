@@ -74,6 +74,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      # Required by app.core.config Settings validator (same as backend service)
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
     volumes:
       - pcap_output:/app/output/pcap
     depends_on:

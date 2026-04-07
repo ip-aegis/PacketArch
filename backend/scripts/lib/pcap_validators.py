@@ -1092,14 +1092,20 @@ def _parse_dcp_blocks(
 
             block_data = payload[offset:offset + block_len]
 
+            # Per IEC 61158-6-10 §4.3.1.4, every PROFINET DCP response block
+            # carries a 2-byte BlockInfo qualifier at the start of block_data
+            # (BlockLength counts BlockInfo + the block-specific data). Skip
+            # past it before reading the block-specific fields.
+            inner = block_data[2:] if len(block_data) >= 2 else block_data
+
             if option == 0x02:  # Device Properties
-                if suboption == 0x03 and len(block_data) >= 4:
-                    found_vendor_id = struct.unpack_from(">H", block_data, 0)[0]
-                    found_device_id = struct.unpack_from(">H", block_data, 2)[0]
-                elif suboption == 0x02 and len(block_data) >= 1:
-                    found_station_name = block_data.decode("ascii", errors="replace").rstrip("\x00")
-                elif suboption == 0x08 and len(block_data) >= 5:
-                    found_oem_device_id = block_data.decode("ascii", errors="replace").rstrip("\x00")
+                if suboption == 0x03 and len(inner) >= 4:
+                    found_vendor_id = struct.unpack_from(">H", inner, 0)[0]
+                    found_device_id = struct.unpack_from(">H", inner, 2)[0]
+                elif suboption == 0x02 and len(inner) >= 1:
+                    found_station_name = inner.decode("ascii", errors="replace").rstrip("\x00")
+                elif suboption == 0x08 and len(inner) >= 5:
+                    found_oem_device_id = inner.decode("ascii", errors="replace").rstrip("\x00")
 
             offset += block_len
             if block_len % 2 == 1:

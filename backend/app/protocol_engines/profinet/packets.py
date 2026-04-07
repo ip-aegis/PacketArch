@@ -230,29 +230,59 @@ def build_dcp_header(
     )
 
 
-def build_dcp_block(option: int, suboption: int, data: bytes) -> bytes:
-    """Build a single DCP block.
+def build_dcp_block(
+    option: int,
+    suboption: int,
+    data: bytes,
+    block_info: int | None = None,
+) -> bytes:
+    """Build a single PROFINET DCP block.
 
-    Block structure:
-    - Option (1 byte)
-    - Suboption (1 byte)
-    - Block Length (2 bytes)
-    - Block Data (variable, padded to even length)
+    Per IEC 61158-6-10 §4.3.1.4, response blocks (and Set request blocks)
+    contain a 2-byte BlockInfo / BlockQualifier field after BlockLength,
+    BEFORE the block-specific data. BlockLength must include BlockInfo.
+
+    Identify Request and Get Request blocks omit BlockInfo and pass
+    `block_info=None` (the default).
+
+    Wire format with BlockInfo (response blocks):
+
+        +--------+-----------+-------------+-----------+--------+
+        | Option | SubOption | BlockLength | BlockInfo | Data   |
+        | 1B     | 1B        | 2B (= 2+N)  | 2B        | N B    |
+        +--------+-----------+-------------+-----------+--------+
+
+    Wire format without BlockInfo (request blocks):
+
+        +--------+-----------+-------------+--------+
+        | Option | SubOption | BlockLength | Data   |
+        | 1B     | 1B        | 2B (= N)    | N B    |
+        +--------+-----------+-------------+--------+
+
+    The whole block is zero-padded to an even byte boundary.
 
     Args:
-        option: DCP option code
-        suboption: DCP suboption code
-        data: Block data
+        option:     DCP option code (1 byte)
+        suboption:  DCP suboption code (1 byte)
+        data:       Block-specific data (excluding BlockInfo)
+        block_info: Optional 2-byte BlockInfo qualifier. Most response blocks
+                    pass 0 here. Some blocks (e.g. IP Parameter) pass a status
+                    word (0x0001 = "IP set"). Request blocks pass None.
 
     Returns:
-        DCP block bytes
+        DCP block bytes (4-byte header + optional 2-byte BlockInfo + data + pad).
     """
-    block_length = len(data)
-    block = struct.pack(">BBH", option, suboption, block_length)
-    block += data
-    # Pad to even length
-    if len(data) % 2 != 0:
-        block += b'\x00'
+    if block_info is not None:
+        full_data = struct.pack(">H", block_info) + data
+    else:
+        full_data = data
+
+    block_length = len(full_data)
+    block = struct.pack(">BBH", option, suboption, block_length) + full_data
+
+    # Pad to even length so the next block starts on an even byte boundary
+    if len(full_data) % 2 != 0:
+        block += b"\x00"
     return block
 
 
@@ -304,21 +334,28 @@ def build_dcp_identify_response(
 
     # Device Name block
     name_data = device_name.encode('ascii')
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_NAME, name_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_NAME, name_data, block_info=0
+    )
 
     # Device ID block (Vendor ID + Device ID)
     device_id_data = struct.pack(">HH", vendor_id, device_id)
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ID, device_id_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ID, device_id_data, block_info=0
+    )
 
-    # IP Parameter block
+    # IP Parameter block — BlockInfo for IP_PARAMETER is the IP-set status
+    # word (0x0001 = "IP set"), not the generic 0x0000.
     ip_data = _ip_to_bytes(ip_address) + _ip_to_bytes(subnet_mask) + _ip_to_bytes(gateway)
-    # Block info (2 bytes): IP address assignment info
-    ip_block_data = struct.pack(">H", 0x0001) + ip_data  # 0x0001 = IP set
-    blocks += build_dcp_block(DCP_OPTION_IP, DCP_SUBOPTION_IP_PARAMETER, ip_block_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_IP, DCP_SUBOPTION_IP_PARAMETER, ip_data, block_info=0x0001
+    )
 
     # Device Role block
     role_data = struct.pack(">BB", 0x01, 0x00)  # Device role: IO-Device
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ROLE, role_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ROLE, role_data, block_info=0
+    )
 
     header = build_dcp_header(
         DCP_SERVICE_IDENTIFY,
@@ -471,6 +508,21 @@ def build_dcp_identify_response_fingerprinted(
     vendor_id = profinet_identity.get("vendor_id", 0x002A)
     device_id = profinet_identity.get("device_id", 0x0001)
     device_role = profinet_identity.get("device_role", 0x01)  # IO-Device
+    # Defensive normalization: device_role MUST be an int byte for struct.pack.
+    # Some CVE / fingerprint overrides historically supplied string aliases
+    # like "controller" or "io_device", which crashed the orchestrator with
+    # "required argument is not an integer". Map the common aliases to their
+    # PROFINET DCP role-byte values, fall back to IO-Device for anything else.
+    if not isinstance(device_role, int):
+        _ROLE_NAME_TO_BYTE = {
+            "io_device": 0x01, "device": 0x01,
+            "io_controller": 0x02, "controller": 0x02,
+            "io_multidevice": 0x04, "multidevice": 0x04,
+            "io_supervisor": 0x08, "supervisor": 0x08,
+        }
+        device_role = _ROLE_NAME_TO_BYTE.get(
+            str(device_role).strip().lower(), 0x01
+        )
     device_vendor = profinet_identity.get("device_vendor", "")
     # Support multiple key names for hardware/software versions
     hardware_revision = (
@@ -494,33 +546,48 @@ def build_dcp_identify_response_fingerprinted(
 
     blocks = b""
 
+    # All DCP response blocks below carry the generic 2-byte BlockInfo
+    # qualifier (0x0000) per IEC 61158-6-10 §4.3.1.4. The IP_PARAMETER
+    # block uses 0x0001 ("IP set") as its block-specific BlockInfo.
+
     # Device Name block (required)
     name_data = device_name.encode("ascii")
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_NAME, name_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_NAME, name_data, block_info=0
+    )
 
     # Device ID block - Vendor ID + Device ID (required)
     device_id_data = struct.pack(">HH", vendor_id, device_id)
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ID, device_id_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ID, device_id_data, block_info=0
+    )
 
     # Device Vendor block (if available)
     if device_vendor:
         vendor_data = device_vendor.encode("ascii")
-        blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_VENDOR, vendor_data)
+        blocks += build_dcp_block(
+            DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_VENDOR, vendor_data, block_info=0
+        )
 
-    # IP Parameter block
+    # IP Parameter block — BlockInfo = 0x0001 ("IP set")
     ip_data = _ip_to_bytes(src.ip_address) + _ip_to_bytes("255.255.255.0") + _ip_to_bytes("0.0.0.0")
-    ip_block_data = struct.pack(">H", 0x0001) + ip_data  # 0x0001 = IP set
-    blocks += build_dcp_block(DCP_OPTION_IP, DCP_SUBOPTION_IP_PARAMETER, ip_block_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_IP, DCP_SUBOPTION_IP_PARAMETER, ip_data, block_info=0x0001
+    )
 
     # Device Role block
     role_data = struct.pack(">BB", device_role, 0x00)
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ROLE, role_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ROLE, role_data, block_info=0
+    )
 
     # Device Instance block (high/low instance)
     instance_high = profinet_identity.get("instance_high", 0x00)
     instance_low = profinet_identity.get("instance_low", 0x01)
     instance_data = struct.pack(">BB", instance_high, instance_low)
-    blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_INSTANCE, instance_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_INSTANCE, instance_data, block_info=0
+    )
 
     # Device Options block - indicates supported options AND contains version info
     # Format: List of (Option, Suboption) pairs + optional vendor-specific extensions
@@ -537,7 +604,9 @@ def build_dcp_identify_response_fingerprinted(
             DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ID,         # Device ID
             DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_ROLE,       # Device Role
         )
-        blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_OPTIONS, options_data)
+        blocks += build_dcp_block(
+            DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_OPTIONS, options_data, block_info=0
+        )
 
     # OEM Device ID block - Contains Order ID, Serial Number, Device Type, Version info
     # This is what Cyber Vision and other scanners use to identify vulnerable devices
@@ -563,12 +632,19 @@ def build_dcp_identify_response_fingerprinted(
             oem_parts.append(f"SW:{software_revision}")
 
         oem_data = ";".join(oem_parts).encode("ascii")
-        blocks += build_dcp_block(DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_OEM_ID, oem_data)
+        blocks += build_dcp_block(
+            DCP_OPTION_DEVICE, DCP_SUBOPTION_DEVICE_OEM_ID, oem_data, block_info=0
+        )
 
     # Device Initiative block - indicates device wants to be contacted
     # This helps ensure the device is included in network scans
     initiative_data = struct.pack(">H", 0x0001)  # 0x0001 = Device wants initiative
-    blocks += build_dcp_block(DCP_OPTION_DEVICE_INITIATIVE, DCP_SUBOPTION_DEVICE_INITIATIVE_VALUE, initiative_data)
+    blocks += build_dcp_block(
+        DCP_OPTION_DEVICE_INITIATIVE,
+        DCP_SUBOPTION_DEVICE_INITIATIVE_VALUE,
+        initiative_data,
+        block_info=0,
+    )
 
     header = build_dcp_header(
         DCP_SERVICE_IDENTIFY,
@@ -622,7 +698,8 @@ def build_dcp_get_set_response(
         DCP response payload
     """
     service_type = DCP_SERVICE_TYPE_RESPONSE_SUCCESS if success else DCP_SERVICE_TYPE_RESPONSE_NOT_SUPPORTED
-    block = build_dcp_block(option, suboption, data)
+    # Get/Set responses are response blocks → carry generic BlockInfo (0).
+    block = build_dcp_block(option, suboption, data, block_info=0)
 
     header = build_dcp_header(
         DCP_SERVICE_GET,

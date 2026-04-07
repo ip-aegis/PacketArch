@@ -204,8 +204,11 @@ class EtherNetIPEngine(ProtocolEngine):
         if flow.config.get("use_forward_open", True):
             current_time += random.uniform(10.0, 20.0)
 
-            # ForwardOpen request
-            forward_open_request = build_cip_forward_open_request()
+            # ForwardOpen request — wraps in EIP encap (cmd 0x6F SendRRData)
+            # using the session_handle assigned by RegisterSession.
+            forward_open_request = build_cip_forward_open_request(
+                session_handle=session_handle,
+            )
             forward_open_packet = build_enip_packet(
                 flow.source,
                 flow.destination,
@@ -229,7 +232,10 @@ class EtherNetIPEngine(ProtocolEngine):
             connection_id = random.randint(1, 0xFFFFFFFF)
             state.connection_id = connection_id
 
-            forward_open_response = build_cip_forward_open_response(success=True)
+            forward_open_response = build_cip_forward_open_response(
+                success=True,
+                session_handle=session_handle,
+            )
             response_packet = build_enip_packet(
                 flow.destination,
                 flow.source,
@@ -605,8 +611,10 @@ class EtherNetIPEngine(ProtocolEngine):
         client_seq = state.tcp_seq_client
         server_seq = state.tcp_seq_server
 
-        # ForwardOpen to re-establish connection
-        forward_open_request = build_cip_forward_open_request()
+        # ForwardOpen to re-establish connection — wraps in EIP encap (0x6F)
+        forward_open_request = build_cip_forward_open_request(
+            session_handle=getattr(state, "session_handle", 0) or 0,
+        )
         forward_open_packet = build_enip_packet_fingerprinted(
             flow.source,
             flow.destination,
@@ -633,7 +641,10 @@ class EtherNetIPEngine(ProtocolEngine):
             connection_id = random.randint(1, 0xFFFFFFFF)
             state.connection_id = connection_id
 
-            forward_open_response = build_cip_forward_open_response(success=True)
+            forward_open_response = build_cip_forward_open_response(
+                success=True,
+                session_handle=getattr(state, "session_handle", 0) or 0,
+            )
             response_packet = build_enip_packet_fingerprinted(
                 flow.destination,
                 flow.source,
