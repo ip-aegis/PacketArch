@@ -4,9 +4,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.25.0"
+VERSION = "1.26.0"
 
 # Version history:
+# 1.26.0 - CV DPI malformation fixes: PROFINET DCP BlockInfo qualifier (was missing on every response block, all Identify Responses dissected as malformed), OPC UA OPNF SecureChannelId field (4 bytes, was missing), OPC UA IP/TCP checksum recompute (was 0 / RFC 791 invalid - CV silently dropped these packets before DPI), EtherNet/IP ForwardOpen wrapped in EIP encap+CPF+CIP MR (was raw CIP service data), ForwardOpen reply struct format (vendor_id UDINT→UINT, t_to_o_api restored, 28b → 30b per CIP Vol 1 §3-5.5.4.1). Plus protocol→port routing (PROTOCOL_DEFAULT_PORTS / get_default_port) and variant alias resolution (s7comm_plus / profisafe / cip_safety) so flows actually reach their engines and land on the correct ports.
 # 1.25.0 - Synchronized attack lifecycle with deployment - STOP_SCENARIO now auto-stops attack orchestrator, prevents orphaned attacks
 # 1.24.0 - Add 15 Snort/Suricata rule-triggering attack actions for IDS validation (SNORT_VALIDATION playbook, ICS/OT, C2, exfiltration signatures)
 # 1.23.2 - Fix attack stage stuck at 0s: wall-time stage advancement on every event loop iteration (prevents virtual-time lag), fix injection config mapping
