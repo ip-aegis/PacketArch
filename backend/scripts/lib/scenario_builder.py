@@ -34,37 +34,16 @@ from app.protocol_engines.vendor_oui import generate_mac_address
 from app.scenario_templates import VERTICAL_TEMPLATES, get_template
 from app.services.device_templates._fingerprints import get_fingerprint_by_vendor_model
 
+# Single source of truth for protocol alias resolution and per-protocol
+# default ports. Replaces the local copies that previously lived here and
+# in flow_generator.py — all callers now agree on the same map.
+from app.protocol_engines.protocols import (
+    PROTOCOL_ALIASES,
+    PROTOCOL_DEFAULT_PORTS as PROTOCOL_PORTS,
+    get_default_port,
+)
+
 from scripts.lib.pcap_validators import DeviceExpectation
-
-# ─────────────────────────────────────────────────────────────────
-# Constants (replicated from orchestrator_pool.py)
-# ─────────────────────────────────────────────────────────────────
-
-PROTOCOL_ALIASES: dict[str, str] = {
-    "profisafe": "profinet",
-    "s7comm_plus": "s7comm",
-    "cip_safety": "ethernet_ip",
-    "modbus": "modbus_tcp",
-    "enip": "ethernet_ip",
-    "bacnet_ip": "bacnet",
-}
-
-PROTOCOL_PORTS: dict[str, int] = {
-    "modbus_tcp": 502,
-    "modbus_rtu": 502,
-    "s7comm": 102,
-    "s7comm_plus": 102,
-    "ethernet_ip": 44818,
-    "cip_safety": 44818,
-    "profinet": 0,
-    "profisafe": 0,
-    "bacnet_ip": 47808,
-    "bacnet": 47808,
-    "snmp": 161,
-    "lldp": 0,
-    "cdp": 0,
-    "cloud_service": 443,
-}
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -411,7 +390,7 @@ def _build_flow_context(
         logger.warning(f"Unknown protocol '{protocol_raw}' (engine: '{engine_protocol}'), skipping")
         return None
 
-    default_port = PROTOCOL_PORTS.get(protocol_raw, PROTOCOL_PORTS.get(engine_protocol, 44818))
+    default_port = get_default_port(protocol_raw)
 
     src_network = source_device.get("network", {})
     dst_network = target_device.get("network", {})

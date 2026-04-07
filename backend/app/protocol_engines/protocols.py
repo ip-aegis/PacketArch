@@ -101,6 +101,58 @@ def resolve_protocol(name: str) -> str:
     """
     return PROTOCOL_ALIASES.get(name, name)
 
+
+# Canonical protocol → server-side TCP/UDP port map.
+#
+# This is the single source of truth for "what port does protocol X listen on
+# by default?".  It is used by `traffic_generator/tasks.py` to populate the
+# destination port of a FlowContext when the flow spec doesn't pin one
+# explicitly.  Without this map, every flow defaults to TCP/502 (Modbus),
+# which causes Wireshark and Cisco Cyber Vision to dissect S7comm, OPC UA,
+# EtherNet/IP, etc. as malformed Modbus.
+#
+# Keys are the *resolved* protocol names — pass strings through
+# `resolve_protocol()` first if they may be variants.
+PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
+    # ── ICS / OT (TCP) ─────────────────────────────────────────
+    "modbus_tcp":   502,
+    "modbus_rtu":   502,    # RTU-over-TCP also uses 502
+    "ethernet_ip":  44818,  # EtherNet/IP encapsulation (CIP)
+    "s7comm":       102,    # ISO-on-TCP (TPKT/COTP)
+    "iec61850":     102,    # MMS over ISO-on-TCP (same port as S7)
+    "opc_ua":       4840,   # OPC UA TCP binary
+    "dnp3":         20000,
+    "iec_104":      2404,
+    "fins":         9600,
+    "slmp":         5007,   # MELSOFT/MC Protocol
+    "pccc":         44818,  # PCCC over EtherNet/IP encapsulation
+    "fanuc":        8193,   # FOCAS
+    "codesys":      1217,
+    "dcs":          18506,  # DeltaV common port
+    "cloud_service": 443,   # TLS
+    # ── ICS / OT (UDP) ─────────────────────────────────────────
+    "snmp":         161,
+    "bacnet":       47808,
+    "profinet":     34964,  # PNIO-CM (DCE/RPC) over UDP
+    # ── Layer 2 protocols (no IP port) — included for completeness
+    # so look-ups never miss; the actual transport is link-layer.
+    "lldp":         0,
+    "cdp":          0,
+    "ethercat":     0,
+}
+
+
+def get_default_port(protocol: str) -> int:
+    """Return the canonical destination port for a protocol.
+
+    Resolves variant aliases first (e.g. ``s7comm_plus`` → ``s7comm`` → 102),
+    so callers do not need to call ``resolve_protocol()`` themselves.  Falls
+    back to 502 (Modbus) only as a true last-resort default — if you see
+    that fallback in your traffic, the calling site is missing a protocol
+    entry in ``PROTOCOL_DEFAULT_PORTS``.
+    """
+    return PROTOCOL_DEFAULT_PORTS.get(resolve_protocol(protocol), 502)
+
 # Vendor-protocol affinities (for validation warnings)
 # Maps vendor names to their typical/expected protocols
 VENDOR_PROTOCOL_AFFINITIES: dict[str, list[str]] = {

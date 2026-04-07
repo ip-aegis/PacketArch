@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
-from app.protocol_engines.protocols import resolve_protocol
+from app.protocol_engines.protocols import get_default_port, resolve_protocol
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
 from app.traffic_generator.orchestrator import GenerationConfig, TrafficOrchestrator
@@ -512,6 +512,30 @@ def _build_flow_contexts(
                 )
             return fp
 
+        # Resolve protocol FIRST so we can compute the protocol-correct
+        # default destination port. Without this, every non-Modbus flow
+        # ends up framed in TCP/502 packets and CV/Wireshark dissect the
+        # payloads as malformed Modbus.
+        raw_protocol = flow.get("protocol", "modbus_tcp")
+        protocol_str = resolve_protocol(raw_protocol)
+        try:
+            protocol = ProtocolType(protocol_str)
+        except ValueError:
+            logger.warning(
+                f"Unsupported protocol: {raw_protocol!r} "
+                f"(resolved to {protocol_str!r}) — flow {flow.get('id')} dropped"
+            )
+            continue
+
+        # Per-protocol destination port (4840 for OPC UA, 102 for S7comm,
+        # 44818 for EtherNet/IP, etc.). Explicit `destination_port` on the
+        # flow spec always wins; the protocol default is the fallback.
+        default_dst_port = get_default_port(protocol_str)
+        explicit_dst_port = (
+            flow.get("destination_port") or flow.get("destinationPort")
+        )
+        dst_port = explicit_dst_port if explicit_dst_port else default_dst_port
+
         # Build device contexts with CVE vulnerability overrides and scenario_id
         # for unique serial number and identifier generation
         source_context = DeviceContext(
@@ -533,7 +557,7 @@ def _build_flow_contexts(
             device_id=destination_device["id"],
             mac_address=get_network_field(destination_device, "mac_address", "02:00:00:00:00:02"),
             ip_address=get_network_field(destination_device, "ip_address", "192.168.1.2"),
-            port=flow.get("destination_port") or flow.get("destinationPort", 502),
+            port=dst_port,
             unit_id=destination_device.get("unit_id") or destination_device.get("unitId", 1),
             vendor_fingerprint=get_fingerprint_with_warning(destination_device, "destination"),
             # Pass CVE identity overrides for vulnerable firmware emulation
@@ -543,21 +567,6 @@ def _build_flow_contexts(
             # Pass device_name for unique identifier generation
             device_name=get_device_name(destination_device),
         )
-
-        # Get protocol — resolve variant aliases (s7comm_plus, profisafe,
-        # cip_safety, ...) to their parent engine protocol before enum lookup.
-        # Without this, variant flows raise ValueError and are silently dropped,
-        # which is what caused CV DPI failures across 22 of 23 scenario templates.
-        raw_protocol = flow.get("protocol", "modbus_tcp")
-        protocol_str = resolve_protocol(raw_protocol)
-        try:
-            protocol = ProtocolType(protocol_str)
-        except ValueError:
-            logger.warning(
-                f"Unsupported protocol: {raw_protocol!r} "
-                f"(resolved to {protocol_str!r}) — flow {flow.get('id')} dropped"
-            )
-            continue
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)
         flow_config = flow.get("config", {})
