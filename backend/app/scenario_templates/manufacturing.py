@@ -1665,16 +1665,23 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
     "strict_purdue_segmented": {
         "name": "Strict Purdue Segmented Manufacturing",
         "description": "Precision automotive parts manufacturing facility following strict Purdue Model "
-                       "architecture with four isolated manufacturing cells and an Industrial DMZ (IDMZ). "
+                       "architecture with seven zones: Level 3 Process Control / Operations, Level 3.5 "
+                       "Industrial DMZ, four Level 2 manufacturing cells, and an external zone. "
                        "Cell 1: CNC Machining (Siemens/PROFINET), Cell 2: Robotic Welding (Rockwell/EtherNet-IP), "
                        "Cell 3: E-Coat Surface Treatment (Schneider/Modbus TCP), Cell 4: Final Assembly & Test "
-                       "(ABB/mixed). No east-west communication between cells - only intra-cell flows and "
-                       "northbound IDMZ supervisory data collection. EWON and Jump Server in IDMZ for "
-                       "remote access. 67 devices across 6 zones with strict zone isolation.",
+                       "(ABB/mixed). L3 Operations holds the central SCADA, historian, OPC UA gateway, central "
+                       "overview HMI, and the OT engineering workstation (TIA Portal / Studio 5000). L3.5 IDMZ "
+                       "holds only bastion functions: EWON remote-access gateway, vulnerable jump server, and "
+                       "north/south firewall switches. Strict segmentation: no east-west communication between "
+                       "cells; all cross-zone traffic terminates at Level 3 Operations or the IDMZ. 72 devices "
+                       "across 7 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
         "zones": [
-            # IDMZ - Level 3.5 (critical security boundary between IT and OT)
+            # Operations / Process Control - Level 3 (SCADA, historian, engineering)
+            {"id": "operations", "name": "Process Control / Operations", "level": 3,
+             "subnet_offset": 5, "vlan": 150, "security_level": "critical"},
+            # IDMZ - Level 3.5 (bastion zone: jump server, EWON, firewall switches)
             {"id": "idmz", "name": "Industrial DMZ", "level": 3.5,
              "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
             # Cell 1 - CNC Machining (Siemens ecosystem, self-contained L0-L2)
@@ -1695,38 +1702,71 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "is_external": True},
         ],
         "conduits": [
-            # IDMZ to cell conduits (L3.5 -> L2, strict northbound-only data collection)
+            # L3 Operations to cell conduits - supervisory data + engineering access
+            # All SCADA/historian/OPC/HMI/EWS traffic flows through here (strict Purdue).
+            {"id": "ops_cell1_cnc", "name": "Operations \u2194 Cell 1 CNC",
+             "source_zone": "operations", "target_zone": "cell1_cnc",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm_plus", "s7comm", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Siemens PLCs, central HMI and engineering workstation S7comm+ access, SNMP infrastructure monitoring"},
+            {"id": "ops_cell2_weld", "name": "Operations \u2194 Cell 2 Welding",
+             "source_zone": "operations", "target_zone": "cell2_weld",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Rockwell PLCs, central HMI and engineering workstation EtherNet/IP access, SNMP monitoring"},
+            {"id": "ops_cell3_ecoat", "name": "Operations \u2194 Cell 3 E-Coat",
+             "source_zone": "operations", "target_zone": "cell3_ecoat",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to Schneider PLCs, central HMI and engineering workstation Modbus TCP access, SNMP monitoring"},
+            {"id": "ops_cell4_assembly", "name": "Operations \u2194 Cell 4 Assembly",
+             "source_zone": "operations", "target_zone": "cell4_assembly",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to ABB PLCs, central HMI Modbus TCP and engineering workstation EtherNet/IP access, SNMP monitoring"},
+            # IDMZ to cell conduits - narrow EWON remote polling + jump server SNMP recon only
             {"id": "idmz_cell1_cnc", "name": "IDMZ \u2194 Cell 1 CNC",
              "source_zone": "idmz", "target_zone": "cell1_cnc",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "s7comm_plus", "s7comm", "modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "SCADA/Historian OPC UA subscriptions to Siemens PLCs, central HMI S7comm+ polling, EWON Modbus TCP polling, SNMP infrastructure monitoring"},
+             "description": "EWON remote gateway Modbus TCP polling for offsite monitoring; jump server SNMP reconnaissance"},
             {"id": "idmz_cell2_weld", "name": "IDMZ \u2194 Cell 2 Welding",
              "source_zone": "idmz", "target_zone": "cell2_weld",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "ethernet_ip", "modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "SCADA/Historian OPC UA subscriptions to Rockwell PLCs, central HMI EtherNet/IP polling, EWON Modbus TCP polling, SNMP monitoring"},
+             "description": "EWON remote gateway Modbus TCP polling for offsite monitoring; jump server SNMP reconnaissance"},
             {"id": "idmz_cell3_ecoat", "name": "IDMZ \u2194 Cell 3 E-Coat",
              "source_zone": "idmz", "target_zone": "cell3_ecoat",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "SCADA/Historian OPC UA subscriptions to Schneider PLCs, central HMI and EWON Modbus TCP polling, SNMP monitoring"},
+             "description": "EWON remote gateway Modbus TCP polling for offsite monitoring; jump server SNMP reconnaissance"},
             {"id": "idmz_cell4_assembly", "name": "IDMZ \u2194 Cell 4 Assembly",
              "source_zone": "idmz", "target_zone": "cell4_assembly",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "SCADA/Historian OPC UA subscriptions to ABB PLCs, central HMI and EWON Modbus TCP polling, SNMP monitoring"},
+             "description": "EWON remote gateway Modbus TCP polling for offsite monitoring; jump server SNMP reconnaissance"},
+            # L3 Operations <-> L3.5 IDMZ - historian forwarding, jump-to-EWS pivot, internal monitoring
+            {"id": "ops_idmz", "name": "Operations \u2194 IDMZ",
+             "source_zone": "operations", "target_zone": "idmz",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "snmp", "rdp", "https"],
+             "security_level": "critical",
+             "description": "Historian forwarding to IDMZ proxy, SCADA SNMP polling of IDMZ switches, jump server RDP pivot to engineering workstation"},
             # IDMZ to external (L3.5 -> L4)
             {"id": "idmz_external", "name": "IDMZ \u2194 External",
              "source_zone": "idmz", "target_zone": "external",
              "direction": "bidirectional",
              "allowed_protocols": ["https", "rdp"],
              "security_level": "critical",
-             "description": "EWON remote gateway heartbeat to Talk2M cloud; Jump server RDP for remote IT/OT administration"},
+             "description": "EWON remote gateway heartbeat to Talk2M cloud; jump server RDP for remote IT/OT administration"},
         ],
         "recommended_attack_playbooks": [
             {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "Tests PIPEDREAM lateral movement against Purdue segmentation"},
@@ -1741,25 +1781,47 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "devices": [
             # ============================================================
-            # IDMZ (Level 3.5) - 9 devices
-            # Central SCADA, historian, OPC gateway, remote access, switches
+            # OPERATIONS / PROCESS CONTROL (Level 3) - 5 devices
+            # SCADA, historian, OPC gateway, central HMI, engineering workstation.
+            # All cross-cell supervisory and engineering traffic originates here.
             # ============================================================
             # WinCC Professional - central SCADA server aggregating all cell data
-            {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "idmz",
-             "name": "Plant_Central_SCADA", "protocols": ["opc_ua", "s7comm", "modbus_tcp", "snmp"],
+            {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "operations",
+             "name": "Ops_Central_SCADA",
+             "protocols": ["opc_ua", "s7comm_plus", "s7comm", "modbus_tcp", "snmp"],
              "fingerprint_model": "WinCC Professional",
              "role": "Central SCADA Server"},
             # GE Proficy Historian - process data archival
-            {"type": "historian", "vendor": "ge", "count": 1, "zone": "idmz",
-             "name": "Plant_Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
+             "name": "Ops_Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "role": "Process Historian",
              "cve_ids": ["CVE-2022-46660"]},
             # Kepware OPC UA Gateway - multi-protocol translation
-            {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "idmz",
-             "name": "Plant_OPC_Gateway", "protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "s7comm"],
+            {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "operations",
+             "name": "Ops_OPC_Gateway",
+             "protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "s7comm"],
              "fingerprint_model": "KEPServerEX",
              "role": "OPC UA Gateway"},
+            # WinCC Unified - central overview HMI for plant-wide visibility
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "operations",
+             "name": "Ops_Overview_HMI",
+             "protocols": ["s7comm_plus", "s7comm", "opc_ua", "modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "WinCC Unified",
+             "role": "Central Overview HMI"},
+            # OT Engineering Workstation - TIA Portal / Studio 5000 / Control Expert host
+            # Sits in L3 Operations. Remote engineers pivot through IDMZ jump server to reach this host,
+            # then use it to push programs / browse tags on cell PLCs. Classic strict-Purdue access path.
+            {"type": "engineering_workstation", "vendor": "microsoft", "count": 1, "zone": "operations",
+             "name": "Ops_Engineering_Workstation",
+             "protocols": ["s7comm_plus", "s7comm", "ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
+             "fingerprint_model": "Jump Server 2019",
+             "role": "OT Engineering Workstation"},
+
+            # ============================================================
+            # IDMZ (Level 3.5) - 5 devices
+            # Bastion functions only: remote access gateway, jump server, firewall switches
+            # ============================================================
             # HMS EWON Flexy 205 - remote access gateway to Talk2M cloud
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "idmz",
              "name": "IDMZ_EWON_Gateway", "protocols": ["modbus_tcp", "snmp"],
@@ -1767,17 +1829,15 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Remote Access Gateway",
              "external_comms": True},
             # Windows Server 2016 Jump Server - IT/OT boundary (BlueKeep vulnerable)
+            # Note: RDP listed as a semantic protocol declaration for CV identification and
+            # attack-playbook targeting (BlueKeep). PacketArch has no RDP traffic engine, so
+            # RDP pivot traffic is driven by the attack simulation layer, not flow generation.
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "idmz",
-             "name": "IDMZ_Jump_Server", "protocols": ["snmp"],
+             "name": "IDMZ_Jump_Server", "protocols": ["rdp", "snmp"],
              "fingerprint_model": "Jump Server 2016 (Vulnerable)",
              "role": "Remote Access Jump Server",
              "cve_ids": ["CVE-2019-0708"],
              "external_comms": True},
-            # WinCC Unified - central overview HMI for plant-wide visibility
-            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "idmz",
-             "name": "Plant_Overview_HMI", "protocols": ["s7comm", "opc_ua"],
-             "fingerprint_model": "WinCC Unified",
-             "role": "Central Overview HMI"},
             # Cisco IE-9320 - IDMZ core aggregation switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
              "name": "IDMZ_Core_Switch", "protocols": ["snmp"],
@@ -2081,6 +2141,17 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Test Controller",
              "cve_ids": ["CVE-2021-22285"]},
+            # Rockwell GuardLogix L83ES - safety controller for press / robot interlocks
+            # Cell 4 is a mixed-vendor cell (ABB PLCs, Fanuc robot, Moxa/Advantech I/O), so a
+            # Rockwell safety controller is realistic; it uses CIP Safety over the existing
+            # EtherNet/IP cell network to interlock the Fanuc robot and the press VFD.
+            {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "cell4_assembly",
+             "name": "Assembly_Safety_Controller",
+             "protocols": ["ethernet_ip", "cip_safety", "opc_ua"],
+             "fingerprint_model": "1756-L83ES",
+             "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
+             "role": "Safety Controller",
+             "cve_ids": ["CVE-2022-1159"]},
             # ABB CP620 - assembly operator HMI
             {"type": "hmi", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
              "name": "Assembly_Operator_HMI", "protocols": ["modbus_tcp"],
@@ -2268,55 +2339,86 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
             # ============================================================
-            # IDMZ → CELL SUPERVISORY FLOWS (northbound data collection)
-            # All originate from IDMZ, no cell initiates northbound
+            # CELL 4 SAFETY FLOW - CIP Safety over EtherNet/IP
+            # ============================================================
+            # CIP Safety - Rockwell safety controller to ABB PLCs and mixed I/O (4ms)
+            {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
+             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
+             "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"]},
+
+            # ============================================================
+            # L3 OPERATIONS → CELL SUPERVISORY FLOWS (northbound data collection)
+            # SCADA, historian, central HMI, OPC gateway, and engineering
+            # workstation all live in the Operations zone. Strict Purdue:
+            # no cell initiates northbound, no cell-to-cell lateral.
             # ============================================================
             # OPC UA - SCADA server subscriptions to all cell PLCs (1s)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
              "source_types": ["scada_server"], "target_types": ["plc", "safety_plc"],
-             "source_zones": ["idmz"],
+             "source_zones": ["operations"],
              "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
             # OPC UA - Historian data collection from all cell PLCs (5s)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
              "source_types": ["historian"], "target_types": ["plc"],
-             "source_zones": ["idmz"],
+             "source_zones": ["operations"],
              "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
             # S7comm+ - Central HMI polling Siemens cell PLCs (1s)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
-             "source_zones": ["idmz"], "target_zones": ["cell1_cnc"]},
+             "source_zones": ["operations"], "target_zones": ["cell1_cnc"]},
             # EtherNet/IP - Central HMI polling Rockwell cell PLCs (1s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
-             "source_zones": ["idmz"], "target_zones": ["cell2_weld"]},
+             "source_zones": ["operations"], "target_zones": ["cell2_weld"]},
             # Modbus TCP - Central HMI polling Schneider/ABB cell PLCs (1s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
-             "source_zones": ["idmz"], "target_zones": ["cell3_ecoat", "cell4_assembly"]},
+             "source_zones": ["operations"], "target_zones": ["cell3_ecoat", "cell4_assembly"]},
+            # OPC UA - OPC Gateway multi-protocol data collection from all cell PLCs (2s)
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 2000,
+             "source_types": ["gateway"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
+
+            # ============================================================
+            # ENGINEERING WORKSTATION FLOWS (L3 Operations → Cells)
+            # Occasional engineering access: program uploads, tag browsing,
+            # firmware checks. Low-frequency (30s) to represent non-production
+            # activity. This is the inner ring of the strict-Purdue remote
+            # path: remote user → IDMZ jump server → L3 EWS → cell PLCs.
+            # ============================================================
+            # S7comm+ - EWS → Cell 1 Siemens PLCs (engineering access)
+            {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"], "target_zones": ["cell1_cnc"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # EtherNet/IP - EWS → Cell 2 Rockwell PLCs (engineering access)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"], "target_zones": ["cell2_weld"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # Modbus TCP - EWS → Cell 3 Schneider PLCs (engineering access)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"], "target_zones": ["cell3_ecoat"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # EtherNet/IP - EWS → Cell 4 safety controller (engineering access)
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"], "target_zones": ["cell4_assembly"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # L3.5 IDMZ → CELL FLOWS (bastion-only narrow polling)
+            # Only EWON remote gateway and jump server SNMP recon originate
+            # from the IDMZ — everything else moved to L3 Operations.
+            # ============================================================
             # Modbus TCP - EWON remote gateway polling all cell PLCs (10s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["idmz"],
              "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
-
-            # ============================================================
-            # OPC GATEWAY DATA COLLECTION
-            # ============================================================
-            # OPC UA - OPC Gateway multi-protocol data collection from all cell PLCs (2s)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 2000,
-             "source_types": ["gateway"], "target_types": ["plc"],
-             "source_zones": ["idmz"],
-             "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
-
-            # ============================================================
-            # SNMP INFRASTRUCTURE MONITORING
-            # ============================================================
-            # SNMP - SCADA monitoring all switches + EWON (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch", "remote_gateway"],
-             "source_zones": ["idmz"],
-             "target_zones": ["idmz", "cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
             # SNMP - Jump server network reconnaissance (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["jump_server"], "target_types": ["switch"],
@@ -2325,19 +2427,52 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 10000, "jitter_type": "uniform"},
 
             # ============================================================
-            # SNMP FIELD DEVICE MONITORING
-            # Ensures PROFINET-only field devices (servos, VFDs, I/O) have
-            # IP-based traffic so CV can associate their MAC with an IP.
+            # SNMP INFRASTRUCTURE MONITORING
             # ============================================================
-            # SNMP - Cell switches polling field devices (60s)
+            # SNMP - SCADA (L3) monitoring all switches + EWON remote gateway (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["operations"],
+             "target_zones": ["operations", "idmz",
+                              "cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
+            # SNMP - SCADA (L3) monitoring the IDMZ jump server (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["scada_server"], "target_types": ["jump_server"],
+             "source_zones": ["operations"], "target_zones": ["idmz"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # SNMP FIELD DEVICE MONITORING (per-cell, strictly intra-cell)
+            # Split into four single-cell flows so the template round-robin
+            # flow generator cannot create cross-cell pairings.
+            # Ensures PROFINET/EtherNet-IP-only field devices (servos, VFDs,
+            # I/O) have IP-based traffic so CV can associate MAC ↔ IP.
+            # ============================================================
+            # SNMP - Cell 1 switches polling Cell 1 field devices (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["switch"],
              "target_types": ["servo", "drive", "io_module"],
-             "source_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"],
-             "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"],
+             "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
              "jitter_ms": 5000, "jitter_type": "uniform"},
-
-                                ],
+            # SNMP - Cell 2 switches polling Cell 2 field devices (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["switch"],
+             "target_types": ["servo", "drive", "io_module"],
+             "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # SNMP - Cell 3 switches polling Cell 3 field devices (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["switch"],
+             "target_types": ["sensor", "drive", "io_module"],
+             "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # SNMP - Cell 4 switches polling Cell 4 field devices (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["switch"],
+             "target_types": ["drive", "io_module"],
+             "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+        ],
 
         "cloud_services": [
             {
