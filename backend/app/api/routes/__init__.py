@@ -11,6 +11,7 @@ from app.api.routes import (
     generation,
     health,
     ip_management,
+    ldap,
 
     protocols,
     scenarios,
@@ -30,6 +31,7 @@ __all__ = [
     "generation",
     "health",
     "ip_management",
+    "ldap",
 
     "protocols",
     "scenarios",

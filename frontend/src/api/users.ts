@@ -10,6 +10,7 @@ export interface User {
   email?: string;
   is_active: boolean;
   is_admin: boolean;
+  auth_source: 'local' | 'ldap';
   created_at: string;
   last_login?: string;
 }

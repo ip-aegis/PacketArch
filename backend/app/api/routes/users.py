@@ -31,8 +31,14 @@ async def change_own_password(
     """
     Change the current user's password.
 
-    Requires the current password for verification.
+    Requires the current password for verification. Not available to LDAP
+    users — their password lives in the directory.
     """
+    if current_user.auth_source != "local" or current_user.password_hash is None:
+        raise ValidationError(
+            "Password is managed by your directory (LDAP). Change it there."
+        )
+
     # Verify current password
     if not verify_password(request.current_password, current_user.password_hash):
         raise ValidationError("Current password is incorrect")
@@ -64,6 +70,11 @@ async def admin_reset_password(
     Does not require the user's current password.
     """
     target_user = await get_or_404(db, User, user_id, "User")
+
+    if target_user.auth_source != "local":
+        raise ValidationError(
+            f"User '{target_user.username}' authenticates via LDAP — password cannot be reset here."
+        )
 
     # Update password
     target_user.password_hash = get_password_hash(request.new_password)

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, protocols, scenario_versions, scenarios, stats, templates, users
+from app.api.routes import adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, stats, templates, users
 from app.api.websocket import agent_hub
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
@@ -154,6 +154,7 @@ app.include_router(attacks.router, prefix=settings.api_prefix)
 app.include_router(cve.router, prefix=settings.api_prefix)
 app.include_router(cloud_services.router, prefix=settings.api_prefix)
 app.include_router(cyber_vision.router, prefix=settings.api_prefix)
+app.include_router(ldap.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
 app.include_router(health_monitor_routes.router, prefix=settings.api_prefix)

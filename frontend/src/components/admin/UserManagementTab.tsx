@@ -22,6 +22,7 @@ import {
   CloseCircleOutlined,
   UserOutlined,
   CrownOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -118,6 +119,13 @@ const UserManagementTab: React.FC = () => {
           {record.is_admin && (
             <Tag color="gold">Admin</Tag>
           )}
+          {record.auth_source === 'ldap' ? (
+            <Tag icon={<IdcardOutlined />} color="blue">
+              LDAP
+            </Tag>
+          ) : (
+            <Tag color="default">Local</Tag>
+          )}
         </Space>
       ),
     },
@@ -160,13 +168,15 @@ const UserManagementTab: React.FC = () => {
       width: 200,
       render: (_, record: User) => (
         <Space>
-          <Button
-            size="small"
-            icon={<LockOutlined />}
-            onClick={() => handleResetPassword(record)}
-          >
-            Reset Password
-          </Button>
+          {record.auth_source === 'local' && (
+            <Button
+              size="small"
+              icon={<LockOutlined />}
+              onClick={() => handleResetPassword(record)}
+            >
+              Reset Password
+            </Button>
+          )}
           {!record.is_admin && (
             <Popconfirm
               title={`${record.is_active ? 'Deactivate' : 'Activate'} user?`}

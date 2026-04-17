@@ -1,5 +1,6 @@
 """Authentication routes."""
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
@@ -16,8 +17,74 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
+from app.services import ldap_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+INVALID_CREDENTIALS = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Incorrect username or password",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+
+async def _authenticate_via_ldap(db, credentials: UserLogin) -> User | None:
+    """Try LDAP first. Returns a User on success, or None to fall through to local."""
+    config = await ldap_service.load_config(db)
+    if not ldap_service.is_enabled(config):
+        return None
+
+    result = ldap_service.authenticate(config, credentials.username, credentials.password)
+    if not result.success:
+        # Reason "not_found" / "disabled" falls back to local; anything else
+        # is treated the same to avoid leaking which path accepted the creds.
+        return None
+
+    info = result.user
+    assert info is not None
+
+    # JIT provisioning: look up by (auth_source, ldap_dn) first, then username
+    # as a migration-friendly fallback (e.g. if the DN was rewritten upstream).
+    user = (
+        await db.execute(
+            select(User).where(User.auth_source == "ldap", User.ldap_dn == info.dn)
+        )
+    ).scalar_one_or_none()
+
+    if user is None:
+        user = (
+            await db.execute(
+                select(User).where(User.username == credentials.username)
+            )
+        ).scalar_one_or_none()
+        if user is not None and user.auth_source == "local":
+            # Don't let an LDAP login hijack an existing local account with
+            # the same username.
+            logger.warning(
+                "LDAP login for '%s' collides with existing local account; rejecting",
+                credentials.username,
+            )
+            return None
+
+    if user is None:
+        user = User(
+            username=credentials.username,
+            email=info.email,
+            auth_source="ldap",
+            ldap_dn=info.dn,
+            password_hash=None,
+            is_active=True,
+            is_admin=False,
+        )
+        db.add(user)
+    else:
+        user.ldap_dn = info.dn
+        if info.email:
+            user.email = info.email
+    return user
 
 
 @router.post("/login", response_model=Token)
@@ -25,17 +92,26 @@ async def login(
     credentials: UserLogin,
     db: DBSession,
 ) -> Token:
-    """Authenticate user and return JWT tokens."""
-    # Find user by username
-    result = await db.execute(select(User).where(User.username == credentials.username))
-    user = result.scalar_one_or_none()
+    """Authenticate user and return JWT tokens.
 
-    if user is None or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    Tries LDAP first (if enabled and configured), then falls back to the local
+    bcrypt flow. Any failure — LDAP unreachable, wrong LDAP password, unknown
+    user — silently falls through so a local admin can still log in.
+    """
+    user = await _authenticate_via_ldap(db, credentials)
+
+    if user is None:
+        # Local bcrypt fallback. Covers: LDAP disabled, user not found in LDAP,
+        # LDAP unreachable, or an existing local account.
+        result = await db.execute(
+            select(User).where(User.username == credentials.username)
         )
+        user = result.scalar_one_or_none()
+
+        if user is None or user.password_hash is None or not verify_password(
+            credentials.password, user.password_hash
+        ):
+            raise INVALID_CREDENTIALS
 
     if not user.is_active:
         raise HTTPException(
@@ -46,6 +122,7 @@ async def login(
     # Update last login
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
+    await db.refresh(user)
 
     # Create tokens
     token_data = {"sub": str(user.id)}

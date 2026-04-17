@@ -26,9 +26,9 @@ class User(Base):
         nullable=False,
         index=True,
     )
-    password_hash: Mapped[str] = mapped_column(
+    password_hash: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=False,
+        nullable=True,
     )
     email: Mapped[str | None] = mapped_column(
         String(255),
@@ -44,6 +44,16 @@ class User(Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+    auth_source: Mapped[str] = mapped_column(
+        String(16),
+        default="local",
+        server_default="local",
+        nullable=False,
+    )
+    ldap_dn: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

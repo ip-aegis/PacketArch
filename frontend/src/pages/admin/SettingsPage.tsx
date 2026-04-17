@@ -30,9 +30,11 @@ import {
   RocketOutlined,
   DownloadOutlined,
   FileOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
+import LdapTab from '../../components/admin/LdapTab';
 import AgentsTab from '../../components/admin/AgentsTab';
 import DownloadsTab from '../../components/admin/DownloadsTab';
 import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
@@ -487,6 +489,15 @@ const SettingsPage: React.FC = () => {
         </span>
       ),
       children: <CyberVisionTab />,
+    },
+    {
+      key: 'ldap',
+      label: (
+        <span>
+          <IdcardOutlined /> LDAP / AD
+        </span>
+      ),
+      children: <LdapTab />,
     },
     {
       key: 'users',

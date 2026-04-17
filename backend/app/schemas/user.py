@@ -35,6 +35,7 @@ class UserResponse(UserBase):
     id: uuid.UUID
     is_active: bool
     is_admin: bool
+    auth_source: str
     created_at: datetime
     last_login: datetime | None
 
