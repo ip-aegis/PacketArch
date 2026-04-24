@@ -9,9 +9,38 @@ from typing import Any, AsyncIterator
 
 from openai import AsyncOpenAI
 
+from app.ai_services.skills import SkillNotFoundError, get_registry
 from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
+
+
+def _prepend_skills_as_system(
+    messages: list[dict[str, Any]],
+    skills: list[str] | None,
+) -> list[dict[str, Any]]:
+    """Return a copy of ``messages`` with skill bodies inlined at the front.
+
+    Skills load from the shared registry. Missing skills are logged and
+    skipped so a typo never breaks a live call. If no skills resolve,
+    ``messages`` is returned unchanged (same object).
+    """
+    if not skills:
+        return messages
+
+    registry = get_registry()
+    bodies: list[str] = []
+    for name in skills:
+        try:
+            bodies.append(registry.get(name).body)
+        except SkillNotFoundError:
+            logger.warning("Skill '%s' not registered; continuing without it", name)
+
+    if not bodies:
+        return messages
+
+    skill_block = {"role": "system", "content": "\n\n---\n\n".join(bodies)}
+    return [skill_block, *messages]
 
 
 class OpenAIProvider(AIProvider):
@@ -34,6 +63,7 @@ class OpenAIProvider(AIProvider):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to OpenAI.
 
@@ -43,6 +73,9 @@ class OpenAIProvider(AIProvider):
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (None = OpenAI default)
             output_config: Structured output config (mapped to response_format)
+            skills: Ordered PacketArch skill names. OpenAI has no native
+                skill/cache-block primitive, so the bodies are inlined
+                into a single leading system message.
 
         Returns:
             OpenAI's response in standard format
@@ -51,6 +84,9 @@ class OpenAIProvider(AIProvider):
         openai_tools = None
         if tools:
             openai_tools = self._convert_tools_to_openai_format(tools)
+
+        # Inline skills into a leading system message (best effort on OpenAI).
+        messages = _prepend_skills_as_system(messages, skills)
 
         # Convert messages to OpenAI format
         openai_messages = self._convert_messages_to_openai_format(messages)
@@ -95,6 +131,7 @@ class OpenAIProvider(AIProvider):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to OpenAI.
 
@@ -102,6 +139,7 @@ class OpenAIProvider(AIProvider):
             messages: List of message objects
             tools: Optional list of MCP tool definitions
             max_tokens: Maximum tokens to generate
+            skills: Ordered skill names (inlined as a system message).
 
         Yields:
             Streaming response chunks
@@ -110,6 +148,9 @@ class OpenAIProvider(AIProvider):
         openai_tools = None
         if tools:
             openai_tools = self._convert_tools_to_openai_format(tools)
+
+        # Inline skills into a leading system message.
+        messages = _prepend_skills_as_system(messages, skills)
 
         # Convert messages to OpenAI format
         openai_messages = self._convert_messages_to_openai_format(messages)

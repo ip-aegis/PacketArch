@@ -8,6 +8,7 @@ from typing import Any, AsyncIterator
 
 from anthropic import AsyncAnthropic
 
+from app.ai_services.skills import SkillNotFoundError, get_registry
 from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,60 @@ class AnthropicProvider(AIProvider):
             budget = min(5000, max(1024, max_tokens - 1024))
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
 
+    def _build_system_blocks(
+        self,
+        system_message: str | None,
+        skills: list[str] | None,
+    ) -> list[dict[str, Any]] | None:
+        """Compose the ``system`` field as a list of cacheable text blocks.
+
+        Skill bodies are stable and reused across requests, so each skill
+        gets its own ephemeral-cache marker. The task-specific system
+        prompt is appended last (also cached) so it can evolve per call
+        without invalidating the skill prefix.
+
+        Args:
+            system_message: Task-specific system prompt text (may be None).
+            skills: Ordered skill names to load and prepend. Unknown
+                names are logged and skipped so a missing skill never
+                breaks a live call.
+
+        Returns:
+            A list of Anthropic ``system`` blocks, or None if there is
+            no content to send.
+        """
+        blocks: list[dict[str, Any]] = []
+
+        if skills:
+            registry = get_registry()
+            for skill_name in skills:
+                try:
+                    skill = registry.get(skill_name)
+                except SkillNotFoundError:
+                    logger.warning(
+                        "Skill '%s' not registered; continuing without it",
+                        skill_name,
+                    )
+                    continue
+                blocks.append(
+                    {
+                        "type": "text",
+                        "text": skill.body,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+
+        if system_message:
+            blocks.append(
+                {
+                    "type": "text",
+                    "text": system_message,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            )
+
+        return blocks or None
+
     async def chat(
         self,
         messages: list[dict[str, Any]],
@@ -67,6 +122,7 @@ class AnthropicProvider(AIProvider):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to Claude.
 
@@ -78,6 +134,10 @@ class AnthropicProvider(AIProvider):
             output_config: Structured output config for guaranteed JSON schema
                 compliance. Example: {"format": {"type": "json_schema",
                 "schema": {...}}}
+            skills: Ordered list of skill names to prepend to the system
+                prompt. Each skill is loaded from
+                ``backend/app/ai_services/skills/`` and emitted as its
+                own cacheable ``system`` block.
 
         Returns:
             Claude's response
@@ -103,15 +163,10 @@ class AnthropicProvider(AIProvider):
                 "messages": chat_messages,
             }
 
-            # System message with prompt caching
-            if system_message:
-                kwargs["system"] = [
-                    {
-                        "type": "text",
-                        "text": system_message,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ]
+            # Skills (if any) + task system prompt, all cacheable.
+            system_blocks = self._build_system_blocks(system_message, skills)
+            if system_blocks:
+                kwargs["system"] = system_blocks
 
             if claude_tools:
                 kwargs["tools"] = claude_tools
@@ -151,6 +206,7 @@ class AnthropicProvider(AIProvider):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to Claude.
 
@@ -160,6 +216,7 @@ class AnthropicProvider(AIProvider):
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (None = Claude default 1.0)
             output_config: Structured output config for guaranteed JSON schema
+            skills: Ordered skill names to prepend (see :meth:`chat`).
 
         Yields:
             Streaming response chunks
@@ -185,15 +242,9 @@ class AnthropicProvider(AIProvider):
                 "messages": chat_messages,
             }
 
-            # System message with prompt caching
-            if system_message:
-                kwargs["system"] = [
-                    {
-                        "type": "text",
-                        "text": system_message,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ]
+            system_blocks = self._build_system_blocks(system_message, skills)
+            if system_blocks:
+                kwargs["system"] = system_blocks
 
             if claude_tools:
                 kwargs["tools"] = claude_tools

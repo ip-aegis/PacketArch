@@ -226,6 +226,18 @@ When answering questions:
 }
 
 
+# Maps a help context to extra skills. Skills are appended *in addition*
+# to the context-specific HELP_CONTEXTS system prompt. Each skill body
+# is cached independently so repeated help queries in the same context
+# are near-free to serve.
+CONTEXT_SKILLS: dict[str, list[str]] = {
+    "attack_config": ["packetarch-ics-attack-playbooks"],
+    "device_config": ["packetarch-fingerprint-validator", "packetarch-device-naming"],
+    "scenario_studio": ["packetarch-scenario-authoring", "packetarch-device-naming"],
+    "protocol_selection": ["packetarch-fingerprint-validator"],
+}
+
+
 async def _get_ai_provider(db: DBSession):
     """Get the configured AI provider."""
     from sqlalchemy import select
@@ -280,6 +292,7 @@ async def help_chat(
     """
     # Get context-specific system prompt
     system_prompt = HELP_CONTEXTS.get(request.context, HELP_CONTEXTS["general"])
+    skills = CONTEXT_SKILLS.get(request.context)
 
     # Send system prompt as a proper system message for prompt caching
     messages = [
@@ -293,6 +306,7 @@ async def help_chat(
         response = await provider.chat(
             messages=messages,
             max_tokens=4096,
+            skills=skills,
         )
 
         response_text = _extract_response_text(response)

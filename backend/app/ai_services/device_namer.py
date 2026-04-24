@@ -77,55 +77,12 @@ class DeviceNamingResponse(BaseModel):
     devices: list[DeviceNameMapping] = Field(default_factory=list)
 
 
-# ==================== System Prompt ====================
+# ==================== Skill Wiring ====================
 
-DEVICE_NAMING_SYSTEM_PROMPT = """You are an OT (Operational Technology) naming expert specializing in industrial control systems. Your task is to generate meaningful, descriptive device names that reflect:
-
-1. **The industrial process being performed** - Names should indicate what the device controls or monitors
-2. **The device's specific function** - What role does this device play in the process?
-3. **The physical location or zone** - Where is this device located?
-4. **The control hierarchy** - Is this a main controller, auxiliary, field device, etc.?
-
-## NAMING RULES
-
-1. **Use underscores** to separate words (e.g., "Assembly_Line_Main_PLC")
-2. **Keep names under 40 characters** for readability
-3. **Include process/area context** (e.g., "Packaging_", "Paint_Booth_", "CNC_Cell_")
-4. **Include function context** (e.g., "_Motor_Drive", "_Level_Sensor", "_Controller")
-5. **Use sequential numbering only** when multiple identical devices exist in the same area
-6. **Ensure ALL names are UNIQUE** - no two devices should have the same name
-7. **Be specific** - avoid generic names that don't convey meaning
-
-## GOOD EXAMPLES (Process-Aware)
-
-- "CNC_Cell_1_Main_Controller" (not "PLC-MAIN-01")
-- "Paint_Booth_Exhaust_VFD" (not "VFD-01")
-- "Conveyor_Zone_A_IO_Module" (not "IO-01")
-- "Packaging_Line_Operator_HMI" (not "HMI-01")
-- "Assembly_Robot_Servo_X_Axis" (not "SERVO-01")
-- "Cooling_Tower_Pump_Drive" (not "VFD-02")
-- "Material_Handling_Safety_PLC" (not "PLC-SAFETY-01")
-- "Welding_Cell_2_Spot_Welder_IO" (not "ET200SP-01")
-
-## BAD EXAMPLES (Generic)
-
-- "PLC-001", "VFD-02", "SENSOR-003" (too generic, no process context)
-- "Device_1", "Controller_A" (meaningless)
-- "Siemens_PLC_1" (vendor is not process context)
-- "Zone_1_Device_1" (zone alone is not enough)
-
-## RESPONSE FORMAT
-
-Return a JSON object with a "devices" array containing objects with "device_id" and "new_name" keys:
-
-```json
-{
-  "devices": [
-    {"device_id": "device_001", "new_name": "CNC_Cell_1_Main_Controller"},
-    {"device_id": "device_002", "new_name": "Assembly_Line_Motor_Drive_1"}
-  ]
-}
-```"""
+# Naming rules and examples now live in the ``packetarch-device-naming``
+# skill. The skill is attached at request time so its body is cached
+# independently of the per-call scenario context.
+DEVICE_NAMING_SKILL = "packetarch-device-naming"
 
 
 # ==================== AIDeviceNamer Service ====================
@@ -169,7 +126,8 @@ class AIDeviceNamer:
         # Build the user prompt with device details
         user_prompt = self._build_user_prompt(devices, context)
 
-        # Call AI
+        # Call AI — naming rules come from the skill; per-call scenario
+        # context is the user message.
         messages = [
             {"role": "user", "content": user_prompt},
         ]
@@ -178,6 +136,7 @@ class AIDeviceNamer:
             response = await ai_provider.chat(
                 messages=messages,
                 max_tokens=4096,
+                skills=[DEVICE_NAMING_SKILL],
             )
 
             # Parse response
@@ -235,12 +194,9 @@ class AIDeviceNamer:
 
         devices_text = "\n".join(device_lines)
 
-        # Build full prompt
-        prompt = f"""{DEVICE_NAMING_SYSTEM_PROMPT}
-
----
-
-## SCENARIO CONTEXT
+        # Scenario-specific context only — naming rules are provided by
+        # the packetarch-device-naming skill attached to the request.
+        prompt = f"""## SCENARIO CONTEXT
 
 **Vertical:** {context.vertical}
 **Template:** {context.template_name}

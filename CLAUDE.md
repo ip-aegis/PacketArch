@@ -302,6 +302,31 @@ Every automated scenario creation path (templates, AI generation, quick demo) mu
 
 Natural language scenario generation, context-aware AI assistant, AI-powered help system. Key files: `api/routes/ai.py`, `mcp_server/`, `ai_services/`.
 
+### Claude Agent Skills
+
+Domain procedural knowledge is packaged as Claude Agent Skills under
+`backend/app/ai_services/skills/`. Each skill is a directory with a
+`SKILL.md` (YAML-lite frontmatter + markdown body). The
+`SkillRegistry` (`skills/registry.py`) loads them once per process.
+
+Shipped skills:
+
+- `packetarch-scenario-authoring` — Purdue levels, IEC 62443 conduits, vendor-protocol affinity, flow coverage, poll timing
+- `packetarch-fingerprint-validator` — 295-template catalog, OUI rules, protocol identity matrix, remediation actions
+- `packetarch-ics-attack-playbooks` — 9 playbooks, kill-chain vocabulary, action generator catalog
+- `packetarch-device-naming` — process-aware naming rules + vertical vocabulary
+- `packetarch-scenario-review` — scoring guide, categories, remediation action schemas
+
+Skills attach via `provider.chat(..., skills=["name1", "name2"])`.
+`AnthropicProvider._build_system_blocks()` emits each skill as its own
+cacheable text block (ephemeral cache_control) ahead of the per-call
+system prompt. OpenAI fallback inlines bodies as a single system
+message. Missing skills are logged and skipped — never fatal.
+
+To add a skill: create `skills/<name>/SKILL.md` with `name`,
+`description`, `version` frontmatter. Wire it at call sites via the
+`skills=[...]` kwarg. Visible at `GET /api/v1/ai/skills`.
+
 ---
 
 ## Workflow Orchestration

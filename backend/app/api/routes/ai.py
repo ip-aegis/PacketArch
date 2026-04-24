@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import select
@@ -1885,85 +1886,17 @@ SCENARIO_REVIEW_JSON_SCHEMA: dict[str, Any] = {
     },
 }
 
-_REVIEW_SYSTEM_PROMPT = """\
-You are an OT network scenario quality reviewer for PacketArch, an industrial \
-traffic simulation platform. Analyze the scenario and return structured findings.
-
-SCORING GUIDE:
-- 90-100: Production-ready. Realistic topology, proper fingerprints, appropriate \
-protocols, good flow coverage, security considerations addressed.
-- 70-89: Good but has improvement areas. Missing some best practices.
-- 50-69: Needs work. Significant topology, protocol, or realism issues.
-- Below 50: Major problems. Missing devices, no flows, or critical misconfigurations.
-
-REVIEW CATEGORIES:
-1. topology — Network structure, Purdue model compliance, zone organization, device \
-hierarchy (PLCs, HMIs, SCADA, switches), orphan devices, missing infrastructure.
-2. protocols — Protocol selection per device vendor, vendor-protocol affinity \
-(Siemens→PROFINET+S7comm, Rockwell→EtherNet/IP, Schneider→Modbus TCP), missing \
-flow types, protocol identity data coverage.
-3. timing — Poll interval appropriateness by device role (safety: 50-200ms, \
-PLCs: 500-2000ms, trending: 2000-10000ms), phase configuration, traffic schedule.
-4. realism — Fingerprint coverage, vendor consistency, device naming quality, \
-MAC/IP uniqueness, zone diversity, flow-to-device ratio (ideal: 2:1 to 4:1).
-5. security — CVE exposure on critical devices, safety system isolation, network \
-segmentation between Purdue levels, attack surface considerations.
-
-EXPERT HEURISTICS:
-- Every device should participate in at least one flow.
-- Each zone should have at least one infrastructure device (switch/router).
-- Purdue Level 0-1 devices should not directly communicate with Level 3+.
-- Manufacturing scenarios need 3+ zones (field, cell/control, supervisory).
-- HMIs typically connect to PLCs via S7comm or EtherNet/IP, not Modbus.
-- Safety PLCs need PROFIsafe or CIP Safety protocol flows.
-- MAC address OUI prefixes should match the device vendor. If a device's \
-mac_prefix doesn't correspond to its declared vendor (e.g., Siemens OUI on a \
-Rockwell device), suggest regenerate_macs remediation.
-- Devices with generic names (device_001, plc_1, sensor_2) should be renamed \
-to reflect their industrial role, zone, and process context.
-
-REMEDIATION ACTIONS:
-For each finding, if the issue can be fixed automatically, include a "remediation" \
-object with "action_type" and "params_json" (a JSON-encoded string of the params object). \
-Set remediation to null if manual intervention is required or the fix is ambiguous.
-
-Supported action_types and their params_json values:
-- "assign_fingerprint": "{\"device_id\": \"...\", \"vendor\": \"...\", \"model\": \"...\"}"
-  Use when a device lacks a fingerprint. Pick the best vendor/model for the device type.
-- "repair_protocols": "{\"device_ids\": [\"...\"]}"
-  Use when devices have protocols not supported by their fingerprint.
-- "update_flow_timing": "{\"flow_id\": \"...\", \"interval_ms\": 1000}"
-  Use when poll intervals are inappropriate for the device role.
-- "add_flow": "{\"source_device_id\": \"...\", \"target_device_id\": \"...\", \"protocol\": \"...\", \"interval_ms\": 1000}"
-  Use when orphan devices need flows or critical connections are missing.
-- "assign_ips": "{\"device_ids\": [\"...\"]}"
-  Use when devices are missing IP addresses.
-- "regenerate_macs": "{\"device_ids\": [\"...\"]}"
-  Use when MAC addresses are duplicated or missing.
-- "apply_cve": "{\"device_id\": \"...\", \"cve_id\": \"...\"}"
-  Use when a critical device should have a known vulnerability applied.
-- "remove_device": "{\"device_id\": \"...\"}"
-  Use only when a device is clearly extraneous or misconfigured beyond repair.
-- "rename_device": "{\"device_id\": \"...\", \"new_name\": \"...\"}"
-  Use when a device has a generic or unrealistic name (e.g., "device_001", "plc_1"). \
-Suggest a name reflecting the device's role, vendor, and zone context \
-(e.g., "Assembly_Line_PLC_1", "WTP_Main_Pump_VFD_03", "Substation_Bay1_Relay").
-
-IMPORTANT:
-- The readiness check results are included — build on them, don't duplicate.
-- Focus on qualitative improvements binary checks cannot detect.
-- Each finding must have a specific, actionable suggestion.
-- Use actual device and flow names when referencing items.
-- Return device IDs and flow IDs in the affected_*_ids arrays.
-- Write a concise summary paragraph (2-4 sentences) assessing overall quality.
-- Only include remediation when you are confident the fix is correct.
-- For complex issues requiring human judgment, set remediation to null.
-- For "assign_fingerprint" actions, you MUST use a vendor/model pair from the \
-"available_fingerprints" dict in the context. NEVER invent model names.
-- CRITICAL: All device_id and flow_id values in remediation params MUST be the \
-actual UUID strings from the context (the "id" field), NOT device/flow names. \
-Use the "device_id_map" to look up UUIDs by name if needed.
-"""
+# Scoring rules, review categories, remediation action schemas, and
+# device-naming conventions live in the ``packetarch-scenario-review``,
+# ``packetarch-fingerprint-validator``, and ``packetarch-device-naming``
+# skills. The per-call system message below is kept minimal so those
+# skill bodies remain cache-hits across requests.
+_REVIEW_SYSTEM_PROMPT = (
+    "You are the PacketArch scenario quality reviewer. Follow the "
+    "review workflow and scoring guide from the attached skills. The "
+    "user message contains a compact scenario representation plus the "
+    "readiness check results — build on them, do not duplicate."
+)
 
 
 def _get_available_fingerprints() -> dict[str, list[str]]:
@@ -2170,6 +2103,11 @@ async def review_scenario(
                     "schema": SCENARIO_REVIEW_JSON_SCHEMA,
                 }
             },
+            skills=[
+                "packetarch-scenario-review",
+                "packetarch-fingerprint-validator",
+                "packetarch-device-naming",
+            ],
         )
 
         # Extract JSON from structured output
@@ -2276,6 +2214,38 @@ async def remediate_scenario(
         failed=failed,
         results=results,
     )
+
+
+class SkillInfo(BaseModel):
+    """Summary of a registered Claude Agent Skill."""
+
+    name: str
+    description: str
+    version: str
+    tags: list[str]
+    tokens_estimate: int
+
+
+@router.get("/skills", response_model=list[SkillInfo])
+async def list_skills(current_user: CurrentUser) -> list[SkillInfo]:
+    """List every Claude Agent Skill available to the AI pipeline.
+
+    Returned metadata is what the AnthropicProvider would attach to a
+    request — useful for debugging which procedural knowledge Claude
+    sees for a given call site.
+    """
+    from app.ai_services.skills import get_registry
+
+    return [
+        SkillInfo(
+            name=skill.name,
+            description=skill.description,
+            version=skill.version,
+            tags=list(skill.tags),
+            tokens_estimate=skill.tokens_estimate,
+        )
+        for skill in get_registry().list_skills()
+    ]
 
 
 # Include help router from separate module

@@ -349,6 +349,11 @@ class AIScenarioDesigner:
                             "schema": SCENARIO_DESIGN_JSON_SCHEMA,
                         },
                     },
+                    skills=[
+                        "packetarch-scenario-authoring",
+                        "packetarch-fingerprint-validator",
+                        "packetarch-device-naming",
+                    ],
                 ),
                 timeout=300.0,
             )
@@ -599,138 +604,22 @@ class AIScenarioDesigner:
 
         fingerprint_list = "\n".join(fingerprint_lines)
 
-        return f"""You are an expert OT (Operational Technology) network architect designing realistic industrial control system scenarios for PacketArch, a traffic simulation platform used for security testing.
-
-## Your Task
-Design a complete OT network scenario with devices, communication flows, and network zones based on the user's description. Generate REALISTIC, CONTEXTUAL names and configurations.
-
-## Available Vendor Fingerprints (MUST use for fingerprint_model field)
-Each model shows its supported protocols after the arrow (→). ONLY use protocols listed for that model.
+        # Only the dynamic, per-request fingerprint catalog lives in the
+        # system prompt. Static authoring rules (Purdue, conduit
+        # semantics, naming, flow coverage) come from the
+        # ``packetarch-scenario-authoring`` +
+        # ``packetarch-fingerprint-validator`` skills wired at the call
+        # site in ``phase_call_ai()``.
+        return f"""## Available Vendor Fingerprints (MUST use for fingerprint_model field)
+Each model shows its supported protocols after the arrow (→). ONLY use
+protocols listed for that model. Do NOT invent model names or use
+"Generic" — only use exact models from the catalog below.
 
 {fingerprint_list}
 
-## Protocol Selection Rules (CRITICAL)
-- fingerprint_model MUST be an EXACT model from the list above (e.g., "6ES7 517-3AP00-0AB0", "1756-L85E")
-- ONLY assign protocols that appear after the → for your chosen model
-- If you need ethernet_ip, select a Rockwell model (1756-L85E, 1769-L33ER, etc.)
-- If you need profinet/s7comm, select a Siemens model (6ES7 517-3AP00-0AB0, etc.)
-- modbus_tcp is supported by most models
-- Do NOT invent model names or use "Generic" - only use exact models from the list
-
-## Industry Verticals
-- manufacturing: PLCs, HMIs, drives, robots, sensors (Rockwell, Siemens, Schneider)
-- water: RTUs, PLCs, pump controllers, flow meters, level sensors (Schneider, Honeywell, GE)
-- energy: RTUs, IEDs, PMUs, meters (GE, ABB, Siemens)
-- oil_gas: RTUs, PLCs, flow computers, compressor controllers (Emerson, Honeywell, ABB)
-- building_automation: BMS controllers, HVAC units, energy meters, lighting controllers (Johnson Controls, Trane, Carrier, Automated Logic, Distech)
-- transportation: Traffic controllers, DMS, radars, cameras, RSUs, weather stations (Econolite, Siemens ITS, McCain, Wavetronix, Axis, FLIR)
-
-## Vendor Selection Guidelines
-- Rockwell: Best for EtherNet/IP scenarios (Allen-Bradley PLCs, drives)
-- Siemens: Best for PROFINET/S7comm scenarios (S7-1500, S7-1200, SINAMICS)
-- Schneider: Best for Modbus TCP scenarios (Modicon M580, M340)
-- GE: Good for hybrid EtherNet/IP and Modbus scenarios (PACSystems)
-- Transportation ITS vendors: Use for SNMP/NTCIP traffic scenarios
-
-## Zone and IP Address Rules
-- Each zone MUST have a unique subnet_offset (0, 1, 2, etc.)
-- Zone subnet_offset determines the third octet: 10.X.{{subnet_offset}}.0/24
-- Assign Purdue model level to each zone: 0=Field, 1=Control, 2=Supervisory, 3=Operations
-- Device IPs are auto-assigned within their zone's /24 subnet
-- Do NOT hardcode specific IP addresses - they will be auto-assigned
-
-## IEC 62443 Conduit Rules (MUST FOLLOW)
-
-Conduits define allowed communication boundaries between zones per IEC 62443.
-
-1. **Every cross-zone flow MUST have a conduit** between its source and target zones.
-   - If a flow connects device in Zone A to device in Zone B, a conduit between Zone A and Zone B must exist.
-   - The conduit's allowed_protocols MUST include the protocol used in that flow.
-
-2. **Purdue adjacency**: Conduits should follow Purdue model adjacency where possible:
-   - L0 (Field) <-> L1 (Control)
-   - L1 (Control) <-> L2 (Supervisory)
-   - L2 (Supervisory) <-> L3 (Operations)
-   - L3 (Operations) <-> L3.5 (DMZ)
-   - L3.5 (DMZ) <-> L4 (Enterprise)
-   - Non-adjacent zone communication (e.g., L0 <-> L2) is allowed but should use security_level "high" or "critical".
-
-3. **Security levels**:
-   - "minimal": intra-level conduits, same trust domain
-   - "standard": adjacent Purdue levels (e.g., L1 <-> L2)
-   - "high": non-adjacent levels or crossing safety boundaries
-   - "critical": anything touching DMZ or enterprise zones
-
-4. **Direction**: Use "bidirectional" for poll/response flows (most common in OT).
-   Use "a_to_b" or "b_to_a" for unidirectional data diodes or one-way monitoring.
-
-5. **Conduit naming**: Use descriptive names reflecting the zones connected.
-   - GOOD: "Control_to_Field_Modbus", "Supervisory_HMI_Link"
-   - BAD: "Conduit_1", "C1"
-
-6. **Do NOT create conduits for intra-zone flows** (flows within the same zone).
-
-## Output Format
-Your response format is enforced by the system (JSON schema). Fill every field.
-- vertical: one of manufacturing, water, energy, oil_gas, building_automation, transportation
-- device_type examples: plc, hmi, rtu, drive, sensor, robot, ied, meter, pump_controller, flow_meter, level_sensor, flow_computer, traffic_controller, dms, rsu, radar_sensor, weather_station, camera, lighting_controller, ventilation_controller, toll_controller, jump_server, remote_gateway
-- vendor examples: rockwell, siemens, schneider, abb, honeywell, emerson, ge, econolite, siemens_its, mccain, wavetronix, flir, vaisala, daktronics, axis, bosch, hms
-- pattern: polling, event, or periodic
-- conduit direction: bidirectional, a_to_b, or b_to_a
-- conduit security_level: minimal, standard, high, or critical
-- design_rationale: brief explanation of why you made these design choices
-
-## CRITICAL CONNECTIVITY RULES (MUST FOLLOW)
-
-1. **EVERY device MUST appear in at least one flow** - No orphan devices allowed. If you create a device, it MUST be either a source or target in at least one flow.
-
-2. **OT Hierarchy (Purdue Model)**:
-   - Level 2 (Supervisory): HMI, SCADA servers, historians, engineering stations
-   - Level 1 (Control): PLCs, RTUs, DCS controllers
-   - Level 0 (Field): Sensors, drives, meters, I/O modules, actuators, flow meters, level sensors
-
-3. **Communication Direction Rules (STRICT)**:
-   - Controllers (PLC/RTU) are SOURCES that poll field devices (sensors, drives, meters)
-   - Field devices (sensors/drives/meters) are TARGETS only - they respond to polls, never initiate
-   - HMIs poll controllers (HMI → PLC), never field devices directly
-   - SCADA polls controllers or receives from historians
-
-4. **Flow Coverage Requirements**:
-   - Every controller MUST have flows TO field devices it controls
-   - Every field device MUST be polled BY at least one controller
-   - Every HMI MUST poll at least one controller
-   - If SCADA exists, it MUST connect to controllers
-
-5. **Device-to-Flow Ratio**:
-   - Minimum: 1 flow per device (every device connected)
-   - Recommended: 1.5-2x flows vs devices for realistic topology
-   - Example: 10 devices should have 15-20 flows
-
-## Design Guidelines
-
-1. **Device Names**: Use descriptive, scenario-specific names with underscores
-   - GOOD: "Bottling_Line_Main_PLC", "Tank_A_Level_Sensor", "Packaging_HMI_01"
-   - BAD: "PLC-001", "SENSOR-002", "Device_1"
-
-2. **Realistic Topology Pattern**:
-   - PLCs/RTUs at center, polling multiple field devices each
-   - HMIs connect to PLCs for operator visualization
-   - Each PLC should poll 3-8 field devices
-   - Group devices by physical area/function
-
-3. **Poll Intervals by Data Type**:
-   - Safety/interlocks: 50-100ms
-   - Process control: 100-500ms
-   - Monitoring/trending: 1000-5000ms
-
-4. **Zone Names**: Reflect physical or logical areas
-   - GOOD: "Packaging_Area", "Quality_Control_Lab", "Pump_Station_1"
-   - BAD: "Zone_1", "Area_A", "Field"
-
-5. **Flow Descriptions**: Explain the PURPOSE of communication
-   - GOOD: "Main PLC reads tank level for fill control logic"
-   - BAD: "PLC polling sensor"
-"""
+Recall from the authoring skill: `fingerprint_model` is an exact
+string, protocols must be a subset of what the arrow lists, and cross-
+zone flows need matching conduits."""
 
     def _build_design_prompt(
         self,

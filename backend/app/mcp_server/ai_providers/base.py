@@ -18,6 +18,7 @@ class AIProvider(ABC):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to the AI.
 
@@ -27,6 +28,10 @@ class AIProvider(ABC):
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (None = provider default)
             output_config: Structured output config (e.g. JSON schema enforcement)
+            skills: Ordered skill names to prepend to the system prompt.
+                Providers that support Agent Skills load each skill's
+                body and emit it as cacheable context. Providers without
+                skill support may ignore this parameter.
 
         Returns:
             AI response
@@ -41,6 +46,7 @@ class AIProvider(ABC):
         max_tokens: int = 16384,
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
+        skills: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to the AI.
 
@@ -50,6 +56,7 @@ class AIProvider(ABC):
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature (None = provider default)
             output_config: Structured output config (e.g. JSON schema enforcement)
+            skills: Ordered skill names to prepend (see :meth:`chat`).
 
         Yields:
             Streaming response chunks
