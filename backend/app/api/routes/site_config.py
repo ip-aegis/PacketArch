@@ -87,7 +87,7 @@ async def _get_setting(db, key: str) -> str | None:
 async def _subsystem_ai_provider(db) -> SubsystemStatus:
     features = get_features()
     key_present = bool(await _get_setting(db, "anthropic_api_key"))
-    model = await _get_setting(db, "anthropic_model") or "claude-sonnet-4-5"
+    model = await _get_setting(db, "anthropic_model") or "claude-opus-4-7"
 
     if not features.ai_enabled:
         return SubsystemStatus(

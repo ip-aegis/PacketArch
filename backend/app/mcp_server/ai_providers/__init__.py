@@ -60,7 +60,7 @@ class AIProviderFactory:
                 select(SystemSetting).where(SystemSetting.key == "anthropic_model")
             )
             model_setting = result.scalar_one_or_none()
-            model = model_setting.value if model_setting else "claude-opus-4-6"
+            model = model_setting.value if model_setting else "claude-opus-4-7"
 
             logger.info(f"Creating Anthropic provider with model: {model}")
             return AnthropicProvider(api_key=api_key, model=model)

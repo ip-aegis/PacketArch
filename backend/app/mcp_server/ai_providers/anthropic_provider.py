@@ -14,24 +14,27 @@ logger = logging.getLogger(__name__)
 
 # Models that support extended thinking
 THINKING_MODELS = {
+    "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-opus-4-5-20251101",
+    "claude-sonnet-4-6",
     "claude-sonnet-4-5-20250929",
     "claude-sonnet-4-5",
 }
 # Models that support adaptive thinking (preferred over manual budget_tokens)
-ADAPTIVE_THINKING_MODELS = {"claude-opus-4-6"}
+ADAPTIVE_THINKING_MODELS = {"claude-opus-4-7", "claude-opus-4-6"}
 
 
 class AnthropicProvider(AIProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, api_key: str, model: str = "claude-opus-4-6") -> None:
+    def __init__(self, api_key: str, model: str = "claude-opus-4-7") -> None:
         """Initialize Anthropic provider.
 
         Args:
             api_key: Anthropic API key
-            model: Model to use (default: Claude Opus 4.6)
+            model: Model to use (default: Claude Opus 4.7 — latest,
+                most capable for OT scenario generation + deep tool use).
         """
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
@@ -47,8 +50,8 @@ class AnthropicProvider(AIProvider):
     def _add_thinking_params(self, kwargs: dict[str, Any]) -> None:
         """Add thinking parameters based on model capabilities.
 
-        Opus 4.6: Uses adaptive thinking (model decides when to think deeply).
-        Sonnet 4.5: Uses extended thinking with a budget.
+        Opus 4.7 / 4.6: Uses adaptive thinking (model decides when to think deeply).
+        Sonnet 4.6 / 4.5: Uses extended thinking with a budget.
         """
         if self._supports_adaptive_thinking():
             kwargs["thinking"] = {"type": "adaptive"}

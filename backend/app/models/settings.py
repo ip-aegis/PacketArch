@@ -74,7 +74,7 @@ DEFAULT_SETTINGS = [
     },
     {
         "key": "anthropic_model",
-        "value": "claude-opus-4-6",
+        "value": "claude-opus-4-7",
         "is_secret": False,
         "category": "ai",
         "description": "Anthropic model to use for AI features",
