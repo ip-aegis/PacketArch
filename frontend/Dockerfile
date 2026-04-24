@@ -21,8 +21,10 @@ FROM nginx:alpine
 # Install openssl for certificate generation
 RUN apk add --no-cache openssl
 
-# Create SSL directory
-RUN mkdir -p /etc/nginx/ssl
+# Create SSL directories. /etc/nginx/ssl is the live cert location nginx
+# reads from; /etc/nginx/custom-certs is the read-only mount point operators
+# use to provide a real CA-signed cert (see docker-entrypoint.sh).
+RUN mkdir -p /etc/nginx/ssl /etc/nginx/custom-certs
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
@@ -34,8 +36,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose HTTPS port
-EXPOSE 443
+# Expose HTTPS port. Port 80 is also listened-on for the HTTP→HTTPS redirect
+# block in nginx.conf, but we don't publish it by default.
+EXPOSE 443 80
 
 # Use custom entrypoint to generate certs if needed
 ENTRYPOINT ["/docker-entrypoint.sh"]

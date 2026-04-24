@@ -1,3 +1,7 @@
+# Offline docker-compose for PacketArch release bundles.
+# Uses pre-built images loaded by install.sh (no `build:` stanzas). The
+# VERSION file at the bundle root drives which tags are loaded.
+
 services:
   postgres:
     image: timescale/timescaledb:latest-pg15
@@ -6,8 +10,6 @@ services:
       POSTGRES_USER: packetarch
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: packetarch
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -21,8 +23,6 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -32,26 +32,23 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    image: packetarch/backend:${PACKETARCH_VERSION:-latest}
     restart: unless-stopped
-    group_add:
-      - "987"  # docker group GID for Docker socket access
-    security_opt:
-      - label:disable  # Disable SELinux label separation for Docker socket access
     environment:
       DATABASE_URL: postgresql+asyncpg://packetarch:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/packetarch
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+      BUILD_DATE: ${BUILD_DATE:-unknown}
       DEBUG: ${DEBUG:-false}
-    # Backend is only accessible via nginx proxy (not exposed to host)
     expose:
       - "8001"
     volumes:
       - pcap_uploads:/app/data/pcap_uploads
       - pcap_output:/app/output/pcap
-      - ./docker/packetarch-agent:/docker/packetarch-agent:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
@@ -62,11 +59,11 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
-      start_period: 10s
+      start_period: 20s
       retries: 3
 
   celery_worker:
-    build: ./backend
+    image: packetarch/backend:${PACKETARCH_VERSION:-latest}
     restart: unless-stopped
     command: celery -A app.traffic_generator.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
@@ -74,8 +71,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      # Required by app.core.config Settings validator (same as backend service)
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      AI_ENABLED: ${AI_ENABLED:-false}
     volumes:
       - pcap_output:/app/output/pcap
     depends_on:
@@ -83,7 +80,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Celery worker doesn't run a web server, so use celery inspect ping
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.traffic_generator.tasks.celery_app inspect ping --timeout 5"]
       interval: 30s
@@ -92,30 +88,17 @@ services:
       retries: 3
 
   frontend:
-    build: ./frontend
+    image: packetarch/frontend:${PACKETARCH_VERSION:-latest}
     restart: unless-stopped
     ports:
       - "443:443"
     volumes:
       - ssl_certs:/etc/nginx/ssl
-      # Drop real certificate at ./certs/server.{crt,key} to override the
-      # self-signed default. See frontend/docker-entrypoint.sh.
+      # Drop real cert/key into ./certs/ to override the self-signed default.
       - ./certs:/etc/nginx/custom-certs:ro
     depends_on:
       backend:
         condition: service_healthy
-
-  # Optional: pgAdmin for database management
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    profiles: ["tools"]
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@packetarch.local
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
 
 volumes:
   postgres_data:
