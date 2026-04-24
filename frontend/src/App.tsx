@@ -1,6 +1,12 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import FeatureGate from './components/FeatureGate';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
@@ -36,7 +42,14 @@ function App() {
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="studio" element={<ScenarioStudioPage />} />
         <Route path="scenarios" element={<ScenariosPage />} />
-        <Route path="scenarios/ai-create" element={<AIScenarioWizardPage />} />
+        <Route
+          path="scenarios/ai-create"
+          element={
+            <FeatureGate feature="ai" fallback="/scenarios">
+              <AIScenarioWizardPage />
+            </FeatureGate>
+          }
+        />
         <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
         <Route path="devices" element={<Navigate to="/fingerprints" replace />} />
 

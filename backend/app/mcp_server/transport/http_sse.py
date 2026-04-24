@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """HTTP + SSE transport for MCP server."""
 
 import asyncio
@@ -9,13 +12,17 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, RequireAIEnabled
 from app.mcp_server.schemas.mcp_types import JSONRPCRequest, JSONRPCResponse
 from app.mcp_server.server import mcp_server
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/mcp", tags=["MCP"])
+router = APIRouter(
+    prefix="/mcp",
+    tags=["MCP"],
+    dependencies=[RequireAIEnabled],
+)
 
 # In-memory session storage
 # In production, this should use Redis or similar

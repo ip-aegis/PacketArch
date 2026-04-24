@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * DeploymentCard - Shows status, progress, and controls for a single deployment
  */
@@ -28,6 +33,7 @@ import type { UnifiedDeployment } from '../../types/docker';
 import { formatElapsedTime } from '../../utils/dateUtils';
 import { extractErrorMessage } from '../../utils/errorUtils';
 import aiApi from '../../api/ai';
+import { useFeatures } from '../../hooks/useFeatures';
 import PhaseTimeline from './PhaseTimeline';
 
 const { Text } = Typography;
@@ -74,6 +80,7 @@ const DeploymentCard: React.FC<{
   onRemove: (id: string) => void;
 }> = ({ deployment, onStop, onRemove }) => {
   const { message } = App.useApp();
+  const { aiEnabled } = useFeatures();
   const config =
     statusConfig[deployment.status] || statusConfig.pending;
   const isRunning = ['running', 'starting', 'stopping'].includes(
@@ -191,15 +198,17 @@ const DeploymentCard: React.FC<{
                 <Text type="danger" style={{ fontSize: 11, flex: 1 }}>
                   {deployment.error_message}
                 </Text>
-                <Tooltip title="Explain this error with AI">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<QuestionCircleOutlined />}
-                    onClick={handleExplainError}
-                    style={{ color: '#6a8caf', flexShrink: 0, padding: '0 4px', height: 'auto' }}
-                  />
-                </Tooltip>
+                {aiEnabled && (
+                  <Tooltip title="Explain this error with AI">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<QuestionCircleOutlined />}
+                      onClick={handleExplainError}
+                      style={{ color: '#6a8caf', flexShrink: 0, padding: '0 4px', height: 'auto' }}
+                    />
+                  </Tooltip>
+                )}
               </div>
             )}
 

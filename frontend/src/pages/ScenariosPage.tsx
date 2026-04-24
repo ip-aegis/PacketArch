@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Scenarios Page - List, create, and manage scenarios
  */
@@ -38,6 +43,7 @@ import {
   CompassOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
+import { useFeatures } from '../hooks/useFeatures';
 import {
   scenariosApi,
   type ScenarioFilters,
@@ -65,6 +71,7 @@ const { Option } = Select;
 const ScenariosPage: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
+  const { aiEnabled } = useFeatures();
   const [filters, setFilters] = useState<ScenarioFilters>({
     page: 1,
     page_size: 12,
@@ -197,15 +204,22 @@ const ScenariosPage: React.FC = () => {
   };
 
   // ── Card menu ────────────────────────────────────────────────────
-  const getScenarioMenuItems = (): MenuProps['items'] => [
-    { key: 'open', icon: <EditOutlined />, label: 'Open in Studio' },
-    { key: 'generate-pcap', icon: <FileAddOutlined />, label: 'Generate PCAP' },
-    { key: 'generate-description', icon: <RobotOutlined />, label: 'Generate Description' },
-    { key: 'duplicate', icon: <CopyOutlined />, label: 'Duplicate' },
-    { key: 'export', icon: <ExportOutlined />, label: 'Export JSON' },
-    { type: 'divider' },
-    { key: 'delete', icon: <DeleteOutlined />, label: 'Delete', danger: true },
-  ];
+  const getScenarioMenuItems = (): MenuProps['items'] => {
+    const items: MenuProps['items'] = [
+      { key: 'open', icon: <EditOutlined />, label: 'Open in Studio' },
+      { key: 'generate-pcap', icon: <FileAddOutlined />, label: 'Generate PCAP' },
+    ];
+    if (aiEnabled) {
+      items.push({ key: 'generate-description', icon: <RobotOutlined />, label: 'Generate Description' });
+    }
+    items.push(
+      { key: 'duplicate', icon: <CopyOutlined />, label: 'Duplicate' },
+      { key: 'export', icon: <ExportOutlined />, label: 'Export JSON' },
+      { type: 'divider' },
+      { key: 'delete', icon: <DeleteOutlined />, label: 'Delete', danger: true },
+    );
+    return items;
+  };
 
   const handleMenuClick = (
     scenario: ScenarioSummary,
@@ -318,13 +332,15 @@ const ScenariosPage: React.FC = () => {
           >
             From Template
           </Button>
-          <Button
-            icon={<RobotOutlined />}
-            style={{ borderColor: '#5a9fd4', color: '#5a9fd4' }}
-            onClick={() => navigate('/scenarios/ai-create')}
-          >
-            AI Create
-          </Button>
+          {aiEnabled && (
+            <Button
+              icon={<RobotOutlined />}
+              style={{ borderColor: '#5a9fd4', color: '#5a9fd4' }}
+              onClick={() => navigate('/scenarios/ai-create')}
+            >
+              AI Create
+            </Button>
+          )}
           <Button
             type="primary"
             icon={<PlusOutlined />}

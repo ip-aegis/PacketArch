@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Hook that assembles the dynamic command list from the registry + store state.
  * Handles context filtering, search scoring, device search mode (@), and recently-used sorting.
@@ -8,6 +13,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
+import { useFeatures } from '../../hooks/useFeatures';
 import { buildCommandRegistry, type RegistryDeps } from './commandRegistry';
 import type { CommandDefinition } from './types';
 import { getRecentCommandIds } from './useCommandPalette';
@@ -59,6 +65,7 @@ export function useCommands(
 
   const scenarioId = useScenarioStore((s) => s.id);
   const devices = useScenarioStore((s) => s.devices);
+  const { aiEnabled } = useFeatures();
 
   // Build full registry
   const deps: RegistryDeps = useMemo(() => ({
@@ -87,11 +94,12 @@ export function useCommands(
     saveVersion: canvasDeps?.saveVersion ?? NOOP,
     openVersionHistory: canvasDeps?.openVersionHistory ?? NOOP,
     openCustomizeNames: canvasDeps?.openCustomizeNames ?? NOOP,
+    aiEnabled,
   }), [
     navigate, undo, redo, canUndo, canRedo, canvasDeps,
     selectedNodeIds, leftSidebarOpen, rightSidebarOpen, minimapVisible, bottomPanelOpen,
     toggleLeftSidebar, toggleRightSidebar, toggleMinimap, toggleBottomPanel,
-    clusterViewMode, setClusterViewMode, scenarioId,
+    clusterViewMode, setClusterViewMode, scenarioId, aiEnabled,
   ]);
 
   const allCommands = useMemo(() => buildCommandRegistry(deps), [deps]);

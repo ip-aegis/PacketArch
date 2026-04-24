@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Right Side Panel - AI Assistant, Properties, Deploy, and Attack tabs.
  * Uses icon-only tabs with tooltips and status indicator dots.
@@ -10,6 +15,7 @@ import { TEXT_BODY, TEXT_MUTED, BG_CARD, BG_PANEL, BG_CODE, BORDER_DEFAULT } fro
 import { PanelContainer, EmptyState } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
+import { useFeatures } from '../../hooks/useFeatures';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAttackStore } from '../../stores/attackStore';
@@ -30,7 +36,8 @@ interface RightSidePanelProps {
 }
 
 const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
-  const [activeTab, setActiveTab] = useState('ai');
+  const { aiEnabled } = useFeatures();
+  const [activeTab, setActiveTab] = useState(aiEnabled ? 'ai' : 'properties');
   const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
 
@@ -265,17 +272,19 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   );
 
   const items = [
-    {
-      key: 'ai',
-      label: tabIcon(
-        <RobotOutlined />,
-        'AI Assistant',
-        isConnected ? '#52c41a' : undefined,
-        false,
-        pendingActions.length > 0 ? pendingActions.length : undefined,
-      ),
-      children: aiContent,
-    },
+    ...(aiEnabled
+      ? [{
+          key: 'ai',
+          label: tabIcon(
+            <RobotOutlined />,
+            'AI Assistant',
+            isConnected ? '#52c41a' : undefined,
+            false,
+            pendingActions.length > 0 ? pendingActions.length : undefined,
+          ),
+          children: aiContent,
+        }]
+      : []),
     {
       key: 'properties',
       label: tabIcon(<ControlOutlined />, 'Properties'),

@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Canvas controls toolbar (zoom, fit view, undo/redo, delete, layout, customize names)
  */
@@ -41,11 +46,13 @@ import { useAutoLayout, type LayoutType } from './hooks/useAutoLayout';
 import { scenariosApi } from '../../api/scenarios';
 import { scenarioVersionsApi } from '../../api/scenarioVersions';
 import { extractErrorMessage } from '../../utils/errorUtils';
+import { useFeatures } from '../../hooks/useFeatures';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
 import ScenarioReviewDrawer from './ScenarioReviewDrawer';
 
 const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
+  const { aiEnabled } = useFeatures();
   const queryClient = useQueryClient();
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const { zoom } = useViewport();
@@ -487,7 +494,8 @@ const CanvasControls: React.FC = () => {
 
       <div style={dividerStyle} />
 
-      {/* Review group */}
+      {/* Review group — AI-powered, hidden when AI is disabled */}
+      {aiEnabled && (
       <div style={groupStyle}>
         <span style={groupLabelStyle}>Review</span>
         <div style={groupButtonsStyle}>
@@ -503,8 +511,9 @@ const CanvasControls: React.FC = () => {
           </Tooltip>
         </div>
       </div>
+      )}
 
-      <div style={dividerStyle} />
+      {aiEnabled && <div style={dividerStyle} />}
 
       {/* Version group */}
       <div style={groupStyle}>

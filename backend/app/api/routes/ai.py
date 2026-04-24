@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """AI assistant routes for scenario composition."""
 
 import json
@@ -11,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, RequireAIEnabled
 from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
 from app.mcp_server.sanitization.sanitizer import DataSanitizer
 from app.mcp_server.server import mcp_server
@@ -23,7 +26,10 @@ from app.services.ip_management import IPManagementService
 from app.services.fingerprint_cache import get_fingerprint_cache
 from app.ai_services.nl_parser import extract_device_counts, format_device_counts_for_prompt, get_device_limit_warning
 from app.protocol_engines.identity import generate_mac
-from app.services.device_identity_enricher import enrich_device_serial_numbers
+from app.services.device_identity_enricher import (
+    enrich_device_serial_numbers,
+    enrich_device_unique_identifiers,
+)
 
 from app.core.constants import MAX_DEVICES_PER_SCENARIO
 
@@ -57,7 +63,11 @@ from app.schemas.ai import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/ai", tags=["AI Assistant"])
+router = APIRouter(
+    prefix="/ai",
+    tags=["AI Assistant"],
+    dependencies=[RequireAIEnabled],
+)
 
 # Backwards compatibility alias
 _get_anthropic_provider = _get_ai_provider
@@ -1141,6 +1151,9 @@ async def generate_scenario_preview_stream(
         session: Any,
     ) -> dict[str, Any]:
         """Build preview response, apply CVEs, store in Redis."""
+        from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
+        from app.mcp_server.ai_providers import AIProviderFactory
+
         scenario = result.scenario
 
         if len(scenario.devices) > MAX_DEVICES_PER_SCENARIO:
@@ -1149,6 +1162,44 @@ async def generate_scenario_preview_stream(
                 f"({len(scenario.devices)} > {MAX_DEVICES_PER_SCENARIO}). "
                 "Please request fewer devices."
             )
+
+        # Enrich generic names (e.g. "PLC-001") with process-aware names
+        # via AIDeviceNamer — same service used by template creation path.
+        try:
+            ai_provider = await AIProviderFactory.create(session)
+            namer = AIDeviceNamer()
+            zone_dict = {
+                z.get("name", f"zone_{i}"): z
+                for i, z in enumerate(scenario.zones)
+            }
+            context = DeviceNamingContext(
+                vertical=scenario.vertical,
+                template_name=req.name or scenario.name,
+                template_description=req.description,
+                zones=zone_dict,
+            )
+            device_dicts = [
+                {
+                    "id": d.device_id,
+                    "name": d.name,
+                    "type": d.device_type,
+                    "vendor": d.vendor or "",
+                    "zoneId": d.zone or "",
+                    "protocols": d.protocols,
+                }
+                for d in scenario.devices
+            ]
+            enhanced = await namer.enhance_device_names(
+                device_dicts, context, ai_provider
+            )
+            # Apply enhanced names back to GeneratedDevice objects
+            name_map = {d["id"]: d["name"] for d in enhanced}
+            for d in scenario.devices:
+                if d.device_id in name_map:
+                    d.name = name_map[d.device_id]
+            logger.info(f"AI naming enriched {len(name_map)} device names")
+        except Exception as e:
+            logger.warning(f"AI device naming unavailable, keeping generic names: {e}")
 
         devices = [
             AIScenarioPreviewDevice(
@@ -1417,10 +1468,7 @@ async def create_scenario_from_preview(
                 subnet_mask = "255.255.255.0"
                 gateway = "10.0.0.1"
 
-        # Generate MAC address using vendor OUI (via centralized identity registry)
-        mac_address = generate_mac(vendor=vendor, device_type=device_type)
-
-        # Get fingerprint data for deep fingerprinting
+        # Get fingerprint data for deep fingerprinting (lookup BEFORE MAC generation)
         fingerprint_data = None
         cache = get_fingerprint_cache()
         if vendor and fingerprint_model:
@@ -1437,6 +1485,14 @@ async def create_scenario_from_preview(
                         break
                 if not fingerprint_data:
                     fingerprint_data = vendor_fps[0]
+
+        # Generate MAC address using fingerprint OUIs when available
+        fp_ouis = fingerprint_data.get("oui_prefixes") if fingerprint_data else None
+        mac_address = generate_mac(
+            vendor=vendor,
+            device_type=device_type,
+            oui_patterns=fp_ouis if fp_ouis else None,
+        )
 
         # Build network config with deep fingerprint data
         network_config = {
@@ -1487,8 +1543,11 @@ async def create_scenario_from_preview(
         }
 
         # Apply deep fingerprint data if available
+        # Use "vendorFingerprint" key — the standard key expected by
+        # enrich_device_serial_numbers, enrich_device_unique_identifiers,
+        # FingerprintApplicator, and the traffic generator.
         if fingerprint_data:
-            device_def["fingerprint"] = {
+            device_def["vendorFingerprint"] = {
                 "vendor": fingerprint_data.get("vendor"),
                 "vendor_family": fingerprint_data.get("vendor_family"),
                 "model": fingerprint_data.get("model"),
@@ -1498,27 +1557,27 @@ async def create_scenario_from_preview(
 
             # Protocol-specific identity data (all 7 protocols)
             if fingerprint_data.get("modbus_identity"):
-                device_def["fingerprint"]["modbus_identity"] = fingerprint_data["modbus_identity"]
+                device_def["vendorFingerprint"]["modbus_identity"] = fingerprint_data["modbus_identity"]
             if fingerprint_data.get("ethernet_ip_identity"):
-                device_def["fingerprint"]["ethernet_ip_identity"] = fingerprint_data["ethernet_ip_identity"]
+                device_def["vendorFingerprint"]["ethernet_ip_identity"] = fingerprint_data["ethernet_ip_identity"]
             if fingerprint_data.get("profinet_identity"):
-                device_def["fingerprint"]["profinet_identity"] = fingerprint_data["profinet_identity"]
+                device_def["vendorFingerprint"]["profinet_identity"] = fingerprint_data["profinet_identity"]
             if fingerprint_data.get("s7_identity"):
-                device_def["fingerprint"]["s7_identity"] = fingerprint_data["s7_identity"]
+                device_def["vendorFingerprint"]["s7_identity"] = fingerprint_data["s7_identity"]
             if fingerprint_data.get("snmp_identity"):
-                device_def["fingerprint"]["snmp_identity"] = fingerprint_data["snmp_identity"]
+                device_def["vendorFingerprint"]["snmp_identity"] = fingerprint_data["snmp_identity"]
             if fingerprint_data.get("bacnet_identity"):
-                device_def["fingerprint"]["bacnet_identity"] = fingerprint_data["bacnet_identity"]
+                device_def["vendorFingerprint"]["bacnet_identity"] = fingerprint_data["bacnet_identity"]
             if fingerprint_data.get("opc_ua_identity"):
-                device_def["fingerprint"]["opc_ua_identity"] = fingerprint_data["opc_ua_identity"]
+                device_def["vendorFingerprint"]["opc_ua_identity"] = fingerprint_data["opc_ua_identity"]
 
             # TCP stack characteristics
             if fingerprint_data.get("tcp_stack"):
-                device_def["fingerprint"]["tcp_stack"] = fingerprint_data["tcp_stack"]
+                device_def["vendorFingerprint"]["tcp_stack"] = fingerprint_data["tcp_stack"]
 
             # Response timing
             if fingerprint_data.get("response_timing"):
-                device_def["fingerprint"]["response_timing"] = fingerprint_data["response_timing"]
+                device_def["vendorFingerprint"]["response_timing"] = fingerprint_data["response_timing"]
 
         # Resolve CVE identity overrides if device has CVE IDs
         cve_ids = d.get("cve_ids", [])
@@ -1594,6 +1653,7 @@ async def create_scenario_from_preview(
     # This prevents Cyber Vision from merging devices with identical fingerprints
     for dev_id, dev in devices.items():
         enrich_device_serial_numbers(dev, dev_id, str(db_scenario.id))
+        enrich_device_unique_identifiers(dev, dev_id, str(db_scenario.id))
 
     await db.commit()
     await db.refresh(db_scenario)
@@ -1807,6 +1867,7 @@ SCENARIO_REVIEW_JSON_SCHEMA: dict[str, Any] = {
                                             "regenerate_macs",
                                             "apply_cve",
                                             "remove_device",
+                                            "rename_device",
                                         ],
                                     },
                                     "params_json": {
@@ -1855,6 +1916,11 @@ EXPERT HEURISTICS:
 - Manufacturing scenarios need 3+ zones (field, cell/control, supervisory).
 - HMIs typically connect to PLCs via S7comm or EtherNet/IP, not Modbus.
 - Safety PLCs need PROFIsafe or CIP Safety protocol flows.
+- MAC address OUI prefixes should match the device vendor. If a device's \
+mac_prefix doesn't correspond to its declared vendor (e.g., Siemens OUI on a \
+Rockwell device), suggest regenerate_macs remediation.
+- Devices with generic names (device_001, plc_1, sensor_2) should be renamed \
+to reflect their industrial role, zone, and process context.
 
 REMEDIATION ACTIONS:
 For each finding, if the issue can be fixed automatically, include a "remediation" \
@@ -1878,6 +1944,10 @@ Supported action_types and their params_json values:
   Use when a critical device should have a known vulnerability applied.
 - "remove_device": "{\"device_id\": \"...\"}"
   Use only when a device is clearly extraneous or misconfigured beyond repair.
+- "rename_device": "{\"device_id\": \"...\", \"new_name\": \"...\"}"
+  Use when a device has a generic or unrealistic name (e.g., "device_001", "plc_1"). \
+Suggest a name reflecting the device's role, vendor, and zone context \
+(e.g., "Assembly_Line_PLC_1", "WTP_Main_Pump_VFD_03", "Substation_Bay1_Relay").
 
 IMPORTANT:
 - The readiness check results are included — build on them, don't duplicate.
@@ -1934,10 +2004,11 @@ def _build_review_context(definition: dict) -> dict[str, Any]:
             "type": d.get("type", "unknown"),
             "vendor": d.get("vendor", ""),
             "protocols": d.get("protocols") or [],
-            "zone_id": d.get("zone_id", ""),
+            "zone_id": d.get("zoneId") or d.get("zone_id") or d.get("zone") or "",
             "role": d.get("role", ""),
             "has_fingerprint": bool(fp.get("vendor")),
             "has_ip": bool(ip),
+            "mac_prefix": (network.get("macAddress") or network.get("mac_address") or "")[:8],
             "cve_count": len(cve_ids),
         })
 
@@ -1962,7 +2033,7 @@ def _build_review_context(definition: dict) -> dict[str, Any]:
     # Zone summaries with device counts
     zone_device_counts: dict[str, int] = {}
     for d in devices.values():
-        zid = d.get("zone_id", "")
+        zid = d.get("zoneId") or d.get("zone_id") or d.get("zone") or ""
         if zid:
             zone_device_counts[zid] = zone_device_counts.get(zid, 0) + 1
 

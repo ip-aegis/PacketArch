@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Command registry — static command definitions assembled with injected dependencies.
  * Each command has an id, label, category, context, icon, optional shortcut/keywords, and execute callback.
@@ -81,6 +86,8 @@ export interface RegistryDeps {
   saveVersion: () => void;
   openVersionHistory: () => void;
   openCustomizeNames: () => void;
+  // Feature flags
+  aiEnabled: boolean;
 }
 
 export function buildCommandRegistry(deps: RegistryDeps): CommandDefinition[] {
@@ -293,15 +300,17 @@ export function buildCommandRegistry(deps: RegistryDeps): CommandDefinition[] {
       keywords: ['rollback', 'restore', 'diff'],
       execute: () => deps.openVersionHistory(),
     },
-    {
-      id: 'scenario:customize-names',
-      label: 'Customize Device Names (AI)',
-      category: 'scenario',
-      context: 'studio',
-      icon: e(EditOutlined),
-      keywords: ['rename', 'ai', 'generate'],
-      execute: () => deps.openCustomizeNames(),
-    },
+    ...(deps.aiEnabled
+      ? [{
+          id: 'scenario:customize-names',
+          label: 'Customize Device Names (AI)',
+          category: 'scenario' as const,
+          context: 'studio' as const,
+          icon: e(EditOutlined),
+          keywords: ['rename', 'ai', 'generate'],
+          execute: () => deps.openCustomizeNames(),
+        }]
+      : []),
     {
       id: 'scenario:new',
       label: 'Create New Scenario',

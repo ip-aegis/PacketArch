@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Application configuration using Pydantic Settings."""
 
 from functools import lru_cache
@@ -49,9 +52,14 @@ class Settings(BaseSettings):
     # Encryption (for storing API keys and secrets)
     encryption_key: str = ""  # Will be generated if not provided
 
+    # Feature flags. These control what's surfaced at the product level and
+    # are exposed to the frontend via /api/v1/about.features. Air-gapped or
+    # otherwise-restricted deployments typically disable ai_enabled.
+    ai_enabled: bool = True
+
     # PCAP Output
     pcap_output_dir: str = "./output/pcap"
-    max_simulation_duration_ms: int = 600000  # 10 minutes default max
+    max_simulation_duration_ms: int = 3600000  # 60 minutes default max
 
     # First user (created on startup if no users exist)
     # Note: ADMIN_PASSWORD env var is mapped to FIRST_USER_PASSWORD in docker-compose.yml

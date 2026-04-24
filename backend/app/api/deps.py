@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """API dependencies for authentication and database access."""
 
 import uuid
@@ -9,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.features import get_features
 from app.core.security import verify_token
 from app.models.user import User
 
@@ -68,7 +72,24 @@ async def get_current_admin_user(
     return current_user
 
 
+async def require_ai_enabled() -> None:
+    """Guard that 503s when AI features are disabled by deployment config.
+
+    Applied at the router level on AI / MCP endpoints so the routes stay in
+    the OpenAPI spec and return a clean, predictable error instead of 404.
+    """
+    if not get_features().ai_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "AI features are disabled in this deployment. "
+                "Contact your administrator if you need AI-assisted workflows."
+            ),
+        )
+
+
 # Type aliases for cleaner dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(get_current_admin_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
+RequireAIEnabled = Depends(require_ai_enabled)
