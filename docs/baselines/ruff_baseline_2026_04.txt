@@ -1,0 +1,26 @@
+185	F401 	[*] `.action_registry.ATTACK_FLOW_PREFIX` imported but unused
+156	I001 	[*] Import block is un-sorted or un-formatted
+ 42	B904 	[ ] Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+ 31	F841 	[*] Local variable `connected_ids` is assigned to but never used
+ 23	B007 	[*] Loop control variable `addr` not used within loop body
+ 23	B008 	[ ] Do not perform function call `Depends` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+ 23	UP017	[*] Use `datetime.UTC` alias
+ 23	UP035	[*] Import from `collections.abc` instead: `AsyncIterator`
+ 19	E712 	[*] Comparison to `True` should be `cond is True` or `if cond:`
+ 13	E402 	[ ] Module level import not at top of file
+ 11	N806 	[ ] Variable `KNOWN_EXTERNAL_IPS` in function should be lowercase
+  9	C401 	[*] Unnecessary generator (rewrite as a `set` comprehension)
+  9	UP038	[*] Use `X | Y` in `isinstance` call instead of `(X, Y)`
+  7	W293 	[*] Blank line contains whitespace
+  6	F541 	[*] f-string without any placeholders
+  6	UP006	[*] Use `list` instead of `List` for type annotation
+  5	B905 	[*] `zip()` without an explicit `strict=` parameter
+  4	UP007	[*] Use `X | Y` for type annotations
+  2	F811 	[ ] Redefinition of unused `build_cip_error_response` from line 541
+  2	UP037	[*] Remove quotes from type annotation
+  1	B010 	[*] Do not call `setattr` with a constant attribute value. It is not any safer than normal property access.
+  1	F821 	[ ] Undefined name `Scenario`
+  1	UP028	[*] Replace `yield` over `for` loop with `yield from`
+app/traffic_generator/tasks.py:13:31: F401 [*] `app.core.database.async_session_maker` imported but unused
+Found 602 errors.
+[*] 414 fixable with the `--fix` option (80 hidden fixes can be enabled with the `--unsafe-fixes` option).

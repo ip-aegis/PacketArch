@@ -1,0 +1,161 @@
+[1m======================================================================
+PacketArch CV Fingerprint Diagnostic
+======================================================================[0m
+Output directory: /tmp/cv_fingerprint_test
+
+[1mPhase 1: Generate PCAPs[0m
+--------------------------------------------------
+
+  Generating PCAP for: Modbus - Schneider M340
+    Fingerprint vendor: Schneider
+    Fingerprint model:  BMXP342020
+    OUI prefixes:       ['00:00:54', '00:80:F4', '00:04:A3']
+    Target MAC:         00:00:54:DC:B6:E8 (OUI: 00:00:54)
+    Firmware:           V3.60
+    modbus_identity: 7 fields
+    ethernet_ip_identity: NONE
+    profinet_identity: NONE
+    s7_identity: NONE
+    bacnet_identity: NONE
+    snmp_identity: 7 fields
+    Generated: 16 packets, 1490 bytes
+
+  Generating PCAP for: EtherNet/IP - Rockwell ControlLogix
+    Fingerprint vendor: Rockwell
+    Fingerprint model:  1756-L83E
+    OUI prefixes:       ['00:00:BC', '00:1D:9C', '08:61:95', '5C:88:16', 'E4:90:69']
+    Target MAC:         00:00:BC:58:4B:8B (OUI: 00:00:BC)
+    Firmware:           V34.011
+    modbus_identity: 8 fields
+    ethernet_ip_identity: 9 fields
+    profinet_identity: NONE
+    s7_identity: NONE
+    bacnet_identity: NONE
+    snmp_identity: 7 fields
+    Generated: 32 packets, 3548 bytes
+
+  Generating PCAP for: S7comm - Siemens S7-1500
+    Fingerprint vendor: Siemens
+    Fingerprint model:  6ES7 516-3AN02-0AB0
+    OUI prefixes:       ['00:0E:8C', '00:1B:1B', '00:1C:06']
+    Target MAC:         00:0E:8C:FE:66:63 (OUI: 00:0E:8C)
+    Firmware:           V3.0.3
+    modbus_identity: 8 fields
+    ethernet_ip_identity: NONE
+    profinet_identity: 9 fields
+    s7_identity: 6 fields
+    bacnet_identity: NONE
+    snmp_identity: 7 fields
+    Generated: 21 packets, 2625 bytes
+
+  Generating PCAP for: PROFINET - Siemens S7-1500
+    Fingerprint vendor: Siemens
+    Fingerprint model:  6ES7 516-3AN02-0AB0
+    OUI prefixes:       ['00:0E:8C', '00:1B:1B', '00:1C:06']
+    Target MAC:         00:0E:8C:94:52:1C (OUI: 00:0E:8C)
+    Firmware:           V3.0.3
+    modbus_identity: 8 fields
+    ethernet_ip_identity: NONE
+    profinet_identity: 9 fields
+    s7_identity: 6 fields
+    bacnet_identity: NONE
+    snmp_identity: 7 fields
+    Generated: 20 packets, 2358 bytes
+
+  Generating PCAP for: BACnet - Honeywell JACE 8000
+    Fingerprint vendor: Honeywell
+    Fingerprint model:  JACE 8000
+    OUI prefixes:       ['00:60:35', '00:D0:36', '00:0D:6B']
+    Target MAC:         00:60:35:D7:46:66 (OUI: 00:60:35)
+    Firmware:           N4.13
+    modbus_identity: 6 fields
+    ethernet_ip_identity: NONE
+    profinet_identity: NONE
+    s7_identity: NONE
+    bacnet_identity: 6 fields
+    snmp_identity: 7 fields
+    Generated: 10 packets, 811 bytes
+
+  Generating PCAP for: SNMP - Cisco IE-4000
+    Fingerprint vendor: Cisco
+    Fingerprint model:  IE-4000-8GT4G-E
+    OUI prefixes:       ['00:26:98', '00:1A:A1', '00:17:0E', 'F8:C2:88']
+    Target MAC:         00:26:98:3C:9C:AB (OUI: 00:26:98)
+    Firmware:           15.2(8)E
+    modbus_identity: NONE
+    ethernet_ip_identity: NONE
+    profinet_identity: NONE
+    s7_identity: NONE
+    bacnet_identity: NONE
+    snmp_identity: 5 fields
+    Generated: 18 packets, 2041 bytes
+
+[1mPhase 2: Analyze PCAPs[0m
+--------------------------------------------------
+
+[1m>>> Modbus - Schneider M340[0m
+  Loaded 16 packets from cv_test_modbus_tcp.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:00:54 in ['00:00:54', '00:80:F4']
+  [[92mPASS[0m] TCP TTL: TTL 64 (expected: 64)
+  [[92mPASS[0m] TCP Window Size: Window 16384 (expected: 16384)
+  [[92mPASS[0m] Modbus MEI present: Found 1 FC43/MEI response(s)
+  [[92mPASS[0m] Modbus vendor_name: 'Schneider Electric' (expected: 'Schneider Electric')
+  [[92mPASS[0m] Modbus product_code: 'BMXP342020' (expected: 'BMXP342020')
+  [[92mPASS[0m] Modbus major_minor_revision: 'V3.60' (expected: 'V3.60')
+  [[92mPASS[0m] Modbus product_name: 'Modicon M340 Processor' (expected: 'Modicon M340 Processor')
+
+[1m>>> EtherNet/IP - Rockwell ControlLogix[0m
+  Loaded 32 packets from cv_test_ethernet_ip.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:00:BC in ['00:00:BC', '00:1D:9C', '08:61:95', '5C:88:16', 'E4:90:69']
+  [[92mPASS[0m] TCP TTL: TTL 128 (expected: 128)
+  [[92mPASS[0m] TCP Window Size: Window 64240 (expected: 64240)
+  [[92mPASS[0m] EtherNet/IP ListIdentity: ListIdentity response packet found
+  [[92mPASS[0m] EtherNet/IP vendor_id: 1 (expected: 1)
+  [[92mPASS[0m] EtherNet/IP product_name: '1756-L83E/B LOGIX5580'
+  [[92mPASS[0m] EtherNet/IP serial_number: 0xDBA7E936
+  [[92mPASS[0m] EtherNet/IP revision: 34.11
+
+[1m>>> S7comm - Siemens S7-1500[0m
+  Loaded 21 packets from cv_test_s7comm.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:0E:8C in ['00:0E:8C', '00:1B:1B', '00:1C:06']
+  [[92mPASS[0m] TCP TTL: TTL 64 (expected: 64)
+  [[92mPASS[0m] TCP Window Size: Window 29200 (expected: 29200)
+  [[92mPASS[0m] S7 SZL present: Found 1 SZL userdata responses
+  [[92mPASS[0m] S7 module_type: 'CPU 1516-3 PN/DP' found in SZL data
+  [[92mPASS[0m] S7 firmware: 'V3.0.3' found in SZL data
+  [[92mPASS[0m] S7 serial: Serial 'S V-DBA7E936V3' found
+
+[1m>>> PROFINET - Siemens S7-1500[0m
+  Loaded 20 packets from cv_test_profinet.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:0E:8C in ['00:0E:8C', '00:1B:1B', '00:1C:06']
+  [[92mPASS[0m] PROFINET DCP Identify: DCP Identify Response found
+  [[92mPASS[0m] PROFINET vendor_id: 0x002A (expected: 0x002A)
+  [[92mPASS[0m] PROFINET station_name: 'profinet-siemens-s7-dba7'
+  [[92mPASS[0m] PROFINET firmware (OEM): SW='V3.0.3'
+  [[92mPASS[0m] PROFINET serial (OEM): SN='S C-280CB27F'
+  [[92mPASS[0m] PROFINET order_code (OEM): OrderID='6ES7 516-3AN02-0AB0'
+
+[1m>>> BACnet - Honeywell JACE 8000[0m
+  Loaded 10 packets from cv_test_bacnet.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:60:35 in ['00:60:35', '00:D0:36']
+  [[92mPASS[0m] BACnet I-Am: I-Am broadcast found
+  [[92mPASS[0m] BACnet vendor_name: 'Tridium, Inc.' found
+  [[92mPASS[0m] BACnet model_name: 'JACE 8000' found
+  [[92mPASS[0m] BACnet firmware: 'N4.13' found
+
+[1m>>> SNMP - Cisco IE-4000[0m
+  Loaded 18 packets from cv_test_snmp.pcap
+  [[92mPASS[0m] MAC OUI: OUI 00:26:98 in ['00:26:98', '00:1A:A1', '00:17:0E', 'F8:C2:88']
+  [[92mPASS[0m] SNMP responses: Found 9 GetResponse packets
+  [[92mPASS[0m] SNMP sysDescr: 'Cisco IOS Software, IE4000 Software (IE4000-UNIVERSAL-M) V15' found
+  [[92mPASS[0m] SNMP sysName: 'SNMP - Cisco IE-4000' found
+
+[1m======================================================================
+SUMMARY
+======================================================================[0m
+
+  Total checks: 39
+  [92mPASS[0m: 39
+  [91mFAIL[0m: 0
+
+PCAP files in: /tmp/cv_fingerprint_test/

@@ -1,0 +1,25 @@
+ERROR tests/api/test_auth.py::TestAuthRefresh::test_refresh_invalid_token - s...
+ERROR tests/api/test_generation.py::TestGenerationProtocols::test_get_supported_protocols
+ERROR tests/api/test_generation.py::TestGenerationStart::test_start_generation_scenario_not_found
+ERROR tests/api/test_generation.py::TestGenerationStart::test_start_generation_no_auth
+ERROR tests/api/test_generation.py::TestGenerationStatus::test_get_status_job_not_found
+ERROR tests/api/test_generation.py::TestGenerationDownload::test_download_job_not_found
+ERROR tests/api/test_generation.py::TestGenerationCancel::test_cancel_job_not_found
+ERROR tests/api/test_health.py::TestHealthEndpoints::test_health_check - sqla...
+ERROR tests/api/test_health.py::TestHealthEndpoints::test_readiness_check - s...
+ERROR tests/api/test_scenarios.py::TestScenarioList::test_list_scenarios_empty
+ERROR tests/api/test_scenarios.py::TestScenarioList::test_list_scenarios_with_data
+ERROR tests/api/test_scenarios.py::TestScenarioList::test_list_scenarios_pagination
+ERROR tests/api/test_scenarios.py::TestScenarioList::test_list_scenarios_filter_by_vertical
+ERROR tests/api/test_scenarios.py::TestScenarioList::test_list_scenarios_no_auth
+ERROR tests/api/test_scenarios.py::TestScenarioCreate::test_create_scenario
+ERROR tests/api/test_scenarios.py::TestScenarioCreate::test_create_scenario_minimal
+ERROR tests/api/test_scenarios.py::TestScenarioGet::test_get_scenario - sqlal...
+ERROR tests/api/test_scenarios.py::TestScenarioGet::test_get_scenario_not_found
+ERROR tests/api/test_scenarios.py::TestScenarioUpdate::test_update_scenario
+ERROR tests/api/test_scenarios.py::TestScenarioUpdate::test_update_scenario_not_found
+ERROR tests/api/test_scenarios.py::TestScenarioDelete::test_delete_scenario
+ERROR tests/api/test_scenarios.py::TestScenarioDuplicate::test_duplicate_scenario
+ERROR tests/api/test_scenarios.py::TestScenarioExportImport::test_export_scenario
+ERROR tests/api/test_scenarios.py::TestScenarioExportImport::test_import_scenario
+31 failed, 798 passed, 2 xfailed, 126758 warnings, 34 errors in 70.45s (0:01:10)
