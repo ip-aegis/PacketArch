@@ -1,6 +1,10 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Database models."""
 
 from app.models.user import User
+from app.models.user_acknowledgment import UserAcknowledgment
 from app.models.settings import SystemSetting
 from app.models.scenario import Scenario
 from app.models.protocol_template import ProtocolTemplate
@@ -16,6 +20,7 @@ from app.models.scenario_version import ScenarioVersion
 
 __all__ = [
     "User",
+    "UserAcknowledgment",
     "SystemSetting",
     "Scenario",
     "ProtocolTemplate",

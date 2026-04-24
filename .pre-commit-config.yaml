@@ -22,3 +22,15 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+
+  # Enforce GPL-3.0 copyright headers on source files.
+  # Runs in --check mode; use `python scripts/add_copyright_headers.py --fix`
+  # to insert missing headers. See scripts/add_copyright_headers.py for rules.
+  - repo: local
+    hooks:
+      - id: copyright-headers
+        name: GPL-3.0 copyright headers
+        entry: python scripts/add_copyright_headers.py --check
+        language: system
+        types_or: [python, javascript, jsx, ts, tsx]
+        pass_filenames: false

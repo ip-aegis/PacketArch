@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Main application layout with navigation - Cisco inspired dark theme
  */
@@ -24,12 +29,17 @@ import {
   LockOutlined,
   EyeOutlined,
   QuestionCircleOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
+import { acknowledgmentsApi } from '../../api/acknowledgments';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useFeaturesStore } from '../../stores/featuresStore';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
+import AboutModal from '../modals/AboutModal';
+import AcknowledgmentModal from '../modals/AcknowledgmentModal';
 import AgentVersionBanner from './AgentVersionBanner';
 import CommandPalette from '../command-palette/CommandPalette';
 
@@ -43,6 +53,8 @@ const AppLayout: React.FC = () => {
   const { panels, toggleLeftSidebar } = useUIStore();
   const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [ackRequired, setAckRequired] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
 
   // Global Ctrl+K / Cmd+K shortcut for command palette
@@ -56,6 +68,31 @@ const AppLayout: React.FC = () => {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [toggleCommandPalette]);
+
+  // Load feature flags once after login so AI-gated UI can hide promptly.
+  const loadFeatures = useFeaturesStore((s) => s.load);
+  useEffect(() => {
+    if (!user) return;
+    loadFeatures();
+  }, [user, loadFeatures]);
+
+  // Check whether the current user has accepted the current EULA / license
+  // acknowledgment. Blocking modal shows until they either accept or sign out.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    acknowledgmentsApi
+      .getStatus()
+      .then((status) => {
+        if (!cancelled && !status.accepted) setAckRequired(true);
+      })
+      .catch(() => {
+        // Fail-open: never lock a user out because this endpoint is down.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Poll health status for notification badge
   useEffect(() => {
@@ -148,6 +185,12 @@ const AppLayout: React.FC = () => {
       icon: <LockOutlined />,
       label: 'Change Password',
       onClick: () => setPasswordModalOpen(true),
+    },
+    {
+      key: 'about',
+      icon: <InfoCircleOutlined />,
+      label: 'About PacketArch',
+      onClick: () => setAboutModalOpen(true),
     },
     {
       type: 'divider' as const,
@@ -354,6 +397,15 @@ const AppLayout: React.FC = () => {
       <ChangePasswordModal
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
+      />
+
+      {/* About Modal */}
+      <AboutModal open={aboutModalOpen} onClose={() => setAboutModalOpen(false)} />
+
+      {/* First-run acknowledgment (blocking) */}
+      <AcknowledgmentModal
+        open={ackRequired}
+        onAccepted={() => setAckRequired(false)}
       />
 
       {/* Command Palette */}

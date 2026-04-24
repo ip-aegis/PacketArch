@@ -1,12 +1,18 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Login page component - Cisco inspired dark theme
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
+import { aboutApi, type AboutResponse } from '../api/about';
 import type { LoginCredentials } from '../types';
 
 const { Text } = Typography;
@@ -20,6 +26,23 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
   const [form] = Form.useForm();
+  const [about, setAbout] = useState<AboutResponse | null>(null);
+
+  // Load product/ownership info for the footer (unauthenticated endpoint).
+  useEffect(() => {
+    let cancelled = false;
+    aboutApi
+      .get()
+      .then((data) => {
+        if (!cancelled) setAbout(data);
+      })
+      .catch(() => {
+        // Footer falls back to static text if the endpoint is unreachable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -202,19 +225,30 @@ const LoginPage: React.FC = () => {
         </Space>
       </Card>
 
-      {/* Version badge */}
+      {/* Footer: version + ownership attribution */}
       <div
         style={{
           position: 'absolute',
           bottom: 24,
           left: '50%',
           transform: 'translateX(-50%)',
+          textAlign: 'center',
           color: '#6b6b8a',
           fontSize: 11,
           letterSpacing: '0.5px',
+          lineHeight: 1.6,
         }}
       >
-        PacketArch v0.1.0 | Industrial Network Traffic Simulation
+        <div>
+          {about
+            ? `${about.name} v${about.version} | Industrial Network Traffic Simulation`
+            : 'PacketArch | Industrial Network Traffic Simulation'}
+        </div>
+        <div style={{ fontSize: 10, color: '#555577' }}>
+          {about
+            ? `${about.owner.copyright} <${about.owner.email}> · Licensed under ${about.license.id}`
+            : '© 2026 Rocky Smith · Licensed under GPL-3.0'}
+        </div>
       </div>
     </div>
   );

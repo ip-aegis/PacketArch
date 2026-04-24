@@ -204,7 +204,18 @@ See [CLAUDE.md](CLAUDE.md) for detailed development guidelines, including:
 
 ## License
 
-Proprietary - All rights reserved.
+PacketArch is free and open-source software, licensed under the
+**GNU General Public License, version 3 (GPL-3.0)**. See [LICENSE](LICENSE)
+for the full license text and [NOTICE](NOTICE) for copyright attributions.
+
+PacketArch is developed and maintained by **Rocky Smith**
+(<rocky.d.smith@proton.me>). Any redistribution of this software — modified
+or unmodified — must preserve the copyright notices and license text, as
+required by GPL-3.0.
+
+Third-party components bundled with PacketArch are distributed under their
+own respective licenses. See `THIRD_PARTY_LICENSES.md` (generated at release
+time) for attributions.
 
 ## Support
 

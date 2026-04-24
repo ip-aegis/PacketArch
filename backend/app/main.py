@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """FastAPI application entry point."""
 
 import logging
@@ -9,12 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, stats, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, site_config, stats, templates, users
 from app.api.websocket import agent_hub
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
 from app.core.exceptions import PacketArchError, ValidationError as AppValidationError
+from app.core.version import get_startup_banner
 from app.services.health_monitor import health_monitor
 from app.services.startup import run_startup_tasks
 
@@ -30,6 +34,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler for startup and shutdown."""
     # Startup
+    logger.info(get_startup_banner())
     logger.info("Starting PacketArch API...")
 
     # Initialize database
@@ -135,8 +140,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 # Include routers
 app.include_router(health.router)
+app.include_router(about.router, prefix=settings.api_prefix)
 app.include_router(auth.router, prefix=settings.api_prefix)
+app.include_router(acknowledgments.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
+app.include_router(site_config.router, prefix=settings.api_prefix)
 app.include_router(scenarios.router, prefix=settings.api_prefix)
 app.include_router(scenario_versions.router, prefix=settings.api_prefix)
 app.include_router(protocols.router, prefix=settings.api_prefix)
@@ -172,11 +180,15 @@ app.include_router(agent_install.router)
 @app.get("/")
 async def root() -> dict:
     """Root endpoint with API information."""
+    from app.core.version import LICENSE_ID, OWNER_COPYRIGHT, OWNER_EMAIL
     return {
         "name": settings.app_name,
         "version": settings.app_version,
+        "owner": f"{OWNER_COPYRIGHT} <{OWNER_EMAIL}>",
+        "license": LICENSE_ID,
         "docs": "/api/docs",
         "health": "/health",
+        "about": f"{settings.api_prefix}/about",
     }
 
 

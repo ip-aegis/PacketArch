@@ -1,0 +1,14 @@
+PacketArch — OT Traffic Simulation Platform
+Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+
+This software is licensed under the GNU General Public License, version 3.
+See the LICENSE file for the full license text, or visit
+<https://www.gnu.org/licenses/gpl-3.0.html>.
+
+PacketArch is developed and maintained by Rocky Smith. Any redistribution
+of this software — modified or unmodified — must preserve this notice and
+the copyright attributions in the source files, as required by GPL-3.0.
+
+Third-party components bundled with PacketArch are distributed under their
+own respective licenses. See THIRD_PARTY_LICENSES.md (generated at release
+time) for attributions and license texts.
