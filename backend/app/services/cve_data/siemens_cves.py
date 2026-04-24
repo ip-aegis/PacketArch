@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Siemens CVE data.
 
 CVE information for S7-1200, S7-1500, and S7-300/400 series PLCs.

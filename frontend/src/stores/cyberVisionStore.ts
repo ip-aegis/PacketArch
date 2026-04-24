@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Cyber Vision state management with Zustand
  */
@@ -15,6 +20,7 @@ import {
   type CVPreset,
   type CVEnrichmentRequest,
   type CVEnrichmentResult,
+  type DuplicateMacAnalysisResponse,
 } from '../api/cyberVision';
 import { extractErrorMessage } from '../utils/errorUtils';
 
@@ -41,6 +47,10 @@ interface CyberVisionState {
   enrichedSinceCompare: boolean;
   error: string | null;
 
+  // MAC analysis state
+  macAnalysis: DuplicateMacAnalysisResponse | null;
+  isLoadingMacAnalysis: boolean;
+
   // Actions
   fetchStatus: () => Promise<void>;
   fetchSettings: () => Promise<void>;
@@ -51,9 +61,11 @@ interface CyberVisionState {
   fetchPresets: () => Promise<void>;
   compareScenario: (scenarioId: string, presetId?: string) => Promise<void>;
   enrichDevices: (request: CVEnrichmentRequest) => Promise<CVEnrichmentResult | null>;
+  analyzeDuplicateMacs: (presetId?: string) => Promise<void>;
   clearError: () => void;
   clearComparison: () => void;
   clearEnrichmentResult: () => void;
+  clearMacAnalysis: () => void;
 }
 
 export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
@@ -74,6 +86,8 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
   enrichmentResult: null,
   enrichedSinceCompare: false,
   error: null,
+  macAnalysis: null,
+  isLoadingMacAnalysis: false,
 
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
@@ -193,6 +207,21 @@ export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
 
   clearEnrichmentResult: () => {
     set({ enrichmentResult: null });
+  },
+
+  analyzeDuplicateMacs: async (presetId?: string) => {
+    set({ isLoadingMacAnalysis: true, error: null, macAnalysis: null });
+    try {
+      const result = await cyberVisionApi.analyzeDuplicateMacs(presetId);
+      set({ macAnalysis: result, isLoadingMacAnalysis: false });
+    } catch (error: unknown) {
+      const message = extractErrorMessage(error, 'Failed to analyze duplicate MACs');
+      set({ error: message, isLoadingMacAnalysis: false });
+    }
+  },
+
+  clearMacAnalysis: () => {
+    set({ macAnalysis: null });
   },
 }));
 

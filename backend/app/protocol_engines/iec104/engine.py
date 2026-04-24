@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """IEC 60870-5-104 protocol engine implementation.
 
 IEC 104 is the network adaptation of IEC 101, used for telecontrol

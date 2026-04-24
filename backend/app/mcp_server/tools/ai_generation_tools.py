@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """AI-powered generation tools for MCP.
 
 These tools enable natural language scenario generation and anomaly injection
@@ -61,10 +64,10 @@ async def generate_scenario_from_nl(
             "max_allowed": MAX_DEVICES_PER_SCENARIO
         })
 
-    # Convert to database format
+    # Convert to database format, including fingerprint data for CV identity
     devices = {}
     for d in scenario.devices:
-        devices[d.device_id] = {
+        device_def: dict[str, Any] = {
             "id": d.device_id,
             "name": d.name,
             "type": d.device_type,
@@ -78,6 +81,12 @@ async def generate_scenario_from_nl(
             },
             "vendor": d.vendor,
         }
+        # Include fingerprint data so traffic generator can produce
+        # realistic vendor-specific protocol identities for CV.
+        if d.fingerprint_data:
+            device_def["vendorFingerprint"] = d.fingerprint_data
+            device_def["fingerprint_model"] = d.fingerprint_model
+        devices[d.device_id] = device_def
 
     flows = {}
     for f in scenario.flows:
@@ -126,6 +135,17 @@ async def generate_scenario_from_nl(
     )
 
     db.add(db_scenario)
+    await db.flush()
+
+    # Enrich devices with unique serial numbers and protocol identity names
+    from app.services.device_identity_enricher import (
+        enrich_device_serial_numbers,
+        enrich_device_unique_identifiers,
+    )
+    for dev_id, dev in devices.items():
+        enrich_device_serial_numbers(dev, dev_id, str(db_scenario.id))
+        enrich_device_unique_identifiers(dev, dev_id, str(db_scenario.id))
+
     await db.commit()
     await db.refresh(db_scenario)
 

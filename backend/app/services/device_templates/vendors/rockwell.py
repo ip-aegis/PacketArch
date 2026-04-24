@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Rockwell Automation device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -709,75 +712,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.53148.3.2",
             "sys_name": "PANELV-800-001",
             "sys_location": "Control Room",
-        },
-    ),
-    DeviceTemplate(
-        id="rockwell/stratix/5700",
-        vendor="Rockwell",
-        vendor_family="Stratix",
-        model="1783-BMS10CGL",
-        model_name="Stratix 5700 Managed Switch",
-        device_type="network_switch",
-        description="Industrial managed Ethernet switch",
-
-        oui_prefixes=["00:00:BC", "00:1D:9C", "00:1A:2F"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 32768,
-            "mss": 1460,
-            "sack_permitted": True,
-            "timestamps_enabled": True,
-        },
-
-        response_timing={
-            "min_ms": 0.5,
-            "max_ms": 15.0,
-            "mean_ms": 3.0,
-            "std_dev_ms": 2.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["ethernet_ip", "snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="STX57-{10ALPHANUM}",
-            station_name_pattern="sw-stratix-{seq}",
-            vendor_short="ROC",
-            model_short="STX57",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V15.2.7",
-                release_date=date(2024, 2, 10),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V15.2.4",
-                release_date=date(2022, 7, 20),
-                cves=["CVE-2022-20812"],
-            ),
-            FirmwareVariant(
-                version="V15.0.1",
-                release_date=date(2020, 11, 15),
-                cves=["CVE-2022-20812", "CVE-2020-3566"],
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "Rockwell Automation Stratix 5700 Managed Switch V15.2.7",
-            "sys_object_id": "1.3.6.1.4.1.9.1.2505",
-        },
-
-        ethernet_ip_identity={
-            "vendor_id": 1,
-            "device_type": 12,
-            "product_code": 5700,
-            "product_name": "1783-BMS10CGL STRATIX 5700",
-            "state": 3,
         },
     ),
     DeviceTemplate(

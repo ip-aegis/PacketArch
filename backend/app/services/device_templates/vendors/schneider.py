@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Schneider Electric device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -877,74 +880,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3833.594.54",
             "sys_name": "TM3-32-INP-001",
             "sys_location": "Industrial Network",
-        },
-    ),
-    DeviceTemplate(
-        id="schneider/connexium/tcsesm083f2cu0",
-        vendor="Schneider",
-        vendor_family="ConneXium",
-        model="TCSESM083F2CU0",
-        model_name="ConneXium Managed Switch",
-        device_type="network_switch",
-        description="8-port managed Ethernet switch for industrial applications",
-
-        oui_prefixes=["00:00:54", "00:80:F4", "00:60:5C"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 32768,
-            "mss": 1460,
-            "sack_permitted": True,
-            "timestamps_enabled": True,
-        },
-
-        response_timing={
-            "min_ms": 0.5,
-            "max_ms": 15.0,
-            "mean_ms": 3.0,
-            "std_dev_ms": 2.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["snmp", "modbus_tcp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="TCE{10ALPHANUM}",
-            station_name_pattern="sw-cnx-{seq}",
-            vendor_short="SCH",
-            model_short="CNX",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V8.5",
-                release_date=date(2024, 2, 10),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V8.1",
-                release_date=date(2022, 6, 20),
-                cves=["CVE-2022-30234"],
-            ),
-            FirmwareVariant(
-                version="V7.8",
-                release_date=date(2021, 1, 15),
-                cves=["CVE-2022-30234", "CVE-2020-28212"],
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "Schneider Electric ConneXium Managed Switch V8.5",
-            "sys_object_id": "1.3.6.1.4.1.3833.1.100.1",
-        },
-
-        modbus_identity={
-            "vendor_name": "Schneider Electric",
-            "product_code": "TCSESM083F2CU0",
-            "product_name": "ConneXium Managed Switch",
-            "model_name": "TCSESM083F2CU0",
         },
     ),
     DeviceTemplate(
@@ -1977,6 +1912,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "TBOX-MS-001",
             "sys_location": "Remote Site",
         },
+
+        dnp3_identity={
+            "vendor_name": "Schneider Electric",
+            "device_name": "TBox MS RTU",
+            "hardware_version": "MS-CPU32",
+        },
     ),
     DeviceTemplate(
         id="schneider/ion/8650",
@@ -2039,6 +1980,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3833.994.30",
             "sys_name": "ION865-POWER-001",
             "sys_location": "Industrial Network",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schneider Electric",
+            "device_name": "ION8650 Power Quality Meter",
+            "hardware_version": "8650",
         },
     ),
     DeviceTemplate(
@@ -2103,6 +2050,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "SCADAP-350-001",
             "sys_location": "Remote Site",
         },
+
+        dnp3_identity={
+            "vendor_name": "Schneider Electric",
+            "device_name": "SCADAPack 350 RTU",
+            "hardware_version": "350",
+        },
     ),
     DeviceTemplate(
         id="schneider/tbox/lt2",
@@ -2165,6 +2118,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3833.273.46",
             "sys_name": "TBOX-LT2-001",
             "sys_location": "Remote Site",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schneider Electric",
+            "device_name": "TBox LT2 Lite RTU",
+            "hardware_version": "LT2",
         },
     ),
     DeviceTemplate(

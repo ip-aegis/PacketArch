@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Cyber Vision routes for device discovery and comparison."""
 
 import logging
@@ -29,9 +32,16 @@ from app.schemas.cyber_vision import (
     CVTestConnectionResponse,
     CVVulnerabilityListResponse,
     CVVulnerabilityResponse,
+    DuplicateMacAnalysisResponse,
     MatchedDevice,
 )
-from app.services.cyber_vision_service import CyberVisionService, CVDevice
+from app.services.cyber_vision_service import (
+    CyberVisionService,
+    CVDevice,
+    analyze_duplicate_macs,
+    deduplicate_by_mac,
+    normalize_mac,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -220,14 +230,19 @@ async def get_devices(
     db: DBSession,
     _user: CurrentUser,
     size: int = Query(default=100, ge=1, le=500, description="Number of devices per page"),
-    start: int = Query(default=0, ge=0, alias="from", description="Starting offset"),
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     search: str | None = Query(default=None),
 ) -> CVDeviceListResponse:
     """Fetch devices from Cyber Vision."""
     try:
         service = await get_cv_service(db)
-        devices = await service.get_devices(size=size, start=start, search=search)
+        devices = await service.get_devices(size=size, page=page)
         await service.close()
+
+        # Merge duplicate MAC components (L2-only + L3 entries for the
+        # same physical device) so the frontend never sees phantom no-IP
+        # duplicates created by PROFINET Layer 2 traffic.
+        devices = deduplicate_by_mac(devices)
 
         return CVDeviceListResponse(
             items=[
@@ -247,7 +262,7 @@ async def get_devices(
                 )
                 for d in devices
             ],
-            total=len(devices),  # CV API may provide total in pagination
+            total=len(devices),
         )
 
     except (ValidationError, NotFoundError):
@@ -255,6 +270,43 @@ async def get_devices(
     except Exception as e:
         logger.exception("Error fetching CV devices")
         raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch devices: {str(e)}", original_error=e)
+
+
+@router.get("/duplicate-macs", response_model=DuplicateMacAnalysisResponse)
+async def analyze_duplicate_mac_addresses(
+    db: DBSession,
+    _user: CurrentUser,
+    preset_id: str | None = Query(
+        default=None,
+        description="Optional CV preset ID to filter devices",
+    ),
+) -> DuplicateMacAnalysisResponse:
+    """Analyze all CV devices for duplicate MAC addresses.
+
+    Fetches all devices (auto-paginating), groups by normalized MAC,
+    and classifies duplicate groups by severity:
+    - critical: Same MAC across different vendors (spoofing/misconfiguration)
+    - high: Same MAC with different IPs (cloned device)
+    - medium: Same MAC/IP but different names/models (data quality)
+    - low: Nearly identical devices (multi-segment visibility)
+    """
+    try:
+        service = await get_cv_service(db)
+        all_devices = await service.get_all_devices(preset_id=preset_id)
+        await service.close()
+
+        result = analyze_duplicate_macs(all_devices)
+        return DuplicateMacAnalysisResponse(**result)
+
+    except (ValidationError, NotFoundError):
+        raise
+    except Exception as e:
+        logger.exception("Error analyzing duplicate MACs")
+        raise ExternalServiceError(
+            service="cyber_vision",
+            message=f"Failed to analyze duplicate MACs: {str(e)}",
+            original_error=e,
+        )
 
 
 @router.get("/devices/{device_id}", response_model=CVDeviceResponse)
@@ -331,18 +383,6 @@ async def get_vulnerabilities(
     except Exception as e:
         logger.exception("Error fetching CV vulnerabilities")
         raise ExternalServiceError(service="cyber_vision", message=f"Failed to fetch vulnerabilities: {str(e)}", original_error=e)
-
-
-def normalize_mac(mac: str | None) -> str | None:
-    """Normalize MAC address to lowercase with colons."""
-    if not mac:
-        return None
-    # Remove all separators and convert to lowercase
-    clean = mac.lower().replace(":", "").replace("-", "").replace(".", "")
-    # Format as XX:XX:XX:XX:XX:XX
-    if len(clean) == 12:
-        return ":".join(clean[i : i + 2] for i in range(0, 12, 2))
-    return mac.lower()
 
 
 def find_best_match(

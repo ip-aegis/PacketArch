@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Background noise generator for realistic ambient network traffic.
 
 Generates gratuitous ARP, NTP queries, LLDP advertisements, STP BPDUs,
@@ -350,7 +353,7 @@ class BackgroundNoiseGenerator:
 
     def _should_stp(self, device: AmbientDevice) -> bool:
         """Only switches send STP BPDUs."""
-        return self.config.stp_enabled and device.device_type == "switch"
+        return self.config.stp_enabled and device.device_type in ("switch", "network_switch")
 
     def _should_dhcp(self, device: AmbientDevice) -> bool:
         """HMIs and workstations use DHCP; PLCs/switches use static IP."""

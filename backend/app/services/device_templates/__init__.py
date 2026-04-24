@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Device Template Library with Firmware Variants.
 
 This package is the single source of truth for all OT/ICS device templates.
@@ -53,6 +56,7 @@ from app.services.device_templates._fingerprints import (
     get_fingerprint_from_template,
     get_fingerprint_with_fallback,
     get_fingerprints_by_vendor,
+    get_fingerprints_by_vendor_and_type,
     get_template_by_vendor_model,
     template_db_to_fingerprint_dict,
 )
@@ -85,6 +89,7 @@ __all__ = [
     "get_fingerprint_from_template",
     "get_fingerprint_by_vendor_model",
     "get_fingerprints_by_vendor",
+    "get_fingerprints_by_vendor_and_type",
     "get_all_fingerprints",
     "template_db_to_fingerprint_dict",
     "get_fingerprint_from_db_sync",

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Vendor OUI (Organizationally Unique Identifier) database for realistic MAC generation.
 
 IMPORTANT: OUI-based vendor detection is a FALLBACK method.
@@ -331,7 +334,7 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
     "engineering_station": ["siemens", "rockwell", "schneider", "abb", "ge", "emerson"],
     "historian": ["ge", "wonderware", "honeywell", "yokogawa"],
     "gateway": ["moxa", "advantech", "phoenix_contact", "cisco", "hirschmann"],
-    "switch": ["cisco", "hirschmann", "moxa", "phoenix_contact", "belden"],
+    "switch": ["cisco"],
     "firewall": ["cisco", "hirschmann", "phoenix_contact"],
     "relay": ["ge", "abb", "siemens", "schneider"],
     "meter": ["schneider", "ge", "siemens", "abb"],
@@ -508,6 +511,7 @@ ODVA_VENDOR_IDS: dict[str, int] = {
     "rockwell": 1,  # Allen-Bradley (Rockwell Automation)
     "schneider": 67,  # Schneider Electric
     "siemens": 285,  # Siemens
+    "cisco": 680,  # Cisco Systems
     "abb": 75,  # ABB (ODVA Licensed Vendor)
     "honeywell": 50,  # Honeywell
     "emerson": 90,  # Emerson
@@ -523,6 +527,7 @@ PROFINET_VENDOR_IDS: dict[str, int] = {
     "siemens": 0x002A,  # 42
     "schneider": 0x0095,  # 149
     "rockwell": 0x0001,  # 1
+    "cisco": 0x0145,  # 325
     "abb": 0x0037,  # 55
     "phoenix_contact": 0x00B8,  # 184
 }

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Fingerprint Cache Service with Pre-Indexing.
 
 This module provides O(1) fingerprint lookups instead of O(n) scans.
@@ -171,7 +174,7 @@ class FingerprintCache:
             fp["protocol_quirks"] = dict(template.protocol_quirks or {})
 
             # Protocol identities (check both unified and legacy columns)
-            for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet"]:
+            for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "opc_ua", "dnp3", "iec104"]:
                 identity = template.get_protocol_identity(protocol)
                 fp[f"{protocol}_identity"] = dict(identity) if identity else None
 

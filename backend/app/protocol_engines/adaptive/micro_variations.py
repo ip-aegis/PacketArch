@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Micro-level traffic variations for realistic OT traffic generation.
 
 Introduces subtle, always-on variations that make traffic look non-robotic:

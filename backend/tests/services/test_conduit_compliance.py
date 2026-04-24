@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for conduit compliance validation service."""
 
 import pytest
@@ -214,7 +217,8 @@ class TestValidateConduitCompliance:
         assert result.non_compliant_flows == 0
         assert result.findings == []
 
-    def test_no_zone_info_treated_compliant(self):
+    def test_no_zone_info_emits_warning(self):
+        """Devices without zone assignments produce a warning finding."""
         defn = make_definition(
             devices={
                 "d1": {"id": "d1"},
@@ -229,8 +233,10 @@ class TestValidateConduitCompliance:
             },
         )
         result = validate_conduit_compliance(defn)
-        assert result.compliant_flows == 1
-        assert result.non_compliant_flows == 0
+        assert result.compliant_flows == 0
+        assert result.non_compliant_flows == 1
+        assert result.findings[0].reason == ComplianceFindingReason.NO_CONDUIT
+        assert result.findings[0].source_zone_id == "(none)"
 
     def test_cross_zone_no_conduits(self):
         defn = self._make_scenario()

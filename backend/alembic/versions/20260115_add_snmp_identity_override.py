@@ -39,10 +39,10 @@ SNMP_IDENTITY_DATA = {
         "sys_location": "Intersection #47",
     },
 
-    # CVE-2019-6569 - Siemens SCALANCE
-    "SCALANCE X-200 Switch (CVE-2019-6569)": {
-        "sys_descr": "Siemens SCALANCE X-200 Industrial Ethernet Switch V5.2.4",
-        "sys_object_id": "1.3.6.1.4.1.4329.3.1.1",
+    # CVE-2023-20198 - Cisco IOS XE
+    "Cisco IE-3300 Switch (CVE-2023-20198)": {
+        "sys_descr": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.9.04",
+        "sys_object_id": "1.3.6.1.4.1.9.1.2824",
         "sys_name": "ITS-SW-001",
         "sys_location": "Cabinet #12",
     },

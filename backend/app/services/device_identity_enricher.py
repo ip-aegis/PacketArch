@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Shared device identity enrichment for serial numbers and unique identifiers.
 
 Consolidates serial number and unique identifier enrichment logic previously
@@ -183,22 +186,24 @@ def enrich_device_unique_identifiers(
         return bool(identity and isinstance(identity, dict) and len(identity) > 0)
 
     # EtherNet/IP identity - product_name (CIP Identity Object)
-    # CV uses this for both model-ref and name.  Preserve the template's
-    # manufacturer catalog string; only generate a synthetic name if missing.
+    # CV uses this as the primary display label for EtherNet/IP devices.
+    # Always override with a unique name that includes the device's functional
+    # name.  The generator produces "MODEL DEVICE_NAME" format (e.g.
+    # "1756-L85E Rockwell_Line_1_Main_PLC") so CV can still identify the
+    # hardware type while showing a unique per-device label.
     if "ethernet_ip" in protocols:
         existing_identity = fingerprint.get("ethernet_ip_identity")
         if identity_exists(existing_identity):
-            if not existing_identity.get("product_name"):
-                existing_identity["product_name"] = (
-                    UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
-                        device_id=device_id,
-                        scenario_id=scenario_id,
-                        device_name=device_name,
-                        model=model,
-                        vendor_family=vendor_family,
-                        vendor=vendor,
-                    )
+            existing_identity["product_name"] = (
+                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                    device_id=device_id,
+                    scenario_id=scenario_id,
+                    device_name=device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
                 )
+            )
 
     # PROFINET identity - station_name (must be unique on PROFINET network)
     if "profinet" in protocols or "profisafe" in protocols:

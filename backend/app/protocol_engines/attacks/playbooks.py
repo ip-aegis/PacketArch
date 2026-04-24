@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Pre-built ICS attack playbooks modeled on real-world campaigns.
 
 Each playbook is a multi-stage kill-chain composed of :class:`AttackAction`

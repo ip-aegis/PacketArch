@@ -54,6 +54,11 @@ jobs:
           cd frontend
           pnpm lint
 
+      - name: TypeScript type check
+        run: |
+          cd frontend
+          pnpm exec tsc --noEmit
+
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest

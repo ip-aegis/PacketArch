@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Conduit compliance validation service.
 
 Checks all flows in a scenario definition against conduit rules
@@ -134,9 +137,21 @@ def validate_conduit_compliance(
         source_zone = _get_device_zone(source_id, devices, zones)
         target_zone = _get_device_zone(target_id, devices, zones)
 
-        # No zone info → backward compatible, treat as compliant
+        # Missing zone info → emit a warning instead of silently passing.
+        # This catches devices that were never assigned to a zone, which
+        # means conduit rules cannot be enforced for their flows.
         if not source_zone or not target_zone:
-            compliant_flows += 1
+            missing_side = "source" if not source_zone else "target"
+            findings.append(ComplianceFinding(
+                flow_id=flow_id,
+                flow_name=flow_name,
+                source_zone_id=source_zone or "(none)",
+                target_zone_id=target_zone or "(none)",
+                protocol=protocol,
+                severity=ComplianceSeverity.WARNING,
+                reason=ComplianceFindingReason.NO_CONDUIT,
+                conduit_id=None,
+            ))
             continue
 
         # Same zone → always compliant

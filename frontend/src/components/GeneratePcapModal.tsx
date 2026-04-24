@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Modal for generating PCAP files from scenarios
  */
@@ -69,7 +74,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
     if (open) {
       setJob(null);
       setPolling(false);
-      form.setFieldsValue({ duration_ms: defaultDurationMs });
+      form.setFieldsValue({ duration_minutes: Math.round((defaultDurationMs / 60000) * 10) / 10 });
     }
   }, [open, defaultDurationMs, form]);
 
@@ -96,10 +101,10 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
 
   // Start generation mutation
   const startMutation = useMutation({
-    mutationFn: (durationMs: number) =>
+    mutationFn: (durationMinutes: number) =>
       generationApi.startGeneration({
         scenario_id: scenarioId,
-        duration_override_ms: durationMs,
+        duration_override_ms: Math.round(durationMinutes * 60000),
       }),
     onSuccess: (newJob) => {
       setJob(newJob);
@@ -144,7 +149,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
 
   const handleStart = () => {
     form.validateFields().then((values) => {
-      startMutation.mutate(values.duration_ms);
+      startMutation.mutate(values.duration_minutes);
     });
   };
 
@@ -223,22 +228,23 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
       {!job && (
         <Form form={form} layout="vertical" onFinish={handleStart}>
           <Form.Item
-            name="duration_ms"
-            label={<Text style={{ color: '#a8a8c0' }}>Duration (milliseconds)</Text>}
+            name="duration_minutes"
+            label={<Text style={{ color: '#a8a8c0' }}>Duration (minutes)</Text>}
             rules={[
               { required: true, message: 'Please enter a duration' },
-              { type: 'number', min: 1000, message: 'Minimum duration is 1000ms' },
-              { type: 'number', max: 600000, message: 'Maximum duration is 600000ms (10 minutes)' },
+              { type: 'number', min: 0.5, message: 'Minimum duration is 0.5 minutes (30 seconds)' },
+              { type: 'number', max: 60, message: 'Maximum duration is 60 minutes' },
             ]}
           >
             <InputNumber
               style={{ width: '100%' }}
-              min={1000}
-              max={600000}
-              step={1000}
+              min={0.5}
+              max={60}
+              step={0.5}
+              precision={1}
               addonAfter={
                 <Text style={{ color: '#6b6b8a' }}>
-                  = {formatDuration(form.getFieldValue('duration_ms') || defaultDurationMs)}
+                  = {formatDuration((form.getFieldValue('duration_minutes') || defaultDurationMs / 60000) * 60000)}
                 </Text>
               }
             />
@@ -363,7 +369,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
                   type="primary"
                   onClick={() => {
                     setJob(null);
-                    form.setFieldsValue({ duration_ms: defaultDurationMs });
+                    form.setFieldsValue({ duration_minutes: Math.round((defaultDurationMs / 60000) * 10) / 10 });
                   }}
                 >
                   Try Again

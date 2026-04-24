@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """DCS (Distributed Control System) packet building utilities.
 
 Supports multiple DCS vendors with their proprietary protocols:

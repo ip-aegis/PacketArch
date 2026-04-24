@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Scenario manipulation tools for MCP."""
 
 import json
@@ -273,7 +276,7 @@ async def generate_scenario(
     device_count: int,
     duration_ms: int,
 ) -> str:
-    """AI generates a complete scenario from scratch.
+    """Generate a complete scenario with fingerprinted devices and realistic flows.
 
     Args:
         db: Database session
@@ -285,108 +288,151 @@ async def generate_scenario(
     Returns:
         JSON string with generated scenario ID
     """
-    # This is a simplified generation - in production would use more sophisticated AI
+    import random
+    from app.protocol_engines.identity import generate_mac
+    from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
+    from app.services.device_identity_enricher import (
+        enrich_device_serial_numbers,
+        enrich_device_unique_identifiers,
+    )
+    from app.services.device_templates import get_fingerprints_by_vendor
+    from app.traffic_generator.flow_generator import generate_flows_for_scenario
 
-    # Define device templates by vertical
-    device_templates = {
+    # Vertical-specific device templates with vendors and fingerprint hints
+    device_templates: dict[str, list[dict[str, Any]]] = {
         "manufacturing": [
-            {"type": "plc", "protocols": ["modbus_tcp", "ethernet_ip"], "zone": "plant_floor"},
-            {"type": "hmi", "protocols": ["ethernet_ip"], "zone": "plant_floor"},
-            {"type": "sensor", "protocols": ["modbus_tcp"], "zone": "plant_floor"},
-            {"type": "historian", "protocols": ["opc_ua"], "zone": "dmz"},
+            {"type": "plc", "vendor": "siemens", "protocols": ["profinet", "s7comm"], "zone": "control"},
+            {"type": "plc", "vendor": "rockwell", "protocols": ["ethernet_ip"], "zone": "control"},
+            {"type": "hmi", "vendor": "siemens", "protocols": ["profinet"], "zone": "control"},
+            {"type": "drive", "vendor": "siemens", "protocols": ["profinet"], "zone": "field"},
+            {"type": "io_module", "vendor": "siemens", "protocols": ["profinet"], "zone": "field"},
+            {"type": "switch", "vendor": "cisco", "protocols": ["snmp"], "zone": "control"},
         ],
         "water_wastewater": [
-            {"type": "rtu", "protocols": ["dnp3", "modbus_tcp"], "zone": "plant_floor"},
-            {"type": "hmi", "protocols": ["dnp3"], "zone": "plant_floor"},
-            {"type": "sensor", "protocols": ["modbus_tcp"], "zone": "plant_floor"},
+            {"type": "plc", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "rtu", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "field"},
+            {"type": "hmi", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "sensor", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "field"},
+            {"type": "switch", "vendor": "cisco", "protocols": ["snmp"], "zone": "control"},
         ],
         "energy_power": [
-            {"type": "relay", "protocols": ["iec104"], "zone": "plant_floor"},
-            {"type": "rtu", "protocols": ["dnp3", "iec104"], "zone": "plant_floor"},
-            {"type": "hmi", "protocols": ["iec104"], "zone": "dmz"},
+            {"type": "relay", "vendor": "sel", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "rtu", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "hmi", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "enterprise"},
+            {"type": "meter", "vendor": "schneider", "protocols": ["modbus_tcp"], "zone": "field"},
+        ],
+        "building_automation": [
+            {"type": "plc", "vendor": "honeywell", "protocols": ["bacnet"], "zone": "control"},
+            {"type": "vav_controller", "vendor": "honeywell", "protocols": ["bacnet"], "zone": "field"},
+            {"type": "hmi", "vendor": "honeywell", "protocols": ["bacnet"], "zone": "control"},
+            {"type": "sensor", "vendor": "honeywell", "protocols": ["bacnet"], "zone": "field"},
+        ],
+        "oil_gas": [
+            {"type": "plc", "vendor": "emerson", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "rtu", "vendor": "emerson", "protocols": ["modbus_tcp"], "zone": "field"},
+            {"type": "hmi", "vendor": "emerson", "protocols": ["modbus_tcp"], "zone": "control"},
+            {"type": "sensor", "vendor": "emerson", "protocols": ["modbus_tcp"], "zone": "field"},
         ],
     }
 
     templates = device_templates.get(vertical, device_templates["manufacturing"])
 
-    # Generate devices
-    devices = {}
+    # Generate devices with fingerprint lookup and vendor-correct MACs
+    devices: dict[str, dict[str, Any]] = {}
     for i in range(device_count):
         template = templates[i % len(templates)]
         device_id = f"device_{i:03d}"
+        vendor = template.get("vendor", "")
+        device_type = template["type"]
+        protocols = list(template["protocols"])
 
-        devices[device_id] = {
+        # Look up vendor fingerprint for realistic identity
+        fingerprint_data = None
+        vendor_fps = get_fingerprints_by_vendor(vendor) if vendor else []
+        if vendor_fps:
+            # Pick a fingerprint appropriate for the device type
+            for fp in vendor_fps:
+                fp_type = (fp.get("device_type") or "").lower()
+                if fp_type == device_type or not fp_type:
+                    fingerprint_data = fp
+                    break
+            if not fingerprint_data:
+                fingerprint_data = random.choice(vendor_fps)
+
+        # Filter protocols to those with identity support in fingerprint
+        if fingerprint_data:
+            validated = []
+            for proto in protocols:
+                ik = PROTOCOL_TO_IDENTITY_KEY.get(proto)
+                if ik and fingerprint_data.get(ik):
+                    validated.append(proto)
+                elif not ik:
+                    validated.append(proto)
+            protocols = validated or protocols[:1]
+
+        # Generate MAC from fingerprint OUIs when available
+        fp_ouis = fingerprint_data.get("oui_prefixes") if fingerprint_data else None
+        mac = generate_mac(
+            vendor=vendor, device_type=device_type,
+            oui_patterns=fp_ouis if fp_ouis else None,
+        )
+
+        device_def: dict[str, Any] = {
             "id": device_id,
-            "name": f"{template['type'].upper()} {i+1}",
-            "type": template["type"],
-            "protocols": template["protocols"],
+            "name": f"{device_type.upper()}_{i+1:02d}",
+            "type": device_type,
+            "vendor": vendor,
+            "protocols": protocols,
             "position": {"x": 100 + (i % 5) * 150, "y": 100 + (i // 5) * 100},
             "zoneId": template["zone"],
             "network": {
-                "macAddress": "",
+                "macAddress": mac,
                 "ipAddress": "",
                 "subnetMask": "255.255.255.0",
             },
         }
+        if fingerprint_data:
+            device_def["vendorFingerprint"] = fingerprint_data
+            device_def["fingerprint_model"] = fingerprint_data.get("model")
+
+        devices[device_id] = device_def
 
     # Generate zones
-    zones = {
-        "plant_floor": {
-            "id": "plant_floor",
-            "name": "Plant Floor",
+    zone_ids = sorted(set(d["zoneId"] for d in devices.values()))
+    zones: dict[str, dict[str, Any]] = {}
+    for idx, zid in enumerate(zone_ids):
+        zones[zid] = {
+            "id": zid,
+            "name": zid.replace("_", " ").title(),
             "type": "network",
-            "position": {"x": 50, "y": 50},
+            "position": {"x": 50, "y": 50 + idx * 450},
             "dimensions": {"width": 800, "height": 400},
-            "deviceIds": [d for d in devices.keys() if devices[d]["zoneId"] == "plant_floor"],
-        },
-        "dmz": {
-            "id": "dmz",
-            "name": "DMZ",
-            "type": "network",
-            "position": {"x": 50, "y": 500},
-            "dimensions": {"width": 800, "height": 200},
-            "deviceIds": [d for d in devices.keys() if devices[d]["zoneId"] == "dmz"],
-        },
-    }
+            "deviceIds": [did for did, d in devices.items() if d["zoneId"] == zid],
+        }
 
-    # Generate flows (connect some devices)
-    flows = {}
-    flow_counter = 0
-    device_list = list(devices.keys())
-    for i in range(min(device_count - 1, device_count * 2)):
-        if i < len(device_list) - 1:
-            source_id = device_list[i]
-            target_id = device_list[i + 1]
-            source_device = devices[source_id]
-            target_device = devices[target_id]
+    # Use SmartFlowGenerator for realistic role-based flows
+    device_list = list(devices.values())
+    raw_flows = generate_flows_for_scenario(device_list, pattern="realistic")
 
-            # Find common protocol
-            common_protocols = set(source_device["protocols"]) & set(target_device["protocols"])
-            if common_protocols:
-                protocol = list(common_protocols)[0]
-                flow_id = f"flow_{flow_counter:03d}"
-                flows[flow_id] = {
-                    "id": flow_id,
-                    "name": f"Flow {flow_counter + 1}",
-                    "sourceDeviceId": source_id,
-                    "targetDeviceId": target_id,
-                    "protocol": protocol,
-                    "timing": {"intervalMs": 1000, "jitterMs": 50},
-                    "protocolConfig": {},
-                    "phases": {
-                        "startup": True,
-                        "steadyState": True,
-                        "maintenance": False,
-                        "shutdown": True,
-                    },
-                }
-                flow_counter += 1
+    # Remap from GeneratedFlow.to_dict() keys to scenario definition format
+    flows: dict[str, dict[str, Any]] = {}
+    for f in raw_flows:
+        fid = f["flow_id"]
+        flows[fid] = {
+            "id": fid,
+            "name": f"{f['protocol']} poll",
+            "sourceDeviceId": f["source_id"],
+            "targetDeviceId": f["destination_id"],
+            "protocol": f["protocol"],
+            "timing": {"intervalMs": f.get("poll_rate", 1000), "jitterMs": 50},
+            "protocolConfig": {},
+        }
 
     # Create scenario
     scenario = Scenario(
         user_id=uuid.UUID(user_id),
-        name=f"Generated {vertical.title()} Scenario",
-        description=f"AI-generated scenario with {device_count} devices",
+        name=f"Generated {vertical.replace('_', ' ').title()} Scenario",
+        description=f"AI-generated {vertical.replace('_', ' ')} scenario with {device_count} devices",
         vertical=vertical,
         total_duration_ms=duration_ms,
         definition={
@@ -400,6 +446,13 @@ async def generate_scenario(
     )
 
     db.add(scenario)
+    await db.flush()
+
+    # Enrich devices with unique serial numbers and protocol identity names
+    for dev_id, dev in devices.items():
+        enrich_device_serial_numbers(dev, dev_id, str(scenario.id))
+        enrich_device_unique_identifiers(dev, dev_id, str(scenario.id))
+
     await db.commit()
     await db.refresh(scenario)
 

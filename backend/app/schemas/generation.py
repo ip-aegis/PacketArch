@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Schemas for traffic generation API."""
 
 from datetime import datetime
@@ -13,8 +16,8 @@ class GenerationRequest(BaseModel):
     duration_override_ms: int | None = Field(
         None,
         description="Override scenario duration in milliseconds",
-        ge=1000,
-        le=600000,
+        ge=30000,
+        le=3600000,
     )
     output_format: str = Field(
         "pcap",

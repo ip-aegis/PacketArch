@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Cyber Vision API functions
  */
@@ -145,6 +150,58 @@ export interface CVEnrichmentResult {
   results: CVEnrichmentDeviceResult[];
 }
 
+// Duplicate MAC Analysis types
+export interface DuplicateMacDeviceInfo {
+  id: string;
+  name: string;
+  ip: string | null;
+  mac: string | null;
+  vendor: string | null;
+  model: string | null;
+  firmware: string | null;
+  category: string | null;
+  risk_score: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  group_name: string | null;
+}
+
+export interface NoMacDeviceInfo {
+  id: string;
+  name: string;
+  ip: string | null;
+  vendor: string | null;
+  category: string | null;
+  group_name: string | null;
+}
+
+export interface DuplicateMacGroup {
+  mac: string;
+  oui_vendor: string | null;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  reason: string;
+  device_count: number;
+  devices: DuplicateMacDeviceInfo[];
+}
+
+export interface DuplicateMacSeverityCounts {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface DuplicateMacAnalysisResponse {
+  total_devices_analyzed: number;
+  devices_with_mac: number;
+  devices_without_mac: number;
+  unique_macs: number;
+  duplicate_groups_count: number;
+  severity_counts: DuplicateMacSeverityCounts;
+  duplicate_groups: DuplicateMacGroup[];
+  no_mac_devices: NoMacDeviceInfo[];
+}
+
 // Cyber Vision API
 export const cyberVisionApi = {
   // Get CV settings
@@ -232,6 +289,16 @@ export const cyberVisionApi = {
     const response = await apiClient.post<CVEnrichmentResult>(
       '/api/v1/cyber-vision/enrich',
       request
+    );
+    return response.data;
+  },
+
+  // Analyze duplicate MAC addresses
+  analyzeDuplicateMacs: async (presetId?: string): Promise<DuplicateMacAnalysisResponse> => {
+    const params = presetId ? { preset_id: presetId } : undefined;
+    const response = await apiClient.get<DuplicateMacAnalysisResponse>(
+      '/api/v1/cyber-vision/duplicate-macs',
+      { params }
     );
     return response.data;
   },

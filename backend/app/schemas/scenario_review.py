@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Scenario review schemas for AI-powered scenario critique and remediation."""
 
 from typing import Any
@@ -13,7 +16,7 @@ class RemediationAction(BaseModel):
         description=(
             "Action type: assign_fingerprint, repair_protocols, "
             "update_flow_timing, add_flow, assign_ips, "
-            "regenerate_macs, apply_cve, remove_device"
+            "regenerate_macs, apply_cve, remove_device, rename_device"
         ),
     )
     params: dict[str, Any] = Field(

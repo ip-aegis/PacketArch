@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Distribution and Logistics industry scenario templates.
 
 Primary Vendors: KUKA, MiR (AGVs), Rockwell, Siemens (conveyors), Cognex (vision), Impinj/Zebra (RFID)

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """GE / General Electric device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -324,6 +327,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "MULTIL-850-001",
             "sys_location": "Substation",
         },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin 850 Feeder Protection System",
+            "hardware_version": "850",
+        },
     ),
     DeviceTemplate(
         id="ge/multilin/f650",
@@ -386,6 +395,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3861.367.15",
             "sys_name": "MULTIL-F650-001",
             "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin F650 Digital Bay Controller",
+            "hardware_version": "F650",
         },
     ),
     DeviceTemplate(
@@ -454,6 +469,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3861.998.60",
             "sys_name": "MULTIL-T60-001",
             "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin T60 Transformer Protection",
+            "hardware_version": "T60",
         },
     ),
     DeviceTemplate(

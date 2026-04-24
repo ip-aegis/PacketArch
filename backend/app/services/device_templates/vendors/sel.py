@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Schweitzer Engineering Laboratories (SEL) device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -73,6 +76,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "SEL-75-FEEDER-001",
             "sys_location": "Substation",
         },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-751 Feeder Protection Relay",
+            "hardware_version": "751",
+        },
     ),
     DeviceTemplate(
         id="sel/rtac/sel-3530",
@@ -136,6 +145,18 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.1027.124.87",
             "sys_name": "SEL-35-RTAC-001",
             "sys_location": "Remote Site",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-3530 Real-Time Automation Controller",
+            "hardware_version": "3530",
+        },
+
+        iec104_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-3530 Real-Time Automation Controller",
+            "hardware_version": "3530",
         },
     ),
     DeviceTemplate(
@@ -205,6 +226,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "SEL-45-BAY-001",
             "sys_location": "Substation",
         },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-451 Bay Controller",
+            "hardware_version": "451",
+        },
     ),
     DeviceTemplate(
         id="sel/controller/sel-2411",
@@ -268,6 +295,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.1027.134.57",
             "sys_name": "SEL-24-PROGRA-001",
             "sys_location": "Industrial Network",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-2411 Programmable Automation Controller",
+            "hardware_version": "2411",
         },
     ),
     DeviceTemplate(
@@ -337,6 +370,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "SEL-31-LINE-001",
             "sys_location": "Substation",
         },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-311C Line Protection Relay",
+            "hardware_version": "311C",
+        },
     ),
     DeviceTemplate(
         id="sel/relay/sel-487e",
@@ -404,6 +443,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.1027.351.42",
             "sys_name": "SEL-48-TRANSF-001",
             "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-487E Transformer Protection Relay",
+            "hardware_version": "487E",
         },
     ),
 ]

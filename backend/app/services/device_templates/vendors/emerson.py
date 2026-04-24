@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Emerson device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -509,6 +512,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "DELTAV-CONTIN-001",
             "sys_location": "Industrial Network",
         },
+
+        modbus_identity={
+            "vendor_name": "Emerson",
+            "product_code": "Continuous Historian",
+            "product_name": "DeltaV Continuous Historian",
+        },
     ),
     DeviceTemplate(
         id="emerson/deltav/ows",
@@ -561,6 +570,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3530.752.60",
             "sys_name": "DELTAV-OPERAT-001",
             "sys_location": "Control Room",
+        },
+
+        modbus_identity={
+            "vendor_name": "Emerson",
+            "product_code": "OWS",
+            "product_name": "DeltaV Operator Workstation",
         },
     ),
 ]

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Unit tests for the LDAP authentication service.
 
 The tests exercise the public surface of :mod:`app.services.ldap_service`

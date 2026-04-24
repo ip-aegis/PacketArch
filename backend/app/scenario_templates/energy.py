@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Energy and power industry scenario templates.
 
 Primary Vendors: SEL, GE Grid Solutions, ABB Relion, Siemens SIPROTEC, Schneider Electric

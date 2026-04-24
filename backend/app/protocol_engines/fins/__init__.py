@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Omron FINS protocol engine for Omron PLCs.
 
 FINS (Factory Interface Network Service) is Omron's proprietary protocol

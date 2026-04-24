@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Fingerprint API routes for vendor fingerprint management.
 
 This module provides REST API endpoints for:
@@ -779,7 +782,7 @@ PROTOCOL_DATA: dict[str, dict[str, Any]] = {
         "description": "Link Layer Discovery Protocol for network topology discovery.",
         "identity_fields": None,
         "typical_devices": ["switch", "gateway", "plc"],
-        "typical_vendors": ["cisco", "hirschmann", "moxa", "phoenix_contact"],
+        "typical_vendors": ["cisco"],
     },
     "cdp": {
         "name": "CDP",

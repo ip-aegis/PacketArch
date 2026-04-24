@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """
 Direct script to enrich Cyber Vision devices with PacketArch scenario data.
 Bypasses the UI and preset issues - uses main device IDs directly.

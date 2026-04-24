@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Cyber Vision integration page
  */
@@ -26,6 +31,7 @@ import {
   message,
 } from 'antd';
 import {
+  ApartmentOutlined,
   BulbOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -43,7 +49,14 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useCyberVisionStore } from '../stores/cyberVisionStore';
 import { scenariosApi } from '../api/scenarios';
-import type { CVDevice, CVVulnerability, MatchedDevice, CVDevicePropertyMapping } from '../api/cyberVision';
+import type {
+  CVDevice,
+  CVVulnerability,
+  MatchedDevice,
+  CVDevicePropertyMapping,
+  DuplicateMacGroup,
+  DuplicateMacDeviceInfo,
+} from '../api/cyberVision';
 
 const { Title, Text } = Typography;
 
@@ -77,6 +90,10 @@ const CyberVisionPage: React.FC = () => {
     enrichDevices,
     clearError,
     clearComparison,
+    macAnalysis,
+    isLoadingMacAnalysis,
+    analyzeDuplicateMacs,
+    clearMacAnalysis,
   } = useCyberVisionStore();
 
   const [scenarios, setScenarios] = useState<ScenarioOption[]>([]);
@@ -84,6 +101,7 @@ const CyberVisionPage: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [loadingScenarios, setLoadingScenarios] = useState(false);
   const [activeTab, setActiveTab] = useState('comparison');
+  const [macPresetFilter, setMacPresetFilter] = useState<string | null>(null);
 
   // Enrichment modal state
   const [enrichModalOpen, setEnrichModalOpen] = useState(false);
@@ -967,6 +985,348 @@ const CyberVisionPage: React.FC = () => {
             pagination={{ pageSize: 20 }}
           />
         </Card>
+      ),
+    },
+    {
+      key: 'mac-analysis',
+      label: (
+        <span>
+          <Badge
+            count={macAnalysis?.duplicate_groups_count ?? 0}
+            offset={[10, 0]}
+            showZero={false}
+          >
+            <ApartmentOutlined /> MAC Analysis
+          </Badge>
+        </span>
+      ),
+      children: (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {/* Scan controls */}
+          <Card title="Duplicate MAC Detection" size="small">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">
+                Scan all Cyber Vision assets for devices sharing the same MAC address.
+                Duplicates are classified by severity to help identify spoofing, cloned devices,
+                or data quality issues.
+              </Text>
+              <Row gutter={[8, 8]}>
+                <Col flex="200px">
+                  <Select
+                    placeholder="CV Preset (optional)"
+                    style={{ width: '100%' }}
+                    loading={isLoadingPresets}
+                    options={presets.map((p) => ({ value: p.id, label: p.label }))}
+                    value={macPresetFilter}
+                    onChange={(value) => {
+                      setMacPresetFilter(value);
+                      clearMacAnalysis();
+                    }}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </Col>
+                <Col>
+                  <Button
+                    type="primary"
+                    onClick={() => analyzeDuplicateMacs(macPresetFilter || undefined)}
+                    loading={isLoadingMacAnalysis}
+                    icon={<SyncOutlined />}
+                  >
+                    Scan for Duplicates
+                  </Button>
+                </Col>
+              </Row>
+            </Space>
+          </Card>
+
+          {/* Results */}
+          {macAnalysis && (
+            <>
+              {/* Summary statistics */}
+              <Row gutter={16}>
+                <Col span={4}>
+                  <Card size="small">
+                    <Statistic title="Devices Analyzed" value={macAnalysis.total_devices_analyzed} />
+                  </Card>
+                </Col>
+                <Col span={4}>
+                  <Card size="small">
+                    <Statistic title="Unique MACs" value={macAnalysis.unique_macs} />
+                  </Card>
+                </Col>
+                <Col span={4}>
+                  <Card size="small">
+                    <Statistic
+                      title="Duplicate Groups"
+                      value={macAnalysis.duplicate_groups_count}
+                      valueStyle={{
+                        color: macAnalysis.duplicate_groups_count > 0 ? '#faad14' : '#52c41a',
+                      }}
+                    />
+                  </Card>
+                </Col>
+                <Col span={3}>
+                  <Card size="small">
+                    <Statistic
+                      title="Critical"
+                      value={macAnalysis.severity_counts.critical}
+                      valueStyle={
+                        macAnalysis.severity_counts.critical > 0 ? { color: '#f5222d' } : undefined
+                      }
+                    />
+                  </Card>
+                </Col>
+                <Col span={3}>
+                  <Card size="small">
+                    <Statistic
+                      title="High"
+                      value={macAnalysis.severity_counts.high}
+                      valueStyle={
+                        macAnalysis.severity_counts.high > 0 ? { color: '#fa8c16' } : undefined
+                      }
+                    />
+                  </Card>
+                </Col>
+                <Col span={3}>
+                  <Card size="small">
+                    <Statistic
+                      title="Medium"
+                      value={macAnalysis.severity_counts.medium}
+                      valueStyle={
+                        macAnalysis.severity_counts.medium > 0 ? { color: '#fadb14' } : undefined
+                      }
+                    />
+                  </Card>
+                </Col>
+                <Col span={3}>
+                  <Card size="small">
+                    <Statistic
+                      title="No MAC"
+                      value={macAnalysis.devices_without_mac}
+                      valueStyle={
+                        macAnalysis.devices_without_mac > 0 ? { color: '#8c8c8c' } : undefined
+                      }
+                    />
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* Duplicate groups table */}
+              {macAnalysis.duplicate_groups.length > 0 ? (
+                <Card
+                  title={
+                    <Space>
+                      <WarningOutlined style={{ color: '#faad14' }} />
+                      Duplicate MAC Groups ({macAnalysis.duplicate_groups_count})
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <Table<DuplicateMacGroup>
+                    columns={[
+                      {
+                        title: 'MAC Address',
+                        dataIndex: 'mac',
+                        key: 'mac',
+                        width: 160,
+                        render: (mac: string) => (
+                          <Text code style={{ fontSize: 12 }}>
+                            {mac}
+                          </Text>
+                        ),
+                      },
+                      {
+                        title: 'OUI Vendor',
+                        dataIndex: 'oui_vendor',
+                        key: 'oui_vendor',
+                        width: 150,
+                        render: (vendor: string | null) =>
+                          vendor || <Text type="secondary">Unknown</Text>,
+                      },
+                      {
+                        title: 'Severity',
+                        dataIndex: 'severity',
+                        key: 'severity',
+                        width: 110,
+                        filters: [
+                          { text: 'Critical', value: 'critical' },
+                          { text: 'High', value: 'high' },
+                          { text: 'Medium', value: 'medium' },
+                          { text: 'Low', value: 'low' },
+                        ],
+                        onFilter: (value, record) => record.severity === value,
+                        render: (severity: string) => {
+                          const colorMap: Record<string, string> = {
+                            critical: 'red',
+                            high: 'orange',
+                            medium: 'gold',
+                            low: 'blue',
+                          };
+                          return (
+                            <Tag color={colorMap[severity] || 'default'}>
+                              {severity.toUpperCase()}
+                            </Tag>
+                          );
+                        },
+                      },
+                      {
+                        title: 'Devices',
+                        dataIndex: 'device_count',
+                        key: 'device_count',
+                        width: 90,
+                        sorter: (a, b) => a.device_count - b.device_count,
+                      },
+                      {
+                        title: 'Reason',
+                        dataIndex: 'reason',
+                        key: 'reason',
+                        ellipsis: true,
+                      },
+                    ]}
+                    dataSource={macAnalysis.duplicate_groups}
+                    rowKey="mac"
+                    expandable={{
+                      expandedRowRender: (record: DuplicateMacGroup) => (
+                        <Table<DuplicateMacDeviceInfo>
+                          columns={[
+                            {
+                              title: 'Name',
+                              dataIndex: 'name',
+                              key: 'name',
+                              render: (name: string) => <Text strong>{name}</Text>,
+                            },
+                            {
+                              title: 'IP Address',
+                              dataIndex: 'ip',
+                              key: 'ip',
+                              render: (ip: string | null) =>
+                                ip || <Text type="secondary">-</Text>,
+                            },
+                            {
+                              title: 'Vendor',
+                              dataIndex: 'vendor',
+                              key: 'vendor',
+                              render: (vendor: string | null) =>
+                                vendor || <Text type="secondary">Unknown</Text>,
+                            },
+                            {
+                              title: 'Model',
+                              dataIndex: 'model',
+                              key: 'model',
+                              render: (model: string | null) =>
+                                model || <Text type="secondary">-</Text>,
+                            },
+                            {
+                              title: 'Category',
+                              dataIndex: 'category',
+                              key: 'category',
+                              render: (cat: string | null) =>
+                                cat ? <Tag>{cat}</Tag> : <Text type="secondary">-</Text>,
+                            },
+                            {
+                              title: 'Group',
+                              dataIndex: 'group_name',
+                              key: 'group_name',
+                              render: (g: string | null) =>
+                                g || <Text type="secondary">-</Text>,
+                            },
+                            {
+                              title: 'First Seen',
+                              dataIndex: 'first_seen',
+                              key: 'first_seen',
+                              render: (v: string | null) =>
+                                v || <Text type="secondary">-</Text>,
+                            },
+                          ]}
+                          dataSource={record.devices}
+                          rowKey="id"
+                          pagination={{ pageSize: 10 }}
+                          size="small"
+                        />
+                      ),
+                    }}
+                    pagination={{ pageSize: 20 }}
+                    size="small"
+                  />
+                </Card>
+              ) : (
+                <Card size="small">
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <Text type="secondary">
+                        No duplicate MAC addresses found across{' '}
+                        {macAnalysis.total_devices_analyzed} devices.
+                      </Text>
+                    }
+                  />
+                </Card>
+              )}
+
+              {/* Devices without MAC */}
+              {macAnalysis.no_mac_devices.length > 0 && (
+                <Card
+                  title={
+                    <Space>
+                      <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                      Devices Without MAC ({macAnalysis.devices_without_mac})
+                    </Space>
+                  }
+                  size="small"
+                >
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                    These devices have no MAC address recorded in Cyber Vision, which may
+                    indicate Layer 3 only visibility or incomplete discovery.
+                  </Text>
+                  <Table
+                    columns={[
+                      {
+                        title: 'Name',
+                        dataIndex: 'name',
+                        key: 'name',
+                        render: (name: string) => <Text strong>{name}</Text>,
+                      },
+                      {
+                        title: 'IP',
+                        dataIndex: 'ip',
+                        key: 'ip',
+                        render: (ip: string | null) =>
+                          ip || <Text type="secondary">-</Text>,
+                      },
+                      {
+                        title: 'Vendor',
+                        dataIndex: 'vendor',
+                        key: 'vendor',
+                        render: (v: string | null) =>
+                          v || <Text type="secondary">Unknown</Text>,
+                      },
+                      {
+                        title: 'Category',
+                        dataIndex: 'category',
+                        key: 'category',
+                        render: (c: string | null) =>
+                          c ? <Tag>{c}</Tag> : <Text type="secondary">-</Text>,
+                      },
+                      {
+                        title: 'Group',
+                        dataIndex: 'group_name',
+                        key: 'group_name',
+                      },
+                    ]}
+                    dataSource={macAnalysis.no_mac_devices}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                    size="small"
+                  />
+                </Card>
+              )}
+            </>
+          )}
+        </Space>
       ),
     },
   ];

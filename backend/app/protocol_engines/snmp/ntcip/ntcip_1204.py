@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """NTCIP 1204 - Environmental Sensor Station (ESS) OIDs.
 
 Defines OIDs for roadside weather station polling including:

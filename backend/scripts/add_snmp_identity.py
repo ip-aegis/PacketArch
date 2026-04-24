@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Add snmp_identity to all device templates that are missing it.
 
 This script reads each vendor template file, identifies templates without
@@ -69,7 +72,7 @@ VENDOR_SYS_DESCR_PREFIXES = {
         "drive": "Siemens SINAMICS",
         "vfd": "Siemens SINAMICS",
         "io": "Siemens SIMATIC",
-        "network_switch": "Siemens SCALANCE",
+        "network_switch": "Siemens",
         "protection_relay": "Siemens SIPROTEC",
         "scada": "Siemens SIMATIC",
         "engineering_station": "Siemens SIMATIC",
@@ -83,7 +86,7 @@ VENDOR_SYS_DESCR_PREFIXES = {
         "drive": "Rockwell Automation",
         "vfd": "Rockwell Automation",
         "io": "Rockwell Automation",
-        "network_switch": "Rockwell Automation Stratix",
+        "network_switch": "Rockwell Automation",
         "servo": "Rockwell Automation",
         "default": "Rockwell Automation",
     },
@@ -203,8 +206,8 @@ def generate_sys_descr(vendor: str, model_name: str, model: str, device_type: st
             name = name.replace("SIPROTEC ", "")
         elif "Desigo" in (model_name or ""):
             prefix = "Siemens"
-        elif "SCALANCE" in (model_name or ""):
-            prefix = "Siemens"
+        elif "Catalyst IE" in (model_name or ""):
+            prefix = "Cisco"
 
     # Deduplicate: if name starts with a word that's already the last word of prefix
     prefix_last_word = prefix.split()[-1].lower() if prefix else ""

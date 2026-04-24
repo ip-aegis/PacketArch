@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """PROFINET packet building utilities using Scapy.
 
 PROFINET uses Ethernet Layer 2 with EtherType 0x8892 for RT data.

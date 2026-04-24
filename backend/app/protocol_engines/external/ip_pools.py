@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """External IP address pools for simulated external communications.
 
 Uses RFC 5737 TEST-NET ranges which are safe, non-routable addresses

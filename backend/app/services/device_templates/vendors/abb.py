@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """ABB device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -544,6 +547,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "REX640-PROTEC-001",
             "sys_location": "Substation",
         },
+
+        iec104_identity={
+            "vendor_name": "ABB",
+            "device_name": "Relion REX640 Protection and Control IED",
+            "hardware_version": "REX640",
+        },
     ),
     DeviceTemplate(
         id="abb/drives/acs580",
@@ -740,6 +749,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.26381.236.90",
             "sys_name": "RTU560-REMOTE-001",
             "sys_location": "Remote Site",
+        },
+
+        iec104_identity={
+            "vendor_name": "ABB",
+            "device_name": "RTU560 Remote Terminal Unit",
+            "hardware_version": "RTU560",
         },
     ),
     DeviceTemplate(

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Unique identifier generator for protocol-specific network identifiers.
 
 This module generates unique protocol-specific network identifiers that MUST

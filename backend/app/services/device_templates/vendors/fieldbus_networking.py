@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Fieldbus and networking device templates (Moxa, Hirschmann, Advantech, Kepware, Phoenix Contact, WAGO, Beckhoff, B&R)."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -285,66 +288,6 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="moxa/switch/eds-408a",
-        vendor="Moxa",
-        vendor_family="EDS-400A",
-        model="EDS-408A-MM-SC",
-        model_name="EDS-408A Industrial Ethernet Switch",
-        device_type="network_switch",
-        description="8-port managed industrial Ethernet switch with fiber",
-
-        oui_prefixes=["00:90:E8"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 16384,
-            "mss": 1460,
-            "sack_permitted": True,
-        },
-
-        response_timing={
-            "min_ms": 0.5,
-            "max_ms": 10.0,
-            "mean_ms": 2.0,
-            "std_dev_ms": 1.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="MXS{10NUM}",
-            station_name_pattern="sw-{location}-{seq}",
-            vendor_short="MOX",
-            model_short="EDS4",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V3.12",
-                release_date=date(2024, 1, 10),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V3.9",
-                release_date=date(2022, 8, 15),
-                cves=["CVE-2022-38457"],
-            ),
-            FirmwareVariant(
-                version="V3.5",
-                release_date=date(2020, 11, 20),
-                cves=["CVE-2022-38457", "CVE-2020-27179"],
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "EDS-408A-MM-SC Managed Industrial Ethernet Switch V3.12",
-            "sys_object_id": "1.3.6.1.4.1.8691.7.116",
-        },
-    ),
-    DeviceTemplate(
         id="br-automation/x20/cp1586",
         vendor="B&R",
         vendor_family="X20",
@@ -411,61 +354,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10.504.32",
             "sys_name": "X20-COMPAC-001",
             "sys_location": "Production Floor",
-        },
-    ),
-    DeviceTemplate(
-        id="hirschmann/switch/rs20-0800",
-        vendor="Hirschmann",
-        vendor_family="RS20",
-        model="RS20-0800M2M2SDAE",
-        model_name="RS20 Industrial Ethernet Switch",
-        device_type="network_switch",
-        description="8-port managed rail switch with fiber options",
-
-        oui_prefixes=["00:80:63"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 16384,
-            "mss": 1460,
-            "sack_permitted": True,
-        },
-
-        response_timing={
-            "min_ms": 0.3,
-            "max_ms": 8.0,
-            "mean_ms": 1.5,
-            "std_dev_ms": 1.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="HIM{10NUM}",
-            station_name_pattern="sw-{location}-{seq}",
-            vendor_short="HIR",
-            model_short="RS20",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V09.1.00",
-                release_date=date(2024, 2, 1),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V09.0.06",
-                release_date=date(2022, 6, 15),
-                cves=["CVE-2022-34136"],
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "RS20-0800M2M2SDAE Managed Industrial Ethernet Switch V09.1.00",
-            "sys_object_id": "1.3.6.1.4.1.248.11.1.1",
         },
     ),
     DeviceTemplate(

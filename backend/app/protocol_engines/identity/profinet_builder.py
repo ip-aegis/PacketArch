@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """PROFINET Identity Builder for DCP Identify responses.
 
 PROFINET uses DCP (Discovery and Configuration Protocol) for device

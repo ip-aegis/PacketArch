@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Building automation and BMS industry scenario templates.
 
 Primary Vendors: Johnson Controls, Honeywell, Trane, Schneider Electric, Siemens

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Cyber Vision schemas for API validation."""
 
 from pydantic import BaseModel, Field
@@ -180,4 +183,72 @@ class CVEnrichmentResult(BaseModel):
     total_properties_added: int = Field(..., description="Total properties added across all devices")
     results: list[CVEnrichmentDeviceResult] = Field(
         ..., description="Per-device results"
+    )
+
+
+# ==================== Duplicate MAC Analysis Schemas ====================
+
+
+class DuplicateMacDeviceInfo(BaseModel):
+    """Device info within a duplicate MAC group."""
+
+    id: str
+    name: str
+    ip: str | None = None
+    mac: str | None = None
+    vendor: str | None = None
+    model: str | None = None
+    firmware: str | None = None
+    category: str | None = None
+    risk_score: int | None = None
+    first_seen: str | None = None
+    last_seen: str | None = None
+    group_name: str | None = None
+
+
+class NoMacDeviceInfo(BaseModel):
+    """Minimal info for a device that has no MAC address."""
+
+    id: str
+    name: str
+    ip: str | None = None
+    vendor: str | None = None
+    category: str | None = None
+    group_name: str | None = None
+
+
+class DuplicateMacGroup(BaseModel):
+    """A group of devices sharing the same MAC address."""
+
+    mac: str = Field(..., description="Normalized MAC address (xx:xx:xx:xx:xx:xx)")
+    oui_vendor: str | None = Field(None, description="Vendor name from OUI lookup")
+    severity: str = Field(..., description="critical, high, medium, or low")
+    reason: str = Field(..., description="Human-readable explanation of the severity classification")
+    device_count: int = Field(..., description="Number of devices sharing this MAC")
+    devices: list[DuplicateMacDeviceInfo] = Field(..., description="Devices in this group")
+
+
+class DuplicateMacSeverityCounts(BaseModel):
+    """Count of duplicate groups by severity level."""
+
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+
+
+class DuplicateMacAnalysisResponse(BaseModel):
+    """Complete duplicate MAC analysis result."""
+
+    total_devices_analyzed: int = Field(..., description="Total devices fetched from CV")
+    devices_with_mac: int = Field(..., description="Devices that have a MAC address")
+    devices_without_mac: int = Field(..., description="Devices missing MAC address")
+    unique_macs: int = Field(..., description="Count of unique MAC addresses")
+    duplicate_groups_count: int = Field(..., description="Number of MAC addresses shared by 2+ devices")
+    severity_counts: DuplicateMacSeverityCounts
+    duplicate_groups: list[DuplicateMacGroup] = Field(
+        ..., description="Duplicate groups sorted by severity (critical first)"
+    )
+    no_mac_devices: list[NoMacDeviceInfo] = Field(
+        default_factory=list, description="Devices without any MAC address"
     )

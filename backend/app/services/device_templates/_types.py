@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Device template dataclasses.
 
 Defines the core types used across the device template library:
@@ -86,6 +89,8 @@ class DeviceTemplate:
     opc_ua_identity: dict[str, Any] | None = None
     lldp_identity: dict[str, Any] | None = None  # Layer 2 discovery (IEEE 802.1AB)
     cdp_identity: dict[str, Any] | None = None   # Cisco Discovery Protocol
+    dnp3_identity: dict[str, Any] | None = None   # DNP3 Device Attributes (Group 0)
+    iec104_identity: dict[str, Any] | None = None  # IEC 60870-5-104 identity
 
     # Protocol-specific quirks
     protocol_quirks: dict[str, Any] = field(default_factory=dict)

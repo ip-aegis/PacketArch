@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Smart Flow Generator for OT Traffic Simulation.
 
 This module provides intelligent flow generation that ensures all devices
@@ -21,6 +24,8 @@ import random
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from app.protocol_engines.protocols import PROTOCOL_ALIASES
 
 logger = logging.getLogger(__name__)
 
@@ -777,6 +782,29 @@ class SmartFlowGenerator:
                 elif pollers:
                     source = random.choice(pollers)
                 else:
+                    # Fallback: find ANY non-field device to create an SNMP
+                    # monitoring flow so this device is not orphaned.
+                    # CV cannot fingerprint devices without traffic.
+                    any_initiator = [
+                        d for d in devices
+                        if d.role != DeviceRole.FIELD_DEVICE
+                        and d.device_id != orphan.device_id
+                    ]
+                    if any_initiator:
+                        source = random.choice(any_initiator)
+                        flow = self._create_flow(
+                            source, orphan, "snmp", interval_ms=30000,
+                        )
+                        flows.append(flow)
+                        logger.warning(
+                            f"Orphan {orphan.device_id}: no role-compatible "
+                            f"poller, added SNMP monitoring fallback"
+                        )
+                    else:
+                        logger.error(
+                            f"Orphan {orphan.device_id}: cannot connect — "
+                            f"no other non-field device in scenario"
+                        )
                     continue
                 protocol = self._select_protocol(source, orphan, protocols)
                 flow = self._create_flow(source, orphan, protocol)
@@ -784,6 +812,7 @@ class SmartFlowGenerator:
                 continue
 
             # For initiators, find targets
+            connected = False
             for target_role in target_roles:
                 targets = [
                     d for d in devices
@@ -802,7 +831,26 @@ class SmartFlowGenerator:
                 protocol = self._select_protocol(orphan, target, protocols)
                 flow = self._create_flow(orphan, target, protocol)
                 flows.append(flow)
+                connected = True
                 break
+
+            # Fallback: if no role-compatible target found, create SNMP
+            # monitoring flow to any device to prevent orphaning.
+            if not connected:
+                any_target = [
+                    d for d in devices
+                    if d.device_id != orphan.device_id
+                ]
+                if any_target:
+                    target = random.choice(any_target)
+                    flow = self._create_flow(
+                        orphan, target, "snmp", interval_ms=30000,
+                    )
+                    flows.append(flow)
+                    logger.warning(
+                        f"Orphan {orphan.device_id}: no role-compatible "
+                        f"target, added SNMP monitoring fallback"
+                    )
 
         return flows
 
@@ -844,14 +892,9 @@ class SmartFlowGenerator:
 
     # Protocol alias mapping: variant protocol names → parent protocol.
     # Conduit allowed_protocols lists use parent names; flows may use variants.
-    PROTOCOL_ALIASES: dict[str, str] = {
-        "profisafe": "profinet",
-        "s7comm_plus": "s7comm",
-        "cip_safety": "ethernet_ip",
-        "modbus": "modbus_tcp",
-        "enip": "ethernet_ip",
-        "bacnet_ip": "bacnet",
-    }
+    # Sourced from app.protocol_engines.protocols (single source of truth);
+    # exposed here as a class attribute for backwards-compatible access.
+    PROTOCOL_ALIASES: dict[str, str] = PROTOCOL_ALIASES
 
     @classmethod
     def _resolve_protocol(cls, protocol: str) -> str:
@@ -1039,6 +1082,17 @@ class SmartFlowGenerator:
         """
         self._flow_counter += 1
         flow_id = f"flow_{self._flow_counter:04d}"
+
+        # Warn if selected protocol not in either device's protocol list
+        src_protos = set(source.protocols) if source.protocols else set()
+        tgt_protos = set(target.protocols) if target.protocols else set()
+        if protocol not in src_protos and protocol not in tgt_protos:
+            logger.warning(
+                f"Flow {flow_id}: protocol '{protocol}' not in source "
+                f"'{source.device_id}' protocols {list(src_protos)} or target "
+                f"'{target.device_id}' protocols {list(tgt_protos)} — "
+                f"traffic generation may skip this flow"
+            )
 
         # Auto-derive interval from protocol × role if not provided
         if interval_ms is None:

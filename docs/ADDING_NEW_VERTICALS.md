@@ -122,7 +122,6 @@ YOUR_VERTICAL_TEMPLATES: dict[str, dict[str, Any]] = {
 
         # OPTIONAL FIELDS
         "suggested_anomalies": {...},              # Anomaly injection guidance
-        "pcap_learning_hints": [...],              # PCAP learning guidance
         "external_comms": {...},                   # C2/exfil/exploit config for security testing
     },
 }

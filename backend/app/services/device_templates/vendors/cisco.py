@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Cisco / Cisco Industrial device templates."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
@@ -67,6 +70,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_descr": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.12.02, RELEASE SOFTWARE",
             "sys_object_id": "1.3.6.1.4.1.9.1.2824",
         },
+
+        lldp_identity={
+            "system_name": "IE-3300-8T2S",
+            "system_description": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software",
+            "chassis_id_subtype": 4,
+            "port_id_subtype": 5,
+            "capabilities": 0x0028,
+        },
+
+        cdp_identity={
+            "device_id": "IE-3300-8T2S.local",
+            "platform": "cisco IE-3300-8T2S",
+            "software_version": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.12.02",
+            "capabilities": 0x29,
+            "port_id": "GigabitEthernet1/0/1",
+            "native_vlan": 1,
+            "duplex": 1,
+        },
     ),
     DeviceTemplate(
         id="cisco/ie4000/8gt4g",
@@ -123,6 +144,24 @@ TEMPLATES: list[DeviceTemplate] = [
         snmp_identity={
             "sys_descr": "Cisco IOS Software, IE4000 Software (IE4000-UNIVERSAL-M) V15.2(8)E",
             "sys_object_id": "1.3.6.1.4.1.9.1.2238",
+        },
+
+        lldp_identity={
+            "system_name": "IE-4000-8GT4G",
+            "system_description": "Cisco IOS Software, Catalyst IE4000 Software",
+            "chassis_id_subtype": 4,
+            "port_id_subtype": 5,
+            "capabilities": 0x0028,
+        },
+
+        cdp_identity={
+            "device_id": "IE-4000-8GT4G.local",
+            "platform": "cisco IE-4000-8GT4G-E",
+            "software_version": "Cisco IOS Software, IE4000 Software (IE4000-UNIVERSAL-M) V15.2(8)E",
+            "capabilities": 0x29,
+            "port_id": "GigabitEthernet1/0/1",
+            "native_vlan": 1,
+            "duplex": 1,
         },
     ),
     DeviceTemplate(
@@ -204,6 +243,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "native_vlan": 1,
             "duplex": 1,  # Full duplex
         },
+
+        profinet_identity={
+            "vendor_id": 0x0145,  # Cisco PI-registered vendor ID
+            "device_id": 0x9320,
+            "device_role": 1,  # Switch/infrastructure
+            "station_type": "IE-9320-24P4X",
+            "station_name": "cisco-ie9320-24p4x",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,  # Cisco ODVA vendor ID
+            "device_type": 12,  # Communications Adapter (Switch)
+            "product_code": 9320,
+            "product_name": "Catalyst IE-9320-24P4X-E",
+            "serial_number": "FJC2XXXXXXX",
+        },
     ),
     DeviceTemplate(
         id="cisco/ie9320/26s2c",
@@ -278,6 +333,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "port_id": "GigabitEthernet1/0/1",
             "native_vlan": 1,
             "duplex": 1,
+        },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x9321,
+            "device_role": 1,
+            "station_type": "IE-9320-26S2C",
+            "station_name": "cisco-ie9320-26s2c",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 9321,
+            "product_name": "Catalyst IE-9320-26S2C-E",
+            "serial_number": "FJC2XXXXXXX",
         },
     ),
     DeviceTemplate(
@@ -429,6 +500,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "native_vlan": 1,
             "duplex": 1,
         },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x9322,
+            "device_role": 1,
+            "station_type": "IE-9320-24T4X",
+            "station_name": "cisco-ie9320-24t4x",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 9322,
+            "product_name": "Catalyst IE-9320-24T4X-E",
+            "serial_number": "FJC2XXXXXXX",
+        },
     ),
     DeviceTemplate(
         id="cisco/ie3500/8p3s",
@@ -509,6 +596,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "native_vlan": 1,
             "duplex": 1,
         },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x3500,
+            "device_role": 1,
+            "station_type": "IE-3500-8P3S",
+            "station_name": "cisco-ie3500-8p3s",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 3500,
+            "product_name": "Catalyst IE-3500-8P3S-E",
+            "serial_number": "FDO2XXXXXXX",
+        },
     ),
     DeviceTemplate(
         id="cisco/ie3500/8t3s",
@@ -538,7 +641,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FDO{8ALPHANUM}",
@@ -583,6 +686,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "port_id": "GigabitEthernet1/0/1",
             "native_vlan": 1,
             "duplex": 1,
+        },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x3501,
+            "device_role": 1,
+            "station_type": "IE-3500-8T3S",
+            "station_name": "cisco-ie3500-8t3s",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 3501,
+            "product_name": "Catalyst IE-3500-8T3S-E",
+            "serial_number": "FDO2XXXXXXX",
         },
     ),
     DeviceTemplate(
@@ -659,6 +778,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "native_vlan": 1,
             "duplex": 1,
         },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x3502,
+            "device_role": 1,
+            "station_type": "IE-3500-8U3X",
+            "station_name": "cisco-ie3500-8u3x",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 3502,
+            "product_name": "Catalyst IE-3500-8U3X-E",
+            "serial_number": "FDO2XXXXXXX",
+        },
     ),
     DeviceTemplate(
         id="cisco/ie3505/8p3s",
@@ -734,6 +869,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "native_vlan": 1,
             "duplex": 1,
         },
+
+        profinet_identity={
+            "vendor_id": 0x0145,
+            "device_id": 0x3505,
+            "device_role": 1,
+            "station_type": "IE-3505-8P3S",
+            "station_name": "cisco-ie3505-8p3s",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 680,
+            "device_type": 12,
+            "product_code": 3505,
+            "product_name": "Catalyst IE-3505-8P3S-E",
+            "serial_number": "FDO2XXXXXXX",
+        },
     ),
     DeviceTemplate(
         id="cisco/stratix/stratix-5700",
@@ -741,7 +892,7 @@ TEMPLATES: list[DeviceTemplate] = [
         vendor_family="Stratix",
         model="Stratix 5700",
         model_name="Stratix 5700",
-        device_type="switch",
+        device_type="network_switch",
         description="Cisco Stratix 5700",
         oui_prefixes=['00:1B:0D', '00:1E:BD'],
         tcp_stack={

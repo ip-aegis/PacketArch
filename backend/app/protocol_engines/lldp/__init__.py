@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """LLDP protocol engine package.
 
 LLDP (Link Layer Discovery Protocol, IEEE 802.1AB) is a Layer 2 protocol

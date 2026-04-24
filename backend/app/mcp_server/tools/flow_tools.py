@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Flow manipulation tools for MCP."""
 
 import json
@@ -74,6 +77,8 @@ async def add_flow(db: AsyncSession, scenario_id: str, flow_data: dict[str, Any]
     source_id = flow_data.get("sourceDeviceId")
     target_id = flow_data.get("targetDeviceId")
 
+    protocol = flow_data.get("protocol", "")
+
     def do_add_flow(definition: dict) -> dict:
         """Inner function that modifies definition and returns result."""
         devices = definition.get("devices", {})
@@ -85,6 +90,24 @@ async def add_flow(db: AsyncSession, scenario_id: str, flow_data: dict[str, Any]
         if target_id not in devices:
             return {"error": f"Target device {target_id} not found"}
 
+        # Block flow if neither device supports the protocol — traffic
+        # generation will silently skip it, leaving dead flows in the scenario.
+        warning = None
+        if protocol:
+            src_protocols = devices[source_id].get("protocols") or []
+            tgt_protocols = devices[target_id].get("protocols") or []
+            if protocol not in src_protocols and protocol not in tgt_protocols:
+                src_name = devices[source_id].get("name", source_id)
+                tgt_name = devices[target_id].get("name", target_id)
+                return {
+                    "error": (
+                        f"Protocol '{protocol}' not supported by either device. "
+                        f"Source '{src_name}' supports {src_protocols}, "
+                        f"target '{tgt_name}' supports {tgt_protocols}. "
+                        f"Fix device protocols first or choose a supported protocol."
+                    ),
+                }
+
         # Get or initialize flows dict
         flows = definition.setdefault("flows", {})
 
@@ -93,7 +116,10 @@ async def add_flow(db: AsyncSession, scenario_id: str, flow_data: dict[str, Any]
         flow_to_add["id"] = flow_id
         flows[flow_id] = flow_to_add
 
-        return {"success": True, "flow_id": flow_id, "current_count": len(flows)}
+        result = {"success": True, "flow_id": flow_id, "current_count": len(flows)}
+        if warning:
+            result["warning"] = warning
+        return result
 
     scenario, result = await safe_update_scenario(db, scenario_id, do_add_flow)
 

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Natural language scenario generator for OT traffic simulation.
 
 This module provides AI-powered scenario generation from natural language
@@ -21,12 +24,22 @@ from app.protocol_engines.vendor_oui import generate_mac_address, get_oui_for_ve
 from app.services.device_templates import (
     get_fingerprint_by_vendor_model,
     get_fingerprints_by_vendor,
+    get_fingerprints_by_vendor_and_type,
     get_all_templates,
     DEVICE_TEMPLATES,
 )
 from app.ai_services.nl_parser import extract_device_counts
 
 logger = logging.getLogger(__name__)
+
+# Device types that act as controllers/initiators in their vertical.
+# Used for flow generation and the "ensure at least 1 controller" guardrail.
+CONTROLLER_TYPES = {
+    "plc", "rtu", "ied",
+    "traffic_controller", "dms",
+    "bms_controller", "chiller_controller", "vav_controller",
+    "safety_controller", "dcs_controller",
+}
 
 
 # Industry vertical templates with fingerprint model hints
@@ -684,6 +697,24 @@ class ScenarioGenerator:
                 f"Device '{device_name}': All protocols validated: {validated}"
             )
 
+        # Guarantee at least one protocol so the device isn't orphaned.
+        # CV cannot fingerprint devices without any traffic.
+        if not validated and fingerprint_data and protocols:
+            if fingerprint_data.get("snmp_identity"):
+                validated = ["snmp"]
+                logger.warning(
+                    f"Device '{device_name}': All protocols filtered out. "
+                    f"Falling back to SNMP for minimum CV fingerprinting."
+                )
+            else:
+                # Keep first original protocol even without full identity —
+                # device will still appear on the network via ambient traffic.
+                validated = [protocols[0]]
+                logger.warning(
+                    f"Device '{device_name}': All protocols filtered out. "
+                    f"Keeping '{protocols[0]}' as last resort (identity may be incomplete)."
+                )
+
         return validated
 
     def generate_from_description(
@@ -1134,7 +1165,7 @@ class ScenarioGenerator:
 
             # Assign zone
             zones = template["zones"]
-            if device_type in ["plc", "rtu"]:
+            if device_type in CONTROLLER_TYPES:
                 zone = zones[0]  # Control zone
             elif device_type in ["hmi"]:
                 zone = zones[-1] if len(zones) > 1 else zones[0]  # Enterprise/higher zone
@@ -1150,12 +1181,15 @@ class ScenarioGenerator:
             if fingerprint_model and vendor != "generic":
                 fingerprint_data = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
 
-            # Fallback: if no specific model, try to find ANY fingerprint for this vendor
-            # This ensures devices have protocol identity data for traffic generation
+            # Fallback: if no specific model, try to find a fingerprint for this vendor
+            # matching the device_type first, then any fingerprint for the vendor.
             if not fingerprint_data and vendor and vendor != "generic":
-                vendor_fps = get_fingerprints_by_vendor(vendor)
+                # Prefer same device_type (sensor→sensor, drive→drive)
+                vendor_fps = get_fingerprints_by_vendor_and_type(vendor, device_type)
+                if not vendor_fps:
+                    # Widen to any fingerprint for this vendor
+                    vendor_fps = get_fingerprints_by_vendor(vendor)
                 if vendor_fps:
-                    # Pick first available fingerprint for this vendor
                     fingerprint_data = vendor_fps[0]
                     fingerprint_model = fingerprint_data.get("model")
                     logger.debug(
@@ -1236,8 +1270,11 @@ class ScenarioGenerator:
                 )
 
         # Ensure at least 1 controller (PLC/RTU) exists for flow generation
-        has_controller = any(d.device_type in ["plc", "rtu"] for d in devices)
-        has_field_devices = any(d.device_type not in ["plc", "rtu", "hmi"] for d in devices)
+        has_controller = any(d.device_type in CONTROLLER_TYPES for d in devices)
+        has_field_devices = any(
+            d.device_type not in CONTROLLER_TYPES and d.device_type != "hmi"
+            for d in devices
+        )
 
         if not has_controller and has_field_devices and len(devices) > 0:
             logger.info("No controller devices found. Adding a PLC for flow generation.")
@@ -1257,9 +1294,11 @@ class ScenarioGenerator:
                     vendor, fallback_fingerprint_model
                 )
 
-            # Try to find any fingerprint for the vendor if specific one not found
+            # Try to find a PLC fingerprint for the vendor if specific one not found
             if not fallback_fingerprint_data:
-                vendor_fps = get_fingerprints_by_vendor(vendor)
+                vendor_fps = get_fingerprints_by_vendor_and_type(vendor, "plc")
+                if not vendor_fps:
+                    vendor_fps = get_fingerprints_by_vendor(vendor)
                 if vendor_fps:
                     fallback_fingerprint_data = vendor_fps[0]
                     fallback_fingerprint_model = fallback_fingerprint_data.get("model")
@@ -1343,8 +1382,11 @@ class ScenarioGenerator:
         flows = []
 
         # Find controllers (PLCs, RTUs)
-        controllers = [d for d in devices if d.device_type in ["plc", "rtu"]]
-        field_devices = [d for d in devices if d.device_type not in ["plc", "rtu", "hmi"]]
+        controllers = [d for d in devices if d.device_type in CONTROLLER_TYPES]
+        field_devices = [
+            d for d in devices
+            if d.device_type not in CONTROLLER_TYPES and d.device_type != "hmi"
+        ]
         hmis = [d for d in devices if d.device_type == "hmi"]
 
         poll_intervals = template["poll_intervals_ms"]

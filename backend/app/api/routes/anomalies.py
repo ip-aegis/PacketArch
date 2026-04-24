@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Anomaly API routes for anomaly template management and injection.
 
 This module provides REST API endpoints for:
@@ -114,7 +117,6 @@ class VerticalAnomaliesResponse(BaseModel):
     vertical: str
     template_name: str
     suggested_anomalies: dict[str, list[str]]
-    pcap_learning_hints: list[dict[str, Any]]
 
 
 # ========== API Endpoints ==========
@@ -349,15 +351,12 @@ async def get_vertical_anomalies(
 ) -> VerticalAnomaliesResponse:
     """Get suggested anomalies for a vertical template.
 
-    Returns the suggested_anomalies and pcap_learning_hints from
-    the enhanced vertical templates.
-
     Args:
         vertical: Industry vertical (manufacturing, water, energy, oil_gas)
         template_name: Specific template name
 
     Returns:
-        Suggested anomalies and PCAP learning hints
+        Suggested anomalies for the vertical template.
     """
     template = get_template(vertical, template_name)
 
@@ -368,7 +367,6 @@ async def get_vertical_anomalies(
         vertical=vertical,
         template_name=template.get("name", template_name),
         suggested_anomalies=template.get("suggested_anomalies", {}),
-        pcap_learning_hints=template.get("pcap_learning_hints", []),
     )
 
 

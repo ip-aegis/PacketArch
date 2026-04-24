@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Fingerprint applicator for applying vendor fingerprints to packet generation.
 
 This module provides functions to apply vendor-specific fingerprints

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Scenario routes for managing traffic simulation scenarios."""
 
 import logging
@@ -147,14 +150,63 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         message=None if all_have_ips else f"{devices_missing_ip} device(s) missing IP",
     ))
 
-    # --- Check: No orphan devices ---
+    # --- Check: IP-zone subnet consistency ---
+    zones = definition.get("zones", {})
+    ip_zone_mismatches = 0
+    # Build zone → expected third octet mapping from subnet info
+    _zone_offsets: dict[str, int | None] = {}
+    for zid, zone in zones.items():
+        net = zone.get("network", {})
+        offset = net.get("subnet_offset")
+        if offset is not None:
+            _zone_offsets[zid] = int(offset)
+        else:
+            # Parse from subnet string e.g. "10.1.2.0/24" → 2
+            subnet = net.get("subnet", "")
+            parts = subnet.split("/")[0].split(".") if subnet else []
+            try:
+                _zone_offsets[zid] = int(parts[2]) if len(parts) >= 3 else None
+            except (ValueError, IndexError):
+                _zone_offsets[zid] = None
+
+    for did, device in devices.items():
+        zone_id = device.get("zoneId") or device.get("zone_id") or ""
+        expected_offset = _zone_offsets.get(zone_id)
+        if expected_offset is None:
+            continue  # No zone or no subnet info — can't validate
+        network = device.get("network", {})
+        ip = network.get("ipAddress") or network.get("ip_address") or ""
+        if not ip:
+            continue
+        parts = ip.split(".")
+        if len(parts) >= 3:
+            try:
+                if int(parts[2]) != expected_offset:
+                    ip_zone_mismatches += 1
+            except ValueError:
+                pass
+
+    ip_zone_ok = ip_zone_mismatches == 0
+    checks.append(ReadinessCheck(
+        name="IP-zone subnet consistency",
+        passed=ip_zone_ok,
+        severity="warning",
+        message=None if ip_zone_ok else (
+            f"{ip_zone_mismatches} device(s) with IP not in their zone's subnet"
+        ),
+    ))
+
+    # --- Check: No orphan devices (ERROR — CV cannot fingerprint devices without traffic) ---
     orphan_count = sum(1 for did in devices if did not in devices_with_flows)
     no_orphans = orphan_count == 0
     checks.append(ReadinessCheck(
         name="No orphan devices",
         passed=no_orphans,
-        severity="warning",
-        message=None if no_orphans else f"{orphan_count} device(s) with no flows",
+        severity="error",
+        message=None if no_orphans else (
+            f"{orphan_count} device(s) with no flows — "
+            f"Cyber Vision cannot fingerprint devices without traffic"
+        ),
     ))
 
     # --- Check: Protocol/fingerprint consistency ---
@@ -180,6 +232,101 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         passed=affinity_ok,
         severity="warning",
         message=None if affinity_ok else f"{len(affinity_warnings)} vendor-protocol affinity warning(s)",
+    ))
+
+    # --- Check: Fingerprint coverage ---
+    devices_without_fp = 0
+    for did, device in devices.items():
+        fp = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+        if not fp or not any(
+            fp.get(k) for k in (
+                "modbus_identity", "ethernet_ip_identity", "profinet_identity",
+                "s7_identity", "snmp_identity", "bacnet_identity", "opc_ua_identity",
+            )
+        ):
+            devices_without_fp += 1
+    fp_coverage_ok = devices_without_fp == 0
+    checks.append(ReadinessCheck(
+        name="Fingerprint coverage",
+        passed=fp_coverage_ok,
+        severity="warning",
+        message=None if fp_coverage_ok else (
+            f"{devices_without_fp} device(s) missing vendor fingerprint — "
+            f"Cyber Vision will see unknown vendor identity"
+        ),
+    ))
+
+    # --- Check: MAC-vendor OUI alignment ---
+    from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
+
+    mac_vendor_mismatches = 0
+    for did, device in devices.items():
+        vendor = (device.get("vendor") or "").lower().strip()
+        network = device.get("network", {})
+        mac = (network.get("macAddress") or network.get("mac_address") or "").upper()
+        if not vendor or not mac or len(mac) < 8:
+            continue
+        mac_prefix = mac[:8]  # e.g. "00:0E:8C"
+        vendor_ouis = VENDOR_OUI_PREFIXES.get(vendor, [])
+        if vendor_ouis and mac_prefix not in [o.upper() for o in vendor_ouis]:
+            mac_vendor_mismatches += 1
+    mac_vendor_ok = mac_vendor_mismatches == 0
+    checks.append(ReadinessCheck(
+        name="MAC-vendor OUI alignment",
+        passed=mac_vendor_ok,
+        severity="warning",
+        message=None if mac_vendor_ok else (
+            f"{mac_vendor_mismatches} device(s) with MAC OUI not matching "
+            f"declared vendor — regenerate MACs to fix"
+        ),
+    ))
+
+    # --- Check: Device naming quality ---
+    import re as _re
+
+    _GENERIC_NAME_PATTERNS = [
+        _re.compile(r"^device[-_]?\d+$", _re.IGNORECASE),
+        _re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-", _re.IGNORECASE),  # UUID prefix
+        _re.compile(r"^(plc|hmi|rtu|sensor|switch|drive|io_module)[-_]?\d+$", _re.IGNORECASE),
+        _re.compile(r"^new[-_]?device", _re.IGNORECASE),
+    ]
+    generic_names = 0
+    for did, device in devices.items():
+        name = device.get("name", did)
+        if any(p.match(name) for p in _GENERIC_NAME_PATTERNS):
+            generic_names += 1
+    naming_ok = generic_names == 0
+    checks.append(ReadinessCheck(
+        name="Device naming quality",
+        passed=naming_ok,
+        severity="warning",
+        message=None if naming_ok else (
+            f"{generic_names} device(s) with generic names — "
+            f"use descriptive names for realistic Cyber Vision classification"
+        ),
+    ))
+
+    # --- Check: Flow protocol consistency ---
+    flow_protocol_mismatches = 0
+    for fid, flow in flows.items():
+        proto = flow.get("protocol", "")
+        if not proto:
+            continue
+        src_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
+        tgt_id = flow.get("targetDeviceId") or flow.get("target_device_id")
+        src_protos = (devices.get(src_id, {}).get("protocols") or []) if src_id else []
+        tgt_protos = (devices.get(tgt_id, {}).get("protocols") or []) if tgt_id else []
+        if proto not in src_protos and proto not in tgt_protos:
+            flow_protocol_mismatches += 1
+    flow_protos_ok = flow_protocol_mismatches == 0
+    checks.append(ReadinessCheck(
+        name="Flow protocol consistency",
+        passed=flow_protos_ok,
+        severity="warning",
+        message=None if flow_protos_ok else (
+            f"{flow_protocol_mismatches} flow(s) use protocols not listed on "
+            f"either endpoint device"
+        ),
     ))
 
     # --- Check: Conduit compliance ---

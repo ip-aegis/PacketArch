@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Anomaly API client
  */
@@ -82,12 +87,6 @@ export interface VerticalAnomalies {
   vertical: string;
   template_name: string;
   suggested_anomalies: Record<string, string[]>;
-  pcap_learning_hints: Array<{
-    protocol: string;
-    flow_type: string;
-    priority: string;
-    description?: string;
-  }>;
 }
 
 // API functions

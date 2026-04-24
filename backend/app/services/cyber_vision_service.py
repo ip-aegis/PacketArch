@@ -1,10 +1,17 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Cisco Cyber Vision API service for device discovery and vulnerability data."""
+
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
+
+from app.protocol_engines.vendor_oui import get_vendor_for_oui
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +60,32 @@ class CVDevice:
         vendor_info = data.get("vendorProductInfo") or {}
         group_info = data.get("group") or {}
 
+        # CV API v3 stores enriched fields in normalizedProperties as key-value pairs:
+        #   [{"key": "vendor-name", "value": ["Siemens"]}, ...]
+        # Values can be strings (component level) or lists (device level).
+        norm_props: dict[str, str] = {}
+        for prop in data.get("normalizedProperties") or []:
+            key = prop.get("key", "")
+            val = prop.get("value")
+            if isinstance(val, list):
+                val = val[0] if val else None
+            if key and val:
+                norm_props[key] = val
+
         return cls(
             id=str(data.get("id", "")),
             name=data.get("label") or data.get("name") or "Unknown",
             ip=ip_val,
             mac=mac_val,
-            vendor=data.get("vendor") or vendor_info.get("vendor"),
-            model=data.get("model") or vendor_info.get("model"),
-            firmware=data.get("firmware") or vendor_info.get("firmwareVersion"),
+            vendor=(data.get("vendor")
+                    or vendor_info.get("vendor")
+                    or norm_props.get("vendor-name")),
+            model=(data.get("model")
+                   or vendor_info.get("model")
+                   or norm_props.get("model-name")),
+            firmware=(data.get("firmware")
+                      or vendor_info.get("firmwareVersion")
+                      or norm_props.get("fw-version")),
             category=data.get("category") or data.get("deviceType"),
             risk_score=data.get("riskScore") or data.get("risk_score"),
             first_seen=data.get("firstSeen") or data.get("first_seen"),
@@ -108,6 +133,224 @@ class CVVulnerability:
             affected_device_count=data.get("affectedDeviceCount") or 0,
             description=data.get("fullDescription") or data.get("summary"),
         )
+
+
+def normalize_mac(mac: str | None) -> str | None:
+    """Normalize MAC address to lowercase with colons (xx:xx:xx:xx:xx:xx)."""
+    if not mac:
+        return None
+    clean = mac.lower().replace(":", "").replace("-", "").replace(".", "")
+    if len(clean) == 12:
+        return ":".join(clean[i : i + 2] for i in range(0, 12, 2))
+    return mac.lower()
+
+
+def _normalize_cv_vendor(vendor: str) -> str:
+    """Extract primary brand from a CV vendor string.
+
+    CV reports full legal entity names that vary for the same brand:
+    - "Siemens AG" / "Siemens Numerical Control Ltd., Nanjing" → "siemens"
+    - "KUKA Roboter GmbH" / "KUKA WELDING SYSTEMS & ROBOTS" → "kuka"
+    - "Rockwell Automation/Allen-Bradley" → "rockwell"
+    """
+    if not vendor:
+        return ""
+    # Split on whitespace, slashes, commas → take first token as brand
+    for ch in "/,":
+        vendor = vendor.replace(ch, " ")
+    brand = vendor.split()[0].lower().rstrip(".,;:") if vendor.split() else ""
+    aliases = {"allen-bradley": "rockwell", "allen": "rockwell"}
+    return aliases.get(brand, brand)
+
+
+def _classify_severity(mac: str, devices: list[CVDevice]) -> tuple[str, str]:
+    """Classify the severity of a duplicate MAC group.
+
+    Returns:
+        (severity, reason) tuple.
+    """
+    vendors = {(d.vendor or "").lower().strip() for d in devices} - {""}
+    normalized_vendors = {_normalize_cv_vendor(v) for v in vendors} - {""}
+    ips = {d.ip for d in devices if d.ip}
+    names = {d.name for d in devices}
+    models = {(d.model or "").lower().strip() for d in devices} - {""}
+
+    # Critical: different vendors → spoofing or major misconfiguration
+    # Use normalized brands so "Siemens AG" and "Siemens Numerical Control Ltd."
+    # are recognized as the same vendor.
+    if len(normalized_vendors) > 1:
+        return (
+            "critical",
+            f"Same MAC shared across {len(normalized_vendors)} different vendors "
+            f"({', '.join(sorted(vendors))}). "
+            "Possible MAC spoofing or major misconfiguration.",
+        )
+
+    # High: different IPs → cloned device / network misconfiguration
+    if len(ips) > 1:
+        return (
+            "high",
+            f"Same MAC with {len(ips)} different IP addresses "
+            f"({', '.join(sorted(ips))}). "
+            "Possible cloned device or network misconfiguration.",
+        )
+
+    # Medium: same IP but different names or models → data quality issue
+    if len(names) > 1 or len(models) > 1:
+        return (
+            "medium",
+            "Same MAC and IP but different device names or models. "
+            "Possible duplicate entries from multiple discovery sessions.",
+        )
+
+    # Low: devices look nearly identical
+    return (
+        "low",
+        "Devices appear nearly identical. "
+        "Likely the same device observed from multiple network segments or sensor paths.",
+    )
+
+
+def analyze_duplicate_macs(devices: list[CVDevice]) -> dict:
+    """Analyze a list of CV devices for duplicate MAC addresses.
+
+    Groups devices by normalized MAC, identifies groups with 2+ devices,
+    classifies severity, and computes summary statistics.
+    """
+    devices_with_mac: list[CVDevice] = []
+    devices_without_mac: list[CVDevice] = []
+
+    for device in devices:
+        norm = normalize_mac(device.mac)
+        if norm:
+            devices_with_mac.append(device)
+        else:
+            devices_without_mac.append(device)
+
+    # Group by normalized MAC
+    mac_groups: dict[str, list[CVDevice]] = {}
+    for device in devices_with_mac:
+        norm = normalize_mac(device.mac)
+        mac_groups.setdefault(norm, []).append(device)
+
+    # Find duplicates and classify severity
+    duplicate_groups = []
+    severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+
+    for mac, group_devices in mac_groups.items():
+        if len(group_devices) < 2:
+            continue
+
+        severity, reason = _classify_severity(mac, group_devices)
+        severity_counts[severity] += 1
+
+        # OUI vendor lookup
+        oui_prefix = mac[:8].upper()
+        oui_vendor = get_vendor_for_oui(oui_prefix)
+
+        duplicate_groups.append({
+            "mac": mac,
+            "oui_vendor": oui_vendor,
+            "severity": severity,
+            "reason": reason,
+            "device_count": len(group_devices),
+            "devices": [
+                {
+                    "id": d.id,
+                    "name": d.name,
+                    "ip": d.ip,
+                    "mac": d.mac,
+                    "vendor": d.vendor,
+                    "model": d.model,
+                    "firmware": d.firmware,
+                    "category": d.category,
+                    "risk_score": d.risk_score,
+                    "first_seen": d.first_seen,
+                    "last_seen": d.last_seen,
+                    "group_name": d.group_name,
+                }
+                for d in group_devices
+            ],
+        })
+
+    # Sort: critical first, then high, medium, low; within same severity by device count desc
+    severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    duplicate_groups.sort(key=lambda g: (severity_order[g["severity"]], -g["device_count"]))
+
+    return {
+        "total_devices_analyzed": len(devices),
+        "devices_with_mac": len(devices_with_mac),
+        "devices_without_mac": len(devices_without_mac),
+        "unique_macs": len(mac_groups),
+        "duplicate_groups_count": len(duplicate_groups),
+        "severity_counts": severity_counts,
+        "duplicate_groups": duplicate_groups,
+        "no_mac_devices": [
+            {
+                "id": d.id,
+                "name": d.name,
+                "ip": d.ip,
+                "vendor": d.vendor,
+                "category": d.category,
+                "group_name": d.group_name,
+            }
+            for d in devices_without_mac
+        ],
+    }
+
+
+def deduplicate_by_mac(devices: list[CVDevice]) -> list[CVDevice]:
+    """Merge CV components that share the same MAC address.
+
+    Cisco Cyber Vision creates separate components for Layer 2 traffic
+    (e.g. PROFINET, EtherType 0x8892) and Layer 3 traffic (S7comm, SNMP
+    over TCP/UDP).  This produces duplicate entries for the same physical
+    device — one with an IP and one without.
+
+    This function groups entries by normalized MAC, keeps the richest
+    record (preferring the one with an IP), and merges missing fields
+    from the other entries.
+    """
+    mac_groups: dict[str, list[CVDevice]] = {}
+    no_mac: list[CVDevice] = []
+
+    for d in devices:
+        norm = normalize_mac(d.mac)
+        if norm:
+            mac_groups.setdefault(norm, []).append(d)
+        else:
+            no_mac.append(d)
+
+    merged: list[CVDevice] = []
+    for _mac, group in mac_groups.items():
+        if len(group) == 1:
+            merged.append(group[0])
+            continue
+
+        # Prefer the entry that has an IP address
+        group.sort(key=lambda d: (d.ip is None, d.name == "Unknown"))
+        primary = group[0]
+
+        # Back-fill missing fields from other entries
+        for other in group[1:]:
+            if not primary.ip and other.ip:
+                primary.ip = other.ip
+            if not primary.vendor and other.vendor:
+                primary.vendor = other.vendor
+            if not primary.model and other.model:
+                primary.model = other.model
+            if not primary.firmware and other.firmware:
+                primary.firmware = other.firmware
+            if not primary.category and other.category:
+                primary.category = other.category
+            if not primary.group_name and other.group_name:
+                primary.group_name = other.group_name
+            if primary.risk_score is None and other.risk_score is not None:
+                primary.risk_score = other.risk_score
+
+        merged.append(primary)
+
+    return merged + no_mac
 
 
 class CyberVisionService:

@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Fingerprint conversion and database adapter functions.
 
 Provides backwards compatibility with existing code that expects
@@ -5,6 +8,7 @@ fingerprint dictionaries (FingerprintApplicator, scenario templates,
 AI scenario generator).
 """
 
+import logging
 from typing import Any
 
 from app.services.device_templates._api import (
@@ -18,6 +22,8 @@ from app.services.device_templates._helpers import (
 )
 from app.services.device_templates._registry import DEVICE_TEMPLATES
 from app.services.device_templates._types import DeviceTemplate
+
+logger = logging.getLogger(__name__)
 
 
 def get_template_by_vendor_model(vendor: str, model: str) -> DeviceTemplate | None:
@@ -119,6 +125,8 @@ def get_fingerprint_from_template(
         ("bacnet_identity", template.bacnet_identity),
         ("snmp_identity", template.snmp_identity),
         ("opc_ua_identity", template.opc_ua_identity),
+        ("dnp3_identity", template.dnp3_identity),
+        ("iec104_identity", template.iec104_identity),
     ]
 
     for key, base_identity in protocol_identities:
@@ -142,6 +150,10 @@ def get_fingerprint_from_template(
                 merged["firmware_version"] = firmware.version
             elif key == "snmp_identity" and "firmware_version" not in merged:
                 merged["firmware_version"] = firmware.version
+            elif key == "dnp3_identity" and "software_version" not in merged:
+                merged["software_version"] = firmware.version
+            elif key == "iec104_identity" and "software_version" not in merged:
+                merged["software_version"] = firmware.version
             elif key == "ethernet_ip_identity":
                 parts = firmware.version.lstrip("V").split(".")
                 if len(parts) >= 2:
@@ -232,6 +244,27 @@ def get_fingerprints_by_vendor(vendor: str) -> list[dict[str, Any]]:
     return fingerprints
 
 
+def get_fingerprints_by_vendor_and_type(
+    vendor: str, device_type: str,
+) -> list[dict[str, Any]]:
+    """Get fingerprint dictionaries for a vendor filtered by device_type.
+
+    Args:
+        vendor: Vendor name (case-insensitive)
+        device_type: Device type (e.g. "plc", "sensor", "drive")
+
+    Returns:
+        List of fingerprint dictionaries matching both vendor and device_type
+    """
+    fingerprints = []
+    for template in get_templates_by_vendor(vendor):
+        if template.device_type == device_type:
+            fp = get_fingerprint_from_template(template.id)
+            if fp:
+                fingerprints.append(fp)
+    return fingerprints
+
+
 def get_all_fingerprints() -> list[dict[str, Any]]:
     """Get all fingerprint dictionaries from the template library.
 
@@ -292,13 +325,18 @@ def template_db_to_fingerprint_dict(template) -> dict[str, Any] | None:
         fp["protocol_quirks"] = dict(template.protocol_quirks or {})
 
         # Protocol identities (check both unified and legacy columns)
-        for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "opc_ua"]:
+        for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "opc_ua", "dnp3", "iec104"]:
             identity = template.get_protocol_identity(protocol)
             fp[f"{protocol}_identity"] = dict(identity) if identity else None
 
         return fp
 
     except Exception:
+        template_id = getattr(template, "id", None) if template is not None else None
+        logger.exception(
+            "Failed to convert DeviceTemplate to fingerprint dict (template_id=%s)",
+            template_id,
+        )
         return None
 
 
@@ -331,6 +369,10 @@ def get_fingerprint_from_db_sync(
             return template_db_to_fingerprint_dict(template)
 
     except Exception:
+        logger.exception(
+            "Sync fingerprint DB lookup failed (vendor=%r, model=%r)",
+            vendor, model,
+        )
         return None
 
 
@@ -366,6 +408,10 @@ async def get_fingerprint_from_db_async(
         return template_db_to_fingerprint_dict(template)
 
     except Exception:
+        logger.exception(
+            "Async fingerprint DB lookup failed (vendor=%r, model=%r)",
+            vendor, model,
+        )
         return None
 
 

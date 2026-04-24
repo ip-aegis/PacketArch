@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """CV Fingerprint Diagnostic — Generate PCAPs, inspect identity packets.
 
 Standalone script — NO database, NO server required.
@@ -104,8 +107,8 @@ TEST_CASES = [
         "checks": ["mac_oui", "bacnet_iam"],
     },
     {
-        "name": "SNMP - Schneider ConneXium",
-        "template_id": "schneider/connexium/tcsesm083f2cu0",
+        "name": "SNMP - Cisco IE-4000",
+        "template_id": "cisco/ie4000/8gt4g",
         "protocol": "snmp",
         "src_port": 50000,
         "dst_port": 161,
@@ -113,7 +116,7 @@ TEST_CASES = [
         "dst_mac": None,
         "src_ip": "10.6.0.100",
         "dst_ip": "10.6.0.10",
-        "expected_oui": ["00:00:54", "00:80:F4"],
+        "expected_oui": ["00:26:98", "00:1A:A1", "00:17:0E", "F8:C2:88"],
         "checks": ["mac_oui", "snmp_sysinfo"],
     },
 ]

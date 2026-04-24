@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """
 Create a test scenario with devices covering all fingerprinting protocols.
 Each device has explicit CVE data with known firmware versions for validation.

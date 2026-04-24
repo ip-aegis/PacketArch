@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Transportation ITS CVE data.
 
 CVE information for traffic controllers, DMS, toll systems, and roadside
@@ -75,39 +78,39 @@ TRANSPORTATION_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2019-6569 - Siemens SCALANCE Network Devices
+    # CVE-2023-20198 - Cisco IOS XE Web UI Privilege Escalation
     {
-        "cve_id": "CVE-2019-6569",
-        "title": "Siemens SCALANCE Insufficient Resource Pool Vulnerability",
+        "cve_id": "CVE-2023-20198",
+        "title": "Cisco IOS XE Web UI Privilege Escalation Vulnerability",
         "description": (
-            "SCALANCE X switches used in traffic infrastructure contain "
-            "a vulnerability that could allow attackers to cause denial of "
-            "service via resource exhaustion attacks."
+            "Cisco IOS XE switches used in traffic infrastructure contain "
+            "a vulnerability in the web UI that could allow an unauthenticated "
+            "remote attacker to create a privileged account on the device."
         ),
-        "severity": "high",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-        "vendor": "Siemens",
+        "severity": "critical",
+        "cvss_score": 10.0,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+        "vendor": "Cisco",
         "product_family": "Traffic Network",
-        "affected_models": ["SCALANCE X-200", "SCALANCE X-300", "SCALANCE XM-400"],
+        "affected_models": ["IE-3300-8T2S", "IE-4000-8GT4G-E", "IE-9320-24T4X-E"],
         "affected_firmware_min": None,
-        "affected_firmware_max": "V5.2.4",
-        "fixed_firmware_version": "V5.2.5",
+        "affected_firmware_max": "17.9.04",
+        "fixed_firmware_version": "17.9.04a",
         "cyber_vision_detectable": True,
         "detection_method": "snmp_sysdescr",
-        "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-480230.pdf",
+        "advisory_url": "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-iosxe-webui-privesc-j22SaA4z",
         "references": [],
         "mitre_techniques": ["T0815"],
-        "exploit_available": False,
-        "exploit_complexity": "medium",
-        "published_date": datetime(2019, 3, 26),
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2023, 10, 16),
         "vulnerable_variants": [
             {
-                "firmware_version": "V5.2.4",
-                "display_name": "SCALANCE X-200 Switch (CVE-2019-6569)",
+                "firmware_version": "17.9.04",
+                "display_name": "Cisco IE-3300 Switch (CVE-2023-20198)",
                 "snmp_identity_override": {
-                    "sys_descr": "Siemens SCALANCE X-200 Industrial Ethernet Switch V5.2.4",
-                    "sys_object_id": "1.3.6.1.4.1.4329.3.1.1",
+                    "sys_descr": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.9.04",
+                    "sys_object_id": "1.3.6.1.4.1.9.1.2824",
                     "sys_name": "ITS-SW-001",
                     "sys_location": "Cabinet #12",
                 },

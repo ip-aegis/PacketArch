@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Device template registry.
 
 Maintains the global DEVICE_TEMPLATES dictionary and handles
@@ -49,8 +52,8 @@ def _register_all() -> None:
             _register_template(template)
 
     _count = len(DEVICE_TEMPLATES)
-    if _count < 295:  # 301 _register calls, 6 pre-existing duplicate IDs = 295 unique
-        raise RuntimeError(f"Expected at least 295 templates, got {_count}")
+    if _count < 284:  # 295 - 11 non-Cisco switch templates removed
+        raise RuntimeError(f"Expected at least 284 templates, got {_count}")
 
 
 _register_all()

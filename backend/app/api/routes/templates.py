@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """Template API routes for scenario creation from templates."""
 
 import logging
@@ -16,7 +19,7 @@ from app.models.scenario import Scenario
 from app.protocol_engines.vendor_oui import generate_mac_address
 from app.services.ip_management import IPManagementService
 from app.services.cve_fingerprint_service import CVEFingerprintService
-from app.services.device_templates import get_fingerprint_by_vendor_model
+from app.services.device_templates import get_fingerprint_by_vendor_model, get_fingerprint_from_template
 from app.traffic_generator.flow_generator import (
     DeviceSpec,
     FlowPattern,
@@ -346,13 +349,21 @@ async def create_scenario_from_template(
 
             # Populate full vendor_fingerprint for traffic generation
             # This provides deep CIP fingerprinting data (ethernet_ip_identity, cip_identity_object, etc.)
+            # Templates can specify fingerprint via fingerprint_model (vendor+model lookup)
+            # or fingerprint_id (direct template ID like "cisco/ie3500/8t3s")
             vendor = device_spec.get("vendor")
             fingerprint_model = device_spec.get("fingerprint_model")
-            if vendor and fingerprint_model:
+            fingerprint_id = device_spec.get("fingerprint_id")
+            full_fingerprint = None
+            if fingerprint_id:
+                full_fingerprint = get_fingerprint_from_template(fingerprint_id)
+                if full_fingerprint and not fingerprint_model:
+                    device["fingerprintModel"] = full_fingerprint.get("model")
+            elif vendor and fingerprint_model:
                 full_fingerprint = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
-                if full_fingerprint:
-                    device["vendorFingerprint"] = full_fingerprint
-                    logger.debug(f"Added vendorFingerprint for device {device_id}: {fingerprint_model}")
+            if full_fingerprint:
+                device["vendorFingerprint"] = full_fingerprint
+                logger.debug(f"Added vendorFingerprint for device {device_id}: {fingerprint_id or fingerprint_model}")
 
             # Add role if specified
             if device_spec.get("role"):
@@ -372,7 +383,7 @@ async def create_scenario_from_template(
                     resolved_cve = await CVEFingerprintService.resolve_cves_for_device(
                         db,
                         vendor=device_spec.get("vendor", ""),
-                        model=device_spec.get("fingerprint_model"),
+                        model=device_spec.get("fingerprint_model") or device.get("fingerprintModel"),
                         cve_ids=cve_ids,
                         base_fingerprint=device.get("vendorFingerprint"),
                     )
@@ -389,14 +400,22 @@ async def create_scenario_from_template(
                 except Exception as e:
                     logger.warning(f"Failed to resolve CVE for device {device_id}: {e}")
 
-            # Auto-assign MAC if requested
+            # Auto-assign MAC if requested (respect mac_address override from template)
             if request.auto_assign_addresses:
-                fp_ouis = device.get("vendorFingerprint", {}).get("oui_prefixes")
-                device["network"]["macAddress"] = generate_mac_address(
-                    vendor=device_spec.get("vendor"),
-                    device_type=device_spec.get("type"),
-                    oui_prefixes=fp_ouis if fp_ouis else None,
-                )
+                mac_override = device_spec.get("mac_address")
+                if mac_override:
+                    device["network"]["macAddress"] = mac_override
+                else:
+                    fp_ouis = device.get("vendorFingerprint", {}).get("oui_prefixes")
+                    device["network"]["macAddress"] = generate_mac_address(
+                        vendor=device_spec.get("vendor"),
+                        device_type=device_spec.get("type"),
+                        oui_prefixes=fp_ouis if fp_ouis else None,
+                    )
+
+            # Carry through IP host offset override for testing templates
+            if device_spec.get("ip_host_offset") is not None:
+                device["_ip_host_offset"] = device_spec["ip_host_offset"]
 
             # CRITICAL: Generate unique serial numbers for each device
             # This prevents Cyber Vision from merging devices with same fingerprint
@@ -973,7 +992,9 @@ def _auto_assign_ips(
         for i, device_id in enumerate(device_ids, start=10):
             device = devices[device_id]
             dev_network = device.get("network", {})
-            dev_network["ipAddress"] = f"{base}.{i}"
+            # Respect host offset override from template (for testing duplicate IPs)
+            host = device.pop("_ip_host_offset", None) or i
+            dev_network["ipAddress"] = f"{base}.{host}"
             dev_network["subnetMask"] = "255.255.255.0"
             dev_network["gateway"] = f"{base}.1"
             dev_network["vlan"] = network.get("vlan")

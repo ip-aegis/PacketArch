@@ -1,3 +1,6 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
 """LLDP (Link Layer Discovery Protocol) types and constants.
 
 LLDP (IEEE 802.1AB) is a Layer 2 protocol used by network devices to
@@ -322,22 +325,6 @@ INDUSTRIAL_DEVICE_PROFILES = {
         "device_type": LLDPDeviceType.SWITCH,
     },
 
-    # Siemens SCALANCE
-    "SIEMENS_SCALANCE_X208": {
-        "vendor": "Siemens",
-        "model": "SCALANCE X208",
-        "description": "SIEMENS SCALANCE X-200 Switch; HW:V1.0; FW:V5.4.5",
-        "capabilities": SystemCapability.BRIDGE,
-        "device_type": LLDPDeviceType.SWITCH,
-    },
-    "SIEMENS_SCALANCE_XC216": {
-        "vendor": "Siemens",
-        "model": "SCALANCE XC216-4C",
-        "description": "SIEMENS SCALANCE XC-200 Switch; HW:V2.0; FW:V5.5.2",
-        "capabilities": SystemCapability.BRIDGE,
-        "device_type": LLDPDeviceType.SWITCH,
-    },
-
     # Siemens PLCs
     "SIEMENS_S7_1500": {
         "vendor": "Siemens",
@@ -355,37 +342,12 @@ INDUSTRIAL_DEVICE_PROFILES = {
     },
 
     # Rockwell Automation
-    "ROCKWELL_STRATIX_5700": {
-        "vendor": "Rockwell Automation",
-        "model": "Stratix 5700",
-        "description": "Stratix 5700 Industrial Ethernet Switch, Rev. 15.2(6)E",
-        "capabilities": SystemCapability.BRIDGE,
-        "device_type": LLDPDeviceType.SWITCH,
-    },
     "ROCKWELL_EN2T": {
         "vendor": "Rockwell Automation",
         "model": "1756-EN2T",
         "description": "1756-EN2T/C EtherNet/IP Module, Rev. 11.001",
         "capabilities": SystemCapability.STATION_ONLY,
         "device_type": LLDPDeviceType.PLC,
-    },
-
-    # Hirschmann
-    "HIRSCHMANN_RSP35": {
-        "vendor": "Hirschmann",
-        "model": "RSP35",
-        "description": "Hirschmann RSP35 Industrial Ethernet Switch, HiOS-3S-09.0.00",
-        "capabilities": SystemCapability.BRIDGE,
-        "device_type": LLDPDeviceType.SWITCH,
-    },
-
-    # Phoenix Contact
-    "PHOENIX_FL_SWITCH": {
-        "vendor": "Phoenix Contact",
-        "model": "FL SWITCH 2008",
-        "description": "Phoenix Contact FL SWITCH 2008 Ethernet Switch, FW:V1.90",
-        "capabilities": SystemCapability.BRIDGE,
-        "device_type": LLDPDeviceType.SWITCH,
     },
 
     # Schneider Electric
