@@ -1,3 +1,8 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
 /**
  * Admin settings page component
  */
@@ -31,6 +36,7 @@ import {
   DownloadOutlined,
   FileOutlined,
   IdcardOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
@@ -38,6 +44,7 @@ import LdapTab from '../../components/admin/LdapTab';
 import AgentsTab from '../../components/admin/AgentsTab';
 import DownloadsTab from '../../components/admin/DownloadsTab';
 import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
+import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { SystemSetting } from '../../types';
 
@@ -344,6 +351,9 @@ const SettingsPage: React.FC = () => {
     success: boolean;
     message: string;
   } | null>(null);
+  // Controlled active tab so the Overview card's "Configure →" buttons can
+  // deep-link into other tabs.
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   useEffect(() => {
     fetchSettings();
@@ -381,6 +391,15 @@ const SettingsPage: React.FC = () => {
   }
 
   const tabItems = [
+    {
+      key: 'overview',
+      label: (
+        <span>
+          <DashboardOutlined /> Overview
+        </span>
+      ),
+      children: <SiteConfigOverviewTab onSelectTab={setActiveTab} />,
+    },
     {
       key: 'api_tokens',
       label: (
@@ -591,7 +610,12 @@ const SettingsPage: React.FC = () => {
         )}
 
         <Card>
-          <Tabs items={tabItems} />
+          <Tabs
+            items={tabItems}
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            destroyInactiveTabPane
+          />
         </Card>
       </Space>
     </div>
