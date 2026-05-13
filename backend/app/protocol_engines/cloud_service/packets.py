@@ -80,6 +80,7 @@ def build_tls_client_hello(
     seq_num: int,
     hostname: str,
     ttl: int = 64,
+    tls_profile: str = "embedded_minimal",
 ) -> bytes:
     """Build a TLS 1.2 Client Hello packet with SNI extension.
 
@@ -93,11 +94,20 @@ def build_tls_client_hello(
         seq_num: TCP sequence number (should be SYN seq + 1)
         hostname: Server hostname for SNI extension
         ttl: IP TTL value
+        tls_profile: ClientHello shape preset. See
+            ``CloudServiceConversationState.tls_profile`` for options.
+            The shape drives the JA3 hash CV uses for device-class
+            iconography — a minimalist 4-cipher ClientHello triggers a
+            "Canon printer" icon, while a 25-cipher SChannel ClientHello
+            with the full Windows extension set triggers a Windows icon.
 
     Returns:
         Raw packet bytes
     """
-    tls_payload = _build_tls_client_hello_payload(hostname)
+    if tls_profile == "windows_schannel_2016":
+        tls_payload = _build_tls_client_hello_payload_schannel_2016(hostname)
+    else:
+        tls_payload = _build_tls_client_hello_payload(hostname)
 
     packet = (
         Ether(src=src_mac, dst=dst_mac)
@@ -228,6 +238,130 @@ def _build_tls_client_hello_payload(hostname: str) -> bytes:
     )
 
     # TLS Record header
+    tls_record = (
+        bytes([TLS_HANDSHAKE])
+        + bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
+        + struct.pack(">H", len(handshake))
+        + handshake
+    )
+
+    return tls_record
+
+
+def _build_tls_client_hello_payload_schannel_2016(hostname: str) -> bytes:
+    """Build a TLS 1.2 Client Hello shaped like Windows Server 2016 SChannel.
+
+    Targets the JA3 hash Cyber Vision uses to render the Windows icon
+    family. Without this, the minimalist 4-cipher ClientHello in
+    `_build_tls_client_hello_payload` collides with embedded-printer JA3
+    fingerprints (Canon iR series in particular) and CV draws the wrong
+    icon even though SNMP / OUI identify the device as Microsoft.
+
+    Cipher list and extension ordering taken from real SChannel captures
+    on Windows Server 2016 build 14393 (1607). Matches the JA3
+    `771,49196-...-10,0-23-65281-...,29-23-24,0` shape that CV's
+    iconography rules tag as "Windows".
+    """
+    random_bytes = struct.pack(">I", int(time.time())) + bytes(
+        random.randint(0, 255) for _ in range(28)
+    )
+    # Realistic SChannel 2016 includes a 32-byte session id (resumable).
+    session_id = bytes(random.randint(0, 255) for _ in range(32))
+
+    # 25 cipher suites in SChannel 2016 offer order (GCM ECDHE preferred,
+    # then CBC ECDHE, then DHE, RSA, finally legacy 3DES). Order matters
+    # for JA3 — do not reorder without re-checking the hash.
+    schannel_ciphers = [
+        0xC02C, 0xC02B, 0xC030, 0xC02F,
+        0xC024, 0xC028, 0xC023, 0xC027,
+        0xC00A, 0xC014, 0xC009, 0xC013,
+        0x009F, 0x009E, 0x006B, 0x0067,
+        0x0039, 0x0033, 0x009D, 0x009C,
+        0x003D, 0x003C, 0x0035, 0x002F,
+        0x000A,
+    ]
+    cs_bytes = struct.pack(">H", len(schannel_ciphers) * 2)
+    for cs in schannel_ciphers:
+        cs_bytes += struct.pack(">H", cs)
+
+    compression = bytes([0x01, 0x00])  # null only
+
+    extensions = b""
+
+    # 0x0000 server_name (SNI) — Windows always sends this when a hostname
+    # is known.
+    if hostname:
+        host_bytes = hostname.encode("utf-8")
+        sni_entry = struct.pack(">BH", 0x00, len(host_bytes)) + host_bytes
+        sni_list = struct.pack(">H", len(sni_entry)) + sni_entry
+        extensions += struct.pack(">HH", 0x0000, len(sni_list)) + sni_list
+
+    # 0x0017 extended_master_secret — empty body, SChannel always offers it
+    extensions += struct.pack(">HH", 0x0017, 0)
+
+    # 0xFF01 renegotiation_info — empty body (no prior session)
+    extensions += struct.pack(">HH", 0xFF01, 1) + bytes([0x00])
+
+    # 0x000A supported_groups — secp256r1, secp384r1, secp521r1, x25519
+    groups = bytes([
+        0x00, 0x08,           # length
+        0x00, 0x17,           # secp256r1
+        0x00, 0x18,           # secp384r1
+        0x00, 0x19,           # secp521r1
+        0x00, 0x1D,           # x25519
+    ])
+    extensions += struct.pack(">HH", 0x000A, len(groups)) + groups
+
+    # 0x000B ec_point_formats — uncompressed only
+    ec_formats = bytes([0x01, 0x00])
+    extensions += struct.pack(">HH", 0x000B, len(ec_formats)) + ec_formats
+
+    # 0x0023 session_ticket — empty body
+    extensions += struct.pack(">HH", 0x0023, 0)
+
+    # 0x000D signature_algorithms — SChannel 2016 offer
+    sig_algs = bytes([
+        0x00, 0x14,             # list length 20 bytes = 10 algorithms
+        0x04, 0x01,             # rsa_pkcs1_sha256
+        0x05, 0x01,             # rsa_pkcs1_sha384
+        0x06, 0x01,             # rsa_pkcs1_sha512
+        0x02, 0x01,             # rsa_pkcs1_sha1
+        0x04, 0x03,             # ecdsa_secp256r1_sha256
+        0x05, 0x03,             # ecdsa_secp384r1_sha384
+        0x06, 0x03,             # ecdsa_secp521r1_sha512
+        0x02, 0x03,             # ecdsa_sha1
+        0x04, 0x02,             # dsa_sha256
+        0x02, 0x02,             # dsa_sha1
+    ])
+    extensions += struct.pack(">HH", 0x000D, len(sig_algs)) + sig_algs
+
+    # 0x0010 ALPN — http/1.1 (TeamViewer relay + Talk2M both speak
+    # plain HTTPS over the tunnel)
+    alpn_proto = b"http/1.1"
+    alpn_entry = bytes([len(alpn_proto)]) + alpn_proto
+    alpn_list = struct.pack(">H", len(alpn_entry)) + alpn_entry
+    extensions += struct.pack(">HH", 0x0010, len(alpn_list)) + alpn_list
+
+    # 0x0005 status_request — OCSP stapling (cert_status_type=1, empty
+    # responder_id_list, empty extensions)
+    status_req = bytes([0x01, 0x00, 0x00, 0x00, 0x00])
+    extensions += struct.pack(">HH", 0x0005, len(status_req)) + status_req
+
+    client_hello = (
+        bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
+        + random_bytes
+        + bytes([len(session_id)]) + session_id
+        + cs_bytes
+        + compression
+        + struct.pack(">H", len(extensions)) + extensions
+    )
+
+    handshake = (
+        bytes([TLS_CLIENT_HELLO])
+        + struct.pack(">I", len(client_hello))[1:]
+        + client_hello
+    )
+
     tls_record = (
         bytes([TLS_HANDSHAKE])
         + bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])

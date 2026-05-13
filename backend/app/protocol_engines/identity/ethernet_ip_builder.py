@@ -22,6 +22,11 @@ from typing import Any
 
 from .base import FirmwareFields, IdentityResponse, ProtocolIdentityBuilder
 
+# Module-level dedupe for the missing-vendor_id warning. Keyed by
+# (product_name, product_code) so the same buggy template logs once
+# per process lifetime instead of once per poll cycle.
+_eip_vendor_warned: set[tuple[Any, Any]] = set()
+
 logger = logging.getLogger(__name__)
 
 
@@ -122,10 +127,20 @@ class EtherNetIPIdentityBuilder(ProtocolIdentityBuilder):
 
         vendor_id = identity.get("vendor_id")
         if vendor_id is None:
-            logger.warning(
-                "EtherNet/IP identity missing vendor_id - defaulting to 1 (Rockwell). "
-                "This may cause vendor misattribution in Cyber Vision."
+            # Module-level dedupe so the same template doesn't spam the log
+            # once per poll cycle.
+            key = (
+                identity.get("product_name", "?"),
+                identity.get("product_code", "?"),
             )
+            if key not in _eip_vendor_warned:
+                _eip_vendor_warned.add(key)
+                logger.warning(
+                    "EtherNet/IP identity missing vendor_id for product=%s "
+                    "code=%s - defaulting to 1 (Rockwell). Add `vendor_id` "
+                    "to ethernet_ip_identity in the device template.",
+                    *key,
+                )
             vendor_id = 1
         device_type = identity.get("device_type", 14)
         product_code = identity.get("product_code", 1)

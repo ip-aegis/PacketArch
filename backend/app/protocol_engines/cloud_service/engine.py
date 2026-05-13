@@ -58,6 +58,7 @@ class CloudServiceEngine(ProtocolEngine):
             seq_num=random.randint(1, 4294967295),
             hostname=flow.config.get("hostname", ""),
             tls_enabled=flow.config.get("tls_enabled", True),
+            tls_profile=flow.config.get("tls_profile", "embedded_minimal"),
         )
 
     def generate_startup_sequence(
@@ -116,6 +117,7 @@ class CloudServiceEngine(ProtocolEngine):
                 dst_port=dst.port,
                 seq_num=state.seq_num,
                 hostname=state.hostname,
+                tls_profile=state.tls_profile,
             )
             yield PacketEvent(
                 timestamp_ms=cycle_time_ms + 50.0,

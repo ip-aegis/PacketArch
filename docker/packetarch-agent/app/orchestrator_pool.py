@@ -853,6 +853,29 @@ class OrchestratorPool:
         # heartbeat to most cloud-relay services.
         interval_ms = max(1000, min(interval_ms, 300_000))
 
+        # Pick a TLS ClientHello shape that matches the source device's
+        # vendor. The minimalist 4-cipher default looks like an embedded
+        # cellular gateway and matches Cyber Vision's JA3 → "Canon
+        # printer" iconography rule, which surprises operators when a
+        # jump_server / bastion shows up as a printer. Map common
+        # remote-access device classes to richer ClientHellos so CV
+        # renders the right icon.
+        vendor = (device.get("vendor") or "").lower()
+        fp = (
+            device.get("vendorFingerprint")
+            or device.get("vendor_fingerprint")
+            or {}
+        )
+        vendor_family = (fp.get("vendor_family") or "").lower()
+        device_type = (device.get("type") or "").lower()
+        tls_profile = "embedded_minimal"
+        if (
+            vendor == "microsoft"
+            or "windows" in vendor_family
+            or device_type in {"jump_server", "bastion", "rdp_gateway"}
+        ):
+            tls_profile = "windows_schannel_2016"
+
         return {
             "flow_id": f"cloud-{link.get('id', device_id)}",
             "device_id": device_id,
@@ -867,6 +890,7 @@ class OrchestratorPool:
             "tls_enabled": bool(
                 cloud_svc.get("tls_enabled", link.get("tls_enabled", True))
             ),
+            "tls_profile": tls_profile,
             "interval_ms": interval_ms,
         }
 
@@ -924,6 +948,7 @@ class OrchestratorPool:
                 config={
                     "hostname": spec["hostname"],
                     "tls_enabled": spec["tls_enabled"],
+                    "tls_profile": spec.get("tls_profile", "embedded_minimal"),
                 },
                 timing_model={"poll_interval_ms": spec["interval_ms"]},
             )

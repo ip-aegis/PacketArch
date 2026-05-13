@@ -21,6 +21,12 @@ from app.protocol_engines.types import DeviceContext
 if TYPE_CHECKING:
     from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
 
+# Module-level dedupe for "vendor_id absent on X/Y fingerprint" — the
+# PROFINET DCP/cyclic path runs many times per second, so without
+# deduping a single mis-tagged template floods the log with thousands
+# of identical warnings per minute.
+_profinet_vendor_warned: set[tuple[str, str]] = set()
+
 logger = logging.getLogger(__name__)
 
 
@@ -519,15 +525,20 @@ def build_dcp_identify_response_fingerprinted(
         # fingerprint. For non-Siemens vendors that's a misclassification
         # (CV will see the device as Siemens). Warn so it's diagnosable;
         # the traffic still goes out so existing scenarios don't break.
+        # Rate-limited (module-level) — DCP cyclic fires many times per
+        # second and pre-rate-limit this would spam.
         fp_vendor = (applicator.fingerprint.get("vendor") or "").strip().lower()
         if fp_vendor and "siemens" not in fp_vendor:
-            logger.warning(
-                "PROFINET: vendor_id absent on %s/%s fingerprint; "
-                "falling back to Siemens 0x002A. Add a vendor_id to "
-                "profinet_identity for accurate CV fingerprinting.",
-                applicator.fingerprint.get("vendor", "?"),
-                applicator.fingerprint.get("model", "?"),
-            )
+            key = (fp_vendor, applicator.fingerprint.get("model", "?"))
+            if key not in _profinet_vendor_warned:
+                _profinet_vendor_warned.add(key)
+                logger.warning(
+                    "PROFINET: vendor_id absent on %s/%s fingerprint; "
+                    "falling back to Siemens 0x002A. Add a vendor_id to "
+                    "profinet_identity for accurate CV fingerprinting.",
+                    applicator.fingerprint.get("vendor", "?"),
+                    applicator.fingerprint.get("model", "?"),
+                )
     device_id = profinet_identity.get("device_id", 0x0001)
     device_role = profinet_identity.get("device_role", 0x01)  # IO-Device
     # Defensive normalization: device_role MUST be an int byte for struct.pack.

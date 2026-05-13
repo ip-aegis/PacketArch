@@ -681,13 +681,24 @@ class FingerprintApplicator:
         Returns:
             Dictionary with all CIP Identity Object attributes
         """
-        # Get vendor_id with warning if missing
+        # Get vendor_id with warning if missing. Rate-limited to one log
+        # entry per applicator instance — pre-rate-limit this fired per
+        # poll cycle (5-25× per scenario startup) which drowned the agent
+        # log. The duplicate log was an artefact of how the agent fans
+        # out per-device, not new information.
         vendor_id = self.ethernet_ip_identity.get("vendor_id")
         if vendor_id is None:
-            logger.warning(
-                "CIP Identity Object missing vendor_id - defaulting to 1 (Rockwell). "
-                "Device may be misidentified in Cyber Vision."
-            )
+            if not getattr(self, "_cip_vendor_warned", False):
+                self._cip_vendor_warned = True
+                logger.warning(
+                    "CIP Identity Object missing vendor_id for %s/%s - "
+                    "defaulting to 1 (Rockwell). Device may be misidentified "
+                    "in Cyber Vision; add `vendor_id` to "
+                    "ethernet_ip_identity in the device template, then "
+                    "regenerate or redeploy the scenario.",
+                    self.fingerprint.get("vendor", "?"),
+                    self.fingerprint.get("model", "?"),
+                )
             vendor_id = 1
 
         # Start with basic identity data

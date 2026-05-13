@@ -1230,12 +1230,22 @@ class CloudServiceConversationState(ConversationStateBase):
         seq_num: TCP sequence number
         hostname: Server hostname for TLS SNI extension
         tls_enabled: Whether to generate TLS Client Hello
+        tls_profile: ClientHello shape preset. Drives the JA3 hash CV
+            uses for device-class iconography. Options:
+            - ``"embedded_minimal"``: 4-cipher embedded shape (default,
+              matches the original eWON Talk2M heartbeat shape; also
+              what CV's iconography maps to "Canon printer")
+            - ``"windows_schannel_2016"``: realistic Win Server 2016
+              SChannel offer (25 ciphers, full extension set) — use
+              for jump_server / bastion / Microsoft-vendor flows so
+              CV picks the Windows icon
     """
 
     src_port: int = 49152
     seq_num: int = 0
     hostname: str = ""
     tls_enabled: bool = True
+    tls_profile: str = "embedded_minimal"
 
 
 # =============================================================================
