@@ -319,10 +319,17 @@ class OrchestratorPool:
                 FlowContext,
                 ProtocolType,
             )
+            from app.protocol_engines.cell_isolation import (
+                parse_config as parse_isolation_config,
+                should_drop_flow as should_drop_for_isolation,
+            )
 
             # Parse the definition
             devices = ctx.definition.get("devices", {})
             flows = ctx.definition.get("flows", {})
+            zones = ctx.definition.get("zones", {})
+            conduits = ctx.definition.get("conduits", {})
+            isolation = parse_isolation_config(ctx.definition)
 
             # Handle both dict and list formats
             if isinstance(devices, list):
@@ -342,24 +349,59 @@ class OrchestratorPool:
             # Add OT protocol flows
             vertical = ctx.definition.get("vertical")
             flow_count = 0
+            isolation_dropped = 0
             for flow_id, flow_def in flows.items():
+                drop, reason = should_drop_for_isolation(
+                    flow_def, devices, zones, conduits, isolation,
+                )
+                if drop:
+                    isolation_dropped += 1
+                    logger.info(
+                        f"[cell-isolation] flow {flow_id} dropped: {reason}"
+                    )
+                    continue
+
                 flow_ctx = self._create_flow_context(
-                    flow_def, devices, vertical=vertical, scenario_id=ctx.scenario_id,
+                    flow_def,
+                    devices,
+                    vertical=vertical,
+                    scenario_id=ctx.scenario_id,
+                    clean_demo_mode=bool(
+                        ctx.definition.get("clean_demo_mode", False)
+                    ),
                 )
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
                     flow_count += 1
 
-            # Add cloud service links as regular flows via CloudServiceEngine
+            if isolation_dropped:
+                logger.info(
+                    f"[cell-isolation] mode={isolation['mode']}: dropped "
+                    f"{isolation_dropped} cross-cell flow(s) for scenario "
+                    f"{ctx.scenario_id}"
+                )
+
+            # Cloud-service links use a SEPARATE wall-clock heartbeat
+            # thread instead of the orchestrator's virtual-time heap. The
+            # orchestrator's heap is flooded by PROFINET-cyclic and other
+            # high-frequency OT events (3 PN flows × 125 pps × 25 s window
+            # = ~9000 packets at vtime 5-15 s). Real injection throughput on
+            # the agent's lo / ens3 interface is ~60 pps, so virtual time
+            # falls 10× behind wall clock — a heartbeat scheduled at vtime
+            # 36 s wouldn't fire until ~9 minutes of wall time elapsed,
+            # which is the bug the user observed ("EWON has no external
+            # comms": 4 cloud_service packets in 22 minutes). Heartbeats
+            # are infrastructure keep-alives, not OT poll cycles — they
+            # belong on a wall-clock cadence regardless of how busy the
+            # OT event heap is.
             cloud_links = ctx.definition.get("cloud_service_links", [])
+            cloud_heartbeat_specs: list[dict[str, Any]] = []
             for link in cloud_links:
                 if not link.get("enabled", True):
                     continue
-
-                cloud_flow = self._create_cloud_flow(link, devices)
-                if cloud_flow:
-                    orchestrator.add_flow(cloud_flow)
-                    flow_count += 1
+                spec = self._build_cloud_heartbeat_spec(link, devices)
+                if spec:
+                    cloud_heartbeat_specs.append(spec)
 
             if flow_count == 0:
                 raise ValueError("No valid flows to generate")
@@ -444,76 +486,115 @@ class OrchestratorPool:
             except Exception as e:
                 logger.warning(f"Attack orchestrator unavailable: {e}")
 
-            # Initialize ambient noise generator (ARP, NTP, LLDP, STP, etc.)
-            try:
-                from app.protocol_engines.ambient import (
-                    AmbientDevice,
-                    BackgroundNoiseGenerator,
+            # Initialize ambient noise generator (ARP, NTP, LLDP, STP, etc.).
+            # Skipped entirely when the scenario toggle disables
+            # broadcast/multicast traffic.
+            broadcast_enabled = bool(
+                ctx.definition.get("broadcast_traffic_enabled", True)
+            )
+            if not broadcast_enabled:
+                logger.info(
+                    "Broadcast/multicast traffic disabled by scenario toggle — "
+                    "skipping ambient noise generator"
                 )
-
-                # Build device-to-zone map and zone VLAN lookup
-                zones_list = ctx.definition.get("zones", [])
-                if isinstance(zones_list, dict):
-                    zones_list = list(zones_list.values())
-                zone_vlan_map: dict[str, int | None] = {}
-                for z in zones_list:
-                    zid = z.get("id", "")
-                    network_info = z.get("network", z)
-                    zone_vlan_map[zid] = network_info.get("vlanId") or network_info.get("vlan")
-
-                def _collect_device_protocols(
-                    dev_id: str,
-                    all_flows: dict[str, Any],
-                    device_def: dict[str, Any] | None = None,
-                ) -> list[str]:
-                    protos: list[str] = []
-                    for fdef in all_flows.values():
-                        if fdef.get("sourceDeviceId") == dev_id or fdef.get("targetDeviceId") == dev_id:
-                            p = fdef.get("protocol", "")
-                            if p and p not in protos:
-                                protos.append(p)
-                    # Merge protocols from the device definition so that
-                    # ambient discovery covers all device capabilities,
-                    # not only protocols present in flow definitions.
-                    if device_def:
-                        for p in device_def.get("protocols", []):
-                            if p and p not in protos:
-                                protos.append(p)
-                    return protos
-
-                seen_devices: dict[str, AmbientDevice] = {}
-                for flow_id_iter, flow_def_iter in flows.items():
-                    for dev_key in ("sourceDeviceId", "targetDeviceId"):
-                        dev_id = flow_def_iter.get(dev_key)
-                        dev = devices.get(dev_id) if dev_id else None
-                        if dev and dev_id not in seen_devices:
-                            network = dev.get("network", {})
-                            ip = network.get("ipAddress", "")
-                            mac = network.get("macAddress", "")
-                            if ip and mac:
-                                fp = dev.get("vendorFingerprint") or dev.get("vendor_fingerprint") or {}
-                                dev_zone = dev.get("zone", "")
-                                seen_devices[dev_id] = AmbientDevice(
-                                    device_id=dev_id,
-                                    mac_address=mac,
-                                    ip_address=ip,
-                                    gateway_ip=ip.rsplit(".", 1)[0] + ".1",
-                                    protocols=_collect_device_protocols(dev_id, flows, dev),
-                                    device_type=dev.get("type", fp.get("device_type", "")),
-                                    vendor=fp.get("vendor", ""),
-                                    device_name=dev.get("name", dev_id),
-                                    zone_id=dev_zone if dev_zone else None,
-                                    vlan_id=zone_vlan_map.get(dev_zone),
-                                    vendor_fingerprint=fp,
-                                )
-                if seen_devices:
-                    ambient = BackgroundNoiseGenerator(list(seen_devices.values()))
-                    orchestrator.register_ambient_generator(ambient)
-                    logger.info(
-                        f"Ambient noise enabled for {len(seen_devices)} devices"
+            else:
+                try:
+                    from app.protocol_engines.ambient import (
+                        AmbientDevice,
+                        BackgroundNoiseGenerator,
                     )
-            except Exception as e:
-                logger.warning(f"Ambient noise unavailable: {e}")
+
+                    # Build device-to-zone map and zone VLAN lookup
+                    zones_list = ctx.definition.get("zones", [])
+                    if isinstance(zones_list, dict):
+                        zones_list = list(zones_list.values())
+                    zone_vlan_map: dict[str, int | None] = {}
+                    zone_level_map: dict[str, int | None] = {}
+                    for z in zones_list:
+                        zid = z.get("id", "")
+                        network_info = z.get("network", z)
+                        zone_vlan_map[zid] = network_info.get("vlanId") or network_info.get("vlan")
+                        # Floor-int the Purdue level (handles 3.5 DMZ → 3).
+                        raw_lvl = z.get("level")
+                        try:
+                            zone_level_map[zid] = (
+                                int(float(raw_lvl)) if raw_lvl is not None else None
+                            )
+                        except (TypeError, ValueError):
+                            zone_level_map[zid] = None
+
+                    def _collect_device_protocols(
+                        dev_id: str,
+                        all_flows: dict[str, Any],
+                        device_def: dict[str, Any] | None = None,
+                    ) -> list[str]:
+                        protos: list[str] = []
+                        for fdef in all_flows.values():
+                            if fdef.get("sourceDeviceId") == dev_id or fdef.get("targetDeviceId") == dev_id:
+                                p = fdef.get("protocol", "")
+                                if p and p not in protos:
+                                    protos.append(p)
+                        # Merge protocols from the device definition so that
+                        # ambient discovery covers all device capabilities,
+                        # not only protocols present in flow definitions.
+                        if device_def:
+                            for p in device_def.get("protocols", []):
+                                if p and p not in protos:
+                                    protos.append(p)
+                        return protos
+
+                    seen_devices: dict[str, AmbientDevice] = {}
+                    for flow_id_iter, flow_def_iter in flows.items():
+                        for dev_key in ("sourceDeviceId", "targetDeviceId"):
+                            dev_id = flow_def_iter.get(dev_key)
+                            dev = devices.get(dev_id) if dev_id else None
+                            if dev and dev_id not in seen_devices:
+                                network = dev.get("network", {})
+                                ip = network.get("ipAddress", "")
+                                mac = network.get("macAddress", "")
+                                if ip and mac:
+                                    fp = dev.get("vendorFingerprint") or dev.get("vendor_fingerprint") or {}
+                                    # Match cell_isolation._zone_of priority:
+                                    # zoneId (camelCase from frontend) takes
+                                    # precedence over the snake-case alias.
+                                    dev_zone = (
+                                        dev.get("zoneId")
+                                        or dev.get("zone_id")
+                                        or dev.get("zone")
+                                        or ""
+                                    )
+                                    seen_devices[dev_id] = AmbientDevice(
+                                        device_id=dev_id,
+                                        mac_address=mac,
+                                        ip_address=ip,
+                                        gateway_ip=ip.rsplit(".", 1)[0] + ".1",
+                                        protocols=_collect_device_protocols(dev_id, flows, dev),
+                                        device_type=dev.get("type", fp.get("device_type", "")),
+                                        vendor=fp.get("vendor", ""),
+                                        device_name=dev.get("name", dev_id),
+                                        zone_id=dev_zone if dev_zone else None,
+                                        vlan_id=zone_vlan_map.get(dev_zone),
+                                        purdue_level=zone_level_map.get(dev_zone),
+                                        vendor_fingerprint=fp,
+                                    )
+                    if seen_devices:
+                        ambient = BackgroundNoiseGenerator(
+                            list(seen_devices.values()),
+                            cell_isolation_mode=isolation.get("mode", "off"),
+                            cell_levels=frozenset(isolation.get("cell_levels", {0, 1, 2})),
+                            clean_demo_mode=bool(
+                                ctx.definition.get("clean_demo_mode", False)
+                            ),
+                        )
+                        orchestrator.register_ambient_generator(ambient)
+                        logger.info(
+                            "Ambient noise enabled for %d devices "
+                            "(cell_isolation=%s)",
+                            len(seen_devices),
+                            isolation.get("mode", "off"),
+                        )
+                except Exception as e:
+                    logger.warning(f"Ambient noise unavailable: {e}")
 
             # Initialize process simulation
             try:
@@ -556,10 +637,34 @@ class OrchestratorPool:
             ctx.status.state = ScenarioState.RUNNING
             self._notify_status_change(ctx)
 
+            # Start cloud-heartbeat thread BEFORE entering the orchestrator
+            # run loop. The thread runs alongside orchestrator.run() and
+            # uses wall-clock cadence, immune to virtual-time starvation
+            # from PROFINET-cyclic and other high-frequency OT events.
+            cloud_hb_thread: threading.Thread | None = None
+            if cloud_heartbeat_specs:
+                cloud_hb_thread = threading.Thread(
+                    target=self._run_cloud_heartbeats,
+                    args=(ctx, cloud_heartbeat_specs, ctx.interface),
+                    name=f"cloud-hb-{ctx.scenario_id[:8]}",
+                    daemon=True,
+                )
+                cloud_hb_thread.start()
+                logger.info(
+                    f"Cloud heartbeat thread started for {len(cloud_heartbeat_specs)} "
+                    f"link(s) (wall-clock cadence)"
+                )
+
             logger.info(f"Scenario {ctx.scenario_id} running with {flow_count} flows")
 
             # Run orchestration (blocks until stop_event is set)
             result = orchestrator.run(stop_event=ctx.stop_event)
+
+            # Heartbeat thread is a daemon and watches the same stop_event,
+            # so it exits as soon as orchestrator.run() returns. Join briefly
+            # so stats are flushed before we report final packet counts.
+            if cloud_hb_thread is not None:
+                cloud_hb_thread.join(timeout=2.0)
 
             # Final status
             ctx.status.packets_sent = output.packet_count
@@ -602,6 +707,7 @@ class OrchestratorPool:
         devices: dict[str, dict[str, Any]],
         vertical: str | None = None,
         scenario_id: str | None = None,
+        clean_demo_mode: bool = False,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -703,6 +809,8 @@ class OrchestratorPool:
             merged_config.update(flow_config)
             if vertical:
                 merged_config["_vertical"] = vertical
+            if clean_demo_mode:
+                merged_config["clean_demo_mode"] = True
 
             return FlowContext(
                 flow_id=flow_def.get("id", ""),
@@ -717,59 +825,160 @@ class OrchestratorPool:
             logger.error(f"Error creating flow context: {e}")
             return None
 
-    def _create_cloud_flow(
+    def _build_cloud_heartbeat_spec(
         self,
         link: dict[str, Any],
         devices: dict[str, dict[str, Any]],
-    ) -> Any | None:
-        """Create a FlowContext for a cloud service link."""
-        try:
-            from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
+    ) -> dict[str, Any] | None:
+        """Build a wall-clock heartbeat spec for one cloud_service_link.
 
-            device_id = link.get("device_id")
-            device = devices.get(device_id)
-            if not device:
-                logger.warning(f"Device {device_id} not found for cloud link {link.get('id')}")
-                return None
+        Returns a dict consumed by the heartbeat thread, NOT a FlowContext —
+        cloud heartbeats deliberately bypass the orchestrator's virtual-time
+        heap (see _run_scenario for rationale).
+        """
+        device_id = link.get("device_id")
+        device = devices.get(device_id)
+        if not device:
+            logger.warning(
+                f"Device {device_id} not found for cloud link {link.get('id')}"
+            )
+            return None
 
-            network = device.get("network", {})
+        network = device.get("network", {})
+        cloud_svc = link.get("cloud_service", {})
+        interval_ms = int(
+            link.get("heartbeat_interval_ms", link.get("interval_ms", 30000))
+        )
+        # Clamp to sane bounds. <1 s would spam, >5 min wouldn't look like a
+        # heartbeat to most cloud-relay services.
+        interval_ms = max(1000, min(interval_ms, 300_000))
 
-            source = DeviceContext(
-                device_id=device_id,
-                mac_address=network.get("macAddress", "00:00:00:00:00:01"),
-                ip_address=network.get("ipAddress", "10.0.0.1"),
+        return {
+            "flow_id": f"cloud-{link.get('id', device_id)}",
+            "device_id": device_id,
+            "src_mac": network.get("macAddress", "00:00:00:00:00:01"),
+            "src_ip": network.get("ipAddress", "10.0.0.1"),
+            "dst_mac": "ff:ff:ff:ff:ff:ff",
+            "dst_ip": cloud_svc.get(
+                "primary_ip", link.get("cloud_ip", "0.0.0.0"),
+            ),
+            "dst_port": int(cloud_svc.get("port", link.get("port", 443))),
+            "hostname": cloud_svc.get("hostname", link.get("hostname", "")),
+            "tls_enabled": bool(
+                cloud_svc.get("tls_enabled", link.get("tls_enabled", True))
+            ),
+            "interval_ms": interval_ms,
+        }
+
+    def _run_cloud_heartbeats(
+        self,
+        ctx: "ScenarioContext",
+        specs: list[dict[str, Any]],
+        interface: str,
+    ) -> None:
+        """Wall-clock heartbeat loop for cloud_service flows.
+
+        Runs in its own daemon thread per scenario. Each spec fires its
+        TCP-SYN + TLS-ClientHello pair every `interval_ms` of WALL clock,
+        completely independent of the orchestrator's event heap. This is
+        the same model the original `cloud_traffic_scheduler.py` shipped
+        with before the unified-orchestrator refactor.
+
+        Stats are reported back to the orchestrator's `stats` accumulator
+        under protocol="cloud_service" so the dashboard breakdown stays
+        accurate.
+        """
+        from app.protocol_engines.cloud_service.engine import CloudServiceEngine
+        from app.protocol_engines.types import (
+            CloudServiceConversationState,
+            DeviceContext,
+            FlowContext,
+            ProtocolType,
+        )
+        from scapy.packet import Raw
+        from scapy.sendrecv import sendp
+
+        engine = CloudServiceEngine()
+        # Stagger first heartbeats over the first 30 s so all flows don't
+        # fire simultaneously — a real eWON fleet doesn't synchronise.
+        deadlines: list[tuple[float, dict[str, Any], CloudServiceConversationState, FlowContext]] = []
+        now = time.monotonic()
+        for i, spec in enumerate(specs):
+            src = DeviceContext(
+                device_id=spec["device_id"],
+                mac_address=spec["src_mac"],
+                ip_address=spec["src_ip"],
                 port=0,
             )
-
-            # Backend sends nested cloud_service object; fall back to flat keys for compat
-            cloud_svc = link.get("cloud_service", {})
-
-            destination = DeviceContext(
-                device_id=f"cloud-{link.get('id', 'unknown')}",
-                mac_address="ff:ff:ff:ff:ff:ff",
-                ip_address=cloud_svc.get("primary_ip", link.get("cloud_ip", "0.0.0.0")),
-                port=cloud_svc.get("port", link.get("port", 443)),
+            dst = DeviceContext(
+                device_id=spec["flow_id"],
+                mac_address=spec["dst_mac"],
+                ip_address=spec["dst_ip"],
+                port=spec["dst_port"],
             )
-
-            interval_ms = link.get("heartbeat_interval_ms", link.get("interval_ms", 30000))
-
-            return FlowContext(
-                flow_id=f"cloud-{link.get('id', device_id)}",
-                source=source,
-                destination=destination,
+            flow = FlowContext(
+                flow_id=spec["flow_id"],
+                source=src,
+                destination=dst,
                 protocol=ProtocolType.CLOUD_SERVICE,
                 config={
-                    "hostname": cloud_svc.get("hostname", link.get("hostname", "")),
-                    "tls_enabled": cloud_svc.get("tls_enabled", link.get("tls_enabled", True)),
+                    "hostname": spec["hostname"],
+                    "tls_enabled": spec["tls_enabled"],
                 },
-                timing_model={
-                    "poll_interval_ms": interval_ms,
-                },
+                timing_model={"poll_interval_ms": spec["interval_ms"]},
+            )
+            state = engine.create_initial_state(flow)
+            first_fire = now + (1.0 + i * 1.5)  # 1 s, 2.5 s, 4 s, …
+            deadlines.append((first_fire, spec, state, flow))
+            logger.info(
+                "cloud-heartbeat scheduled: flow=%s -> %s:%d interval=%dms",
+                spec["flow_id"], spec["dst_ip"], spec["dst_port"],
+                spec["interval_ms"],
             )
 
-        except Exception as e:
-            logger.error(f"Error creating cloud flow: {e}")
-            return None
+        while not ctx.stop_event.is_set():
+            now = time.monotonic()
+            # Find the next-due heartbeat
+            next_idx = min(range(len(deadlines)), key=lambda i: deadlines[i][0])
+            fire_at, spec, state, flow = deadlines[next_idx]
+
+            sleep_for = fire_at - now
+            if sleep_for > 0.0:
+                # Wake periodically so stop_event is responsive
+                if ctx.stop_event.wait(timeout=min(sleep_for, 1.0)):
+                    return
+                continue
+
+            # Fire the heartbeat: generate_poll_cycle yields 1-2 packets
+            try:
+                pkts = list(engine.generate_poll_cycle(flow, state, cycle_time_ms=0.0))
+                for pkt in pkts:
+                    try:
+                        sendp(
+                            Raw(pkt.packet_bytes),
+                            iface=interface,
+                            verbose=False,
+                        )
+                        if ctx.orchestrator is not None:
+                            ctx.orchestrator.stats.record_packet(
+                                "cloud_service", len(pkt.packet_bytes),
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "cloud-heartbeat sendp failed flow=%s: %s",
+                            spec["flow_id"], e,
+                        )
+            except Exception as e:
+                logger.error(
+                    "cloud-heartbeat generate failed flow=%s: %s",
+                    spec["flow_id"], e,
+                )
+
+            # Re-arm for next interval
+            deadlines[next_idx] = (
+                fire_at + spec["interval_ms"] / 1000.0,
+                spec, state, flow,
+            )
 
     def apply_directives(self, scenario_id: str, directives: list[dict]) -> bool:
         """Apply adaptive traffic directives to a running scenario.

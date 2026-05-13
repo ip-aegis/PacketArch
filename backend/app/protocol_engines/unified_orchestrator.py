@@ -99,6 +99,9 @@ class UnifiedOrchestrator:
         self._last_process_phase: str | None = None
         # Pending hot-attach injection (atomic swap from WebSocket thread)
         self._pending_attack_injection: dict[str, Any] | None = None
+        # Per-protocol log dedupe so a single injection failure doesn't
+        # spam the log every poll cycle.
+        self._inject_error_logged: set[str] = set()
 
     def add_flow(self, flow_context: FlowContext) -> None:
         """Add a flow to be generated.
@@ -169,7 +172,11 @@ class UnifiedOrchestrator:
             f"Adaptive controller registered for {len(self.flows)} flows"
         )
 
-    def register_attack_orchestrator(self, attack_orch: AttackOrchestrator) -> None:
+    def register_attack_orchestrator(
+        self,
+        attack_orch: AttackOrchestrator,
+        warmup_ms: float | None = None,
+    ) -> None:
         """Register an attack orchestrator for playbook execution.
 
         The orchestrator schedules ``attack_stage_tick`` control events on
@@ -178,12 +185,18 @@ class UnifiedOrchestrator:
 
         Args:
             attack_orch: AttackOrchestrator instance
+            warmup_ms: Delay after start before the first attack tick. Defaults
+                to 10s (matches live-agent behavior). For short PCAPs this is
+                scaled down to ~20% of duration so attack packets still appear
+                — pass an explicit value to override.
         """
         self._attack_orchestrator = attack_orch
-        # Schedule initial attack events after a warm-up period
-        warmup_ms = 10_000.0  # 10s after start for discovery/startup to complete
+        if warmup_ms is None:
+            warmup_ms = 10_000.0
+            if self.duration_ms is not None:
+                warmup_ms = min(warmup_ms, max(500.0, self.duration_ms * 0.2))
         attack_orch.schedule_initial_events(self.scheduler, warmup_ms)
-        logger.info("Attack orchestrator registered")
+        logger.info(f"Attack orchestrator registered (warmup={warmup_ms:.0f}ms)")
 
     def set_pending_attack_injection(self, config: dict[str, Any]) -> None:
         """Queue an attack playbook injection for the scenario thread.
@@ -333,7 +346,26 @@ class UnifiedOrchestrator:
 
                 # Dispatch event
                 if isinstance(event, PacketEvent):
-                    self.output.write_packet(event.packet_bytes, timestamp_ms)
+                    try:
+                        self.output.write_packet(event.packet_bytes, timestamp_ms)
+                    except Exception as e:
+                        # A single packet failing to inject (e.g. kernel
+                        # refuses a frame with synthetic dst MAC, or scapy
+                        # raises on a malformed builder edge case) must
+                        # NOT kill the entire orchestration. Log once per
+                        # protocol and continue. This is the same posture
+                        # ambient/attack handlers already use.
+                        fs_err = self._flow_map.get(event.flow_id)
+                        proto_err = fs_err.flow.protocol.value if fs_err else "unknown"
+                        if proto_err not in self._inject_error_logged:
+                            logger.error(
+                                "Packet injection failed for protocol %s "
+                                "(flow=%s, %d bytes): %s",
+                                proto_err, event.flow_id,
+                                len(event.packet_bytes), e,
+                            )
+                            self._inject_error_logged.add(proto_err)
+                        continue
                     packets += 1
                     # Ambient/attack packets already recorded stats in their handlers
                     if not event.flow_id.startswith(("ambient_", "__attack__")):
@@ -503,6 +535,12 @@ class UnifiedOrchestrator:
                 first_poll,
                 {"type": "poll", "flow_id": fs.flow.flow_id},
             )
+            if fs.flow.protocol in self._HEARTBEAT_PROTOCOLS:
+                logger.info(
+                    "HEARTBEAT_FIRST_POLL_SCHEDULED flow=%s proto=%s "
+                    "offset_ms=%.0f first_poll_vms=%.0f",
+                    fs.flow.flow_id, fs.flow.protocol.value, offset, first_poll,
+                )
 
     # ------------------------------------------------------------------
     # Shutdown scheduling
@@ -540,6 +578,19 @@ class UnifiedOrchestrator:
         elif event_type.startswith("ambient_"):
             self._handle_ambient_event(event)
 
+    # Protocols whose poll cadence is an infrastructure-level heartbeat
+    # rather than an operational OT poll cycle. These bypass the adaptive
+    # controller's phase rate-multiplier and dormancy gate so that remote-
+    # access keep-alives (eWON Talk2M, TeamViewer relay, jump-host SSH/RDP/
+    # HTTPS) continue to emit at their nominal interval through every phase.
+    _HEARTBEAT_PROTOCOLS: frozenset[ProtocolType] = frozenset({
+        ProtocolType.CLOUD_SERVICE,
+        ProtocolType.SSH,
+        ProtocolType.TELNET,
+        ProtocolType.RDP,
+        ProtocolType.HTTPS,
+    })
+
     def _handle_poll_event(self, flow_id: str) -> None:
         """Handle a poll trigger for a flow."""
         fs = self._flow_map.get(flow_id)
@@ -547,14 +598,26 @@ class UnifiedOrchestrator:
             logger.warning(f"Flow {flow_id} not found for poll event")
             return
 
+        is_heartbeat = fs.flow.protocol in self._HEARTBEAT_PROTOCOLS
+        if is_heartbeat:
+            logger.info(
+                "POLL_FIRE flow=%s proto=%s vt=%.0fms",
+                flow_id, fs.flow.protocol.value, self.current_time_ms,
+            )
+
         for pkt in fs.engine.generate_poll_cycle(
             fs.flow, fs.conversation, cycle_time_ms=self.current_time_ms,
         ):
             self.scheduler.schedule(pkt.timestamp_ms, pkt)
 
-        # Apply adaptive adjustment to poll interval
+        # Apply adaptive adjustment to poll interval — but NOT for
+        # heartbeat protocols. Heartbeats are infrastructure keep-alives;
+        # phase rate-scaling would stretch a 30-second heartbeat to 5 min
+        # during the "startup" phase (rate_multiplier=0.1), and any
+        # active_flow_percent gate can suspend it for an entire phase
+        # (~5000× slowdown via the dormancy multiplier).
         effective_interval = fs.poll_interval_ms
-        if self._adaptive_controller:
+        if self._adaptive_controller and not is_heartbeat:
             effective_interval = self._adaptive_controller.adjust_next_poll(
                 flow_id, fs.poll_interval_ms,
             )
@@ -571,6 +634,12 @@ class UnifiedOrchestrator:
                 next_poll,
                 {"type": "poll", "flow_id": flow_id},
             )
+            if is_heartbeat:
+                logger.debug(
+                    "heartbeat reschedule: flow=%s next_poll_vms=%.0f "
+                    "interval_ms=%.0f",
+                    flow_id, next_poll, effective_interval,
+                )
 
     def _handle_attack_tick(self) -> None:
         """Handle an attack stage tick — generate attack packets."""
