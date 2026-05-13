@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { getOverviewStats } from '../api/stats';
+import { useFeatures } from '../hooks/useFeatures';
 import type { UnifiedDeployment } from '../types/docker';
 
 const { Title, Paragraph, Text } = Typography;
@@ -44,6 +45,7 @@ const calculateProgress = (deployment: UnifiedDeployment): number => {
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { deployments, fetchDeployments } = useDeploymentsStore();
+  const { liveTrafficEnabled } = useFeatures();
 
   // Fetch overview stats
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -52,8 +54,9 @@ const DashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!liveTrafficEnabled) return;
     fetchDeployments();
-  }, [fetchDeployments]);
+  }, [fetchDeployments, liveTrafficEnabled]);
 
   const runningDeployments = deployments.filter((d) =>
     ['running', 'starting'].includes(d.status)

@@ -451,4 +451,95 @@ TEMPLATES: list[DeviceTemplate] = [
             "hardware_version": "487E",
         },
     ),
+
+    # ------------------------------------------------------------------
+    # SEL-5030 acSELerator Quickset — SEL's engineering/SCADA software.
+    # Runs on hardened Windows workstations; used as engineering_workstation
+    # and scada_primary in SEL_PROTECTION substation scenarios.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="sel/acselerator/quickset-5030",
+        vendor="SEL",
+        vendor_family="acSELerator",
+        model="SEL-5030 acSELerator",
+        model_name="SEL-5030 acSELerator Quickset",
+        device_type="workstation",
+        description=(
+            "SEL acSELerator Quickset — relay engineering software "
+            "running on a hardened Windows workstation. Operators and "
+            "protection engineers use it as the substation HMI and "
+            "engineering pivot."
+        ),
+
+        oui_prefixes=["00:15:5D", "00:50:56", "00:0C:29"],
+
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "window_scaling": 8,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "df_flag": True,
+        },
+
+        response_timing={
+            "min_ms": 3.0,
+            "max_ms": 40.0,
+            "mean_ms": 12.0,
+            "std_dev_ms": 4.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["snmp", "dnp3", "modbus_tcp", "iec61850", "https"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ACS{8HEX}",
+            station_name_pattern="acs-{location}-{seq}",
+            vendor_short="SEL",
+            model_short="ACS5030",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="9.0.0.0",
+                release_date=date(2024, 4, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+                notes="acSELerator Quickset 9.0 — latest GA release",
+            ),
+            FirmwareVariant(
+                version="8.3.0.0",
+                release_date=date(2023, 6, 15),
+                cves=[],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "product_code": "SEL-5030 acSELerator",
+            "product_name": "acSELerator Quickset (Modbus client)",
+            "model_name": "SEL-5030",
+        },
+
+        snmp_identity={
+            "sys_descr": (
+                "Schweitzer Engineering Laboratories SEL-5030 "
+                "acSELerator Quickset 9.0.0.0 (Windows workstation)"
+            ),
+            "sys_object_id": "1.3.6.1.4.1.1027.5030.1",
+            "sys_name": "ACS-WORKSTATION-001",
+            "sys_contact": "protection-eng@example.com",
+            "sys_location": "Substation Control Building",
+            "sys_services": 76,
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-5030 acSELerator DNP3 Client",
+            "hardware_version": "5030",
+            "software_version": "9.0.0.0",
+        },
+    ),
 ]

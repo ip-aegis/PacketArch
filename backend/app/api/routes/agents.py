@@ -36,6 +36,12 @@ from app.schemas.agent import (
     InterfaceInfo,
 )
 from app.services.agent_manager import agent_manager
+from app.services.scenario_enrichment import (
+    auto_repair_protocols,
+    ensure_device_flow_coverage,
+    ensure_remote_access_cloud_links,
+    repair_flow_protocols,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -737,6 +743,26 @@ async def deploy_scenario_to_agent(
     if deployment.attack_playbook:
         definition = {**definition} if definition is scenario.definition else definition
         definition["attack_playbook"] = deployment.attack_playbook
+    if deployment.cell_isolation_override:
+        definition = {**definition} if definition is scenario.definition else definition
+        existing_iso = definition.get("cell_isolation", {})
+        definition["cell_isolation"] = {**existing_iso, **deployment.cell_isolation_override}
+
+    # Defense-in-depth: even if the scenario was created by an older code
+    # path that didn't apply the protocol-mismatch repair, fix it here so
+    # the agent never sees a device declaring protocols its fingerprint
+    # can't actually serve. Flow-protocol snap immediately after so any
+    # flow whose protocol no longer matches an endpoint gets healed.
+    definition = auto_repair_protocols(definition)
+    definition = repair_flow_protocols(definition)
+
+    # Guarantee remote-access devices (EWON, jump server, etc.) emit external
+    # heartbeat traffic even when the scenario forgot to wire a cloud link.
+    definition = await ensure_remote_access_cloud_links(db, definition)
+
+    # Guarantee no orphan devices — every device gets at least one flow with
+    # a rational partner so CV can fingerprint it. Cell-isolation aware.
+    definition = await ensure_device_flow_coverage(definition)
 
     success = await agent_manager.deploy_scenario(
         agent_id=agent_id,

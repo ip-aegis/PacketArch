@@ -36,7 +36,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet", "opc_ua"],
+        supported_protocols=["modbus_tcp", "profinet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ABB-{8HEX}",
@@ -115,7 +115,9 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet", "ethernet_ip"],
+        # AC500 V3 hosts an OPC UA server natively (CmpOPCUAServer
+        # component in CODESYS V3 runtime).
+        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ABB{8HEX}",
@@ -161,6 +163,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "AC500-PM590--001",
             "sys_location": "Production Floor",
         },
+
+        opc_ua_identity={
+            "application_name": "ABB AC500 PM590 OPC UA Server",
+            "application_uri": "urn:ABB:AC500:PM590-ETH",
+            "product_uri": "http://www.abb.com/ac500",
+            "manufacturer_name": "ABB",
+            "product_name": "AC500 PM590-ETH OPC UA Server",
+            "software_version": "3.1.2",
+            "build_number": "V3.1.2",
+            "build_date": "2023-08-01T00:00:00Z",
+        },
     ),
     DeviceTemplate(
         id="abb/ac500/pm583-eth",
@@ -189,7 +202,11 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet"],
+        # AC500 V3 hosts an OPC UA server via CODESYS V3 runtime.
+        # PM583 also speaks EtherNet/IP via the CM579 communication
+        # module — declaring it so cross-vendor (Fanuc / Rockwell)
+        # robot / drive flows have a shared industrial protocol.
+        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ABB{8HEX}",
@@ -216,11 +233,30 @@ TEMPLATES: list[DeviceTemplate] = [
             "model_name": "AC500",
         },
 
+        ethernet_ip_identity={
+            "vendor_id": 75,  # ABB ODVA vendor ID
+            "device_type": 14,  # Programmable Logic Controller
+            "product_code": 583,
+            "product_name": "AC500 PM583-ETH (CM579-PNIO module)",
+            "state": 3,
+        },
+
         snmp_identity={
             "sys_descr": "ABB AC500 PM583-ETH V3.0.4",
             "sys_object_id": "1.3.6.1.4.1.26381.724.51",
             "sys_name": "AC500-PM583--001",
             "sys_location": "Production Floor",
+        },
+
+        opc_ua_identity={
+            "application_name": "ABB AC500 PM583 OPC UA Server",
+            "application_uri": "urn:ABB:AC500:PM583-ETH",
+            "product_uri": "http://www.abb.com/ac500",
+            "manufacturer_name": "ABB",
+            "product_name": "AC500 PM583-ETH OPC UA Server",
+            "software_version": "3.0.4",
+            "build_number": "V3.0.4",
+            "build_date": "2023-06-01T00:00:00Z",
         },
     ),
     DeviceTemplate(
@@ -309,7 +345,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet", "ethernet_ip"],
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ABB{8HEX}",
@@ -382,7 +418,10 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet"],
+        # CI501-PNIO supports both PROFINET and EtherNet/IP via the
+        # AC500 V3 / AC500-eCo communication interface modules. Declaring
+        # both so cross-vendor cells reach the IO over a shared protocol.
+        supported_protocols=["modbus_tcp", "ethernet_ip", "profinet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ABB{6HEX}",
@@ -407,6 +446,22 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.abb.com",
             "product_name": "CI501 Remote I/O",
             "model_name": "AC500",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 75,
+            "device_type": 7,  # General Purpose Discrete I/O
+            "product_code": 501,
+            "product_name": "CI501-PNIO Remote I/O (EIP variant)",
+            "state": 3,
+        },
+
+        profinet_identity={
+            "vendor_id": 0x0037,  # ABB PROFINET vendor ID
+            "device_id": 0x0501,
+            "device_role": 1,
+            "im0_manufacturer": "ABB",
+            "im0_order_id": "CI501-PNIO",
         },
 
         snmp_identity={

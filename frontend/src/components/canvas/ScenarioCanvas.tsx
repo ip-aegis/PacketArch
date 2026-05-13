@@ -35,6 +35,8 @@ import { useCanvasSync } from './hooks/useCanvasSync';
 import { useClusterView } from './hooks/useClusterView';
 import { useNodeDrag } from './hooks/useNodeDrag';
 import { useAutoLayout } from './hooks/useAutoLayout';
+import { useRationalityEvaluator } from './hooks/useRationalityEvaluator';
+import { evaluateFlowRationality } from '../../stores/rationalityStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -117,6 +119,35 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const setPendingFitToNode = useUIStore((state) => state.setPendingFitToNode);
   const selectedNodeIds = useUIStore((state) => state.selectedNodeIds);
   const { applyLayout } = useAutoLayout();
+  // Phase 7: evaluate every flow against the architecture comm matrix
+  // and stash results in rationalityStore for FlowEdge / CanvasControls
+  // to render. Caches by (src_role, tgt_role, vertical, protocol).
+  useRationalityEvaluator();
+
+  // Auto-apply Purdue layout the first time a scenario is shown if it has
+  // never been laid out (i.e. no zone or device has a saved position). This
+  // catches templated scenarios that arrive with default {0,0}-ish state and
+  // leaves manually-arranged scenarios alone.
+  const scenarioId = useScenarioStore((s) => s.id);
+  const autoLaidOutForRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!scenarioId || autoLaidOutForRef.current === scenarioId) return;
+    const { devices: ds, zones: zs } = useScenarioStore.getState();
+    const deviceList = Object.values(ds);
+    const zoneList = Object.values(zs);
+    if (deviceList.length === 0) return; // nothing to lay out yet
+    const anyDevicePos = deviceList.some((d) => d.position && (d.position.x !== 0 || d.position.y !== 0));
+    const anyZonePos = zoneList.some((z) => z.position && (z.position.x !== 0 || z.position.y !== 0));
+    if (anyDevicePos || anyZonePos) {
+      // Already laid out — respect the saved positions.
+      autoLaidOutForRef.current = scenarioId;
+      return;
+    }
+    autoLaidOutForRef.current = scenarioId;
+    applyLayout('purdue');
+    // Center on the result after the next frame.
+    requestAnimationFrame(() => fitView({ padding: 0.15, duration: 300 }));
+  }, [scenarioId, applyLayout, fitView, storeNodes.length]);
 
   // Register canvas deps for command palette (lives outside ReactFlowProvider)
   useEffect(() => {
@@ -323,6 +354,29 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         undo: () => removeFlow(flowId),
         redo: () => addFlow(newFlow),
         timestamp: Date.now(),
+      });
+
+      // Phase 7: live rationality check. Non-blocking — surfaces a
+      // toast hint when the user-drawn flow falls outside the
+      // architecture comm matrix, but the flow stands.
+      const verticalNow = useScenarioStore.getState().vertical;
+      void evaluateFlowRationality(
+        newFlow,
+        useScenarioStore.getState().devices,
+        verticalNow,
+      ).then((res) => {
+        if (!res) return;
+        if (res.status === 'off-rail' && res.suggestion) {
+          message.info({
+            content: `Architecture rail: ${res.suggestion}`,
+            duration: 6,
+          });
+        } else if (res.status === 'mismatch' && res.suggestion) {
+          message.info({
+            content: `Architecture rail: ${res.suggestion}`,
+            duration: 6,
+          });
+        }
       });
 
       // Check cross-zone conduit compliance

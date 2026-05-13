@@ -81,6 +81,16 @@ class AIScenarioGenerateRequest(BaseModel):
         False,
         description="Include CVE-vulnerable devices for security testing",
     )
+    # Purdue cell-isolation default mode for the generated scenario
+    cell_isolation_mode: str = Field(
+        "off",
+        description=(
+            "Default cell isolation mode for the generated scenario: "
+            "'off' (permissive), 'conduit_gated' (cells need explicit "
+            "conduit), or 'strict_northbound' (no east/west cell traffic; "
+            "cells only talk to L3+). Steers AI flow/conduit authoring."
+        ),
+    )
 
 
 class AIScenarioPreviewDevice(BaseModel):

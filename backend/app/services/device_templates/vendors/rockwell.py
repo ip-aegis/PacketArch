@@ -49,7 +49,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "max_retries": 3,
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua"],
+        supported_protocols=["ethernet_ip", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -301,6 +301,8 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
+        # ControlLogix 5580 supports OPC UA Server via Logix Designer
+        # Studio 5000 v32+ (built-in OPC UA Server profile).
         supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
@@ -354,6 +356,17 @@ TEMPLATES: list[DeviceTemplate] = [
         snmp_identity={
             "sys_descr": "Rockwell Automation 1756-L85E/B ControlLogix 5580 V35.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
+        },
+
+        opc_ua_identity={
+            "application_name": "Rockwell Automation Logix5580 OPC UA Server",
+            "application_uri": "urn:RockwellAutomation:Logix5580:1756-L85E",
+            "product_uri": "http://www.rockwellautomation.com/products/logix5580",
+            "manufacturer_name": "Rockwell Automation",
+            "product_name": "ControlLogix 5580 OPC UA Server",
+            "software_version": "35.011",
+            "build_number": "V35.011",
+            "build_date": "2024-03-01T00:00:00Z",
         },
     ),
     DeviceTemplate(
@@ -743,7 +756,8 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp", "snmp"],
+        # ControlLogix 5570 supports OPC UA Server via Studio 5000 v32+.
+        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -786,6 +800,17 @@ TEMPLATES: list[DeviceTemplate] = [
         snmp_identity={
             "sys_descr": "Rockwell Automation 1756-L73 ControlLogix 5570 V33.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
+        },
+
+        opc_ua_identity={
+            "application_name": "Rockwell Automation Logix5570 OPC UA Server",
+            "application_uri": "urn:RockwellAutomation:Logix5570:1756-L73",
+            "product_uri": "http://www.rockwellautomation.com/products/logix5570",
+            "manufacturer_name": "Rockwell Automation",
+            "product_name": "ControlLogix 5570 OPC UA Server",
+            "software_version": "33.011",
+            "build_number": "V33.011",
+            "build_date": "2023-10-01T00:00:00Z",
         },
     ),
     DeviceTemplate(
@@ -885,7 +910,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp"],
+        supported_protocols=["ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="PV{8HEX}",
@@ -945,7 +970,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp"],
+        supported_protocols=["ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="PV8{8HEX}",
@@ -1073,7 +1098,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp"],
+        supported_protocols=["ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="PF7{8HEX}",
@@ -1318,7 +1343,8 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua"],
+        # ControlLogix 5580 supports OPC UA Server via Studio 5000 v32+.
+        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -1361,6 +1387,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_descr": "Rockwell Automation 1756-L85E ControlLogix 5580 V35.011",
             "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
         },
+
+        opc_ua_identity={
+            "application_name": "Rockwell Automation Logix5580 OPC UA Server",
+            "application_uri": "urn:RockwellAutomation:Logix5580:1756-L85E",
+            "product_uri": "http://www.rockwellautomation.com/products/logix5580",
+            "manufacturer_name": "Rockwell Automation",
+            "product_name": "ControlLogix 5580 OPC UA Server",
+            "software_version": "35.011",
+            "build_number": "V35.011",
+            "build_date": "2024-01-15T00:00:00Z",
+        },
     ),
     DeviceTemplate(
         id="rockwell/guardlogix/l83es",
@@ -1391,7 +1428,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "cip_safety", "modbus_tcp"],
+        supported_protocols=["ethernet_ip", "cip_safety"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="0x{8HEX}",
@@ -1603,7 +1640,10 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip"],
+        # PowerFlex 525 supports both EtherNet/IP (native) and a Modbus
+        # TCP option card (25-COMM-M). Declaring both lets cross-vendor
+        # DCS scenarios (Emerson modbus, Yokogawa modbus) use this drive.
+        supported_protocols=["ethernet_ip", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="PF525{8NUM}",
@@ -1633,6 +1673,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_code": 525,
             "product_name": "25B-D030N104 POWERFLEX 525",
             "state": 3,
+        },
+
+        modbus_identity={
+            "vendor_name": "Rockwell Automation",
+            "product_code": "25B-D030N104",
+            "vendor_url": "http://www.rockwellautomation.com",
+            "product_name": "PowerFlex 525 AC Drive (25-COMM-M option)",
+            "model_name": "PowerFlex 525",
         },
 
         snmp_identity={

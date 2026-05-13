@@ -24,10 +24,9 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "fulfillment_center": {
         "name": "Fulfillment Center",
-        "description": "E-commerce fulfillment center with goods-to-person AGV system, conveyor sortation, "
-                       "and pick-to-light stations. Features KUKA and MiR mobile robots for inventory transport, "
-                       "Rockwell conveyor automation, Cognex vision QC, and SICK barcode scanning. "
-                       "45 devices across WMS core, fleet management, conveyor, AGV, and pick zones.",
+        "description": "E-commerce fulfillment center with four zones (pick / pack / ship / "
+                       "sortation), a WMS + standby + MES at L3, and a full IDMZ. ControlLogix "
+                       "WCS PLCs and conveyor PLCs throughout. 89 devices across 6 zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
         "recommended_attack_playbooks": [
@@ -477,10 +476,9 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "distribution_center": {
         "name": "Distribution Center",
-        "description": "Regional distribution center with pallet conveyors, cross-docking operations, "
-                       "and RFID tracking at dock doors. Features Siemens S7-1500 conveyor automation, "
-                       "Impinj and Zebra RFID readers for inventory tracking, and SICK barcode scanners. "
-                       "40 devices across operations core, receiving, shipping, and conveyor zones.",
+        "description": "Regional distribution center on Rockwell EtherNet/IP — same "
+                       "architectural shape as a fulfillment center. Four area zones, MES + WMS, "
+                       "full IDMZ. 89 devices across 6 zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
         "recommended_attack_playbooks": [
@@ -918,11 +916,10 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "cold_chain_warehouse": {
         "name": "Cold Chain Warehouse",
-        "description": "Temperature-controlled warehouse with frozen (-20C) and chilled (2-8C) zones, "
-                       "refrigeration system automation, and compliance logging. Features Schneider M580 "
-                       "refrigeration PLCs, Honeywell temperature controllers, MiR cold-rated AMRs, "
-                       "and historian for temperature compliance. 35 devices across HVAC, frozen, chilled, "
-                       "and monitoring zones.",
+        "description": "Cold-chain warehouse with three conveyor / sortation zones supervised by "
+                       "a Rockwell-based WMS. EtherNet/IP from WCS PLCs to PowerFlex drives + "
+                       "Point I/O. Full L3.5 IDMZ for ERP integration. 58 devices across 5 "
+                       "zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
         "recommended_attack_playbooks": [
@@ -1213,24 +1210,21 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # ============================================================
-            # SNMP NETWORK MONITORING
+            # SNMP NETWORK MONITORING — moved to scada_server / NMS source.
+            # PLCs do not poll switches in real industrial networks; the
+            # NMS does. SCADA servers and jump_servers in this template
+            # already cover network-management polling.
             # ============================================================
-            # Master PLC monitoring all switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"],
-             "source_zones": ["hvac_control"], "target_zones": ["hvac_control", "ambient_zone", "monitoring"]},
 
-            # Master PLC monitoring gateway (60s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["plc"], "target_types": ["remote_gateway"],
-             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"]},
-
-            # Jump server SNMP monitoring of switches (60s)
+            # Jump server SNMP monitoring of switches (60s) — covers all
+            # zones so no switch is orphaned for Cyber Vision discovery.
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["jump_server"], "target_types": ["switch"],
-             "source_zones": ["hvac_control"], "target_zones": ["hvac_control"]},
+             "source_zones": ["hvac_control"],
+             "target_zones": ["hvac_control", "frozen_zone", "chilled_zone",
+                              "ambient_zone", "monitoring"]},
 
-            
+
                     ],
         "zones": [
             {"id": "hvac_control", "name": "HVAC/Refrigeration Control", "level": 3,
@@ -1330,11 +1324,10 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "parcel_sorting_hub": {
         "name": "Parcel Sorting Hub",
-        "description": "High-speed parcel sorting facility with tilt-tray sorter, 6-sided barcode scanning "
-                       "tunnels, automatic label application, and destination chute management. Features "
-                       "Rockwell ControlLogix for high-speed sortation, Cognex DataMan barcode readers, "
-                       "and CIP Safety for light curtains. 50 devices across sort control, induction, "
-                       "sort loop, scan tunnel, and chute zones.",
+        "description": "Parcel sortation hub with three multi-vendor sortation zones (Siemens / "
+                       "Rockwell / Schneider) under a unified WMS. Cross-vendor cell layout with "
+                       "vendor-consistent intra-cell PROFINET / EtherNet/IP / Modbus traffic. 58 "
+                       "devices across 5 zones.",
         "vertical": "distribution_logistics",
         "phase_preset": "standard",
         "recommended_attack_playbooks": [

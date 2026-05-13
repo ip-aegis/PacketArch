@@ -7,8 +7,11 @@
  * Convenience hook for consuming feature flags in components.
  *
  * Usage:
- *   const { aiEnabled } = useFeatures();
+ *   const { aiEnabled, liveTrafficEnabled } = useFeatures();
  *   if (!aiEnabled) return null;
+ *
+ * Defaults to fail-open (true) while /about is still loading so a slow
+ * response doesn't flash-redirect users away from gated pages on full builds.
  */
 
 import { useFeaturesStore } from '../stores/featuresStore';
@@ -17,6 +20,7 @@ export function useFeatures() {
   const features = useFeaturesStore((s) => s.features);
   return {
     aiEnabled: features === null ? true : features.ai_enabled,
+    liveTrafficEnabled: features === null ? true : features.live_traffic_enabled,
     loaded: useFeaturesStore((s) => s.loaded),
   };
 }

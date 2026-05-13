@@ -46,7 +46,13 @@ class EnhancedDeviceSpec:
     # Error injection configuration
     error_config: ErrorConfig | None = None
     # Additional metadata
-    role: str | None = None  # e.g., "Process Controller", "Safety Controller"
+    role: str | None = None  # Free-text label, e.g., "Process Controller"
+    # Canonical architectural role from role_catalog. Optional — if unset
+    # the materializer derives a default from `type` via
+    # default_role_for_device_type. Authors writing new templates SHOULD
+    # set this explicitly to disambiguate (e.g. plc with role
+    # "area_supervisor_plc" vs "cell_controller").
+    architectural_role: str | None = None
     # CVE associations for vulnerable firmware emulation
     # List of CVE IDs (e.g., ["CVE-2022-1159", "CVE-2021-22681"])
     cve_ids: list[str] | None = None
@@ -72,6 +78,8 @@ class EnhancedDeviceSpec:
             }
         if self.role:
             result["role"] = self.role
+        if self.architectural_role:
+            result["architectural_role"] = self.architectural_role
         if self.cve_ids:
             result["cve_ids"] = self.cve_ids
         return result

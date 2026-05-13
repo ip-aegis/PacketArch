@@ -31,6 +31,7 @@ import type { ScenarioSummary } from '../../api/scenarios';
 import type { DashboardDeployment } from '../../api/dashboard';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { verticalConfig, formatDuration } from './scenarioConstants';
+import { ScenarioModeBadges, modesFromSummary } from '../common';
 
 const { Text, Paragraph } = Typography;
 
@@ -180,6 +181,12 @@ const ScenarioCard: React.FC<ScenarioCardProps> = React.memo(({
           {scenario.description}
         </Paragraph>
       )}
+
+      {/* Mode badges (clean demo, broadcast, cell isolation) — render only
+          when at least one non-default mode is active. */}
+      <div style={{ marginBottom: 12 }} onClick={(e) => e.stopPropagation()}>
+        <ScenarioModeBadges modes={modesFromSummary(scenario)} />
+      </div>
 
       {/* Stats */}
       <div

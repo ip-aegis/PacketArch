@@ -30,13 +30,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "electrical_substation": {
         "name": "Electrical Substation IED Network",
-        "description": "138kV/13.8kV electrical substation with bay-level protection, transformer "
-                       "differential relays, and feeder protection IEDs. Features SEL protection "
-                       "relays (SEL-487E transformer, SEL-311C line, SEL-751 feeder) with SEL-3530 "
-                       "RTAC as substation gateway, ABB REX640 bus protection, and Schneider ION8650 "
-                       "revenue meters. Modbus TCP for relay polling, SNMP for network monitoring. "
-                       "38 devices across substation SCADA, bay control, feeder, transformer, "
-                       "metering, and WAN zones.",
+        "description": "IEC 61850 transmission substation. Three protection bays, each with SEL "
+                       "protection relays exchanging GOOSE multicast and reporting MMS to a "
+                       "station RTAC; station-ops zone with HMI / engineering / NMS / asset "
+                       "management; DNP3 northbound to utility EMS over WAN. 20 devices across 6 "
+                       "zones.",
         "vertical": "energy_power",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -262,11 +260,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["substation_lan"], "target_zones": ["wan_zone"],
              "jitter_ms": 2000, "jitter_type": "exponential"},
 
-            # SNMP monitoring switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["rtu"], "target_types": ["switch"],
+            # Substation switch monitoring is performed by the remote-
+            # access gateway acting as NMS proxy (covers core, bay, and
+            # WAN-edge switches across all zones).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
              "source_zones": ["substation_lan"],
-             "target_zones": ["substation_lan", "bay_control", "wan_zone"]},
+             "target_zones": ["substation_lan", "bay_control",
+                              "feeder_zone", "transformer_zone", "wan_zone"]},
 
             # Automation controller polling bay relays (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
@@ -416,13 +417,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "gas_turbine_generation": {
         "name": "Gas Turbine Power Generation Plant",
-        "description": "Combined-cycle gas turbine power plant with GE Mark VIe turbine control "
-                       "system, steam turbine governor control, and balance-of-plant automation. "
-                       "Features dual-redundant Mark VIe controllers for GT and ST, ABB AC500 PLCs "
-                       "for balance-of-plant (cooling, fuel gas), GE Proficy Historian, and ABB/SEL "
-                       "protection relays for generator protection. Modbus TCP for DCS polling, "
-                       "SNMP for infrastructure monitoring. 40 devices across plant SCADA, turbine "
-                       "control, balance-of-plant, generator protection, and auxiliary zones.",
+        "description": "Combined-cycle gas turbine plant with three generation units (GT1, GT2, "
+                       "steam turbine). Emerson DeltaV / Ovation DCS controllers per unit, "
+                       "Honeywell Safety Manager SIS, generator protection in a separate "
+                       "electrical zone. NERC CIP regulated topology with full L3.5 IDMZ. 84 "
+                       "devices across 7 zones.",
         "vertical": "energy_power",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -812,13 +811,10 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "grid_control_center": {
         "name": "Regional Grid Control Center",
-        "description": "Regional energy management system (EMS) and SCADA control center monitoring "
-                       "8 remote substations via WAN. Features Honeywell Experion PKS as the central "
-                       "SCADA/EMS platform with GE Proficy Historian for grid data archival. Remote "
-                       "substations use SEL-3530 RTACs and ABB RTU560s communicating over Modbus TCP "
-                       "WAN links. Schneider SCADAPack RTUs provide backup communication paths. "
-                       "45 devices across EMS core, engineering, communications hub, remote "
-                       "substations, and WAN zones.",
+        "description": "Multi-substation grid control center modeled as a multi-site IEC 61850 "
+                       "deployment. Six protection bays, station bus, and central operations "
+                       "zone with primary + standby RTACs. Heavy GOOSE intra-bay traffic and "
+                       "DNP3 / IEC 104 north-uplink. 40 devices across 9 zones.",
         "vertical": "energy_power",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -1173,14 +1169,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "solar_bess_microgrid": {
         "name": "Solar Farm with Battery Energy Storage",
-        "description": "Utility-scale solar farm with co-located battery energy storage system "
-                       "(BESS) and microgrid controller. Features ABB AC500 PLCs for inverter "
-                       "string monitoring, GE PACSystems for BESS management, and SEL-2411 as "
-                       "the microgrid controller for islanding/grid-tie decisions. ABB protection "
-                       "relays at the point of interconnection (POI), Schneider ION8650 meters "
-                       "for net metering, and Schneider TBox RTUs for remote weather station "
-                       "and irradiance monitoring. 35 devices across microgrid control, inverter "
-                       "field, BESS, POI protection, and environmental monitoring zones.",
+        "description": "Solar + battery-energy-storage microgrid modeled as a small-substation "
+                       "shape: three protection-class bays (inverter strings / BESS racks / "
+                       "point-of-interconnection) plus station-ops zone with HMI + RTAC. "
+                       "Mixed-field vendor profile (Schneider RTUs, Emerson instruments). 20 "
+                       "devices across 6 zones.",
         "vertical": "energy_power",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -1461,11 +1454,15 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["microgrid_control"], "target_zones": ["environmental"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # SNMP infrastructure monitoring (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["rtu"], "target_types": ["switch"],
+            # Microgrid network management — remote gateway acts as NMS
+            # proxy and SNMP-polls every switch in the site for Cyber
+            # Vision discovery (covers core, inverter-field, BESS, WAN).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
              "source_zones": ["microgrid_control"],
-             "target_zones": ["microgrid_control", "inverter_field", "bess_control"]},
+             "target_zones": ["microgrid_control", "inverter_field",
+                              "bess_control", "poi_protection",
+                              "environmental", "wan"]},
 
             # WAN RTU polling RTAC (2500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2500,
@@ -1491,10 +1488,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["bess_control"], "target_zones": ["bess_control"],
              "jitter_ms": 100, "jitter_type": "uniform"},
 
-            # SNMP monitoring WAN edge switch (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["rtu"], "target_types": ["switch"],
-             "source_zones": ["wan"], "target_zones": ["wan"]},
+            # WAN switch monitoring is bundled into the
+            # remote_gateway → switch SNMP coverage flow above.
         ],
         "zones": [
             {"id": "microgrid_control", "name": "Microgrid Control Network", "level": 3,

@@ -11,6 +11,7 @@ This module builds:
 - RPC (DCE/RPC over UDP) frames for AR establishment
 """
 
+import logging
 import struct
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,8 @@ from app.protocol_engines.types import DeviceContext
 
 if TYPE_CHECKING:
     from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
+
+logger = logging.getLogger(__name__)
 
 
 # PROFINET EtherTypes
@@ -508,7 +511,23 @@ def build_dcp_identify_response_fingerprinted(
     # Get identity values from fingerprint
     # Support both naming conventions for compatibility
     device_name = profinet_identity.get("station_name", "device")
-    vendor_id = profinet_identity.get("vendor_id", 0x002A)
+    if "vendor_id" in profinet_identity:
+        vendor_id = profinet_identity["vendor_id"]
+    else:
+        vendor_id = 0x002A
+        # The 0x002A Siemens default is used when no vendor_id is set on the
+        # fingerprint. For non-Siemens vendors that's a misclassification
+        # (CV will see the device as Siemens). Warn so it's diagnosable;
+        # the traffic still goes out so existing scenarios don't break.
+        fp_vendor = (applicator.fingerprint.get("vendor") or "").strip().lower()
+        if fp_vendor and "siemens" not in fp_vendor:
+            logger.warning(
+                "PROFINET: vendor_id absent on %s/%s fingerprint; "
+                "falling back to Siemens 0x002A. Add a vendor_id to "
+                "profinet_identity for accurate CV fingerprinting.",
+                applicator.fingerprint.get("vendor", "?"),
+                applicator.fingerprint.get("model", "?"),
+            )
     device_id = profinet_identity.get("device_id", 0x0001)
     device_role = profinet_identity.get("device_role", 0x01)  # IO-Device
     # Defensive normalization: device_role MUST be an int byte for struct.pack.

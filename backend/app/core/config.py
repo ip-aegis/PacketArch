@@ -56,12 +56,21 @@ class Settings(BaseSettings):
     # are exposed to the frontend via /api/v1/about.features. Air-gapped or
     # otherwise-restricted deployments typically disable ai_enabled.
     ai_enabled: bool = True
+    # When false, the backend ships as a PCAP-only generator: remote-agent
+    # WebSocket hub, agent install bundle, deployment/adaptation/dashboard-live
+    # routes, and the runtime-control half of the attacks router are gated off.
+    # PCAP generation, scenario authoring, AI, fingerprints, and Cyber Vision
+    # remain available. Default true preserves full-build behavior.
+    live_traffic_enabled: bool = True
 
     # PCAP Output
     pcap_output_dir: str = "./output/pcap"
     max_simulation_duration_ms: int = 3600000  # 60 minutes default max
 
-    # First user (created on startup if no users exist)
+    # Legacy first-user bootstrap. New installs go through the first-run setup
+    # wizard (POST /api/v1/setup/complete), which creates the admin from
+    # operator-supplied credentials. This var is kept for backward compatibility
+    # — if set, an admin is auto-created on boot when no users exist.
     # Note: ADMIN_PASSWORD env var is mapped to FIRST_USER_PASSWORD in docker-compose.yml
     first_user_username: str = "admin"
     first_user_password: str = ""
@@ -83,14 +92,8 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator("first_user_password", mode="after")
-    @classmethod
-    def validate_first_user_password(cls, v: str) -> str:
-        if not v:
-            raise ValueError(
-                "FIRST_USER_PASSWORD (or ADMIN_PASSWORD) must be set in environment"
-            )
-        return v
+    # Note: first_user_password is intentionally NOT validated as required.
+    # Empty means "no env-driven bootstrap; operator runs the setup wizard."
 
     @property
     def async_database_url(self) -> str:

@@ -158,6 +158,10 @@ async def start_generation(
                 "job_id": str(job.id),
                 "scenario_id": str(scenario.id),
                 "duration_ms": duration_ms,
+                "attack_playbook_id": request.attack_playbook_id,
+                "attack_config": request.attack_config,
+                "adaptive_config": request.adaptive_config,
+                "cell_isolation_override": request.cell_isolation_override,
             }
         )
         logger.info(f"Started generation task {task.id} for job {job.id}")

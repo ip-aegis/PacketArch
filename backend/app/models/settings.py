@@ -65,6 +65,38 @@ class SystemSetting(Base):
 
 # Default settings to be seeded
 DEFAULT_SETTINGS = [
+    # First-run setup state. Flipped to "true" by the setup wizard
+    # (POST /api/v1/setup/complete) or by auto-graduation at startup when an
+    # admin user already exists. Until true, all non-setup/non-about API
+    # routes return 503.
+    {
+        "key": "setup.completed",
+        "value": "false",
+        "is_secret": False,
+        "category": "setup",
+        "description": "Whether first-run setup has been completed",
+    },
+    {
+        "key": "site.name",
+        "value": "",
+        "is_secret": False,
+        "category": "setup",
+        "description": "Friendly site name (shown in title bar, briefing decks)",
+    },
+    {
+        "key": "site.fqdn",
+        "value": "",
+        "is_secret": False,
+        "category": "setup",
+        "description": "Server FQDN or IP (baked into agent install commands)",
+    },
+    {
+        "key": "site.timezone",
+        "value": "UTC",
+        "is_secret": False,
+        "category": "setup",
+        "description": "Site time zone (used for timestamps in scenarios and logs)",
+    },
     {
         "key": "ai_provider",
         "value": "anthropic",

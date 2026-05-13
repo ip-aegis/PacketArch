@@ -51,6 +51,11 @@ export interface DashboardDeployment {
   protocol_breakdown: Record<string, DashboardProtocolStats> | null;
   attack: DashboardAttackState | null;
   time_series: DashboardTimeSeriesPoint[];
+  scenario_modes?: {
+    clean_demo_mode: boolean;
+    broadcast_traffic_enabled: boolean;
+    cell_isolation_mode: string;
+  };
 }
 
 export interface DashboardAgent {

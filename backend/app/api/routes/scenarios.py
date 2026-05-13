@@ -32,6 +32,7 @@ from app.schemas.scenario import (
     ScenarioExport,
     ScenarioImport,
     ScenarioListResponse,
+    ScenarioModes,
     ScenarioResponse,
     ScenarioSummaryResponse,
     ScenarioUpdate,
@@ -234,29 +235,92 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         message=None if affinity_ok else f"{len(affinity_warnings)} vendor-protocol affinity warning(s)",
     ))
 
-    # --- Check: Fingerprint coverage ---
+    # --- Check: Fingerprint coverage (per-protocol identity) ---
+    # A device covered "by SNMP only" is shallow: CV probes each protocol
+    # the device speaks and expects a protocol-specific identity block.
+    # snmp_identity is universal via the carve-out, so SNMP-only is not
+    # enough to pass — the device's declared protocols must each map to a
+    # populated identity block.
+    _PROTOCOL_IDENTITY = {
+        "modbus": "modbus_identity",
+        "modbus_tcp": "modbus_identity",
+        "ethernet_ip": "ethernet_ip_identity",
+        "enip": "ethernet_ip_identity",
+        "cip_safety": "ethernet_ip_identity",
+        "profinet": "profinet_identity",
+        "profisafe": "profinet_identity",
+        "s7comm": "s7_identity",
+        "s7comm_plus": "s7_identity",
+        "bacnet": "bacnet_identity",
+        "bacnet_ip": "bacnet_identity",
+        "opc_ua": "opc_ua_identity",
+        "dnp3": "dnp3_identity",
+        "iec104": "iec104_identity",
+    }
+
     devices_without_fp = 0
+    devices_thin_fp: list[str] = []
     for did, device in devices.items():
         fp = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
-        if not fp or not any(
-            fp.get(k) for k in (
-                "modbus_identity", "ethernet_ip_identity", "profinet_identity",
-                "s7_identity", "snmp_identity", "bacnet_identity", "opc_ua_identity",
-            )
-        ):
+        if not fp:
             devices_without_fp += 1
-    fp_coverage_ok = devices_without_fp == 0
+            continue
+        # Use the FINGERPRINT's own supported_protocols (the authoritative
+        # statement of what this device template natively serves) rather
+        # than the scenario device's protocols list — scenarios may
+        # declare protocols beyond what the fingerprint backs, and
+        # auto_repair_protocols handles those at create-time. We only
+        # care that the fingerprint itself is internally consistent:
+        # every protocol it claims to serve has a populated identity.
+        fp_protocols = [
+            p.lower()
+            for p in (fp.get("supported_protocols") or [])
+        ]
+        expected = {_PROTOCOL_IDENTITY[p] for p in fp_protocols if p in _PROTOCOL_IDENTITY}
+        if not expected:
+            # Fingerprint only speaks SNMP-class protocols → snmp_identity covers it.
+            if not fp.get("snmp_identity"):
+                devices_without_fp += 1
+            continue
+        missing = [k for k in expected if not fp.get(k)]
+        if missing:
+            devices_thin_fp.append(
+                f"{device.get('name', did)} ({', '.join(missing)})"
+            )
+
+    fp_coverage_ok = devices_without_fp == 0 and not devices_thin_fp
+    if devices_without_fp and devices_thin_fp:
+        fp_msg = (
+            f"{devices_without_fp} device(s) missing fingerprint, "
+            f"{len(devices_thin_fp)} thin (protocol-specific identity empty)"
+        )
+    elif devices_without_fp:
+        fp_msg = (
+            f"{devices_without_fp} device(s) missing vendor fingerprint — "
+            f"Cyber Vision will see unknown vendor identity"
+        )
+    elif devices_thin_fp:
+        fp_msg = (
+            f"{len(devices_thin_fp)} device(s) advertise protocols but lack "
+            f"matching identity blocks (e.g. speaks S7 with no s7_identity)"
+        )
+    else:
+        fp_msg = None
     checks.append(ReadinessCheck(
         name="Fingerprint coverage",
         passed=fp_coverage_ok,
         severity="warning",
-        message=None if fp_coverage_ok else (
-            f"{devices_without_fp} device(s) missing vendor fingerprint — "
-            f"Cyber Vision will see unknown vendor identity"
-        ),
+        message=fp_msg,
     ))
 
     # --- Check: MAC-vendor OUI alignment ---
+    # A device's MAC must match SOME authoritative OUI list for its vendor.
+    # Two sources are valid (in order of specificity):
+    #   1. The device fingerprint's own `oui_prefixes` — model-level truth.
+    #      A specific Cisco IE3500 template may declare OUI "F8:C2:88" that
+    #      the vendor-level VENDOR_OUI_PREFIXES dict doesn't enumerate.
+    #   2. VENDOR_OUI_PREFIXES — vendor-level fallback for devices without
+    #      a fingerprint or whose fingerprint doesn't declare OUIs.
     from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
 
     mac_vendor_mismatches = 0
@@ -267,8 +331,19 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         if not vendor or not mac or len(mac) < 8:
             continue
         mac_prefix = mac[:8]  # e.g. "00:0E:8C"
-        vendor_ouis = VENDOR_OUI_PREFIXES.get(vendor, [])
-        if vendor_ouis and mac_prefix not in [o.upper() for o in vendor_ouis]:
+
+        # Source 1: fingerprint-level OUIs (model-specific)
+        fp = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
+        fp_ouis = [o.upper() for o in (fp.get("oui_prefixes") or [])]
+        if fp_ouis and mac_prefix in fp_ouis:
+            continue
+
+        # Source 2: vendor-level fallback
+        vendor_ouis = [o.upper() for o in VENDOR_OUI_PREFIXES.get(vendor, [])]
+        if vendor_ouis and mac_prefix not in vendor_ouis:
+            # If the fingerprint declared OUIs and the MAC matched none of
+            # them OR the vendor's, it's a real mismatch. If no fingerprint
+            # OUIs were declared, we only had vendor-level to check.
             mac_vendor_mismatches += 1
     mac_vendor_ok = mac_vendor_mismatches == 0
     checks.append(ReadinessCheck(
@@ -344,6 +419,148 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         ),
     ))
 
+    # --- Check: Flow rationality (semantic correctness) ---
+    from app.services.template_audit import audit_irrational_flows
+    irrational = audit_irrational_flows(definition)
+    # Only warning-severity findings gate the readiness; info-level
+    # findings (role-pair soft warnings) ride along in the audit detail.
+    warning_irrational = [f for f in irrational if f.severity == "warning"]
+    rational_ok = len(warning_irrational) == 0
+    checks.append(ReadinessCheck(
+        name="Flow rationality",
+        passed=rational_ok,
+        severity="warning",
+        message=None if rational_ok else (
+            f"{len(warning_irrational)} flow(s) have irrational source/target "
+            f"pairing (e.g. jump server polling a PLC, drive polling a PLC)"
+        ),
+    ))
+
+    # --- Check: Role inventory health ---
+    # A bag of 14 PLCs with no engineering workstation, SCADA, or
+    # supervisory device is unrealistic; flag at SMALL+ scale. Honors
+    # the device's `architectural_role` when present and falls back to
+    # a device_type → category bucket for legacy scenario templates.
+    # The fallback is deliberately strict on device_type (not the role
+    # catalog) — `device_type=plc` is treated as control even though
+    # the role catalog allows `plc` to also fulfill `area_supervisor_plc`.
+    _SUPERVISORY_ROLES = {
+        "scada_primary", "scada_standby", "engineering_workstation",
+        "area_hmi", "area_supervisor_plc", "alarm_event_server",
+    }
+    _INFRA_ROLES = {
+        "nms_server", "asset_management_server", "ot_domain_controller",
+        "jump_server", "av_management_server", "patch_staging_server",
+        "process_historian", "local_historian", "historian_replica",
+        "reverse_proxy", "patch_server",
+    }
+    _CONTROL_ROLES = {
+        "cell_controller", "batch_controller", "safety_controller",
+        "dcs_controller", "field_rtu", "aggregator_rtu",
+        "robot_controller", "cnc_controller", "wcs_controller",
+        "conveyor_controller", "traffic_controller", "cabinet_controller",
+        "bms_field_controller", "protection_relay",
+    }
+    # device_type → category bucket (used only when architectural_role
+    # is absent). These are unambiguous; PLC always counts as control,
+    # never supervisory, regardless of role catalog flexibility.
+    _SUPERVISORY_TYPES = {
+        "scada", "scada_server", "engineering_station",
+        "engineering_workstation", "operator_station", "workstation",
+        "hmi", "master_station",
+    }
+    _INFRA_TYPES = {
+        "jump_server", "nms", "domain_controller", "patch_server",
+        "asset_management", "av_server", "edr_server", "historian",
+        "bms_server",
+    }
+    _CONTROL_TYPES = {
+        "plc", "safety_plc", "rtu", "dcs_controller",
+        "robot_controller", "cnc_controller", "batch_controller",
+        "agv_controller", "fleet_manager", "wellhead_controller",
+        "compressor_controller", "pump_controller",
+        "traffic_controller", "tunnel_controller", "ahu_controller",
+        "vav_controller", "chiller_controller", "bms_controller",
+        "building_controller", "room_controller",
+    }
+
+    def _device_category(device: dict) -> str | None:
+        """Return 'supervisory', 'infra', 'control', or None for a device.
+
+        Uses architectural_role when present (authoritative), otherwise
+        falls back to device_type bucketing. Returns None for devices
+        that don't fit any category (field instruments, switches, etc.).
+        """
+        ar = device.get("architectural_role") or device.get("architecturalRole")
+        if ar:
+            if ar in _SUPERVISORY_ROLES:
+                return "supervisory"
+            if ar in _INFRA_ROLES:
+                return "infra"
+            if ar in _CONTROL_ROLES:
+                return "control"
+            return None
+        dt = (
+            device.get("device_type")
+            or device.get("deviceType")
+            or device.get("type")
+            or ""
+        ).lower()
+        if dt in _SUPERVISORY_TYPES:
+            return "supervisory"
+        if dt in _INFRA_TYPES:
+            return "infra"
+        if dt in _CONTROL_TYPES:
+            return "control"
+        return None
+
+    sup_count = 0
+    infra_count = 0
+    ctrl_count = 0
+    for did, device in devices.items():
+        cat = _device_category(device)
+        if cat == "supervisory":
+            sup_count += 1
+        elif cat == "infra":
+            infra_count += 1
+        elif cat == "control":
+            ctrl_count += 1
+
+    inventory_issues: list[str] = []
+    scale = len(devices)
+    # SMALL+ scale gate — single-device demos and 3-device sketches are
+    # allowed to skip supervisory/infra requirements.
+    if scale >= 10:
+        if sup_count == 0:
+            inventory_issues.append(
+                "no supervisory device (engineering workstation, SCADA, area HMI)"
+            )
+        if infra_count == 0:
+            inventory_issues.append(
+                "no infrastructure role (NMS, asset mgmt, jump server, domain controller, historian)"
+            )
+        if sup_count > 0 and ctrl_count > 0:
+            ratio = ctrl_count / sup_count
+            if ratio > 10.0:
+                inventory_issues.append(
+                    f"controller:supervisory ratio {ctrl_count}:{sup_count} exceeds 10:1"
+                )
+        elif ctrl_count >= 10 and sup_count == 0:
+            inventory_issues.append(
+                f"{ctrl_count} controllers but zero supervisory devices "
+                f"— no human-in-the-loop is unrealistic"
+            )
+
+    inventory_ok = not inventory_issues
+    checks.append(ReadinessCheck(
+        name="Role inventory health",
+        passed=inventory_ok,
+        severity="warning",
+        message=None if inventory_ok else (
+            "Scenario lacks expected role variety: " + "; ".join(inventory_issues)
+        ),
+    ))
+
     # Compute score and status
     total = len(checks)
     passed = sum(1 for c in checks if c.passed)
@@ -399,6 +616,15 @@ async def list_scenarios(
         definition = s.definition or {}
         device_count, flow_count = get_scenario_counts(definition)
         readiness = compute_scenario_readiness(definition)
+        modes = ScenarioModes(
+            clean_demo_mode=bool(definition.get("clean_demo_mode", False)),
+            broadcast_traffic_enabled=bool(
+                definition.get("broadcast_traffic_enabled", True)
+            ),
+            cell_isolation_mode=str(
+                (definition.get("cell_isolation") or {}).get("mode", "off")
+            ),
+        )
         items.append(ScenarioSummaryResponse(
             id=s.id,
             name=s.name,
@@ -409,6 +635,7 @@ async def list_scenarios(
             device_count=device_count,
             flow_count=flow_count,
             readiness=readiness,
+            modes=modes,
             created_at=s.created_at,
             updated_at=s.updated_at,
         ))
@@ -480,6 +707,19 @@ async def create_scenario(
         scenario.definition = enrich_definition_serial_numbers(
             scenario.definition, str(scenario.id)
         )
+
+    # Auto-repair protocol/fingerprint mismatches at create time so the
+    # scenario lands clean — users never see protocol_identity_mismatch
+    # readiness warnings on freshly created scenarios.
+    if scenario.definition:
+        from app.services.scenario_enrichment import (
+            auto_repair_protocols,
+            repair_flow_protocols,
+        )
+        scenario.definition = auto_repair_protocols(scenario.definition)
+        # Then snap any flow protocols to one both endpoints actually
+        # support, using the just-repaired protocols list.
+        scenario.definition = repair_flow_protocols(scenario.definition)
 
     await db.commit()
     await db.refresh(scenario)
@@ -562,6 +802,15 @@ async def update_scenario(
         scenario.definition = enrich_definition_serial_numbers(
             scenario.definition, str(scenario.id)
         )
+        # Same protocol-mismatch guardrail as the create path — keep the
+        # saved scenario clean so readiness warnings never appear in the
+        # studio after a save.
+        from app.services.scenario_enrichment import (
+            auto_repair_protocols,
+            repair_flow_protocols,
+        )
+        scenario.definition = auto_repair_protocols(scenario.definition)
+        scenario.definition = repair_flow_protocols(scenario.definition)
 
     # Increment version
     scenario.version += 1
@@ -980,6 +1229,120 @@ async def get_conduit_compliance(
     return validate_conduit_compliance(scenario.definition or {})
 
 
+# ---------------------------------------------------------------------------
+# Cell isolation (Purdue-aware east/west enforcement)
+# ---------------------------------------------------------------------------
+
+
+class CellIsolationItem(BaseModel):
+    """One conduit or flow that strict_northbound mode would remove."""
+    id: str
+    name: str
+    source_zone: str | None = None
+    target_zone: str | None = None
+    protocol: str | None = None
+    allowed_protocols: list[str] | None = None
+
+
+class CellIsolationPreview(BaseModel):
+    """Preview returned before the destructive prune is applied."""
+    flows: list[CellIsolationItem]
+    conduits: list[CellIsolationItem]
+
+
+class ApplyStrictResponse(BaseModel):
+    """Result of applying strict_northbound mode to a scenario."""
+    scenario_id: str
+    version_snapshot_id: str | None = None
+    removed_flow_ids: list[str]
+    removed_conduit_ids: list[str]
+    new_flow_count: int
+    new_conduit_count: int
+
+
+@router.get(
+    "/{scenario_id}/cell-isolation/preview-strict",
+    response_model=CellIsolationPreview,
+)
+async def preview_cell_isolation_strict(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> CellIsolationPreview:
+    """Show exactly which cell-to-cell flows and conduits the strict
+    northbound prune would remove. Read-only — does not mutate state."""
+    from app.protocol_engines.cell_isolation import preview_strict_northbound
+
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
+    )
+
+    preview = preview_strict_northbound(scenario.definition or {})
+    return CellIsolationPreview(
+        flows=[CellIsolationItem(**item) for item in preview["flows"]],
+        conduits=[CellIsolationItem(**item) for item in preview["conduits"]],
+    )
+
+
+@router.post(
+    "/{scenario_id}/cell-isolation/apply-strict",
+    response_model=ApplyStrictResponse,
+)
+async def apply_cell_isolation_strict(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> ApplyStrictResponse:
+    """Switch the scenario to strict_northbound mode.
+
+    Snapshots the current scenario via the version system (so the user
+    can roll back), then prunes all cell-to-cell flows and conduits and
+    sets ``definition.cell_isolation.mode = strict_northbound``.
+    """
+    from app.api.routes.scenario_versions import create_version_snapshot
+    from app.protocol_engines.cell_isolation import prune_for_strict_northbound
+
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
+    )
+
+    snapshot = await create_version_snapshot(
+        db,
+        scenario,
+        source="manual",
+        user_id=current_user.id,
+        label="Pre cell-isolation lockdown",
+    )
+
+    new_definition, removed = prune_for_strict_northbound(scenario.definition or {})
+    scenario.definition = new_definition
+    scenario.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.commit()
+
+    new_flows = new_definition.get("flows", {})
+    new_conduits = new_definition.get("conduits", {})
+
+    return ApplyStrictResponse(
+        scenario_id=str(scenario.id),
+        version_snapshot_id=str(snapshot.id),
+        removed_flow_ids=removed["flows"],
+        removed_conduit_ids=removed["conduits"],
+        new_flow_count=len(new_flows) if isinstance(new_flows, (dict, list)) else 0,
+        new_conduit_count=(
+            len(new_conduits) if isinstance(new_conduits, (dict, list)) else 0
+        ),
+    )
+
+
 class RepairProtocolsResponse(BaseModel):
     """Response from protocol repair operation."""
     scenario_id: str
@@ -1131,6 +1494,15 @@ async def import_scenario(
 
     # Reassign all device IPs based on new allocation
     definition = _reassign_device_ips(definition, allocation)
+    # Auto-repair protocol mismatches in imported scenarios — old exports
+    # may pre-date a fingerprint update or carry mismatches the source
+    # install never repaired. Flow-protocol snap follows.
+    from app.services.scenario_enrichment import (
+        auto_repair_protocols,
+        repair_flow_protocols,
+    )
+    definition = auto_repair_protocols(definition)
+    definition = repair_flow_protocols(definition)
     scenario.definition = definition
 
     await db.commit()

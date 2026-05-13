@@ -18,6 +18,7 @@ import type { EdgeProps } from '@xyflow/react';
 import { useCompactMode } from '../hooks/useCompactMode';
 import type { ProtocolType } from '../../../types';
 import { PROTOCOL_COLORS, PROTOCOL_EDGE_LABELS, PROTOCOL_SHORT_NAMES } from '../../../constants/protocols';
+import { useFlowRationality } from '../../../stores/rationalityStore';
 
 export interface FlowEdgeData extends Record<string, unknown> {
   protocol: ProtocolType;
@@ -57,6 +58,9 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
   const color = PROTOCOL_COLORS[protocol] || '#6a9fd4';
   const isAggregate = edgeData?.flowCount != null && edgeData.flowCount > 0;
   const complianceReason = edgeData?.complianceReason;
+  // Phase 7: rationality indicator. Skipped for aggregate edges
+  // (which represent multiple flows merged for display).
+  const rationality = useFlowRationality(id as string);
 
   // Compute perpendicular offset for parallel edges between the same node pair
   const pIndex = edgeData?.parallelIndex ?? 0;
@@ -153,6 +157,48 @@ const FlowEdge: React.FC<EdgeProps<FlowEdgeData>> = React.memo((props) => {
             )}
             {complianceReason === 'wrong_direction' && (
               <span title="Wrong direction for conduit" style={{ marginLeft: 4, fontSize: 10 }}>{'\u274C'}</span>
+            )}
+            {!isAggregate && rationality?.status === 'off-rail' && (
+              <span
+                title={
+                  rationality.suggestion ||
+                  'No matrix entry for this role pair \u2014 off-rail authoring choice.'
+                }
+                style={{
+                  marginLeft: 4,
+                  fontSize: 10,
+                  color: '#ff9f4a',
+                }}
+              >
+                {'\u26A0\uFE0F'}
+              </span>
+            )}
+            {!isAggregate && rationality?.status === 'mismatch' && (
+              <span
+                title={
+                  rationality.suggestion ||
+                  'Protocol mismatch with the architecture matrix.'
+                }
+                style={{
+                  marginLeft: 4,
+                  fontSize: 10,
+                  color: '#ffd54a',
+                }}
+              >
+                {'\u26A0\uFE0F'}
+              </span>
+            )}
+            {!isAggregate && rationality?.status === 'ok' && (
+              <span
+                title="On the architecture rail (matrix-endorsed flow)"
+                style={{
+                  marginLeft: 4,
+                  fontSize: 10,
+                  color: '#5fb878',
+                }}
+              >
+                {'\u2693'}
+              </span>
             )}
           </div>
         </EdgeLabelRenderer>

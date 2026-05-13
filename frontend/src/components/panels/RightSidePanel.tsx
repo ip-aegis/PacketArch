@@ -10,9 +10,9 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Tabs, Tooltip, Typography, Badge, Input, Button, Divider } from 'antd';
-import { ControlOutlined, RobotOutlined, CloudUploadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ControlOutlined, RobotOutlined, CloudUploadOutlined, ThunderboltOutlined, DoubleRightOutlined } from '@ant-design/icons';
 import { TEXT_BODY, TEXT_MUTED, BG_CARD, BG_PANEL, BG_CODE, BORDER_DEFAULT } from '../../constants/theme';
-import { PanelContainer, EmptyState } from '../common';
+import { PanelContainer, EmptyState, ScenarioModeBadges } from '../common';
 import { useUIStore } from '../../stores/uiStore';
 import { useAIAssistantStore } from '../../stores/aiAssistantStore';
 import { useFeatures } from '../../hooks/useFeatures';
@@ -22,6 +22,7 @@ import { useAttackStore } from '../../stores/attackStore';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
 import ConduitPropertyForm from './ConduitPropertyForm';
+import ZonePropertyForm from './ZonePropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
@@ -35,11 +36,27 @@ interface RightSidePanelProps {
   scenarioId: string | null;
 }
 
+/** Mode badge row that pulls live state from the scenario store. Reads the
+ *  exact same flags the badges in list views read, so the Studio always
+ *  matches what other surfaces will show after the next save. */
+const StudioModeBadges: React.FC = () => {
+  const cleanDemoMode = useScenarioStore((s) => s.cleanDemoMode);
+  const broadcastTrafficEnabled = useScenarioStore((s) => s.broadcastTrafficEnabled);
+  const cellIsolationMode = useScenarioStore((s) => s.cellIsolation?.mode ?? 'off');
+  return (
+    <ScenarioModeBadges
+      modes={{ cleanDemoMode, broadcastTrafficEnabled, cellIsolationMode }}
+      showAll
+    />
+  );
+};
+
 const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const { aiEnabled } = useFeatures();
   const [activeTab, setActiveTab] = useState(aiEnabled ? 'ai' : 'properties');
   const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
+  const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar);
 
   const {
     isOpen: isAIOpen,
@@ -53,6 +70,53 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const scenarioName = useScenarioStore((state) => state.name);
   const scenarioDescription = useScenarioStore((state) => state.description);
   const setMetadata = useScenarioStore((state) => state.setMetadata);
+  const zonesRecord = useScenarioStore((state) => state.zones);
+  const devicesRecord = useScenarioStore((state) => state.devices);
+
+  const zoneSummaries = useMemo(() => {
+    const typeLabels: Record<string, string> = {
+      vertical: 'Vertical',
+      network: 'Network',
+      vlan: 'VLAN',
+      logical: 'Logical',
+    };
+    // Devices are the source of truth for zone membership via `zoneId`.
+    // The legacy `zone.deviceIds` array is empty on AI/template scenarios,
+    // so derive counts by grouping devices.
+    const countByZone: Record<string, number> = {};
+    for (const id in devicesRecord) {
+      const zid = devicesRecord[id].zoneId;
+      if (zid) countByZone[zid] = (countByZone[zid] ?? 0) + 1;
+    }
+    return Object.values(zonesRecord)
+      .slice()
+      .sort((a, b) => {
+        const la = a.level ?? 99;
+        const lb = b.level ?? 99;
+        if (la !== lb) return la - lb;
+        return (a.name ?? '').localeCompare(b.name ?? '');
+      })
+      .map((zone) => {
+        const raw = zone as Record<string, unknown> & typeof zone;
+        const network = (raw.network ?? {}) as { subnet?: string; vlanId?: number };
+        const subnet = network.subnet ?? (raw.subnet as string | undefined) ?? null;
+        const vlanId =
+          network.vlanId ?? (raw.vlan as number | undefined) ?? (raw.vlanId as number | undefined);
+        const legacyIds = Array.isArray(zone.deviceIds) ? zone.deviceIds : [];
+        const deviceCount = countByZone[zone.id] ?? legacyIds.length;
+        const parts: string[] = [];
+        if (typeof zone.level === 'number') parts.push(`Purdue L${zone.level}`);
+        if (zone.type) parts.push(typeLabels[zone.type] ?? zone.type);
+        if (vlanId !== undefined) parts.push(`VLAN ${vlanId}`);
+        parts.push(`${deviceCount} device${deviceCount === 1 ? '' : 's'}`);
+        return {
+          id: zone.id,
+          name: zone.name ?? zone.id,
+          subnet,
+          description: parts.join(' · '),
+        };
+      });
+  }, [zonesRecord, devicesRecord]);
 
   // Deployment state
   const deployments = useDeploymentsStore((state) => state.deployments);
@@ -137,6 +201,13 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
       </div>
 
       <div style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 11, color: TEXT_MUTED, display: 'block', marginBottom: 6 }}>
+          Modes
+        </Text>
+        <StudioModeBadges />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
         <Text style={{ fontSize: 11, color: TEXT_MUTED, display: 'block', marginBottom: 4 }}>
           Description
         </Text>
@@ -153,6 +224,53 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           }}
         />
       </div>
+
+      {zoneSummaries.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, color: TEXT_MUTED, display: 'block', marginBottom: 6 }}>
+            Zones ({zoneSummaries.length})
+          </Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {zoneSummaries.map((zone) => (
+              <div
+                key={zone.id}
+                style={{
+                  background: BG_CODE,
+                  border: `1px solid ${BORDER_DEFAULT}`,
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    gap: 8,
+                  }}
+                >
+                  <Text style={{ color: TEXT_BODY, fontSize: 12, fontWeight: 500 }}>
+                    {zone.name}
+                  </Text>
+                  <Text
+                    style={{
+                      color: TEXT_MUTED,
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {zone.subnet ?? '—'}
+                  </Text>
+                </div>
+                <Text style={{ color: TEXT_MUTED, fontSize: 11, display: 'block' }}>
+                  {zone.description}
+                </Text>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {scenarioId && (
         <Button
@@ -185,6 +303,8 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         <DevicePropertyForm deviceId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'flow' ? (
         <FlowPropertyForm flowId={activePropertyContext.ids[0]} />
+      ) : activePropertyContext.type === 'zone' ? (
+        <ZonePropertyForm zoneId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'conduit' ? (
         <ConduitPropertyForm conduitId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'multi' ? (
@@ -322,8 +442,24 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           borderLeft: `1px solid ${BORDER_DEFAULT}`,
           display: 'flex',
           flexDirection: 'column',
+          position: 'relative',
         }}
       >
+        <Tooltip title="Hide panel" placement="left">
+          <Button
+            type="text"
+            size="small"
+            icon={<DoubleRightOutlined />}
+            onClick={toggleRightSidebar}
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              zIndex: 2,
+              color: TEXT_MUTED,
+            }}
+          />
+        </Tooltip>
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}

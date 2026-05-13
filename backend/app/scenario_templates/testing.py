@@ -23,6 +23,13 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "and wait ~5 minutes for Cyber Vision discovery, then use the MAC Analysis tab "
                        "to verify detection across all severity tiers. 10 devices on a single flat network.",
         "vertical": "testing",
+        # This template's authoring intent collides with the realism
+        # rules — duplicate MACs and duplicate names are the FEATURE
+        # under test. Tell the audit harness not to flag those.
+        "audit_exempt_categories": [
+            "readiness:Unique MAC addresses",
+            "readiness:Unique device names",
+        ],
         "devices": [
             # ============================================================
             # POLLING SOURCE — 1 device
@@ -100,19 +107,25 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
              "ip_host_offset": 50},
         ],
         "flows": [
-            # Modbus TCP polling — SCADA to all demo devices (2s interval)
+            # Modbus TCP polling — SCADA to all demo devices (2s interval).
+            # NOTE: This is an intentionally-flat test scenario for
+            # duplicate-MAC detection; the realism rules (HMI→IO direct
+            # polling) do not apply. auto_repair_skip prevents the audit
+            # from flagging it.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["hmi"],
              "target_types": ["plc", "temperature_controller", "io_module"],
              "source_zones": ["test_net"], "target_zones": ["test_net"],
-             "jitter_ms": 200, "jitter_type": "gaussian"},
+             "jitter_ms": 200, "jitter_type": "gaussian",
+             "auto_repair_skip": True},
 
             # SNMP monitoring — identity enrichment for CV (30s interval)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
              "source_types": ["hmi"],
              "target_types": ["plc", "temperature_controller", "io_module"],
              "source_zones": ["test_net"], "target_zones": ["test_net"],
-             "jitter_ms": 3000, "jitter_type": "uniform"},
+             "jitter_ms": 3000, "jitter_type": "uniform",
+             "auto_repair_skip": True},
         ],
         "zones": [
             {"id": "test_net", "name": "Test Network", "level": 2,

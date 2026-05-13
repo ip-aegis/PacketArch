@@ -916,17 +916,34 @@ async def generate_scenario_preview(
     designer = AIScenarioDesigner(db, range_index=1)
 
     try:
-        result = await designer.design_scenario(
+        # Phase 6 of the architecture rollout: prefer the archetype rail
+        # (matrix-driven, realism-clean by construction). The freeform
+        # path is preserved as a fallback for edge cases.
+        result = await designer.design_scenario_via_archetype(
             description=request.description,
             name=request.name,
             duration_ms=request.duration_ms,
-            preferred_vendors=request.vendors,
-            preferred_protocols=request.protocols,
             vertical=request.vertical,
-            total_device_count=request.total_device_count,
-            device_counts=request.device_counts,
-            include_vulnerable_devices=request.include_vulnerable_devices,
+            preferred_vendors=request.vendors,
         )
+        if result.fallback_reason:
+            logger.info(
+                f"Archetype rail fell back ({result.fallback_reason}); "
+                "trying freeform path."
+            )
+            result = await designer.design_scenario(
+                description=request.description,
+                name=request.name,
+                duration_ms=request.duration_ms,
+                preferred_vendors=request.vendors,
+                preferred_protocols=request.protocols,
+                vertical=request.vertical,
+                total_device_count=request.total_device_count,
+                device_counts=request.device_counts,
+                include_vulnerable_devices=request.include_vulnerable_devices,
+                cell_isolation_mode=request.cell_isolation_mode,
+            )
+
         scenario = result.scenario
         ai_enhanced = result.ai_enhanced
         ai_features = result.ai_features
@@ -1013,6 +1030,7 @@ async def generate_scenario_preview(
         "protocols_used": protocols_used,
         "vendors_used": vendors_used,
         "include_vulnerable_devices": request.include_vulnerable_devices,
+        "cell_isolation": scenario.metadata.get("cell_isolation"),
     }
 
     preview_id = await AIScenarioPreviewService.store_preview(
@@ -1099,6 +1117,35 @@ async def generate_scenario_preview_stream(
                 yield _sse("done", preview=preview_response)
                 return
 
+            # Phase 1.5 (Phase 6 of architecture rollout): try the
+            # archetype rail first. If the AI can pick a clean
+            # (archetype, vendor, scale, zone_themes), the generator
+            # materializes a Purdue-aware scenario with proper L0-L3.5
+            # zone levels and matrix-driven flows. Falls through to the
+            # freeform AI path on any failure (parse, validation, etc.).
+            yield _sse("phase", step=2, total=6, message="Architecture rail: picking archetype + vendor + scale...")
+            archetype_result = await designer.design_scenario_via_archetype(
+                description=request.description,
+                name=request.name,
+                duration_ms=request.duration_ms,
+                vertical=request.vertical,
+                preferred_vendors=request.vendors,
+            )
+            if not archetype_result.fallback_reason:
+                # Clean archetype materialization — finalize and return.
+                yield _sse("phase", step=5, total=6, message="Building devices, flows, and zones...")
+                preview_response = await _finalize_preview(
+                    request, archetype_result, current_user, db
+                )
+                yield _sse("done", preview=preview_response)
+                return
+            # Archetype rail couldn't fit — log the reason and fall
+            # through to the freeform path.
+            logger.info(
+                "Archetype rail fell back to freeform: %s",
+                archetype_result.fallback_reason,
+            )
+
             # Phase 2: Build prompts
             yield _sse("phase", step=2, total=6, message="Building prompts from device fingerprints...")
             system_prompt, user_prompt = designer.phase_build_prompts(
@@ -1108,6 +1155,7 @@ async def generate_scenario_preview_stream(
                 preferred_protocols=request.protocols,
                 total_device_count=request.total_device_count,
                 device_counts=request.device_counts,
+                cell_isolation_mode=request.cell_isolation_mode,
             )
 
             # Phase 3: Call AI (the slow part)
@@ -1131,6 +1179,7 @@ async def generate_scenario_preview_stream(
                 description=request.description,
                 duration_ms=request.duration_ms,
                 vertical=request.vertical,
+                cell_isolation_mode=request.cell_isolation_mode,
             )
 
             # Phase 6: Finalize
@@ -1267,6 +1316,7 @@ async def generate_scenario_preview_stream(
             "protocols_used": protocols_used,
             "vendors_used": vendors_used,
             "include_vulnerable_devices": req.include_vulnerable_devices,
+            "cell_isolation": scenario.metadata.get("cell_isolation"),
         }
 
         preview_id = await AIScenarioPreviewService.store_preview(
@@ -1342,7 +1392,12 @@ async def create_scenario_from_preview(
 
     for idx, z in enumerate(preview_zones):
         zone_name = z.get("name", f"zone_{idx}")
-        zone_id = z.get("id", zone_name.lower().replace(" ", "_"))
+        # Important: the studio's property forms look up zones by node-id
+        # (`state.zones[zoneId]`), where zoneId comes from the canvas
+        # node's `id` — which is the inner `zone.id`. The dict-key MUST
+        # match the inner id, otherwise zone-click → property-form
+        # silently bails. Force them equal here.
+        zone_id = zone_name
         row = idx // zones_per_row
         col = idx % zones_per_row
 
@@ -1634,7 +1689,7 @@ async def create_scenario_from_preview(
         conduits = generate_default_conduits(list(zones.values()))
 
     # Update scenario definition (scenario was created earlier for IP allocation)
-    db_scenario.definition = {
+    new_definition: dict[str, Any] = {
         "devices": devices,
         "flows": flows,
         "zones": zones,
@@ -1642,6 +1697,10 @@ async def create_scenario_from_preview(
         "phases": [],
         "events": [],
     }
+    preview_isolation = preview.get("cell_isolation")
+    if preview_isolation:
+        new_definition["cell_isolation"] = preview_isolation
+    db_scenario.definition = new_definition
 
     # Set addressing config to track the IP allocation
     db_scenario.addressing_config = {

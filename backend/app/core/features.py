@@ -22,10 +22,12 @@ class Features(BaseModel):
     """Runtime feature flags. Serialized verbatim to the frontend."""
 
     ai_enabled: bool
+    live_traffic_enabled: bool
 
 
 def get_features() -> Features:
     """Resolve current feature flags from settings. Cheap — call per-request."""
     return Features(
         ai_enabled=settings.ai_enabled,
+        live_traffic_enabled=settings.live_traffic_enabled,
     )

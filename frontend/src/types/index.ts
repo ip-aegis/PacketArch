@@ -104,6 +104,13 @@ export interface ScenarioDevice {
   name: string;
   type: DeviceType;
   role?: string;
+  /**
+   * Typed architectural role from the architecture rail (Phase 1+).
+   * Distinct from `role` (free-form descriptive label). When present,
+   * the canvas can validate flows against the comm matrix.
+   * Example values: "cell_controller", "scada_primary", "field_rtu".
+   */
+  architecturalRole?: string;
   position: { x: number; y: number };
   zoneId?: string;
   network: NetworkConfig;
@@ -196,6 +203,14 @@ export interface Phase {
   color: string;
 }
 
+// Purdue cell-isolation modes (IEC 62443 area-zone enforcement)
+export type CellIsolationMode = 'off' | 'conduit_gated' | 'strict_northbound';
+
+export interface CellIsolationConfig {
+  mode: CellIsolationMode;
+  applies_to_levels?: number[];
+}
+
 // Full scenario definition
 export interface Scenario {
   id: string;
@@ -208,6 +223,7 @@ export interface Scenario {
   zones: Record<string, ScenarioZone>;
   conduits: Record<string, ScenarioConduit>;
   phases: Phase[];
+  cell_isolation?: CellIsolationConfig;
   createdAt: string;
   updatedAt: string;
 }

@@ -93,6 +93,14 @@ class DeploymentCreate(BaseModel):
         None,
         description="Optional attack playbook config (playbook_id, intensity, etc.)",
     )
+    cell_isolation_override: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "Optional per-run override for Purdue cell isolation "
+            "({'mode': ..., 'applies_to_levels': [...]}). Merged into the "
+            "scenario definition before it is sent to the agent."
+        ),
+    )
 
 
 class DeploymentResponse(BaseModel):

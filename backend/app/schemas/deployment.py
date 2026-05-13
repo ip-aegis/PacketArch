@@ -6,7 +6,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.scenario import ScenarioModes
 
 
 class UnifiedDeploymentResponse(BaseModel):
@@ -28,6 +30,9 @@ class UnifiedDeploymentResponse(BaseModel):
     created_at: datetime
     # Real-time attack state from agent (null if not available)
     attack: dict | None = None
+    # Mode flags from the scenario definition so the UI can render badges
+    # without making a second fetch per row.
+    scenario_modes: ScenarioModes = Field(default_factory=ScenarioModes)
 
     class Config:
         from_attributes = True
@@ -48,6 +53,18 @@ class UnifiedDeploymentResponse(BaseModel):
             scenario: Optional Scenario model instance
             attack: Optional attack state dict from traffic_dashboard
         """
+        modes = ScenarioModes()
+        if scenario is not None and scenario.definition:
+            d = scenario.definition
+            modes = ScenarioModes(
+                clean_demo_mode=bool(d.get("clean_demo_mode", False)),
+                broadcast_traffic_enabled=bool(
+                    d.get("broadcast_traffic_enabled", True)
+                ),
+                cell_isolation_mode=str(
+                    (d.get("cell_isolation") or {}).get("mode", "off")
+                ),
+            )
         return cls(
             id=deployment.id,
             scenario_id=deployment.scenario_id,
@@ -64,6 +81,7 @@ class UnifiedDeploymentResponse(BaseModel):
             stopped_at=deployment.stopped_at,
             created_at=deployment.started_at,  # AgentDeployment uses started_at as creation time
             attack=attack,
+            scenario_modes=modes,
         )
 
 

@@ -12,7 +12,7 @@ import React from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
 } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
 import type { ConduitDirection, ComplianceStatus, ProtocolType } from '../../../types';
@@ -60,13 +60,14 @@ const ConduitEdge: React.FC<EdgeProps<ConduitEdgeData>> = React.memo((props) => 
   const protocols = edgeData?.allowedProtocols || [];
   const direction = edgeData?.direction || 'bidirectional';
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 16,
   });
 
   // Build protocol summary
@@ -87,22 +88,36 @@ const ConduitEdge: React.FC<EdgeProps<ConduitEdgeData>> = React.memo((props) => 
           path={edgePath}
           style={{
             stroke: color,
-            strokeWidth: 8,
-            strokeDasharray: '12,8',
+            strokeWidth: 6,
+            strokeDasharray: '6,4',
             opacity: 0.25,
             filter: `blur(2px)`,
           }}
         />
       )}
-      {/* Main conduit path */}
+      {/* Halo: a dark wider stroke that matches the canvas background. Where
+          the conduit crosses over a zone, this halo creates a clean visual
+          break around the colored dashed line on top — the "highway over an
+          underpass" effect — so it reads as passing OVER, not slicing through. */}
+      <BaseEdge
+        id={`${id}-halo`}
+        path={edgePath}
+        style={{
+          stroke: '#1a2332',
+          strokeWidth: selected ? 8 : 6,
+          opacity: 0.95,
+        }}
+      />
+      {/* Main conduit path — orthogonal dashed colored stroke on top of the halo. */}
       <BaseEdge
         id={id as string}
         path={edgePath}
         style={{
           stroke: color,
-          strokeWidth: selected ? 5 : 4,
-          strokeDasharray: '12,8',
+          strokeWidth: selected ? 3 : 2,
+          strokeDasharray: '6,4',
           strokeLinecap: 'round',
+          opacity: selected ? 1 : 0.85,
           filter: selected ? `drop-shadow(0 0 6px ${color}80)` : undefined,
         }}
       />

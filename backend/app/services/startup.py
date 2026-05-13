@@ -3,21 +3,35 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Startup services for initializing the application."""
 
+import logging
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
+from app.models.scenario import Scenario
 from app.models.settings import DEFAULT_SETTINGS, SystemSetting
 from app.models.traffic_agent import TrafficAgent, AgentDeployment
 from app.models.user import User
 from app.services.cloud_service_data import BUILTIN_CLOUD_SERVICES
 from app.services.seed_data import run_seed_data
 
+logger = logging.getLogger(__name__)
+
 
 async def create_first_user(db: AsyncSession) -> User | None:
-    """Create the first admin user if no users exist."""
+    """Create the first admin user if no users exist AND a password was provided.
+
+    Empty FIRST_USER_PASSWORD means "no env-driven bootstrap" — the operator
+    will create the admin via the first-run setup wizard. This is the default
+    for new installs; legacy installs that still have ADMIN_PASSWORD in their
+    env continue to work.
+    """
+    if not settings.first_user_password:
+        return None
+
     result = await db.execute(select(User).limit(1))
     existing_user = result.scalar_one_or_none()
 
@@ -36,6 +50,55 @@ async def create_first_user(db: AsyncSession) -> User | None:
     await db.refresh(user)
 
     return user
+
+
+async def auto_graduate_setup(db: AsyncSession) -> bool:
+    """Mark setup.completed=true if an admin user already exists.
+
+    Existing installs (created before the setup wizard existed) have an admin
+    user but no `setup.completed` row was ever flipped to true. On first boot
+    of the new code, detect that situation and graduate them automatically so
+    the wizard doesn't appear after an upgrade.
+
+    Returns True iff this run flipped the flag.
+    """
+    completed_row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == "setup.completed")
+        )
+    ).scalar_one_or_none()
+
+    if completed_row is not None and completed_row.value == "true":
+        return False  # already complete, nothing to do
+
+    admin_exists = (
+        await db.execute(
+            select(User).where(User.is_admin == True).limit(1)  # noqa: E712
+        )
+    ).scalar_one_or_none() is not None
+
+    if not admin_exists:
+        return False
+
+    if completed_row is None:
+        # The seed_default_settings step normally inserts this row; defensive
+        # path in case auto_graduate runs first.
+        completed_row = SystemSetting(
+            key="setup.completed",
+            value="true",
+            is_secret=False,
+            category="setup",
+            description="Whether first-run setup has been completed",
+        )
+        db.add(completed_row)
+    else:
+        completed_row.value = "true"
+
+    await db.commit()
+    logger.info(
+        "auto_graduate_setup: marked setup.completed=true (admin user already exists)"
+    )
+    return True
 
 
 async def seed_default_settings(db: AsyncSession) -> int:
@@ -151,6 +214,15 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     settings_created = await seed_default_settings(db)
     results["settings"] = f"Seeded {settings_created} default settings"
 
+    # Auto-graduate existing installs: if an admin already exists (legacy
+    # bootstrap or pre-wizard install), mark setup as complete so the wizard
+    # doesn't fire on upgrade.
+    graduated = await auto_graduate_setup(db)
+    results["setup_state"] = (
+        "auto-graduated (admin user already exists)" if graduated
+        else "left unchanged"
+    )
+
     # Seed device profiles and protocol templates
     seed_results = await run_seed_data(db)
     results.update(seed_results)
@@ -167,10 +239,135 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     results["fingerprint_cache"] = f"Pre-warmed fingerprint cache with {fp_count} fingerprints"
 
     # Reconcile agent statuses (reset all to offline since no agents connected at startup)
-    agents_reset = await reconcile_agent_statuses(db)
-    if agents_reset > 0:
-        results["agent_reconcile"] = f"Reset {agents_reset} stale 'online' agent(s) to offline"
+    # Skipped in PCAP-only deployments — no agents will ever connect.
+    from app.core.config import settings
+    if settings.live_traffic_enabled:
+        agents_reset = await reconcile_agent_statuses(db)
+        if agents_reset > 0:
+            results["agent_reconcile"] = f"Reset {agents_reset} stale 'online' agent(s) to offline"
+        else:
+            results["agent_reconcile"] = "No stale agent statuses found"
     else:
-        results["agent_reconcile"] = "No stale agent statuses found"
+        results["agent_reconcile"] = "skipped (live_traffic_enabled=false)"
+
+    # Walk every scenario and apply protocol/fingerprint consistency.
+    # Idempotent — scenarios already clean are skipped.
+    repaired = await batch_repair_scenario_protocols(db)
+    if repaired > 0:
+        results["protocol_repair"] = (
+            f"Auto-repaired protocols on {repaired} scenario(s)"
+        )
+    else:
+        results["protocol_repair"] = "All scenarios already protocol-clean"
+
+    # One-time vendor-aware narrowing. The first auto-repair pass over-
+    # broadened device.protocols by trusting fingerprint identity blocks
+    # (catalog has identity for protocols devices don't natively speak,
+    # e.g. Modbus on a Siemens S7). This pass uses vendor-native lookup
+    # plus flow-declared protocols as the authoritative whitelist and
+    # drops everything else. Gated by a SystemSetting so it only runs
+    # once per install.
+    narrowed = await one_shot_narrow_scenario_protocols(db)
+    if narrowed is None:
+        results["protocol_narrow"] = "skipped (already applied)"
+    elif narrowed > 0:
+        results["protocol_narrow"] = (
+            f"Narrowed protocols on {narrowed} scenario(s) by vendor"
+        )
+    else:
+        results["protocol_narrow"] = "No vendor-narrowing needed"
 
     return results
+
+
+_NARROW_FLAG_KEY = "scenario.protocol_narrow_v4_inline_supported_done"
+
+
+async def one_shot_narrow_scenario_protocols(
+    db: AsyncSession,
+) -> int | None:
+    """One-time vendor-aware protocol narrowing across all scenarios.
+
+    Returns the number of scenarios narrowed, or None if the pass has
+    already run (skipped). Idempotency is enforced via a system_settings
+    row so the narrowing fires once per install.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.services.scenario_enrichment import narrow_protocols_by_vendor
+
+    # Check the gate.
+    flag = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == _NARROW_FLAG_KEY)
+    )
+    if flag.scalar_one_or_none() is not None:
+        return None
+
+    result = await db.execute(select(Scenario))
+    scenarios = result.scalars().all()
+    narrowed = 0
+    for s in scenarios:
+        if not s.definition:
+            continue
+        original = s.definition
+        narrowed_def = narrow_protocols_by_vendor(original)
+        if narrowed_def is original:
+            continue
+        s.definition = narrowed_def
+        flag_modified(s, "definition")
+        narrowed += 1
+        logger.info(
+            "Vendor-narrowing applied to scenario %s (%s)",
+            s.id, s.name,
+        )
+
+    # Mark the pass as done so it never runs again.
+    db.add(SystemSetting(
+        key=_NARROW_FLAG_KEY,
+        value="true",
+        category="internal",
+        is_secret=False,
+    ))
+    await db.commit()
+    return narrowed
+
+
+async def batch_repair_scenario_protocols(db: AsyncSession) -> int:
+    """Walk every scenario and apply both protocol and flow-protocol
+    repairs.
+
+    Two-pass per scenario:
+      1. auto_repair_protocols → device.protocols match fingerprint truth
+      2. repair_flow_protocols → flow.protocol matches both endpoints
+
+    Order matters: flow repair depends on the protocols being clean.
+
+    Idempotent — only commits when something changed.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.services.scenario_enrichment import (
+        auto_repair_protocols,
+        repair_flow_protocols,
+    )
+
+    result = await db.execute(select(Scenario))
+    scenarios = result.scalars().all()
+    repaired = 0
+    for s in scenarios:
+        if not s.definition:
+            continue
+        original = s.definition
+        repaired_def = auto_repair_protocols(original)
+        repaired_def = repair_flow_protocols(repaired_def)
+        if repaired_def is original:
+            # Nothing changed in either pass.
+            continue
+        s.definition = repaired_def
+        flag_modified(s, "definition")
+        repaired += 1
+        logger.info(
+            "Boot-time protocol+flow repair applied to scenario %s (%s)",
+            s.id, s.name,
+        )
+    if repaired > 0:
+        await db.commit()
+    return repaired

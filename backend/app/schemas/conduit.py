@@ -27,9 +27,14 @@ class SecurityLevel(str, Enum):
 
 
 class ComplianceSeverity(str, Enum):
-    """Severity of a compliance finding."""
+    """Severity of a compliance finding.
+
+    BLOCKING is set when the active cell-isolation mode will actually
+    drop the offending flow at runtime (vs WARNING, which is advisory).
+    """
 
     WARNING = "warning"
+    BLOCKING = "blocking"
 
 
 class ComplianceFindingReason(str, Enum):

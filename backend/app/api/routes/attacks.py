@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import CurrentUser, DBSession, RequireLiveTrafficEnabled
 from app.schemas.attack import (
     AttackPlaybookOut,
     AttackPlaybookSummary,
@@ -121,7 +121,11 @@ async def get_compatible_playbooks(scenario_id: str, _user: CurrentUser, db: DBS
 # ------------------------------------------------------------------
 
 
-@router.get("/{scenario_id}/injection-status", response_model=InjectionStatusResponse)
+@router.get(
+    "/{scenario_id}/injection-status",
+    response_model=InjectionStatusResponse,
+    dependencies=[RequireLiveTrafficEnabled],
+)
 async def get_injection_status(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Poll injection outcome after POST /inject.
 
@@ -133,7 +137,7 @@ async def get_injection_status(scenario_id: str, _user: CurrentUser) -> dict[str
     return attack_service.get_injection_status(scenario_id)
 
 
-@router.post("/{scenario_id}/inject")
+@router.post("/{scenario_id}/inject", dependencies=[RequireLiveTrafficEnabled])
 async def inject_attack(
     scenario_id: str,
     request: InjectAttackRequest,
@@ -197,7 +201,7 @@ async def inject_attack(
     }
 
 
-@router.post("/{scenario_id}/start")
+@router.post("/{scenario_id}/start", dependencies=[RequireLiveTrafficEnabled])
 async def start_attack(scenario_id: str, request: StartAttackRequest, _user: CurrentUser) -> dict[str, Any]:
     """Start an attack playbook on a deployed scenario.
 
@@ -215,7 +219,7 @@ async def start_attack(scenario_id: str, request: StartAttackRequest, _user: Cur
     return {"status": "ok", "playbook_id": request.playbook_id}
 
 
-@router.post("/{scenario_id}/stop")
+@router.post("/{scenario_id}/stop", dependencies=[RequireLiveTrafficEnabled])
 async def stop_attack(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Stop the running attack playbook."""
     success = await attack_service.stop_attack(scenario_id)
@@ -227,7 +231,7 @@ async def stop_attack(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     return {"status": "ok", "message": "Attack stopped"}
 
 
-@router.post("/{scenario_id}/advance")
+@router.post("/{scenario_id}/advance", dependencies=[RequireLiveTrafficEnabled])
 async def advance_stage(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Advance to the next kill-chain stage."""
     success = await attack_service.advance_stage(scenario_id)
@@ -239,7 +243,7 @@ async def advance_stage(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     return {"status": "ok", "message": "Advanced to next stage"}
 
 
-@router.post("/{scenario_id}/pause")
+@router.post("/{scenario_id}/pause", dependencies=[RequireLiveTrafficEnabled])
 async def pause_attack(
     scenario_id: str, request: PauseAttackRequest, _user: CurrentUser,
 ) -> dict[str, Any]:
@@ -254,7 +258,11 @@ async def pause_attack(
     return {"status": "ok", "message": f"Attack {action}"}
 
 
-@router.get("/{scenario_id}/state", response_model=AttackStateResponse)
+@router.get(
+    "/{scenario_id}/state",
+    response_model=AttackStateResponse,
+    dependencies=[RequireLiveTrafficEnabled],
+)
 async def get_attack_state(scenario_id: str, _user: CurrentUser) -> dict[str, Any]:
     """Get current attack state for a running scenario."""
     state = attack_service.get_attack_state(scenario_id)

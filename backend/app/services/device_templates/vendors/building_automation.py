@@ -36,7 +36,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp", "snmp"],
+        supported_protocols=["bacnet", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="NAE{10NUM}",
@@ -177,7 +177,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp", "snmp"],
+        supported_protocols=["bacnet", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="JCI{8ALPHANUM}",
@@ -297,7 +297,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp"],
+        supported_protocols=["bacnet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ALC{8ALPHANUM}",
@@ -361,7 +361,10 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["bacnet"],
+        # Delta Controls enteliBUS supports BACnet/IP, BACnet MS/TP,
+        # and Modbus TCP — declaring both so AHU↔VFD flows have a
+        # shared modbus-tcp option for non-BACnet drives.
+        supported_protocols=["bacnet", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="DCL{8ALPHANUM}",
@@ -384,6 +387,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_id": 8,
             "model_name": "enteliBUS Manager",
             "device_instance": 0,
+        },
+
+        modbus_identity={
+            "vendor_name": "Delta Controls",
+            "product_code": "enteliBUS Manager",
+            "vendor_url": "http://www.deltacontrols.com",
+            "product_name": "enteliBUS Manager (Modbus TCP gateway)",
+            "model_name": "enteliBUS",
         },
 
         snmp_identity={

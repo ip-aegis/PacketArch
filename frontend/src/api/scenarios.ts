@@ -27,6 +27,12 @@ export interface ReadinessSummary {
   checks: ReadinessCheck[];
 }
 
+export interface ScenarioModes {
+  clean_demo_mode: boolean;
+  broadcast_traffic_enabled: boolean;
+  cell_isolation_mode: 'off' | 'conduit_gated' | 'strict_northbound' | string;
+}
+
 export interface ScenarioSummary {
   id: string;
   name: string;
@@ -37,6 +43,7 @@ export interface ScenarioSummary {
   flow_count: number;
   version: number;
   readiness: ReadinessSummary;
+  modes?: ScenarioModes;
   created_at: string;
   updated_at: string;
 }
@@ -174,6 +181,43 @@ export const scenariosApi = {
     );
     return response.data;
   },
+
+  async previewCellIsolationStrict(id: string): Promise<CellIsolationPreviewResponse> {
+    const response = await apiClient.get<CellIsolationPreviewResponse>(
+      `${PREFIX}/${id}/cell-isolation/preview-strict`
+    );
+    return response.data;
+  },
+
+  async applyCellIsolationStrict(id: string): Promise<ApplyStrictResponse> {
+    const response = await apiClient.post<ApplyStrictResponse>(
+      `${PREFIX}/${id}/cell-isolation/apply-strict`
+    );
+    return response.data;
+  },
 };
+
+export interface CellIsolationItem {
+  id: string;
+  name: string;
+  source_zone?: string | null;
+  target_zone?: string | null;
+  protocol?: string | null;
+  allowed_protocols?: string[] | null;
+}
+
+export interface CellIsolationPreviewResponse {
+  flows: CellIsolationItem[];
+  conduits: CellIsolationItem[];
+}
+
+export interface ApplyStrictResponse {
+  scenario_id: string;
+  version_snapshot_id: string | null;
+  removed_flow_ids: string[];
+  removed_conduit_ids: string[];
+  new_flow_count: number;
+  new_conduit_count: number;
+}
 
 export default scenariosApi;

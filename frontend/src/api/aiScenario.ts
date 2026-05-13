@@ -23,6 +23,8 @@ export interface AIScenarioGenerateRequest {
   device_counts?: Record<string, number> | null;  // User specifies per-type counts
   // CVE vulnerability option
   include_vulnerable_devices?: boolean;
+  // Default Purdue cell isolation mode for the generated scenario
+  cell_isolation_mode?: 'off' | 'conduit_gated' | 'strict_northbound';
 }
 
 export interface AIScenarioPreviewDevice {

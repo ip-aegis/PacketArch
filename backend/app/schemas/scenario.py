@@ -78,6 +78,19 @@ class ReadinessSummary(BaseModel):
     checks: list[ReadinessCheck] = []
 
 
+class ScenarioModes(BaseModel):
+    """Mode flags surfaced from scenario.definition for list/detail views.
+
+    Stays a flat object so adding new flags doesn't change the schema shape —
+    new keys ride on the existing ScenarioModes wherever it's already
+    rendered (badge bar, deployment cards, etc.).
+    """
+
+    clean_demo_mode: bool = False
+    broadcast_traffic_enabled: bool = True
+    cell_isolation_mode: str = "off"
+
+
 class ScenarioSummaryResponse(BaseModel):
     """Schema for scenario summary (listing)."""
 
@@ -90,6 +103,7 @@ class ScenarioSummaryResponse(BaseModel):
     device_count: int = 0
     flow_count: int = 0
     readiness: ReadinessSummary = Field(default_factory=ReadinessSummary)
+    modes: ScenarioModes = Field(default_factory=ScenarioModes)
     created_at: datetime
     updated_at: datetime
 

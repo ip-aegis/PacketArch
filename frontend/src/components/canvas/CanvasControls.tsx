@@ -35,6 +35,8 @@ import {
   GroupOutlined,
   FileSearchOutlined,
   SafetyOutlined,
+  WifiOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useReactFlow, useViewport } from '@xyflow/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,6 +51,8 @@ import { extractErrorMessage } from '../../utils/errorUtils';
 import { useFeatures } from '../../hooks/useFeatures';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
 import ScenarioReviewDrawer from './ScenarioReviewDrawer';
+import CellIsolationControl from './CellIsolationControl';
+import RationalityBadge from './RationalityBadge';
 
 const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
@@ -66,10 +70,20 @@ const CanvasControls: React.FC = () => {
   const deviceCount = useScenarioStore((state) => Object.keys(state.devices).length);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const toggleMinimap = useUIStore((state) => state.toggleMinimap);
+  const showFlows = useUIStore((s) => s.panels.showFlows);
+  const showConduits = useUIStore((s) => s.panels.showConduits);
+  const aggregateFlows = useUIStore((s) => s.panels.aggregateFlows);
+  const toggleShowFlows = useUIStore((s) => s.toggleShowFlows);
+  const toggleShowConduits = useUIStore((s) => s.toggleShowConduits);
+  const toggleAggregateFlows = useUIStore((s) => s.toggleAggregateFlows);
   const clusterViewMode = useUIStore((state) => state.clusterViewMode);
   const setClusterViewMode = useUIStore((state) => state.setClusterViewMode);
   const isDirty = useScenarioIsDirty();
   const { applyLayout } = useAutoLayout();
+  const broadcastTrafficEnabled = useScenarioStore((s) => s.broadcastTrafficEnabled);
+  const setBroadcastTrafficEnabled = useScenarioStore((s) => s.setBroadcastTrafficEnabled);
+  const cleanDemoMode = useScenarioStore((s) => s.cleanDemoMode);
+  const setCleanDemoMode = useScenarioStore((s) => s.setCleanDemoMode);
 
   // Version history drawer state
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
@@ -315,7 +329,12 @@ const CanvasControls: React.FC = () => {
         border: '1px solid #2a3f54',
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        rowGap: '6px',
         gap: '6px',
+        // Bound width to the available canvas so wrapped rows don't extend
+        // past the right-side panel.
+        maxWidth: 'calc(100vw - 80px)',
       }}
     >
       {/* View group */}
@@ -414,6 +433,118 @@ const CanvasControls: React.FC = () => {
 
       <div style={dividerStyle} />
 
+      {/* Cell isolation group — Purdue-aware east/west enforcement */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Cell Isolation</span>
+        <div style={groupButtonsStyle}>
+          <CellIsolationControl scenarioId={scenarioId} buttonStyle={buttonStyle} />
+        </div>
+      </div>
+
+      <div style={dividerStyle} />
+
+      {/* Ambient traffic group — broadcast/multicast generator toggle */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Ambient</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip
+            title={
+              broadcastTrafficEnabled
+                ? 'Broadcast/multicast traffic ON: ARP, NTP, LLDP, STP, CDP, DHCP, IGMP, BACnet Who-Is, PROFINET DCP, SNMP traps. Click to disable.'
+                : 'Broadcast/multicast traffic OFF: no ambient noise generated. Click to enable.'
+            }
+          >
+            <Button
+              icon={<WifiOutlined />}
+              onClick={() => setBroadcastTrafficEnabled(!broadcastTrafficEnabled)}
+              style={{
+                ...buttonStyle,
+                ...(broadcastTrafficEnabled
+                  ? { borderColor: '#049FD9', color: '#049FD9' }
+                  : { opacity: 0.5 }),
+              }}
+            >
+              {broadcastTrafficEnabled ? 'Broadcast On' : 'Broadcast Off'}
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              cleanDemoMode
+                ? 'Clean Demo Mode ON: cyclic protocol traffic that creates phantom components in DPI tools is suppressed (currently PROFINET PN-IO). Discovery, AR setup, alarms, and identification frames still fire. Click to disable.'
+                : 'Clean Demo Mode OFF: full protocol traffic including PROFINET cyclic I/O. Recommended ON for asset-classification demos in CV. Click to enable.'
+            }
+          >
+            <Button
+              icon={<ExperimentOutlined />}
+              onClick={() => setCleanDemoMode(!cleanDemoMode)}
+              style={{
+                ...buttonStyle,
+                ...(cleanDemoMode
+                  ? { borderColor: '#FBAB18', color: '#FBAB18' }
+                  : { opacity: 0.6 }),
+              }}
+            >
+              {cleanDemoMode ? 'Clean Demo' : 'Full Traffic'}
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+
+      <div style={dividerStyle} />
+
+      {/* Edges group — visibility toggles + aggregation */}
+      <div style={groupStyle}>
+        <span style={groupLabelStyle}>Edges</span>
+        <div style={groupButtonsStyle}>
+          <Tooltip title={showFlows ? 'Hide flow edges' : 'Show flow edges'}>
+            <Button
+              icon={<NodeIndexOutlined />}
+              onClick={toggleShowFlows}
+              style={{
+                ...buttonStyle,
+                ...(showFlows ? {} : { opacity: 0.5 }),
+                borderColor: showFlows ? '#049FD9' : undefined,
+                color: showFlows ? '#049FD9' : undefined,
+              }}
+            >
+              Flows
+            </Button>
+          </Tooltip>
+          <Tooltip title={showConduits ? 'Hide conduit edges' : 'Show conduit edges'}>
+            <Button
+              icon={<SafetyOutlined />}
+              onClick={toggleShowConduits}
+              style={{
+                ...buttonStyle,
+                ...(showConduits ? {} : { opacity: 0.5 }),
+                borderColor: showConduits ? '#52c41a' : undefined,
+                color: showConduits ? '#52c41a' : undefined,
+              }}
+            >
+              Conduits
+            </Button>
+          </Tooltip>
+          <Tooltip title={
+            aggregateFlows
+              ? 'Stop aggregating: show every flow as its own edge'
+              : 'Aggregate flows by zone-pair (one edge per source-zone → target-zone, with a count)'
+          }>
+            <Button
+              icon={<GroupOutlined />}
+              onClick={toggleAggregateFlows}
+              style={{
+                ...buttonStyle,
+                ...(aggregateFlows ? { borderColor: '#FBAB18', color: '#FBAB18' } : {}),
+              }}
+            >
+              {aggregateFlows ? 'Aggregated' : 'Per-flow'}
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+
+      <div style={dividerStyle} />
+
       {/* Map group */}
       <div style={groupStyle}>
         <span style={groupLabelStyle}>Map</span>
@@ -494,26 +625,28 @@ const CanvasControls: React.FC = () => {
 
       <div style={dividerStyle} />
 
-      {/* Review group — AI-powered, hidden when AI is disabled */}
-      {aiEnabled && (
+      {/* Review group — AI-powered (when enabled) plus the always-on
+          architecture rationality badge. */}
       <div style={groupStyle}>
         <span style={groupLabelStyle}>Review</span>
-        <div style={groupButtonsStyle}>
-          <Tooltip title="AI Scenario Review">
-            <Button
-              icon={<FileSearchOutlined />}
-              style={buttonStyle}
-              onClick={() => setReviewDrawerOpen(true)}
-              disabled={deviceCount === 0 || !scenarioId}
-            >
-              Review
-            </Button>
-          </Tooltip>
+        <div style={{ ...groupButtonsStyle, alignItems: 'center' }}>
+          <RationalityBadge />
+          {aiEnabled && (
+            <Tooltip title="AI Scenario Review">
+              <Button
+                icon={<FileSearchOutlined />}
+                style={buttonStyle}
+                onClick={() => setReviewDrawerOpen(true)}
+                disabled={deviceCount === 0 || !scenarioId}
+              >
+                Review
+              </Button>
+            </Tooltip>
+          )}
         </div>
       </div>
-      )}
 
-      {aiEnabled && <div style={dividerStyle} />}
+      <div style={dividerStyle} />
 
       {/* Version group */}
       <div style={groupStyle}>

@@ -49,6 +49,22 @@ const ZonePropertyForm: React.FC<ZonePropertyFormProps> = ({ zoneId }) => {
   const [form] = Form.useForm();
   const zone = useScenarioStore((state) => state.zones[zoneId]);
   const updateZone = useScenarioStore((state) => state.updateZone);
+  // Devices are the source of truth for zone membership via `zoneId`. The
+  // legacy `zone.deviceIds` array is rarely populated by templates / AI
+  // scenarios, so deriving the count from the devices map is the only
+  // accurate display.
+  const deviceCount = useScenarioStore((state) => {
+    let n = 0;
+    for (const id in state.devices) {
+      if (state.devices[id].zoneId === zoneId) n++;
+    }
+    // Fall back to legacy array if the membership relationship was tracked
+    // there only — non-zero is the signal that the data shape uses it.
+    if (n === 0 && zone?.deviceIds?.length) {
+      return zone.deviceIds.length;
+    }
+    return n;
+  });
 
   // Sync form from zone state
   useEffect(() => {
@@ -194,7 +210,7 @@ const ZonePropertyForm: React.FC<ZonePropertyFormProps> = ({ zoneId }) => {
 
       <div style={{ color: '#8899aa', fontSize: '12px' }}>
         <div style={{ marginBottom: 4 }}>
-          Devices: <Tag>{zone.deviceIds.length}</Tag>
+          Devices: <Tag>{deviceCount}</Tag>
         </div>
         <div>
           ID: <Text copyable style={{ fontSize: '11px', color: '#667788' }}>{zone.id}</Text>

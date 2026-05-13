@@ -94,9 +94,43 @@ cd docker && docker-compose -f docker-compose.dev.yml down
 Development and production run on the same server. "Production" is the local Docker environment.
 
 - **URL**: `https://<SERVER_IP>` (port 443, self-signed SSL)
-- **Credentials**: `ADMIN_PASSWORD` in `.env`
+- **Credentials**: chosen by the operator in the first-run setup wizard
+  (see "First-run Setup" below). The legacy `ADMIN_PASSWORD` env var is
+  still honored if set, primarily for automated test harnesses.
 - **Working Directory**: `/home/<SSH_USER>/packetarch`
 - **Architecture**: Nginx reverse proxy → backend (internal only)
+
+### First-run Setup
+
+Fresh installs land on a setup wizard at `https://<server>/` instead of
+a login page. The operator chooses admin credentials, names the site,
+and optionally configures AI / Cyber Vision in one flow. Until the
+wizard finishes, every API route except `/api/v1/setup/*`,
+`/api/v1/about`, and `/health` returns 503.
+
+State lives in two `system_settings` rows:
+- `setup.completed` — `"false"` until the wizard finishes (or
+  auto-graduation fires for an existing install with an admin user).
+- `site.name`, `site.fqdn`, `site.timezone` — written by the wizard.
+
+**Auto-graduation**: on every backend boot, `auto_graduate_setup()` in
+`backend/app/services/startup.py` flips `setup.completed=true` if any
+admin user already exists. This means upgrades from pre-wizard installs
+do NOT show the wizard.
+
+**To reset and re-run the wizard** (recovery from a compromised
+first-claim, or just to redo onboarding):
+```
+docker compose exec postgres psql -U packetarch -d packetarch -c \
+  "DELETE FROM users; UPDATE system_settings SET value='false' WHERE key='setup.completed';"
+docker compose restart backend
+```
+
+Backend wiring: `RequireSetupComplete` dep in `backend/app/api/deps.py`
+gates every router in `main.py` except setup/about/health. Frontend
+wiring: top-level `<SetupGate>` in `frontend/src/components/SetupGate.tsx`
+loads `/api/v1/setup/status` once and renders either the wizard or the
+normal app shell.
 
 ### Deploying Changes
 
@@ -414,6 +448,26 @@ frontend via `/api/v1/about.features`.
     hides, "AI Create" / "Generate Description" / "AI Scenario Review"
     / "Explain with AI" UI all hide. See `useFeatures` hook and
     `FeatureGate` component.
+- `LIVE_TRAFFIC_ENABLED` (default `true`) — gates the live-agent half
+  of the platform. When `false` PacketArch ships as an AI-powered
+  PCAP-only generator. Behavior:
+  - Backend: `/api/v1/agents`, `/deployments`, `/adaptation`,
+    `/dashboard/live`, and the runtime-control half of `/attacks` (start,
+    stop, advance, pause, inject, state, injection-status) return 503.
+    The `/ws/agent` WebSocket and `/agent/*` install bundle are not
+    mounted at all. Read endpoints (`/attacks/playbooks`, etc.) stay
+    open so the PCAP-only build can populate the attack-playbook
+    dropdown in `GeneratePcapModal`.
+  - Frontend: `/deployments` and `/live-traffic` routes redirect.
+    Sidebar omits both nav entries. Settings tab list omits "Traffic
+    Agents". `AgentVersionBanner`, the agent-health bell, and
+    `useDeploymentsStore.fetchDeployments()` are all skipped.
+  - Attack + adaptive in PCAP: with the flag off, attack playbooks and
+    adaptive timing-drift can still be requested per-PCAP via the new
+    fields on `GenerationRequest` (`attack_playbook_id`,
+    `attack_config`, `adaptive_config`) — `TrafficOrchestrator`
+    registers `AttackOrchestrator` and `AdaptiveController` as
+    composition peers on `UnifiedOrchestrator` for the PCAP run.
 
 New flag ergonomics: add to `Settings` in `config.py`, add to
 `Features` in `features.py`, add to `Features` in
@@ -430,12 +484,17 @@ air-gapped lab deployment.
 - `scripts/build-release.sh` — builds backend/frontend/agent images,
   pulls postgres/redis, `docker save`s everything, stages compose +
   install script + docs + licenses, produces
-  `dist/packetarch-<version>-offline.tar.gz`.
+  `dist/packetarch-<version>-offline.tar.gz`. Set `PCAP_ONLY=1` to
+  produce the PCAP-only variant (`...-pcap-offline.tar.gz`): forces
+  `SKIP_AGENT=1`, stamps `BUILD_VARIANT=pcap-only` into the bundle's
+  `VERSION` file, and `install.sh` reads that to write
+  `LIVE_TRAFFIC_ENABLED=false` into the generated `.env`.
 - `scripts/release-bundle/` — the source-of-truth for everything that
   goes INTO the bundle: `install.sh`, `README_SITE.md`,
   `docker-compose.offline.yml`, `.env.example`.
-- `.github/workflows/release.yml` — tag `v*` to trigger a CI build;
-  attaches tarball to a draft GitHub Release.
+- `.github/workflows/release.yml` — tag `v*` to trigger a CI build.
+  Matrix builds both `full` and `pcap-only` variants in parallel; both
+  tarballs are attached to the draft GitHub Release.
 - Site operators use the bundle's `install.sh` (generates `.env` with
   fresh secrets), then `packetarch-backup.sh` / `packetarch-restore.sh`
   for snapshot/restore across the install's Postgres DB + PCAP volumes.

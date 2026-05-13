@@ -37,7 +37,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethercat", "modbus_tcp", "opc_ua"],
+        supported_protocols=["ethercat"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="CX51-{8HEX}",
@@ -102,7 +102,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "modbus_tcp", "opc_ua"],
+        supported_protocols=["profinet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="AXC{10NUM}",
@@ -174,7 +174,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "codesys", "opc_ua"],
+        supported_protocols=["modbus_tcp", "codesys"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="750{10NUM}",
@@ -314,7 +314,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua", "powerlink"],
+        supported_protocols=["modbus_tcp", "powerlink"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BR{2ALPHA}{10NUM}",

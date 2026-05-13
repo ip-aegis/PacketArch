@@ -656,6 +656,12 @@ class HealthMonitorService:
         from app.core.database import async_session_maker
         from app.models.scenario import Scenario
         from app.models.traffic_agent import AgentDeployment, TrafficAgent
+        from app.services.scenario_enrichment import (
+            auto_repair_protocols,
+            ensure_device_flow_coverage,
+            ensure_remote_access_cloud_links,
+            repair_flow_protocols,
+        )
 
         try:
             async with async_session_maker() as db:
@@ -688,7 +694,17 @@ class HealthMonitorService:
                     )
                     interface = agent_result.scalar_one_or_none()
 
-                return scenario.definition, interface
+                # Auto-redeploy must use the same enrichment as the manual
+                # deploy route, otherwise EWON/jump-server cloud links,
+                # orphan-coverage flows, and protocol repairs would
+                # disappear on reconnect.
+                enriched = auto_repair_protocols(scenario.definition)
+                enriched = repair_flow_protocols(enriched)
+                enriched = await ensure_remote_access_cloud_links(
+                    db, enriched
+                )
+                enriched = await ensure_device_flow_coverage(enriched)
+                return enriched, interface
 
         except Exception as e:
             logger.error(f"Failed to fetch scenario {scenario_id} for redeploy: {e}")

@@ -36,7 +36,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="HW{10ALPHANUM}",
@@ -106,7 +106,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
+        supported_protocols=["modbus_tcp", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="C300-{8HEX}",
@@ -176,7 +176,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
+        supported_protocols=["modbus_tcp", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="C200-{8HEX}",
@@ -247,7 +247,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="EXPSVR-{8HEX}",
@@ -452,7 +452,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="EXPWS-{8HEX}",
@@ -516,7 +516,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "bacnet", "opc_ua"],
+        supported_protocols=["modbus_tcp", "bacnet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="JACE8K-{8HEX}",
@@ -734,7 +734,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp", "dnp3"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="HW-RTU{8NUM}",

@@ -42,6 +42,9 @@ interface ScenarioState {
   zones: Record<string, ScenarioZone>;
   conduits: Record<string, ScenarioConduit>;
   phases: Phase[];
+  cellIsolation: import('../types').CellIsolationConfig;
+  broadcastTrafficEnabled: boolean;
+  cleanDemoMode: boolean;
 
   // State flags
   isDirty: boolean;
@@ -89,6 +92,9 @@ interface ScenarioState {
     zones: Record<string, ScenarioZone>;
     conduits?: Record<string, ScenarioConduit>;
     phases: Phase[];
+    cellIsolation?: import('../types').CellIsolationConfig;
+    broadcastTrafficEnabled?: boolean;
+    cleanDemoMode?: boolean;
     addressingConfig?: {
       ip_range?: string;
       range_index?: number;
@@ -100,7 +106,22 @@ interface ScenarioState {
   setIPRange: (ipRange: IPRangeInfo | null) => void;
   setDirty: (dirty: boolean) => void;
   setLoading: (loading: boolean) => void;
+
+  // Cell isolation actions
+  setCellIsolation: (config: import('../types').CellIsolationConfig) => void;
+
+  // Broadcast/multicast traffic toggle
+  setBroadcastTrafficEnabled: (enabled: boolean) => void;
+
+  // Clean Demo Mode toggle (suppresses cyclic protocol traffic that
+  // confuses asset-classification DPI tools — currently PROFINET PN-IO).
+  setCleanDemoMode: (enabled: boolean) => void;
 }
+
+const DEFAULT_CELL_ISOLATION: import('../types').CellIsolationConfig = {
+  mode: 'off',
+  applies_to_levels: [0, 1, 2],
+};
 
 const DEFAULT_PHASES: Phase[] = [
   {
@@ -145,6 +166,9 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
   zones: {},
   conduits: {},
   phases: DEFAULT_PHASES,
+  cellIsolation: DEFAULT_CELL_ISOLATION,
+  broadcastTrafficEnabled: true,
+  cleanDemoMode: false,
   isDirty: false,
   isLoading: false,
 
@@ -394,6 +418,9 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
       zones: scenario.zones,
       conduits: scenario.conduits || {},
       phases: scenario.phases.length > 0 ? scenario.phases : DEFAULT_PHASES,
+      cellIsolation: scenario.cellIsolation || DEFAULT_CELL_ISOLATION,
+      broadcastTrafficEnabled: scenario.broadcastTrafficEnabled ?? true,
+      cleanDemoMode: scenario.cleanDemoMode ?? false,
       isDirty: false,
       isLoading: false,
     });
@@ -412,6 +439,9 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
       zones: {},
       conduits: {},
       phases: DEFAULT_PHASES,
+      cellIsolation: DEFAULT_CELL_ISOLATION,
+      broadcastTrafficEnabled: true,
+      cleanDemoMode: false,
       isDirty: false,
       isLoading: false,
     }),
@@ -425,6 +455,15 @@ export const useScenarioStore = create<ScenarioState>((set) => ({
   setIPRange: (ipRange) => set({ ipRange }),
   setDirty: (dirty) => set({ isDirty: dirty }),
   setLoading: (loading) => set({ isLoading: loading }),
+
+  setCellIsolation: (config) =>
+    set({ cellIsolation: config, isDirty: true }),
+
+  setBroadcastTrafficEnabled: (enabled) =>
+    set({ broadcastTrafficEnabled: enabled, isDirty: true }),
+
+  setCleanDemoMode: (enabled) =>
+    set({ cleanDemoMode: enabled, isDirty: true }),
 }));
 
 // Selector helpers for performance — select only the needed slice to prevent

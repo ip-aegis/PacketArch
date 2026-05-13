@@ -96,6 +96,8 @@ export interface DeploymentCreate {
   interface?: string;
   adaptive_config?: Record<string, unknown>;
   attack_playbook?: Record<string, unknown>;
+  /** Optional per-run override of Purdue cell isolation: {mode, applies_to_levels?}. */
+  cell_isolation_override?: Record<string, unknown>;
 }
 
 /**

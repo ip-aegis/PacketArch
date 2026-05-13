@@ -46,6 +46,7 @@ import DownloadsTab from '../../components/admin/DownloadsTab';
 import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
 import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useFeatures } from '../../hooks/useFeatures';
 import type { SystemSetting } from '../../types';
 
 const { Title, Text } = Typography;
@@ -350,6 +351,7 @@ const SettingsPage: React.FC = () => {
     testConnection,
     clearError,
   } = useSettingsStore();
+  const { liveTrafficEnabled } = useFeatures();
 
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{
@@ -616,7 +618,7 @@ const SettingsPage: React.FC = () => {
 
         <Card>
           <Tabs
-            items={tabItems}
+            items={tabItems.filter((t) => liveTrafficEnabled || t.key !== 'agents')}
             activeKey={activeTab}
             onChange={setActiveTab}
             destroyInactiveTabPane

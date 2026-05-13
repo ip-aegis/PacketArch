@@ -116,6 +116,27 @@ def get_fingerprint_from_template(
         "is_builtin": template.is_builtin,
     }
 
+    # Authoritative supported_protocols. Templates that explicitly declare
+    # the field win; otherwise we compute a vendor-aware default that
+    # filters out protocols the device doesn't natively serve even when
+    # over-populated identity blocks would suggest otherwise. This is the
+    # one source of truth for "what protocols can this fingerprint serve"
+    # downstream of validation, repair, and traffic generation.
+    from app.services.device_templates._protocol_defaults import (
+        compute_default_supported_protocols,
+    )
+    if template.supported_protocols:
+        supported = list(template.supported_protocols)
+    else:
+        supported = compute_default_supported_protocols(template)
+    # SNMP carve-out: every device with a vendor name can serve SNMP via
+    # the noise generator's synthesised identity (vendor OUI → enterprise
+    # OID). Many template declarations forgot to list SNMP — patching here
+    # so every fingerprintable device exposes SNMP for monitoring.
+    if template.vendor and "snmp" not in supported:
+        supported.append("snmp")
+    fingerprint["supported_protocols"] = supported
+
     # Add protocol identities with firmware overrides
     protocol_identities = [
         ("modbus_identity", template.modbus_identity),
@@ -328,6 +349,21 @@ def template_db_to_fingerprint_dict(template) -> dict[str, Any] | None:
         for protocol in ["modbus", "ethernet_ip", "profinet", "s7", "snmp", "bacnet", "opc_ua", "dnp3", "iec104"]:
             identity = template.get_protocol_identity(protocol)
             fp[f"{protocol}_identity"] = dict(identity) if identity else None
+
+        # Authoritative supported_protocols — same logic as the python
+        # template path. DB templates use `active_protocols` for explicit
+        # declarations (legacy column name); compute defaults otherwise.
+        from app.services.device_templates._protocol_defaults import (
+            compute_default_supported_protocols_from_db,
+        )
+        explicit = getattr(template, "active_protocols", None)
+        if explicit:
+            supported = list(explicit)
+        else:
+            supported = compute_default_supported_protocols_from_db(template)
+        if template.vendor and "snmp" not in supported:
+            supported.append("snmp")
+        fp["supported_protocols"] = supported
 
         return fp
 

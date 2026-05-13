@@ -147,6 +147,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     run_mode: RunMode;
     duration_minutes?: number;
     phase_schedule?: PhaseScheduleConfig;
+    cell_isolation_mode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
   }) => {
     if (!scenarioId || !values.agent_id) return;
 
@@ -163,6 +164,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     const attackConfig = useAttackStore.getState().playbookConfig;
     if (attackConfig?.playbook_id) {
       deployData.attack_playbook = attackConfig as unknown as Record<string, unknown>;
+    }
+    // Cell-isolation per-deployment override
+    if (values.cell_isolation_mode && values.cell_isolation_mode !== 'inherit') {
+      deployData.cell_isolation_override = { mode: values.cell_isolation_mode };
     }
 
     if (!validation || validation.warnings.length === 0) {

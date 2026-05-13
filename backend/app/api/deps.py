@@ -88,8 +88,54 @@ async def require_ai_enabled() -> None:
         )
 
 
+async def require_live_traffic_enabled() -> None:
+    """Guard that 503s when live-traffic features are disabled.
+
+    Applied to remote-agent, deployment, live-dashboard, adaptation, and the
+    runtime-control half of the attacks router. PCAP-only deployments disable
+    this flag — gated routes stay in the OpenAPI spec and return a clean 503
+    so the frontend can render an informative state instead of a 404.
+    """
+    if not get_features().live_traffic_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Live traffic features are disabled in this deployment. "
+                "This installation is configured as a PCAP-only generator."
+            ),
+        )
+
+
+async def require_setup_complete(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Guard that 503s while first-run setup is incomplete.
+
+    Applied to every authenticated router so the frontend gets a clean,
+    diagnostic error during the wizard window instead of a 401-cascade.
+    /api/v1/setup/*, /about, and /health remain open without this dep.
+    """
+    # Lazy import to avoid circular at module-load time.
+    from app.models.settings import SystemSetting
+
+    result = await db.execute(
+        select(SystemSetting.value).where(SystemSetting.key == "setup.completed")
+    )
+    value = result.scalar_one_or_none()
+    if value != "true":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "First-time setup not complete. Open this server's URL in a "
+                "browser and finish the setup wizard."
+            ),
+        )
+
+
 # Type aliases for cleaner dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(get_current_admin_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 RequireAIEnabled = Depends(require_ai_enabled)
+RequireLiveTrafficEnabled = Depends(require_live_traffic_enabled)
+RequireSetupComplete = Depends(require_setup_complete)

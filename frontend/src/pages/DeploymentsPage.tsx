@@ -37,6 +37,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { useAgentsStore } from '../stores/agentsStore';
 import type { UnifiedDeployment, DeploymentStatus } from '../types/docker';
+import { ScenarioModeBadges } from '../components/common';
 
 const { Title, Text } = Typography;
 
@@ -215,6 +216,20 @@ const DeploymentsPage: React.FC = () => {
         >
           {name || 'Unknown'}
         </Button>
+      ),
+    },
+    {
+      title: 'Modes',
+      key: 'modes',
+      width: 220,
+      render: (_: unknown, record: UnifiedDeployment) => (
+        <ScenarioModeBadges
+          modes={{
+            cleanDemoMode: record.scenario_modes?.clean_demo_mode,
+            broadcastTrafficEnabled: record.scenario_modes?.broadcast_traffic_enabled,
+            cellIsolationMode: record.scenario_modes?.cell_isolation_mode,
+          }}
+        />
       ),
     },
     {

@@ -4,6 +4,7 @@
 """Schemas for traffic generation API."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -27,6 +28,37 @@ class GenerationRequest(BaseModel):
         None,
         description="Optional prefix for output filename",
         max_length=50,
+    )
+    attack_playbook_id: str | None = Field(
+        None,
+        description=(
+            "Optional attack playbook id (e.g. 'TRITON_LIKE'). When set, the "
+            "attack stage packets are baked into the PCAP."
+        ),
+    )
+    attack_config: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "Optional attack config overrides: intensity, stage_overrides, "
+            "warmup_ms, start_mode."
+        ),
+    )
+    adaptive_config: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "Optional adaptive-traffic config (AdaptiveConfig.from_dict). "
+            "Enables timing drift, schedules, and vendor profiles."
+        ),
+    )
+    cell_isolation_override: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "Optional per-run override for Purdue cell isolation. Shape: "
+            "{'mode': 'off'|'conduit_gated'|'strict_northbound', "
+            "'applies_to_levels': [0,1,2]}. Merged into scenario.definition "
+            "before flow building so cross-cell flows are dropped before "
+            "they reach the orchestrator."
+        ),
     )
 
 

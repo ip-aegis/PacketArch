@@ -36,6 +36,14 @@ class ProtocolType(str, Enum):
     FANUC = "fanuc"  # FANUC FOCAS CNC machine protocol
     DCS = "dcs"  # DCS protocols (DeltaV, Experion, Vnet/IP, Triconex)
     CLOUD_SERVICE = "cloud_service"  # Cloud service TLS heartbeats (Talk2M, TeamViewer, etc.)
+    # Remote access / management protocols — useful for jump servers,
+    # admin workstations, and any device shown as "the type of work they
+    # might do" in CV. They reuse the CloudServiceEngine for now (TCP
+    # SYN + TLS-shaped heartbeat); CV identifies them by destination port.
+    SSH = "ssh"        # Secure Shell — TCP/22
+    TELNET = "telnet"  # Telnet — TCP/23
+    RDP = "rdp"        # Microsoft RDP — TCP/3389
+    HTTPS = "https"    # HTTPS / TLS — TCP/443
 
 
 @dataclass
@@ -1276,6 +1284,12 @@ def create_conversation_state(
         ProtocolType.FANUC: FANUCConversationState,
         ProtocolType.DCS: DCSConversationState,
         ProtocolType.CLOUD_SERVICE: CloudServiceConversationState,
+        # Remote-access protocols share the cloud_service state machine —
+        # all are TCP+TLS-shaped heartbeats differentiated by dst port.
+        ProtocolType.SSH: CloudServiceConversationState,
+        ProtocolType.TELNET: CloudServiceConversationState,
+        ProtocolType.RDP: CloudServiceConversationState,
+        ProtocolType.HTTPS: CloudServiceConversationState,
     }
 
     state_class = state_classes.get(protocol)

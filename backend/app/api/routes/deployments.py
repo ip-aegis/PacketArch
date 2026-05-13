@@ -41,31 +41,66 @@ async def list_deployments(
 
     # RESILIENCE: Sync deployment states from all connected agents before listing
     # The agent is the source of truth - if it says a scenario is running, it is.
+    # If a row exists, flip it to running. If no row exists at all (the deploy
+    # record was deleted but the agent never got STOP, or the table was wiped),
+    # synthesise one so the UI can see and manage the orphan run.
     for conn in agent_manager.get_all_connections():
-        if conn.running_scenarios:
-            for scenario_id_str in conn.running_scenarios:
-                try:
-                    scenario_uuid = UUID(scenario_id_str)
-                    result = await db.execute(
-                        select(AgentDeployment)
-                        .where(
-                            AgentDeployment.agent_id == conn.agent_id,
-                            AgentDeployment.scenario_id == scenario_uuid,
-                        )
-                        .order_by(AgentDeployment.started_at.desc())
-                        .limit(1)
+        if not conn.running_scenarios:
+            continue
+        for scenario_id_str in conn.running_scenarios:
+            try:
+                scenario_uuid = UUID(scenario_id_str)
+            except ValueError:
+                logger.debug(f"Invalid scenario id from agent: {scenario_id_str!r}")
+                continue
+            try:
+                # Skip orphan-recovery for scenarios that don't exist anymore.
+                scenario_exists = await db.execute(
+                    select(Scenario.id).where(Scenario.id == scenario_uuid)
+                )
+                if scenario_exists.scalar_one_or_none() is None:
+                    continue
+
+                result = await db.execute(
+                    select(AgentDeployment)
+                    .where(
+                        AgentDeployment.agent_id == conn.agent_id,
+                        AgentDeployment.scenario_id == scenario_uuid,
                     )
-                    deployment = result.scalar_one_or_none()
-                    if deployment and deployment.state != "running":
-                        old_state = deployment.state
-                        deployment.state = "running"
-                        deployment.stopped_at = None
-                        logger.info(
-                            f"Synced deployment {deployment.id} on page load: "
-                            f"{old_state} -> running"
+                    .order_by(AgentDeployment.started_at.desc())
+                    .limit(1)
+                )
+                deployment = result.scalar_one_or_none()
+                if deployment is None:
+                    interface = getattr(conn, "interface", None)
+                    if not interface:
+                        agent_iface_q = await db.execute(
+                            select(TrafficAgent.default_interface)
+                            .where(TrafficAgent.id == conn.agent_id)
                         )
-                except (ValueError, Exception) as e:
-                    logger.debug(f"Could not sync scenario {scenario_id_str}: {e}")
+                        interface = agent_iface_q.scalar_one_or_none()
+                    deployment = AgentDeployment(
+                        agent_id=conn.agent_id,
+                        scenario_id=scenario_uuid,
+                        interface=interface,
+                        state="running",
+                    )
+                    db.add(deployment)
+                    logger.info(
+                        f"Reconciled orphan running scenario "
+                        f"{scenario_id_str} on agent {conn.agent_id} — "
+                        f"created deployment record"
+                    )
+                elif deployment.state != "running":
+                    old_state = deployment.state
+                    deployment.state = "running"
+                    deployment.stopped_at = None
+                    logger.info(
+                        f"Synced deployment {deployment.id} on page load: "
+                        f"{old_state} -> running"
+                    )
+            except Exception as e:
+                logger.debug(f"Could not sync scenario {scenario_id_str}: {e}")
 
     await db.commit()
 
@@ -163,15 +198,42 @@ async def remove_deployment(
     db: DBSession,
     _user: CurrentUser,
 ) -> None:
-    """Remove a deployment record."""
+    """Remove a deployment record.
+
+    If the deployment is still in an active state (running/starting/stopping)
+    we send STOP_SCENARIO to the agent before deleting the row. Otherwise the
+    agent would keep generating traffic for a deployment the backend has
+    forgotten — the exact orphan state list_deployments has to reconcile on
+    every page load.
+    """
+    from app.services.agent_manager import agent_manager
+
     result = await db.execute(
         select(AgentDeployment).where(AgentDeployment.id == deployment_id)
     )
     agent_deployment = result.scalar_one_or_none()
 
-    if agent_deployment:
-        await db.delete(agent_deployment)
-        await db.commit()
-        return
+    if not agent_deployment:
+        raise NotFoundError("Deployment", str(deployment_id))
 
-    raise NotFoundError("Deployment", str(deployment_id))
+    if agent_deployment.state in ("running", "starting", "stopping"):
+        try:
+            stopped = await agent_manager.stop_scenario(str(agent_deployment.scenario_id))
+            if stopped:
+                logger.info(
+                    f"Sent STOP_SCENARIO to agent {agent_deployment.agent_id} "
+                    f"before deleting deployment {deployment_id}"
+                )
+            else:
+                logger.warning(
+                    f"Could not stop scenario {agent_deployment.scenario_id} "
+                    f"on agent {agent_deployment.agent_id} before deletion — "
+                    f"the agent may continue running it"
+                )
+        except Exception as e:
+            logger.warning(
+                f"Error sending STOP_SCENARIO during deployment delete: {e}"
+            )
+
+    await db.delete(agent_deployment)
+    await db.commit()

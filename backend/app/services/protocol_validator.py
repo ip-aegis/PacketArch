@@ -146,6 +146,9 @@ def validate_scenario_protocols(definition: dict[str, Any]) -> list[dict[str, An
     else:
         device_items = [(d.get("id", f"device_{i}"), d) for i, d in enumerate(devices)]
 
+    # Lazy import to avoid cycles
+    from app.protocol_engines.protocols import get_supported_protocols
+
     for device_id, device in device_items:
         if not device_id or not device:
             continue
@@ -160,9 +163,21 @@ def validate_scenario_protocols(definition: dict[str, Any]) -> list[dict[str, An
         protocols = device.get("protocols", []) or []
         device_name = device.get("name", device_id)
 
+        # Authoritative supported_protocols (template-declared or computed
+        # default) is the source of truth. If the fingerprint declares a
+        # protocol as supported, the engine will synthesize identity data
+        # at runtime (e.g. SNMP from vendor OUI) — no readiness warning
+        # needed even if the identity block isn't pre-populated.
+        supported = {p.lower() for p in get_supported_protocols(fingerprint)}
+
         for protocol in protocols:
             identity_key = get_protocol_identity_key(protocol)
             if not identity_key:
+                continue
+
+            # If the fingerprint authoritatively supports this protocol,
+            # don't flag missing-identity warnings — engine synthesises.
+            if protocol.lower() in supported:
                 continue
 
             identity = fingerprint.get(identity_key)
@@ -173,13 +188,11 @@ def validate_scenario_protocols(definition: dict[str, Any]) -> list[dict[str, An
                     "device_name": device_name,
                     "protocol": protocol,
                     "severity": "warning",
-                    "issue": f"Protocol '{protocol}' declared but no {identity_key} in fingerprint",
-                    "recommendation": f"Remove '{protocol}' from protocols or add proper fingerprint data",
+                    "issue": f"Protocol '{protocol}' declared but fingerprint does not support it",
+                    "recommendation": f"Remove '{protocol}' from protocols or use a fingerprint that supports it",
                 })
             elif not identity_has_vendor_data(identity, identity_key):
                 required_field = IDENTITY_REQUIRED_FIELDS.get(identity_key, "vendor data")
-                # All protocol identity issues are warnings - traffic generator will skip
-                # protocols without proper identity data, so deployment can proceed
                 issues.append({
                     "device_id": device_id,
                     "device_name": device_name,

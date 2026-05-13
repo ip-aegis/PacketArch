@@ -79,3 +79,4 @@ backend/app/static/agent/*.tar.gz
 
 # Agent build staging directory (created during image build)
 docker/packetarch-agent/_shared/
+screenshots/

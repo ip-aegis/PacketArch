@@ -145,6 +145,9 @@ interface AIScenarioWizardState {
   letAiDecideProtocols: boolean;
   selectedProtocols: string[];
 
+  // Default Purdue cell isolation mode for the generated scenario
+  cellIsolationMode: 'off' | 'conduit_gated' | 'strict_northbound';
+
   // Step 6: Preview
   isGenerating: boolean;
   preview: AIScenarioPreviewResponse | null;
@@ -170,6 +173,7 @@ interface AIScenarioWizardState {
   setLetAiDecideVendors: (value: boolean) => void;
   toggleVendor: (vendorId: string) => void;
   setIncludeVulnerableDevices: (value: boolean) => void;
+  setCellIsolationMode: (value: 'off' | 'conduit_gated' | 'strict_northbound') => void;
   setLetAiDecideProtocols: (value: boolean) => void;
   toggleProtocol: (protocolId: string) => void;
 
@@ -203,6 +207,8 @@ const initialState = {
   // Protocols
   letAiDecideProtocols: true,
   selectedProtocols: [] as string[],
+  // Cell isolation default mode
+  cellIsolationMode: 'off' as 'off' | 'conduit_gated' | 'strict_northbound',
   // Preview
   isGenerating: false,
   preview: null as AIScenarioPreviewResponse | null,
@@ -252,6 +258,8 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
   },
 
   setIncludeVulnerableDevices: (value: boolean) => set({ includeVulnerableDevices: value }),
+
+  setCellIsolationMode: (value) => set({ cellIsolationMode: value }),
 
   setLetAiDecideProtocols: (value: boolean) => set({
     letAiDecideProtocols: value,
@@ -317,6 +325,7 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
           total_device_count: state.letAiDecideDevices ? state.totalDeviceCount : null,
           device_counts: state.letAiDecideDevices ? null : state.deviceCounts,
           include_vulnerable_devices: state.includeVulnerableDevices,
+          cell_isolation_mode: state.cellIsolationMode,
         },
         {
           onPhase: (event) => {

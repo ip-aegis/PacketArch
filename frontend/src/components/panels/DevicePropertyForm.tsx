@@ -42,6 +42,25 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({
   const [form] = Form.useForm();
   const device = useScenarioStore((state) => state.devices[deviceId]);
   const updateDevice = useScenarioStore((state) => state.updateDevice);
+  const zonesRecord = useScenarioStore((state) => state.zones);
+  const zoneOptions = React.useMemo(
+    () =>
+      Object.values(zonesRecord)
+        .slice()
+        .sort((a, b) => {
+          const la = a.level ?? 99;
+          const lb = b.level ?? 99;
+          if (la !== lb) return la - lb;
+          return (a.name ?? '').localeCompare(b.name ?? '');
+        })
+        .map((z) => ({
+          value: z.id,
+          label: typeof z.level === 'number'
+            ? `${z.name ?? z.id} · L${z.level}`
+            : (z.name ?? z.id),
+        })),
+    [zonesRecord],
+  );
 
   // Vendor/model data from shared hook
   const {
@@ -160,6 +179,7 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({
         name: device.name,
         type: device.type,
         role: device.role,
+        zoneId: device.zoneId,
         vendor: device.vendor,
         fingerprintModel: device.fingerprintModel,
         firmwareVersion: device.firmwareVersion,
@@ -209,6 +229,8 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({
       updates.type = changedValues.type as DeviceType;
     if ('role' in changedValues)
       updates.role = changedValues.role as string;
+    if ('zoneId' in changedValues)
+      updates.zoneId = (changedValues.zoneId as string | undefined) || undefined;
     if ('protocols' in changedValues)
       updates.protocols = changedValues.protocols as ProtocolType[];
 
@@ -344,6 +366,16 @@ const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({
 
       <Form.Item label="Role" name="role">
         <Input placeholder="e.g., Main Controller" />
+      </Form.Item>
+
+      <Form.Item label="Zone" name="zoneId">
+        <Select
+          allowClear
+          placeholder="Unassigned"
+          options={zoneOptions}
+          showSearch
+          optionFilterProp="label"
+        />
       </Form.Item>
 
       <Divider style={{ margin: '16px 0' }} />

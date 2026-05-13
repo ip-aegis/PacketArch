@@ -295,6 +295,7 @@ class AIScenarioDesigner:
         preferred_protocols: list[str] | None = None,
         total_device_count: int | None = None,
         device_counts: dict[str, int] | None = None,
+        cell_isolation_mode: str = "off",
     ) -> tuple[str, str]:
         """Phase 2: Build system and user prompts.
 
@@ -313,6 +314,7 @@ class AIScenarioDesigner:
             preferred_protocols=preferred_protocols,
             total_device_count=total_device_count,
             device_counts=device_counts,
+            cell_isolation_mode=cell_isolation_mode,
         )
         return system_prompt, user_prompt
 
@@ -421,6 +423,7 @@ class AIScenarioDesigner:
         description: str,
         duration_ms: int,
         vertical: str | None,
+        cell_isolation_mode: str = "off",
     ) -> AIDesignResult:
         """Phase 5: Build the scenario from parsed AI design.
 
@@ -435,6 +438,13 @@ class AIScenarioDesigner:
                 duration_ms=duration_ms,
                 vertical=vertical or ai_design.vertical,
             )
+            # Stamp the isolation mode into metadata so the route can
+            # mirror it into definition.cell_isolation when persisting.
+            if cell_isolation_mode and cell_isolation_mode != "off":
+                scenario.metadata["cell_isolation"] = {
+                    "mode": cell_isolation_mode,
+                    "applies_to_levels": [0, 1, 2],
+                }
             return AIDesignResult(
                 scenario=scenario,
                 ai_enhanced=True,
@@ -447,6 +457,296 @@ class AIScenarioDesigner:
 
     # ---- Original monolithic method (backwards compat) ----
 
+    async def design_scenario_via_archetype(
+        self,
+        description: str,
+        name: str | None = None,
+        duration_ms: int = 300000,
+        vertical: str | None = None,
+        scale: str | None = None,
+        preferred_vendors: list[str] | None = None,
+    ) -> AIDesignResult:
+        """Architecture-rail design path (Phase 6 of the rollout).
+
+        Asks the AI to pick an archetype + vendor profile + scale tier
+        from the catalog, then materializes the scenario via
+        `generate_from_archetype()`. Output is realism-clean by
+        construction — nothing the AI can do gets past the audit.
+
+        This path is preferred over the freeform `design_scenario()` for
+        wizard-class UX. The freeform path is retained for users who
+        want full control or for verticals not yet on the archetype
+        rail.
+        """
+        from app.services.architecture import (
+            ScaleTier,
+            VendorProfile,
+            list_archetypes,
+        )
+        from app.services.architecture.scenario_generator import (
+            generate_from_archetype,
+        )
+
+        # Phase 1: provider.
+        try:
+            provider = await self.phase_get_provider()
+        except ValueError as e:
+            logger.warning(f"AI provider not available for archetype path: {e}")
+            return self._fallback_to_rules(
+                description=description,
+                name=name,
+                duration_ms=duration_ms,
+                vertical=vertical,
+                preferred_vendors=preferred_vendors,
+                preferred_protocols=None,
+                total_device_count=None,
+                device_counts=None,
+                reason="AI provider not configured",
+            )
+
+        # Phase 2: Build a tight archetype-selection prompt.
+        archetype_catalog = "\n".join(
+            f"  - {a.id} (vertical={a.vertical}, pattern={a.pattern.value}, "
+            f"default_vendor={a.default_vendor_profile.value}): {a.description}"
+            for a in list_archetypes()
+        )
+        vendor_options = ", ".join(vp.value for vp in VendorProfile)
+        scale_options = ", ".join(s.value for s in ScaleTier)
+
+        # Build a zone-id list per archetype so the AI knows what cells /
+        # units / bays / stations / intersections / racks it can theme.
+        # Most archetypes have at most 4-12 of any one zone kind; we list
+        # the kinds for each archetype so the AI picks themes for the
+        # right slot ids.
+        zone_id_hints_lines = []
+        for a in list_archetypes():
+            zone_kinds: dict[str, list[str]] = {}
+            for z in a.zones:
+                # Group by zone-kind prefix (cell, bay, unit, ...) so the
+                # AI sees "cell1..cellN" rather than the full enumeration.
+                stem = z.id.rstrip("0123456789")
+                zone_kinds.setdefault(stem, []).append(z.id)
+            if any(len(v) > 1 for v in zone_kinds.values()):
+                kinds_str = ", ".join(
+                    f"{stem}1..{stem}{len(ids)}"
+                    for stem, ids in zone_kinds.items()
+                    if len(ids) > 1
+                )
+                zone_id_hints_lines.append(f"  - {a.id}: {kinds_str}")
+
+        zone_id_hints = "\n".join(zone_id_hints_lines)
+
+        system_prompt = (
+            "You are a Cisco Cyber Vision OT-network architect. Given a "
+            "user's natural-language scenario description, your job is to "
+            "pick:\n"
+            "  1. The closest matching archetype from the catalog.\n"
+            "  2. The most-appropriate vendor profile.\n"
+            "  3. The right scale tier (DEMO=tiny pilot, SMALL=small site, "
+            "MEDIUM=standard plant, LARGE=enterprise, MULTI_SITE=many sites).\n"
+            "  4. A semantic theme for each multi-instance zone (cell, bay, "
+            "unit, station, intersection, rack) so devices land with "
+            "meaningful names. For 'candy factory' the cells become "
+            "Mixing / Cooking / Wrapping; for 'oil refinery' the units "
+            "become Crude_Distillation / Hydrocracker / Reformer; etc.\n\n"
+            "Constraints:\n"
+            "  - The vendor profile MUST be in the archetype's "
+            "`supported_vendor_profiles`.\n"
+            "  - Pick the archetype that best matches the user's vertical "
+            "and architecture pattern (DCS vs cell vs master/remote vs "
+            "BAS vs ATMS vs DCIM).\n"
+            "  - Be conservative on scale; users can always override.\n"
+            "  - Zone themes are short snake_case identifiers (e.g. "
+            "'Sugar_Mixing', 'CNC_Machining'). One per zone id. They "
+            "replace the generic stem ('Cell1_…' becomes 'Sugar_Mixing_…') "
+            "in device names. Provide themes ONLY for zone ids that exist "
+            "for the chosen archetype.\n\n"
+            f"Available archetypes:\n{archetype_catalog}\n\n"
+            f"Multi-instance zone ids per archetype:\n{zone_id_hints}\n\n"
+            f"Available vendor profiles: {vendor_options}\n"
+            f"Available scale tiers: {scale_options}\n\n"
+            "Respond with ONLY a JSON object:\n"
+            '  {"archetype_id": "...", "vendor_profile": "...", '
+            '"scale": "...", "zone_themes": {"cell1": "Mixing", '
+            '"cell2": "Cooking", ...}, "reasoning": "one short sentence"}'
+        )
+
+        user_prompt_lines = [f"Scenario description: {description}"]
+        if vertical:
+            user_prompt_lines.append(f"User-specified vertical: {vertical}")
+        if scale:
+            user_prompt_lines.append(f"User-specified scale: {scale}")
+        if preferred_vendors:
+            user_prompt_lines.append(
+                f"User-preferred vendors: {', '.join(preferred_vendors)}"
+            )
+        user_prompt = "\n".join(user_prompt_lines)
+
+        # Phase 3: Call AI (smaller payload than full freeform design).
+        response = await self.phase_call_ai(
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            total_device_count=None,
+        )
+
+        # Phase 4: Parse {archetype_id, vendor_profile, scale}.
+        import json
+        raw = response.get("content") or response.get("text") or ""
+        if isinstance(raw, list):
+            # Anthropic SDK returns content blocks; concat text.
+            raw = "".join(
+                b.get("text", "") if isinstance(b, dict) else str(b)
+                for b in raw
+            )
+        try:
+            # Locate the JSON object even if the model wrapped it in prose.
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start < 0 or end < 0:
+                raise ValueError(f"no JSON in AI response: {raw[:200]}")
+            choice = json.loads(raw[start:end + 1])
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Archetype selection parse failed: %s", e)
+            return self._fallback_to_rules(
+                description=description,
+                name=name,
+                duration_ms=duration_ms,
+                vertical=vertical,
+                preferred_vendors=preferred_vendors,
+                preferred_protocols=None,
+                total_device_count=None,
+                device_counts=None,
+                reason=f"AI archetype-selection parse failed: {e}",
+            )
+
+        archetype_id = choice.get("archetype_id")
+        vendor_profile_str = choice.get("vendor_profile")
+        scale_str = choice.get("scale", "medium")
+        reasoning = choice.get("reasoning", "")
+        # Sanitize AI-supplied zone themes — strip any non-string values
+        # and normalize to safe identifier-ish strings before passing
+        # them to the generator.
+        raw_themes = choice.get("zone_themes") or {}
+        zone_themes: dict[str, str] = {}
+        if isinstance(raw_themes, dict):
+            for k, v in raw_themes.items():
+                if isinstance(k, str) and isinstance(v, str) and v.strip():
+                    zone_themes[k] = v.strip().replace(" ", "_")
+
+        # Phase 5: Validate + materialize.
+        try:
+            vendor_profile = VendorProfile(vendor_profile_str)
+            scale_tier = ScaleTier(scale_str)
+        except ValueError as e:
+            logger.warning("Archetype selection invalid: %s", e)
+            return self._fallback_to_rules(
+                description=description,
+                name=name,
+                duration_ms=duration_ms,
+                vertical=vertical,
+                preferred_vendors=preferred_vendors,
+                preferred_protocols=None,
+                total_device_count=None,
+                device_counts=None,
+                reason=f"AI returned invalid archetype/vendor/scale: {e}",
+            )
+
+        try:
+            definition = generate_from_archetype(
+                archetype_id,
+                vendor_profile=vendor_profile,
+                scale=scale_tier,
+                overrides={"zone_themes": zone_themes} if zone_themes else None,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Archetype materialization failed")
+            return self._fallback_to_rules(
+                description=description,
+                name=name,
+                duration_ms=duration_ms,
+                vertical=vertical,
+                preferred_vendors=preferred_vendors,
+                preferred_protocols=None,
+                total_device_count=None,
+                device_counts=None,
+                reason=f"Archetype materialization failed: {e}",
+            )
+
+        # Convert the generator's dict-shaped definition into the
+        # GeneratedScenario / GeneratedDevice / GeneratedFlow dataclass
+        # tree the rest of the AI pipeline expects.
+        from app.ai_services.scenario_generator import (
+            GeneratedDevice,
+            GeneratedFlow,
+            GeneratedScenario,
+        )
+        import uuid
+
+        gen_devices: list[GeneratedDevice] = []
+        for did, dev in definition.get("devices", {}).items():
+            net = dev.get("network") or {}
+            gen_devices.append(GeneratedDevice(
+                device_id=did,
+                device_type=dev.get("type", "device"),
+                name=dev.get("name", did),
+                vendor=dev.get("vendor"),
+                model=dev.get("fingerprintModel"),
+                ip_address=net.get("ipAddress") or net.get("ip_address") or "",
+                mac_address=net.get("macAddress") or net.get("mac_address") or "",
+                zone=dev.get("zoneId", ""),
+                protocols=list(dev.get("protocols") or []),
+                fingerprint_model=dev.get("fingerprintModel"),
+                fingerprint_data=dev.get("vendorFingerprint"),
+            ))
+
+        gen_flows: list[GeneratedFlow] = []
+        for fid, fl in definition.get("flows", {}).items():
+            timing = fl.get("timing") or {}
+            gen_flows.append(GeneratedFlow(
+                flow_id=fid,
+                source_device_id=fl.get("sourceDeviceId", ""),
+                destination_device_id=fl.get("targetDeviceId", ""),
+                protocol=fl.get("protocol", "snmp"),
+                poll_interval_ms=int(timing.get("intervalMs", 1000)),
+                description=(fl.get("config") or {}).get("pattern", "") or "",
+            ))
+
+        meta = definition.get("_generator_meta") or {}
+        scenario = GeneratedScenario(
+            scenario_id=str(uuid.uuid4()),
+            name=name or f"AI: {description[:50]}",
+            description=description,
+            vertical=vertical or meta.get("vertical", "unknown"),
+            devices=gen_devices,
+            flows=gen_flows,
+            zones=list(definition.get("zones", {}).values())
+                if isinstance(definition.get("zones"), dict)
+                else (definition.get("zones") or []),
+            conduits=definition.get("conduits") or {},
+            duration_ms=duration_ms,
+            metadata={
+                "ai_enhanced": True,
+                "rail": "archetype",
+                "archetype_id": archetype_id,
+                "vendor_profile": vendor_profile.value,
+                "scale": scale_tier.value,
+                "reasoning": reasoning,
+                "range_index": self.range_index,
+                "ip_range": f"10.{self.range_index}.0.0/16",
+            },
+        )
+        return AIDesignResult(
+            scenario=scenario,
+            ai_enhanced=True,
+            ai_features=["archetype_selection", "matrix_driven_flows"],
+            design_rationale=(
+                f"Archetype rail: {archetype_id} "
+                f"(vendor={vendor_profile.value}, scale={scale_tier.value}). "
+                f"{reasoning}"
+            ),
+        )
+
     async def design_scenario(
         self,
         description: str,
@@ -458,6 +758,7 @@ class AIScenarioDesigner:
         total_device_count: int | None = None,
         device_counts: dict[str, int] | None = None,
         include_vulnerable_devices: bool = False,
+        cell_isolation_mode: str = "off",
     ) -> AIDesignResult:
         """Design a scenario using AI with rule-based fallback.
 
@@ -500,6 +801,7 @@ class AIScenarioDesigner:
             preferred_protocols=preferred_protocols,
             total_device_count=total_device_count,
             device_counts=device_counts,
+            cell_isolation_mode=cell_isolation_mode,
         )
 
         # Phase 3: Call AI
@@ -520,6 +822,7 @@ class AIScenarioDesigner:
             description=description,
             duration_ms=duration_ms,
             vertical=vertical,
+            cell_isolation_mode=cell_isolation_mode,
         )
 
     def _get_system_prompt(
@@ -629,9 +932,28 @@ zone flows need matching conduits."""
         preferred_protocols: list[str] | None,
         total_device_count: int | None,
         device_counts: dict[str, int] | None,
+        cell_isolation_mode: str = "off",
     ) -> str:
         """Build the user prompt for scenario design."""
         constraints = []
+
+        # Cell-isolation mode is one of the highest-leverage constraints
+        # because it changes the *shape* of the flow graph, so call it out
+        # at the top. The skill body has the full rules.
+        if cell_isolation_mode == "strict_northbound":
+            constraints.append(
+                "Cell isolation: STRICT_NORTHBOUND — author NO flows whose "
+                "source and destination zones are both at Purdue level <= 2 "
+                "(and not the same zone). Cells (L0-L2) communicate only "
+                "northbound to L3+ zones. Do NOT author cell↔cell conduits."
+            )
+        elif cell_isolation_mode == "conduit_gated":
+            constraints.append(
+                "Cell isolation: CONDUIT_GATED — every flow whose source and "
+                "destination zones are both L0-L2 cells (and not the same "
+                "zone) MUST have a matching conduit listing the flow's "
+                "protocol in allowed_protocols."
+            )
 
         if vertical:
             constraints.append(f"Industry vertical: {vertical}")

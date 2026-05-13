@@ -69,14 +69,13 @@ function groupDevicesByZone(
   return { zoned, unzoned };
 }
 
-// Calculate grid layout - zone-aware version
+// Calculate grid layout - zone-aware version (uses the same wrapping-grid
+// packer as the Purdue layout so cells stack vertically with the right size).
 function calculateGridLayout(
   devices: Record<string, ScenarioDevice>,
   zones: Record<string, ScenarioZone>
 ): LayoutResult {
-  const deviceList = Object.values(devices);
-  const deviceCount = deviceList.length;
-
+  const deviceCount = Object.keys(devices).length;
   if (deviceCount === 0) {
     return { devicePositions: {}, zonePositions: {} };
   }
@@ -88,66 +87,37 @@ function calculateGridLayout(
   let currentY = LAYOUT_CONFIG.gridStartY;
   const zoneList = Object.values(zones);
 
-  // Position each zone and its devices
-  zoneList.forEach(zone => {
+  for (const zone of zoneList) {
     const zoneDevices = zoned[zone.id] || [];
-    const zoneDeviceCount = zoneDevices.length;
-
-    if (zoneDeviceCount === 0) {
-      // Empty zone - position with minimum size
-      zonePositions[zone.id] = {
-        x: LAYOUT_CONFIG.gridStartX,
-        y: currentY,
-        width: LAYOUT_CONFIG.minZoneWidth,
-        height: LAYOUT_CONFIG.minZoneHeight,
-      };
-      currentY += LAYOUT_CONFIG.minZoneHeight + LAYOUT_CONFIG.zoneSpacing;
-      return;
-    }
-
-    // Calculate grid dimensions for this zone's devices
-    const cols = Math.ceil(Math.sqrt(zoneDeviceCount));
-    const rows = Math.ceil(zoneDeviceCount / cols);
-
-    // Calculate zone dimensions
-    const zoneWidth = Math.max(
-      LAYOUT_CONFIG.minZoneWidth,
-      cols * LAYOUT_CONFIG.deviceSpacing + LAYOUT_CONFIG.zonePadding * 2
-    );
-    const zoneHeight = Math.max(
-      LAYOUT_CONFIG.minZoneHeight,
-      rows * LAYOUT_CONFIG.deviceSpacing + LAYOUT_CONFIG.zonePadding + 50 // 50 for header
-    );
+    const size = packZoneDevices(zoneDevices.length);
 
     zonePositions[zone.id] = {
       x: LAYOUT_CONFIG.gridStartX,
       y: currentY,
-      width: zoneWidth,
-      height: zoneHeight,
+      width: size.w,
+      height: size.h,
     };
 
-    // Position devices in grid within zone
-    zoneDevices.forEach((device, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
+    zoneDevices.forEach((device, idx) => {
+      const col = idx % Math.max(1, size.cols);
+      const row = Math.floor(idx / Math.max(1, size.cols));
       devicePositions[device.id] = {
-        x: LAYOUT_CONFIG.gridStartX + LAYOUT_CONFIG.zonePadding + col * LAYOUT_CONFIG.deviceSpacing,
-        y: currentY + 60 + row * LAYOUT_CONFIG.deviceSpacing, // 60 for zone header
+        x: LAYOUT_CONFIG.gridStartX + LAYOUT_CONFIG.zonePadding + col * DEVICE_CELL_W,
+        y: currentY + ZONE_HEADER_H + row * DEVICE_CELL_H,
       };
     });
 
-    currentY += zoneHeight + LAYOUT_CONFIG.zoneSpacing;
-  });
+    currentY += size.h + LAYOUT_CONFIG.zoneSpacing;
+  }
 
-  // Position unzoned devices at the bottom
   if (unzoned.length > 0) {
     const cols = Math.ceil(Math.sqrt(unzoned.length));
     unzoned.forEach((device, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
       devicePositions[device.id] = {
-        x: LAYOUT_CONFIG.gridStartX + col * LAYOUT_CONFIG.deviceSpacing,
-        y: currentY + row * LAYOUT_CONFIG.deviceSpacing,
+        x: LAYOUT_CONFIG.gridStartX + col * DEVICE_CELL_W,
+        y: currentY + row * DEVICE_CELL_H,
       };
     });
   }
@@ -256,6 +226,49 @@ function calculateCircularLayout(
   return { devicePositions, zonePositions };
 }
 
+/**
+ * Wrapping grid for the slim device cards (~140w × 56h).
+ * Picks columns to target a roughly 1.6 wide aspect ratio so a 7-device cell
+ * lays out 3×3 (one slot empty) instead of 7×1.
+ */
+const DEVICE_CELL_W = 200;
+const DEVICE_CELL_H = 90;
+const ZONE_HEADER_H = 50;
+
+function packZoneDevices(deviceCount: number): { cols: number; rows: number; w: number; h: number } {
+  if (deviceCount === 0) {
+    return {
+      cols: 0,
+      rows: 0,
+      w: LAYOUT_CONFIG.minZoneWidth,
+      h: LAYOUT_CONFIG.minZoneHeight,
+    };
+  }
+  // Solve cols so that (cols * cellW) / (rows * cellH + header) ≈ 1.6.
+  // rows = ceil(n / cols). Just pick the cols that's closest.
+  let bestCols = 1;
+  let bestScore = Infinity;
+  for (let c = 1; c <= deviceCount; c++) {
+    const r = Math.ceil(deviceCount / c);
+    const w = c * DEVICE_CELL_W;
+    const h = r * DEVICE_CELL_H + ZONE_HEADER_H;
+    const aspect = w / h;
+    const score = Math.abs(Math.log(aspect / 1.6));
+    if (score < bestScore) {
+      bestScore = score;
+      bestCols = c;
+    }
+  }
+  const cols = bestCols;
+  const rows = Math.ceil(deviceCount / cols);
+  const w = Math.max(LAYOUT_CONFIG.minZoneWidth, cols * DEVICE_CELL_W + LAYOUT_CONFIG.zonePadding * 2);
+  const h = Math.max(
+    LAYOUT_CONFIG.minZoneHeight,
+    rows * DEVICE_CELL_H + ZONE_HEADER_H + LAYOUT_CONFIG.zonePadding,
+  );
+  return { cols, rows, w, h };
+}
+
 // Calculate Purdue Model layout
 function calculatePurdueLayout(
   devices: Record<string, ScenarioDevice>,
@@ -275,55 +288,67 @@ function calculatePurdueLayout(
     zonesByLevel[level].push(zone);
   });
 
-  // Position zones and their devices
-  let xOffset = LAYOUT_CONFIG.gridStartX;
-
   // Sort levels descending (enterprise at top)
   const sortedLevels = Object.keys(zonesByLevel)
     .map(Number)
     .sort((a, b) => b - a);
 
-  sortedLevels.forEach(level => {
+  // First pass: compute sizes for every zone so we can position rows on the
+  // tallest zone in each level (otherwise zones overlap when the level row
+  // is shorter than its packed zones).
+  const zoneSize: Record<string, ReturnType<typeof packZoneDevices>> = {};
+  for (const level of sortedLevels) {
+    for (const zone of zonesByLevel[level]) {
+      zoneSize[zone.id] = packZoneDevices((zoned[zone.id] || []).length);
+    }
+  }
+
+  // Second pass: walk levels top-down, placing zones left-to-right on the
+  // band corresponding to their Purdue level, advancing Y by the row height.
+  let cursorY = LAYOUT_CONFIG.gridStartY;
+  for (const level of sortedLevels) {
     const levelZones = zonesByLevel[level];
-    let levelXOffset = LAYOUT_CONFIG.gridStartX;
-    const yPos = PURDUE_LEVELS[level] || PURDUE_LEVELS[2];
+    let cursorX = LAYOUT_CONFIG.gridStartX;
+    let rowHeight = 0;
 
-    levelZones.forEach(zone => {
+    for (const zone of levelZones) {
+      const size = zoneSize[zone.id];
       const zoneDevices = zoned[zone.id] || [];
-      const deviceCount = zoneDevices.length;
-
-      // Calculate zone width based on device count
-      const zoneWidth = Math.max(
-        LAYOUT_CONFIG.minZoneWidth,
-        deviceCount * LAYOUT_CONFIG.deviceSpacing + LAYOUT_CONFIG.zonePadding * 2
-      );
 
       zonePositions[zone.id] = {
-        x: levelXOffset,
-        y: yPos,
-        width: zoneWidth,
-        height: LAYOUT_CONFIG.minZoneHeight,
+        x: cursorX,
+        y: cursorY,
+        width: size.w,
+        height: size.h,
       };
 
-      // Position devices within zone
-      zoneDevices.forEach((device, index) => {
+      // Pack devices into a wrapping grid inside the zone.
+      zoneDevices.forEach((device, idx) => {
+        const col = idx % Math.max(1, size.cols);
+        const row = Math.floor(idx / Math.max(1, size.cols));
         devicePositions[device.id] = {
-          x: levelXOffset + LAYOUT_CONFIG.zonePadding + index * LAYOUT_CONFIG.deviceSpacing,
-          y: yPos + 70, // Below zone header
+          x: cursorX + LAYOUT_CONFIG.zonePadding + col * DEVICE_CELL_W,
+          y: cursorY + ZONE_HEADER_H + row * DEVICE_CELL_H,
         };
       });
 
-      levelXOffset += zoneWidth + LAYOUT_CONFIG.zoneSpacing;
-    });
+      cursorX += size.w + LAYOUT_CONFIG.zoneSpacing;
+      rowHeight = Math.max(rowHeight, size.h);
+    }
 
-    xOffset = Math.max(xOffset, levelXOffset);
-  });
+    // Advance Y by the tallest zone in this row + a generous inter-level
+    // gutter (3× the standard zone spacing). The extra room lets the
+    // orthogonal smooth-step conduit bends land in empty space rather than
+    // inside a neighbouring zone's body — and gives the halo enough
+    // background to read as a "passing over" cue.
+    cursorY += rowHeight + LAYOUT_CONFIG.zoneSpacing * 3;
+  }
 
   // Position unzoned devices at the bottom
-  const unzonedY = Math.max(...Object.values(PURDUE_LEVELS)) + 200;
+  const unzonedY = cursorY + 50;
   unzoned.forEach((device, index) => {
     devicePositions[device.id] = {
-      x: LAYOUT_CONFIG.gridStartX + index * LAYOUT_CONFIG.deviceSpacing,
+      x: LAYOUT_CONFIG.gridStartX + index * DEVICE_CELL_W,
       y: unzonedY,
     };
   });

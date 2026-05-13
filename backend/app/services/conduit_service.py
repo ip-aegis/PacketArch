@@ -18,21 +18,41 @@ PURDUE_ADJACENCY: list[tuple[float, float]] = [
     (3.5, 4),    # DMZ ↔ Enterprise
 ]
 
-# Default allowed protocols per Purdue level pair
+# Default allowed protocols per Purdue level pair.
+#
+# Modern OT realism: OPC UA is a primary IT/OT bridge protocol that
+# traverses L1→L2→L3 routinely (S7-1500 OPC UA server feeds HMIs, area
+# historians, MES). SNMP is universally polled for monitoring at every
+# level pair (NMS reaches all the way down). HTTPS is increasingly used
+# for engineering tool web UIs and REST APIs at L2+.
 DEFAULT_CONDUIT_PROTOCOLS: dict[tuple[float, float], list[str]] = {
     (0, 1): [
         "profinet", "ethernet_ip", "modbus_tcp",
         "profisafe", "cip_safety", "bacnet",
+        "snmp",  # NMS monitoring reaches L0 instrumentation
     ],
     (1, 2): [
         "s7comm", "s7comm_plus", "ethernet_ip", "modbus_tcp",
         "profinet", "bacnet", "snmp",
+        "opc_ua",  # Modern PLCs serve OPC UA up to HMI/SCADA
+        "iec61850", "iec104", "dnp3",  # substation + utility scada
     ],
     (2, 3): [
         "modbus_tcp", "ethernet_ip", "s7comm", "snmp", "bacnet",
+        "opc_ua",  # SCADA/historian aggregate via OPC UA from area
+        "https",  # Web UIs / REST APIs (FactoryTalk, EcoStruxure, WinCC)
+        "iec61850", "iec104", "dnp3",
     ],
-    (3, 3.5): ["snmp"],
-    (3.5, 4): ["snmp"],
+    (3, 3.5): [
+        "snmp",
+        "opc_ua",  # IDMZ OPC UA aggregator → enterprise replica
+        "https",  # patch staging, AV mgmt, reverse proxies
+    ],
+    (3.5, 4): [
+        "snmp",
+        "https",  # most IT/enterprise traffic is HTTPS-wrapped
+        "opc_ua",  # historian replica → enterprise BI consumers
+    ],
 }
 
 

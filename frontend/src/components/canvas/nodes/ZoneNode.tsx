@@ -9,14 +9,18 @@
  */
 
 import React from 'react';
+import { LockOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import type { NodeProps } from '@xyflow/react';
 import { Handle, Position } from '@xyflow/react';
 import { useUIStore } from '../../../stores/uiStore';
+import { useScenarioStore } from '../../../stores/scenarioStore';
 
 export interface ZoneNodeData extends Record<string, unknown> {
   id: string;
   name: string;
   type: 'vertical' | 'network' | 'vlan' | 'logical';
+  level?: number;
   network?: {
     subnet: string;
     vlanId?: number;
@@ -58,6 +62,8 @@ const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = React.memo((props) => {
   const { data, selected } = props;
   const activeTool = useUIStore((s) => s.tool.activeTool);
   const isConduitMode = activeTool === 'conduit';
+  const isolationMode = useScenarioStore((s) => s.cellIsolation?.mode ?? 'off');
+  const cellLevels = useScenarioStore((s) => s.cellIsolation?.applies_to_levels ?? [0, 1, 2]);
 
   if (!data) return null;
 
@@ -65,18 +71,70 @@ const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = React.memo((props) => {
   const backgroundColor = ZONE_COLORS[nodeData.type] || ZONE_COLORS.logical;
   const borderColor = ZONE_BORDER_COLORS[nodeData.type] || ZONE_BORDER_COLORS.logical;
   const handleStyle = isConduitMode ? HANDLE_STYLE : HANDLE_STYLE_HIDDEN;
+  const zoneLevel = typeof nodeData.level === 'number' ? Math.floor(nodeData.level) : null;
+  const isCellZone =
+    isolationMode !== 'off' && zoneLevel !== null && cellLevels.includes(zoneLevel);
+  const lockTooltip =
+    isolationMode === 'strict_northbound'
+      ? `Cell (L${zoneLevel}) — east/west traffic blocked. Cell may only talk northbound to L3+ zones.`
+      : `Cell (L${zoneLevel}) — cross-cell flows require an explicit conduit.`;
+
+  // Three slots per side so multiple conduits leaving / entering the same
+  // edge can fan out instead of stacking. Slots are at 25% / 50% / 75%.
+  const slotOffsets = [25, 50, 75] as const;
+  const horizSlot = (pct: number): React.CSSProperties => ({ ...handleStyle, left: `${pct}%` });
+  const vertSlot = (pct: number): React.CSSProperties => ({ ...handleStyle, top: `${pct}%` });
+  const renderSlots = (
+    side: 'top' | 'bottom' | 'left' | 'right',
+    kind: 'source' | 'target',
+  ) => {
+    const isHoriz = side === 'top' || side === 'bottom';
+    return slotOffsets.map((pct, i) => {
+      const idBase = kind === 'source' ? 'conduit' : 'conduit-target';
+      const id = `${idBase}-${side}-${i}`;
+      const pos =
+        side === 'top' ? Position.Top
+        : side === 'bottom' ? Position.Bottom
+        : side === 'left' ? Position.Left
+        : Position.Right;
+      const style = isHoriz ? horizSlot(pct) : vertSlot(pct);
+      return <Handle key={id} type={kind} position={pos} id={id} style={style} />;
+    });
+  };
+  // Single legacy "center" handle for backwards compatibility — older saved
+  // conduits reference these IDs and we don't want to break them.
+  const legacyHandle = (side: 'top' | 'bottom' | 'left' | 'right', kind: 'source' | 'target') => {
+    const idBase = kind === 'source' ? 'conduit' : 'conduit-target';
+    const id = `${idBase}-${side}`;
+    const pos =
+      side === 'top' ? Position.Top
+      : side === 'bottom' ? Position.Bottom
+      : side === 'left' ? Position.Left
+      : Position.Right;
+    return <Handle key={id} type={kind} position={pos} id={id} style={handleStyle} />;
+  };
 
   return (
     <>
-      {/* Conduit connection handles — visible only in conduit tool mode */}
-      <Handle type="source" position={Position.Top} id="conduit-top" style={handleStyle} />
-      <Handle type="source" position={Position.Bottom} id="conduit-bottom" style={handleStyle} />
-      <Handle type="source" position={Position.Left} id="conduit-left" style={handleStyle} />
-      <Handle type="source" position={Position.Right} id="conduit-right" style={handleStyle} />
-      <Handle type="target" position={Position.Top} id="conduit-target-top" style={handleStyle} />
-      <Handle type="target" position={Position.Bottom} id="conduit-target-bottom" style={handleStyle} />
-      <Handle type="target" position={Position.Left} id="conduit-target-left" style={handleStyle} />
-      <Handle type="target" position={Position.Right} id="conduit-target-right" style={handleStyle} />
+      {/* Conduit connection handles — visible only in conduit tool mode.
+          Three slots per side (25/50/75%) plus a legacy center handle so
+          existing edges keep working. */}
+      {renderSlots('top', 'source')}
+      {renderSlots('bottom', 'source')}
+      {renderSlots('left', 'source')}
+      {renderSlots('right', 'source')}
+      {renderSlots('top', 'target')}
+      {renderSlots('bottom', 'target')}
+      {renderSlots('left', 'target')}
+      {renderSlots('right', 'target')}
+      {legacyHandle('top', 'source')}
+      {legacyHandle('bottom', 'source')}
+      {legacyHandle('left', 'source')}
+      {legacyHandle('right', 'source')}
+      {legacyHandle('top', 'target')}
+      {legacyHandle('bottom', 'target')}
+      {legacyHandle('left', 'target')}
+      {legacyHandle('right', 'target')}
       <div
         role="group"
         aria-label={`${nodeData.type} zone: ${nodeData.name}${nodeData.network?.subnet ? `, subnet ${nodeData.network.subnet}` : ''}`}
@@ -110,6 +168,17 @@ const ZoneNode: React.FC<NodeProps<ZoneNodeData>> = React.memo((props) => {
           }}
         >
           {nodeData.name}
+          {isCellZone && (
+            <Tooltip title={lockTooltip}>
+              <LockOutlined
+                style={{
+                  marginLeft: 6,
+                  color:
+                    isolationMode === 'strict_northbound' ? '#ff4d4f' : '#faad14',
+                }}
+              />
+            </Tooltip>
+          )}
         </div>
 
         {/* Network info */}

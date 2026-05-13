@@ -46,21 +46,48 @@ sudo ./install.sh
 The installer will:
 
 1. Load all bundled Docker images into the local Docker daemon.
-2. Generate `.env` with random passwords (PostgreSQL, JWT secret,
-   admin password). These are printed **once** at the end of install;
-   save them.
+2. Generate `.env` with random database / JWT / encryption secrets.
+   **No admin password is generated** — you'll choose one in the
+   first-run setup wizard.
 3. Start the stack with `docker compose up -d`.
 4. Wait for the backend healthcheck to pass.
 
-When it finishes, open `https://<server-ip>/` in a browser. Accept the
-self-signed certificate. Log in with username `admin` and the password
-printed by the installer.
+When it finishes, **open `https://<server-ip>/` in a browser immediately**.
+Accept the self-signed certificate. You'll see the first-run setup wizard.
 
-## First login
+> ⚠️ The setup wizard is **unprotected**: the first person who reaches
+> this URL becomes the admin. Complete the wizard before anyone else
+> can browse to the server.
 
-You will be asked to acknowledge the GPL-3.0 license and ownership. This
-is recorded per-user; the text can be re-read later under the user menu
-→ About PacketArch.
+## First-run setup wizard
+
+The wizard walks you through:
+
+1. **Admin account** — username, password, optional email.
+2. **Site identity** — site name, server FQDN/IP (used in agent install
+   commands), time zone.
+3. **Capabilities** — optional AI features (Anthropic API key) and
+   optional Cisco Cyber Vision import. Both can be skipped now and added
+   later under Settings.
+4. **Confirm** — review your selections, accept the GPL-3.0 license,
+   click Complete setup.
+
+You'll be auto-logged-in to the dashboard. Save your admin password
+somewhere safe — it's the only credential to recover it from.
+
+## Recovering from a botched setup
+
+If someone else claimed admin during the setup window, or you simply
+want to start over:
+
+```bash
+cd /opt/packetarch
+sudo docker compose exec postgres psql -U packetarch -d packetarch -c \
+  "DELETE FROM users; UPDATE system_settings SET value='false' WHERE key='setup.completed';"
+sudo docker compose restart backend
+```
+
+Then browse to `https://<server-ip>/` and complete the wizard again.
 
 ## Turning AI on or off
 

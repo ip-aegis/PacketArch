@@ -23,11 +23,10 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "commercial_office_bms": {
         "name": "Commercial Office Building BMS",
-        "description": "Modern Class A office building with central BMS. Features WebCTRL server "
-                       "with Johnson Controls NAE55 supervisory controllers, Trane HVAC, and "
-                       "distributed Distech VAV and Siemens room controllers. Multi-vendor "
-                       "architecture typical of modern commercial buildings. 35 devices across "
-                       "BMS core, HVAC control, and floor zone networks.",
+        "description": "Mid-sized commercial office BAS with a Niagara JACE supervisor and three "
+                       "zone field controllers (one per HVAC zone) over BACnet/IP. Engineering "
+                       "workstation + historian + NMS at L3; light IDMZ for vendor remote "
+                       "access. 42 devices across 5 zones.",
         "vertical": "building_automation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -262,11 +261,11 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "data_center_infrastructure": {
         "name": "Data Center Infrastructure",
-        "description": "Tier III data center with precision cooling (CRAC units) and power "
-                       "monitoring (UPS, PDU). Features Schneider Electric cooling and power "
-                       "equipment with BACnet, Modbus TCP, and SNMP monitoring. Centralized "
-                       "DCIM integration via Automated Logic server. 28 devices across DCIM "
-                       "core, cooling zone, power zone, and rack-level monitoring.",
+        "description": "Mid-sized colocation data center DCIM facility-side OT. Four rack rows "
+                       "polled over SNMP / Modbus, mechanical / cooling zone with chiller "
+                       "controls and CRAH units, dedicated power-plant zone for UPS / ATS / "
+                       "generator. NMS-heavy traffic — every device polled by DCNM. 59 devices "
+                       "across 8 zones.",
         "vertical": "building_automation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -492,12 +491,10 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "university_campus_bms": {
         "name": "University Campus BMS",
-        "description": "Multi-building university campus with distributed BMS architecture. "
-                       "Features central Honeywell JACE 8000 servers with multi-vendor building "
-                       "controllers including Johnson Controls, Trane, Schneider, and Siemens. "
-                       "Represents typical campus environment with legacy and modern equipment. "
-                       "45 devices across campus core, two academic buildings, central plant, "
-                       "and distributed field devices.",
+        "description": "University campus BAS spanning four building zones, each with redundant "
+                       "Niagara field controllers. Larger HVAC field complement (fans, valves, "
+                       "sensors) per zone; full IDMZ stack for IT integration. 73 devices across "
+                       "6 zones.",
         "vertical": "building_automation",
         "phase_preset": "full_lifecycle",
         "recommended_attack_playbooks": [

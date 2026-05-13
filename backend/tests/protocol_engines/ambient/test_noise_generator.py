@@ -201,6 +201,35 @@ class TestScheduling:
         types = scheduler.event_types()
         assert "ambient_profinet_dcp" in types
 
+    def test_profinet_dcp_fires_within_5s(self):
+        """An early-burst DCP must be scheduled inside the integration
+        test window (≤5s) so CV sees PROFINET Identify before steady-state.
+        Regression: previously DCP only scheduled at 2-10s with no t≤2s seed.
+        """
+        device = _make_device(
+            device_type="plc",
+            protocols=["profinet"],
+        )
+        gen = BackgroundNoiseGenerator([device])
+        scheduler = FakeScheduler()
+        gen.schedule_initial_events(scheduler, warmup_ms=500.0)
+
+        dcp_events = [
+            (t, e) for t, e in scheduler.events
+            if e.get("type") == "ambient_profinet_dcp"
+        ]
+        assert dcp_events, "no PROFINET DCP events scheduled"
+        early = [t for t, _ in dcp_events if t <= 5_000.0]
+        assert early, (
+            f"no PROFINET DCP scheduled within 5s; all events at: "
+            f"{[t for t, _ in dcp_events]}"
+        )
+        # The early event should be a one-shot burst, not the steady cadence.
+        burst_early = [
+            t for t, e in dcp_events if t <= 5_000.0 and e.get("burst")
+        ]
+        assert burst_early, "early PROFINET DCP missing burst=True flag"
+
     def test_hmi_gets_dhcp(self):
         device = _make_device(device_type="hmi")
         gen = BackgroundNoiseGenerator([device])

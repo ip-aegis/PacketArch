@@ -463,6 +463,14 @@ class ProfinetEngine(ProtocolEngine):
 
         For IRT (RT Class 3), this also includes PTCP sync frames.
         """
+        # Clean Demo Mode: scenarios authored for asset-classification demos
+        # suppress PROFINET RT cyclic frames because CV creates phantom
+        # components for every PN-IO source MAC that don't merge with the
+        # DCP-identified component for the same MAC. DCP, AR setup, and
+        # alarms all still fire so device fingerprinting is unaffected.
+        if flow.config.get("clean_demo_mode"):
+            return
+
         rt_class = state.custom_data.get("rt_class", RTClass.RT_CLASS_1)
         vlan_id = state.custom_data.get("vlan_id")
         timing_model = flow.timing_model

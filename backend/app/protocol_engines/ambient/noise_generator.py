@@ -122,6 +122,9 @@ class BackgroundNoiseGenerator:
         self,
         devices: list[AmbientDevice],
         config: AmbientConfig | None = None,
+        cell_isolation_mode: str = "off",
+        cell_levels: frozenset[int] = frozenset({0, 1, 2}),
+        clean_demo_mode: bool = False,
     ) -> None:
         self.devices = devices
         self.config = config or AmbientConfig()
@@ -132,6 +135,21 @@ class BackgroundNoiseGenerator:
         self._zone_devices: dict[str | None, list[AmbientDevice]] = {}
         for d in devices:
             self._zone_devices.setdefault(d.zone_id, []).append(d)
+        # Cell isolation policy — respected by `_pick_query_source` so that
+        # unicast discovery polls (SNMP/Modbus/EnIP/S7/NTP) never cross
+        # cell↔cell when the scenario asks for strict isolation. Layer-2
+        # broadcasts (LLDP/STP/CDP/BACnet WhoIs/PROFINET DCP) are already
+        # zone-local by destination MAC and don't need this filter.
+        self._cell_isolation_mode = (cell_isolation_mode or "off").lower()
+        self._cell_levels = cell_levels
+        # Clean Demo Mode: suppresses ambient broadcast types whose only
+        # purpose is identity advertising and which CV's correlation engine
+        # then turns into phantom components for the same MAC. PROFINET DCP
+        # IdentifyRequests are the main culprit; configured PROFINET flows
+        # already emit DCP at flow startup, and the orphan-prevention pass
+        # guarantees every device has at least one IP-based flow that
+        # fingerprints it, so suppressing ambient DCP is safe in this mode.
+        self._clean_demo_mode = bool(clean_demo_mode)
 
     # ------------------------------------------------------------------
     # Scheduling
@@ -141,6 +159,24 @@ class BackgroundNoiseGenerator:
         """Schedule initial ambient events after startup sequences."""
         if not self.config.enabled:
             return
+
+        # Phase 0: LLDP IDENTITY BURST. Fires 3 LLDP advertisements per device
+        # at t≈20/180/400ms — before PROFINET I/O cyclic data begins (~400ms
+        # after scenario start). LLDP is the well-formed identity protocol
+        # that CV reliably parses (chassis_id, port_id, system_name, system
+        # description). Goal: give CV a MAC→identity binding before PN-IO
+        # frames arrive and create phantom components for the same MAC.
+        # Avoids the malformed DCP-multicast attempt from v1.31.0; LLDP's
+        # destination is the standard reserved multicast 01:80:C2:00:00:0E
+        # which CV interprets correctly.
+        for device in self.devices:
+            if self._should_lldp(device):
+                for offset in (20.0, 180.0, 400.0):
+                    scheduler.schedule(offset + random.uniform(0, 30), {
+                        "type": "ambient_lldp",
+                        "device_id": device.device_id,
+                        "burst": True,
+                    })
 
         t = warmup_ms
 
@@ -284,6 +320,25 @@ class BackgroundNoiseGenerator:
                 })
 
             if self._should_profinet_dcp(device):
+                # Early DCP discovery so CV sees PROFINET Identify within
+                # the integration-test window. Mirrors the SNMP/Modbus/EIP/S7
+                # early-burst pattern. The handler honors event["burst"] to
+                # avoid kicking off the steady-state cadence.
+                scheduler.schedule(base_t + random.uniform(500.0, 1500.0), {
+                    "type": "ambient_profinet_dcp",
+                    "device_id": device.device_id,
+                    "burst": True,
+                })
+                for burst_offset in (30_000.0, 90_000.0):
+                    scheduler.schedule(
+                        base_t + burst_offset + random.uniform(0, 5000.0),
+                        {
+                            "type": "ambient_profinet_dcp",
+                            "device_id": device.device_id,
+                            "burst": True,
+                        },
+                    )
+                # Steady-state cadence (default 120s)
                 scheduler.schedule(base_t + random.uniform(2000.0, 10000.0), {
                     "type": "ambient_profinet_dcp",
                     "device_id": device.device_id,
@@ -366,7 +421,15 @@ class BackgroundNoiseGenerator:
                 and bool(set(device.protocols) & _BACNET_PROTOCOLS))
 
     def _should_profinet_dcp(self, device: AmbientDevice) -> bool:
-        """All PROFINET-capable devices participate in DCP identify."""
+        """All PROFINET-capable devices participate in DCP identify, except
+        when Clean Demo Mode is on — DCP IdentifyRequest multicasts are the
+        primary source of phantom components in CV's display (CV creates a
+        phantom for every MAC seen on an L2-only frame and never merges
+        with the IP-bearing identified component for the same MAC).
+        Configured PROFINET flow startups still emit DCP for fingerprinting.
+        """
+        if self._clean_demo_mode:
+            return False
         return (self.config.profinet_dcp_enabled
                 and bool(set(device.protocols) & _PROFINET_PROTOCOLS))
 
@@ -546,7 +609,10 @@ class BackgroundNoiseGenerator:
                 metadata={"type": "lldp", "device_id": device.device_id},
             )
         ]
-        self._reschedule(scheduler, current_time_ms, self.config.lldp_interval_s, event)
+        # Burst events are one-shot identity reinforcement at scenario start;
+        # they don't kick off the regular cadence.
+        if not event.get("burst"):
+            self._reschedule(scheduler, current_time_ms, self.config.lldp_interval_s, event)
         return packets
 
     @staticmethod
@@ -833,7 +899,11 @@ class BackgroundNoiseGenerator:
             ))
             delay += random.uniform(5.0, 20.0)
 
-        self._reschedule(scheduler, current_time_ms, self.config.profinet_dcp_interval_s, event)
+        # Burst events at scenario start are one-shot — they reinforce
+        # identity before PROFINET I/O cyclic data starts and don't
+        # kick off the regular DCP cadence.
+        if not event.get("burst"):
+            self._reschedule(scheduler, current_time_ms, self.config.profinet_dcp_interval_s, event)
         return packets
 
     # ------------------------------------------------------------------
@@ -1571,9 +1641,10 @@ class BackgroundNoiseGenerator:
         """Pick a real scenario device to act as the query source.
 
         Prefers HMIs/servers/workstations in the same zone. Falls back to
-        any other zone peer, then any device in the scenario.  Returns None
-        only when the scenario has a single device (should never happen in
-        practice).
+        northbound (Purdue L3+) peers when the target lives in a cell zone,
+        so SNMP/Modbus/EnIP/S7 discovery polls never cross cell↔cell when
+        strict isolation is requested. Returns None only when the scenario
+        has a single device (should never happen in practice).
         """
         zone_peers = self._zone_devices.get(target.zone_id, [])
 
@@ -1585,12 +1656,42 @@ class BackgroundNoiseGenerator:
         for d in zone_peers:
             if d.device_id != target.device_id:
                 return d
-        # Pass 3: preferred type in any zone
+
+        # Pass 3 onwards crosses zones. If the target is in a cell zone and
+        # cell isolation is on, only cross-zone candidates from L3+ are
+        # allowed (northbound), never another cell.
+        target_in_cell = (
+            target.purdue_level is not None
+            and target.purdue_level in self._cell_levels
+        )
+        gate_cross_cell = (
+            target_in_cell and self._cell_isolation_mode != "off"
+        )
+
+        def _allowed(candidate: AmbientDevice) -> bool:
+            if candidate.device_id == target.device_id:
+                return False
+            if not gate_cross_cell:
+                return True
+            # Allow same-zone (already covered in passes 1–2 but harmless)
+            # and any candidate not in a cell level (i.e. L3+).
+            if candidate.zone_id == target.zone_id:
+                return True
+            cand_level = candidate.purdue_level
+            if cand_level is None:
+                # Unknown level — refuse to cross-cell guess.
+                return False
+            return cand_level not in self._cell_levels
+
+        # Pass 3: preferred type, anywhere northbound-allowed
         for d in self.devices:
-            if d.device_id != target.device_id and d.device_type in self._MANAGER_TYPES:
+            if _allowed(d) and d.device_type in self._MANAGER_TYPES:
                 return d
-        # Pass 4: any device in the scenario
+        # Pass 4: any device that satisfies the cell guard
         for d in self.devices:
-            if d.device_id != target.device_id:
+            if _allowed(d):
                 return d
+        # Pass 5: scenario truly has nothing northbound — give up rather than
+        # synthesize a cross-cell flow. The L2 broadcasts still fingerprint
+        # the device; the unicast poll just won't fire this cycle.
         return None

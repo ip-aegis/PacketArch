@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # warmup_factor (>1): initial polls are slower by this factor
 # eager: device tends to drift toward shorter intervals
 VENDOR_TRAITS: dict[str, dict[str, Any]] = {
+    # --- Original 15: discrete-manufacturing PLCs + I/O + network ---
     "siemens": {"consistency": 0.95, "warmup_factor": 1.1, "eager": True},
     "rockwell": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
     "allen-bradley": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
@@ -36,9 +37,107 @@ VENDOR_TRAITS: dict[str, dict[str, Any]] = {
     "omron": {"consistency": 0.91, "warmup_factor": 1.1, "eager": True},
     "beckhoff": {"consistency": 0.94, "warmup_factor": 1.05, "eager": True},
     "phoenix contact": {"consistency": 0.90, "warmup_factor": 1.15, "eager": False},
+    "phoenix_contact": {"consistency": 0.90, "warmup_factor": 1.15, "eager": False},
     "wago": {"consistency": 0.88, "warmup_factor": 1.15, "eager": False},
     "moxa": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
     "advantech": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+
+    # --- DCS / process control: steady, deterministic, long warmup ---
+    # Process plants prize consistency; vendors clock at scan-cycle precision.
+    "yokogawa": {"consistency": 0.93, "warmup_factor": 1.2, "eager": False},
+
+    # --- Protection relays: deterministic by design ---
+    "sel": {"consistency": 0.94, "warmup_factor": 1.05, "eager": False},
+    "basler": {"consistency": 0.92, "warmup_factor": 1.05, "eager": False},
+    "beckwith": {"consistency": 0.92, "warmup_factor": 1.05, "eager": False},
+
+    # --- Small PLCs / specialty controllers ---
+    "b_and_r": {"consistency": 0.93, "warmup_factor": 1.1, "eager": True},
+    "b&r": {"consistency": 0.93, "warmup_factor": 1.1, "eager": True},
+    "pilz": {"consistency": 0.94, "warmup_factor": 1.05, "eager": False},  # safety
+    "hms": {"consistency": 0.90, "warmup_factor": 1.15, "eager": True},
+
+    # --- Sensors / vision / instrumentation: deterministic tick ---
+    "sick": {"consistency": 0.91, "warmup_factor": 1.1, "eager": True},
+    "cognex": {"consistency": 0.92, "warmup_factor": 1.1, "eager": True},
+    "turck": {"consistency": 0.90, "warmup_factor": 1.1, "eager": True},
+    "ifm": {"consistency": 0.90, "warmup_factor": 1.1, "eager": True},
+    "endress+hauser": {"consistency": 0.91, "warmup_factor": 1.15, "eager": False},
+    "endress_hauser": {"consistency": 0.91, "warmup_factor": 1.15, "eager": False},
+    "vaisala": {"consistency": 0.89, "warmup_factor": 1.15, "eager": False},
+
+    # --- Robotics / motion: motion-driven, less predictable tick ---
+    "kuka": {"consistency": 0.83, "warmup_factor": 1.3, "eager": True},
+    "fanuc": {"consistency": 0.84, "warmup_factor": 1.3, "eager": True},
+    "mir": {"consistency": 0.80, "warmup_factor": 1.4, "eager": False},  # AMR
+    "abb_robotics": {"consistency": 0.84, "warmup_factor": 1.3, "eager": True},
+
+    # --- Network infrastructure ---
+    "cisco": {"consistency": 0.92, "warmup_factor": 1.1, "eager": False},
+    "hirschmann": {"consistency": 0.91, "warmup_factor": 1.1, "eager": False},
+    "belden": {"consistency": 0.91, "warmup_factor": 1.1, "eager": False},
+    "harting": {"consistency": 0.90, "warmup_factor": 1.1, "eager": False},
+    "broadcom": {"consistency": 0.92, "warmup_factor": 1.1, "eager": False},
+    "f5_networks": {"consistency": 0.92, "warmup_factor": 1.1, "eager": False},
+    "f5-networks": {"consistency": 0.92, "warmup_factor": 1.1, "eager": False},
+
+    # --- Building automation: slow polls, time-of-day driven ---
+    # BAS controllers chase setpoints; per-tick consistency is lower because
+    # of trim/ramp behavior, longer warmup as zones come online.
+    "johnson_controls": {"consistency": 0.85, "warmup_factor": 1.25, "eager": False},
+    "tridium": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
+    "trane": {"consistency": 0.84, "warmup_factor": 1.25, "eager": False},
+    "carrier": {"consistency": 0.84, "warmup_factor": 1.25, "eager": False},
+    "delta_controls": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "distech": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "carel": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "automated_logic": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "kmc_controls": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "alerton": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+    "reliable_controls": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+    "lennox": {"consistency": 0.84, "warmup_factor": 1.25, "eager": False},
+    "york": {"consistency": 0.84, "warmup_factor": 1.25, "eager": False},
+    "notifier": {"consistency": 0.88, "warmup_factor": 1.15, "eager": False},
+    "lutron": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+
+    # --- ITS / transportation: signal-cycle driven, moderate variance ---
+    "siemens_its": {"consistency": 0.90, "warmup_factor": 1.15, "eager": False},
+    "econolite": {"consistency": 0.86, "warmup_factor": 1.25, "eager": False},
+    "mccain": {"consistency": 0.86, "warmup_factor": 1.25, "eager": False},
+    "daktronics": {"consistency": 0.88, "warmup_factor": 1.2, "eager": False},
+    "wavetronix": {"consistency": 0.87, "warmup_factor": 1.15, "eager": False},
+    "kapsch": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
+    "qfree": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
+    "q_free": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
+    "q-free": {"consistency": 0.87, "warmup_factor": 1.2, "eager": False},
+    "flir": {"consistency": 0.85, "warmup_factor": 1.2, "eager": False},
+
+    # --- Cameras / video: network-dependent, low per-tick consistency ---
+    # Video streams jitter with network conditions; per-frame timing variance
+    # is dominated by upstream switches rather than the camera itself.
+    "axis": {"consistency": 0.78, "warmup_factor": 1.25, "eager": False},
+    "pelco": {"consistency": 0.78, "warmup_factor": 1.25, "eager": False},
+    "hikvision": {"consistency": 0.78, "warmup_factor": 1.25, "eager": False},
+    "bosch": {"consistency": 0.80, "warmup_factor": 1.2, "eager": False},
+
+    # --- Logistics / warehouse automation ---
+    "dematic": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+    "swisslog": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+    "daifuku": {"consistency": 0.86, "warmup_factor": 1.2, "eager": False},
+    "impinj": {"consistency": 0.89, "warmup_factor": 1.1, "eager": True},  # RFID
+    "zebra": {"consistency": 0.88, "warmup_factor": 1.1, "eager": True},
+
+    # --- Software platforms / SCADA / HMI hosts ---
+    # Software running on host machines benefits from kernel scheduling;
+    # high consistency, no warmup (process already running).
+    "wonderware": {"consistency": 0.92, "warmup_factor": 1.05, "eager": False},
+    "copadata": {"consistency": 0.92, "warmup_factor": 1.05, "eager": False},
+    "kepware": {"consistency": 0.93, "warmup_factor": 1.05, "eager": False},
+    "aveva": {"consistency": 0.92, "warmup_factor": 1.05, "eager": False},
+    "lansweeper": {"consistency": 0.90, "warmup_factor": 1.05, "eager": False},
+    "paessler": {"consistency": 0.90, "warmup_factor": 1.05, "eager": False},
+    "microsoft": {"consistency": 0.91, "warmup_factor": 1.05, "eager": False},
+    "vmware": {"consistency": 0.91, "warmup_factor": 1.05, "eager": False},
 }
 
 # Default personality for unknown vendors

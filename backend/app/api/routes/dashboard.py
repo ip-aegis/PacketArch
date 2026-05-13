@@ -64,32 +64,44 @@ async def get_live_dashboard() -> dict[str, Any]:
         agent_connections=agent_connections,
     )
 
-    # Enrich deployments with scenario names from DB
+    # Enrich deployments with scenario names + mode flags from DB. The mode
+    # flags drive the badges shown on each Live Traffic deployment card.
     deployments = snapshot.get("deployments", [])
-    unnamed_ids = [
-        d["scenario_id"] for d in deployments if not d.get("scenario_name")
-    ]
-    if unnamed_ids:
+    all_ids = [d["scenario_id"] for d in deployments if d.get("scenario_id")]
+    if all_ids:
         try:
             from sqlalchemy import select
 
             async with async_session_maker() as db:
                 result = await db.execute(
-                    select(Scenario.id, Scenario.name).where(
-                        Scenario.id.in_(unnamed_ids)
+                    select(Scenario.id, Scenario.name, Scenario.definition).where(
+                        Scenario.id.in_(all_ids)
                     )
                 )
-                scenario_names = {str(row[0]): row[1] for row in result.all()}
+                rows_by_id = {str(row[0]): row for row in result.all()}
 
             for d in deployments:
-                if not d.get("scenario_name"):
-                    name = scenario_names.get(d["scenario_id"])
-                    if name:
-                        d["scenario_name"] = name
-                        # Also update the in-memory cache so subsequent polls don't re-query
-                        traffic_dashboard.set_scenario_name(d["scenario_id"], name)
+                row = rows_by_id.get(d["scenario_id"])
+                if not row:
+                    continue
+                _, name, definition = row
+                if not d.get("scenario_name") and name:
+                    d["scenario_name"] = name
+                    traffic_dashboard.set_scenario_name(d["scenario_id"], name)
+                definition = definition or {}
+                d["scenario_modes"] = {
+                    "clean_demo_mode": bool(
+                        definition.get("clean_demo_mode", False)
+                    ),
+                    "broadcast_traffic_enabled": bool(
+                        definition.get("broadcast_traffic_enabled", True)
+                    ),
+                    "cell_isolation_mode": str(
+                        (definition.get("cell_isolation") or {}).get("mode", "off")
+                    ),
+                }
         except Exception as e:
-            logger.error(f"Failed to fetch scenario names: {e}")
+            logger.error(f"Failed to fetch scenario names/modes: {e}")
 
     # Enrich with health data
     health_statuses = health_monitor.get_all_health_statuses()

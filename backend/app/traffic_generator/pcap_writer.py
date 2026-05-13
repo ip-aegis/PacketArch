@@ -47,13 +47,21 @@ class PcapWriter:
         if self._time_anchor is None:
             self._time_anchor = time.time()
 
-        # Scapy expects timestamp in seconds (float)
+        # Scapy's PcapWriter.write_packet(sec=<float>) does NOT split a
+        # float into seconds + microseconds — when usec is omitted, the
+        # fractional part is dropped and every packet snaps to the
+        # enclosing integer second. Split explicitly so PCAPs preserve
+        # the sub-millisecond timing that protocol engines schedule.
         if timestamp is not None:
-            timestamp_sec = self._time_anchor + (timestamp / 1000.0)
+            timestamp_sec_float = self._time_anchor + (timestamp / 1000.0)
+            sec = int(timestamp_sec_float)
+            usec = int(round((timestamp_sec_float - sec) * 1_000_000))
+            if usec >= 1_000_000:
+                sec += 1
+                usec -= 1_000_000
+            self._writer.write_packet(packet_bytes, sec=sec, usec=usec)
         else:
-            timestamp_sec = None
-
-        self._writer.write_packet(packet_bytes, sec=timestamp_sec)
+            self._writer.write_packet(packet_bytes)
         self.packet_count += 1
 
     def close(self) -> None:

@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.database import async_session_maker
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
+from app.protocol_engines.cell_isolation import parse_config as parse_isolation_config, should_drop_flow as should_drop_for_isolation
 from app.protocol_engines.protocols import get_default_port, resolve_protocol
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
@@ -291,7 +292,16 @@ class CallbackTask(Task):
 
 
 @celery_app.task(bind=True, base=CallbackTask, name="packetarch.generate_traffic")
-def generate_traffic(self, job_id: str, scenario_id: str, duration_ms: int | None = None):
+def generate_traffic(
+    self,
+    job_id: str,
+    scenario_id: str,
+    duration_ms: int | None = None,
+    attack_playbook_id: str | None = None,
+    attack_config: dict[str, Any] | None = None,
+    adaptive_config: dict[str, Any] | None = None,
+    cell_isolation_override: dict[str, Any] | None = None,
+):
     """Generate traffic for a scenario.
 
     Args:
@@ -299,6 +309,9 @@ def generate_traffic(self, job_id: str, scenario_id: str, duration_ms: int | Non
         job_id: Job identifier
         scenario_id: Scenario UUID string
         duration_ms: Optional duration override in milliseconds
+        attack_playbook_id: Optional playbook id for in-PCAP attack simulation
+        attack_config: Optional attack config overrides
+        adaptive_config: Optional adaptive-traffic config dict
 
     Returns:
         Dictionary with generation results
@@ -320,7 +333,17 @@ def generate_traffic(self, job_id: str, scenario_id: str, duration_ms: int | Non
         ))
 
         # Run async generation
-        result = loop.run_until_complete(_generate_traffic_async(job_id, scenario_id, duration_ms))
+        result = loop.run_until_complete(
+            _generate_traffic_async(
+                job_id,
+                scenario_id,
+                duration_ms,
+                attack_playbook_id=attack_playbook_id,
+                attack_config=attack_config,
+                adaptive_config=adaptive_config,
+                cell_isolation_override=cell_isolation_override,
+            )
+        )
         return result
     finally:
         loop.close()
@@ -330,6 +353,10 @@ async def _generate_traffic_async(
     job_id: str,
     scenario_id: str,
     duration_ms: int | None = None,
+    attack_playbook_id: str | None = None,
+    attack_config: dict[str, Any] | None = None,
+    adaptive_config: dict[str, Any] | None = None,
+    cell_isolation_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Async function to generate traffic.
 
@@ -368,16 +395,78 @@ async def _generate_traffic_async(
                 scenario_id=scenario.id,
                 total_duration_ms=total_duration_ms,
                 output_path=output_path,
+                attack_playbook_id=attack_playbook_id,
+                attack_config=attack_config,
+                adaptive_config=adaptive_config,
+                broadcast_traffic_enabled=bool(
+                    scenario.definition.get("broadcast_traffic_enabled", True)
+                ),
+                clean_demo_mode=bool(
+                    scenario.definition.get("clean_demo_mode", False)
+                ),
             )
 
             # Create orchestrator
             orchestrator = TrafficOrchestrator(config)
 
-            # Build flow contexts from scenario definition
-            # Pass scenario_id for unique serial number generation
-            flow_contexts = _build_flow_contexts(
-                scenario.definition, str(scenario.id), vertical=scenario.vertical
+            # Build flow contexts from scenario definition. Per-run
+            # cell-isolation override (if any) is merged into a copy of the
+            # definition so the saved scenario isn't mutated.
+            effective_definition = scenario.definition
+            if cell_isolation_override:
+                effective_definition = {**scenario.definition}
+                existing = effective_definition.get("cell_isolation", {})
+                effective_definition["cell_isolation"] = {
+                    **existing,
+                    **cell_isolation_override,
+                }
+
+            # Mirror the agent's deploy-time enrichment chain. Live + PCAP
+            # parity: any change to the live deploy path's enrichment
+            # sequence here must be mirrored in routes/agents.py.
+            from app.services.scenario_enrichment import (
+                auto_repair_protocols,
+                ensure_device_flow_coverage,
+                ensure_remote_access_cloud_links,
+                repair_flow_protocols,
             )
+            # Defense-in-depth: legacy scenarios may have protocol/fingerprint
+            # mismatches and flow-protocol mismatches; repair before
+            # generating traffic.
+            effective_definition = auto_repair_protocols(effective_definition)
+            effective_definition = repair_flow_protocols(effective_definition)
+            # Auto-attach cloud links for EWON / jump server / remote
+            # gateway / cloud connector devices.
+            effective_definition = await ensure_remote_access_cloud_links(
+                session, effective_definition
+            )
+            # And guarantee every device has at least one flow so CV /
+            # downstream tools can fingerprint it. Same pass that runs on
+            # the live deploy path; live + PCAP parity.
+            effective_definition = await ensure_device_flow_coverage(
+                effective_definition
+            )
+
+            flow_contexts = _build_flow_contexts(
+                effective_definition, str(scenario.id), vertical=scenario.vertical
+            )
+
+            # Append cloud-service-link flows so PCAP captures heartbeat
+            # traffic from EWON / jump server / cloud-connector devices.
+            cloud_links = effective_definition.get("cloud_service_links", []) or []
+            cloud_devices_raw = effective_definition.get("devices", {})
+            if isinstance(cloud_devices_raw, list):
+                cloud_devices = {
+                    d.get("id", str(i)): d for i, d in enumerate(cloud_devices_raw)
+                }
+            else:
+                cloud_devices = cloud_devices_raw
+            for link in cloud_links:
+                if not link.get("enabled", True):
+                    continue
+                cloud_ctx = _build_cloud_flow_context(link, cloud_devices)
+                if cloud_ctx is not None:
+                    flow_contexts.append(cloud_ctx)
 
             # Add flows to orchestrator
             for flow_context in flow_contexts:
@@ -432,6 +521,10 @@ def _build_flow_contexts(
 
     devices_raw = scenario_definition.get("devices", {})
     flows_raw = scenario_definition.get("flows", {})
+    zones_raw = scenario_definition.get("zones", {})
+    conduits_raw = scenario_definition.get("conduits", {})
+    clean_demo_mode = bool(scenario_definition.get("clean_demo_mode", False))
+    isolation = parse_isolation_config(scenario_definition)
 
     # Normalize to list format - support both Record<id, obj> and array formats
     if isinstance(devices_raw, dict):
@@ -470,6 +563,18 @@ def _build_flow_contexts(
 
         if not source_device or not destination_device:
             logger.warning(f"Device not found for flow: {flow}")
+            continue
+
+        # Purdue cell-isolation gate. When the scenario is in conduit_gated
+        # or strict_northbound mode, drop east/west cell traffic before it
+        # ever produces packets — Cyber Vision then sees no such connection.
+        drop, reason = should_drop_for_isolation(
+            flow, devices_raw, zones_raw, conduits_raw, isolation,
+        )
+        if drop:
+            logger.info(
+                f"[cell-isolation] flow {flow.get('id')} dropped: {reason}"
+            )
             continue
 
         # Extract network info (support both nested and flat formats)
@@ -575,6 +680,8 @@ def _build_flow_contexts(
         flow_config = flow.get("config", {})
         if vertical:
             flow_config = {**flow_config, "_vertical": vertical}
+        if clean_demo_mode:
+            flow_config = {**flow_config, "clean_demo_mode": True}
 
         flow_context = FlowContext(
             flow_id=flow.get("id", str(uuid.uuid4())),
@@ -589,3 +696,69 @@ def _build_flow_contexts(
         flow_contexts.append(flow_context)
 
     return flow_contexts
+
+
+def _build_cloud_flow_context(
+    link: dict[str, Any],
+    devices: dict[str, dict[str, Any]],
+) -> FlowContext | None:
+    """Build a FlowContext for a cloud_service_link.
+
+    Mirrors the agent's `OrchestratorPool._create_cloud_flow` so PCAP
+    output captures the same heartbeat traffic the live deployment emits
+    (EWON Talk2M, TeamViewer, Azure IoT, etc.).
+    """
+    device_id = link.get("device_id")
+    device = devices.get(device_id) if device_id else None
+    if not device:
+        logger.warning(
+            f"Device {device_id!r} not found for cloud link {link.get('id')}"
+        )
+        return None
+
+    network = device.get("network", {})
+    src_mac = (
+        network.get("macAddress")
+        or network.get("mac_address")
+        or device.get("mac_address")
+        or "00:00:00:00:00:01"
+    )
+    src_ip = (
+        network.get("ipAddress")
+        or network.get("ip_address")
+        or device.get("ip_address")
+        or "10.0.0.1"
+    )
+
+    cloud_svc = link.get("cloud_service") or {}
+    dst_ip = cloud_svc.get("primary_ip") or link.get("cloud_ip") or "0.0.0.0"
+    dst_port = cloud_svc.get("port") or link.get("port") or 443
+
+    source = DeviceContext(
+        device_id=str(device_id),
+        mac_address=src_mac,
+        ip_address=src_ip,
+        port=0,
+    )
+    # Cloud endpoint has no scenario MAC; use broadcast MAC as a marker —
+    # the engine routes by IP, MAC is informational here.
+    destination = DeviceContext(
+        device_id=f"cloud-{link.get('id', 'unknown')}",
+        mac_address="ff:ff:ff:ff:ff:ff",
+        ip_address=dst_ip,
+        port=dst_port,
+    )
+
+    interval_ms = link.get("heartbeat_interval_ms") or link.get("interval_ms") or 30000
+
+    return FlowContext(
+        flow_id=f"cloud-{link.get('id', device_id)}",
+        source=source,
+        destination=destination,
+        protocol=ProtocolType.CLOUD_SERVICE,
+        config={
+            "hostname": cloud_svc.get("hostname") or link.get("hostname", ""),
+            "tls_enabled": cloud_svc.get("tls_enabled", link.get("tls_enabled", True)),
+        },
+        timing_model={"poll_interval_ms": interval_ms},
+    )

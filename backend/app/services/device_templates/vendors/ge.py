@@ -36,7 +36,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua"],
+        supported_protocols=["ethernet_ip", "modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="GE{10NUM}",
@@ -123,7 +123,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "timeout_probability": 0.0001,
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="IS42{8ALPHANUM}",

@@ -280,6 +280,17 @@ async def create_scenario_from_template(
     if not template:
         raise NotFoundError("Template", f"{request.vertical}/{request.template_name}")
 
+    # Archetype-driven path: route legacy templates through the new
+    # architecture generator when a mapping exists. Only the device /
+    # flow / conduit materialization is replaced — IP allocation, DB
+    # writes, version control, etc. continue along the existing path.
+    from app.services.architecture.legacy_template_archetypes import (
+        get_archetype_config,
+    )
+    archetype_cfg = get_archetype_config(
+        request.vertical, request.template_name,
+    )
+
     # Determine total duration
     total_duration_ms = request.total_duration_ms or template.get("total_duration_ms", 300000)
 
@@ -346,6 +357,25 @@ async def create_scenario_from_template(
                 "fingerprintModel": device_spec.get("fingerprint_model"),
                 "network": {},
             }
+
+            # Stamp architectural_role so role-aware readiness / audit
+            # checks work for legacy templates that haven't been migrated
+            # to the role catalog. Explicit spec wins; otherwise derive
+            # a default from device_type. Ambiguous types (server,
+            # appliance) leave role unset.
+            from app.services.architecture.role_catalog import (
+                default_role_for_device_type,
+            )
+            explicit_role = (
+                device_spec.get("architectural_role")
+                or device_spec.get("architecturalRole")
+            )
+            if explicit_role:
+                device["architecturalRole"] = explicit_role
+            else:
+                default_role = default_role_for_device_type(device_spec.get("type"))
+                if default_role:
+                    device["architecturalRole"] = default_role
 
             # Populate full vendor_fingerprint for traffic generation
             # This provides deep CIP fingerprinting data (ethernet_ip_identity, cip_identity_object, etc.)
@@ -638,7 +668,7 @@ async def create_scenario_from_template(
                         if source_id != target_id:
                             flow_index += 1
                             flow_id = f"flow_{flow_index:03d}"
-                            flows[flow_id] = {
+                            flow_obj: dict[str, Any] = {
                                 "id": flow_id,
                                 "sourceDeviceId": source_id,
                                 "targetDeviceId": target_id,
@@ -646,6 +676,9 @@ async def create_scenario_from_template(
                                 "timing": timing,
                                 "config": {},
                             }
+                            if flow_spec.get("auto_repair_skip"):
+                                flow_obj["auto_repair_skip"] = True
+                            flows[flow_id] = flow_obj
 
         # Also create cloud service links for legacy path
         cloud_service_links = await _create_cloud_service_links_from_template(
@@ -679,6 +712,112 @@ async def create_scenario_from_template(
     if external_comms:
         definition["external_comms"] = external_comms
         logger.info(f"Added external comms config to scenario: {external_comms}")
+
+    # Propagate Purdue cell-isolation default if the template declares one.
+    # This makes templates that intentionally enforce strict L0-L2 isolation
+    # (e.g. strict_purdue_segmented) boot into the right mode at creation.
+    cell_isolation = template.get("cell_isolation")
+    if cell_isolation:
+        definition["cell_isolation"] = cell_isolation
+        logger.info(
+            f"Set cell_isolation.mode={cell_isolation.get('mode')} from template"
+        )
+
+    # Archetype rail (Phase 5): for legacy templates that have been
+    # mapped to an archetype, replace the freeform-built devices /
+    # flows / conduits / zones with the generator's output. Cloud
+    # service links, external comms, cell isolation, and phases come
+    # from the legacy template (which still ships the metadata).
+    if archetype_cfg is not None:
+        from app.services.architecture.scenario_generator import (
+            generate_from_archetype,
+        )
+        generated = generate_from_archetype(
+            archetype_cfg.archetype_id,
+            vendor_profile=archetype_cfg.vendor_profile,
+            scale=archetype_cfg.scale,
+            overrides=archetype_cfg.overrides,
+        )
+        # Re-derive subnets from the IP allocation. The generator emits
+        # 10.42.X.0/24 placeholders; rewrite to the actual allocated /16.
+        if allocation:
+            range_idx = allocation.range_index
+            for zid, zone in generated["zones"].items():
+                offset = zone.get("network", {}).get(
+                    "subnet_offset",
+                    list(generated["zones"].keys()).index(zid),
+                )
+                zone["network"]["subnet"] = (
+                    f"10.{range_idx}.{offset}.0/24"
+                )
+        definition["zones"] = generated["zones"]
+        definition["devices"] = generated["devices"]
+        definition["flows"] = generated["flows"]
+        definition["conduits"] = generated["conduits"]
+        # Reassign IPs to match the new zone subnets.
+        if allocation:
+            _auto_assign_ips(
+                definition["devices"],
+                definition["zones"],
+                allocation,
+            )
+        # Update name/count locals for the response payload.
+        zones = definition["zones"]
+        devices = definition["devices"]
+        flows = definition["flows"]
+        logger.info(
+            f"Archetype rail: scenario built from {archetype_cfg.archetype_id} "
+            f"(vendor={archetype_cfg.vendor_profile.value}, "
+            f"scale={archetype_cfg.scale.value}) — "
+            f"{len(devices)} devices, {len(flows)} flows."
+        )
+
+    # Auto-repair protocol mismatches before persisting. Templates may declare
+    # protocols that don't match the chosen fingerprint (e.g. a Siemens device
+    # with EtherNet/IP listed). This guarantees template-instantiated scenarios
+    # land clean — readiness check shows zero protocol_identity_mismatch.
+    # Flow-protocol snap runs second so flows align with the repaired devices.
+    from app.services.scenario_enrichment import (
+        auto_repair_protocols,
+        repair_flow_protocols,
+    )
+    definition = auto_repair_protocols(definition)
+    definition = repair_flow_protocols(definition)
+
+    # Site-identity + rename pipeline. Picks a per-scenario site
+    # identity (LLM if AI is configured, deterministic fallback
+    # otherwise) and renames every device to a site-coherent label so
+    # cross-scenario duplicate names — and the CV merge they cause —
+    # are structurally impossible.
+    from app.services.architecture.site_naming_pipeline import (
+        apply_site_naming_pipeline,
+    )
+    try:
+        site_identity = await apply_site_naming_pipeline(
+            db=db,
+            definition=definition,
+            scenario_id=str(scenario.id),
+            vertical=request.vertical,
+            template_name=request.template_name,
+            template_description=template.get("description", ""),
+            archetype_id=(
+                archetype_cfg.archetype_id if archetype_cfg is not None else None
+            ),
+            use_llm=True,
+        )
+        ai_naming_applied = (site_identity.source == "llm")
+        logger.info(
+            "Site naming applied: %s (%s) — source=%s",
+            site_identity.site_code,
+            site_identity.plant_name,
+            site_identity.source,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.exception(
+            "Site naming pipeline failed for scenario %s: %s — "
+            "keeping archetype/template names",
+            scenario.id, e,
+        )
 
     # Update scenario with final definition
     scenario.definition = definition

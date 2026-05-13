@@ -10,7 +10,8 @@
 
 import React, { useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { message, Spin } from 'antd';
+import { message, Spin, Button, Tooltip } from 'antd';
+import { DoubleLeftOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -59,6 +60,21 @@ const ScenarioStudioPage: React.FC = () => {
   const leftSidebarOpen = useUIStore((state) => state.panels.leftSidebarOpen);
   const rightSidebarOpen = useUIStore((state) => state.panels.rightSidebarOpen);
   const bottomPanelOpen = useUIStore((state) => state.panels.bottomPanelOpen);
+  const toggleLeftSidebar = useUIStore((state) => state.toggleLeftSidebar);
+  const toggleRightSidebar = useUIStore((state) => state.toggleRightSidebar);
+
+  // Auto-collapse the global left nav while in the Studio so the canvas has
+  // more horizontal room. Restore the user's previous preference on exit.
+  useEffect(() => {
+    const wasOpen = useUIStore.getState().panels.leftSidebarOpen;
+    if (wasOpen) toggleLeftSidebar();
+    return () => {
+      const isOpen = useUIStore.getState().panels.leftSidebarOpen;
+      if (wasOpen && !isOpen) toggleLeftSidebar();
+    };
+    // Run once on mount / cleanup on unmount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Redirect blank /studio to /scenarios
   useEffect(() => {
@@ -107,6 +123,28 @@ const ScenarioStudioPage: React.FC = () => {
         zones?: Record<string, unknown>;
         conduits?: Record<string, unknown>;
         phases?: unknown[];
+        cell_isolation?: import('../types').CellIsolationConfig;
+        broadcast_traffic_enabled?: boolean;
+        clean_demo_mode?: boolean;
+      };
+
+      // Defensive shim: ensure devices / flows / zones / conduits are
+      // keyed by their `id` field, not by some other key the backend
+      // happened to use. The legacy AI freeform builder keys zones by
+      // their slugified name (e.g. "Mixing_Cell") while the zone object
+      // itself has `id="zone_mixing"` — that mismatch makes
+      // `state.zones[zoneId]` lookups fail in property forms when the
+      // canvas reports clicks by `zone.id`.
+      const rekey = <T extends { id?: string }>(
+        records: Record<string, T> | undefined,
+      ): Record<string, T> => {
+        if (!records) return {};
+        const out: Record<string, T> = {};
+        for (const [k, v] of Object.entries(records)) {
+          const id = (v && (v.id ?? k)) as string;
+          out[id] = v;
+        }
+        return out;
       };
 
       loadScenario({
@@ -115,11 +153,14 @@ const ScenarioStudioPage: React.FC = () => {
         description: scenarioData.description || '',
         vertical: scenarioData.vertical || undefined,
         totalDurationMs: scenarioData.total_duration_ms,
-        devices: (definition?.devices || {}) as Record<string, import('../types').ScenarioDevice>,
-        flows: (definition?.flows || {}) as Record<string, import('../types').ScenarioFlow>,
-        zones: (definition?.zones || {}) as Record<string, import('../types').ScenarioZone>,
-        conduits: (definition?.conduits || {}) as Record<string, import('../types').ScenarioConduit>,
+        devices: rekey(definition?.devices as Record<string, import('../types').ScenarioDevice>),
+        flows: rekey(definition?.flows as Record<string, import('../types').ScenarioFlow>),
+        zones: rekey(definition?.zones as Record<string, import('../types').ScenarioZone>),
+        conduits: rekey(definition?.conduits as Record<string, import('../types').ScenarioConduit>),
         phases: (definition?.phases || []) as import('../types').Phase[],
+        cellIsolation: definition?.cell_isolation,
+        broadcastTrafficEnabled: definition?.broadcast_traffic_enabled,
+        cleanDemoMode: definition?.clean_demo_mode,
         // Include addressingConfig for IP range info
         addressingConfig: scenarioData.addressing_config as {
           ip_range?: string;
@@ -173,6 +214,9 @@ const ScenarioStudioPage: React.FC = () => {
             zones: currentState.zones,
             conduits: currentState.conduits,
             phases: currentState.phases,
+            cell_isolation: currentState.cellIsolation,
+            broadcast_traffic_enabled: currentState.broadcastTrafficEnabled,
+            clean_demo_mode: currentState.cleanDemoMode,
           },
         });
 
@@ -297,6 +341,28 @@ const ScenarioStudioPage: React.FC = () => {
             onDrop={onCanvasDrop}
             onDragOver={onCanvasDragOver}
           />
+
+          {/* Peek tab to bring the right panel back when hidden */}
+          {!rightSidebarOpen && (
+            <Tooltip title="Show right panel" placement="left">
+              <Button
+                size="small"
+                icon={<DoubleLeftOutlined />}
+                onClick={toggleRightSidebar}
+                style={{
+                  position: 'absolute',
+                  top: 96,
+                  right: 0,
+                  zIndex: 10,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  background: '#1a2734',
+                  borderColor: '#2a3f54',
+                  color: '#b8c9dc',
+                }}
+              />
+            </Tooltip>
+          )}
         </div>
 
         {/* Right sidebar - Combined Properties & AI Panel */}

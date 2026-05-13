@@ -32,11 +32,18 @@ from app.protocol_engines import register_engine
 
 
 @register_engine(ProtocolType.CLOUD_SERVICE)
+@register_engine(ProtocolType.SSH)
+@register_engine(ProtocolType.TELNET)
+@register_engine(ProtocolType.RDP)
+@register_engine(ProtocolType.HTTPS)
 class CloudServiceEngine(ProtocolEngine):
-    """Engine for cloud service TLS heartbeat traffic.
+    """Engine for TCP/TLS heartbeat traffic.
 
-    Simulates periodic TLS connection attempts to cloud services,
-    generating realistic TCP SYN + TLS Client Hello packets.
+    Originally cloud-service heartbeats (EWON Talk2M, TeamViewer); also
+    serves SSH / Telnet / RDP / HTTPS for jump-server style remote-access
+    flows. The packet shape is identical (TCP SYN + TLS Client Hello);
+    Cyber Vision identifies the protocol from the destination port that
+    `traffic_generator/tasks.py` populates from `PROTOCOL_DEFAULT_PORTS`.
     """
 
     @property

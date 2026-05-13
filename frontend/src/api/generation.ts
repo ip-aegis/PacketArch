@@ -37,6 +37,14 @@ export interface StartGenerationRequest {
   duration_override_ms?: number;
   output_format?: string;
   filename_prefix?: string;
+  /** Optional attack playbook id (e.g. 'havex_like') to bake into the PCAP. */
+  attack_playbook_id?: string | null;
+  /** Optional attack overrides: intensity, stage_overrides, warmup_ms, start_mode. */
+  attack_config?: Record<string, unknown> | null;
+  /** Optional AdaptiveConfig dict — enables timing drift and schedules. */
+  adaptive_config?: Record<string, unknown> | null;
+  /** Optional per-run override for Purdue cell isolation: {mode, applies_to_levels?}. */
+  cell_isolation_override?: Record<string, unknown> | null;
 }
 
 export const generationApi = {

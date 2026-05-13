@@ -61,6 +61,12 @@ export interface UnifiedDeployment {
     actions_completed: number;
     attack_packets_generated: number;
   } | null;
+  // Mode flags from the scenario definition (clean_demo_mode, etc.).
+  scenario_modes?: {
+    clean_demo_mode: boolean;
+    broadcast_traffic_enabled: boolean;
+    cell_isolation_mode: string;
+  };
 }
 
 export interface DeploymentListResponse {

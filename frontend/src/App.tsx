@@ -7,6 +7,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import FeatureGate from './components/FeatureGate';
+import SetupGate from './components/SetupGate';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
@@ -22,12 +23,14 @@ import CyberVisionPage from './pages/CyberVisionPage';
 import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
 import LiveTrafficDashboardPage from './pages/LiveTrafficDashboardPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
 
 function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
+    <SetupGate>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
 
       {/* Protected routes with layout */}
       <Route
@@ -53,14 +56,29 @@ function App() {
         <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
         <Route path="devices" element={<Navigate to="/fingerprints" replace />} />
 
-        <Route path="deployments" element={<DeploymentsPage />} />
-        <Route path="live-traffic" element={<LiveTrafficDashboardPage />} />
+        <Route
+          path="deployments"
+          element={
+            <FeatureGate feature="liveTraffic" fallback="/scenarios">
+              <DeploymentsPage />
+            </FeatureGate>
+          }
+        />
+        <Route
+          path="live-traffic"
+          element={
+            <FeatureGate feature="liveTraffic" fallback="/scenarios">
+              <LiveTrafficDashboardPage />
+            </FeatureGate>
+          }
+        />
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
         <Route path="cyber-vision" element={<CyberVisionPage />} />
         <Route path="fingerprints" element={<FingerprintingLibraryPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="help/:articleId" element={<HelpPage />} />
+        <Route path="architecture" element={<ArchitectureReferencePage />} />
 
         {/* Admin routes */}
         <Route
@@ -73,9 +91,10 @@ function App() {
         />
       </Route>
 
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </SetupGate>
   );
 }
 

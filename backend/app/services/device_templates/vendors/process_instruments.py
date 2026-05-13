@@ -191,7 +191,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "profinet"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="EH{10ALPHANUM}",

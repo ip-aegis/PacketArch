@@ -244,7 +244,11 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 6.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['ethernet_ip'],
+        # DataMan 280 ships with EtherNet/IP native + Profinet + Modbus
+        # TCP option modules — declaring them so vendor-mixed conveyor /
+        # WCS scenarios reach the scanner via a shared protocol instead
+        # of falling through to SNMP.
+        supported_protocols=['ethernet_ip', 'profinet', 'modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="6.1.5",
             release_date=date(2024, 1, 1),
@@ -259,6 +263,21 @@ TEMPLATES: list[DeviceTemplate] = [
                 "revision_minor": 1,
                 "product_name": "DataMan 280 Barcode Reader",
                 "state": 3,
+            },
+
+        modbus_identity={
+                "vendor_name": "Cognex Corporation",
+                "product_code": "DataMan 280",
+                "product_name": "DataMan 280 Barcode Reader",
+                "model_name": "DataMan 280",
+            },
+
+        profinet_identity={
+                "vendor_id": 0x0070,  # Cognex IEEE PNIO vendor ID
+                "device_id": 0x0118,
+                "device_role": 1,
+                "im0_manufacturer": "Cognex Corporation",
+                "im0_order_id": "DataMan 280",
             },
 
         snmp_identity={
@@ -344,7 +363,10 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 20.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['ethernet_ip'],
+        # In-Sight 7802 supports EtherNet/IP native + Profinet + Modbus
+        # TCP via option modules. Declaring all three so multi-vendor
+        # conveyor scenarios converge on a shared industrial protocol.
+        supported_protocols=['ethernet_ip', 'profinet', 'modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="6.3.2",
             release_date=date(2024, 1, 1),
@@ -360,6 +382,21 @@ TEMPLATES: list[DeviceTemplate] = [
                 "serial_number": 1230190392,
                 "product_name": "In-Sight 7802 Vision System",
                 "state": 3,
+            },
+
+        modbus_identity={
+                "vendor_name": "Cognex Corporation",
+                "product_code": "In-Sight 7802",
+                "product_name": "In-Sight 7802 Vision System",
+                "model_name": "In-Sight 7000",
+            },
+
+        profinet_identity={
+                "vendor_id": 0x0070,
+                "device_id": 0x017A,
+                "device_role": 1,
+                "im0_manufacturer": "Cognex Corporation",
+                "im0_order_id": "In-Sight 7802",
             },
 
         snmp_identity={
@@ -723,7 +760,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 4.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus_tcp', 'ethernet_ip'],
+        supported_protocols=["modbus_tcp"],
         firmware_variants=[FirmwareVariant(
             version="3.8.0",
             release_date=date(2024, 1, 1),
@@ -785,7 +822,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['modbus_tcp', 'ethernet_ip'],
+        supported_protocols=["modbus_tcp"],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),
@@ -840,7 +877,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 8.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus_tcp', 'ethernet_ip'],
+        supported_protocols=["modbus_tcp"],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),
@@ -895,7 +932,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 10.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['modbus_tcp', 'ethernet_ip'],
+        supported_protocols=["modbus_tcp"],
         firmware_variants=[FirmwareVariant(
             version="3.12.0",
             release_date=date(2024, 1, 1),

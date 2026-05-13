@@ -16,6 +16,7 @@ import { formatPacketRate, formatBandwidth, formatBytes, formatUptime, formatNum
 import ProtocolBreakdownChart from './ProtocolBreakdownChart';
 import PacketRateSparkline from './PacketRateSparkline';
 import KillChainTimeline from '../attack/KillChainTimeline';
+import { ScenarioModeBadges } from '../common';
 
 const { Text } = Typography;
 
@@ -47,6 +48,13 @@ const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment }) => (
         <Tag color={stateColors[deployment.state] || 'default'}>
           {deployment.state.toUpperCase()}
         </Tag>
+        <ScenarioModeBadges
+          modes={{
+            cleanDemoMode: deployment.scenario_modes?.clean_demo_mode,
+            broadcastTrafficEnabled: deployment.scenario_modes?.broadcast_traffic_enabled,
+            cellIsolationMode: deployment.scenario_modes?.cell_isolation_mode,
+          }}
+        />
         <Space style={{ marginLeft: 'auto' }}>
           <ClockCircleOutlined style={{ color: '#6b6b8a' }} />
           <Text type="secondary">{formatUptime(deployment.uptime_seconds)}</Text>

@@ -43,6 +43,64 @@ def get_template(vertical: str, template_name: str = "default") -> dict[str, Any
     return vertical_templates.get(template_name)
 
 
+_ARCHETYPE_SUMMARY_CACHE: dict[tuple[str, str], tuple[int, list[str]]] = {}
+
+
+def _summarize_archetype_template(
+    vertical: str, template_name: str
+) -> tuple[int, list[str]] | None:
+    """Materialize an archetype-backed template once to count devices/protocols.
+
+    Returns (device_count, protocols) or None if the template is not
+    archetype-backed (or generation fails). Cached after first call so the
+    template list endpoint stays cheap.
+    """
+    key = (vertical, template_name)
+    if key in _ARCHETYPE_SUMMARY_CACHE:
+        return _ARCHETYPE_SUMMARY_CACHE[key]
+
+    try:
+        from app.services.architecture.legacy_template_archetypes import (
+            get_archetype_config,
+        )
+        from app.services.architecture.scenario_generator import (
+            generate_from_archetype,
+        )
+    except Exception:
+        return None
+
+    cfg = get_archetype_config(vertical, template_name)
+    if cfg is None:
+        return None
+
+    try:
+        defn = generate_from_archetype(
+            cfg.archetype_id,
+            vendor_profile=cfg.vendor_profile,
+            scale=cfg.scale,
+            overrides=cfg.overrides,
+        )
+    except Exception:
+        return None
+
+    devices = defn.get("devices") or {}
+    flows = defn.get("flows") or {}
+    if isinstance(devices, dict):
+        device_count = len(devices)
+    else:
+        device_count = len(list(devices))
+    protocols = sorted(
+        {
+            (f.get("protocol") if isinstance(f, dict) else None)
+            for f in (flows.values() if isinstance(flows, dict) else flows)
+            if (f.get("protocol") if isinstance(f, dict) else None)
+        }
+    )
+    summary = (device_count, list(protocols))
+    _ARCHETYPE_SUMMARY_CACHE[key] = summary
+    return summary
+
+
 def list_templates() -> list[dict[str, Any]]:
     """List all available templates.
 
@@ -52,13 +110,32 @@ def list_templates() -> list[dict[str, Any]]:
     templates = []
     for vertical, vertical_templates in VERTICAL_TEMPLATES.items():
         for template_name, template_data in vertical_templates.items():
+            static_devices = template_data.get("devices", []) or []
+            static_flows = template_data.get("flows", []) or []
+            device_count = sum(d.get("count", 1) for d in static_devices)
+            protocols = sorted(
+                {f.get("protocol") for f in static_flows if f.get("protocol")}
+            )
+
+            # Archetype-backed templates carry empty devices/flows in their
+            # static dict — materialize once so the card UI shows real
+            # device counts and protocol badges.
+            if not static_devices or not static_flows:
+                summary = _summarize_archetype_template(vertical, template_name)
+                if summary is not None:
+                    arch_count, arch_protocols = summary
+                    if not static_devices:
+                        device_count = arch_count
+                    if not static_flows:
+                        protocols = arch_protocols
+
             templates.append({
                 "vertical": vertical,
                 "name": template_name,
                 "display_name": template_data.get("name", template_name),
                 "description": template_data.get("description", ""),
-                "device_count": sum(d.get("count", 1) for d in template_data.get("devices", [])),
-                "protocols": list(set(f.get("protocol") for f in template_data.get("flows", []))),
+                "device_count": device_count,
+                "protocols": list(protocols),
             })
     return templates
 

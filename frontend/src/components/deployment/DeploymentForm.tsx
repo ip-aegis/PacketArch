@@ -218,6 +218,25 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
             />
           </Form.Item>
 
+          {/* Cell Isolation override */}
+          <Form.Item
+            label={<span style={{ fontSize: 12, color: '#8aa4bc' }}>Cell Isolation (override)</span>}
+            name="cell_isolation_mode"
+            initialValue="inherit"
+            tooltip="Per-deployment override of the scenario's Purdue cell isolation mode."
+            style={{ marginBottom: 12 }}
+          >
+            <Select
+              size="small"
+              options={[
+                { value: 'inherit', label: 'Inherit from scenario' },
+                { value: 'off', label: 'Off — permissive' },
+                { value: 'conduit_gated', label: 'Conduit-gated' },
+                { value: 'strict_northbound', label: 'Strict — no east/west' },
+              ]}
+            />
+          </Form.Item>
+
           {/* Phase Schedule */}
           {phases && phases.length > 0 && (
             <Collapse

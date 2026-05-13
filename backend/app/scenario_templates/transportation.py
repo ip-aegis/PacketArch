@@ -24,12 +24,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "highway_corridor_its": {
         "name": "Highway Corridor ITS",
-        "description": "Multi-segment highway corridor with dynamic message signs, radar detection, "
-                       "weather monitoring, and CCTV surveillance. Features Siemens central TMC "
-                       "with distributed field equipment from multiple ITS vendors including "
-                       "Daktronics DMS, Wavetronix radar, FLIR thermal, Vaisala weather stations, "
-                       "and Axis/Pelco cameras. 40 devices across TMC core, DMS corridor, "
-                       "detection zone, weather zone, and camera networks.",
+        "description": "Highway corridor ATMS deployment with 10 roadside cabinets, each "
+                       "carrying a McCain / Econolite traffic controller plus Axis CCTV, Pelco "
+                       "PTZ, and Daktronics DMS sign. Reverse-proxy fronted public web for "
+                       "traveler info; full IDMZ. 69 devices across 12 zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -256,11 +254,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "urban_intersection_network": {
         "name": "Urban Intersection Network",
-        "description": "Multi-intersection urban traffic control network with coordinated signal "
-                       "timing. Features Econolite and McCain controllers with Siemens coordination "
-                       "master, plus Wavetronix detection and Hikvision ANPR cameras. Multi-vendor "
-                       "architecture typical of modern urban ATMS deployments. 35 devices across "
-                       "ATMS core, main intersections, minor intersections, detection, and camera zones.",
+        "description": "Urban intersection ATMS with 10 signalized intersection cabinets "
+                       "supervised by a Centracs-class master at the TMC. Each cabinet has "
+                       "traffic controller + CCTV + PTZ + DMS + cabinet aux. NTCIP-over-SNMP "
+                       "polling throughout. 69 devices across 12 zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -485,12 +482,11 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "tunnel_control_system": {
         "name": "Tunnel Control System",
-        "description": "Highway tunnel with integrated ventilation, lighting, incident detection, "
-                       "and emergency systems. Features Siemens tunnel control system with "
-                       "TCS-VENT ventilation controllers, Climatix C600 lighting controllers, "
-                       "and distributed Schneider SCADAPack RTUs. Includes fire detection, "
-                       "evacuation systems, and portal DMS/barriers. 45 devices across tunnel "
-                       "master, ventilation, lighting, detection, safety, and portal zones.",
+        "description": "Highway tunnel control system. Three tunnel sections each with "
+                       "ventilation / lighting / fire-detection cabinets and fixed CCTV. Portal "
+                       "zones host Daktronics DMS, Hikvision ANPR, Pelco PTZ surveillance, and "
+                       "Vaisala RWIS road-weather stations. TMC has ATMS master + standby + "
+                       "alarm server + historian + NMS. 43 devices across 8 zones.",
         "vertical": "transportation",
         "phase_preset": "full_lifecycle",
         "recommended_attack_playbooks": [
@@ -785,11 +781,11 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "toll_plaza_operations": {
         "name": "Toll Plaza Operations",
-        "description": "Multi-lane toll collection facility with electronic toll collection (ETC), "
-                       "ANPR cameras, and manual/cash lanes. Features Kapsch toll systems with "
-                       "Q-Free RSUs, Hikvision ANPR cameras, and Daktronics lane status displays. "
-                       "Includes central toll processing, revenue audit, and barrier control. "
-                       "30 devices across toll center, ETC lanes, manual lanes, ANPR, and signage zones.",
+        "description": "Toll plaza with 4 lanes (2 ETC, 2 manual). Each lane carries a Kapsch "
+                       "ETC controller, Q-Free DSRC RSU, and Hikvision ANPR enforcement camera. "
+                       "Approach zone has Daktronics DMS signs and Pelco / Bosch surveillance "
+                       "cameras. TMC at L3 with ATMS master + historian + NMS; full IDMZ for "
+                       "back-office settlement. 32 devices across 7 zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [

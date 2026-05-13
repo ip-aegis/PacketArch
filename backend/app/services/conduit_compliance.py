@@ -9,6 +9,13 @@ and produces compliance findings.
 
 from typing import Any
 
+from app.protocol_engines.cell_isolation import (
+    MODE_CONDUIT_GATED,
+    MODE_OFF,
+    MODE_STRICT_NORTHBOUND,
+    classify_cell_zones,
+    parse_config as parse_isolation_config,
+)
 from app.schemas.conduit import (
     ComplianceFinding,
     ComplianceFindingReason,
@@ -116,11 +123,38 @@ def validate_conduit_compliance(
            c. Conduit found but direction wrong → warning "wrong_direction"
            d. Conduit found and matches → compliant (no finding)
         3. Flows with no zone info: silently compliant (backward compat)
+
+    Severity escalation: when ``definition.cell_isolation.mode`` is
+    ``conduit_gated`` or ``strict_northbound``, findings that describe
+    flows the runtime gate would actually drop (i.e. cell↔cell flows for
+    those modes) are emitted with severity=BLOCKING instead of WARNING,
+    so the studio UI can flag them prominently before the user generates.
     """
     devices = definition.get("devices", {})
     flows = definition.get("flows", {})
     zones = definition.get("zones", {})
     conduits = definition.get("conduits", {})
+
+    isolation = parse_isolation_config(definition)
+    isolation_mode = isolation["mode"]
+    cell_zone_ids = (
+        classify_cell_zones(zones, isolation["cell_levels"])
+        if isolation_mode != MODE_OFF
+        else set()
+    )
+
+    def _severity_for(src_zone: str | None, tgt_zone: str | None) -> ComplianceSeverity:
+        """Pick severity based on whether the active isolation mode will
+        actually drop this flow."""
+        if isolation_mode == MODE_OFF:
+            return ComplianceSeverity.WARNING
+        if not src_zone or not tgt_zone or src_zone == tgt_zone:
+            return ComplianceSeverity.WARNING
+        if src_zone in cell_zone_ids and tgt_zone in cell_zone_ids:
+            # Both modes block cell↔cell findings outright (strict
+            # unconditionally, gated whenever no permitting conduit).
+            return ComplianceSeverity.BLOCKING
+        return ComplianceSeverity.WARNING
 
     findings: list[ComplianceFinding] = []
     total_flows = 0
@@ -141,14 +175,13 @@ def validate_conduit_compliance(
         # This catches devices that were never assigned to a zone, which
         # means conduit rules cannot be enforced for their flows.
         if not source_zone or not target_zone:
-            missing_side = "source" if not source_zone else "target"
             findings.append(ComplianceFinding(
                 flow_id=flow_id,
                 flow_name=flow_name,
                 source_zone_id=source_zone or "(none)",
                 target_zone_id=target_zone or "(none)",
                 protocol=protocol,
-                severity=ComplianceSeverity.WARNING,
+                severity=_severity_for(source_zone, target_zone),
                 reason=ComplianceFindingReason.NO_CONDUIT,
                 conduit_id=None,
             ))
@@ -161,13 +194,19 @@ def validate_conduit_compliance(
 
         # No conduits defined at all → every cross-zone flow is non-compliant
         if not conduits:
+            severity = _severity_for(source_zone, target_zone)
+            # In strict_northbound mode the runtime drops cell↔cell flows
+            # regardless of any conduit, so we still flag them as blocking.
+            if isolation_mode == MODE_STRICT_NORTHBOUND and \
+                    source_zone in cell_zone_ids and target_zone in cell_zone_ids:
+                severity = ComplianceSeverity.BLOCKING
             findings.append(ComplianceFinding(
                 flow_id=flow_id,
                 flow_name=flow_name,
                 source_zone_id=source_zone,
                 target_zone_id=target_zone,
                 protocol=protocol,
-                severity=ComplianceSeverity.WARNING,
+                severity=severity,
                 reason=ComplianceFindingReason.NO_CONDUIT,
             ))
             continue
@@ -175,6 +214,24 @@ def validate_conduit_compliance(
         conduit_id, reason = _find_matching_conduit(
             source_zone, target_zone, protocol, conduits,
         )
+
+        # In strict_northbound mode, even a permitting conduit doesn't save
+        # a cell↔cell flow — the runtime gate drops it. Mark it blocking.
+        cell_to_cell = (
+            source_zone in cell_zone_ids and target_zone in cell_zone_ids
+        )
+        if isolation_mode == MODE_STRICT_NORTHBOUND and cell_to_cell and reason is None:
+            findings.append(ComplianceFinding(
+                flow_id=flow_id,
+                flow_name=flow_name,
+                source_zone_id=source_zone,
+                target_zone_id=target_zone,
+                protocol=protocol,
+                severity=ComplianceSeverity.BLOCKING,
+                reason=ComplianceFindingReason.NO_CONDUIT,
+                conduit_id=conduit_id,
+            ))
+            continue
 
         if reason is None:
             # Compliant
@@ -186,7 +243,7 @@ def validate_conduit_compliance(
                 source_zone_id=source_zone,
                 target_zone_id=target_zone,
                 protocol=protocol,
-                severity=ComplianceSeverity.WARNING,
+                severity=_severity_for(source_zone, target_zone),
                 reason=reason,
                 conduit_id=conduit_id,
             ))

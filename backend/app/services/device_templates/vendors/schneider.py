@@ -45,7 +45,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "exception_probability": 0.0006,
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMEP{8NUM}",
@@ -305,7 +305,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMEP{8NUM}",
@@ -384,7 +384,8 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip"],
+        # M340 with BMXNOC0401 + Unity OPC server module exposes OPC UA.
+        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMX{8NUM}",
@@ -434,6 +435,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.3833.147.96",
             "sys_name": "M340-PROCES-001",
             "sys_location": "Production Floor",
+        },
+
+        opc_ua_identity={
+            "application_name": "Schneider M340 OPC UA Server",
+            "application_uri": "urn:SchneiderElectric:M340:BMXP3420302",
+            "product_uri": "http://www.schneider-electric.com/m340",
+            "manufacturer_name": "Schneider Electric",
+            "product_name": "Modicon M340 OPC UA Server",
+            "software_version": "3.40",
+            "build_number": "V3.40",
+            "build_date": "2024-01-10T00:00:00Z",
         },
     ),
     DeviceTemplate(
@@ -534,7 +546,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="TM26{8NUM}",
@@ -1053,7 +1065,10 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "opc_ua"],
+        # Modicon TM5 safety supports EtherNet/IP via CM579 communication
+        # module — declaring it so cross-vendor (Fanuc / KUKA) safety-to-
+        # robot flows have a shared protocol.
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="TM5S{8NUM}",
@@ -1088,6 +1103,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_url": "http://www.schneider-electric.com",
             "product_name": "TM5 Safety Logic Controller",
             "model_name": "TM5CSLC100FS",
+        },
+
+        ethernet_ip_identity={
+            "vendor_id": 67,  # Schneider ODVA vendor ID
+            "device_type": 14,  # Programmable Logic Controller
+            "product_code": 100,
+            "product_name": "TM5 Safety Logic Controller (EIP)",
+            "state": 3,
         },
 
         snmp_identity={
@@ -1187,7 +1210,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip", "opc_ua"],
+        supported_protocols=["modbus_tcp", "ethernet_ip"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMEH{8NUM}",
@@ -1254,7 +1277,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMX{8NUM}",
@@ -1313,7 +1336,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip", "profisafe"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="BMEPS{8NUM}",
@@ -1372,7 +1395,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["modbus_tcp", "ethernet_ip"],
+        supported_protocols=["modbus_tcp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="LXM{8NUM}",
@@ -2265,7 +2288,9 @@ TEMPLATES: list[DeviceTemplate] = [
                 "supported_exception_codes": [1, 2, 3, 4, 5, 6, 10, 11],
                 "exception_probability": 0.0006,
             },
-        supported_protocols=['modbus_tcp', 'ethernet_ip', 'snmp'],
+        # Modicon M580 ePAC supports OPC UA via OPC UA Server module
+        # (BMENOC0301/BMENOC0311) — standard in Unity Pro / EcoStruxure.
+        supported_protocols=['modbus_tcp', 'ethernet_ip', 'opc_ua', 'snmp'],
         protocol_quirks={
                 "modbus_max_registers": 125,
                 "modbus_max_coils": 2000,
@@ -2300,6 +2325,16 @@ TEMPLATES: list[DeviceTemplate] = [
                 "sys_name": "M580-BMEP586040",
                 "sys_object_id": "1.3.6.1.4.1.3833.1.100.580",
                 "sys_location": "Control Room",
+            },
+        opc_ua_identity={
+                "application_name": "Schneider M580 OPC UA Server",
+                "application_uri": "urn:SchneiderElectric:M580:BMEP586040",
+                "product_uri": "http://www.schneider-electric.com/m580",
+                "manufacturer_name": "Schneider Electric",
+                "product_name": "Modicon M580 OPC UA Server",
+                "software_version": "3.30",
+                "build_number": "V3.30",
+                "build_date": "2024-01-01T00:00:00Z",
             },
     ),
     DeviceTemplate(

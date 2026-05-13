@@ -14,3 +14,10 @@ export type { LoadingSpinnerProps } from './LoadingSpinner';
 
 export { default as EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+
+export {
+  default as ScenarioModeBadges,
+  modesFromSummary,
+  modesFromDefinition,
+} from './ScenarioModeBadges';
+export type { Modes as ScenarioModes } from './ScenarioModeBadges';

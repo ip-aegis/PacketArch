@@ -30,12 +30,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "municipal_water_treatment": {
         "name": "Municipal Water Treatment Plant",
-        "description": "Full municipal water treatment plant from intake through distribution. "
-                       "Features coagulation/flocculation, sedimentation, filtration, and chlorine "
-                       "disinfection processes. Schneider M580 PLCs for main control with Rockwell "
-                       "CompactLogix for field zones. Extensive water quality instrumentation from "
-                       "Endress+Hauser and Yokogawa. EWON remote access for vendor support. "
-                       "45 devices across SCADA, control, and field zones.",
+        "description": "Municipal water utility with central control room and 5 remote pump / "
+                       "lift stations. Central RTAC aggregates field RTUs over WAN; SCADA + "
+                       "historian + engineering workstation + NMS at L3; full IDMZ stack (jump "
+                       "server, remote access, patch staging). 52 devices across 7 zones.",
         "vertical": "water_wastewater",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -381,11 +379,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "regional_pump_station_network": {
         "name": "Regional Pump Station Network",
-        "description": "Regional water distribution system with central SCADA and 6 remote pump stations "
-                       "connected via WAN. Features Honeywell Experion C300/C200 DCS at central control with "
-                       "Emerson ROC800 RTUs at remote stations. DNP3 for WAN SCADA polling with Modbus TCP "
-                       "for local control. Includes high-capacity, medium, and booster pump stations plus "
-                       "storage tank monitoring. 52 devices with realistic WAN-aware timing.",
+        "description": "Regional water utility distribution network: central control room "
+                       "supervising 8 remote pump stations. Standby SCADA, primary historian, "
+                       "full IDMZ. Each station has a field RTU + variable-speed pumps + level / "
+                       "pressure / flow instruments + valve actuators. 84 devices across 10 "
+                       "zones.",
         "vertical": "water_wastewater",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -629,9 +627,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["plc"], "target_types": ["rtu"],
              "source_zones": ["central"], "target_zones": ["station1", "station_medium", "storage"]},
 
-            # SNMP monitoring of core switch (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch"],
+            # Jump server SNMP monitoring of central switch (60s) — replaces
+            # the removed plc→switch flow with the topologically correct
+            # NMS-class source.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["central"], "target_zones": ["central"]},
 
             # EWON polling DCS for remote monitoring (5s)
@@ -640,7 +640,9 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["central"], "target_zones": ["central"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # Jump server polling DCS via SNMP (60s)
+            # Jump server polling DCS via SNMP (60s) — admin reachability
+            # check, legitimate for a small-utility scenario where the jump
+            # server doubles as a quick health-monitor.
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["jump_server"], "target_types": ["plc"],
              "source_zones": ["central"], "target_zones": ["central"]},
@@ -734,12 +736,10 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "wastewater_treatment_facility": {
         "name": "Wastewater Treatment Facility",
-        "description": "Full wastewater treatment facility with headworks, primary clarification, "
-                       "activated sludge secondary treatment, tertiary filtration, UV disinfection, "
-                       "and sludge processing. Rockwell ControlLogix L85E main controllers with "
-                       "GuardLogix safety PLCs. ABB drives for all major equipment. Extensive "
-                       "water quality instrumentation from Yokogawa and Endress+Hauser. "
-                       "58 devices across SCADA, control, and 5 process zones.",
+        "description": "Multi-stage wastewater treatment plant modeled as 8 process / lift "
+                       "stations under central RTAC supervision. Same master-remote SCADA "
+                       "pattern as a regional distribution utility — central operations + remote "
+                       "field RTUs + IDMZ. 84 devices across 10 zones.",
         "vertical": "water_wastewater",
         "phase_preset": "full_lifecycle",
         "recommended_attack_playbooks": [
@@ -1147,11 +1147,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "small_utility_scada": {
         "name": "Small Utility SCADA",
-        "description": "Budget-constrained small municipality water system with 2 wells, elevated storage "
-                       "tank, and distribution network. Features mix of legacy Schneider Modicon Premium "
-                       "PLCs (CVE-vulnerable) and modern M241 controllers. Brownfield environment with "
-                       "older infrastructure still in service. Minimal redundancy, basic remote access. "
-                       "26 devices representing realistic small utility constraints.",
+        "description": "Small water utility with central SCADA + 3 remote pump stations "
+                       "communicating over WAN. Master-RTU pattern: aggregator RTAC at central, "
+                       "Schneider M340 / SCADAPack at each station. Slim IDMZ (remote-access "
+                       "gateway only) — full jump-server stack only kicks in at MEDIUM scale. 27 "
+                       "devices across 5 zones.",
         "vertical": "water_wastewater",
         "phase_preset": "normal_operation",
         "recommended_attack_playbooks": [

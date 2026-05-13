@@ -12,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, anomalies, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, site_config, stats, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, templates, users
 from app.api.websocket import agent_hub
+from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
@@ -138,42 +139,60 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-# Include routers
+# Include routers.
+#
+# Setup-gating contract: every authenticated/feature router gets
+# RequireSetupComplete so the API surface is one big 503 until first-run
+# setup finishes. Three routers stay open during the wizard window:
+#   - health.router  (load balancers + container healthchecks)
+#   - about.router   (login footer + setup wizard need product metadata)
+#   - setup_routes.router (the wizard itself)
 app.include_router(health.router)
 app.include_router(about.router, prefix=settings.api_prefix)
-app.include_router(auth.router, prefix=settings.api_prefix)
-app.include_router(acknowledgments.router, prefix=settings.api_prefix)
-app.include_router(admin.router, prefix=settings.api_prefix)
-app.include_router(site_config.router, prefix=settings.api_prefix)
-app.include_router(scenarios.router, prefix=settings.api_prefix)
-app.include_router(scenario_versions.router, prefix=settings.api_prefix)
-app.include_router(protocols.router, prefix=settings.api_prefix)
-app.include_router(generation.router, prefix=settings.api_prefix)
-app.include_router(ai.router, prefix=settings.api_prefix)
-app.include_router(templates.router, prefix=settings.api_prefix)
-app.include_router(deployments.router, prefix=settings.api_prefix)
-app.include_router(anomalies.router, prefix=settings.api_prefix)
-app.include_router(fingerprints.router, prefix=settings.api_prefix)
-app.include_router(ip_management.router, prefix=settings.api_prefix)
-app.include_router(stats.router, prefix=settings.api_prefix)
-app.include_router(dashboard.router, prefix=settings.api_prefix)
-app.include_router(adaptation.router, prefix=settings.api_prefix)
-app.include_router(attacks.router, prefix=settings.api_prefix)
-app.include_router(cve.router, prefix=settings.api_prefix)
-app.include_router(cloud_services.router, prefix=settings.api_prefix)
-app.include_router(cyber_vision.router, prefix=settings.api_prefix)
-app.include_router(ldap.router, prefix=settings.api_prefix)
-app.include_router(users.router, prefix=settings.api_prefix)
-app.include_router(agents.router, prefix=settings.api_prefix)
-app.include_router(health_monitor_routes.router, prefix=settings.api_prefix)
-app.include_router(downloads.router, prefix=settings.api_prefix)
-app.include_router(http_sse.router, prefix=settings.api_prefix)
+app.include_router(setup_routes.router, prefix=settings.api_prefix)
+app.include_router(auth.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(acknowledgments.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(admin.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(site_config.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(scenarios.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(architecture_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(scenario_versions.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(protocols.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(generation.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(ai.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(templates.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(deployments.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+app.include_router(anomalies.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(fingerprints.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(ip_management.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(stats.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(dashboard.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+app.include_router(adaptation.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+# attacks.router has per-route gating: read endpoints (playbooks list/get,
+# compatible-playbooks) stay open so the PCAP-only build can populate the
+# attack-playbook dropdown in GeneratePcapModal. Runtime-control endpoints
+# (start/stop/advance/pause/inject/state/injection-status) are gated inside
+# the route file. Setup-gating is uniform across all of them.
+app.include_router(attacks.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(cve.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(cloud_services.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(cyber_vision.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(ldap.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(users.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(agents.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+app.include_router(health_monitor_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(downloads.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(http_sse.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 
-# WebSocket routes (no prefix - mounted at root)
-app.include_router(agent_hub.router)
-
-# Agent installation resources (no prefix - served at /agent/*)
-app.include_router(agent_install.router)
+# WebSocket + agent install bundle: live-traffic-only. Conditionally mounted
+# (WebSockets cannot return 503 cleanly; install bundle has no place in a
+# PCAP-only deployment). Frontend useFeatures().liveTrafficEnabled hides any
+# UI that would point at these.
+if settings.live_traffic_enabled:
+    # WebSocket routes (no prefix - mounted at root)
+    app.include_router(agent_hub.router)
+    # Agent installation resources (no prefix - served at /agent/*)
+    app.include_router(agent_install.router)
 
 
 # Root endpoint

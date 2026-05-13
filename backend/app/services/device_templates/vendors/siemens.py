@@ -124,9 +124,21 @@ TEMPLATES: list[DeviceTemplate] = [
 
         s7_identity={
             "module_type": "CPU 1516-3 PN/DP",
+            "order_code": "6ES7 516-3AN02-0AB0",
             "copyright": "Original Siemens Equipment",
             "module_name": "PLC_1",
+            "hardware_version": "V2",
             # serial_number and plant_id merged from instance
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1516-3 OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1500:CPU1516-3",
+            "product_uri": "http://www.siemens.com/simatic-s7-1500",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1500 OPC UA Server",
+            "software_version": "3.0.3",
+            "build_number": "V3.0.3",
         },
 
         protocol_quirks={
@@ -170,7 +182,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -217,6 +229,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 214-1AG40-0XB0",
+        },
+
+        s7_identity={
+            "module_type": "CPU 1214C DC/DC/DC",
+            "order_code": "6ES7 214-1AG40-0XB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "PLC_1",
+            "hardware_version": "V4",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1214C OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1200:CPU1214C",
+            "product_uri": "http://www.siemens.com/simatic-s7-1200",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1200 OPC UA Server",
+            "software_version": "4.6.0",
+            "build_number": "V4.6.0",
         },
 
         snmp_identity={
@@ -289,6 +319,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_order_id": "6AV2 123-2GB03-0AX0",
         },
 
+        s7_identity={
+            "module_type": "SIMATIC HMI KTP700 Basic",
+            "order_code": "6AV2 123-2GB03-0AX0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "HMI_1",
+        },
+
         snmp_identity={
             "sys_descr": "Siemens SIMATIC HMI KTP700 Basic V18.0.0.0",
             "sys_object_id": "1.3.6.1.4.1.4329.613.68",
@@ -334,7 +371,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "timeout_probability": 0.0001,
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua", "ethernet_ip"],
+        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -381,6 +418,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "order_code": "6ES7 517-3AP00-0AB0",
             "copyright": "Original Siemens Equipment",
             "module_name": "PLC_1",
+            "hardware_version": "V2",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1517-3 OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1500:CPU1517-3",
+            "product_uri": "http://www.siemens.com/simatic-s7-1500",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1500 OPC UA Server",
+            "software_version": "3.0.3",
+            "build_number": "V3.0.3",
         },
 
         ethernet_ip_identity={
@@ -435,7 +483,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -474,6 +522,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_order_id": "6ES7 516-3AN01-0AB0",
         },
 
+        s7_identity={
+            "module_type": "CPU 1516-3 PN/DP",
+            "order_code": "6ES7 516-3AN01-0AB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "PLC_1",
+            "hardware_version": "V1",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1516-3 OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1500:CPU1516-3",
+            "product_uri": "http://www.siemens.com/simatic-s7-1500",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1500 OPC UA Server",
+            "software_version": "2.9.7",
+            "build_number": "V2.9.7",
+        },
+
         snmp_identity={
             "sys_descr": "Siemens SIMATIC CPU 1516-3 PN/DP V2.9.7",
             "sys_object_id": "1.3.6.1.4.1.4329.244.74",
@@ -509,7 +575,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "s7comm", "modbus_tcp", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -548,6 +614,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "order_code": "6ES7 511-1AK02-0AB0",
             "copyright": "Original Siemens Equipment",
             "module_name": "PLC_1",
+            "hardware_version": "V2",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1511-1 OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1500:CPU1511-1",
+            "product_uri": "http://www.siemens.com/simatic-s7-1500",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1500 OPC UA Server",
+            "software_version": "3.0.1",
+            "build_number": "V3.0.1",
         },
 
         snmp_identity={
@@ -586,7 +663,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "profisafe", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "profisafe", "s7comm", "modbus_tcp", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{8HEX}",
@@ -625,6 +702,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "im0_order_id": "6ES7 516-3FN01-0AB0",
         },
 
+        s7_identity={
+            "module_type": "CPU 1516F-3 PN/DP",
+            "order_code": "6ES7 516-3FN01-0AB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "FPLC_1",
+            "hardware_version": "V2",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1516F-3 OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1500F:CPU1516F-3",
+            "product_uri": "http://www.siemens.com/simatic-s7-1500f",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1500F OPC UA Server",
+            "software_version": "3.0.3",
+            "build_number": "V3.0.3",
+        },
+
         snmp_identity={
             "sys_descr": "Siemens SIMATIC CPU 1516F-3 PN/DP V3.0.3",
             "sys_object_id": "1.3.6.1.4.1.4329.747.88",
@@ -658,7 +753,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["profinet", "s7comm"],
+        supported_protocols=["profinet", "s7comm", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S V-{8HEX}",
@@ -688,6 +783,23 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 124-0MC01-0AX0",
+        },
+
+        s7_identity={
+            "module_type": "SIMATIC HMI TP1200 Comfort",
+            "order_code": "6AV2 124-0MC01-0AX0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "HMI_1",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC HMI Comfort OPC UA Client",
+            "application_uri": "urn:Siemens:SIMATIC:HMI:Comfort:TP1200",
+            "product_uri": "http://www.siemens.com/simatic-hmi-comfort",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC HMI TP1200 Comfort",
+            "software_version": "18.0.0",
+            "build_number": "V18.0.0.0",
         },
 
         snmp_identity={
@@ -748,6 +860,13 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 123-2JB03-0AX0",
+        },
+
+        s7_identity={
+            "module_type": "SIMATIC HMI KTP900 Basic",
+            "order_code": "6AV2 123-2JB03-0AX0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "HMI_1",
         },
 
         snmp_identity={
@@ -852,7 +971,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "modbus_tcp"],
+        supported_protocols=["profinet"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="T-{10ALPHANUM}",
@@ -1033,7 +1152,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "modbus_tcp"],
+        supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="CP8-{8HEX}",
@@ -1147,7 +1266,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "modbus_tcp"],
+        supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="M60-{8HEX}",
@@ -1205,7 +1324,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["bacnet", "modbus_tcp", "snmp"],
+        supported_protocols=["bacnet", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="DCC-{8ALPHANUM}",
@@ -1268,7 +1387,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "s7comm"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S V-{6HEX}",
@@ -1299,6 +1418,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 315-2EH14-0AB0",
+        },
+
+        s7_identity={
+            "module_type": "CPU 315-2 PN/DP",
+            "order_code": "6ES7 315-2EH14-0AB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "PLC_1",
+            "hardware_version": "V3",
         },
 
         snmp_identity={
@@ -1335,7 +1462,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "s7comm", "modbus_tcp"],
+        supported_protocols=["profinet", "s7comm"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S V-{8HEX}",
@@ -1366,6 +1493,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 416-3XS07-0AB0",
+        },
+
+        s7_identity={
+            "module_type": "CPU 416-3 PN/DP",
+            "order_code": "6ES7 416-3XS07-0AB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "PLC_1",
+            "hardware_version": "V7",
         },
 
         snmp_identity={
@@ -1462,7 +1597,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["profinet", "profisafe", "s7comm"],
+        supported_protocols=["profinet", "profisafe", "s7comm", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S C-{6HEX}",
@@ -1492,6 +1627,24 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 2,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6ES7 214-1HF40-0XB0",
+        },
+
+        s7_identity={
+            "module_type": "CPU 1214FC DC/DC/DC",
+            "order_code": "6ES7 214-1HF40-0XB0",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "FPLC_1",
+            "hardware_version": "V4",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC CPU 1214FC OPC UA Server",
+            "application_uri": "urn:Siemens:SIMATIC:S7-1200F:CPU1214FC",
+            "product_uri": "http://www.siemens.com/simatic-s7-1200f",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC S7-1200F OPC UA Server",
+            "software_version": "4.6.0",
+            "build_number": "V4.6.0",
         },
 
         snmp_identity={
@@ -1955,7 +2108,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["profinet", "s7comm"],
+        supported_protocols=["profinet", "s7comm", "opc_ua"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="S V-{8HEX}",
@@ -1985,6 +2138,23 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_role": 1,
             "im0_manufacturer": "Siemens AG",
             "im0_order_id": "6AV2 124-0QC02-0AX1",
+        },
+
+        s7_identity={
+            "module_type": "SIMATIC HMI TP1500 Comfort Panel",
+            "order_code": "6AV2 124-0QC02-0AX1",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "HMI_1",
+        },
+
+        opc_ua_identity={
+            "application_name": "Siemens SIMATIC HMI Comfort OPC UA Client",
+            "application_uri": "urn:Siemens:SIMATIC:HMI:Comfort:TP1500",
+            "product_uri": "http://www.siemens.com/simatic-hmi-comfort",
+            "manufacturer_name": "Siemens AG",
+            "product_name": "SIMATIC HMI TP1500 Comfort Panel",
+            "software_version": "19.0.0",
+            "build_number": "V19.0.0.0",
         },
 
         snmp_identity={
@@ -2546,7 +2716,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0002,
                 "timeout_probability": 0.0001,
             },
-        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm', 'opc_ua'],
         protocol_quirks={
                 "profisafe_enabled": True,
             },
@@ -2579,6 +2749,16 @@ TEMPLATES: list[DeviceTemplate] = [
                 "module_type": "CPU 1214FC DC/DC/DC",
                 "firmware_version": "V4.5.2",
                 "hardware_version": "4",
+            },
+
+        opc_ua_identity={
+                "application_name": "Siemens SIMATIC CPU 1214FC OPC UA Server",
+                "application_uri": "urn:Siemens:SIMATIC:S7-1200F:CPU1214FC",
+                "product_uri": "http://www.siemens.com/simatic-s7-1200f",
+                "manufacturer_name": "Siemens AG",
+                "product_name": "SIMATIC S7-1200F OPC UA Server",
+                "software_version": "4.5.2",
+                "build_number": "V4.5.2",
             },
 
         snmp_identity={
@@ -2764,7 +2944,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "exception_probability": 0.0002,
                 "timeout_probability": 5e-05,
             },
-        supported_protocols=['modbus_tcp', 'profinet', 's7comm'],
+        supported_protocols=['modbus_tcp', 'profinet', 's7comm', 'opc_ua'],
         protocol_quirks={
                 "profinet_cycle_time_us": 500,
                 "s7_max_pdu_size": 960,
@@ -2801,6 +2981,16 @@ TEMPLATES: list[DeviceTemplate] = [
                 "module_type": "CPU 1516F-3 PN/DP",
                 "firmware_version": "V3.0.3",
                 "hardware_version": "2",
+            },
+
+        opc_ua_identity={
+                "application_name": "Siemens SIMATIC CPU 1516F-3 OPC UA Server",
+                "application_uri": "urn:Siemens:SIMATIC:S7-1500F:CPU1516F-3",
+                "product_uri": "http://www.siemens.com/simatic-s7-1500f",
+                "manufacturer_name": "Siemens AG",
+                "product_name": "SIMATIC S7-1500F OPC UA Server",
+                "software_version": "3.0.3",
+                "build_number": "V3.0.3",
             },
 
         snmp_identity={

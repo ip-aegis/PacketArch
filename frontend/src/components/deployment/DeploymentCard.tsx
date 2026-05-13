@@ -35,6 +35,7 @@ import { extractErrorMessage } from '../../utils/errorUtils';
 import aiApi from '../../api/ai';
 import { useFeatures } from '../../hooks/useFeatures';
 import PhaseTimeline from './PhaseTimeline';
+import { ScenarioModeBadges } from '../common';
 
 const { Text } = Typography;
 
@@ -170,6 +171,13 @@ const DeploymentCard: React.FC<{
                     : 'Attack Configured'}
                 </Tag>
               )}
+              <ScenarioModeBadges
+                modes={{
+                  cleanDemoMode: deployment.scenario_modes?.clean_demo_mode,
+                  broadcastTrafficEnabled: deployment.scenario_modes?.broadcast_traffic_enabled,
+                  cellIsolationMode: deployment.scenario_modes?.cell_isolation_mode,
+                }}
+              />
             </div>
 
             <div style={{ marginTop: 4 }}>

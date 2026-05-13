@@ -20,6 +20,10 @@ import {
   Row,
   Col,
   Alert,
+  Collapse,
+  Select,
+  Slider,
+  Switch,
   message,
 } from 'antd';
 import {
@@ -28,9 +32,12 @@ import {
   CloseCircleOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
+  ThunderboltOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { generationApi, type GenerationJob } from '../api/generation';
+import { attacksApi } from '../api/attacks';
 import { extractErrorMessage } from '../utils/errorUtils';
 
 const { Text, Title } = Typography;
@@ -74,9 +81,23 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
     if (open) {
       setJob(null);
       setPolling(false);
-      form.setFieldsValue({ duration_minutes: Math.round((defaultDurationMs / 60000) * 10) / 10 });
+      form.setFieldsValue({
+        duration_minutes: Math.round((defaultDurationMs / 60000) * 10) / 10,
+        attack_playbook_id: undefined,
+        attack_intensity: 1.0,
+        adaptive_enabled: false,
+        cell_isolation_mode: 'inherit',
+      });
     }
   }, [open, defaultDurationMs, form]);
+
+  // Load playbooks for the optional attack section. Open in PCAP-only too.
+  const { data: playbooks } = useQuery({
+    queryKey: ['attacks', 'playbooks'],
+    queryFn: () => attacksApi.listPlaybooks(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Poll for job status
   useEffect(() => {
@@ -101,10 +122,25 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
 
   // Start generation mutation
   const startMutation = useMutation({
-    mutationFn: (durationMinutes: number) =>
+    mutationFn: (params: {
+      durationMinutes: number;
+      attackPlaybookId?: string;
+      attackIntensity?: number;
+      adaptiveEnabled?: boolean;
+      cellIsolationMode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
+    }) =>
       generationApi.startGeneration({
         scenario_id: scenarioId,
-        duration_override_ms: Math.round(durationMinutes * 60000),
+        duration_override_ms: Math.round(params.durationMinutes * 60000),
+        attack_playbook_id: params.attackPlaybookId || null,
+        attack_config: params.attackPlaybookId
+          ? { intensity: params.attackIntensity ?? 1.0 }
+          : null,
+        adaptive_config: params.adaptiveEnabled ? { enabled: true } : null,
+        cell_isolation_override:
+          params.cellIsolationMode && params.cellIsolationMode !== 'inherit'
+            ? { mode: params.cellIsolationMode }
+            : null,
       }),
     onSuccess: (newJob) => {
       setJob(newJob);
@@ -149,7 +185,13 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
 
   const handleStart = () => {
     form.validateFields().then((values) => {
-      startMutation.mutate(values.duration_minutes);
+      startMutation.mutate({
+        durationMinutes: values.duration_minutes,
+        attackPlaybookId: values.attack_playbook_id,
+        attackIntensity: values.attack_intensity,
+        adaptiveEnabled: values.adaptive_enabled,
+        cellIsolationMode: values.cell_isolation_mode,
+      });
     });
   };
 
@@ -249,6 +291,101 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
               }
             />
           </Form.Item>
+
+          <Collapse
+            ghost
+            size="small"
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'attack',
+                label: (
+                  <span style={{ color: '#a8a8c0' }}>
+                    <ThunderboltOutlined style={{ marginRight: 8 }} />
+                    Attack Playbook (optional)
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Form.Item
+                      name="attack_playbook_id"
+                      label={<Text style={{ color: '#a8a8c0' }}>Playbook</Text>}
+                    >
+                      <Select
+                        allowClear
+                        placeholder="No attack — generate clean traffic"
+                        options={(playbooks ?? []).map((pb) => ({
+                          value: pb.playbook_id,
+                          label: `${pb.name} (${pb.severity})`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="attack_intensity"
+                      label={<Text style={{ color: '#a8a8c0' }}>Intensity (0.1×–3×)</Text>}
+                      tooltip="Multiplier applied to per-stage action counts. 1.0 = playbook default."
+                    >
+                      <Slider min={0.1} max={3.0} step={0.1} />
+                    </Form.Item>
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="Attack stages are pre-baked into the PCAP at generation time. Live runtime controls (advance, pause, inject) are not available in PCAP mode."
+                      style={{ marginTop: 8 }}
+                    />
+                  </>
+                ),
+              },
+              {
+                key: 'adaptive',
+                label: (
+                  <span style={{ color: '#a8a8c0' }}>
+                    <LineChartOutlined style={{ marginRight: 8 }} />
+                    Adaptive Traffic (optional)
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Form.Item
+                      name="adaptive_enabled"
+                      label={<Text style={{ color: '#a8a8c0' }}>Enable timing drift</Text>}
+                      valuePropName="checked"
+                      tooltip="Adds bounded random walk to poll intervals (±5%) plus retransmits and connection resets, matching live agent behavior."
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: 'cell_isolation',
+                label: (
+                  <span style={{ color: '#a8a8c0' }}>
+                    Cell Isolation (override)
+                  </span>
+                ),
+                children: (
+                  <Form.Item
+                    name="cell_isolation_mode"
+                    label={<Text style={{ color: '#a8a8c0' }}>Mode for this run</Text>}
+                    tooltip="Per-run override of the scenario's Purdue-aware cell isolation mode. Inherit uses whatever the scenario was saved with."
+                  >
+                    <Select
+                      options={[
+                        { value: 'inherit', label: 'Inherit from scenario' },
+                        { value: 'off', label: 'Off — permissive' },
+                        { value: 'conduit_gated', label: 'Conduit-gated' },
+                        {
+                          value: 'strict_northbound',
+                          label: 'Strict — no east/west cell traffic',
+                        },
+                      ]}
+                    />
+                  </Form.Item>
+                ),
+              },
+            ]}
+          />
 
           <Form.Item style={{ marginBottom: 0 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>

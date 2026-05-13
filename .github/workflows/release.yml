@@ -30,9 +30,17 @@ permissions:
 
 jobs:
   build:
-    name: Build release bundle
+    name: Build release bundle (${{ matrix.variant }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: full
+            pcap_only: "0"
+          - variant: pcap-only
+            pcap_only: "1"
 
     steps:
       - name: Checkout
@@ -91,19 +99,25 @@ jobs:
       - name: Build offline release bundle
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
+          PCAP_ONLY: ${{ matrix.pcap_only }}
         run: ./scripts/build-release.sh
 
       - name: Compute artifact paths
         id: paths
         run: |
-          TARBALL="$(ls dist/packetarch-*-offline.tar.gz | head -1)"
+          if [[ "${{ matrix.variant }}" == "pcap-only" ]]; then
+              TARBALL="$(ls dist/packetarch-*-pcap-offline.tar.gz | head -1)"
+          else
+              # Full variant: exclude any pcap-suffixed tarballs.
+              TARBALL="$(ls dist/packetarch-*-offline.tar.gz | grep -v -- '-pcap-' | head -1)"
+          fi
           echo "TARBALL=${TARBALL}" >> "$GITHUB_OUTPUT"
           echo "Tarball: ${TARBALL} ($(du -h "${TARBALL}" | awk '{print $1}'))"
 
       - name: Upload bundle as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: packetarch-offline-bundle
+          name: packetarch-offline-bundle-${{ matrix.variant }}
           path: |
             ${{ steps.paths.outputs.TARBALL }}
             THIRD_PARTY_LICENSES.md

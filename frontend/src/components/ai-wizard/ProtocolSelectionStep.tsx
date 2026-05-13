@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Typography, Switch, Row, Col, Card, Checkbox, Space } from 'antd';
+import { Typography, Switch, Row, Col, Card, Checkbox, Space, Radio } from 'antd';
 import { RobotOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useAIScenarioWizardStore } from '../../stores/aiScenarioWizardStore';
 
@@ -30,6 +30,8 @@ const ProtocolSelectionStep: React.FC<Props> = ({ protocols }) => {
     selectedProtocols,
     setLetAiDecideProtocols,
     toggleProtocol,
+    cellIsolationMode,
+    setCellIsolationMode,
   } = useAIScenarioWizardStore();
 
   return (
@@ -120,6 +122,50 @@ const ProtocolSelectionStep: React.FC<Props> = ({ protocols }) => {
           Please select at least one protocol
         </Text>
       )}
+
+      {/* Purdue cell-isolation default mode */}
+      <Card
+        style={{
+          marginTop: 24,
+          backgroundColor: '#1e2d3d',
+          borderColor: '#2a3f54',
+        }}
+        bodyStyle={{ padding: 16 }}
+      >
+        <Title level={5} style={{ color: '#e0e8f0', marginTop: 0 }}>
+          Cell Isolation (Purdue L0–L2)
+        </Title>
+        <Text style={{ color: '#8aa4bc', display: 'block', marginBottom: 12 }}>
+          Sets the default east/west enforcement for the generated scenario.
+          AI will author flows and conduits to match the chosen mode.
+        </Text>
+        <Radio.Group
+          value={cellIsolationMode}
+          onChange={(e) => setCellIsolationMode(e.target.value)}
+        >
+          <Space direction="vertical">
+            <Radio value="off">
+              <Text style={{ color: '#e0e8f0' }}>Off</Text>{' '}
+              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+                — permissive. Cells may talk freely.
+              </Text>
+            </Radio>
+            <Radio value="conduit_gated">
+              <Text style={{ color: '#e0e8f0' }}>Conduit-gated</Text>{' '}
+              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+                — every cell↔cell flow needs an explicit allowing conduit.
+              </Text>
+            </Radio>
+            <Radio value="strict_northbound">
+              <Text style={{ color: '#e0e8f0' }}>Strict — northbound only</Text>{' '}
+              <Text style={{ color: '#8aa4bc', fontSize: 12 }}>
+                — no east/west cell traffic. Cells only talk to L3+ zones.
+                Most realistic for IEC 62443.
+              </Text>
+            </Radio>
+          </Space>
+        </Radio.Group>
+      </Card>
     </div>
   );
 };

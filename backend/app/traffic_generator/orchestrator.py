@@ -31,6 +31,28 @@ class GenerationConfig:
     output_path: str | Path
 
     anomaly_injection_config: dict[str, Any] = field(default_factory=dict)
+    # Optional attack playbook id from PLAYBOOK_REGISTRY (e.g. "TRITON_LIKE").
+    # When set, the AttackOrchestrator is registered with the unified
+    # orchestrator and bakes attack packets into the PCAP.
+    attack_playbook_id: str | None = None
+    # Optional dict overriding AttackPlaybookConfig fields: ``intensity``,
+    # ``stage_overrides``, ``warmup_ms``, ``start_mode``. ``warmup_ms`` is
+    # consumed by register_attack_orchestrator; the rest pass through to
+    # AttackPlaybookConfig.from_dict().
+    attack_config: dict[str, Any] | None = None
+    # Optional dict for AdaptiveConfig.from_dict() — enables timing drift,
+    # vendor profiles, schedules. When set, AdaptiveController is registered
+    # so the PCAP captures realistic poll-interval variance.
+    adaptive_config: dict[str, Any] | None = None
+    # When False, skip BackgroundNoiseGenerator registration so the PCAP
+    # contains zero broadcast/multicast ambient packets (ARP, NTP, LLDP,
+    # STP, CDP, DHCP, IGMP, BACnet WhoIs, PROFINET DCP, SNMP traps).
+    broadcast_traffic_enabled: bool = True
+    # When True, suppress traffic types that produce phantom components in
+    # asset-classification DPI tools (CV). v1: PROFINET PN-IO cyclic frames
+    # (gated in profinet/engine.py). v2: ambient PROFINET DCP IdentifyRequest
+    # multicasts (gated in BackgroundNoiseGenerator).
+    clean_demo_mode: bool = False
 
 
 class TrafficOrchestrator:
@@ -110,9 +132,17 @@ class TrafficOrchestrator:
                         dev = seen_devices[ctx.device_id]
                         if fc.protocol.value not in dev.protocols:
                             dev.protocols.append(fc.protocol.value)
-            if seen_devices:
-                ambient = BackgroundNoiseGenerator(list(seen_devices.values()))
+            if seen_devices and self.config.broadcast_traffic_enabled:
+                ambient = BackgroundNoiseGenerator(
+                    list(seen_devices.values()),
+                    clean_demo_mode=self.config.clean_demo_mode,
+                )
                 unified.register_ambient_generator(ambient)
+            elif seen_devices:
+                logger.info(
+                    "Broadcast/multicast traffic disabled by scenario toggle — "
+                    "skipping ambient noise generator"
+                )
 
             # Auto-create process simulation from vertical metadata
             try:
@@ -143,6 +173,78 @@ class TrafficOrchestrator:
                         unified.register_process_sim(controller)
             except Exception as e:
                 logger.warning(f"Process simulation unavailable: {e}")
+
+            # Adaptive traffic: register if config supplied. Drives
+            # micro-variations + schedule + phase scheduler that bake realistic
+            # poll-interval drift into the PCAP. Without this the PCAP shows
+            # perfectly periodic polls — useful baseline, but not realistic.
+            if self.config.adaptive_config:
+                try:
+                    from app.protocol_engines.adaptive import (
+                        AdaptiveConfig,
+                        AdaptiveController,
+                    )
+
+                    ad_cfg = AdaptiveConfig.from_dict(self.config.adaptive_config)
+                    if ad_cfg.enabled:
+                        ad_ctrl = AdaptiveController(
+                            ad_cfg, total_flows=len(unified.flows)
+                        )
+                        unified.register_adaptive_controller(ad_ctrl)
+                except Exception as e:
+                    logger.warning(f"Adaptive controller unavailable: {e}")
+
+            # Attack playbook: register if a playbook id is supplied. Bakes
+            # attack stage packets (recon, exploit, C2, exfil, etc.) into the
+            # PCAP starting after a configurable warmup. Devices are sourced
+            # from the same flow contexts the ambient block uses.
+            if self.config.attack_playbook_id:
+                try:
+                    from app.protocol_engines.attacks import (
+                        AttackOrchestrator,
+                        get_playbook,
+                    )
+                    from app.protocol_engines.attacks.types import (
+                        AttackPlaybookConfig,
+                    )
+
+                    playbook = get_playbook(self.config.attack_playbook_id)
+                    if playbook is None:
+                        raise ValueError(
+                            f"Unknown playbook '{self.config.attack_playbook_id}'"
+                        )
+
+                    raw_attack_cfg = dict(self.config.attack_config or {})
+                    # PCAP path runs end-to-end at generation time; ignore
+                    # live-control "manual" start mode — there's no runtime
+                    # to send a START_ATTACK command.
+                    raw_attack_cfg.setdefault("playbook_id", playbook.playbook_id)
+                    if raw_attack_cfg.get("start_mode") == "manual":
+                        raw_attack_cfg["start_mode"] = "with_deployment"
+                    warmup_ms = raw_attack_cfg.pop("warmup_ms", None)
+
+                    atk_cfg = AttackPlaybookConfig.from_dict(raw_attack_cfg)
+                    devices_for_attack = [
+                        {
+                            "device_id": dev.device_id,
+                            "ip_address": dev.ip_address,
+                            "mac_address": dev.mac_address,
+                            "vendor": dev.vendor,
+                            "device_type": dev.device_type,
+                            "protocols": list(dev.protocols),
+                        }
+                        for dev in seen_devices.values()
+                    ]
+                    attack_orch = AttackOrchestrator(
+                        playbook=playbook,
+                        devices=devices_for_attack,
+                        config=atk_cfg,
+                    )
+                    unified.register_attack_orchestrator(
+                        attack_orch, warmup_ms=warmup_ms
+                    )
+                except Exception as e:
+                    logger.warning(f"Attack orchestrator unavailable: {e}")
 
             logger.info(f"Starting traffic generation for job {self.config.job_id}")
             logger.info(f"Duration: {self.config.total_duration_ms}ms")

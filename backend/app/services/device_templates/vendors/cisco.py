@@ -37,7 +37,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp"],
+        supported_protocols=["snmp", "lldp", "cdp", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FCW{8ALPHANUM}",
@@ -117,7 +117,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp"],
+        supported_protocols=["snmp", "lldp", "cdp", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FCW{8ALPHANUM}",
@@ -192,7 +192,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FJC{8ALPHANUM}",
@@ -288,7 +288,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FJC{8ALPHANUM}",
@@ -379,7 +379,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp"],
+        supported_protocols=["snmp", "lldp", "cdp", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FJC{8ALPHANUM}",
@@ -454,7 +454,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FJC{8ALPHANUM}",
@@ -545,7 +545,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FDO{8ALPHANUM}",
@@ -641,7 +641,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FDO{8ALPHANUM}",
@@ -732,7 +732,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FDO{8ALPHANUM}",
@@ -823,7 +823,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip"],
+        supported_protocols=["snmp", "lldp", "cdp", "profinet", "ethernet_ip", "ssh", "telnet", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="FDO{8ALPHANUM}",

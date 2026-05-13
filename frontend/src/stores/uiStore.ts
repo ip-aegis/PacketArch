@@ -19,6 +19,9 @@ interface PanelState {
   bottomPanelHeight: number;
   timelineVisible: boolean;
   minimapVisible: boolean;
+  showFlows: boolean;
+  showConduits: boolean;
+  aggregateFlows: boolean;
 }
 
 interface ViewportState {
@@ -40,6 +43,9 @@ interface UIState {
   toggleBottomPanel: () => void;
   toggleTimeline: () => void;
   toggleMinimap: () => void;
+  toggleShowFlows: () => void;
+  toggleShowConduits: () => void;
+  toggleAggregateFlows: () => void;
   setLeftSidebarWidth: (width: number) => void;
   setRightSidebarWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
@@ -104,6 +110,9 @@ export const useUIStore = create<UIState>()(
         bottomPanelHeight: 200,
         timelineVisible: true,
         minimapVisible: true,
+        showFlows: true,
+        showConduits: true,
+        aggregateFlows: false,
       },
       toggleLeftSidebar: () =>
         set((state) => ({
@@ -124,6 +133,18 @@ export const useUIStore = create<UIState>()(
       toggleMinimap: () =>
         set((state) => ({
           panels: { ...state.panels, minimapVisible: !state.panels.minimapVisible },
+        })),
+      toggleShowFlows: () =>
+        set((state) => ({
+          panels: { ...state.panels, showFlows: !state.panels.showFlows },
+        })),
+      toggleShowConduits: () =>
+        set((state) => ({
+          panels: { ...state.panels, showConduits: !state.panels.showConduits },
+        })),
+      toggleAggregateFlows: () =>
+        set((state) => ({
+          panels: { ...state.panels, aggregateFlows: !state.panels.aggregateFlows },
         })),
       setLeftSidebarWidth: (width) =>
         set((state) => ({

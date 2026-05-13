@@ -118,6 +118,13 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:60:65",  # B&R Industrial Automation
         "00:0A:49",  # B&R Industrie-Elektronik
     ],
+    # Alias keys for template authors who write the vendor with `&` —
+    # the normalize step in get_oui_for_vendor doesn't currently expand
+    # `&` to `_and_`, so we register the literal forms.
+    "b&r": [
+        "00:60:65",
+        "00:0A:49",
+    ],
     "pilz": [
         "00:05:7C",  # Pilz GmbH & Co
     ],
@@ -201,6 +208,10 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:1E:C0",  # Distech Controls
         "D0:77:14",  # Distech Controls Inc
     ],
+    "distech_controls": [
+        "00:1E:C0",
+        "D0:77:14",
+    ],
     "carel": [
         "00:0D:5D",  # Carel Industries
         "00:15:F9",  # Carel SpA
@@ -220,6 +231,40 @@ VENDOR_OUIS: dict[str, list[str]] = {
     ],
     "lennox": [
         "00:11:2F",  # Lennox Industries
+    ],
+    "york": [
+        # York is now part of Johnson Controls; chillers ship with JCI NICs
+        "00:1A:17",  # Johnson Controls
+        "00:23:BE",  # Johnson Controls Systems
+    ],
+    "notifier": [
+        # Notifier is a Honeywell fire safety brand; controllers use Honeywell NICs
+        "00:40:84",  # Honeywell Inc
+        "00:22:6A",  # Honeywell
+    ],
+    "lutron": [
+        "00:90:33",  # Lutron Electronics
+        "C4:24:36",  # Lutron Electronics
+    ],
+
+    # IT/OT Boundary — software platforms and network appliances
+    # NOTE: Software vendors (Aveva, Lansweeper, Paessler) ship as installable
+    # packages and inherit the host NIC's OUI. Empty list → host NIC fallback.
+    "aveva": [],
+    "lansweeper": [],
+    "paessler": [],
+    "broadcom": [
+        "00:10:18",  # Broadcom Corporation
+        "00:1B:E9",  # Broadcom
+        "D4:01:29",  # Broadcom Limited
+    ],
+    "f5_networks": [
+        "00:01:D7",  # F5 Networks
+        "00:94:A1",  # F5 Networks
+    ],
+    "f5-networks": [
+        "00:01:D7",  # F5 Networks (alias with hyphen)
+        "00:94:A1",
     ],
 
     # Network Infrastructure for OT
@@ -476,6 +521,15 @@ VENDOR_DISPLAY_NAMES: dict[str, str] = {
     "alerton": "Alerton",
     "reliable_controls": "Reliable Controls",
     "lennox": "Lennox",
+    "york": "York (Johnson Controls)",
+    "notifier": "Notifier (Honeywell)",
+    "lutron": "Lutron Electronics",
+    "aveva": "AVEVA",
+    "lansweeper": "Lansweeper",
+    "paessler": "Paessler PRTG",
+    "broadcom": "Broadcom",
+    "f5_networks": "F5 Networks",
+    "f5-networks": "F5 Networks",
     "belden": "Belden",
     "harting": "HARTING",
     "siemens_its": "Siemens ITS",
@@ -583,19 +637,27 @@ def get_random_oui_for_vendor(vendor: str) -> str | None:
 def get_oui_for_vendor(vendor: str) -> str:
     """Get a random OUI for a specific vendor.
 
+    Normalises the vendor: lowercase, spaces/hyphens → underscores.
+    Then tries the literal form (so `&` etc. land via their aliases)
+    and the `&` → `_and_` expansion. Falls back to DEFAULT_OUI.
+
     Args:
         vendor: Vendor name (case-insensitive)
 
     Returns:
         OUI prefix (e.g., "00:0E:8C")
     """
-    vendor_lower = vendor.lower().replace(" ", "_").replace("-", "_")
+    raw = vendor.lower()
+    vendor_lower = raw.replace(" ", "_").replace("-", "_")
+    candidates = [vendor_lower, vendor_lower.replace("&", "_and_")]
 
-    if vendor_lower in VENDOR_OUIS:
-        oui_list = VENDOR_OUIS[vendor_lower]
-        if oui_list:  # Only use vendor OUIs if list is non-empty
-            return random.choice(oui_list)
-        # Empty list means software vendor - use default OUI
+    for key in candidates:
+        if key in VENDOR_OUIS:
+            oui_list = VENDOR_OUIS[key]
+            if oui_list:  # Only use vendor OUIs if list is non-empty
+                return random.choice(oui_list)
+            # Empty list means software vendor - use default OUI
+            return DEFAULT_OUI
 
     return DEFAULT_OUI
 

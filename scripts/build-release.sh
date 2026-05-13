@@ -15,6 +15,10 @@
 #
 # Env overrides:
 #   SKIP_AGENT=1        Skip building the agent image (faster test builds)
+#   PCAP_ONLY=1         Build the PCAP-only variant. Forces SKIP_AGENT=1,
+#                       changes the tarball name to ...-pcap-offline.tar.gz,
+#                       and stamps BUILD_VARIANT=pcap-only into VERSION so
+#                       install.sh disables LIVE_TRAFFIC_ENABLED.
 #   VERSION=0.2.0       Override the version string
 #   OUT_DIR=/some/path  Override dist/ output directory
 
@@ -29,9 +33,19 @@ VERSION="${VERSION:-$(grep -E '^\s*app_version' backend/app/core/config.py \
 BUILD_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# PCAP-only variant implies no agent image and a different tarball name.
+if [[ "${PCAP_ONLY:-0}" == "1" ]]; then
+    BUILD_VARIANT="pcap-only"
+    SKIP_AGENT=1
+    VARIANT_SUFFIX="-pcap"
+else
+    BUILD_VARIANT="full"
+    VARIANT_SUFFIX=""
+fi
+
 OUT_DIR="${OUT_DIR:-${REPO_ROOT}/dist}"
-STAGE="${OUT_DIR}/packetarch-${VERSION}-offline"
-TARBALL="${OUT_DIR}/packetarch-${VERSION}-offline.tar.gz"
+STAGE="${OUT_DIR}/packetarch-${VERSION}${VARIANT_SUFFIX}-offline"
+TARBALL="${OUT_DIR}/packetarch-${VERSION}${VARIANT_SUFFIX}-offline.tar.gz"
 
 BACKEND_IMAGE="packetarch/backend:${VERSION}"
 FRONTEND_IMAGE="packetarch/frontend:${VERSION}"
@@ -42,6 +56,7 @@ REDIS_IMAGE="redis:7-alpine"
 echo "========================================================"
 echo "  PacketArch offline release builder"
 echo "  version:     ${VERSION}"
+echo "  variant:     ${BUILD_VARIANT}"
 echo "  commit:      ${BUILD_COMMIT}"
 echo "  date:        ${BUILD_DATE}"
 echo "  staging:     ${STAGE}"
@@ -115,6 +130,7 @@ cat > "${STAGE}/VERSION" <<EOF
 PACKETARCH_VERSION=${VERSION}
 BUILD_COMMIT=${BUILD_COMMIT}
 BUILD_DATE=${BUILD_DATE}
+BUILD_VARIANT=${BUILD_VARIANT}
 AGENT_INCLUDED=${AGENT_INCLUDED}
 EOF
 

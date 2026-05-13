@@ -30,13 +30,11 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "emerson_offshore_platform": {
         "name": "Emerson DeltaV Offshore Production Platform",
-        "description": "Offshore production platform with Emerson DeltaV DCS managing wellhead "
-                       "production, separation, and export. Features Yokogawa ProSafe-RS safety "
-                       "instrumented system with SIL 3 process shutdown and fire & gas detection "
-                       "via Honeywell Safety Manager. Emerson ROC800L flow computers for fiscal "
-                       "custody transfer metering. Remote SCADA link to shore-based operations "
-                       "center. 40 devices across operations, control, process, safety, and "
-                       "field zones.",
+        "description": "Offshore oil platform with four process units (e.g. wellhead control, "
+                       "separation, gas compression, water injection) running on Emerson DeltaV "
+                       "DCS. Dedicated SIS for emergency shutdown and burner management; "
+                       "utilities zone for power generation, heating, and instrument air; full "
+                       "IDMZ for vendor remote service. 98 devices across 7 zones.",
         "vertical": "oil_gas",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -285,11 +283,14 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["field"],
              "jitter_ms": 300, "jitter_type": "gaussian"},
 
-            # SNMP monitoring switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["hmi"], "target_types": ["switch"],
+            # Network management — remote gateway acts as NMS proxy
+            # for switch discovery on the platform (covers operations
+            # core, control, and process zones).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
              "source_zones": ["operations"],
-             "target_zones": ["operations", "control"]},
+             "target_zones": ["operations", "control", "process",
+                              "safety", "field"]},
 
             # Remote gateway polling controllers (5000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
@@ -404,13 +405,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "pipeline_scada_network": {
         "name": "Pipeline SCADA Compressor Station Network",
-        "description": "Natural gas pipeline compressor station with Honeywell Experion PKS C300 "
-                       "controllers managing compressor units, metering, and pipeline integrity. "
-                       "Features Honeywell Pipeline Leak Detection System, Emerson ROC800 flow "
-                       "computers at metering skids, and distributed RTUs at 4 remote block valve "
-                       "stations. Typical WAN SCADA polling with higher latency and exponential "
-                       "jitter. 32 devices across SCADA, compressor control, metering, leak "
-                       "detection, and remote station zones.",
+        "description": "Long-haul pipeline modeled as a master-remote SCADA topology: central "
+                       "control room + 8 remote pump / metering stations communicating over WAN. "
+                       "Same architectural pattern as a regional water utility. 84 devices "
+                       "across 10 zones.",
         "vertical": "oil_gas",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -728,13 +726,9 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "yokogawa_refinery_unit": {
         "name": "Yokogawa CENTUM VP Refinery Process Unit",
-        "description": "Petroleum refinery crude distillation unit with Yokogawa CENTUM VP DCS "
-                       "controlling atmospheric and vacuum column operations. Features ProSafe-RS "
-                       "SIL 3 safety system for high-integrity shutdown, Exaopc historian/OPC "
-                       "server, and engineering workstation. Dense field instrumentation with "
-                       "Emerson and Yokogawa transmitters, control valves, and analyzers. "
-                       "48 devices across engineering, control, process field, safety, and "
-                       "utility zones.",
+        "description": "Refinery process unit (CDU + downstream trains) on Yokogawa Centum CN1 "
+                       "DCS with Centum HIS operator stations and EWS engineering. Dedicated "
+                       "SIS, utilities zone, full IDMZ. 98 devices across 7 zones.",
         "vertical": "oil_gas",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -1006,11 +1000,13 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["utility"], "target_zones": ["utility"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
-            # SNMP monitoring switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["hmi"], "target_types": ["switch"],
+            # Network management — remote gateway acts as NMS proxy
+            # for switch discovery across the refinery unit.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
              "source_zones": ["engineering"],
-             "target_zones": ["engineering", "control"]},
+             "target_zones": ["engineering", "control", "process_field",
+                              "safety", "utility"]},
 
             # Remote gateway polling Exaopc (5000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
@@ -1100,14 +1096,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "honeywell_lng_terminal": {
         "name": "Honeywell Experion LNG Receiving Terminal",
-        "description": "LNG receiving terminal with Honeywell Experion PKS C300 controllers "
-                       "managing cryogenic storage, regasification, and send-out pipeline "
-                       "operations. Features dual-redundant Honeywell Safety Manager SIS for "
-                       "cryogenic protection, Honeywell Enraf Optiflex 6000 servo tank gauges "
-                       "for precision LNG level measurement, and Emerson Micro Motion fiscal "
-                       "metering. Schneider SCADAPack RTUs at remote marine terminal berths. "
-                       "42 devices across operations, control, tank farm, regasification, "
-                       "safety, and marine terminal zones.",
+        "description": "Large LNG import / export terminal with four process units on Honeywell "
+                       "Experion DCS. SIL-3 Honeywell Safety Manager system, utilities zone for "
+                       "cryogenic plant + boil-off + power, plus historian replication and asset "
+                       "management at scale. 155 devices across 8 zones.",
         "vertical": "oil_gas",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [

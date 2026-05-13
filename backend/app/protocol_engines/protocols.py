@@ -133,6 +133,11 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "codesys":      1217,
     "dcs":          18506,  # DeltaV common port
     "cloud_service": 443,   # TLS
+    # Remote access / management protocols (jump servers, admin workstations)
+    "ssh":           22,
+    "telnet":        23,
+    "rdp":           3389,
+    "https":         443,
     # ── ICS / OT (UDP) ─────────────────────────────────────────
     "snmp":         161,
     "bacnet":       47808,

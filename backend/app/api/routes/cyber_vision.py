@@ -826,3 +826,37 @@ async def enrich_devices(
     except Exception as e:
         logger.exception("Error during CV enrichment")
         raise ExternalServiceError(service="cyber_vision", message=f"Failed to enrich CV devices: {str(e)}", original_error=e)
+
+
+@router.get("/flows")
+async def get_flows(
+    db: DBSession,
+    _user: CurrentUser,
+    device_id: str | None = Query(default=None, description="Filter by device id"),
+    limit: int = Query(default=200, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    """Fetch raw network flows from Cyber Vision.
+
+    Returns CV's flow records with whatever fields CV provides — typically
+    src/dst MAC, src/dst IP, protocol/service tags, packet/byte counts, and
+    first/last activity timestamps. Used to verify *when* phantom or normal
+    flows last had traffic (e.g. confirm clean_demo_mode actually stopped
+    PN-IO by checking last-activity timestamps on suspicious flows).
+    """
+    try:
+        service = await get_cv_service(db)
+        flows = await service.get_flows(
+            device_id=device_id, limit=limit, offset=offset
+        )
+        await service.close()
+        return {"items": flows, "count": len(flows)}
+    except (ValidationError, NotFoundError):
+        raise
+    except Exception as e:
+        logger.exception("Error fetching CV flows")
+        raise ExternalServiceError(
+            service="cyber_vision",
+            message=f"Failed to fetch flows: {str(e)}",
+            original_error=e,
+        )

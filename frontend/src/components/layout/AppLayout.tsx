@@ -30,6 +30,7 @@ import {
   EyeOutlined,
   QuestionCircleOutlined,
   InfoCircleOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
@@ -37,6 +38,7 @@ import { acknowledgmentsApi } from '../../api/acknowledgments';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useFeaturesStore } from '../../stores/featuresStore';
+import { useFeatures } from '../../hooks/useFeatures';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
 import AboutModal from '../modals/AboutModal';
 import AcknowledgmentModal from '../modals/AcknowledgmentModal';
@@ -56,6 +58,7 @@ const AppLayout: React.FC = () => {
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [ackRequired, setAckRequired] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
+  const { liveTrafficEnabled } = useFeatures();
 
   // Global Ctrl+K / Cmd+K shortcut for command palette
   useEffect(() => {
@@ -78,8 +81,20 @@ const AppLayout: React.FC = () => {
 
   // Check whether the current user has accepted the current EULA / license
   // acknowledgment. Blocking modal shows until they either accept or sign out.
+  // The setup wizard records the acceptance server-side as part of its
+  // completion transaction; if it set the SETUP_ACK_LOCAL_KEY flag we skip
+  // the modal once and clear the flag so subsequent logins still gate
+  // normally on /acknowledgments/status.
   useEffect(() => {
     if (!user) return;
+    try {
+      if (localStorage.getItem('packetarch_setup_ack_recorded') === '1') {
+        localStorage.removeItem('packetarch_setup_ack_recorded');
+        return;
+      }
+    } catch {
+      /* localStorage unavailable — fall through to the normal check. */
+    }
     let cancelled = false;
     acknowledgmentsApi
       .getStatus()
@@ -94,8 +109,10 @@ const AppLayout: React.FC = () => {
     };
   }, [user]);
 
-  // Poll health status for notification badge
+  // Poll health status for notification badge. Health monitor only tracks
+  // remote agents — skipped in PCAP-only deployments.
   useEffect(() => {
+    if (!liveTrafficEnabled) return;
     const fetchHealthCount = async () => {
       try {
         const status = await healthMonitorApi.getStatus();
@@ -107,7 +124,7 @@ const AppLayout: React.FC = () => {
     fetchHealthCount();
     const interval = setInterval(fetchHealthCount, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [liveTrafficEnabled]);
 
   const handleLogout = () => {
     logout();
@@ -138,16 +155,20 @@ const AppLayout: React.FC = () => {
       icon: <DatabaseOutlined />,
       label: 'Device Library',
     },
-    {
-      key: '/deployments',
-      icon: <CloudServerOutlined />,
-      label: 'Deployments',
-    },
-    {
-      key: '/live-traffic',
-      icon: <BarChartOutlined />,
-      label: 'Live Traffic',
-    },
+    ...(liveTrafficEnabled
+      ? [
+          {
+            key: '/deployments',
+            icon: <CloudServerOutlined />,
+            label: 'Deployments',
+          },
+          {
+            key: '/live-traffic',
+            icon: <BarChartOutlined />,
+            label: 'Live Traffic',
+          },
+        ]
+      : []),
     {
       key: '/ip-management',
       icon: <GlobalOutlined />,
@@ -162,6 +183,11 @@ const AppLayout: React.FC = () => {
       key: '/cyber-vision',
       icon: <EyeOutlined />,
       label: 'Cyber Vision',
+    },
+    {
+      key: '/architecture',
+      icon: <ApartmentOutlined />,
+      label: 'Architecture',
     },
     {
       key: '/help',
@@ -335,17 +361,19 @@ const AppLayout: React.FC = () => {
               />
             </Tooltip>
 
-            {/* Health Notifications */}
-            <Tooltip title={healthAlertCount > 0 ? `${healthAlertCount} agent(s) need attention` : 'All agents healthy'}>
-              <Badge count={healthAlertCount} overflowCount={9}>
-                <Button
-                  type="text"
-                  icon={<BellOutlined style={{ fontSize: 18 }} />}
-                  style={{ color: healthAlertCount > 0 ? '#fa8c16' : '#a8a8c0' }}
-                  onClick={() => navigate('/live-traffic')}
-                />
-              </Badge>
-            </Tooltip>
+            {/* Health Notifications — agent-only, hidden in PCAP-only builds */}
+            {liveTrafficEnabled && (
+              <Tooltip title={healthAlertCount > 0 ? `${healthAlertCount} agent(s) need attention` : 'All agents healthy'}>
+                <Badge count={healthAlertCount} overflowCount={9}>
+                  <Button
+                    type="text"
+                    icon={<BellOutlined style={{ fontSize: 18 }} />}
+                    style={{ color: healthAlertCount > 0 ? '#fa8c16' : '#a8a8c0' }}
+                    onClick={() => navigate('/live-traffic')}
+                  />
+                </Badge>
+              </Tooltip>
+            )}
 
             {/* User Menu */}
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -376,7 +404,7 @@ const AppLayout: React.FC = () => {
           </Space>
         </Header>
 
-        <AgentVersionBanner />
+        {liveTrafficEnabled && <AgentVersionBanner />}
 
         <Content
           className="tech-grid-bg"

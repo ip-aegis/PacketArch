@@ -39,8 +39,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # FIRST_USER_PASSWORD is optional — leave blank for the wizard path.
+      # If set, the backend auto-creates an admin on first boot (legacy).
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       AI_ENABLED: ${AI_ENABLED:-false}
+      LIVE_TRAFFIC_ENABLED: ${LIVE_TRAFFIC_ENABLED:-true}
       BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
       BUILD_DATE: ${BUILD_DATE:-unknown}
       DEBUG: ${DEBUG:-false}
@@ -71,8 +74,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       AI_ENABLED: ${AI_ENABLED:-false}
+      LIVE_TRAFFIC_ENABLED: ${LIVE_TRAFFIC_ENABLED:-true}
     volumes:
       - pcap_output:/app/output/pcap
     depends_on:

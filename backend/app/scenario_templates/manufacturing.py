@@ -24,10 +24,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "siemens_discrete_manufacturing": {
         "name": "Siemens Discrete Manufacturing",
-        "description": "CNC machining and assembly cell with Siemens S7-1500 PLCs, SINAMICS drives, "
-                       "and distributed I/O. Features S7-1500F safety PLCs with PROFIsafe for machine "
-                       "guarding. Typical cell-level manufacturing with fast PROFINET cyclic I/O and "
-                       "S7comm+ HMI connectivity. 35 devices across control, cell, and field zones.",
+        "description": "Mid-sized Siemens-only discrete manufacturing plant. Three production "
+                       "cells with S7-1500 PLCs running PROFINET cyclic IO to drives and "
+                       "distributed I/O, supervised by a WinCC SCADA stack at L3 with TIA Portal "
+                       "engineering workstations. Standard L3.5 IDMZ stack (jump server, "
+                       "remote-access gateway, AV / patch staging). 45 devices across 5 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -271,16 +272,18 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["field"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
-            # SNMP monitoring of switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"],
-             "source_zones": ["control"], "target_zones": ["control"]},
-
             # EWON Modbus polling to drives (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["drive", "servo"],
              "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Network management — remote gateway acts as NMS proxy and
+            # SNMP-polls every switch in the plant for Cyber Vision
+            # discovery (covers control room and cell-network switches).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
+             "source_zones": ["control"], "target_zones": ["control", "cell"]},
         ],
         "zones": [
             {"id": "control", "name": "Control Network", "level": 2,
@@ -353,10 +356,10 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "rockwell_automotive_assembly": {
         "name": "Rockwell Automotive Assembly",
-        "description": "Body shop welding cells with ControlLogix L85E PLCs, GuardLogix L83ES safety "
-                       "controllers with CIP Safety, Kinetix servo drives, and PowerFlex VFDs. Heavy use "
-                       "of EtherNet/IP implicit messaging for deterministic motion control. 41 devices "
-                       "across control, cell, and field zones with robust safety infrastructure.",
+        "description": "Mid-sized Rockwell-only automotive assembly plant. Three production "
+                       "cells with ControlLogix 5580 PLCs and PowerFlex drives over EtherNet/IP, "
+                       "supervised by a Studio 5000 / FactoryTalk View SE stack at L3. Standard "
+                       "L3.5 IDMZ stack. 45 devices across 5 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -622,16 +625,18 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["cell"],
              "jitter_ms": 2, "jitter_type": "gaussian"},
 
-            # SNMP monitoring of switches (30s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["plc"], "target_types": ["switch", "remote_gateway"],
-             "source_zones": ["control"], "target_zones": ["control"]},
-
             # EWON EtherNet/IP polling to PLCs (10s)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 10000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # Network management \u2014 remote gateway acts as NMS proxy and
+            # SNMP-polls every switch in the plant for Cyber Vision
+            # discovery (covers body-shop core, weld and paint cells).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["switch"],
+             "source_zones": ["control"], "target_zones": ["control", "cell"]},
         ],
         "zones": [
             {"id": "control", "name": "Control Network", "level": 2,
@@ -696,13 +701,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "multi_vendor_enterprise_manufacturing": {
         "name": "Multi-Vendor Enterprise Manufacturing",
-        "description": "Large multi-zone manufacturing facility demonstrating complex OT network architecture "
-                       "based on the Purdue model. Features 9 zones with Siemens, Rockwell, Schneider, and ABB "
-                       "vendor ecosystems. Includes centralized DMZ with SCADA/Historian, Windows jump server "
-                       "(vulnerable to BlueKeep CVE-2019-0708), 4 production zones (one per vendor), and "
-                       "corresponding field zones. Cross-zone material handoff coordination via Modbus TCP. "
-                       "119 devices with 20+ CVE-affected devices across all major vendors including IT/OT "
-                       "boundary jump server. Ideal for Cisco Cyber Vision grouping and vulnerability detection demos.",
+        "description": "Enterprise multi-vendor manufacturing facility. Four cells, each pinned "
+                       "to a different dominant vendor (Siemens / Rockwell / Schneider / ABB) "
+                       "for vendor-consistent intra-cell traffic; cross-vendor supervision via "
+                       "OPC UA. Full IDMZ + Operations stack including standby SCADA, asset "
+                       "management, MES, and OPC UA aggregator. 81 devices across 6 zones.",
         "vertical": "manufacturing",
         "phase_preset": "full_lifecycle",
         "recommended_attack_playbooks": [
@@ -1454,11 +1457,15 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["siemens_zone"]},
 
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+            # Central HMI is Siemens WinCC Unified (declares s7comm_plus +
+            # opc_ua). Cross-vendor PLCs all support OPC UA — that's the
+            # right cross-vendor supervisor protocol; using each PLC's
+            # vendor-native here would snap to snmp and look irrational.
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["rockwell_zone"]},
 
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["dmz"], "target_zones": ["schneider_zone", "abb_zone"]},
 
@@ -1667,19 +1674,20 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "strict_purdue_segmented": {
         "name": "Strict Purdue Segmented Manufacturing",
-        "description": "Precision automotive parts manufacturing facility following strict Purdue Model "
-                       "architecture with seven zones: Level 3 Process Control / Operations, Level 3.5 "
-                       "Industrial DMZ, four Level 2 manufacturing cells, and an external zone. "
-                       "Cell 1: CNC Machining (Siemens/PROFINET), Cell 2: Robotic Welding (Rockwell/EtherNet-IP), "
-                       "Cell 3: E-Coat Surface Treatment (Schneider/Modbus TCP), Cell 4: Final Assembly & Test "
-                       "(ABB/mixed). L3 Operations holds the central SCADA, historian, OPC UA gateway, central "
-                       "overview HMI, and the OT engineering workstation (TIA Portal / Studio 5000). L3.5 IDMZ "
-                       "holds only bastion functions: EWON remote-access gateway, vulnerable jump server, and "
-                       "north/south firewall switches. Strict segmentation: no east-west communication between "
-                       "cells; all cross-zone traffic terminates at Level 3 Operations or the IDMZ. 72 devices "
-                       "across 7 zones.",
+        "description": "Compact precision-machining facility laid out per IEC 62443 with strict "
+                       "Purdue segmentation: three multi-vendor production cells (one each for "
+                       "Siemens / Rockwell / Schneider), an L3 Operations zone, and an L3.5 "
+                       "IDMZ. Cell-isolation defaults to `conduit_gated` so cross-zone flows "
+                       "must match a declared conduit. 45 devices across 5 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
+        # Boot the scenario in strict_northbound mode so the runtime gate
+        # actively enforces what the topology implies. The studio UI lets the
+        # user dial it back to conduit_gated or off if they want to relax.
+        "cell_isolation": {
+            "mode": "strict_northbound",
+            "applies_to_levels": [0, 1, 2],
+        },
         "zones": [
             # Operations / Process Control - Level 3 (SCADA, historian, engineering)
             {"id": "operations", "name": "Process Control / Operations", "level": 3,
@@ -1696,13 +1704,9 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # Cell 3 - E-Coat Treatment (Schneider ecosystem, self-contained L0-L2)
             {"id": "cell3_ecoat", "name": "Cell 3 - E-Coat Treatment", "level": 2,
              "subnet_offset": 3, "vlan": 230, "security_level": "high"},
-            # Cell 4 - Final Assembly & Test (ABB ecosystem, self-contained L0-L2)
+            # Cell 4 - Final Assembly & Test (mixed ABB / Fanuc / Rockwell-safety, self-contained L0-L2)
             {"id": "cell4_assembly", "name": "Cell 4 - Final Assembly", "level": 2,
              "subnet_offset": 4, "vlan": 240, "security_level": "high"},
-            # External/Internet
-            {"id": "external", "name": "External/Internet", "level": 4,
-             "subnet_offset": 99, "vlan": 999, "security_level": "external",
-             "is_external": True},
         ],
         "conduits": [
             # L3 Operations to cell conduits - supervisory data + engineering access
@@ -1762,14 +1766,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "direction": "bidirectional",
              "allowed_protocols": ["opc_ua", "snmp", "rdp", "https"],
              "security_level": "critical",
-             "description": "Historian forwarding to IDMZ proxy, SCADA SNMP polling of IDMZ switches, jump server RDP pivot to engineering workstation"},
-            # IDMZ to external (L3.5 -> L4)
-            {"id": "idmz_external", "name": "IDMZ \u2194 External",
-             "source_zone": "idmz", "target_zone": "external",
-             "direction": "bidirectional",
-             "allowed_protocols": ["https", "rdp"],
-             "security_level": "critical",
-             "description": "EWON remote gateway heartbeat to Talk2M cloud; jump server RDP for remote IT/OT administration"},
+             "description": "Historian forwarding to IDMZ proxy, SCADA SNMP polling of IDMZ switch, jump server RDP pivot to engineering workstation"},
+            # NOTE: No L0-L2 east/west conduits exist by design. Cells are
+            # hermetic at the IEC 62443 area-zone boundary; cell_isolation.mode
+            # is set to strict_northbound so the runtime drops any cell-to-cell
+            # flow that someone tries to add later.
         ],
         "recommended_attack_playbooks": [
             {"playbook_id": "pipedream_like", "relevance": "high", "rationale": "Tests PIPEDREAM lateral movement against Purdue segmentation"},
@@ -1784,37 +1785,27 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "devices": [
             # ============================================================
-            # OPERATIONS / PROCESS CONTROL (Level 3) - 5 devices
-            # SCADA, historian, OPC gateway, central HMI, engineering workstation.
+            # OPERATIONS / PROCESS CONTROL (Level 3) — 4 devices
             # All cross-cell supervisory and engineering traffic originates here.
             # ============================================================
-            # WinCC Professional - central SCADA server aggregating all cell data
             {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "operations",
              "name": "Ops_Central_SCADA",
-             "protocols": ["opc_ua", "s7comm_plus", "s7comm", "modbus_tcp", "snmp"],
+             "protocols": ["opc_ua", "s7comm_plus", "s7comm", "modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "WinCC Professional",
              "role": "Central SCADA Server"},
-            # GE Proficy Historian - process data archival
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
              "name": "Ops_Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
              "role": "Process Historian",
              "cve_ids": ["CVE-2022-46660"]},
-            # Kepware OPC UA Gateway - multi-protocol translation
-            {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "operations",
-             "name": "Ops_OPC_Gateway",
-             "protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "s7comm"],
-             "fingerprint_model": "KEPServerEX",
-             "role": "OPC UA Gateway"},
-            # WinCC Unified - central overview HMI for plant-wide visibility
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "operations",
              "name": "Ops_Overview_HMI",
              "protocols": ["s7comm_plus", "s7comm", "opc_ua", "modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "WinCC Unified",
              "role": "Central Overview HMI"},
-            # OT Engineering Workstation - TIA Portal / Studio 5000 / Control Expert host
-            # Sits in L3 Operations. Remote engineers pivot through IDMZ jump server to reach this host,
-            # then use it to push programs / browse tags on cell PLCs. Classic strict-Purdue access path.
+            # OT Engineering Workstation — TIA Portal / Studio 5000 / Control Expert host.
+            # Remote engineers pivot in through the IDMZ jump server and use this box
+            # to push programs / browse tags on cell PLCs. Classic strict-Purdue access path.
             {"type": "engineering_workstation", "vendor": "microsoft", "count": 1, "zone": "operations",
              "name": "Ops_Engineering_Workstation",
              "protocols": ["s7comm_plus", "s7comm", "ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
@@ -1822,332 +1813,175 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "OT Engineering Workstation"},
 
             # ============================================================
-            # IDMZ (Level 3.5) - 5 devices
-            # Bastion functions only: remote access gateway, jump server, firewall switches
+            # IDMZ (Level 3.5) — 3 devices
+            # Bastion functions only: remote-access gateway, jump server, IDMZ switch.
             # ============================================================
-            # HMS EWON Flexy 205 - remote access gateway to Talk2M cloud
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "idmz",
              "name": "IDMZ_EWON_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
              "role": "Remote Access Gateway",
              "external_comms": True},
-            # Windows Server 2016 Jump Server - IT/OT boundary (BlueKeep vulnerable)
-            # Note: RDP listed as a semantic protocol declaration for CV identification and
-            # attack-playbook targeting (BlueKeep). PacketArch has no RDP traffic engine, so
-            # RDP pivot traffic is driven by the attack simulation layer, not flow generation.
+            # Windows Server 2016 Jump Server (BlueKeep). RDP is a semantic declaration only —
+            # the attack-simulation layer drives any RDP pivot traffic.
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "idmz",
              "name": "IDMZ_Jump_Server", "protocols": ["rdp", "snmp"],
              "fingerprint_model": "Jump Server 2016 (Vulnerable)",
              "role": "Remote Access Jump Server",
              "cve_ids": ["CVE-2019-0708"],
              "external_comms": True},
-            # Cisco IE-9320 - IDMZ core aggregation switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
              "name": "IDMZ_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
              "role": "Core Network Switch"},
-            # Cisco IE-3500 - north-facing firewall switch (enterprise side)
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
-             "name": "IDMZ_North_Firewall_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3500-8P3S-E",
-             "role": "Firewall DMZ Switch"},
-            # Cisco IE-3500 - south-facing firewall switch (cell side)
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
-             "name": "IDMZ_South_Firewall_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3500-8P3S-E",
-             "role": "Firewall DMZ Switch"},
 
             # ============================================================
-            # CELL 1: CNC MACHINING CENTER - Siemens (16 devices)
-            # S7-1500 PLCs, SINAMICS S120 servos, G120C VFDs, ET200SP I/O
-            # Protocol: PROFINET RT cyclic I/O, PROFIsafe, S7comm+
+            # CELL 1: CNC MACHINING CENTER — Siemens (7 devices)
+            # PROFINET RT cyclic I/O + PROFIsafe + S7comm+
             # ============================================================
-            # S7-1517-3 PN/DP - main cell controller (high-performance CPU)
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Cell_Main_PLC", "protocols": ["profinet", "s7comm_plus", "opc_ua"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Cell Controller",
              "cve_ids": ["CVE-2019-13945", "CVE-2020-15782"]},
-            # S7-1511-1 PN - auxiliary PLC for tool management
-            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Tool_Mgmt_PLC", "protocols": ["profinet", "opc_ua"],
-             "fingerprint_model": "6ES7 511-1AK02-0AB0",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Auxiliary Controller",
-             "cve_ids": ["CVE-2019-13945"]},
-            # S7-1516F-3 PN/DP - safety PLC for machine guarding
             {"type": "safety_plc", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Safety_Controller", "protocols": ["profinet", "profisafe", "s7comm_plus", "opc_ua"],
+             "name": "CNC_Safety_Controller",
+             "protocols": ["profinet", "profisafe", "s7comm_plus", "opc_ua"],
              "fingerprint_model": "6ES7 516-3FN01-0AB0",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2019-13945"]},
-            # TP1200 Comfort Panel - main operator HMI
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Operator_HMI", "protocols": ["profinet"],
+             "name": "CNC_Operator_HMI", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6AV2 124-0MC01-0AX0",
              "role": "Operator Interface"},
-            # KTP700 Basic - setup/diagnostic HMI
-            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Setup_HMI", "protocols": ["profinet"],
-             "fingerprint_model": "6AV2 123-2GB03-0AX0",
-             "role": "Setup Interface"},
-            # SINAMICS S120 - X axis servo drive
-            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_X_Axis_Servo", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "6SL3130-7TE25-5AA3",
-             "role": "Servo Drive"},
-            # SINAMICS S120 - Y axis servo drive
-            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Y_Axis_Servo", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "6SL3130-7TE25-5AA3",
-             "role": "Servo Drive"},
-            # SINAMICS S120 - Z axis servo drive
-            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Z_Axis_Servo", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "6SL3130-7TE25-5AA3",
-             "role": "Servo Drive"},
-            # SINAMICS S120 - spindle servo drive
+            # Spindle servo represents the motion-axis class.
             {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Spindle_Servo", "protocols": ["profinet", "snmp"],
              "fingerprint_model": "6SL3130-7TE25-5AA3",
              "role": "Servo Drive"},
-            # SINAMICS G120C - coolant pump VFD
+            # Coolant-pump VFD represents auxiliary drives.
             {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Coolant_Pump_VFD", "protocols": ["profinet", "modbus_tcp", "snmp"],
              "fingerprint_model": "6SL3210-1KE21-7UF1",
              "role": "Variable Frequency Drive"},
-            # SINAMICS G120C - chip conveyor VFD
-            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Chip_Conveyor_VFD", "protocols": ["profinet", "modbus_tcp", "snmp"],
-             "fingerprint_model": "6SL3210-1KE21-7UF1",
-             "role": "Variable Frequency Drive"},
-            # ET200SP - spindle tool monitoring I/O
-            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Spindle_IO", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "6ES7 155-6AU01-0BN0",
-             "role": "Distributed I/O"},
-            # ET200SP - automatic tool changer I/O
+            # Tool-changer / pallet I/O represents distributed I/O.
             {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Tool_Changer_IO", "protocols": ["profinet", "snmp"],
              "fingerprint_model": "6ES7 155-6AU01-0BN0",
              "role": "Distributed I/O"},
-            # ET200SP - pallet/workholding I/O
-            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Pallet_IO", "protocols": ["profinet", "snmp"],
-             "fingerprint_model": "6ES7 155-6AU01-0BN0",
-             "role": "Distributed I/O"},
-            # Cisco IE-3500 - cell-internal managed switch
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Cell_Switch", "protocols": ["profinet", "snmp"],
              "fingerprint_id": "cisco/ie3500/8t3s",
              "role": "Industrial Switch"},
-            # Cisco IE-3300 - cell uplink to IDMZ
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell1_cnc",
-             "name": "CNC_Uplink_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3300-8T2S",
-             "role": "Cell Uplink Switch"},
 
             # ============================================================
-            # CELL 2: ROBOTIC WELDING LINE - Rockwell (16 devices)
-            # ControlLogix/GuardLogix PLCs, KUKA robots, PowerFlex VFDs
-            # Protocol: EtherNet/IP implicit I/O, CIP Safety
+            # CELL 2: ROBOTIC WELDING LINE — Rockwell (7 devices)
+            # EtherNet/IP implicit I/O + CIP Safety
             # ============================================================
-            # ControlLogix L85E - welding line controller
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cell_Line_PLC", "protocols": ["ethernet_ip", "modbus_tcp", "opc_ua"],
+             "name": "Weld_Cell_Line_PLC",
+             "protocols": ["ethernet_ip", "modbus_tcp", "opc_ua"],
              "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Line Controller",
              "cve_ids": ["CVE-2022-1159", "CVE-2022-1161", "CVE-2023-3595"]},
-            # ControlLogix L84E - welding station controller
-            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cell_Station_PLC", "protocols": ["ethernet_ip", "modbus_tcp", "opc_ua"],
-             "fingerprint_model": "1756-L84E",
-             "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
-             "role": "Cell Controller",
-             "cve_ids": ["CVE-2022-1159"]},
-            # GuardLogix L83ES - safety controller for weld cell
             {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cell_Safety_PLC", "protocols": ["ethernet_ip", "cip_safety", "opc_ua"],
+             "name": "Weld_Cell_Safety_PLC",
+             "protocols": ["ethernet_ip", "cip_safety", "opc_ua"],
              "fingerprint_model": "1756-L83ES",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-1159"]},
-            # PanelView Plus 7 15" - main weld cell operator HMI
             {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
              "name": "Weld_Cell_Main_HMI", "protocols": ["ethernet_ip"],
              "fingerprint_model": "2711P-T15C22D9P",
              "role": "Operator Interface"},
-            # PanelView Plus 7 10" - welding station HMI
-            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cell_Station_HMI", "protocols": ["ethernet_ip"],
-             "fingerprint_model": "2711P-T10C22D9P",
-             "role": "Station Interface"},
-            # KUKA KR C4 Robot Controller #1 - MIG welding robot
+            # Single KUKA welding robot represents the welding work-cell motion class.
             {"type": "robot_controller", "vendor": "kuka", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Robot_1_Controller", "protocols": ["ethernet_ip", "profinet"],
+             "name": "Weld_Robot_Controller",
+             "protocols": ["ethernet_ip", "profinet"],
              "fingerprint_model": "KR C4",
              "role": "Robot Controller"},
-            # KUKA KR C4 Robot Controller #2 - TIG welding robot
-            {"type": "robot_controller", "vendor": "kuka", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Robot_2_Controller", "protocols": ["ethernet_ip", "profinet"],
-             "fingerprint_model": "KR C4",
-             "role": "Robot Controller"},
-            # Kinetix 5500 - weld positioner servo
-            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Positioner_Servo", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "2198-D012-ERS3",
-             "role": "Servo Drive"},
-            # PowerFlex 525 - parts conveyor VFD
+            # PowerFlex 525 conveyor VFD represents the auxiliary-drive class.
             {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Conveyor_VFD", "protocols": ["ethernet_ip", "snmp"],
+             "name": "Weld_Conveyor_VFD",
+             "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "25B-D030N104",
              "role": "Variable Frequency Drive"},
-            # PowerFlex 525 - fume exhaust fan VFD
-            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Exhaust_Fan_VFD", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "25B-D030N104",
-             "role": "Variable Frequency Drive"},
-            # PowerFlex 753 - welding cooling pump (high-power)
-            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cooling_Pump_VFD", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "20F-D052N103",
-             "role": "High-Power Drive"},
-            # FLEX 5000 - welding station 1 remote I/O
+            # FLEX 5000 remote I/O — also the cip_safety target for the safety controller.
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Station_1_IO", "protocols": ["ethernet_ip", "snmp"],
+             "name": "Weld_Station_IO",
+             "protocols": ["ethernet_ip", "cip_safety", "snmp"],
              "fingerprint_model": "5094-AEN2TR",
              "role": "Remote I/O"},
-            # FLEX 5000 - welding station 2 remote I/O
-            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Station_2_IO", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "5094-AEN2TR",
-             "role": "Remote I/O"},
-            # POINT I/O - safety gate/light curtain I/O
-            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Safety_Gate_IO", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_model": "1734-AENT",
-             "role": "Point I/O"},
-            # Cisco IE-9320 - cell-internal managed switch
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Cell_Switch", "protocols": ["ethernet_ip", "snmp"],
+             "name": "Weld_Cell_Switch",
+             "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_id": "cisco/ie9320/24p4x",
              "role": "Industrial Switch"},
-            # Cisco IE-3300 - cell uplink to IDMZ
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell2_weld",
-             "name": "Weld_Uplink_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3300-8T2S",
-             "role": "Cell Uplink Switch"},
 
             # ============================================================
-            # CELL 3: E-COAT SURFACE TREATMENT - Schneider (14 devices)
-            # Modicon M580/M340 PLCs, Altivar VFDs, process analyzers
-            # Protocol: Modbus TCP polling
+            # CELL 3: E-COAT SURFACE TREATMENT — Schneider (7 devices)
+            # Modbus TCP polling throughout
             # ============================================================
-            # Modicon M580 - e-coat process controller
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Process_PLC", "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "name": "ECoat_Process_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
              "fingerprint_model": "BMEP586040",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0001},
              "role": "Process Controller",
              "cve_ids": ["CVE-2022-45789"]},
-            # Modicon M340 - conveyor/material handling controller
-            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Conveyor_PLC", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "BMXP3420302",
-             "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0002},
-             "role": "Conveyor Controller",
-             "cve_ids": ["CVE-2021-22779"]},
-            # TM5 Safety PLC - chemical hazard/e-stop safety
             {"type": "safety_plc", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Safety_Controller", "protocols": ["modbus_tcp", "opc_ua"],
+             "name": "ECoat_Safety_Controller",
+             "protocols": ["modbus_tcp", "opc_ua"],
              "fingerprint_model": "TM5CSLC100FS",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-45789"]},
-            # Magelis GTO 10.4" - coating line operator HMI
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
              "name": "ECoat_Operator_HMI", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMIGTO5310",
              "role": "Operator Interface"},
-            # Altivar 930 - rectifier power VFD (electrocoat deposition)
+            # Altivar 930 rectifier represents the e-coat power-train drive.
             {"type": "drive", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Rectifier_VFD", "protocols": ["modbus_tcp", "snmp"],
+             "name": "ECoat_Rectifier_VFD",
+             "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "ATV930D15N4",
              "role": "Rectifier Drive"},
-            # Altivar 930 - bath circulation pump VFD
-            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Circulation_Pump_VFD", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ATV930D15N4",
-             "role": "Variable Frequency Drive"},
-            # Altivar 630 - ultrafiltration pump VFD
-            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_UF_Pump_VFD", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ATV630D15N4",
-             "role": "Variable Frequency Drive"},
-            # Altivar 630 - cure oven recirculation fan VFD
-            {"type": "drive", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Oven_Fan_VFD", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ATV630D15N4",
-             "role": "Variable Frequency Drive"},
-            # E+H Liquiline CM442 - bath pH/conductivity analyzer
+            # E+H pH/conductivity analyzer — process measurement.
             {"type": "sensor", "vendor": "endress+hauser", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_pH_Analyzer", "protocols": ["modbus_tcp"],
+             "name": "ECoat_pH_Analyzer",
+             "protocols": ["modbus_tcp"],
              "fingerprint_model": "CM442",
              "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
              "role": "Process Analyzer"},
-            # Rosemount 3051S - paint supply pressure transmitter
-            {"type": "sensor", "vendor": "emerson", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Pressure_Xmitter", "protocols": ["modbus_tcp"],
-             "fingerprint_model": "3051S",
-             "error_config": {"exception_rate": 0.001, "timeout_rate": 0.0005},
-             "role": "Pressure Transmitter"},
-            # Advantys STB - pretreatment wash stage I/O
+            # Advantys STB pretreatment I/O.
             {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Pretreat_IO", "protocols": ["modbus_tcp", "snmp"],
+             "name": "ECoat_Pretreat_IO",
+             "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "STBNIP2311",
              "role": "Remote I/O"},
-            # TM3 Compact - tank level/temperature discrete I/O
-            {"type": "io_module", "vendor": "schneider", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Tank_IO", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "TM3DI32K",
-             "role": "Discrete I/O"},
-            # Cisco IE-4000 - cell-internal managed switch
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Cell_Switch", "protocols": ["snmp"],
+             "name": "ECoat_Cell_Switch",
+             "protocols": ["snmp"],
              "fingerprint_id": "cisco/ie4000/8gt4g",
              "role": "Industrial Switch"},
-            # Cisco IE-3300 - cell uplink to IDMZ
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell3_ecoat",
-             "name": "ECoat_Uplink_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3300-8T2S",
-             "role": "Cell Uplink Switch"},
 
             # ============================================================
-            # CELL 4: FINAL ASSEMBLY & TEST - ABB (12 devices)
-            # AC500 PLCs, ACS880/ACS580 drives, Fanuc robot, mixed I/O
-            # Protocol: EtherNet/IP + Modbus TCP
+            # CELL 4: FINAL ASSEMBLY & TEST — mixed-vendor (7 devices)
+            # ABB process control, Fanuc robot, Rockwell safety + I/O.
+            # Protocols: EtherNet/IP + Modbus TCP + CIP Safety.
             # ============================================================
-            # ABB AC500 PM590-ETH - assembly line controller
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Line_PLC", "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "name": "Assembly_Line_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
              "fingerprint_model": "PM590-ETH",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0001},
              "role": "Line Controller",
              "cve_ids": ["CVE-2021-22285"]},
-            # ABB AC500 PM583-ETH - test stand controller
-            {"type": "plc", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Test_Stand_PLC", "protocols": ["modbus_tcp", "opc_ua"],
-             "fingerprint_model": "PM583-ETH",
-             "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
-             "role": "Test Controller",
-             "cve_ids": ["CVE-2021-22285"]},
-            # Rockwell GuardLogix L83ES - safety controller for press / robot interlocks
-            # Cell 4 is a mixed-vendor cell (ABB PLCs, Fanuc robot, Moxa/Advantech I/O), so a
-            # Rockwell safety controller is realistic; it uses CIP Safety over the existing
-            # EtherNet/IP cell network to interlock the Fanuc robot and the press VFD.
+            # Rockwell GuardLogix safety controller — realistic in a mixed-vendor cell;
+            # CIP Safety pairs with the Rockwell FLEX I/O below.
             {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "cell4_assembly",
              "name": "Assembly_Safety_Controller",
              "protocols": ["ethernet_ip", "cip_safety", "opc_ua"],
@@ -2155,198 +1989,131 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
              "cve_ids": ["CVE-2022-1159"]},
-            # ABB CP620 - assembly operator HMI
             {"type": "hmi", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
              "name": "Assembly_Operator_HMI", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CP620",
              "role": "Operator Interface"},
-            # ABB ACS880 - main assembly conveyor VFD
-            {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Conveyor_VFD", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
-             "fingerprint_model": "ACS880-01",
-             "role": "Variable Frequency Drive"},
-            # ABB ACS880 - parts lift/transfer VFD
-            {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Lift_VFD", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
-             "fingerprint_model": "ACS880-01",
-             "role": "Variable Frequency Drive"},
-            # ABB ACS580 - press/crimp station VFD
-            {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Press_VFD", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
-             "fingerprint_model": "ACS580",
-             "role": "Variable Frequency Drive"},
-            # ABB ACS580 - test fixture motor VFD
-            {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Test_Motor_VFD", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ACS580",
-             "role": "Variable Frequency Drive"},
-            # Fanuc R-30iB Plus - precision assembly robot
+            # Fanuc R-30iB on EtherNet/IP — robot motion class.
             {"type": "robot_controller", "vendor": "fanuc", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Robot_Controller", "protocols": ["ethernet_ip"],
+             "name": "Assembly_Robot_Controller",
+             "protocols": ["ethernet_ip"],
              "fingerprint_model": "R-30iB Plus",
              "role": "Robot Controller"},
-            # Moxa ioLogik E1210 - torque station remote I/O
-            {"type": "io_module", "vendor": "moxa", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Torque_Station_IO", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ioLogik E1210",
+            # ABB ACS880 conveyor VFD — production drive class.
+            {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",
+             "name": "Assembly_Conveyor_VFD",
+             "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Variable Frequency Drive"},
+            # Rockwell FLEX 5000 remote I/O — paired CIP Safety target for the GuardLogix.
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell4_assembly",
+             "name": "Assembly_Station_IO",
+             "protocols": ["ethernet_ip", "cip_safety", "snmp"],
+             "fingerprint_model": "5094-AEN2TR",
              "role": "Remote I/O"},
-            # Advantech ADAM-6052 - leak test discrete I/O
-            {"type": "io_module", "vendor": "advantech", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Leak_Test_IO", "protocols": ["modbus_tcp", "snmp"],
-             "fingerprint_model": "ADAM-6052",
-             "role": "Discrete I/O"},
-            # Cisco IE-3300 - cell-internal managed switch
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Cell_Switch", "protocols": ["snmp"],
+             "name": "Assembly_Cell_Switch",
+             "protocols": ["snmp"],
              "fingerprint_id": "cisco/ie3300/8t2s",
              "role": "Industrial Switch"},
-            # Cisco IE-3300 - cell uplink to IDMZ
-            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell4_assembly",
-             "name": "Assembly_Uplink_Switch", "protocols": ["snmp"],
-             "fingerprint_model": "IE-3300-8T2S",
-             "role": "Cell Uplink Switch"},
         ],
 
         "flows": [
             # ============================================================
-            # CELL 1 INTRA-CELL FLOWS - Siemens PROFINET/S7comm
-            # Strict: source_zones and target_zones both = cell1_cnc
+            # CELL 1 INTRA-CELL — Siemens PROFINET / S7comm+ / PROFIsafe
+            # All flows source and target the same cell. The runtime gate
+            # would also drop any cell-to-cell flow on top of these.
             # ============================================================
-            # PROFINET cyclic I/O - Main PLC to servo drives (4ms, motion control)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
              "source_types": ["plc"], "target_types": ["servo"],
              "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            # PROFINET cyclic I/O - Main PLC to VFDs (8ms, auxiliary drives)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
              "source_types": ["plc"], "target_types": ["drive"],
              "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
-            # PROFINET cyclic I/O - PLCs to distributed I/O (4ms)
             {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
              "source_types": ["plc"], "target_types": ["io_module"],
              "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
              "jitter_ms": 0.5, "jitter_type": "gaussian"},
-            # PROFIsafe - Safety PLC to PLCs and I/O (4ms, fail-safe)
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
              "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"]},
-            # S7comm+ - HMI polling to PLCs (500ms)
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
              "jitter_ms": 50, "jitter_type": "uniform"},
-            # PROFINET - PLC-to-PLC interlocking within cell (32ms)
-            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 32,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
-             "jitter_ms": 4, "jitter_type": "gaussian"},
 
             # ============================================================
-            # CELL 2 INTRA-CELL FLOWS - Rockwell EtherNet/IP
-            # Strict: source_zones and target_zones both = cell2_weld
+            # CELL 2 INTRA-CELL — Rockwell EtherNet/IP + CIP Safety
             # ============================================================
-            # EtherNet/IP implicit - PLC to robot controllers (2ms RPI, motion-critical)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
              "source_types": ["plc"], "target_types": ["robot_controller"],
              "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
              "jitter_ms": 0.2, "jitter_type": "gaussian"},
-            # EtherNet/IP implicit - PLC to servo drive (2ms RPI)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
-             "source_types": ["plc"], "target_types": ["servo"],
-             "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
-             "jitter_ms": 0.2, "jitter_type": "gaussian"},
-            # EtherNet/IP implicit - PLC to VFDs (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["drive"],
              "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
-            # EtherNet/IP implicit - PLC to remote I/O modules (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["io_module"],
              "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
-            # CIP Safety - Safety PLC to PLCs and I/O (4ms Safety RPI)
             {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
              "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"]},
-            # EtherNet/IP explicit - HMI polling to PLCs (500ms)
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
              "jitter_ms": 50, "jitter_type": "uniform"},
-            # EtherNet/IP - PLC-to-PLC interlocking within cell (10ms)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
-             "jitter_ms": 1, "jitter_type": "gaussian"},
 
             # ============================================================
-            # CELL 3 INTRA-CELL FLOWS - Schneider Modbus TCP
-            # Strict: source_zones and target_zones both = cell3_ecoat
+            # CELL 3 INTRA-CELL — Schneider Modbus TCP
             # ============================================================
-            # Modbus TCP - PLCs to VFDs (100ms polling, process control)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["plc"], "target_types": ["drive"],
              "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
-            # Modbus TCP - PLCs to I/O modules (200ms polling)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
              "source_types": ["plc"], "target_types": ["io_module"],
              "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Modbus TCP - PLC to process sensors (500ms, pH/pressure readings)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["plc"], "target_types": ["sensor"],
              "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
-            # Modbus TCP - HMI polling to PLCs (500ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
              "jitter_ms": 50, "jitter_type": "uniform"},
-            # Modbus TCP - PLC-to-PLC interlocking within cell (250ms)
+            # Schneider TM5 safety — Modbus heartbeat to the process PLC.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["plc"], "target_types": ["plc"],
+             "source_types": ["safety_plc"], "target_types": ["plc"],
              "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
              "jitter_ms": 30, "jitter_type": "uniform"},
 
             # ============================================================
-            # CELL 4 INTRA-CELL FLOWS - ABB EtherNet/IP + Modbus TCP
-            # Strict: source_zones and target_zones both = cell4_assembly
+            # CELL 4 INTRA-CELL — ABB Modbus TCP + EtherNet/IP + CIP Safety
             # ============================================================
-            # Modbus TCP - PLCs to VFDs (100ms polling)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["plc"], "target_types": ["drive"],
              "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
              "jitter_ms": 15, "jitter_type": "gaussian"},
-            # EtherNet/IP implicit - PLC to robot controller (10ms RPI)
             {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["robot_controller"],
              "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
-            # Modbus TCP - PLCs to I/O modules (200ms polling)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
              "source_types": ["plc"], "target_types": ["io_module"],
              "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-            # Modbus TCP - HMI polling to PLCs (500ms)
+             "jitter_ms": 1, "jitter_type": "gaussian"},
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
              "jitter_ms": 50, "jitter_type": "uniform"},
-            # Modbus TCP - PLC-to-PLC interlocking within cell (200ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
-             "jitter_ms": 25, "jitter_type": "gaussian"},
-
-            # ============================================================
-            # CELL 4 SAFETY FLOW - CIP Safety over EtherNet/IP
-            # ============================================================
-            # CIP Safety - Rockwell safety controller to ABB PLCs and mixed I/O (4ms)
+            # Rockwell GuardLogix → Rockwell FLEX I/O over CIP Safety.
             {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
-             "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
              "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"]},
 
             # ============================================================
@@ -2369,19 +2136,16 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"protocol": "s7comm_plus", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["operations"], "target_zones": ["cell1_cnc"]},
-            # EtherNet/IP - Central HMI polling Rockwell cell PLCs (1s)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+            # OPC UA - Central HMI polling cross-vendor cell PLCs (1s).
+            # The L3 HMI is Siemens; cross-vendor PLCs (Rockwell/Schneider/
+            # ABB) all support OPC UA. Authoring as ethernet_ip/modbus_tcp
+            # would snap to snmp at runtime (no shared vendor protocol).
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["operations"], "target_zones": ["cell2_weld"]},
-            # Modbus TCP - Central HMI polling Schneider/ABB cell PLCs (1s)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["hmi"], "target_types": ["plc"],
              "source_zones": ["operations"], "target_zones": ["cell3_ecoat", "cell4_assembly"]},
-            # OPC UA - OPC Gateway multi-protocol data collection from all cell PLCs (2s)
-            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 2000,
-             "source_types": ["gateway"], "target_types": ["plc"],
-             "source_zones": ["operations"],
-             "target_zones": ["cell1_cnc", "cell2_weld", "cell3_ecoat", "cell4_assembly"]},
 
             # ============================================================
             # ENGINEERING WORKSTATION FLOWS (L3 Operations → Cells)
@@ -2446,35 +2210,14 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # ============================================================
             # SNMP FIELD DEVICE MONITORING (per-cell, strictly intra-cell)
-            # Split into four single-cell flows so the template round-robin
-            # flow generator cannot create cross-cell pairings.
-            # Ensures PROFINET/EtherNet-IP-only field devices (servos, VFDs,
-            # I/O) have IP-based traffic so CV can associate MAC ↔ IP.
             # ============================================================
-            # SNMP - Cell 1 switches polling Cell 1 field devices (60s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["switch"],
-             "target_types": ["servo", "drive", "io_module"],
-             "source_zones": ["cell1_cnc"], "target_zones": ["cell1_cnc"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-            # SNMP - Cell 2 switches polling Cell 2 field devices (60s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["switch"],
-             "target_types": ["servo", "drive", "io_module"],
-             "source_zones": ["cell2_weld"], "target_zones": ["cell2_weld"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-            # SNMP - Cell 3 switches polling Cell 3 field devices (60s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["switch"],
-             "target_types": ["sensor", "drive", "io_module"],
-             "source_zones": ["cell3_ecoat"], "target_zones": ["cell3_ecoat"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-            # SNMP - Cell 4 switches polling Cell 4 field devices (60s)
-            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["switch"],
-             "target_types": ["drive", "io_module"],
-             "source_zones": ["cell4_assembly"], "target_zones": ["cell4_assembly"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # NOTE: Earlier authoring used switches as the SNMP polling
+            # source for in-cell field devices. That's the wrong topology —
+            # switches are POLLED by NMS, not the other way around. PLCs
+            # already poll their cell's drives / IO / servos via PROFINET
+            # I/O, which gives CV all the MAC↔IP correlation it needs once
+            # the per-PLC SNMP discovery loop runs against those endpoints.
+            # ============================================================
         ],
 
         "cloud_services": [
@@ -2508,6 +2251,77 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             "scan_ot_ports": True,
             "target_device_types": ["hmi", "scada_server", "historian", "jump_server"],
         },
+        "total_duration_ms": 600000,
+    },
+
+    # ============================================================
+    # PHASE 10 SHOWCASE TEMPLATES
+    # These are minimal stubs — devices / flows / zones come entirely
+    # from the archetype generator (see legacy_template_archetypes.py).
+    # ============================================================
+
+    "semiconductor_fab_300mm": {
+        "name": "Semiconductor Fab — 300mm Wafer Line",
+        "description": "300mm wafer fabrication facility with 6 process bays "
+                       "(lithography, etch, deposition, CMP, metrology, "
+                       "diffusion), each cluster-tool driven and densely "
+                       "instrumented with analyzers (RGA, mass-spec, gas "
+                       "chromatograph) and vision (alignment, defect, "
+                       "metrology). AMHS zone carries an OHT fleet ferrying "
+                       "FOUPs between bays under fleet-manager dispatch. "
+                       "Cleanroom-environmental zone monitors particle / "
+                       "temperature / humidity. Showcases the full vision / "
+                       "analyzer / AGV / fleet-manager stack at scale. "
+                       "~140 devices across 10 zones.",
+        "vertical": "manufacturing",
+        "phase_preset": "with_maintenance",
+        "devices": [],
+        "flows": [],
+        "zones": [],
+        "total_duration_ms": 600000,
+    },
+
+    "ev_battery_cell_plant": {
+        "name": "EV Battery Cell Plant — 5-Stage Line",
+        "description": "Lithium-ion cell manufacturing line. Five process "
+                       "stages each exercising a different OT pattern: "
+                       "coating + drying (DCS-flavored continuous web with "
+                       "thickness analyzer + defect-vision); calendaring + "
+                       "slitting (servo-precision motion); formation + "
+                       "aging (16+ charge / discharge cyclers with revenue "
+                       "power metering for energy accounting); quality "
+                       "(vision + X-ray + hi-pot test); pack assembly "
+                       "(robotic cell-to-pack welding + safety SIS). "
+                       "Showcases process + cell + power-meter + vision + "
+                       "robot patterns in one plant. ~95 devices across "
+                       "7 zones.",
+        "vertical": "manufacturing",
+        "phase_preset": "with_maintenance",
+        "devices": [],
+        "flows": [],
+        "zones": [],
+        "total_duration_ms": 600000,
+    },
+
+    "pharma_vaccine_bioreactor": {
+        "name": "Pharma — Vaccine Bioreactor Plant",
+        "description": "GMP-regulated vaccine / monoclonal-antibody plant. "
+                       "Three bioreactor trains with dense analyzer "
+                       "instrumentation (pH / DO / OD / glucose / lactate / "
+                       "off-gas — 6-10 analyzers per train). Tangential "
+                       "flow filtration + chromatography in purification, "
+                       "aseptic vial filling + lyophilization + automated "
+                       "vision inspection in fill / finish, dedicated "
+                       "SIL-3 SIS for over-pressure / over-temp shutdown, "
+                       "clean utilities (WFI / clean steam / compressed "
+                       "air). Heavy historian + asset management + alarm "
+                       "server traffic for 21 CFR Part 11 audit trail. "
+                       "~115 devices across 9 zones.",
+        "vertical": "manufacturing",
+        "phase_preset": "with_maintenance",
+        "devices": [],
+        "flows": [],
+        "zones": [],
         "total_duration_ms": 600000,
     },
 }
