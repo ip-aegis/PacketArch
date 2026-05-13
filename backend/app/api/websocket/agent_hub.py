@@ -173,7 +173,45 @@ async def sync_running_scenarios(agent_id: UUID, running_scenarios: list[str]) -
                 if deployments:
                     # Update the most recent deployment
                     primary_deployment = deployments[0]
-                    if primary_deployment.state != "running":
+                    if primary_deployment.state == "disconnected":
+                        # Agent reconnect → auto-restore to running.
+                        primary_deployment.state = "running"
+                        primary_deployment.stopped_at = None
+                        synced_count += 1
+                        logger.info(
+                            "Synced deployment %s: disconnected -> running "
+                            "(agent reconnected, scenario %s still running)",
+                            primary_deployment.id, scenario_id_str[:8],
+                        )
+                    elif primary_deployment.state in ("stopping", "stopped"):
+                        # User-initiated stop in progress / done. The
+                        # agent still claims the scenario is running —
+                        # re-issue the STOP_SCENARIO command directly to
+                        # THIS agent instead of silently flipping state
+                        # back to running. Pre-fix this branch undid every
+                        # Stop click as soon as the next heartbeat (30 s
+                        # cadence) arrived.
+                        try:
+                            from app.services.agent_manager import agent_manager
+                            await agent_manager.send_command(agent_id, {
+                                "type": "STOP_SCENARIO",
+                                "scenario_id": scenario_id_str,
+                            })
+                            logger.info(
+                                "Resent STOP_SCENARIO to agent %s for "
+                                "deployment %s — heartbeat still listed "
+                                "scenario %s as running after user-"
+                                "initiated stop",
+                                str(agent_id)[:8], primary_deployment.id,
+                                scenario_id_str[:8],
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to resend STOP_SCENARIO to agent "
+                                "%s for deployment %s: %s",
+                                agent_id, primary_deployment.id, e,
+                            )
+                    elif primary_deployment.state != "running":
                         old_state = primary_deployment.state
                         primary_deployment.state = "running"
                         primary_deployment.stopped_at = None  # Clear stopped_at on re-activation

@@ -91,6 +91,41 @@ async def list_deployments(
                         f"{scenario_id_str} on agent {conn.agent_id} — "
                         f"created deployment record"
                     )
+                elif deployment.state == "disconnected":
+                    # Agent reconnect — auto-restore to running.
+                    deployment.state = "running"
+                    deployment.stopped_at = None
+                    logger.info(
+                        f"Synced deployment {deployment.id} on page load: "
+                        f"disconnected -> running (agent reconnected)"
+                    )
+                elif deployment.state in ("stopping", "stopped"):
+                    # User asked to stop. The agent still reports the
+                    # scenario as running — it hasn't completed shutdown
+                    # yet (or the STOP_SCENARIO command was lost). Do
+                    # NOT silently re-activate; re-send the stop directly
+                    # to THIS agent. Pre-fix this branch flipped state
+                    # back to running, which made the UI Stop button
+                    # appear broken: every subsequent deployments-page
+                    # poll undid the stop.
+                    try:
+                        await agent_manager.send_command(conn.agent_id, {
+                            "type": "STOP_SCENARIO",
+                            "scenario_id": scenario_id_str,
+                        })
+                        logger.info(
+                            "Resent STOP_SCENARIO to agent %s for "
+                            "deployment %s — page-load reconciliation "
+                            "saw agent still running scenario after "
+                            "user-initiated stop",
+                            str(conn.agent_id)[:8], deployment.id,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to resend STOP_SCENARIO to agent "
+                            "%s for deployment %s: %s",
+                            conn.agent_id, deployment.id, e,
+                        )
                 elif deployment.state != "running":
                     old_state = deployment.state
                     deployment.state = "running"
