@@ -576,6 +576,7 @@ class OrchestratorPool:
                                         vlan_id=zone_vlan_map.get(dev_zone),
                                         purdue_level=zone_level_map.get(dev_zone),
                                         vendor_fingerprint=fp,
+                                        scenario_id=ctx.scenario_id,
                                     )
                     if seen_devices:
                         ambient = BackgroundNoiseGenerator(

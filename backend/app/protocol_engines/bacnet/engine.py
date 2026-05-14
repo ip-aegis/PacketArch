@@ -145,18 +145,42 @@ class BACnetEngine(ProtocolEngine):
         ]
 
     def _get_device_instance(self, flow: FlowContext) -> int:
-        """Get device instance from fingerprint or generate one."""
-        fingerprint = flow.destination.vendor_fingerprint or {}
-        bacnet_id = fingerprint.get("bacnet_identity") or {}
+        """Get device instance from FingerprintApplicator (per-instance unique)
+        rather than the raw fingerprint snapshot (shared across all
+        instances of a template).
+
+        Pre-fix: every instance of "Niagara JACE Field Controller" claimed
+        the same BACnet device_instance (e.g. 1258502), so CV collapsed
+        all 25 physical devices into one BACnet component and bounced
+        between which MAC owns it. Observed 2026-05-13 on the BACnet
+        Test scenario: 47 devices → 6 distinct device_instance values,
+        one shared by 25 devices.
+        """
+        bacnet_id = self._applicator_bacnet_identity(flow)
         return bacnet_id.get("device_instance", random.randint(1, 4194302))
+
+    def _applicator_bacnet_identity(self, flow: FlowContext) -> dict[str, Any]:
+        """Return the FingerprintApplicator's bacnet_identity, which has
+        per-instance unique values (device_instance, object_name) injected
+        by UniqueIdentifierGenerator. Falls back to the raw fingerprint
+        dict for paths that don't have an applicator yet (e.g. early
+        validation before DeviceContext.device_id is set)."""
+        applicator = flow.destination.fingerprint_applicator
+        if applicator and getattr(applicator, "bacnet_identity", None):
+            return applicator.bacnet_identity
+        return (flow.destination.vendor_fingerprint or {}).get(
+            "bacnet_identity"
+        ) or {}
 
     def _get_bacnet_identity(self, flow: FlowContext) -> dict[str, Any]:
         """Get BACnet identity from fingerprint for I-Am response.
 
         Returns identity fields critical for Cyber Vision detection.
         """
-        fingerprint = flow.destination.vendor_fingerprint or {}
-        bacnet_id = fingerprint.get("bacnet_identity") or {}
+        # Use the applicator's enriched bacnet_identity so device_instance
+        # and object_name are the per-instance unique values, not the
+        # shared template constants.
+        bacnet_id = self._applicator_bacnet_identity(flow)
 
         # Check for vulnerability override (CVE-specific identity)
         vuln_override = flow.destination.vulnerability_override or {}

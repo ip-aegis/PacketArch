@@ -65,6 +65,13 @@ class AmbientDevice:
     # Optional fingerprint for protocol-specific builders
     vendor_fingerprint: dict[str, Any] = field(default_factory=dict)
 
+    # Scenario identifier — used so unique-identifier generators (e.g.
+    # BACnet device_instance) produce the same hash here as in the
+    # protocol-engine flow path. Without this, ambient I-Am and
+    # engine-flow I-Am claim different device_instance values for the
+    # same physical device and CV sees two components.
+    scenario_id: str | None = None
+
 
 @dataclass
 class AmbientConfig:
@@ -750,6 +757,10 @@ class BackgroundNoiseGenerator:
                 continue
             responders.append(peer)
 
+        from app.protocol_engines.unique_identifier_generator import (
+            UniqueIdentifierGenerator,
+        )
+
         delay = random.uniform(50.0, 200.0)
         for responder in responders:
             resp_ctx = self._device_context(responder, port=47808)
@@ -758,7 +769,21 @@ class BackgroundNoiseGenerator:
                 fp.get("protocol_identities", {}).get("bacnet", {})
                 or fp.get("bacnet_identity", {})
             )
-            device_instance = bacnet_id.get("device_instance", random.randint(100, 4194303))
+            # device_instance MUST be unique per physical device on the
+            # BACnet network — CV uses it as the canonical identity key.
+            # The raw fingerprint snapshot has the template's shared
+            # value (e.g. all "Niagara JACE" instances claim 1258502),
+            # which makes CV collapse 25 devices into one component.
+            # Use the deterministic per-instance generator instead.
+            # Pass the SAME arg set the bacnet engine's path passes
+            # (device_id + scenario_id, NO base_instance) — otherwise
+            # the ambient I-Am claims a different device_instance than
+            # the engine-flow I-Am for the same physical device, and CV
+            # sees two BACnet components per host instead of one.
+            device_instance = UniqueIdentifierGenerator.generate_bacnet_device_instance(
+                device_id=responder.device_id,
+                scenario_id=getattr(responder, "scenario_id", None),
+            )
             vendor_id = bacnet_id.get("vendor_id", 0)
 
             iam_bytes = build_i_am_packet(
