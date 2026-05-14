@@ -102,7 +102,7 @@ DEFAULT_SETTINGS = [
         "value": "anthropic",
         "is_secret": False,
         "category": "ai",
-        "description": "AI provider to use (anthropic or openai)",
+        "description": "AI provider to use (anthropic, openai, or circuit)",
     },
     {
         "key": "anthropic_model",
@@ -129,6 +129,38 @@ DEFAULT_SETTINGS = [
         "is_secret": True,
         "category": "ai",
         "description": "OpenAI API key for GPT integration",
+    },
+    # ----- Cisco CIRCUIT (chat-ai.cisco.com) provider -----
+    # CIRCUIT uses OAuth2 client_credentials against id.cisco.com to mint
+    # a short-lived JWT for each chat call, plus a per-application appkey
+    # (egai-...) that identifies the billable Cisco app. Env vars
+    # CIRCUIT_CLIENT_ID / CIRCUIT_CLIENT_SECRET / CIRCUIT_APP_KEY /
+    # CIRCUIT_MODEL override these system_settings rows when set, so
+    # dev / containerised deploys can configure without touching the DB.
+    {
+        "key": "circuit_model",
+        "value": "gpt-4.1",
+        "is_secret": False,
+        "category": "ai",
+        "description": "CIRCUIT model deployment to use (gpt-4.1, gpt-4o, gpt-4o-mini, o3, o4-mini, gemini-2.5-pro, gemini-2.5-flash, gpt-5*)",
+    },
+    {
+        "key": "circuit_client_id",
+        "is_secret": False,
+        "category": "ai",
+        "description": "CIRCUIT Okta client_id (oart...). Not a password — stored unencrypted",
+    },
+    {
+        "key": "circuit_client_secret",
+        "is_secret": True,
+        "category": "ai",
+        "description": "CIRCUIT Okta client_secret (password-equivalent — encrypted at rest)",
+    },
+    {
+        "key": "circuit_app_key",
+        "is_secret": False,
+        "category": "ai",
+        "description": "CIRCUIT appkey (egai-...) identifying the Cisco application charged for usage",
     },
     {
         "key": "default_subnet_plant_floor",

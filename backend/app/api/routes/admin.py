@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser, DBSession
 from app.core.encryption import decrypt_value, encrypt_value
@@ -151,7 +152,27 @@ async def test_api_connection(
     db: DBSession,
     _admin: AdminUser,
 ) -> dict:
-    """Test the Anthropic API connection using the stored API key."""
+    """Test the currently-selected AI provider's connection.
+
+    Dispatches based on the ``ai_provider`` setting so the UI can hit
+    one button to verify whichever provider is currently active. Each
+    branch performs a minimal real call (token+chat for CIRCUIT, a
+    1-token completion for Anthropic / OpenAI) so plumbing + auth +
+    entitlements are all exercised.
+    """
+    provider_row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == "ai_provider")
+        )
+    ).scalar_one_or_none()
+    provider = provider_row.value if provider_row else "anthropic"
+
+    if provider == "openai":
+        return await _test_openai_connection(db)
+    if provider == "circuit":
+        return await _test_circuit_connection(db)
+
+    # default: anthropic (preserves pre-existing behaviour)
     result = await db.execute(
         select(SystemSetting).where(SystemSetting.key == "anthropic_api_key")
     )
@@ -212,6 +233,122 @@ async def test_api_connection(
             "success": False,
             "message": f"Unexpected error testing API key: {str(e)}",
         }
+
+
+async def _test_openai_connection(db: AsyncSession) -> dict:
+    """Validate the OpenAI provider config with a 1-token completion."""
+    key_row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == "openai_api_key")
+        )
+    ).scalar_one_or_none()
+    if not key_row or not key_row.value:
+        raise ValidationError("OpenAI API key not configured")
+    api_key = decrypt_value(key_row.value)
+    if not api_key:
+        raise ValidationError("Failed to decrypt OpenAI API key")
+    model_row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == "openai_model")
+        )
+    ).scalar_one_or_none()
+    model = (model_row.value if model_row else "gpt-4o-mini") or "gpt-4o-mini"
+    try:
+        from openai import AsyncOpenAI, AuthenticationError, RateLimitError
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.chat.completions.create(
+            model=model, max_tokens=5,
+            messages=[{"role": "user", "content": "Hi"}],
+        )
+        return {
+            "success": True,
+            "message": "OpenAI API key is valid and connection successful.",
+            "model_used": resp.model,
+        }
+    except AuthenticationError:
+        return {"success": False, "message": "OpenAI API key is invalid or expired."}
+    except RateLimitError:
+        return {"success": True, "message": "OpenAI API key is valid but rate limited."}
+    except Exception as e:
+        return {"success": False, "message": f"OpenAI test failed: {e}"}
+
+
+async def _test_circuit_connection(db: AsyncSession) -> dict:
+    """Validate the CIRCUIT provider config end-to-end.
+
+    Performs the full OAuth2 client_credentials handshake AND a minimal
+    chat completion. This catches three distinct failure modes:
+
+    * 401 from id.cisco.com → client_id / client_secret wrong.
+    * 401 from chat-ai.cisco.com → token good but appkey lacks API
+      entitlement (most common — operator must add chat-completions
+      access to the appkey in the CIRCUIT portal).
+    * Network / VPN failure → host unreachable (CIRCUIT requires
+      Cisco VPN from outside the corp network).
+
+    Env vars override system_settings the same way the factory does.
+    """
+    import os
+    from app.mcp_server.ai_providers.circuit_provider import CircuitProvider
+
+    async def _setting(key: str) -> str | None:
+        r = await db.execute(
+            select(SystemSetting).where(SystemSetting.key == key)
+        )
+        s = r.scalar_one_or_none()
+        if not s or not s.value:
+            return None
+        return decrypt_value(s.value) if key == "circuit_client_secret" else s.value
+
+    client_id = os.getenv("CIRCUIT_CLIENT_ID") or await _setting("circuit_client_id")
+    client_secret = os.getenv("CIRCUIT_CLIENT_SECRET") or await _setting("circuit_client_secret")
+    app_key = os.getenv("CIRCUIT_APP_KEY") or await _setting("circuit_app_key")
+    if not (client_id and client_secret and app_key):
+        missing = [n for n, v in (
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("app_key", app_key),
+        ) if not v]
+        return {
+            "success": False,
+            "message": f"CIRCUIT credentials missing: {', '.join(missing)}",
+        }
+    model = (
+        os.getenv("CIRCUIT_MODEL")
+        or (await _setting("circuit_model"))
+        or "gpt-4.1"
+    )
+    provider = CircuitProvider(
+        client_id=client_id, client_secret=client_secret,
+        app_key=app_key, model=model, timeout_s=30,
+    )
+    try:
+        resp = await provider.chat(
+            messages=[
+                {"role": "system", "content": "You are a chatbot."},
+                {"role": "user", "content": "Reply with OK."},
+            ],
+            max_tokens=10,
+        )
+        reply = next(
+            (c.get("text", "") for c in resp.get("content", []) if c.get("type") == "text"),
+            "",
+        )
+        return {
+            "success": True,
+            "message": "CIRCUIT credentials valid and chat completion succeeded.",
+            "model_used": resp.get("model"),
+            "reply": reply[:80],
+        }
+    except RuntimeError as e:
+        # CircuitProvider raises RuntimeError with the upstream HTTP
+        # status + body baked into the message. Surface that verbatim
+        # so the operator sees Cisco's exact rejection reason.
+        return {"success": False, "message": f"CIRCUIT test failed: {e}"}
+    except Exception as e:
+        return {"success": False, "message": f"Unexpected CIRCUIT error: {e}"}
+    finally:
+        await provider.close()
 
 
 @router.get("/scenarios/{scenario_id}/irrational-flows")

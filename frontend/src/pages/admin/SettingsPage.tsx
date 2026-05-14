@@ -140,6 +140,13 @@ const AIProviderTab: React.FC<{
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
   const [saving, setSaving] = useState(false);
+  // CIRCUIT-specific config — three rows instead of one API key
+  const [circuitClientId, setCircuitClientId] = useState('');
+  const [circuitClientSecret, setCircuitClientSecret] = useState('');
+  const [circuitAppKey, setCircuitAppKey] = useState('');
+
+  const providerLabel = (p: string): string =>
+    p === 'anthropic' ? 'Anthropic (Claude)' : p === 'openai' ? 'OpenAI (GPT)' : p === 'circuit' ? 'Cisco CIRCUIT' : p;
 
   // Get current provider from settings
   useEffect(() => {
@@ -158,12 +165,22 @@ const AIProviderTab: React.FC<{
       // Get current model
       const anthropicModel = allSettings.find((s: SystemSetting) => s.key === 'anthropic_model');
       const openaiModel = allSettings.find((s: SystemSetting) => s.key === 'openai_model');
+      const circuitModel = allSettings.find((s: SystemSetting) => s.key === 'circuit_model');
 
       if (selectedProvider === 'anthropic' && anthropicModel?.value) {
         setModel(anthropicModel.value);
       } else if (selectedProvider === 'openai' && openaiModel?.value) {
         setModel(openaiModel.value);
+      } else if (selectedProvider === 'circuit' && circuitModel?.value) {
+        setModel(circuitModel.value);
       }
+
+      // Pre-populate non-secret CIRCUIT fields so admins see what's currently
+      // saved. client_secret stays write-only (encrypted at rest).
+      const circuitId = allSettings.find((s: SystemSetting) => s.key === 'circuit_client_id');
+      const circuitApp = allSettings.find((s: SystemSetting) => s.key === 'circuit_app_key');
+      if (circuitId?.value) setCircuitClientId(circuitId.value);
+      if (circuitApp?.value) setCircuitAppKey(circuitApp.value);
     }
   }, [settings, selectedProvider]);
 
@@ -172,7 +189,7 @@ const AIProviderTab: React.FC<{
     setSaving(true);
     try {
       await updateSetting('ai_provider', provider);
-      message.success(`AI Provider changed to ${provider === 'anthropic' ? 'Anthropic (Claude)' : 'OpenAI (GPT)'}`);
+      message.success(`AI Provider changed to ${providerLabel(provider)}`);
     } catch (error) {
       message.error('Failed to update provider');
     } finally {
@@ -199,6 +216,30 @@ const AIProviderTab: React.FC<{
     }
   };
 
+  const handleCircuitCredentialsSave = async () => {
+    if (!circuitClientId.trim() || !circuitAppKey.trim()) {
+      message.warning('Client ID and App Key are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateSetting('circuit_client_id', circuitClientId.trim());
+      await updateSetting('circuit_app_key', circuitAppKey.trim());
+      // Only persist client_secret if the field is non-empty — leave the
+      // existing encrypted value untouched if the user is just updating
+      // the non-secret fields.
+      if (circuitClientSecret.trim()) {
+        await updateSetting('circuit_client_secret', circuitClientSecret.trim());
+        setCircuitClientSecret('');
+      }
+      message.success('CIRCUIT credentials updated');
+    } catch (error) {
+      message.error('Failed to update CIRCUIT credentials');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleModelSave = async () => {
     if (!model.trim()) {
       message.warning('Please select a model');
@@ -207,7 +248,10 @@ const AIProviderTab: React.FC<{
 
     setSaving(true);
     try {
-      const modelKey = selectedProvider === 'anthropic' ? 'anthropic_model' : 'openai_model';
+      const modelKey =
+        selectedProvider === 'anthropic' ? 'anthropic_model'
+        : selectedProvider === 'circuit' ? 'circuit_model'
+        : 'openai_model';
       await updateSetting(modelKey, model);
       message.success('Model updated successfully');
     } catch (error) {
@@ -235,6 +279,29 @@ const AIProviderTab: React.FC<{
     { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
     { value: 'o4-mini', label: 'o4-mini (Fast Reasoning)' },
   ];
+
+  // Cisco CIRCUIT exposes the Azure OpenAI surface for several models;
+  // the specific subset your appkey can call depends on entitlements.
+  // Free-tier appkeys typically only get gpt-4.1 / gpt-4o / gpt-4o-mini;
+  // paid tier adds o3, o4-mini, Gemini 2.5, and the GPT-5 family.
+  const circuitModels = [
+    { value: 'gpt-4.1', label: 'GPT-4.1 (default · free tier)' },
+    { value: 'gpt-4o', label: 'GPT-4o (free tier)' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (free tier · fastest)' },
+    { value: 'o3', label: 'o3 (paid tier · reasoning)' },
+    { value: 'o4-mini', label: 'o4-mini (paid tier · fast reasoning)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (paid tier)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (paid tier)' },
+    { value: 'gpt-5', label: 'GPT-5 (paid tier)' },
+    { value: 'gpt-5-mini', label: 'GPT-5 Mini (paid tier)' },
+    { value: 'gpt-5-nano', label: 'GPT-5 Nano (paid tier)' },
+    { value: 'gpt-5-chat', label: 'GPT-5 Chat (paid tier)' },
+  ];
+
+  const modelsForProvider =
+    selectedProvider === 'anthropic' ? anthropicModels
+    : selectedProvider === 'circuit' ? circuitModels
+    : openaiModels;
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -274,33 +341,77 @@ const AIProviderTab: React.FC<{
                 <Text type="secondary">- Alternative with broad capabilities</Text>
               </Space>
             </Radio>
+            <Radio value="circuit">
+              <Space>
+                <strong>Cisco CIRCUIT</strong>
+                <Text type="secondary">- Cisco internal gateway (chat-ai.cisco.com); requires Cisco VPN + appkey</Text>
+              </Space>
+            </Radio>
           </Space>
         </Radio.Group>
       </Card>
 
-      {/* API Key Configuration */}
-      <Card
-        title={`${selectedProvider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API Key`}
-        size="small"
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          {selectedProvider === 'anthropic'
-            ? 'Enter your Anthropic API key. Get one at console.anthropic.com'
-            : 'Enter your OpenAI API key. Get one at platform.openai.com'}
-        </Text>
-        <Space.Compact style={{ width: '100%' }}>
-          <Input
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            type="password"
-            placeholder={`Enter ${selectedProvider === 'anthropic' ? 'Anthropic' : 'OpenAI'} API key...`}
-            style={{ flex: 1 }}
-          />
-          <Button type="primary" onClick={handleApiKeySave} loading={saving}>
-            Save Key
-          </Button>
-        </Space.Compact>
-      </Card>
+      {/* Credentials — shape depends on provider. Anthropic / OpenAI share
+          a single API-key field; CIRCUIT has three (client_id, secret,
+          appkey) because it uses OAuth2 client_credentials. */}
+      {selectedProvider !== 'circuit' ? (
+        <Card
+          title={`${providerLabel(selectedProvider)} API Key`}
+          size="small"
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            {selectedProvider === 'anthropic'
+              ? 'Enter your Anthropic API key. Get one at console.anthropic.com'
+              : 'Enter your OpenAI API key. Get one at platform.openai.com'}
+          </Text>
+          <Space.Compact style={{ width: '100%' }}>
+            <Input
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              type="password"
+              placeholder={`Enter ${providerLabel(selectedProvider)} API key...`}
+              style={{ flex: 1 }}
+            />
+            <Button type="primary" onClick={handleApiKeySave} loading={saving}>
+              Save Key
+            </Button>
+          </Space.Compact>
+        </Card>
+      ) : (
+        <Card title="Cisco CIRCUIT Credentials" size="small">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+            CIRCUIT uses OAuth2 client_credentials. Get the Okta client_id /
+            client_secret and an appkey (egai-…) from the CIRCUIT API portal.
+            Backend reads <code>CIRCUIT_CLIENT_ID</code> /{' '}
+            <code>CIRCUIT_CLIENT_SECRET</code> / <code>CIRCUIT_APP_KEY</code>{' '}
+            env vars first; these fields are the fallback.
+          </Text>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Input
+              addonBefore="Client ID"
+              value={circuitClientId}
+              onChange={(e) => setCircuitClientId(e.target.value)}
+              placeholder="0oa..."
+            />
+            <Input
+              addonBefore="Client Secret"
+              value={circuitClientSecret}
+              onChange={(e) => setCircuitClientSecret(e.target.value)}
+              type="password"
+              placeholder="leave blank to keep existing"
+            />
+            <Input
+              addonBefore="App Key"
+              value={circuitAppKey}
+              onChange={(e) => setCircuitAppKey(e.target.value)}
+              placeholder="egai-prd-..."
+            />
+            <Button type="primary" onClick={handleCircuitCredentialsSave} loading={saving}>
+              Save CIRCUIT Credentials
+            </Button>
+          </Space>
+        </Card>
+      )}
 
       {/* Model Selection */}
       <Card title="Model Selection" size="small">
@@ -314,7 +425,7 @@ const AIProviderTab: React.FC<{
             onChange={setModel}
             style={{ flex: 1 }}
             placeholder="Select a model..."
-            options={selectedProvider === 'anthropic' ? anthropicModels : openaiModels}
+            options={modelsForProvider}
           />
           <Button type="primary" onClick={handleModelSave} loading={saving}>
             Save Model

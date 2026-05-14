@@ -45,6 +45,12 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       DEBUG: ${DEBUG:-false}
+      # Cisco CIRCUIT provider — env-var overrides for the encrypted
+      # system_settings rows. Empty/unset = use whatever's in the DB.
+      CIRCUIT_CLIENT_ID: ${CIRCUIT_CLIENT_ID:-}
+      CIRCUIT_CLIENT_SECRET: ${CIRCUIT_CLIENT_SECRET:-}
+      CIRCUIT_APP_KEY: ${CIRCUIT_APP_KEY:-}
+      CIRCUIT_MODEL: ${CIRCUIT_MODEL:-}
     # Backend is only accessible via nginx proxy (not exposed to host)
     expose:
       - "8001"
@@ -76,6 +82,12 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       # Required by app.core.config Settings validator (same as backend service)
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # CIRCUIT pass-through (same set as backend service so PCAP /
+      # Celery-driven AI calls have access to the same provider).
+      CIRCUIT_CLIENT_ID: ${CIRCUIT_CLIENT_ID:-}
+      CIRCUIT_CLIENT_SECRET: ${CIRCUIT_CLIENT_SECRET:-}
+      CIRCUIT_APP_KEY: ${CIRCUIT_APP_KEY:-}
+      CIRCUIT_MODEL: ${CIRCUIT_MODEL:-}
     volumes:
       - pcap_output:/app/output/pcap
     depends_on:

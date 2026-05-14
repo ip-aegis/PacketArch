@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.mcp_server.ai_providers.base import AIProvider
 from app.mcp_server.ai_providers.anthropic_provider import AnthropicProvider
+from app.mcp_server.ai_providers.circuit_provider import CircuitProvider
 from app.mcp_server.ai_providers.openai_provider import OpenAIProvider
 
 if TYPE_CHECKING:
@@ -86,6 +87,68 @@ class AIProviderFactory:
             logger.info(f"Creating OpenAI provider with model: {model}")
             return OpenAIProvider(api_key=api_key, model=model)
 
+        elif provider == "circuit":
+            # CIRCUIT is Cisco's internal LLM gateway. Credentials may be
+            # supplied via env (CIRCUIT_CLIENT_ID / CIRCUIT_CLIENT_SECRET /
+            # CIRCUIT_APP_KEY) which take precedence, or via encrypted
+            # system_settings (circuit_client_id / circuit_client_secret /
+            # circuit_app_key) the admin UI manages. Env wins so dev
+            # machines can override without touching the DB.
+            import os
+
+            async def _setting(key: str) -> str | None:
+                r = await db.execute(
+                    select(SystemSetting).where(SystemSetting.key == key)
+                )
+                s = r.scalar_one_or_none()
+                if not s or not s.value:
+                    return None
+                # Some CIRCUIT settings (e.g. client_id, app_key) are not
+                # encrypted because they're not secrets in the
+                # password-equivalent sense, only client_secret is.
+                if key == "circuit_client_secret":
+                    return decrypt_value(s.value)
+                return s.value
+
+            client_id = (
+                os.getenv("CIRCUIT_CLIENT_ID")
+                or await _setting("circuit_client_id")
+            )
+            client_secret = (
+                os.getenv("CIRCUIT_CLIENT_SECRET")
+                or await _setting("circuit_client_secret")
+            )
+            app_key = (
+                os.getenv("CIRCUIT_APP_KEY")
+                or await _setting("circuit_app_key")
+            )
+            if not (client_id and client_secret and app_key):
+                missing = [
+                    name for name, val in (
+                        ("CLIENT_ID", client_id),
+                        ("CLIENT_SECRET", client_secret),
+                        ("APP_KEY", app_key),
+                    ) if not val
+                ]
+                raise ValueError(
+                    "CIRCUIT credentials not fully configured (missing: "
+                    f"{', '.join(missing)})"
+                )
+
+            model = (
+                os.getenv("CIRCUIT_MODEL")
+                or (await _setting("circuit_model"))
+                or "gpt-4.1"
+            )
+
+            logger.info(f"Creating CIRCUIT provider with model: {model}")
+            return CircuitProvider(
+                client_id=client_id,
+                client_secret=client_secret,
+                app_key=app_key,
+                model=model,
+            )
+
         else:
             raise ValueError(f"Unknown AI provider: {provider}")
 
@@ -94,5 +157,6 @@ __all__ = [
     "AIProvider",
     "AIProviderFactory",
     "AnthropicProvider",
+    "CircuitProvider",
     "OpenAIProvider",
 ]
