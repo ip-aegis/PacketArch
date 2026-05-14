@@ -280,22 +280,47 @@ const AIProviderTab: React.FC<{
     { value: 'o4-mini', label: 'o4-mini (Fast Reasoning)' },
   ];
 
-  // Cisco CIRCUIT exposes the Azure OpenAI surface for several models;
-  // the specific subset your appkey can call depends on entitlements.
-  // Free-tier appkeys typically only get gpt-4.1 / gpt-4o / gpt-4o-mini;
-  // paid tier adds o3, o4-mini, Gemini 2.5, and the GPT-5 family.
+  // Cisco CIRCUIT exposes the full Azure OpenAI surface plus
+  // Anthropic, Google, and open-weight models — but each appkey is
+  // entitled to a specific subset that depends on how it was
+  // provisioned. The CIRCUIT gateway has no /models or /entitlements
+  // self-introspection endpoint, so the only reliable way to know
+  // what your appkey can call is to probe one model at a time. The
+  // list below is the full deployed catalog (extracted from
+  // chat-ai.cisco.com/openapi.json on 2026-05-14); models your
+  // appkey isn't entitled to return HTTP 401 from the gateway. Use
+  // the "Test AI Connection" button after switching models to verify
+  // entitlement.
   const circuitModels = [
-    { value: 'gpt-4.1', label: 'GPT-4.1 (default · free tier)' },
-    { value: 'gpt-4o', label: 'GPT-4o (free tier)' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (free tier · fastest)' },
-    { value: 'o3', label: 'o3 (paid tier · reasoning)' },
-    { value: 'o4-mini', label: 'o4-mini (paid tier · fast reasoning)' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (paid tier)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (paid tier)' },
-    { value: 'gpt-5', label: 'GPT-5 (paid tier)' },
-    { value: 'gpt-5-mini', label: 'GPT-5 Mini (paid tier)' },
-    { value: 'gpt-5-nano', label: 'GPT-5 Nano (paid tier)' },
-    { value: 'gpt-5-chat', label: 'GPT-5 Chat (paid tier)' },
+    // OpenAI-family
+    { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+    { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+    { value: 'gpt-5-chat', label: 'GPT-5 Chat' },
+    { value: 'gpt-5', label: 'GPT-5' },
+    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'o4-mini', label: 'o4-mini (reasoning)' },
+    { value: 'o3', label: 'o3 (reasoning)' },
+    { value: 'o3-mini', label: 'o3-mini (reasoning)' },
+    // Anthropic-family
+    { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
+    { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+    { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+    // Google Gemini
+    { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
+    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
+    { value: 'gemini-3-pro', label: 'Gemini 3 Pro' },
+    { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    // Open-weight / Cisco-specific
+    { value: 'llama-3-70b', label: 'Llama 3 70B' },
+    { value: 'llama-3-8b', label: 'Llama 3 8B' },
+    { value: 'gemma-4-26b-a4b-it-maas', label: 'Gemma 4 26B' },
+    { value: 'cisco-deep-network', label: 'Cisco Deep Network' },
   ];
 
   const modelsForProvider =
