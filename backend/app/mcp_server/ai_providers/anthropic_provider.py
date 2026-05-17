@@ -4,11 +4,13 @@
 """Anthropic Claude AI provider implementation."""
 
 import logging
+import time
 from typing import Any, AsyncIterator
 
 from anthropic import AsyncAnthropic
 
 from app.ai_services.skills import SkillNotFoundError, get_registry
+from app.ai_services.usage_recorder import AIUsageContext, record_call
 from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
@@ -52,13 +54,22 @@ class AnthropicProvider(AIProvider):
         """Add thinking parameters based on model capabilities.
 
         Opus 4.7 / 4.6: Uses adaptive thinking (model decides when to think deeply).
-        Sonnet 4.6 / 4.5: Uses extended thinking with a budget.
+        Sonnet 4.6 / 4.5: Uses extended thinking with a budget — but only
+        when the caller asked for enough ``max_tokens`` to leave room.
+        Anthropic requires ``max_tokens > budget_tokens`` and the minimum
+        budget is 1024, so any caller passing < ~1536 tokens (e.g. the
+        scenario_description path at max_tokens=500) silently 400s
+        unless we just skip thinking for that call.
         """
         if self._supports_adaptive_thinking():
             kwargs["thinking"] = {"type": "adaptive"}
         elif self._supports_thinking():
             max_tokens = kwargs.get("max_tokens", 16384)
-            budget = min(5000, max(1024, max_tokens - 1024))
+            min_budget = 1024
+            output_headroom = 512
+            if max_tokens < min_budget + output_headroom:
+                return
+            budget = min(5000, max(min_budget, max_tokens - output_headroom))
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
 
     def _build_system_blocks(
@@ -123,6 +134,7 @@ class AnthropicProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to Claude.
 
@@ -138,6 +150,8 @@ class AnthropicProvider(AIProvider):
                 prompt. Each skill is loaded from
                 ``backend/app/ai_services/skills/`` and emitted as its
                 own cacheable ``system`` block.
+            tracking: Optional attribution metadata for token/cost
+                auditing (see :class:`AIUsageContext`).
 
         Returns:
             Claude's response
@@ -181,6 +195,7 @@ class AnthropicProvider(AIProvider):
             # Enable thinking for supported models
             self._add_thinking_params(kwargs)
 
+            t0 = time.monotonic()
             try:
                 response = await self.client.messages.create(**kwargs)
             except ValueError as e:
@@ -193,9 +208,25 @@ class AnthropicProvider(AIProvider):
                 else:
                     raise
 
-            return self._format_response(response)
+            formatted = self._format_response(response)
+            await record_call(
+                provider="anthropic",
+                model=self.model,
+                usage=formatted.get("usage"),
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                tracking=tracking,
+            )
+            return formatted
 
         except Exception as e:
+            await record_call(
+                provider="anthropic",
+                model=self.model,
+                usage=None,
+                latency_ms=None,
+                tracking=tracking,
+                error=str(e),
+            )
             logger.error(f"Error calling Anthropic API: {e}", exc_info=True)
             raise
 
@@ -207,6 +238,7 @@ class AnthropicProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to Claude.
 
@@ -281,22 +313,24 @@ class AnthropicProvider(AIProvider):
         Returns:
             List of Claude-formatted tool definitions with strict validation
         """
+        # Strict mode is intentionally OFF — Anthropic caps strict-mode
+        # tools at 20 per request and PacketArch registers ~69 MCP tools
+        # (every scenario CRUD op + every fingerprint helper). Strict
+        # mode would guarantee exact schema compliance but isn't worth
+        # the cap; non-strict tools still work and the model rarely
+        # produces invalid input. See:
+        # https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview
         claude_tools = []
         for tool in mcp_tools:
-            input_schema = dict(tool["input_schema"])
-            # Ensure additionalProperties is false for strict mode
-            if "type" in input_schema and input_schema["type"] == "object":
-                input_schema["additionalProperties"] = False
-
             claude_tool: dict[str, Any] = {
                 "name": tool["name"],
                 "description": tool["description"],
-                "input_schema": input_schema,
-                "strict": True,
+                "input_schema": tool["input_schema"],
             }
             claude_tools.append(claude_tool)
 
-        # Cache the full set of tool definitions
+        # Cache the full set of tool definitions on the last entry so
+        # subsequent turns hit the prompt cache.
         if claude_tools:
             claude_tools[-1]["cache_control"] = {"type": "ephemeral"}
 
@@ -330,16 +364,38 @@ class AnthropicProvider(AIProvider):
             "usage": usage,
         }
 
-        # Format content blocks
+        # Format content blocks.
+        #
+        # Critical: when extended thinking is enabled, Claude emits
+        # ``thinking`` (and occasionally ``redacted_thinking``) blocks
+        # whose ``signature`` / ``data`` field is REQUIRED to be echoed
+        # back verbatim on any follow-up turn. Stripping the signature
+        # produces HTTP 400 ``messages.N.content.0.thinking.signature:
+        # Field required`` on the second iteration of the tool-use
+        # loop. Round-trip both fields.
         for block in response.content:
             if block.type == "text":
                 formatted["content"].append(
                     {"type": "text", "text": block.text}
                 )
             elif block.type == "thinking":
-                formatted["content"].append(
-                    {"type": "thinking", "thinking": block.thinking}
-                )
+                thinking_block: dict[str, Any] = {
+                    "type": "thinking",
+                    "thinking": block.thinking,
+                }
+                sig = getattr(block, "signature", None)
+                if sig is not None:
+                    thinking_block["signature"] = sig
+                formatted["content"].append(thinking_block)
+            elif block.type == "redacted_thinking":
+                # Redacted thinking blocks expose ``data`` (an opaque
+                # base64 blob) instead of plaintext; still must be
+                # round-tripped to keep the assistant turn valid.
+                redacted_block: dict[str, Any] = {"type": "redacted_thinking"}
+                data = getattr(block, "data", None)
+                if data is not None:
+                    redacted_block["data"] = data
+                formatted["content"].append(redacted_block)
             elif block.type == "tool_use":
                 formatted["content"].append(
                     {
