@@ -39,7 +39,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
             {"playbook_id": "industroyer_like", "relevance": "high", "rationale": "INDUSTROYER specifically targets electrical substation IEDs and breakers"},
+            {"playbook_id": "industroyer2_like", "relevance": "high", "rationale": "INDUSTROYER2 specifically targets IEC-104 and IEC-61850 in transmission substations"},
             {"playbook_id": "havex_like", "relevance": "high", "rationale": "Energy sector reconnaissance matches HAVEX targeting profile"},
+            {"playbook_id": "volt_typhoon_like", "relevance": "medium", "rationale": "LotL recon against utility OT for pre-positioning"},
             {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Substation network mapping for relay enumeration"}
         ],
         "recommended_traffic_schedule": "industrial_24h",
@@ -210,6 +212,67 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "WAN_Edge_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
              "role": "WAN Edge Switch"},
+
+            # --- WAMS / EXTENDED PROTECTION (added) - 9 devices: SEL PMUs, RTAC PDC, Siemens busbar, ABB line distance, Schneider C264, Beckwith OLTC ---
+            # SEL-411L Line Differential Relays + PMU (bay control)
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "bay_control",
+             "name": "Line_Diff_PMU_North",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential Protection + PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "bay_control",
+             "name": "Line_Diff_PMU_South",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential Protection + PMU"},
+
+            # SEL-787 Transformer Protection + PMU (transformer zone)
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "transformer_zone",
+             "name": "Xfmr_Diff_PMU_T1",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-787",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential Protection + PMU"},
+
+            # SEL-3555 RTAC - Substation PDC / Station RTAC
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_lan",
+             "name": "Substation_PDC_RTAC",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Phasor Data Concentrator + Station RTAC"},
+
+            # Siemens SIPROTEC 7SS85 Busbar Differential
+            {"type": "protection_relay", "vendor": "siemens", "count": 1, "zone": "bay_control",
+             "name": "Busbar_Differential_7SS85",
+             "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
+             "fingerprint_model": "7SS85",
+             "cve_ids": ["CVE-2024-31486", "CVE-2015-5374"],
+             "role": "Busbar Differential Protection"},
+
+            # ABB REL630 Line Distance Protection (feeder_zone)
+            {"type": "protection_relay", "vendor": "abb", "count": 2, "zone": "feeder_zone",
+             "name_pattern": "Feeder_{n:02d}_Line_Distance_REL630",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "REL630",
+             "cve_ids": ["CVE-2021-22276", "CVE-2022-26143"],
+             "role": "Line Distance Protection"},
+
+            # Schneider MiCOM C264 Bay Controller
+            {"type": "protection_relay", "vendor": "schneider", "count": 1, "zone": "bay_control",
+             "name": "Bay_Computer_C264",
+             "protocols": ["modbus_tcp", "iec61850", "iec104", "snmp"],
+             "fingerprint_model": "C264",
+             "cve_ids": ["CVE-2021-22772"],
+             "role": "Bay Computer / Bay Controller"},
+
+            # Beckwith M-2001D OLTC Digital Tap-Changer Control
+            {"type": "protection_relay", "vendor": "beckwith", "count": 1, "zone": "transformer_zone",
+             "name": "Xfmr_T1_OLTC_Control",
+             "protocols": ["modbus_tcp", "dnp3"],
+             "fingerprint_model": "M-2001D",
+             "role": "OLTC Digital Tap-Changer Control"},
         ],
         "flows": [
             # RTAC polling feeder relays (1000ms)
@@ -313,6 +376,26 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["bay_control"], "target_zones": ["bay_control", "transformer_zone"],
              "jitter_ms": 1, "jitter_type": "gaussian",
              "config": {"mode": "goose"}},
+
+            # IEEE C37.118 synchrophasor streaming - PMUs to Substation PDC (33 ms / 30 fps)
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["bay_control", "transformer_zone"],
+             "target_zones": ["substation_lan"],
+             "jitter_ms": 3, "jitter_type": "gaussian"},
+
+            # IEC 61850 GOOSE bay-to-bay between SEL-411L PMUs (4 ms multicast)
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["bay_control"], "target_zones": ["bay_control"],
+             "jitter_ms": 1, "jitter_type": "gaussian",
+             "config": {"mode": "goose"}},
+
+            # IEC-104 northbound from Substation PDC RTAC to WAN/SCADA RTU (1000ms)
+            {"protocol": "iec104", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["substation_lan"], "target_zones": ["wan_zone"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "substation_lan", "name": "Substation LAN", "level": 3,
@@ -362,9 +445,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "substation_to_bay", "name": "Substation LAN \u2194 Bay Control",
              "source_zone": "substation_lan", "target_zone": "bay_control",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "iec61850", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "iec61850", "iec104", "c37118", "s7comm", "snmp"],
              "security_level": "critical",
-             "description": "RTAC and automation controller polling bay controllers, bus protection IEDs, and network switches"},
+             "description": "RTAC and automation controller polling bay controllers, bus protection IEDs, PMU C37.118 streams, and network switches"},
             # L2 (bay_control) <-> L1 (feeder_zone): Bay controllers to feeder relays
             {"id": "bay_to_feeder", "name": "Bay Control \u2194 Feeder Protection",
              "source_zone": "bay_control", "target_zone": "feeder_zone",
@@ -390,9 +473,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "substation_to_transformer", "name": "Substation LAN \u2194 Transformer Protection",
              "source_zone": "substation_lan", "target_zone": "transformer_zone",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "iec61850", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "iec61850", "c37118", "snmp"],
              "security_level": "high",
-             "description": "RTAC polling transformer differential, line distance, and line differential relays"},
+             "description": "RTAC polling transformer differential, line distance, line differential relays, and SEL-787 PMU C37.118 stream"},
             # L3 (substation_lan) <-> L1 (metering_zone): RTAC to revenue meters
             {"id": "substation_to_metering", "name": "Substation LAN \u2194 Metering",
              "source_zone": "substation_lan", "target_zone": "metering_zone",
@@ -404,9 +487,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "wan_to_substation", "name": "WAN \u2194 Substation LAN",
              "source_zone": "wan_zone", "target_zone": "substation_lan",
              "direction": "bidirectional",
-             "allowed_protocols": ["dnp3"],
+             "allowed_protocols": ["dnp3", "iec104"],
              "security_level": "critical",
-             "description": "Remote SCADA WAN RTU DNP3 polling and unsolicited responses to/from substation RTAC"},
+             "description": "Remote SCADA WAN RTU DNP3/IEC-104 polling and unsolicited responses to/from substation RTAC and PDC"},
         ],
         "total_duration_ms": 300000,  # 5 minutes
     },
@@ -426,6 +509,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
             {"playbook_id": "triton_like", "relevance": "high", "rationale": "Turbine safety systems are prime TRITON-style targets"},
+            {"playbook_id": "industroyer2_like", "relevance": "medium", "rationale": "Energy generation susceptible to IEC-104 command injection at plant SCADA boundary"},
             {"playbook_id": "havex_like", "relevance": "medium", "rationale": "Power generation IP theft via remote access"}
         ],
         "recommended_traffic_schedule": "industrial_24h",
@@ -634,6 +718,48 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Aux_Distributed_IO", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CI501",
              "role": "Auxiliary I/O"},
+
+            # --- EXTENDED GENERATOR PROTECTION + PLANT DCS (added) - 5 devices: 7UM85/7VK87, HPG800, Beckwith M-3425A ---
+            # Siemens SIPROTEC 7UM85 - Generator Differential / Field-Failure
+            {"type": "protection_relay", "vendor": "siemens", "count": 1,
+             "zone": "generator_protection",
+             "name": "Gen_Unit_1_Protection",
+             "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
+             "fingerprint_model": "7UM85",
+             "cve_ids": ["CVE-2023-30899", "CVE-2023-32785"],
+             "role": "Generator Differential / Field-Failure Protection"},
+            {"type": "protection_relay", "vendor": "siemens", "count": 1,
+             "zone": "generator_protection",
+             "name": "Gen_Unit_2_Protection",
+             "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
+             "fingerprint_model": "7UM85",
+             "cve_ids": ["CVE-2023-30899", "CVE-2023-32785"],
+             "role": "Generator Differential / Field-Failure Protection"},
+
+            # Siemens SIPROTEC 7VK87 - Autoreclose + Synchrocheck
+            {"type": "protection_relay", "vendor": "siemens", "count": 1,
+             "zone": "generator_protection",
+             "name": "Gen_Autoreclose_Synchrocheck_7VK87",
+             "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
+             "fingerprint_model": "7VK87",
+             "cve_ids": ["CVE-2023-30899", "CVE-2015-5374"],
+             "role": "Autoreclose / Synchrocheck"},
+
+            # ABB Symphony Plus HPG800 - Plant Controller (placed in plant_scada)
+            {"type": "dcs_controller", "vendor": "abb", "count": 1, "zone": "plant_scada",
+             "name": "Plant_Symphony_Plus_HPG800",
+             "protocols": ["modbus_tcp", "opc_ua", "snmp"],
+             "fingerprint_model": "HPG800",
+             "cve_ids": ["CVE-2022-26143"],
+             "role": "Symphony Plus Plant Controller"},
+
+            # Beckwith M-3425A - Generator Backup Protection
+            {"type": "protection_relay", "vendor": "beckwith", "count": 1,
+             "zone": "generator_protection",
+             "name": "Generator_Backup_Protection_M3425A",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "M-3425A",
+             "role": "Generator Backup Protection"},
         ],
         "flows": [
             # DCS server polling Mark VIe controllers (500ms)
@@ -721,6 +847,18 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["scada_server"],
              "source_zones": ["plant_scada"], "target_zones": ["plant_scada"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # IEC 61850 GOOSE between Siemens 7UM85 generator protection and 7VK87 synchrocheck (intra-zone, 4 ms)
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["generator_protection"], "target_zones": ["generator_protection"],
+             "jitter_ms": 1, "jitter_type": "gaussian", "config": {"mode": "goose"}},
+
+            # DCS server polling ABB Symphony Plus HPG800 plant controller (1000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["dcs_controller"],
+             "source_zones": ["plant_scada"], "target_zones": ["plant_scada"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "plant_scada", "name": "Plant SCADA Network", "level": 3,
@@ -784,9 +922,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "scada_to_gen_prot", "name": "Plant SCADA \u2194 Generator Protection",
              "source_zone": "plant_scada", "target_zone": "generator_protection",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
+             "allowed_protocols": ["modbus_tcp", "s7comm", "iec61850", "dnp3", "snmp"],
              "security_level": "high",
-             "description": "DCS server polling generator differential, excitation, and overcurrent protection relays"},
+             "description": "DCS server polling generator differential, excitation, overcurrent, synchrocheck, and backup protection relays (Siemens SIPROTEC + Beckwith)"},
             # L3 (plant_scada) <-> L1 (auxiliary): Plant SCADA to auxiliary systems
             {"id": "scada_to_auxiliary", "name": "Plant SCADA \u2194 Auxiliary",
              "source_zone": "plant_scada", "target_zone": "auxiliary",
@@ -819,6 +957,8 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
             {"playbook_id": "industroyer_like", "relevance": "high", "rationale": "Grid control center is the primary INDUSTROYER target architecture"},
+            {"playbook_id": "industroyer2_like", "relevance": "critical", "rationale": "Direct match for INDUSTROYER2: IEC-104 command injection against transmission control center"},
+            {"playbook_id": "volt_typhoon_like", "relevance": "high", "rationale": "Pre-positioning in regional EMS is a documented Volt Typhoon target"},
             {"playbook_id": "havex_like", "relevance": "high", "rationale": "HAVEX energy sector espionage pattern"},
             {"playbook_id": "insider_threat", "relevance": "medium", "rationale": "EMS/SCADA operator access to grid-wide controls"}
         ],
@@ -998,6 +1138,60 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SCADAPack 350",
              "role": "WAN Backup Path"},
+
+            # --- WAMS / PDC AGGREGATION (added) - 9 devices: regional PDCs at EMS, 3 substation PMUs, C264, Beckwith M-7679 ---
+            # SEL-3555 RTAC - Regional Phasor Data Concentrators (EMS core, 2x)
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "ems_core",
+             "name": "Regional_PDC_North",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Regional Phasor Data Concentrator"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "ems_core",
+             "name": "Regional_PDC_South",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Regional Phasor Data Concentrator"},
+
+            # SEL-411L PMUs at remote substations (3 total, split across A/B)
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "remote_sub_a",
+             "name_pattern": "Substation_A{n:02d}_PMU_SEL411L",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Substation PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "remote_sub_b",
+             "name": "Substation_B01_PMU_SEL411L",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Substation PMU"},
+
+            # Schneider MiCOM C264 Bay Controller (placed at remote_sub_a)
+            {"type": "protection_relay", "vendor": "schneider", "count": 1, "zone": "remote_sub_a",
+             "name": "Substation_A_Bay_Computer_C264",
+             "protocols": ["modbus_tcp", "iec61850", "iec104", "snmp"],
+             "fingerprint_model": "C264",
+             "cve_ids": ["CVE-2021-22772"],
+             "role": "Bay Computer / Bay Controller"},
+
+            # Substation PMU concentrators (SEL-3555 at substations)
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "remote_sub_a",
+             "name": "Substation_A_Local_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "remote_sub_b",
+             "name": "Substation_B_Local_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+
+            # Beckwith M-7679 Transformer Monitor (asset monitoring at EMS)
+            {"type": "rtu", "vendor": "beckwith", "count": 1, "zone": "ems_core",
+             "name": "EMS_Transformer_Asset_Monitor_M7679",
+             "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             "fingerprint_model": "M-7679",
+             "role": "Asset Monitoring"},
         ],
         "flows": [
             # Comm Hub RTAC DNP3 integrity polls to remote substations A (2500ms - WAN)
@@ -1079,6 +1273,34 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["remote_gateway"], "target_types": ["scada_server"],
              "source_zones": ["ems_core"], "target_zones": ["ems_core"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # C37.118 synchrophasor streaming - substation PMUs → substation PDCs (33 ms / 30 fps)
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["remote_sub_a", "remote_sub_b"],
+             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "jitter_ms": 3, "jitter_type": "gaussian"},
+
+            # C37.118 aggregated PDC streams - substation PDCs → regional EMS PDCs (33 ms)
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["remote_sub_a", "remote_sub_b"],
+             "target_zones": ["ems_core"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+
+            # IEC-104 from regional EMS PDCs to primary SCADA master (1000ms)
+            {"protocol": "iec104", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["rtu"],
+             "source_zones": ["ems_core"], "target_zones": ["ems_core"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # IEC 61850 GOOSE intra-substation bay-to-bay (cyclic_io 4 ms)
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["remote_sub_a", "remote_sub_b"],
+             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "jitter_ms": 1, "jitter_type": "gaussian",
+             "config": {"mode": "goose"}},
         ],
         "zones": [
             {"id": "ems_core", "name": "EMS Core Network", "level": 3,
@@ -1142,16 +1364,16 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "comm_to_sub_a", "name": "Communications Hub \u2194 Remote Substations A",
              "source_zone": "comm_hub", "target_zone": "remote_sub_a",
              "direction": "bidirectional",
-             "allowed_protocols": ["dnp3", "snmp"],
+             "allowed_protocols": ["dnp3", "snmp", "modbus_tcp", "iec61850", "iec104", "c37118"],
              "security_level": "high",
-             "description": "Comm hub RTACs polling remote substations A (1-4) via WAN DNP3 and SNMP for relay health"},
+             "description": "Comm hub RTACs polling remote substations A (1-4) via WAN DNP3/Modbus and IEC-61850/104 + C37.118 PMU streams for relay health and synchrophasor data"},
             # L2 (comm_hub) <-> L1 (remote_sub_b): Comm hub to remote substations group B
             {"id": "comm_to_sub_b", "name": "Communications Hub \u2194 Remote Substations B",
              "source_zone": "comm_hub", "target_zone": "remote_sub_b",
              "direction": "bidirectional",
-             "allowed_protocols": ["dnp3", "snmp"],
+             "allowed_protocols": ["dnp3", "snmp", "modbus_tcp", "iec61850", "iec104", "c37118"],
              "security_level": "high",
-             "description": "Comm hub RTACs polling remote substations B (5-8) via WAN DNP3 and SNMP for relay health"},
+             "description": "Comm hub RTACs polling remote substations B (5-8) via WAN DNP3/Modbus and IEC-61850/104 + C37.118 PMU streams for relay health and synchrophasor data"},
             # L4 (wan) <-> L2 (comm_hub): WAN backup to comm hub
             {"id": "wan_to_comm", "name": "WAN \u2194 Communications Hub",
              "source_zone": "wan", "target_zone": "comm_hub",
@@ -1159,6 +1381,20 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "allowed_protocols": ["dnp3"],
              "security_level": "high",
              "description": "WAN backup RTUs providing redundant DNP3 communication path to comm hub RTACs"},
+            # L3 (ems_core) <-> L1 (remote_sub_a): EMS regional PDCs receive PMU streams
+            {"id": "ems_to_sub_a", "name": "EMS Core \u2194 Remote Substations A (WAMS)",
+             "source_zone": "ems_core", "target_zone": "remote_sub_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "modbus_tcp"],
+             "security_level": "critical",
+             "description": "Regional PDCs at EMS aggregating C37.118 synchrophasor streams and IEC-104 from substation A PDC"},
+            # L3 (ems_core) <-> L1 (remote_sub_b): EMS regional PDCs receive PMU streams
+            {"id": "ems_to_sub_b", "name": "EMS Core \u2194 Remote Substations B (WAMS)",
+             "source_zone": "ems_core", "target_zone": "remote_sub_b",
+             "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "modbus_tcp"],
+             "security_level": "critical",
+             "description": "Regional PDCs at EMS aggregating C37.118 synchrophasor streams and IEC-104 from substation B PDC"},
         ],
         "total_duration_ms": 600000,  # 10 minutes
     },
@@ -1178,6 +1414,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
             {"playbook_id": "network_recon", "relevance": "high", "rationale": "DER/microgrid discovery and capability mapping"},
+            {"playbook_id": "volt_typhoon_like", "relevance": "high", "rationale": "DER aggregation and microgrid controllers are increasingly targeted for grid disruption pre-positioning"},
             {"playbook_id": "industroyer_like", "relevance": "medium", "rationale": "Grid-connected DER can be leveraged for grid destabilization"}
         ],
         "recommended_traffic_schedule": "industrial_24h",
@@ -1384,6 +1621,46 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "WAN_Edge_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
              "role": "WAN Edge Switch"},
+
+            # --- DER PROTECTION + POI METERING (added) - 6 devices: Easergy P3/T300/P1, ABB RED615, ION9000 ---
+            # Schneider Easergy P3 - Inverter Array Feeder Protection (2x)
+            {"type": "protection_relay", "vendor": "schneider", "count": 2, "zone": "inverter_field",
+             "name_pattern": "Inverter_Array_{n:02d}_Feeder_Protection_P3",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "P3U30",
+             "cve_ids": ["CVE-2022-37300", "CVE-2022-37301", "CVE-2023-37193"],
+             "role": "Feeder Protection Relay"},
+
+            # Schneider Easergy T300 - POI RTU
+            {"type": "rtu", "vendor": "schneider", "count": 1, "zone": "poi_protection",
+             "name": "POI_RTU_T300",
+             "protocols": ["modbus_tcp", "dnp3", "iec104", "snmp"],
+             "fingerprint_model": "T300",
+             "cve_ids": ["CVE-2022-37300", "CVE-2023-37193"],
+             "role": "POI RTU"},
+
+            # Schneider Easergy P1 - BESS String Protection
+            {"type": "protection_relay", "vendor": "schneider", "count": 1, "zone": "bess_control",
+             "name": "BESS_String_Protection_P1",
+             "protocols": ["modbus_tcp", "iec61850"],
+             "fingerprint_model": "P1F30",
+             "cve_ids": ["CVE-2022-37300", "CVE-2022-37301"],
+             "role": "BESS String Protection"},
+
+            # ABB RED615 - Microgrid Tie-Line Differential
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "poi_protection",
+             "name": "Microgrid_TieLine_Differential_RED615",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "RED615",
+             "cve_ids": ["CVE-2021-22276", "CVE-2023-26517"],
+             "role": "Microgrid Tie-Line Differential"},
+
+            # Schneider PowerLogic ION9000 - Revenue Meter at POI
+            {"type": "power_meter", "vendor": "schneider", "count": 1, "zone": "poi_protection",
+             "name": "POI_Revenue_Meter_ION9000",
+             "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "fingerprint_model": "ION9000",
+             "role": "Revenue Meter at POI"},
         ],
         "flows": [
             # Microgrid controller polling inverter PLCs (500ms)
@@ -1490,6 +1767,20 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # WAN switch monitoring is bundled into the
             # remote_gateway → switch SNMP coverage flow above.
+
+            # IEC 61850 GOOSE/MMS between Easergy P1 (BESS) and ABB RED615
+            # (POI tie-line) — cross-bay coordination for islanding events
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["bess_control"], "target_zones": ["poi_protection"],
+             "jitter_ms": 1, "jitter_type": "gaussian",
+             "config": {"mode": "goose"}},
+
+            # IEC-104 northbound from POI T300 RTU to utility WAN RTU (1000ms)
+            {"protocol": "iec104", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["poi_protection"], "target_zones": ["wan"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "microgrid_control", "name": "Microgrid Control Network", "level": 3,
@@ -1539,9 +1830,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "microgrid_to_inverter", "name": "Microgrid Control \u2194 Inverter Field",
              "source_zone": "microgrid_control", "target_zone": "inverter_field",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "dnp3", "iec61850", "snmp"],
              "security_level": "high",
-             "description": "Microgrid controller and historian polling inverter string and central PLCs"},
+             "description": "Microgrid controller and historian polling inverter string and central PLCs plus Easergy P3 feeder protection"},
             # L3 (microgrid_control) <-> L2 (bess_control): Microgrid to BESS
             {"id": "microgrid_to_bess", "name": "Microgrid Control \u2194 BESS",
              "source_zone": "microgrid_control", "target_zone": "bess_control",
@@ -1553,9 +1844,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "microgrid_to_poi", "name": "Microgrid Control \u2194 POI Protection",
              "source_zone": "microgrid_control", "target_zone": "poi_protection",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
+             "allowed_protocols": ["modbus_tcp", "dnp3", "iec61850", "ethernet_ip", "snmp"],
              "security_level": "high",
-             "description": "Microgrid controller polling POI protection relays and net revenue meters"},
+             "description": "Microgrid controller polling POI protection relays, T300 POI RTU, RED615 tie-line differential, and ION9000 revenue meter"},
             # L3 (microgrid_control) <-> L1 (environmental): Microgrid to environmental monitoring
             {"id": "microgrid_to_environmental", "name": "Microgrid Control \u2194 Environmental",
              "source_zone": "microgrid_control", "target_zone": "environmental",
@@ -1570,7 +1861,340 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "allowed_protocols": ["modbus_tcp"],
              "security_level": "critical",
              "description": "Utility WAN RTU polling plant SCADA gateway RTAC for grid coordination"},
+            # L2 (bess_control) <-> L1 (poi_protection): BESS protection to POI
+            {"id": "bess_to_poi", "name": "BESS Control \u2194 POI Protection",
+             "source_zone": "bess_control", "target_zone": "poi_protection",
+             "direction": "bidirectional",
+             "allowed_protocols": ["iec61850", "modbus_tcp"],
+             "security_level": "high",
+             "description": "Easergy P1 BESS string protection coordinating GOOSE/MMS with ABB RED615 tie-line differential for islanding events"},
+            # L4 (wan) <-> L1 (poi_protection): WAN backhaul from POI RTU
+            {"id": "wan_to_poi", "name": "WAN \u2194 POI Protection",
+             "source_zone": "wan", "target_zone": "poi_protection",
+             "direction": "bidirectional",
+             "allowed_protocols": ["iec104", "dnp3", "modbus_tcp"],
+             "security_level": "critical",
+             "description": "Utility WAN RTU receiving IEC-104 northbound from Easergy T300 POI RTU"},
         ],
         "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # TEMPLATE 5: WAMS / PDC PHASOR NETWORK (NEW) \u2014 4 substations \u00d7 {2x SEL-411L PMU, 1x SEL-787, 1x SEL-3555 PDC, 1x ABB REL670, 1x Cisco IE-3300} + EMS Super-PDC + Corp IT
+    "wams_pdc_architecture": {
+        "name": "WAMS / PDC Phasor Network",
+        "description": "Wide-Area Measurement System: PMUs across 4 substations stream IEEE "
+                       "C37.118 synchrophasor data at 60 fps to two redundant regional Phasor "
+                       "Data Concentrators, which aggregate and forward to a Super-PDC at the "
+                       "EMS. Demonstrates real-time WAMS topology used for state estimation, "
+                       "oscillation detection, and remedial action schemes (RAS).",
+        "vertical": "energy_power",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "industroyer2_like", "relevance": "critical", "rationale": "Direct match for INDUSTROYER2: IEC-104 + IEC-61850 command injection across WAMS topology"},
+            {"playbook_id": "volt_typhoon_like", "relevance": "high", "rationale": "WAMS is a documented Volt Typhoon pre-positioning target per 2024 CISA advisory"},
+            {"playbook_id": "havex_like", "relevance": "medium", "rationale": "Utility-sector ICS reconnaissance and credential harvesting"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "energy_power",
+            "description": "WAMS-monitored grid with synchrophasor angles, voltages, frequencies across 4 substations",
+            "key_variables": ["active_power", "grid_frequency", "generator_voltage", "transformer_loading", "exhaust_temp"],
+            "available_faults": ["governor_failure", "transformer_overload", "grid_frequency_deviation"],
+        },
+        "devices": [
+            # --- SUBSTATION A (Level 2) - 6 devices ---
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "substation_a",
+             "name_pattern": "SubA_PMU_SEL411L_{n:02d}",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_a",
+             "name": "SubA_Xfmr_PMU_SEL787",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-787",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential + PMU"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_a",
+             "name": "SubA_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_a",
+             "name": "SubA_LineDistance_Backup_REL670",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "REL670",
+             "role": "Line Distance Backup Protection"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_a",
+             "name": "SubA_Network_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Substation Network Switch"},
+
+            # --- SUBSTATION B (Level 2) - 6 devices ---
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "substation_b",
+             "name_pattern": "SubB_PMU_SEL411L_{n:02d}",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_b",
+             "name": "SubB_Xfmr_PMU_SEL787",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-787",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential + PMU"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_b",
+             "name": "SubB_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_b",
+             "name": "SubB_LineDistance_Backup_REL670",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "REL670",
+             "role": "Line Distance Backup Protection"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_b",
+             "name": "SubB_Network_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Substation Network Switch"},
+
+            # --- SUBSTATION C (Level 2) - 6 devices ---
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "substation_c",
+             "name_pattern": "SubC_PMU_SEL411L_{n:02d}",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_c",
+             "name": "SubC_Xfmr_PMU_SEL787",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-787",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential + PMU"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_c",
+             "name": "SubC_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_c",
+             "name": "SubC_LineDistance_Backup_REL670",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "REL670",
+             "role": "Line Distance Backup Protection"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_c",
+             "name": "SubC_Network_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Substation Network Switch"},
+
+            # --- SUBSTATION D (Level 2) - 6 devices ---
+            {"type": "protection_relay", "vendor": "sel", "count": 2, "zone": "substation_d",
+             "name_pattern": "SubD_PMU_SEL411L_{n:02d}",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-411L",
+             "cve_ids": ["CVE-2023-31170", "CVE-2020-24650"],
+             "role": "Line Differential PMU"},
+            {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_d",
+             "name": "SubD_Xfmr_PMU_SEL787",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
+             "fingerprint_model": "SEL-787",
+             "cve_ids": ["CVE-2023-31170"],
+             "role": "Transformer Differential + PMU"},
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_d",
+             "name": "SubD_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Substation Phasor Data Concentrator"},
+            {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_d",
+             "name": "SubD_LineDistance_Backup_REL670",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850"],
+             "fingerprint_model": "REL670",
+             "role": "Line Distance Backup Protection"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_d",
+             "name": "SubD_Network_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Substation Network Switch"},
+
+            # --- EMS CONTROL CENTER (Level 4) - 4 devices: Super-PDC, state estimator, historian, core switch ---
+            {"type": "rtu", "vendor": "sel", "count": 1, "zone": "ems_control_center",
+             "name": "EMS_Super_PDC_SEL3555",
+             "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
+             "fingerprint_model": "SEL-3555",
+             "role": "Super Phasor Data Concentrator"},
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "ems_control_center",
+             "name": "EMS_State_Estimator_Workstation",
+             "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2019",
+             "role": "State Estimator Workstation"},
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "ems_control_center",
+             "name": "EMS_WAMS_Historian",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "cve_ids": ["CVE-2022-46660"],
+             "role": "WAMS Historian"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "ems_control_center",
+             "name": "EMS_Core_Switch_IE4000",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "EMS Core Switch"},
+
+            # --- CORPORATE IT (Level 5) - 3 devices: Jump + WSUS + AD (AD modeled as Jump Server 2019) ---
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
+             "name": "Corp_Jump_Server",
+             "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2019",
+             "role": "Corporate Jump Server",
+             "external_comms": True},
+            {"type": "server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
+             "name": "Corp_WSUS_Server",
+             "protocols": ["snmp"],
+             "fingerprint_model": "WSUS Server 2022",
+             "role": "WSUS Patch Server"},
+            {"type": "server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
+             "name": "Corp_AD_Domain_Controller",
+             "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2019",
+             "role": "Active Directory Domain Controller"},
+        ],
+        "flows": [
+            # Per-substation: PMUs \u2192 local SEL-3555 PDC via C37.118 (16 ms = 60 fps)
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 16,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["substation_a"], "target_zones": ["substation_a"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 16,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["substation_b"], "target_zones": ["substation_b"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 16,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["substation_c"], "target_zones": ["substation_c"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 16,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["substation_d"], "target_zones": ["substation_d"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            # Each substation SEL-3555 \u2192 EMS Super-PDC C37.118 aggregated stream (33 ms)
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
+             "target_zones": ["ems_control_center"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            # IEC-61850 GOOSE bay-to-bay within each substation (4 ms multicast)
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_a"], "target_zones": ["substation_a"],
+             "jitter_ms": 1, "jitter_type": "gaussian", "config": {"mode": "goose"}},
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_b"], "target_zones": ["substation_b"],
+             "jitter_ms": 1, "jitter_type": "gaussian", "config": {"mode": "goose"}},
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_c"], "target_zones": ["substation_c"],
+             "jitter_ms": 1, "jitter_type": "gaussian", "config": {"mode": "goose"}},
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_d"], "target_zones": ["substation_d"],
+             "jitter_ms": 1, "jitter_type": "gaussian", "config": {"mode": "goose"}},
+
+            # IEC-104 from substation SEL-3555 \u2192 EMS Super-PDC for command/control (1000ms)
+            {"protocol": "iec104", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["rtu"], "target_types": ["rtu"],
+             "source_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
+             "target_zones": ["ems_control_center"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # DNP3 from REL670 \u2192 SEL-3555 within each substation (status, 2000ms)
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
+             "target_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Historian collecting from Super-PDC (5000ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["rtu"],
+             "source_zones": ["ems_control_center"], "target_zones": ["ems_control_center"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # EMS SNMP monitoring of all switches across substations (60s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["rtu"], "target_types": ["switch"],
+             "source_zones": ["ems_control_center"],
+             "target_zones": ["substation_a", "substation_b", "substation_c",
+                              "substation_d", "ems_control_center"]},
+        ],
+        "zones": [
+            {"id": "substation_a", "name": "Substation A", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "substation_b", "name": "Substation B", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+            {"id": "substation_c", "name": "Substation C", "level": 2,
+             "subnet_offset": 3, "vlan": 130, "security_level": "high"},
+            {"id": "substation_d", "name": "Substation D", "level": 2,
+             "subnet_offset": 4, "vlan": 140, "security_level": "high"},
+            {"id": "ems_control_center", "name": "EMS Control Center", "level": 4,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "corporate_it", "name": "Corporate IT", "level": 5,
+             "subnet_offset": 50, "vlan": 200, "security_level": "external",
+             "is_external": True},
+        ],
+        "cloud_services": [
+            {
+                "provider": "talk2m",
+                "region": "us-east",
+                "device_types": ["jump_server"],
+                "heartbeat_interval_ms": 30000,
+            },
+        ],
+        "suggested_anomalies": {
+            "timing": ["pmu_stream_jitter", "pdc_aggregation_delay", "polling_gap"],
+            "protocol": ["c37118_cfg_mismatch", "iec104_timeout"],
+            "sequence": ["pmu_frame_loss", "out_of_order_phasor"],
+            "payload": ["frequency_deviation", "voltage_angle_excursion", "oscillation_event"],
+            "network": ["wan_latency_spike", "pdc_failover"],
+            "security": ["unauthorized_relay_setting_change", "c37118_cfg_injection"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["13.56.142.1", "54.95.198.117"],
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "exploit_patterns": ["iec104_command_injection", "relay_setting_change"],
+            "enable_recon": True,
+            "target_device_types": ["protection_relay", "rtu"],
+        },
+        "conduits": [
+            # Each substation \u2192 EMS Super-PDC (L2 \u2194 L4): C37.118 + IEC-104
+            {"id": "ems_to_sub_a_wams", "name": "EMS Control Center \u2194 Substation A (WAMS)",
+             "source_zone": "ems_control_center", "target_zone": "substation_a", "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "snmp", "modbus_tcp"], "security_level": "critical",
+             "description": "Super-PDC aggregating C37.118 + IEC-104 to/from Substation A"},
+            {"id": "ems_to_sub_b_wams", "name": "EMS Control Center \u2194 Substation B (WAMS)",
+             "source_zone": "ems_control_center", "target_zone": "substation_b", "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "snmp", "modbus_tcp"], "security_level": "critical",
+             "description": "Super-PDC aggregating C37.118 + IEC-104 to/from Substation B"},
+            {"id": "ems_to_sub_c_wams", "name": "EMS Control Center \u2194 Substation C (WAMS)",
+             "source_zone": "ems_control_center", "target_zone": "substation_c", "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "snmp", "modbus_tcp"], "security_level": "critical",
+             "description": "Super-PDC aggregating C37.118 + IEC-104 to/from Substation C"},
+            {"id": "ems_to_sub_d_wams", "name": "EMS Control Center \u2194 Substation D (WAMS)",
+             "source_zone": "ems_control_center", "target_zone": "substation_d", "direction": "bidirectional",
+             "allowed_protocols": ["c37118", "iec104", "snmp", "modbus_tcp"], "security_level": "critical",
+             "description": "Super-PDC aggregating C37.118 + IEC-104 to/from Substation D"},
+            # Corporate IT \u2194 EMS (L5 \u2194 L4): jump-server based admin access
+            {"id": "corp_to_ems", "name": "Corporate IT \u2194 EMS Control Center",
+             "source_zone": "corporate_it", "target_zone": "ems_control_center", "direction": "bidirectional",
+             "allowed_protocols": ["snmp"], "security_level": "critical",
+             "description": "Corporate jump server providing administrative access to EMS Super-PDC and state estimator"},
+        ],
+        "total_duration_ms": 600000,  # 10 minutes
     },
 }
