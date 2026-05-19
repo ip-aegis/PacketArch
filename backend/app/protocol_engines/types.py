@@ -23,6 +23,7 @@ class ProtocolType(str, Enum):
     DNP3 = "dnp3"
     IEC_104 = "iec_104"
     IEC61850 = "iec61850"  # IEC 61850 MMS/GOOSE/SV for power systems
+    C37118 = "c37118"  # IEEE C37.118.2-2011 synchrophasor (PMU/PDC) for WAMS
     PCCC = "pccc"  # Allen-Bradley PCCC/DF1 for Rockwell PLCs
     CODESYS = "codesys"  # Codesys runtime for 500+ PLC vendors
     LLDP = "lldp"  # Link Layer Discovery Protocol (IEEE 802.1AB)
@@ -821,6 +822,52 @@ class IEC61850ConversationState(ConversationStateBase):
 
 
 @dataclass
+class C37118ConversationState(ConversationStateBase):
+    """Typed state for IEEE C37.118.2-2011 (Synchrophasor) conversations.
+
+    The PDC (client) connects to the PMU (server), requests CFG-2, then
+    issues an enable-transmission command; the PMU then streams DATA
+    frames at the configured frame rate until disabled.
+
+    Attributes:
+        tcp_seq_client: PDC-side TCP sequence number
+        tcp_seq_server: PMU-side TCP sequence number
+        idcode: PMU/PDC stream identifier (1..65534)
+        data_rate: Frame rate in frames/sec (e.g. 30, 60)
+        config_count: Configuration change counter (CFGCNT)
+        soc: Seconds-of-century (UNIX epoch seconds) at session start
+        frame_count: Number of DATA frames emitted since enable
+        transmission_enabled: Whether the PMU is currently streaming
+        config_sent: Whether CFG-2 has been sent to the PDC
+    """
+
+    tcp_seq_client: int = 0
+    tcp_seq_server: int = 0
+    idcode: int = 1
+    data_rate: int = 30
+    config_count: int = 1
+    soc: int = 0
+    frame_count: int = 0
+    transmission_enabled: bool = False
+    config_sent: bool = False
+
+    def enable_transmission(self) -> None:
+        """Record transmission enable (PDC sent CMD=0x0002)."""
+        self.transmission_enabled = True
+        self.state_name = "streaming"
+
+    def disable_transmission(self) -> None:
+        """Record transmission disable (PDC sent CMD=0x0001)."""
+        self.transmission_enabled = False
+        self.state_name = "stopped"
+
+    def next_frame(self) -> int:
+        """Increment and return the cumulative DATA frame counter."""
+        self.frame_count += 1
+        return self.frame_count
+
+
+@dataclass
 class PCCCConversationState(ConversationStateBase):
     """Typed state for PCCC/DF1 conversations.
 
@@ -1283,6 +1330,7 @@ def create_conversation_state(
         ProtocolType.IEC_104: IEC104ConversationState,
         ProtocolType.OPC_UA: OPCUAConversationState,
         ProtocolType.IEC61850: IEC61850ConversationState,
+        ProtocolType.C37118: C37118ConversationState,
         ProtocolType.PCCC: PCCCConversationState,
         ProtocolType.CODESYS: CodesysConversationState,
         ProtocolType.LLDP: LLDPConversationState,

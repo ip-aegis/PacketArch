@@ -91,6 +91,8 @@ class DeviceTemplate:
     cdp_identity: dict[str, Any] | None = None   # Cisco Discovery Protocol
     dnp3_identity: dict[str, Any] | None = None   # DNP3 Device Attributes (Group 0)
     iec104_identity: dict[str, Any] | None = None  # IEC 60870-5-104 identity
+    iec61850_identity: dict[str, Any] | None = None  # IEC 61850 MMS/GOOSE/SV (IED name, logical devices, ICD file)
+    c37118_identity: dict[str, Any] | None = None    # IEEE C37.118 PMU/PDC identity (station name, IDCODE, channels)
 
     # Protocol-specific quirks
     protocol_quirks: dict[str, Any] = field(default_factory=dict)

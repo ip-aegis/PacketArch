@@ -35,6 +35,8 @@ class ProtocolType(str, Enum):
     OPC_UA = "opc_ua"
     DNP3 = "dnp3"
     IEC104 = "iec104"
+    IEC61850 = "iec61850"  # MMS / GOOSE / Sampled Values (substation automation)
+    C37118 = "c37118"      # IEEE C37.118 synchrophasor (PMU/PDC)
 
 
 # Protocol to identity key mapping
@@ -56,6 +58,13 @@ PROTOCOL_TO_IDENTITY_KEY: dict[str, str] = {
     "opc_ua": "opc_ua_identity",
     "dnp3": "dnp3_identity",
     "iec104": "iec104_identity",
+    "iec61850": "iec61850_identity",
+    "iec_61850": "iec61850_identity",  # Alias for spec-style hyphenation
+    "mms": "iec61850_identity",        # MMS is the client/server layer of 61850
+    "goose": "iec61850_identity",      # GOOSE multicast is part of 61850
+    "sv": "iec61850_identity",         # Sampled Values is part of 61850
+    "c37118": "c37118_identity",
+    "synchrophasor": "c37118_identity",  # Friendly alias
 }
 
 # Identity key to protocol(s) mapping (reverse lookup)
@@ -70,6 +79,8 @@ IDENTITY_KEY_TO_PROTOCOLS: dict[str, list[str]] = {
     "opc_ua_identity": ["opc_ua"],
     "dnp3_identity": ["dnp3"],
     "iec104_identity": ["iec104"],
+    "iec61850_identity": ["iec61850"],
+    "c37118_identity": ["c37118"],
 }
 
 # Runtime engine alias map.
@@ -91,6 +102,14 @@ PROTOCOL_ALIASES: dict[str, str] = {
     "modbus":      "modbus_tcp",
     "enip":        "ethernet_ip",
     "bacnet_ip":   "bacnet",
+    # IEC 61850 variants — the engine handles MMS/GOOSE/SV through the same code path
+    "iec_61850":   "iec61850",
+    "mms":         "iec61850",
+    "goose":       "iec61850",
+    "sv":          "iec61850",
+    # Synchrophasor aliases
+    "synchrophasor": "c37118",
+    "c37_118":     "c37118",
 }
 
 
@@ -126,6 +145,9 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "opc_ua":       4840,   # OPC UA TCP binary
     "dnp3":         20000,
     "iec_104":      2404,
+    "iec104":       2404,   # canonical name (matches ProtocolType.IEC104)
+    "c37118":       4712,   # IEEE C37.118 PDC TCP (4713 used for UDP/multicast)
+
     "fins":         9600,
     "slmp":         5007,   # MELSOFT/MC Protocol
     "pccc":         44818,  # PCCC over EtherNet/IP encapsulation
@@ -164,21 +186,30 @@ def get_default_port(protocol: str) -> int:
 # Vendor-protocol affinities (for validation warnings)
 # Maps vendor names to their typical/expected protocols
 VENDOR_PROTOCOL_AFFINITIES: dict[str, list[str]] = {
-    "siemens": ["profinet", "profisafe", "s7comm", "s7comm_plus", "modbus", "snmp"],
+    # SIPROTEC protection relays speak IEC 61850 in addition to the usual Siemens stack.
+    "siemens": ["profinet", "profisafe", "s7comm", "s7comm_plus", "modbus", "snmp", "iec61850"],
     "rockwell": ["ethernet_ip", "cip", "modbus"],
     "allen-bradley": ["ethernet_ip", "cip", "modbus"],
-    "schneider": ["modbus", "ethernet_ip"],
-    "schneider electric": ["modbus", "ethernet_ip"],
-    "ge": ["modbus", "ethernet_ip", "opc_ua"],
+    # Schneider's protection-relay/utility line (MiCOM, Easergy, Sepam) adds DNP3 / IEC 61850 / IEC 104.
+    "schneider": ["modbus", "ethernet_ip", "dnp3", "iec61850", "iec104"],
+    "schneider electric": ["modbus", "ethernet_ip", "dnp3", "iec61850", "iec104"],
+    # GE Multilin / Grid Solutions speaks the full utility stack.
+    "ge": ["modbus", "ethernet_ip", "opc_ua", "dnp3", "iec61850", "iec104"],
     "honeywell": ["modbus", "bacnet", "snmp"],
     "johnson controls": ["bacnet", "snmp"],
     "trane": ["bacnet", "snmp"],
     "carrier": ["bacnet", "snmp"],
-    "sel": ["modbus", "dnp3", "iec104"],
+    "sel": ["modbus", "dnp3", "iec104", "iec61850", "c37118"],
     "econolite": ["snmp"],
-    "abb": ["modbus", "profinet", "ethernet_ip"],
+    # ABB Relion 615/630/670 + RTU560 + ACS drives.
+    "abb": ["modbus", "profinet", "ethernet_ip", "dnp3", "iec61850", "iec104"],
     "emerson": ["modbus", "opc_ua"],
     "sick": ["ethernet_ip", "modbus"],
+    # Utility-relay & PMU specialists
+    "beckwith": ["modbus", "dnp3", "iec61850"],
+    "basler": ["modbus", "dnp3"],
+    "erlphase": ["modbus", "dnp3", "c37118"],
+    "doble": ["modbus", "dnp3"],
 }
 
 

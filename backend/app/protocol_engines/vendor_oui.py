@@ -763,6 +763,10 @@ VENDOR_ENTERPRISE_OIDS: dict[str, str] = {
     "omron": "1.3.6.1.4.1.1103",
     "mitsubishi": "1.3.6.1.4.1.18296",
     "sel": "1.3.6.1.4.1.1027",
+    "beckwith": "1.3.6.1.4.1.2456",        # Beckwith Electric Co. (IANA PEN 2456)
+    "basler": "1.3.6.1.4.1.16654",         # Basler Electric (IANA PEN 16654)
+    "erlphase": "1.3.6.1.4.1.39298",       # ERLPhase Power Technologies (IANA PEN 39298)
+    "doble": "1.3.6.1.4.1.7037",           # Doble Engineering Company (IANA PEN 7037)
     "sick": "1.3.6.1.4.1.1713",
     "advantech": "1.3.6.1.4.1.10297",
     "johnson_controls": "1.3.6.1.4.1.21239",

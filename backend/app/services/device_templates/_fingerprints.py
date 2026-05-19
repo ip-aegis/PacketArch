@@ -148,6 +148,8 @@ def get_fingerprint_from_template(
         ("opc_ua_identity", template.opc_ua_identity),
         ("dnp3_identity", template.dnp3_identity),
         ("iec104_identity", template.iec104_identity),
+        ("iec61850_identity", template.iec61850_identity),
+        ("c37118_identity", template.c37118_identity),
     ]
 
     for key, base_identity in protocol_identities:
@@ -174,6 +176,10 @@ def get_fingerprint_from_template(
             elif key == "dnp3_identity" and "software_version" not in merged:
                 merged["software_version"] = firmware.version
             elif key == "iec104_identity" and "software_version" not in merged:
+                merged["software_version"] = firmware.version
+            elif key == "iec61850_identity" and "software_version" not in merged:
+                merged["software_version"] = firmware.version
+            elif key == "c37118_identity" and "software_version" not in merged:
                 merged["software_version"] = firmware.version
             elif key == "ethernet_ip_identity":
                 parts = firmware.version.lstrip("V").split(".")

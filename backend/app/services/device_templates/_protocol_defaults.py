@@ -201,6 +201,12 @@ PROTOCOL_TO_TEMPLATE_IDENTITY: dict[str, str] = {
     "bacnet": "bacnet_identity",
     "dnp3": "dnp3_identity",
     "iec104": "iec104_identity",
+    "iec61850": "iec61850_identity",
+    "mms": "iec61850_identity",
+    "goose": "iec61850_identity",
+    "sv": "iec61850_identity",
+    "c37118": "c37118_identity",
+    "synchrophasor": "c37118_identity",
 }
 
 
