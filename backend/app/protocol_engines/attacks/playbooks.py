@@ -2219,6 +2219,433 @@ ITS_SIGNAL_DISRUPTION = AttackPlaybook(
 
 
 # ---------------------------------------------------------------------------
+# 10. INDUSTROYER2-like — Single-purpose IEC-104 Substation Attack
+# ---------------------------------------------------------------------------
+
+INDUSTROYER2_LIKE = AttackPlaybook(
+    playbook_id="industroyer2_like",
+    name="INDUSTROYER2-like Substation Attack",
+    description=(
+        "Modeled after the 2022 Industroyer2 attack on a Ukrainian energy provider. "
+        "Targets IEC 60870-5-104 stations in transmission substations to issue "
+        "remote breaker-open commands and trip protection. Differs from Industroyer "
+        "in being a single-purpose IEC-104-only payload. Paired with CaddyWiper "
+        "destructive component."
+    ),
+    mitre_software_id="S1072",
+    severity="critical",
+    category="apt",
+    required_protocols=["iec104", "iec61850"],
+    industry_verticals=["energy"],
+    reference_url="https://www.welivesecurity.com/2022/04/12/industroyer2-industroyer-reloaded/",
+    stages=[
+        # Stage 1: Initial Compromise
+        KillChainStage(
+            stage_id="initial_compromise",
+            name="Initial Compromise",
+            description=(
+                "Attacker establishes foothold on a Windows host inside the substation "
+                "OT network via supply-chain or stolen-credential access. Low-and-slow "
+                "HTTPS beacon to C2."
+            ),
+            duration_seconds=120,
+            color="#faad14",
+            mitre_tactics=["TA0108"],
+            expected_cv_alerts=["New external HTTPS beacon", "Periodic outbound from OT host"],
+            actions=[
+                AttackAction(
+                    action_id="i2_c2_establish",
+                    name="Establish C2 Channel",
+                    action_type="c2_beacon",
+                    description="Compromised substation host beacons to attacker C2 over HTTPS.",
+                    parameters={"pattern": "jittered_1m", "protocol": "https", "count": 5, "duration_ms": 90_000},
+                    target_selector="ews",
+                    mitre_technique="T0885",
+                    expected_cv_detection="Periodic outbound HTTPS beacon from substation host",
+                    delay_after_ms=4000,
+                ),
+            ],
+        ),
+        # Stage 2: Recon — find IEC-104 stations
+        KillChainStage(
+            stage_id="recon",
+            name="Substation Reconnaissance",
+            description=(
+                "Scan substation network for IEC 60870-5-104 (TCP/2404) and "
+                "IEC 61850 MMS (TCP/102) endpoints."
+            ),
+            duration_seconds=180,
+            color="#ffc53d",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=["Port scan for 2404/102", "Substation device enumeration"],
+            actions=[
+                AttackAction(
+                    action_id="i2_port_scan",
+                    name="Scan Substation IEC Ports",
+                    action_type="port_scan",
+                    description="Targeted SYN scan for IEC-104 (2404) and MMS (102).",
+                    parameters={"ports": [102, 2404, 20000, 4713], "scan_type": "syn"},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Scan targeting substation control protocol ports",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 3: IEC-104 Enumeration
+        KillChainStage(
+            stage_id="iec104_enumerate",
+            name="IEC-104 Station Enumeration",
+            description=(
+                "Probe discovered stations to enumerate ASDU common addresses and "
+                "information object addresses (IOAs) for breakers and protection."
+            ),
+            duration_seconds=240,
+            color="#ff7a45",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=["IEC-104 select-only commands", "ASDU enumeration pattern"],
+            actions=[
+                AttackAction(
+                    action_id="i2_sbo_probe",
+                    name="Select-Before-Operate Probing",
+                    action_type="iec104_select_before_operate_abuse",
+                    description="Issue rapid SELECT/EXECUTE pairs to fingerprint controllable IOAs.",
+                    parameters={"pairs": 8, "interval_ms": 100, "unit_address": 1, "ioa": 1000},
+                    target_selector="rtu",
+                    mitre_technique="T0855",
+                    expected_cv_detection="Abnormal IEC-104 SBO storm against substation RTU",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 4: Command Injection — Breaker Open
+        KillChainStage(
+            stage_id="command_injection",
+            name="Breaker Open Command Injection",
+            description=(
+                "Issue C_SC_NA_1 single commands to remotely open multiple "
+                "transmission breakers and trip protection relays. The signature "
+                "Industroyer2 action."
+            ),
+            duration_seconds=180,
+            color="#f5222d",
+            mitre_tactics=["TA0105"],
+            expected_cv_alerts=[
+                "IEC-104 C_SC_NA_1 from non-SCADA source",
+                "Remote breaker open command",
+                "Multiple breaker operations within seconds",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="i2_breaker_open",
+                    name="Remote Breaker Open Storm",
+                    action_type="iec104_breaker_open",
+                    description="Open transmission breakers via IEC-104 single command.",
+                    parameters={"unit_address": 1, "ioa": 1001, "count": 12, "interval_ms": 200},
+                    target_selector="rtu",
+                    mitre_technique="T0855",
+                    expected_cv_detection="Unauthorized IEC-104 breaker-open command burst",
+                    delay_after_ms=2000,
+                ),
+                AttackAction(
+                    action_id="i2_mms_trip",
+                    name="MMS Trip Write",
+                    action_type="iec61850_mms_write",
+                    description="MMS Write to GGIO trip output as a redundant impact vector.",
+                    parameters={"target_path": "GGIO1$CO$SPCSO1$Oper", "count": 4, "interval_ms": 500},
+                    target_selector="relay",
+                    mitre_technique="T0855",
+                    expected_cv_detection="MMS Write to control data object from non-engineering host",
+                    delay_after_ms=2000,
+                ),
+            ],
+        ),
+        # Stage 5: Wiper
+        KillChainStage(
+            stage_id="wiper",
+            name="CaddyWiper Cleanup",
+            description=(
+                "CaddyWiper-style destructive payload deployed to host to destroy "
+                "evidence and prolong outage recovery."
+            ),
+            duration_seconds=120,
+            color="#cf1322",
+            mitre_tactics=["TA0105"],
+            expected_cv_alerts=["Destructive file activity", "Unusual SMB write spike"],
+            actions=[
+                AttackAction(
+                    action_id="i2_wiper",
+                    name="CaddyWiper-style Disk Destruction",
+                    action_type="exploit_attempt",
+                    description="Marker exploit traffic representing wiper deployment.",
+                    parameters={"exploit_pattern": "buffer_overflow_generic", "repeat_count": 2},
+                    target_selector="ews",
+                    mitre_technique="T0809",
+                    expected_cv_detection="Destructive payload activity on substation host",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 6: C2 Callback
+        KillChainStage(
+            stage_id="c2_callback",
+            name="Final C2 Callback",
+            description=(
+                "Brief callback confirming impact before the wiper severs the host."
+            ),
+            duration_seconds=60,
+            color="#a8071a",
+            mitre_tactics=["TA0101"],
+            expected_cv_alerts=["Outbound beacon prior to host loss"],
+            actions=[
+                AttackAction(
+                    action_id="i2_final_beacon",
+                    name="Impact-Confirmation Beacon",
+                    action_type="c2_beacon",
+                    description="Short final beacon to confirm execution to attacker.",
+                    parameters={"pattern": "jittered_1m", "protocol": "https", "count": 2, "duration_ms": 30_000},
+                    target_selector="ews",
+                    mitre_technique="T0885",
+                    expected_cv_detection="Outbound beacon shortly before host comms loss",
+                    delay_after_ms=0,
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
+# 11. VOLT TYPHOON-like — Living-off-the-Land Pre-positioning
+# ---------------------------------------------------------------------------
+
+VOLT_TYPHOON_LIKE = AttackPlaybook(
+    playbook_id="volt_typhoon_like",
+    name="VOLT TYPHOON-like LotL Reconnaissance",
+    description=(
+        "Modeled after CISA's 2024 advisory on Volt Typhoon, a Chinese state-sponsored "
+        "actor pre-positioning in U.S. critical infrastructure (energy, water, telecom). "
+        "Distinguished by Living-off-the-Land (LotL) techniques: native Windows tools "
+        "for discovery and lateral movement, minimal custom malware, focus on stealth "
+        "and persistence over weeks/months."
+    ),
+    mitre_software_id="G1017",
+    severity="high",
+    category="apt",
+    required_protocols=["snmp", "modbus_tcp"],
+    industry_verticals=["energy", "water", "transportation"],
+    reference_url="https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-038a",
+    stages=[
+        # Stage 1: Initial Compromise — quiet edge-device foothold
+        KillChainStage(
+            stage_id="initial_compromise",
+            name="Initial Compromise (Edge Device)",
+            description=(
+                "Compromise an internet-exposed edge device (router/firewall/VPN) "
+                "as a quiet beachhead. Very low-frequency outbound C2 to blend in."
+            ),
+            duration_seconds=300,
+            color="#ffd591",
+            mitre_tactics=["TA0108"],
+            expected_cv_alerts=["Rare external connection", "Low-rate outbound beacon"],
+            actions=[
+                AttackAction(
+                    action_id="vt_quiet_beacon",
+                    name="Low-Frequency C2 Beacon",
+                    action_type="c2_beacon",
+                    description="Stealth long-interval beacon from compromised edge device.",
+                    parameters={"pattern": "jittered_1h", "protocol": "https", "count": 3, "duration_ms": 240_000},
+                    target_selector="ews",
+                    mitre_technique="T0885",
+                    expected_cv_detection="Very-low-rate outbound HTTPS beacon from edge host",
+                    delay_after_ms=5000,
+                ),
+            ],
+        ),
+        # Stage 2: Discovery — SSH/RDP/SNMP via LotL tools
+        KillChainStage(
+            stage_id="discovery",
+            name="Network Discovery (Living off the Land)",
+            description=(
+                "Use native admin protocols (SSH, RDP, SNMP) to enumerate the "
+                "internal network without dropping new tools."
+            ),
+            duration_seconds=600,
+            color="#ffc53d",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=[
+                "SSH/RDP/SNMP scan from internal host",
+                "Inventory probes consistent with native admin tooling",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="vt_admin_port_scan",
+                    name="Native Admin Port Sweep",
+                    action_type="port_scan",
+                    description="Scan for SSH (22), RDP (3389), SNMP (161/162), WinRM.",
+                    parameters={"ports": [22, 161, 162, 3389, 5985, 5986], "scan_type": "syn"},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Internal host scanning native admin ports",
+                    delay_after_ms=4000,
+                ),
+                AttackAction(
+                    action_id="vt_snmp_recon",
+                    name="SNMP Inventory Walk",
+                    action_type="snmp_getbulk_sweep",
+                    description="Walk multiple MIB subtrees for deep infrastructure profiling.",
+                    parameters={"community": "public", "requests_per_subtree": 6, "interval_ms": 250},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Aggressive SNMP MIB enumeration from unexpected source",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 3: Credential Access — slow auth pattern
+        KillChainStage(
+            stage_id="credential_access",
+            name="Credential Access (Dictionary Pattern)",
+            description=(
+                "Slow community-string and credential probing distributed over time "
+                "to avoid threshold-based lockouts. Plus HTTP exfil of auth-marker "
+                "data masquerading as routine traffic."
+            ),
+            duration_seconds=900,
+            color="#fa8c16",
+            mitre_tactics=["TA0103"],
+            expected_cv_alerts=[
+                "Slow SNMP community brute",
+                "Outbound HTTP carrying auth-marker tokens",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="vt_snmp_brute",
+                    name="Slow SNMP Community Brute",
+                    action_type="snmp_community_brute",
+                    description="Distributed slow community-string probing.",
+                    parameters={
+                        "communities": [
+                            "public", "private", "community", "admin",
+                            "monitor", "snmp", "default", "manager",
+                        ],
+                        "interval_ms": 800,
+                    },
+                    target_selector="any",
+                    mitre_technique="T0866",
+                    expected_cv_detection="SNMP community-string brute distributed across targets",
+                    delay_after_ms=4000,
+                ),
+                AttackAction(
+                    action_id="vt_auth_marker_exfil",
+                    name="Auth-Marker HTTP Exfil",
+                    action_type="http_exfil",
+                    description="Small HTTP POSTs carrying credential markers/cookies.",
+                    parameters={"data_size": 512},
+                    target_selector="ews",
+                    mitre_technique="T0882",
+                    expected_cv_detection="HTTP POST with credential-pattern payload to external host",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 4: Lateral Movement
+        KillChainStage(
+            stage_id="lateral_movement",
+            name="Lateral Movement",
+            description=(
+                "Hop between internal hosts using stolen credentials and native "
+                "protocols. New device-to-device pairs appear quietly."
+            ),
+            duration_seconds=600,
+            color="#fa541c",
+            mitre_tactics=["TA0109"],
+            expected_cv_alerts=["New device-to-device communication", "Cross-zone admin traffic"],
+            actions=[
+                AttackAction(
+                    action_id="vt_lateral",
+                    name="Cross-Device Lateral Hops",
+                    action_type="cross_device_comm",
+                    description="Quiet lateral movement between previously unrelated hosts.",
+                    parameters={"count": 6, "interval_ms": 3000, "target_type": "plc"},
+                    target_selector="any",
+                    mitre_technique="T0867",
+                    expected_cv_detection="Anomalous new device-to-device communication pair",
+                    delay_after_ms=3000,
+                ),
+            ],
+        ),
+        # Stage 5: Persistence — multi-day stealth beacon
+        KillChainStage(
+            stage_id="persistence",
+            name="Long-Term Persistence",
+            description=(
+                "Maintain a multi-day-cadence beacon channel to keep a stealth "
+                "foothold for months-long pre-positioning."
+            ),
+            duration_seconds=600,
+            color="#ad6800",
+            mitre_tactics=["TA0110"],
+            expected_cv_alerts=["Very-low-rate persistent beacon over long window"],
+            actions=[
+                AttackAction(
+                    action_id="vt_stealth_persist",
+                    name="Stealth 24h-Cadence Beacon",
+                    action_type="c2_beacon",
+                    description="Persistent low-rate beacon to maintain access.",
+                    parameters={"pattern": "stealth_24h", "protocol": "https", "count": 4, "duration_ms": 540_000},
+                    target_selector="ews",
+                    mitre_technique="T0859",
+                    expected_cv_detection="Persistent stealth beacon over multi-hour window",
+                    delay_after_ms=0,
+                ),
+            ],
+        ),
+        # Stage 6: Data Collection
+        KillChainStage(
+            stage_id="data_collection",
+            name="OT Data Collection",
+            description=(
+                "Quietly enumerate Modbus unit IDs and walk SNMP MIBs to inventory "
+                "OT devices, building target lists for a future destructive phase."
+            ),
+            duration_seconds=600,
+            color="#d4380d",
+            mitre_tactics=["TA0102"],
+            expected_cv_alerts=[
+                "Modbus unit ID enumeration",
+                "Sustained SNMP MIB walks",
+            ],
+            actions=[
+                AttackAction(
+                    action_id="vt_modbus_inventory",
+                    name="Modbus Unit Inventory",
+                    action_type="modbus_unit_enum",
+                    description="Identify responding Modbus unit IDs across OT subnet.",
+                    parameters={"unit_range": [1, 32], "interval_ms": 400},
+                    target_selector="plc",
+                    mitre_technique="T0842",
+                    expected_cv_detection="Modbus unit ID enumeration from unexpected internal host",
+                    delay_after_ms=3000,
+                ),
+                AttackAction(
+                    action_id="vt_snmp_walk",
+                    name="SNMP System Walk",
+                    action_type="snmp_walk",
+                    description="Walk system MIB to fingerprint network/OT devices.",
+                    parameters={"community": "public", "num_requests": 20, "interval_ms": 300},
+                    target_selector="any",
+                    mitre_technique="T0846",
+                    expected_cv_detection="Sustained SNMP MIB walk against OT subnet",
+                    delay_after_ms=0,
+                ),
+            ],
+        ),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -2232,6 +2659,8 @@ _ALL_PLAYBOOKS = [
     SNORT_VALIDATION,
     BAS_COMPROMISE,
     ITS_SIGNAL_DISRUPTION,
+    INDUSTROYER2_LIKE,
+    VOLT_TYPHOON_LIKE,
 ]
 
 PLAYBOOK_REGISTRY: dict[str, AttackPlaybook] = {p.playbook_id: p for p in _ALL_PLAYBOOKS}

