@@ -67,6 +67,7 @@ from app.protocol_engines.opc_ua.engine import OpcUaEngine  # noqa: E402, F401
 from app.protocol_engines.dnp3.engine import Dnp3Engine  # noqa: E402, F401
 from app.protocol_engines.iec104.engine import Iec104Engine  # noqa: E402, F401
 from app.protocol_engines.iec61850.engine import IEC61850Engine  # noqa: E402, F401
+from app.protocol_engines.synchrophasor.engine import C37118Engine  # noqa: E402, F401
 from app.protocol_engines.pccc.engine import PCCCEngine  # noqa: E402, F401
 from app.protocol_engines.codesys.engine import CodesysEngine  # noqa: E402, F401
 from app.protocol_engines.lldp.engine import LLDPEngine  # noqa: E402, F401
@@ -96,6 +97,7 @@ __all__ = [
     "Dnp3Engine",
     "Iec104Engine",
     "IEC61850Engine",
+    "C37118Engine",
     "PCCCEngine",
     "CodesysEngine",
     "LLDPEngine",
