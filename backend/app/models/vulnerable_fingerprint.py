@@ -140,6 +140,52 @@ class VulnerableFingerprintVariant(Base):
     #   "device_instance": 100001,
     # }
 
+    dnp3_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for DNP3 Device Attributes Group 0 (utility SCADA RTUs/IEDs)",
+    )
+    # Example: {
+    #   "vendor_name": "Schweitzer Engineering Laboratories",
+    #   "device_name": "SEL-751 Feeder Protection Relay",
+    #   "software_version": "R143-V0",
+    #   "device_serial": "751-VULN",
+    # }
+
+    iec104_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for IEC 60870-5-104 station identity (transmission SCADA)",
+    )
+    # Example: {
+    #   "station_name": "7SJ85-VULN",
+    #   "common_address": 1,
+    #   "software_version": "V08.20",
+    # }
+
+    iec61850_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for IEC 61850 MMS/GOOSE/SV identity (substation IEDs)",
+    )
+    # Example: {
+    #   "ied_name": "P40MICOM_VULN_01",
+    #   "vendor": "Schneider Electric",
+    #   "software_version": "C3.0",
+    #   "logical_devices": ["CTRL", "MEAS", "PROT"],
+    # }
+
+    c37118_identity_override: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Overrides for IEEE C37.118 synchrophasor PMU identity",
+    )
+    # Example: {
+    #   "station_name": "SEL_411L_VULN_01",
+    #   "idcode": 4111,
+    #   "software_version": "R125-V3",
+    # }
+
     # SNMP sys_descr template for firmware version interpolation
     snmp_sys_descr_template: Mapped[str | None] = mapped_column(
         String(500),
@@ -227,6 +273,10 @@ class VulnerableFingerprintVariant(Base):
             "cip_identity_override": self.cip_identity_override or {},
             "snmp_identity_override": self.snmp_identity_override or {},
             "bacnet_identity_override": self.bacnet_identity_override or {},
+            "dnp3_identity_override": self.dnp3_identity_override or {},
+            "iec104_identity_override": self.iec104_identity_override or {},
+            "iec61850_identity_override": self.iec61850_identity_override or {},
+            "c37118_identity_override": self.c37118_identity_override or {},
         }
         # Include SNMP sys_descr template for auto-derivation if present
         if self.snmp_sys_descr_template:

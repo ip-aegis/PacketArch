@@ -279,6 +279,10 @@ class CVEFingerprintService:
         explicit_cip = getattr(variant, "cip_identity_override", None) or {}
         explicit_snmp = getattr(variant, "snmp_identity_override", None) or {}
         explicit_bacnet = getattr(variant, "bacnet_identity_override", None) or {}
+        explicit_dnp3 = getattr(variant, "dnp3_identity_override", None) or {}
+        explicit_iec104 = getattr(variant, "iec104_identity_override", None) or {}
+        explicit_iec61850 = getattr(variant, "iec61850_identity_override", None) or {}
+        explicit_c37118 = getattr(variant, "c37118_identity_override", None) or {}
         snmp_sys_descr_template = getattr(variant, "snmp_sys_descr_template", None)
 
         # Auto-derive firmware fields if firmware_version is present
@@ -294,6 +298,12 @@ class CVEFingerprintService:
             cip_identity = {**derived.get("cip_identity_object", {}), **explicit_cip}
             snmp_identity = {**derived.get("snmp_identity", {}), **explicit_snmp}
             bacnet_identity = {**derived.get("bacnet_identity", {}), **explicit_bacnet}
+            # Utility protocols have no auto-derivation today — use explicit override
+            # plus a synthesized software_version so the wire reflects the CVE pick.
+            dnp3_identity = {"software_version": firmware_version, **explicit_dnp3}
+            iec104_identity = {"software_version": firmware_version, **explicit_iec104}
+            iec61850_identity = {"software_version": firmware_version, **explicit_iec61850}
+            c37118_identity = {"software_version": firmware_version, **explicit_c37118}
 
             logger.debug(
                 f"Auto-derived protocol identities for {variant.display_name} "
@@ -308,6 +318,10 @@ class CVEFingerprintService:
             cip_identity = explicit_cip
             snmp_identity = explicit_snmp
             bacnet_identity = explicit_bacnet
+            dnp3_identity = explicit_dnp3
+            iec104_identity = explicit_iec104
+            iec61850_identity = explicit_iec61850
+            c37118_identity = explicit_c37118
 
         return {
             "modbus_identity": modbus_identity,
@@ -317,6 +331,10 @@ class CVEFingerprintService:
             "cip_identity_override": cip_identity,
             "snmp_identity": snmp_identity,
             "bacnet_identity": bacnet_identity,
+            "dnp3_identity": dnp3_identity,
+            "iec104_identity": iec104_identity,
+            "iec61850_identity": iec61850_identity,
+            "c37118_identity": c37118_identity,
             "firmware_version": firmware_version,
             "cve_id": variant.cve_vulnerability.cve_id if variant.cve_vulnerability else None,
             "display_name": variant.display_name,
@@ -517,7 +535,24 @@ class CVEFingerprintService:
             "snmp_identity": getattr(variant, "snmp_identity_override", None),
             "bacnet_identity": getattr(variant, "bacnet_identity_override", None),
             "cip_identity_override": getattr(variant, "cip_identity_override", None),
+            "dnp3_identity": getattr(variant, "dnp3_identity_override", None),
+            "iec104_identity": getattr(variant, "iec104_identity_override", None),
+            "iec61850_identity": getattr(variant, "iec61850_identity_override", None),
+            "c37118_identity": getattr(variant, "c37118_identity_override", None),
         }
+
+        # Utility protocols have no auto-derivation today, so seed an
+        # identity dict with software_version derived from firmware_version
+        # when the variant declares the protocol AND the device supports it.
+        # This way DNP3/IEC-104/61850/C37.118 vulnerable variants flavor the
+        # wire even if the CVE entry only specifies a partial override.
+        if firmware_version:
+            for proto_key in ("dnp3_identity", "iec104_identity",
+                              "iec61850_identity", "c37118_identity"):
+                proto_name = proto_key.replace("_identity", "")
+                if proto_name in supported and explicit_overrides.get(proto_key):
+                    if proto_key not in result:
+                        result[proto_key] = {"software_version": firmware_version}
 
         for key, override in explicit_overrides.items():
             if override:

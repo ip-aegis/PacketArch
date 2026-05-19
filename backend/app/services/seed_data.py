@@ -3,8 +3,12 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Seed data for device profiles, protocol templates, and vendor fingerprints."""
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.models.device_template import DeviceTemplate as DeviceTemplateDB, TemplateSource
 from app.models.protocol_template import ProtocolTemplate
@@ -1368,16 +1372,30 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
     )
     cve_id_to_db_id = {row[0]: row[1] for row in result.all()}
 
-    # Pre-load all existing variant keys (cve_id, display_name) in a single query
-    result = await db.execute(
-        select(
-            VulnerableFingerprintVariant.cve_vulnerability_id,
-            VulnerableFingerprintVariant.display_name,
-        )
+    # Pre-load existing variants (full rows, keyed by (cve_id, display_name))
+    # so we can both skip-create and patch newly-added override columns onto
+    # rows that pre-date this column.
+    result = await db.execute(select(VulnerableFingerprintVariant))
+    existing_by_key: dict[tuple, VulnerableFingerprintVariant] = {
+        (v.cve_vulnerability_id, v.display_name): v for v in result.scalars().all()
+    }
+
+    # Columns that may have been added to the schema after a variant was
+    # first seeded — backfill them on existing rows from the source CVE dict
+    # without recreating the variant (preserving its UUID and any FK refs).
+    BACKFILL_COLUMNS = (
+        "cip_identity_override",
+        "snmp_identity_override",
+        "bacnet_identity_override",
+        "dnp3_identity_override",
+        "iec104_identity_override",
+        "iec61850_identity_override",
+        "c37118_identity_override",
+        "snmp_sys_descr_template",
     )
-    existing_variants = {(row[0], row[1]) for row in result.all()}
 
     new_variants = []
+    patched = 0
 
     for cve_data in ALL_CVES:
         cve_db_id = cve_id_to_db_id.get(cve_data["cve_id"])
@@ -1386,7 +1404,16 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
 
         for variant_data in cve_data.get("vulnerable_variants", []):
             variant_key = (cve_db_id, variant_data["display_name"])
-            if variant_key in existing_variants:
+            existing = existing_by_key.get(variant_key)
+            if existing is not None:
+                changed = False
+                for col in BACKFILL_COLUMNS:
+                    src = variant_data.get(col)
+                    if src and getattr(existing, col, None) in (None, {}):
+                        setattr(existing, col, src)
+                        changed = True
+                if changed:
+                    patched += 1
                 continue
 
             new_variants.append(VulnerableFingerprintVariant(
@@ -1404,6 +1431,10 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
                 cip_identity_override=variant_data.get("cip_identity_override"),
                 snmp_identity_override=variant_data.get("snmp_identity_override"),
                 bacnet_identity_override=variant_data.get("bacnet_identity_override"),
+                dnp3_identity_override=variant_data.get("dnp3_identity_override"),
+                iec104_identity_override=variant_data.get("iec104_identity_override"),
+                iec61850_identity_override=variant_data.get("iec61850_identity_override"),
+                c37118_identity_override=variant_data.get("c37118_identity_override"),
                 snmp_sys_descr_template=variant_data.get("snmp_sys_descr_template"),
                 target_vendor=cve_data["vendor"],
                 target_product_family=cve_data.get("product_family"),
@@ -1414,7 +1445,10 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
 
     if new_variants:
         db.add_all(new_variants)
+    if new_variants or patched:
         await db.commit()
+        if patched:
+            logger.info(f"Backfilled override columns on {patched} existing variants")
 
     return len(new_variants)
 

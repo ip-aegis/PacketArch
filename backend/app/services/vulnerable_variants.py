@@ -87,6 +87,14 @@ def _build_variant_dict(cve: dict, variant: dict) -> dict[str, Any]:
         "ethernet_ip_identity_override": variant.get("ethernet_ip_identity_override"),
         "profinet_identity_override": variant.get("profinet_identity_override"),
         "s7_identity_override": variant.get("s7_identity_override"),
+        "cip_identity_override": variant.get("cip_identity_override"),
+        "snmp_identity_override": variant.get("snmp_identity_override"),
+        "bacnet_identity_override": variant.get("bacnet_identity_override"),
+        "dnp3_identity_override": variant.get("dnp3_identity_override"),
+        "iec104_identity_override": variant.get("iec104_identity_override"),
+        "iec61850_identity_override": variant.get("iec61850_identity_override"),
+        "c37118_identity_override": variant.get("c37118_identity_override"),
+        "snmp_sys_descr_template": variant.get("snmp_sys_descr_template"),
         "is_builtin": True,
         "is_active": True,
         # Metadata from CVE
@@ -146,6 +154,39 @@ def apply_vulnerability_to_fingerprint(
             fingerprint["protocol_quirks"]["s7_identity"].update(variant["s7_identity_override"])
         else:
             fingerprint["protocol_quirks"]["s7_identity"] = variant["s7_identity_override"]
+
+    # Apply SNMP / BACnet / CIP identity overrides (parity with DB model columns)
+    for key in ("snmp_identity_override", "bacnet_identity_override", "cip_identity_override"):
+        override = variant.get(key)
+        if not override:
+            continue
+        target_key = {
+            "snmp_identity_override": "snmp_identity",
+            "bacnet_identity_override": "bacnet_identity",
+            "cip_identity_override": "cip_identity_object",
+        }[key]
+        if fingerprint.get(target_key):
+            fingerprint[target_key].update(override)
+        else:
+            fingerprint[target_key] = dict(override)
+
+    # Apply utility-protocol identity overrides (DNP3 / IEC-104 / IEC-61850 / C37.118).
+    # Without these, vulnerable-firmware selections on protection relays / RTUs / PMUs
+    # produced the same wire bytes as the patched version — defeating CV detection.
+    for key in (
+        "dnp3_identity_override",
+        "iec104_identity_override",
+        "iec61850_identity_override",
+        "c37118_identity_override",
+    ):
+        override = variant.get(key)
+        if not override:
+            continue
+        target_key = key.replace("_override", "")
+        if fingerprint.get(target_key):
+            fingerprint[target_key].update(override)
+        else:
+            fingerprint[target_key] = dict(override)
 
     # Update firmware version in the fingerprint
     fingerprint["firmware_version"] = variant["firmware_version"]
