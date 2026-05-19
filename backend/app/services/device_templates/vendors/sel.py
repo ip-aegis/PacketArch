@@ -790,7 +790,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "timeout_probability": 0.0003,
         },
 
-        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp"],
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="RTAC{10NUM}",

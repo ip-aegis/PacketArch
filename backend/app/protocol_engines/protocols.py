@@ -195,15 +195,19 @@ VENDOR_PROTOCOL_AFFINITIES: dict[str, list[str]] = {
     "schneider electric": ["modbus", "ethernet_ip", "dnp3", "iec61850", "iec104"],
     # GE Multilin / Grid Solutions speaks the full utility stack.
     "ge": ["modbus", "ethernet_ip", "opc_ua", "dnp3", "iec61850", "iec104"],
-    "honeywell": ["modbus", "bacnet", "snmp"],
+    # Honeywell Experion DCS adds OPC UA + EtherNet/IP for plant-floor integration.
+    "honeywell": ["modbus", "bacnet", "snmp", "opc_ua"],
     "johnson controls": ["bacnet", "snmp"],
     "trane": ["bacnet", "snmp"],
     "carrier": ["bacnet", "snmp"],
     "sel": ["modbus", "dnp3", "iec104", "iec61850", "c37118"],
     "econolite": ["snmp"],
-    # ABB Relion 615/630/670 + RTU560 + ACS drives.
-    "abb": ["modbus", "profinet", "ethernet_ip", "dnp3", "iec61850", "iec104"],
+    # ABB Relion 615/630/670 + RTU560 + ACS drives + Symphony Plus DCS (OPC UA).
+    "abb": ["modbus", "profinet", "ethernet_ip", "dnp3", "iec61850", "iec104", "opc_ua"],
     "emerson": ["modbus", "opc_ua"],
+    # HMS Networks gateways (Anybus, Flexy, eWON) act as protocol bridges —
+    # Modbus is the most common pass-through on the LAN side.
+    "hms": ["modbus", "snmp", "https"],
     "sick": ["ethernet_ip", "modbus"],
     # Utility-relay & PMU specialists
     "beckwith": ["modbus", "dnp3", "iec61850"],

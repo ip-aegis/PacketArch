@@ -247,7 +247,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
-        supported_protocols=["modbus_tcp"],
+        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="EXPSVR-{8HEX}",

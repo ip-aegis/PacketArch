@@ -976,13 +976,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server - Primary SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "Primary SCADA Server"},
 
             # Honeywell Experion Server - Backup SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "Backup SCADA Server"},
 
