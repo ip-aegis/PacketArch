@@ -542,4 +542,389 @@ TEMPLATES: list[DeviceTemplate] = [
             "software_version": "9.0.0.0",
         },
     ),
+
+    # ------------------------------------------------------------------
+    # SEL-411L — Line Current Differential System with integrated PMU.
+    # High-end transmission line protection (87L/21/67 + C37.118 streaming).
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="sel/relay/sel-411l",
+        vendor="SEL",
+        vendor_family="SEL-400 Series",
+        model="SEL-411L",
+        model_name="SEL-411L Line Current Differential System",
+        device_type="protection_relay",
+        description="Line current differential and distance protection with integrated synchrophasor PMU",
+
+        oui_prefixes=["00:30:A7", "00:1C:73"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 8.0,
+            "mean_ms": 1.8,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "c37118"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SEL{10NUM}",
+            station_name_pattern="relay-411l-{seq}",
+            vendor_short="SEL",
+            model_short="411L",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R125-V3",
+                release_date=date(2024, 3, 5),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R123-V2",
+                release_date=date(2022, 9, 12),
+                cves=["CVE-2023-31170"],
+            ),
+            FirmwareVariant(
+                version="R120-V0",
+                release_date=date(2020, 5, 18),
+                cves=["CVE-2023-31170", "CVE-2020-24650"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "product_code": "SEL-411L",
+            "product_name": "SEL-411L Line Current Differential System",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-411L Line Current Differential System VR125-V3",
+            "sys_object_id": "1.3.6.1.4.1.1027.411.51",
+            "sys_name": "SEL-41-LINEDIFF-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-411L Line Current Differential System",
+            "hardware_version": "411L",
+        },
+
+        iec61850_identity={
+            "ied_name": "SEL_411L_IED",
+            "vendor": "SEL",
+            "software_version": "R125-V3",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "SEL_411L.icd",
+        },
+
+        c37118_identity={
+            "station_name": "SEL_411L_PMU_01 ",
+            "idcode": 4111,
+            "data_rate": 60,
+            "fnom": 60,
+            "num_phasors": 6,
+            "num_analog": 2,
+            "num_digital": 1,
+            "channel_names": ["VA", "VB", "VC", "IA", "IB", "IC"],
+            "config_count": 1,
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # SEL-787 — Transformer Protection Relay (87T differential + 50/51).
+    # Often deployed as PMU on transformer high/low sides for WAMS.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="sel/relay/sel-787",
+        vendor="SEL",
+        vendor_family="SEL-700 Series",
+        model="SEL-787",
+        model_name="SEL-787 Transformer Protection Relay",
+        device_type="protection_relay",
+        description="Two-winding transformer differential protection with synchrophasor PMU",
+
+        oui_prefixes=["00:30:A7", "00:1C:73"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 10.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "c37118"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SEL{10NUM}",
+            station_name_pattern="relay-787-{seq}",
+            vendor_short="SEL",
+            model_short="787",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R208-V4",
+                release_date=date(2024, 2, 28),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R206-V2",
+                release_date=date(2022, 6, 8),
+                cves=["CVE-2023-31170"],
+            ),
+            FirmwareVariant(
+                version="R203-V0",
+                release_date=date(2020, 4, 22),
+                cves=["CVE-2023-31170", "CVE-2020-24650"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "product_code": "SEL-787",
+            "product_name": "SEL-787 Transformer Protection Relay",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-787 Transformer Protection Relay VR208-V4",
+            "sys_object_id": "1.3.6.1.4.1.1027.787.34",
+            "sys_name": "SEL-78-XFMR-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-787 Transformer Protection Relay",
+            "hardware_version": "787",
+        },
+
+        iec61850_identity={
+            "ied_name": "SEL_787_IED",
+            "vendor": "SEL",
+            "software_version": "R208-V4",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "SEL_787.icd",
+        },
+
+        c37118_identity={
+            "station_name": "SEL_787_PMU_01  ",
+            "idcode": 7870,
+            "data_rate": 30,
+            "fnom": 60,
+            "num_phasors": 6,
+            "num_analog": 1,
+            "num_digital": 1,
+            "channel_names": ["VA", "VB", "VC", "IA", "IB", "IC"],
+            "config_count": 1,
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # SEL-3555 — Next-gen Real-Time Automation Controller (Linux-based).
+    # Larger I/O, more protocols, IEC 104 master, web HMI.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="sel/rtac/sel-3555",
+        vendor="SEL",
+        vendor_family="SEL-3500 Series",
+        model="SEL-3555",
+        model_name="SEL-3555 RTAC",
+        device_type="rtu",
+        description="Next-generation Real-Time Automation Controller with expanded protocol support",
+
+        oui_prefixes=["00:30:A7", "00:1C:73"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 32768,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 8.0,
+            "mean_ms": 1.4,
+            "std_dev_ms": 0.9,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="RTAC{10NUM}",
+            station_name_pattern="rtac-3555-{seq}",
+            vendor_short="SEL",
+            model_short="3555",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R152-V3",
+                release_date=date(2024, 4, 10),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R150-V1",
+                release_date=date(2022, 11, 18),
+                cves=["CVE-2023-31170"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "product_code": "SEL-3555",
+            "product_name": "SEL-3555 Real-Time Automation Controller",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-3555 RTAC VR152-V3",
+            "sys_object_id": "1.3.6.1.4.1.1027.3555.12",
+            "sys_name": "SEL-35-RTAC-555",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-3555 Real-Time Automation Controller",
+            "hardware_version": "3555",
+        },
+
+        iec104_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-3555 Real-Time Automation Controller",
+            "hardware_version": "3555",
+        },
+
+        iec61850_identity={
+            "ied_name": "SEL_3555_RTAC",
+            "vendor": "SEL",
+            "software_version": "R152-V3",
+            "logical_devices": ["CTRL", "MEAS"],
+            "icd_filename": "SEL_3555.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # SEL-735 — Power Quality and Revenue Meter (Class 0.2 accuracy).
+    # ANSI C12.20 revenue, IEEE 1159 PQ, DNP3 metering points.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="sel/meter/sel-735",
+        vendor="SEL",
+        vendor_family="SEL-700 Series",
+        model="SEL-735",
+        model_name="SEL-735 Power Quality and Revenue Meter",
+        device_type="meter",
+        description="Class 0.2 revenue meter with IEEE 1159 power-quality recording",
+
+        oui_prefixes=["00:30:A7", "00:1C:73"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 15.0,
+            "mean_ms": 3.5,
+            "std_dev_ms": 2.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SEL{10NUM}",
+            station_name_pattern="meter-735-{seq}",
+            vendor_short="SEL",
+            model_short="735",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="R110-V2",
+                release_date=date(2024, 1, 30),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="R108-V1",
+                release_date=date(2022, 3, 14),
+                cves=["CVE-2020-24650"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "product_code": "SEL-735",
+            "product_name": "SEL-735 Power Quality and Revenue Meter",
+        },
+
+        snmp_identity={
+            "sys_descr": "Schweitzer Engineering Laboratories SEL-735 Power Quality and Revenue Meter VR110-V2",
+            "sys_object_id": "1.3.6.1.4.1.1027.735.22",
+            "sys_name": "SEL-73-METER-001",
+            "sys_location": "Substation Switchyard",
+        },
+
+        dnp3_identity={
+            "vendor_name": "Schweitzer Engineering Laboratories",
+            "device_name": "SEL-735 Power Quality and Revenue Meter",
+            "hardware_version": "735",
+        },
+    ),
 ]

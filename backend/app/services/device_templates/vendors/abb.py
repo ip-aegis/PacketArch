@@ -927,4 +927,372 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Industrial Network",
         },
     ),
+
+    # ------------------------------------------------------------------
+    # ABB REL630 — Relion 630 series line distance protection IED.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="abb/relion/rel630",
+        vendor="ABB",
+        vendor_family="Relion 630",
+        model="REL630",
+        model_name="ABB REL630 Line Distance Protection",
+        device_type="protection_relay",
+        description="Relion 630 series distance protection relay for sub-transmission lines",
+
+        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 10.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ABBREL{8NUM}",
+            station_name_pattern="relay-rel630-{seq}",
+            vendor_short="ABB",
+            model_short="REL630",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V2.2.3",
+                release_date=date(2024, 3, 2),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V2.2.1",
+                release_date=date(2022, 9, 14),
+                cves=["CVE-2021-22276"],
+            ),
+            FirmwareVariant(
+                version="V2.1.0",
+                release_date=date(2020, 6, 22),
+                cves=["CVE-2021-22276", "CVE-2022-26143"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "ABB",
+            "product_code": "REL630",
+            "product_name": "Relion REL630 Line Distance Protection",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB Relion REL630 Line Distance Protection V2.2.3",
+            "sys_object_id": "1.3.6.1.4.1.26381.630.11",
+            "sys_name": "RELION-REL630-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "ABB",
+            "device_name": "Relion REL630 Line Distance Protection",
+            "hardware_version": "REL630",
+        },
+
+        iec61850_identity={
+            "ied_name": "ABB_REL630_IED",
+            "vendor": "ABB",
+            "software_version": "V2.2.3",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "ABB_REL630.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # ABB RED615 — Relion 615 series line differential protection IED.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="abb/relion/red615",
+        vendor="ABB",
+        vendor_family="Relion 615",
+        model="RED615",
+        model_name="ABB RED615 Line Differential Protection",
+        device_type="protection_relay",
+        description="Relion 615 series line differential protection relay (87L)",
+
+        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 10.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ABBRED{8NUM}",
+            station_name_pattern="relay-red615-{seq}",
+            vendor_short="ABB",
+            model_short="RED615",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V5.0",
+                release_date=date(2024, 4, 5),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V4.2",
+                release_date=date(2022, 8, 18),
+                cves=["CVE-2023-26517"],
+            ),
+            FirmwareVariant(
+                version="V4.0",
+                release_date=date(2020, 5, 22),
+                cves=["CVE-2023-26517", "CVE-2021-22276"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "ABB",
+            "product_code": "RED615",
+            "product_name": "Relion RED615 Line Differential Protection",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB Relion RED615 Line Differential Protection V5.0",
+            "sys_object_id": "1.3.6.1.4.1.26381.615.7",
+            "sys_name": "RELION-RED615-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "ABB",
+            "device_name": "Relion RED615 Line Differential Protection",
+            "hardware_version": "RED615",
+        },
+
+        iec61850_identity={
+            "ied_name": "ABB_RED615_IED",
+            "vendor": "ABB",
+            "software_version": "V5.0",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "ABB_RED615.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # ABB REL670 — Relion 670 series high-end transmission distance protection.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="abb/relion/rel670",
+        vendor="ABB",
+        vendor_family="Relion 670",
+        model="REL670",
+        model_name="ABB REL670 Line Distance Protection",
+        device_type="protection_relay",
+        description="Relion 670 series high-end transmission line distance protection IED",
+
+        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 32768,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 8.0,
+            "mean_ms": 1.4,
+            "std_dev_ms": 0.8,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850", "iec104"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ABBREL{8NUM}",
+            station_name_pattern="relay-rel670-{seq}",
+            vendor_short="ABB",
+            model_short="REL670",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V2.2.5",
+                release_date=date(2024, 4, 12),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V2.2.3",
+                release_date=date(2022, 11, 8),
+                cves=["CVE-2023-26517"],
+            ),
+            FirmwareVariant(
+                version="V2.2.0",
+                release_date=date(2020, 7, 30),
+                cves=["CVE-2023-26517", "CVE-2022-26143", "CVE-2021-22276"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "ABB",
+            "product_code": "REL670",
+            "product_name": "Relion REL670 Line Distance Protection",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB Relion REL670 Line Distance Protection V2.2.5",
+            "sys_object_id": "1.3.6.1.4.1.26381.670.14",
+            "sys_name": "RELION-REL670-001",
+            "sys_location": "Transmission Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "ABB",
+            "device_name": "Relion REL670 Line Distance Protection",
+            "hardware_version": "REL670",
+        },
+
+        iec104_identity={
+            "vendor_name": "ABB",
+            "device_name": "Relion REL670 Line Distance Protection",
+            "hardware_version": "REL670",
+        },
+
+        iec61850_identity={
+            "ied_name": "ABB_REL670_IED",
+            "vendor": "ABB",
+            "software_version": "V2.2.5",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "ABB_REL670.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # ABB Symphony Plus HPG800 — DCS Harmony Process Gateway / power-plant controller.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="abb/symphony-plus/hpg800",
+        vendor="ABB",
+        vendor_family="Symphony Plus",
+        model="HPG800",
+        model_name="ABB Symphony Plus HPG800",
+        device_type="controller",
+        description="Symphony Plus Harmony Process Gateway DCS controller for power generation",
+
+        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 32768,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 15.0,
+            "mean_ms": 4.5,
+            "std_dev_ms": 2.5,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "opc_ua", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="HPG{10NUM}",
+            station_name_pattern="hpg800-{seq}",
+            vendor_short="ABB",
+            model_short="HPG800",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V3.2.1",
+                release_date=date(2024, 2, 18),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V3.1.0",
+                release_date=date(2022, 6, 24),
+                cves=["CVE-2022-26143"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "ABB",
+            "product_code": "HPG800",
+            "product_name": "Symphony Plus HPG800 Harmony Process Gateway",
+        },
+
+        snmp_identity={
+            "sys_descr": "ABB Symphony Plus HPG800 Harmony Process Gateway V3.2.1",
+            "sys_object_id": "1.3.6.1.4.1.26381.800.18",
+            "sys_name": "HPG800-DCS-001",
+            "sys_location": "Power Plant Control Room",
+        },
+
+        opc_ua_identity={
+            "application_name": "ABB Symphony Plus HPG800",
+            "application_uri": "urn:ABB:SymphonyPlus:HPG800",
+            "product_uri": "http://www.abb.com/control-systems/symphony-plus",
+            "manufacturer_name": "ABB",
+            "product_name": "Symphony Plus HPG800",
+            "software_version": "3.2.1",
+            "build_number": "8321",
+            "build_date": "2024-02-18T08:00:00Z",
+        },
+    ),
 ]

@@ -658,4 +658,280 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Industrial Network",
         },
     ),
+
+    # ------------------------------------------------------------------
+    # GE F60 — UR-series Feeder Management Relay (multifunction 50/51/27/59).
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="ge/multilin/f60",
+        vendor="GE",
+        vendor_family="UR Series",
+        model="F60",
+        model_name="GE Multilin F60 Feeder Management Relay",
+        device_type="protection_relay",
+        description="UR-series feeder management relay with comprehensive protection and control",
+
+        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 10.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="GEF60{8NUM}",
+            station_name_pattern="relay-f60-{seq}",
+            vendor_short="GE",
+            model_short="F60",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V8.10",
+                release_date=date(2024, 3, 8),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V7.80",
+                release_date=date(2022, 10, 12),
+                cves=["CVE-2023-3463"],
+            ),
+            FirmwareVariant(
+                version="V7.40",
+                release_date=date(2020, 8, 18),
+                cves=["CVE-2023-3463", "CVE-2022-3079", "CVE-2021-44477"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "GE Grid Solutions",
+            "product_code": "F60",
+            "product_name": "Multilin F60 Feeder Management Relay",
+        },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin F60 Feeder Management Relay V8.10",
+            "sys_object_id": "1.3.6.1.4.1.3861.260.6",
+            "sys_name": "MULTIL-F60-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin F60 Feeder Management Relay",
+            "hardware_version": "F60",
+        },
+
+        iec61850_identity={
+            "ied_name": "GE_F60_IED",
+            "vendor": "GE",
+            "software_version": "V8.10",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "GE_F60.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # GE B30 — UR-series Bus Differential Relay (87B high-impedance + low-Z).
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="ge/multilin/b30",
+        vendor="GE",
+        vendor_family="UR Series",
+        model="B30",
+        model_name="GE Multilin B30 Bus Differential Relay",
+        device_type="protection_relay",
+        description="UR-series bus differential protection relay with low-impedance algorithm",
+
+        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.4,
+            "max_ms": 8.0,
+            "mean_ms": 1.6,
+            "std_dev_ms": 0.9,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="GEB30{8NUM}",
+            station_name_pattern="relay-b30-{seq}",
+            vendor_short="GE",
+            model_short="B30",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V8.10",
+                release_date=date(2024, 3, 8),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V7.80",
+                release_date=date(2022, 10, 12),
+                cves=["CVE-2023-3463"],
+            ),
+            FirmwareVariant(
+                version="V7.40",
+                release_date=date(2020, 8, 18),
+                cves=["CVE-2023-3463", "CVE-2022-3079", "CVE-2021-44477"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "GE Grid Solutions",
+            "product_code": "B30",
+            "product_name": "Multilin B30 Bus Differential Relay",
+        },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin B30 Bus Differential Relay V8.10",
+            "sys_object_id": "1.3.6.1.4.1.3861.230.3",
+            "sys_name": "MULTIL-B30-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin B30 Bus Differential Relay",
+            "hardware_version": "B30",
+        },
+
+        iec61850_identity={
+            "ied_name": "GE_B30_IED",
+            "vendor": "GE",
+            "software_version": "V8.10",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "GE_B30.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # GE D60 — UR-series Line Distance Relay (21 phase/ground + 67 + POTT/PUTT).
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="ge/multilin/d60",
+        vendor="GE",
+        vendor_family="UR Series",
+        model="D60",
+        model_name="GE Multilin D60 Line Distance Relay",
+        device_type="protection_relay",
+        description="UR-series line distance protection relay for transmission lines",
+
+        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.4,
+            "max_ms": 8.0,
+            "mean_ms": 1.7,
+            "std_dev_ms": 0.9,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["modbus_tcp", "dnp3", "iec61850"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="GED60{8NUM}",
+            station_name_pattern="relay-d60-{seq}",
+            vendor_short="GE",
+            model_short="D60",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V8.10",
+                release_date=date(2024, 3, 8),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V7.80",
+                release_date=date(2022, 10, 12),
+                cves=["CVE-2023-3463"],
+            ),
+            FirmwareVariant(
+                version="V7.40",
+                release_date=date(2020, 8, 18),
+                cves=["CVE-2023-3463", "CVE-2022-3079", "CVE-2021-44477"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "GE Grid Solutions",
+            "product_code": "D60",
+            "product_name": "Multilin D60 Line Distance Relay",
+        },
+
+        snmp_identity={
+            "sys_descr": "GE Multilin D60 Line Distance Relay V8.10",
+            "sys_object_id": "1.3.6.1.4.1.3861.240.4",
+            "sys_name": "MULTIL-D60-001",
+            "sys_location": "Substation",
+        },
+
+        dnp3_identity={
+            "vendor_name": "GE Grid Solutions",
+            "device_name": "Multilin D60 Line Distance Relay",
+            "hardware_version": "D60",
+        },
+
+        iec61850_identity={
+            "ied_name": "GE_D60_IED",
+            "vendor": "GE",
+            "software_version": "V8.10",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "GE_D60.icd",
+        },
+    ),
 ]

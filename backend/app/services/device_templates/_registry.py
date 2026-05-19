@@ -21,6 +21,7 @@ def _register_all() -> None:
     """Import and register all vendor templates. Called once at module load."""
     from app.services.device_templates.vendors import (
         abb,
+        beckwith,
         building_automation,
         cisco,
         emerson,
@@ -42,7 +43,7 @@ def _register_all() -> None:
 
     all_modules = [
         siemens, rockwell, schneider, honeywell, abb, yokogawa,
-        cisco, emerson, ge, sel, hms,
+        cisco, emerson, ge, sel, hms, beckwith,
         building_automation, transportation, process_instruments,
         robotics_logistics, fieldbus_networking, it_ot_boundary,
         japanese_plc,

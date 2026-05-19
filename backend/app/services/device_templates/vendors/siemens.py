@@ -3354,4 +3354,287 @@ TEMPLATES: list[DeviceTemplate] = [
                 "sys_services": 78,
             },
     ),
+
+    # ------------------------------------------------------------------
+    # SIPROTEC 7UM85 — Generator protection relay (40/24/27/59/64G/87G).
+    # Speaks IEC 61850 natively, S7comm for engineering via DIGSI 5.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="siemens/siprotec/7um85",
+        vendor="Siemens",
+        vendor_family="SIPROTEC 5",
+        model="7UM85",
+        model_name="SIPROTEC 7UM85 Generator Protection",
+        device_type="protection_relay",
+        description="Generator protection relay with comprehensive machine protection functions",
+
+        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 8.0,
+            "mean_ms": 1.5,
+            "std_dev_ms": 1.0,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["s7comm", "iec61850", "modbus_tcp", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SIE7UM{8NUM}",
+            station_name_pattern="relay-7um85-{seq}",
+            vendor_short="SIE",
+            model_short="7UM85",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V9.40",
+                release_date=date(2024, 2, 28),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V9.20",
+                release_date=date(2022, 8, 18),
+                cves=["CVE-2023-32785"],
+            ),
+            FirmwareVariant(
+                version="V8.40",
+                release_date=date(2020, 11, 5),
+                cves=["CVE-2023-32785", "CVE-2023-30899"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Siemens AG",
+            "product_code": "7UM85",
+            "product_name": "SIPROTEC 7UM85 Generator Protection",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7UM85 Generator Protection V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.585.41",
+            "sys_name": "SIPROT-7UM85-001",
+            "sys_location": "Power Plant",
+        },
+
+        s7_identity={
+            "module_type_name": "SIPROTEC 7UM85",
+            "module_name": "7UM85 Generator Protection",
+            "plant_id": "GEN-PROT",
+            "serial_number": "SIE7UM00000000",
+            "firmware_version": "V9.40",
+        },
+
+        iec61850_identity={
+            "ied_name": "SIE_7UM85_IED",
+            "vendor": "Siemens",
+            "software_version": "V9.40",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "SIE_7UM85.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # SIPROTEC 7SS85 — Busbar differential protection relay (87B distributed).
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="siemens/siprotec/7ss85",
+        vendor="Siemens",
+        vendor_family="SIPROTEC 5",
+        model="7SS85",
+        model_name="SIPROTEC 7SS85 Busbar Differential",
+        device_type="protection_relay",
+        description="Distributed busbar differential protection relay",
+
+        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 7.0,
+            "mean_ms": 1.4,
+            "std_dev_ms": 0.9,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["s7comm", "iec61850", "modbus_tcp", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SIE7SS{8NUM}",
+            station_name_pattern="relay-7ss85-{seq}",
+            vendor_short="SIE",
+            model_short="7SS85",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V9.40",
+                release_date=date(2024, 3, 5),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V9.20",
+                release_date=date(2022, 9, 2),
+                cves=["CVE-2024-31486"],
+            ),
+            FirmwareVariant(
+                version="V8.40",
+                release_date=date(2020, 10, 18),
+                cves=["CVE-2024-31486", "CVE-2015-5374"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Siemens AG",
+            "product_code": "7SS85",
+            "product_name": "SIPROTEC 7SS85 Busbar Differential",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7SS85 Busbar Differential V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.585.42",
+            "sys_name": "SIPROT-7SS85-001",
+            "sys_location": "Substation",
+        },
+
+        s7_identity={
+            "module_type_name": "SIPROTEC 7SS85",
+            "module_name": "7SS85 Busbar Differential",
+            "plant_id": "BUS-PROT",
+            "serial_number": "SIE7SS00000000",
+            "firmware_version": "V9.40",
+        },
+
+        iec61850_identity={
+            "ied_name": "SIE_7SS85_IED",
+            "vendor": "Siemens",
+            "software_version": "V9.40",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "SIE_7SS85.icd",
+        },
+    ),
+
+    # ------------------------------------------------------------------
+    # SIPROTEC 7VK87 — Autoreclose / synchrocheck (79/25) line bay relay.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        id="siemens/siprotec/7vk87",
+        vendor="Siemens",
+        vendor_family="SIPROTEC 5",
+        model="7VK87",
+        model_name="SIPROTEC 7VK87 Autoreclose / Synchrocheck",
+        device_type="protection_relay",
+        description="Autoreclose and synchrocheck relay for line bay applications",
+
+        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 8.0,
+            "mean_ms": 1.5,
+            "std_dev_ms": 0.9,
+            "distribution": "gaussian",
+        },
+
+        error_behavior={
+            "supported_exception_codes": [1, 2, 3, 4],
+            "exception_probability": 0.0005,
+            "timeout_probability": 0.0003,
+        },
+
+        supported_protocols=["s7comm", "iec61850", "modbus_tcp", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SIE7VK{8NUM}",
+            station_name_pattern="relay-7vk87-{seq}",
+            vendor_short="SIE",
+            model_short="7VK87",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V9.40",
+                release_date=date(2024, 3, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="V9.20",
+                release_date=date(2022, 7, 28),
+                cves=["CVE-2023-30899"],
+            ),
+            FirmwareVariant(
+                version="V8.40",
+                release_date=date(2020, 10, 22),
+                cves=["CVE-2023-30899", "CVE-2015-5374"],
+            ),
+        ],
+
+        modbus_identity={
+            "vendor_name": "Siemens AG",
+            "product_code": "7VK87",
+            "product_name": "SIPROTEC 7VK87 Autoreclose / Synchrocheck",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SIPROTEC 7VK87 Autoreclose / Synchrocheck V9.40",
+            "sys_object_id": "1.3.6.1.4.1.4329.585.43",
+            "sys_name": "SIPROT-7VK87-001",
+            "sys_location": "Substation",
+        },
+
+        s7_identity={
+            "module_type_name": "SIPROTEC 7VK87",
+            "module_name": "7VK87 Autoreclose / Synchrocheck",
+            "plant_id": "BAY-AR",
+            "serial_number": "SIE7VK00000000",
+            "firmware_version": "V9.40",
+        },
+
+        iec61850_identity={
+            "ied_name": "SIE_7VK87_IED",
+            "vendor": "Siemens",
+            "software_version": "V9.40",
+            "logical_devices": ["CTRL", "MEAS", "PROT"],
+            "icd_filename": "SIE_7VK87.icd",
+        },
+    ),
 ]
