@@ -28,6 +28,7 @@ import DeviceReviewStep from '../components/guided-builder/DeviceReviewStep';
 import DeviceCustomizeStep from '../components/guided-builder/DeviceCustomizeStep';
 import FlowReviewStep from '../components/guided-builder/FlowReviewStep';
 import FinalizeStep from '../components/guided-builder/FinalizeStep';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
 
@@ -94,6 +95,7 @@ const GuidedBuilderPage: React.FC = () => {
         <div>
           <Title level={3} style={{ margin: 0, color: '#e0e8f0' }}>
             Guided Scenario Builder
+            <ContextualHelpIcon articleId="guided-builder" tooltip="Guided builder help" />
           </Title>
           <Text style={{ color: '#8aa4bc' }}>
             Build a scenario step-by-step from industry templates

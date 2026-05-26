@@ -43,31 +43,114 @@ def get_human_size(size_bytes: int) -> str:
     return f"{size_bytes:.1f} TB"
 
 
-# Define available downloads with metadata
+# Define available downloads with metadata.
+#
+# Three categories surface in the Settings → Downloads UI:
+#
+#   presentations  — exec + technical decks (PPTX / PDF / HTML / Marp source)
+#   documentation  — long-form developer / operator docs
+#   authoring      — the Portable Scenario Authoring Kit
+#
 AVAILABLE_DOWNLOADS = {
-    "packetarch-briefing-pptx": {
-        "name": "PacketArch Briefing Deck (PowerPoint)",
-        "filename": "PacketArch-Briefing.pptx",
-        "description": "Comprehensive PowerPoint slide deck covering PacketArch architecture, features, and capabilities (~40 slides)",
-        "category": "documentation",
+    # ── Executive Briefing (v1.5, May 2026) ──────────────────────
+    # Audience: C-suite / VP / head-of-OT. Business value, risk, ROI.
+    "exec-briefing-pptx": {
+        "name": "Executive Briefing — PowerPoint",
+        "filename": "PacketArch-Executive-Briefing.pptx",
+        "description": "Slide deck for C-suite and security-leadership audiences. Covers what PacketArch is, the problem it solves, capability matrix, deployment models, economics, and a 90-day engagement roadmap. Pure business framing — pair with the Technical Deep-Dive for the engineering side.",
+        "category": "presentations",
     },
-    "packetarch-briefing-pdf": {
-        "name": "PacketArch Briefing Deck (PDF)",
-        "filename": "PacketArch-Briefing.pdf",
-        "description": "PDF version of the briefing deck for viewing and printing",
-        "category": "documentation",
+    "exec-briefing-pdf": {
+        "name": "Executive Briefing — PDF",
+        "filename": "PacketArch-Executive-Briefing.pdf",
+        "description": "Print-ready PDF of the executive deck. Identical content to the PPTX, locked layout.",
+        "category": "presentations",
     },
-    "packetarch-briefing-html": {
-        "name": "PacketArch Briefing (HTML)",
-        "filename": "PacketArch-Briefing.html",
-        "description": "Interactive HTML presentation - view in browser with arrow key navigation",
-        "category": "documentation",
+    "exec-briefing-html": {
+        "name": "Executive Briefing — HTML",
+        "filename": "PacketArch-Executive-Briefing.html",
+        "description": "Self-contained HTML presentation. Opens in any browser; arrow keys advance slides. Best for hand-off via email or shared drive.",
+        "category": "presentations",
     },
-    "packetarch-briefing-md": {
-        "name": "PacketArch Briefing (Marp Source)",
-        "filename": "PacketArch-Briefing.md",
-        "description": "Marp markdown source for the briefing deck - can be edited and re-exported using Marp CLI",
-        "category": "documentation",
+    "exec-briefing-md": {
+        "name": "Executive Briefing — Marp Source",
+        "filename": "PacketArch-Executive-Briefing.md",
+        "description": "Marp markdown source of the executive deck. Edit and re-render with Marp CLI to customise for your audience or branding.",
+        "category": "presentations",
+    },
+
+    # ── Technical Deep-Dive (v1.5, May 2026) ─────────────────────
+    # Audience: security architects, OT network engineers, SOC leads.
+    "tech-deep-dive-pptx": {
+        "name": "Technical Deep-Dive — PowerPoint",
+        "filename": "PacketArch-Technical-Deep-Dive.pptx",
+        "description": "Engineering-grade deck covering the protocol engine pattern, the unified PCAP/live traffic model, fingerprint application, conduit compliance, adaptive traffic, process simulation, live attack playbooks, after-action reporting, Cyber Vision integration, the traffic agent, and the AI architecture.",
+        "category": "presentations",
+    },
+    "tech-deep-dive-pdf": {
+        "name": "Technical Deep-Dive — PDF",
+        "filename": "PacketArch-Technical-Deep-Dive.pdf",
+        "description": "Print-ready PDF of the technical deck.",
+        "category": "presentations",
+    },
+    "tech-deep-dive-html": {
+        "name": "Technical Deep-Dive — HTML",
+        "filename": "PacketArch-Technical-Deep-Dive.html",
+        "description": "Self-contained HTML technical presentation. Arrow keys advance slides.",
+        "category": "presentations",
+    },
+    "tech-deep-dive-md": {
+        "name": "Technical Deep-Dive — Marp Source",
+        "filename": "PacketArch-Technical-Deep-Dive.md",
+        "description": "Marp markdown source of the technical deck. Edit and re-render with Marp CLI.",
+        "category": "presentations",
+    },
+
+    # ── Cisco Briefing (May 2026) ────────────────────────────────
+    # Audience: Cisco field / CV product / Cisco customer audiences.
+    # Five-slide overview: cover, the gap, the platform, the workflow
+    # (with bakery-demo walkthrough), Cyber Vision value prop.
+    "cisco-briefing-pptx": {
+        "name": "Cisco Briefing — PowerPoint",
+        "filename": "PacketArch-Cisco-Briefing.pptx",
+        "description": "Fully editable PowerPoint of the Cisco Briefing — every shape is a native PPT object, ready to rebrand or extend. Five slides: cover, the gap, the platform, the workflow (with the bakery-demo walkthrough), and the Cyber Vision value prop.",
+        "category": "presentations",
+    },
+    "cisco-briefing-html": {
+        "name": "Cisco Briefing — HTML",
+        "filename": "PacketArch-Cisco-Briefing.html",
+        "description": "Browser-viewable version of the Cisco Briefing. Self-contained HTML, fixed 16:9 layout — open in any browser, print-to-PDF for handoff.",
+        "category": "presentations",
+    },
+
+    # ── Portable Scenario Authoring Kit ──────────────────────────
+    # These four files together let any external program (or AI)
+    # generate a .pascenario.json that this PacketArch install can
+    # import. Designed for airgapped authors — no network access to
+    # the server is required.
+    "portable-scenario-llm-prompt": {
+        "name": "LLM Authoring Prompt (start here)",
+        "filename": "LLM_PROMPT.md",
+        "description": "Ready-to-paste prompt for Claude / GPT / Gemini that encodes every authoring rule, vendor-protocol affinity, realistic timing, and a self-check. Attach this plus the schema (and optionally the fingerprint registry) to a chat, swap the bracketed scenario sentence at the bottom, and you'll get an importable JSON back.",
+        "category": "authoring",
+    },
+    "portable-scenario-spec": {
+        "name": "Portable Scenario Authoring Guide",
+        "filename": "SCENARIO_SPEC.md",
+        "description": "Long-form authoring guide. Covers the five realism dimensions, the three authoring modes (capability / vendor-pinned / fully-specified), the complete schema reference, vendor-protocol affinity, IEC 62443 conduit compliance, two worked examples, a validation checklist, and the airgap workflow.",
+        "category": "authoring",
+    },
+    "portable-scenario-schema": {
+        "name": "Portable Scenario JSON Schema (v1)",
+        "filename": "packetarch-scenario.v1.json",
+        "description": "The format contract. Drop this into any JSON Schema validator (ajv, check-jsonschema, VS Code) to verify a scenario file before transfer across an air gap. Equivalent to GET /api/v1/scenarios/schema/portable.json against this install.",
+        "category": "authoring",
+    },
+    "fingerprint-registry": {
+        "name": "Fingerprint Registry Snapshot (v1)",
+        "filename": "fingerprint-registry.v1.json",
+        "description": "Static snapshot of the device template catalog (~300 entries, 18 vendors). Use only when you want to pin specific `fingerprint_model` values. Capability-mode authoring doesn't need this file — the importer resolves vendor and model from the live catalog.",
+        "category": "authoring",
     },
 }
 
@@ -127,6 +210,7 @@ async def download_file(filename: str):
         ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ".html": "text/html",
         ".md": "text/markdown",
+        ".json": "application/json",
         ".zip": "application/zip",
         ".tar.gz": "application/gzip",
     }

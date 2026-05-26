@@ -39,12 +39,14 @@ const FinalizeStep: React.FC = () => {
     phasePreset,
     useAINaming,
     processContext,
+    descriptiveNames,
     isCreating,
     setScenarioName,
     setDescription,
     setPhasePreset,
     setUseAINaming,
     setProcessContext,
+    setDescriptiveNames,
   } = useGuidedBuilderStore();
 
   const { data: phasePresets } = useQuery({
@@ -144,6 +146,17 @@ const FinalizeStep: React.FC = () => {
                     />
                   </div>
                 )}
+                <Checkbox
+                  checked={descriptiveNames}
+                  onChange={(e) => setDescriptiveNames(e.target.checked)}
+                >
+                  <Text style={{ color: '#c9d1d9' }}>Demo-friendly descriptive names</Text>
+                </Checkbox>
+                <div style={{ color: '#8aa4bc', fontSize: 12, marginLeft: 24 }}>
+                  Devices show as e.g. <em>Front_Mixing_Line_PLC</em>. Untick for
+                  structured site-coded names (<em>PDX-BKY-MIX-PLC-01</em>) for
+                  production / Cyber Vision workflows.
+                </div>
               </Space>
             ),
           },

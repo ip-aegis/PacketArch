@@ -289,6 +289,7 @@ const LdapTab: React.FC = () => {
               name="ldap_use_ssl"
               label="Use SSL (LDAPS)"
               valuePropName="checked"
+              tooltip="Use the ldaps:// protocol on port 636. Implies TLS from the first byte."
             >
               <Switch checkedChildren="On" unCheckedChildren="Off" />
             </Form.Item>
@@ -380,12 +381,17 @@ const LdapTab: React.FC = () => {
                       <Input placeholder={AD_PRESET.ldap_user_search_filter} />
                     </Form.Item>
                     <Space size="large" style={{ width: '100%' }}>
-                      <Form.Item name="ldap_email_attribute" label="Email Attribute">
+                      <Form.Item
+                        name="ldap_email_attribute"
+                        label="Email Attribute"
+                        tooltip="LDAP attribute that holds the user's email. Active Directory uses 'mail'; OpenLDAP often uses 'mail' too."
+                      >
                         <Input placeholder="mail" style={{ width: 180 }} />
                       </Form.Item>
                       <Form.Item
                         name="ldap_display_name_attribute"
                         label="Display Name Attribute"
+                        tooltip="LDAP attribute that holds the user's full display name. AD uses 'displayName'; OpenLDAP often uses 'cn'."
                       >
                         <Input placeholder="displayName" style={{ width: 220 }} />
                       </Form.Item>

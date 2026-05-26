@@ -54,6 +54,19 @@ export const settingsApi = {
     const response = await apiClient.post(`${ADMIN_PREFIX}/settings/test-connection`);
     return response.data;
   },
+
+  /**
+   * Get the active provider's task → model routing table.
+   * Lets the Settings UI show which model each AI feature will use.
+   */
+  async getAIRouting(): Promise<{
+    provider: string;
+    fallback_model: string | null;
+    routing: { task: string; label: string; model: string }[];
+  }> {
+    const response = await apiClient.get(`${ADMIN_PREFIX}/ai/routing`);
+    return response.data;
+  },
 };
 
 export default settingsApi;

@@ -198,12 +198,20 @@ export const aiScenarioApi = {
   },
 
   /**
-   * Create an actual scenario from a validated preview
+   * Create an actual scenario from a validated preview.
+   *
+   * `descriptiveNames` defaults to true and keeps the demo-friendly
+   * device names that AIDeviceNamer produced during preview. Set it
+   * false to push the scenario through the structured site-identity
+   * rail instead.
    */
-  createFromPreview: async (previewId: string): Promise<AIScenarioCreateResponse> => {
+  createFromPreview: async (
+    previewId: string,
+    descriptiveNames: boolean = true,
+  ): Promise<AIScenarioCreateResponse> => {
     const response = await apiClient.post<AIScenarioCreateResponse>(
       '/api/v1/ai/scenarios/create-from-preview',
-      { preview_id: previewId }
+      { preview_id: previewId, descriptive_names: descriptiveNames }
     );
     return response.data;
   },

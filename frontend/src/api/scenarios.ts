@@ -91,6 +91,7 @@ export interface ScenarioFilters {
 // AI device naming types
 export interface RegenerateNamesRequest {
   process_context: string;  // Required: e.g., "candy factory", "dairy processing"
+  descriptive_names?: boolean;  // Opt-in demo-friendly labels overlaid on site rail
 }
 
 export interface RegenerateNamesResponse {
@@ -147,8 +148,38 @@ export const scenariosApi = {
     return response.data;
   },
 
+  /**
+   * Download a print-ready PDF report for a scenario.
+   * Triggers a browser download via a temporary anchor — no return value.
+   */
+  async downloadReport(id: string, name: string): Promise<void> {
+    const response = await apiClient.get(`${PREFIX}/${id}/report.pdf`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data as BlobPart], {
+      type: 'application/pdf',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safe = (name || 'scenario').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+    a.href = url;
+    a.download = `${safe}-${id.slice(0, 8)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
   async import(data: Record<string, unknown>): Promise<ScenarioDetail> {
     const response = await apiClient.post<ScenarioDetail>(`${PREFIX}/import`, data);
+    return response.data;
+  },
+
+  async importPortable(data: Record<string, unknown>): Promise<ScenarioDetail> {
+    const response = await apiClient.post<ScenarioDetail>(
+      `${PREFIX}/import/portable`,
+      data,
+    );
     return response.data;
   },
 

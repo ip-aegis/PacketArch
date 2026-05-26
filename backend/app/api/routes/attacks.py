@@ -272,3 +272,51 @@ async def get_attack_state(scenario_id: str, _user: CurrentUser) -> dict[str, An
             "message": "No attack data available",
         }
     return state
+
+
+# ------------------------------------------------------------------
+# After-action report
+# ------------------------------------------------------------------
+
+
+@router.get("/{scenario_id}/report")
+async def get_attack_report(
+    scenario_id: str,
+    _user: CurrentUser,
+    db: DBSession,
+) -> dict[str, Any]:
+    """Return the after-action report for the current or most recent attack.
+
+    Source of truth: the orchestrator's embedded report in the cached
+    state. When the attack has completed (``status`` ∈ ``completed`` /
+    ``stopped``), the report is also snapshotted into
+    ``scenario.definition['attack_history']`` so it survives deployment
+    teardown.
+
+    Falls back to the most recent history entry if no live state exists.
+    """
+    # Live first.
+    report = attack_service.get_attack_report(scenario_id)
+    if report:
+        # Persist on completion (idempotent).
+        if report.get("status") in ("completed", "stopped"):
+            await attack_service.persist_completed_report(scenario_id, db)
+        return {"source": "live", "report": report}
+
+    # Fall back to history.
+    history = await attack_service.get_attack_history(scenario_id, db)
+    if history:
+        return {"source": "history", "report": history[-1]}
+
+    return {"source": "none", "report": None}
+
+
+@router.get("/{scenario_id}/history")
+async def get_attack_history(
+    scenario_id: str,
+    _user: CurrentUser,
+    db: DBSession,
+) -> dict[str, Any]:
+    """Return all persisted attack reports for a scenario (newest last)."""
+    history = await attack_service.get_attack_history(scenario_id, db)
+    return {"count": len(history), "history": history}

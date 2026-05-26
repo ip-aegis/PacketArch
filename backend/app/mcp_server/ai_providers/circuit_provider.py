@@ -30,6 +30,7 @@ from typing import Any, AsyncIterator
 import httpx
 
 from app.ai_services.skills import SkillNotFoundError, get_registry
+from app.ai_services.usage_recorder import AIUsageContext, record_call
 from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,7 @@ class CircuitProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> dict[str, Any]:
         if tools:
             # CIRCUIT exposes the Azure OpenAI surface so tool/function
@@ -191,6 +193,7 @@ class CircuitProvider(AIProvider):
 
         token = await self._get_token()
         url = f"{CIRCUIT_API_BASE}/openai/deployments/{self.model}/chat/completions"
+        t0 = time.monotonic()
         try:
             resp = await self._client.post(
                 url,
@@ -206,9 +209,35 @@ class CircuitProvider(AIProvider):
                     f"CIRCUIT chat call failed: HTTP {resp.status_code} "
                     f"{resp.text[:500]}"
                 )
-            return self._format_response(resp.json())
+            formatted = self._format_response(resp.json())
+            await record_call(
+                provider="circuit",
+                model=self.model,
+                usage=formatted.get("usage"),
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                tracking=tracking,
+            )
+            return formatted
         except httpx.HTTPError as e:
+            await record_call(
+                provider="circuit",
+                model=self.model,
+                usage=None,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                tracking=tracking,
+                error=str(e),
+            )
             logger.error("CIRCUIT chat HTTP error: %s", e)
+            raise
+        except Exception as e:
+            await record_call(
+                provider="circuit",
+                model=self.model,
+                usage=None,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                tracking=tracking,
+                error=str(e),
+            )
             raise
 
     async def stream_chat(
@@ -219,6 +248,7 @@ class CircuitProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         # CIRCUIT's gateway accepts stream=true on the same endpoint
         # and returns Server-Sent Events. Until a call site needs
@@ -232,6 +262,7 @@ class CircuitProvider(AIProvider):
             temperature=temperature,
             output_config=output_config,
             skills=skills,
+            tracking=tracking,
         )
         for chunk in result.get("content", []):
             if chunk.get("type") == "text":
@@ -293,14 +324,24 @@ class CircuitProvider(AIProvider):
                         if item.get("type") == "text":
                             text += item.get("text", "")
                         elif item.get("type") == "tool_use":
-                            calls.append({
+                            tc: dict[str, Any] = {
                                 "id": item.get("id"),
                                 "type": "function",
                                 "function": {
                                     "name": item.get("name"),
                                     "arguments": json.dumps(item.get("input", {})),
                                 },
-                            })
+                            }
+                            # Vertex AI / Gemini-via-CIRCUIT returns a
+                            # ``thought_signature`` per tool_call when
+                            # thinking is enabled and REQUIRES it back
+                            # verbatim on subsequent turns or the gateway
+                            # rejects the call (HTTP 400 INVALID_ARGUMENT).
+                            # Round-trip it if we captured one earlier.
+                            sig = item.get("_circuit_thought_signature")
+                            if sig is not None:
+                                tc["thought_signature"] = sig
+                            calls.append(tc)
                     m: dict[str, Any] = {"role": "assistant"}
                     if text:
                         m["content"] = text
@@ -334,10 +375,17 @@ class CircuitProvider(AIProvider):
                 args = json.loads(tc.get("function", {}).get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
-            formatted["content"].append({
+            block: dict[str, Any] = {
                 "type": "tool_use",
                 "id": tc.get("id"),
                 "name": tc.get("function", {}).get("name"),
                 "input": args,
-            })
+            }
+            # Preserve Gemini's ``thought_signature`` if present so it
+            # can be echoed back on the next request — Vertex AI rejects
+            # follow-up turns that include the tool_call without it.
+            sig = tc.get("thought_signature")
+            if sig is not None:
+                block["_circuit_thought_signature"] = sig
+            formatted["content"].append(block)
         return formatted

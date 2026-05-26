@@ -12,6 +12,11 @@ from app.mcp_server.ai_providers.base import AIProvider
 from app.mcp_server.ai_providers.anthropic_provider import AnthropicProvider
 from app.mcp_server.ai_providers.circuit_provider import CircuitProvider
 from app.mcp_server.ai_providers.openai_provider import OpenAIProvider
+from app.mcp_server.ai_providers.model_router import (
+    AITask,
+    FALLBACK_MODEL,
+    select_model,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,20 +25,43 @@ logger = logging.getLogger(__name__)
 
 
 class AIProviderFactory:
-    """Factory for creating AI providers based on settings."""
+    """Factory for creating AI providers based on settings.
+
+    The user picks a provider in Settings (Anthropic | OpenAI | CIRCUIT);
+    PacketArch picks the best model from that provider for each task
+    via :mod:`app.mcp_server.ai_providers.model_router`. Callers should
+    pass the :class:`AITask` they're about to execute so the right model
+    is chosen — call sites that don't pass a task get the provider's
+    fallback model.
+    """
 
     @staticmethod
-    async def create(db: "AsyncSession") -> AIProvider:
-        """Create an AI provider based on system settings.
+    async def create(
+        db: "AsyncSession",
+        task: AITask | None = None,
+    ) -> AIProvider:
+        """Create an AI provider for ``task``.
+
+        Resolution order for the model:
+
+        1. ``model_router.select_model(provider, task)`` — the
+           recommended model for this task on the chosen provider.
+           Always used when ``task`` is given.
+        2. Legacy ``<provider>_model`` system_settings row — only
+           consulted when ``task`` is ``None`` (back-compat for callers
+           that haven't migrated yet).
+        3. :data:`model_router.FALLBACK_MODEL` for the provider.
 
         Args:
-            db: Database session
+            db: Database session.
+            task: Which AI task this provider will run. Drives model
+                selection — see ``model_router.TASK_MODEL_MAP``.
 
         Returns:
-            Configured AI provider
+            Configured AI provider.
 
         Raises:
-            ValueError: If provider is not configured or unknown
+            ValueError: If provider isn't configured / unknown.
         """
         from app.models.settings import SystemSetting
         from app.core.encryption import decrypt_value
@@ -45,6 +73,24 @@ class AIProviderFactory:
         provider_setting = result.scalar_one_or_none()
         provider = provider_setting.value if provider_setting else "anthropic"
 
+        async def _legacy_model(key: str) -> str | None:
+            r = await db.execute(
+                select(SystemSetting).where(SystemSetting.key == key)
+            )
+            s = r.scalar_one_or_none()
+            return s.value if s and s.value else None
+
+        async def _resolve_model(legacy_key: str) -> str:
+            """Pick a model name using router → legacy setting → fallback."""
+            if task is not None:
+                routed = select_model(provider, task)
+                if routed:
+                    return routed
+            legacy = await _legacy_model(legacy_key)
+            if legacy:
+                return legacy
+            return FALLBACK_MODEL.get(provider) or ""
+
         if provider == "anthropic":
             # Get Anthropic API key
             result = await db.execute(
@@ -55,15 +101,12 @@ class AIProviderFactory:
                 raise ValueError("Anthropic API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
+            model = await _resolve_model("anthropic_model") or "claude-opus-4-7"
 
-            # Get model setting
-            result = await db.execute(
-                select(SystemSetting).where(SystemSetting.key == "anthropic_model")
+            logger.info(
+                "Creating Anthropic provider for task=%s with model: %s",
+                task.value if task else "unspecified", model,
             )
-            model_setting = result.scalar_one_or_none()
-            model = model_setting.value if model_setting else "claude-opus-4-7"
-
-            logger.info(f"Creating Anthropic provider with model: {model}")
             return AnthropicProvider(api_key=api_key, model=model)
 
         elif provider == "openai":
@@ -76,15 +119,12 @@ class AIProviderFactory:
                 raise ValueError("OpenAI API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
+            model = await _resolve_model("openai_model") or "gpt-5"
 
-            # Get model setting
-            result = await db.execute(
-                select(SystemSetting).where(SystemSetting.key == "openai_model")
+            logger.info(
+                "Creating OpenAI provider for task=%s with model: %s",
+                task.value if task else "unspecified", model,
             )
-            model_setting = result.scalar_one_or_none()
-            model = model_setting.value if model_setting else "gpt-4.1"
-
-            logger.info(f"Creating OpenAI provider with model: {model}")
             return OpenAIProvider(api_key=api_key, model=model)
 
         elif provider == "circuit":
@@ -94,6 +134,10 @@ class AIProviderFactory:
             # system_settings (circuit_client_id / circuit_client_secret /
             # circuit_app_key) the admin UI manages. Env wins so dev
             # machines can override without touching the DB.
+            #
+            # Note: CIRCUIT_MODEL env var still wins when set, since it's
+            # an explicit operator override. UI / task router only applies
+            # when env is unset.
             import os
 
             async def _setting(key: str) -> str | None:
@@ -137,11 +181,14 @@ class AIProviderFactory:
 
             model = (
                 os.getenv("CIRCUIT_MODEL")
-                or (await _setting("circuit_model"))
-                or "gpt-4.1"
+                or (await _resolve_model("circuit_model"))
+                or "gpt-5-nano"
             )
 
-            logger.info(f"Creating CIRCUIT provider with model: {model}")
+            logger.info(
+                "Creating CIRCUIT provider for task=%s with model: %s",
+                task.value if task else "unspecified", model,
+            )
             return CircuitProvider(
                 client_id=client_id,
                 client_secret=client_secret,
@@ -156,7 +203,9 @@ class AIProviderFactory:
 __all__ = [
     "AIProvider",
     "AIProviderFactory",
+    "AITask",
     "AnthropicProvider",
     "CircuitProvider",
     "OpenAIProvider",
+    "select_model",
 ]

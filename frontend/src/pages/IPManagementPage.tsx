@@ -32,6 +32,8 @@ import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { ipManagementApi, type IPRangeAllocation } from '../api/ipManagement';
 import { TEXT_PARAGRAPH, TEXT_MUTED, BG_PANEL, BORDER_DEFAULT } from '../constants/theme';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
+import { EmptyState } from '../components/common';
 
 const { Title, Text } = Typography;
 
@@ -143,6 +145,7 @@ const IPManagementPage: React.FC = () => {
         <Title level={3} style={{ color: '#fff', marginBottom: 8 }}>
           <GlobalOutlined style={{ marginRight: 12 }} />
           IP Management
+          <ContextualHelpIcon articleId="ip-management" tooltip="IP management help" />
         </Title>
         <Text style={{ color: TEXT_PARAGRAPH }}>
           View scenario IP range allocations and prevent address conflicts
@@ -240,19 +243,16 @@ const IPManagementPage: React.FC = () => {
           }}
           locale={{
             emptyText: (
-              <div style={{ padding: 48, textAlign: 'center' }}>
-                <GlobalOutlined style={{ fontSize: 48, color: TEXT_MUTED, marginBottom: 16 }} />
-                <div>
-                  <Text style={{ color: TEXT_PARAGRAPH }}>
-                    No IP ranges allocated yet
-                  </Text>
-                </div>
-                <div>
-                  <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
-                    IP ranges are automatically allocated when you create a new scenario
-                  </Text>
-                </div>
-              </div>
+              <EmptyState
+                icon={<GlobalOutlined />}
+                message="No IP ranges allocated yet"
+                hint="IP ranges are automatically allocated when you create a new scenario."
+                marginTop={32}
+                actions={[
+                  { label: 'Go to Scenarios', primary: true, to: '/scenarios' },
+                ]}
+                helpArticleId="ip-management"
+              />
             ),
           }}
         />

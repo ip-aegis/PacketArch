@@ -9,7 +9,13 @@
  */
 
 import apiClient from './client';
-import type { AttackPlaybook, AttackPlaybookSummary, AttackState } from '../types/attackPlaybook';
+import type {
+  AttackHistoryResponse,
+  AttackPlaybook,
+  AttackPlaybookSummary,
+  AttackReportResponse,
+  AttackState,
+} from '../types/attackPlaybook';
 
 const PREFIX = '/api/v1/attacks';
 
@@ -71,6 +77,26 @@ export const attacksApi = {
     attack?: AttackState;
   }> {
     const response = await apiClient.get(`${PREFIX}/${scenarioId}/injection-status`);
+    return response.data;
+  },
+
+  /**
+   * Fetch the after-action report — full per-stage / per-action telemetry,
+   * IOCs, packet counts. Returned for both live and completed attacks; on
+   * completion the report is also persisted into scenario history.
+   */
+  async getReport(scenarioId: string): Promise<AttackReportResponse> {
+    const response = await apiClient.get<AttackReportResponse>(
+      `${PREFIX}/${scenarioId}/report`,
+    );
+    return response.data;
+  },
+
+  /** All persisted attack reports for a scenario (oldest first). */
+  async getHistory(scenarioId: string): Promise<AttackHistoryResponse> {
+    const response = await apiClient.get<AttackHistoryResponse>(
+      `${PREFIX}/${scenarioId}/history`,
+    );
     return response.data;
   },
 };

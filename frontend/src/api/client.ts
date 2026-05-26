@@ -83,39 +83,55 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Refresh-in-flight singleton. Concurrent 401s share the same refresh
+// call so we don't burn the rotating refresh_token N times in parallel
+// (each rotation invalidates the previous one).
+let refreshInFlight: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  const refreshUrl = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/refresh` : '/api/v1/auth/refresh';
+  refreshInFlight = axios
+    .post(refreshUrl, { refresh_token: refreshToken })
+    .then((response) => {
+      const { access_token, refresh_token: newRefreshToken } = response.data;
+      setTokens(access_token, newRefreshToken);
+      return access_token as string;
+    })
+    .finally(() => {
+      refreshInFlight = null;
+    });
+
+  return refreshInFlight;
+}
+
 // Response interceptor to handle token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // If 401 and we have a refresh token, try to refresh
-    if (error.response?.status === 401 && originalRequest) {
-      const refreshToken = getRefreshToken();
+    // Only handle 401s, and only retry each request once so we don't
+    // loop if the refreshed token also returns 401 (corrupt user, etc).
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-      if (refreshToken) {
-        try {
-          const refreshUrl = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/refresh` : '/api/v1/auth/refresh';
-          const response = await axios.post(refreshUrl, {
-            refresh_token: refreshToken,
-          });
-
-          const { access_token, refresh_token: newRefreshToken } = response.data;
-          setTokens(access_token, newRefreshToken);
-
-          // Retry the original request with new token
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return apiClient(originalRequest);
-        } catch (refreshError) {
-          // Refresh failed, clear tokens and redirect to login
-          clearTokens();
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // No refresh token, redirect to login
+      try {
+        const accessToken = await refreshAccessToken();
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
         clearTokens();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
       }
     }
 

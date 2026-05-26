@@ -56,6 +56,12 @@ export interface DashboardDeployment {
     broadcast_traffic_enabled: boolean;
     cell_isolation_mode: string;
   };
+  /** Industry vertical from the scenario definition. */
+  vertical?: string | null;
+  /** Static protocol mix derived from the scenario's device fleet —
+   *  used as a fallback when the agent hasn't reported a live
+   *  protocol_breakdown yet. */
+  scenario_protocol_mix?: Array<{ protocol: string; device_count: number }>;
 }
 
 export interface DashboardAgent {

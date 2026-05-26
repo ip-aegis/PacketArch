@@ -146,6 +146,20 @@ cp "${REPO_ROOT}/scripts/packetarch-backup.sh"  "${STAGE}/packetarch-backup.sh"
 cp "${REPO_ROOT}/scripts/packetarch-restore.sh" "${STAGE}/packetarch-restore.sh"
 chmod +x "${STAGE}/install.sh" "${STAGE}/packetarch-backup.sh" "${STAGE}/packetarch-restore.sh"
 
+# Portable scenario authoring kit — schema, registry snapshot, spec doc,
+# and the ready-to-use LLM prompt. Ships in every install so airgapped
+# authors (and the AI tools they use) can produce .pascenario.json files
+# without touching a PacketArch server.
+mkdir -p "${STAGE}/schemas" "${STAGE}/docs"
+cp "${REPO_ROOT}/schemas/packetarch-scenario.v1.json"   "${STAGE}/schemas/packetarch-scenario.v1.json"
+if [[ -f "${REPO_ROOT}/schemas/fingerprint-registry.v1.json" ]]; then
+    cp "${REPO_ROOT}/schemas/fingerprint-registry.v1.json" "${STAGE}/schemas/fingerprint-registry.v1.json"
+else
+    echo "WARNING: schemas/fingerprint-registry.v1.json not found; run scripts/generate_fingerprint_registry_snapshot.py before release." >&2
+fi
+cp "${REPO_ROOT}/docs/SCENARIO_SPEC.md" "${STAGE}/docs/SCENARIO_SPEC.md"
+cp "${REPO_ROOT}/backend/app/static/downloads/LLM_PROMPT.md" "${STAGE}/docs/LLM_PROMPT.md"
+
 # --- pack ---------------------------------------------------------------
 echo "Packing ${TARBALL} ..."
 mkdir -p "${OUT_DIR}"

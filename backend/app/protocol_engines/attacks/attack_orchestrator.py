@@ -34,11 +34,14 @@ from .action_registry import (
     get_action_generator,
 )
 from .types import (
+    ActionReport,
     AttackAction,
     AttackPlaybook,
     AttackPlaybookConfig,
+    AttackReport,
     AttackState,
     KillChainStage,
+    StageReport,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,6 +107,52 @@ class AttackOrchestrator:
         # Track which actions have been fired in the current stage
         self._stage_actions_fired: set[str] = set()
 
+        # ── After-action report telemetry ────────────────────────────
+        # Built incrementally as the attack progresses. The orchestrator
+        # owns the report so the data lives close to where it's captured
+        # (per-action packet counts, IOCs, target hits). Snapshots are
+        # exposed via get_report() and surfaced through the state
+        # endpoint so the dashboard can render the post-run summary.
+        self._report = AttackReport(
+            playbook_id=playbook.playbook_id,
+            playbook_name=playbook.name,
+            mitre_software_id=playbook.mitre_software_id,
+            severity=playbook.severity,
+            category=playbook.category,
+            intensity=self._intensity,
+            auto_advance=self._config.auto_advance,
+            attacker_ip=self._attacker_ip,
+            target_device_count=len(self._all_targets),
+            total_stages=len(self._stages),
+            stages=[
+                StageReport(
+                    stage_id=s.stage_id,
+                    stage_name=s.name,
+                    color=s.color,
+                    description=s.description,
+                    planned_duration_s=s.duration_seconds,
+                    mitre_tactics=list(s.mitre_tactics),
+                    expected_cv_alerts=list(s.expected_cv_alerts),
+                    status="pending",
+                    actions=[
+                        # Pre-seed the action records so the report always
+                        # shows what WOULD have run, even if a stage never
+                        # fired (e.g. attack stopped early).
+                        ActionReport(
+                            action_id=a.action_id,
+                            action_name=a.name,
+                            action_type=a.action_type,
+                            mitre_technique=a.mitre_technique,
+                            expected_cv_detection=a.expected_cv_detection,
+                            description=a.description,
+                        )
+                        for a in s.actions
+                    ],
+                )
+                for s in self._stages
+            ],
+        )
+
     # ------------------------------------------------------------------
     # Orchestrator integration
     # ------------------------------------------------------------------
@@ -131,6 +180,7 @@ class AttackOrchestrator:
         )
         self._is_active = True
         self._stage_start_monotonic = time.monotonic()
+        self._mark_report_started()
         logger.info(
             f"Attack playbook '{self._playbook.name}' scheduled, "
             f"first tick at {start_time_ms + warmup:.0f}ms"
@@ -160,6 +210,7 @@ class AttackOrchestrator:
 
         if self._current_stage_idx >= len(self._stages):
             self._is_completed = True
+            self._mark_report_completed("completed")
             logger.info(f"Attack playbook '{self._playbook.name}' completed")
             return []
 
@@ -227,7 +278,12 @@ class AttackOrchestrator:
             actions_completed=self._actions_completed,
             attack_packets_generated=self._packets_generated,
         )
-        return state.to_dict()
+        snapshot = state.to_dict()
+        # Embed the after-action report so it rides the existing
+        # agent→traffic_dashboard pipeline without a separate channel.
+        # The report endpoint pulls this directly from the cached state.
+        snapshot["report"] = self.get_report()
+        return snapshot
 
     # ------------------------------------------------------------------
     # Runtime command processing (atomic swap)
@@ -259,9 +315,11 @@ class AttackOrchestrator:
                 self._current_stage_idx = 0
                 self._stage_start_monotonic = time.monotonic()
                 self._stage_actions_fired.clear()
+                self._mark_report_started()
                 logger.info(f"Attack playbook '{self._playbook.name}' started")
             elif self._is_completed:
-                # Restart from beginning
+                # Restart from beginning — reset the report too so the
+                # post-run summary reflects the new run only.
                 self._is_completed = False
                 self._current_stage_idx = 0
                 self._stages_completed = 0
@@ -269,11 +327,14 @@ class AttackOrchestrator:
                 self._packets_generated = 0
                 self._stage_start_monotonic = time.monotonic()
                 self._stage_actions_fired.clear()
+                self._reset_report()
+                self._mark_report_started()
                 logger.info(f"Attack playbook '{self._playbook.name}' restarted")
 
         elif cmd_type == "stop":
             self._is_active = False
             self._is_completed = True
+            self._mark_report_completed("stopped")
             logger.info(f"Attack playbook '{self._playbook.name}' stopped")
 
         elif cmd_type == "advance_stage":
@@ -319,16 +380,19 @@ class AttackOrchestrator:
             old_stage = self._stages[self._current_stage_idx]
             logger.info(f"Completed attack stage: {old_stage.name}")
             self._stages_completed += 1
+            self._mark_stage_completed(self._current_stage_idx)
 
         self._current_stage_idx += 1
         self._stage_actions_fired.clear()
 
         if self._current_stage_idx >= len(self._stages):
             self._is_completed = True
+            self._mark_report_completed("completed")
             logger.info(f"Attack playbook '{self._playbook.name}' — all stages completed")
         else:
             new_stage = self._stages[self._current_stage_idx]
             self._stage_start_monotonic = time.monotonic()
+            self._mark_stage_started(self._current_stage_idx)
             logger.info(
                 f"Advancing to attack stage: {new_stage.name} "
                 f"({new_stage.duration_seconds}s)"
@@ -406,6 +470,12 @@ class AttackOrchestrator:
                 packets.extend(action_packets)
                 self._packets_generated += len(action_packets)
                 self._actions_completed += 1
+                self._record_action_fired(
+                    stage_idx=self._current_stage_idx,
+                    action=action,
+                    targets=targets,
+                    packet_count=len(action_packets),
+                )
 
                 if action_packets:
                     logger.debug(
@@ -472,3 +542,176 @@ class AttackOrchestrator:
             return random.sample(matching, 3)
 
         return matching
+
+    # ------------------------------------------------------------------
+    # After-action report
+    # ------------------------------------------------------------------
+
+    def get_report(self) -> dict[str, Any]:
+        """Return the structured after-action report as a dict.
+
+        Available throughout execution and after completion. Includes
+        per-stage and per-action telemetry, packet counts, IOCs, and
+        aggregate totals.
+        """
+        self._refresh_report_totals()
+        return self._report.to_dict()
+
+    def _mark_report_started(self) -> None:
+        if self._report.started_at == 0.0:
+            self._report.started_at = time.time()
+        self._report.status = "in_progress"
+        # Mark the first stage as in_progress on the report (if any).
+        if self._report.stages and self._current_stage_idx < len(self._report.stages):
+            self._mark_stage_started(self._current_stage_idx)
+
+    def _mark_stage_started(self, stage_idx: int) -> None:
+        if stage_idx >= len(self._report.stages):
+            return
+        s = self._report.stages[stage_idx]
+        if s.started_at == 0.0:
+            s.started_at = time.time()
+        s.status = "in_progress"
+
+    def _mark_stage_completed(self, stage_idx: int) -> None:
+        if stage_idx >= len(self._report.stages):
+            return
+        s = self._report.stages[stage_idx]
+        s.completed_at = time.time()
+        if s.started_at:
+            s.actual_duration_s = round(s.completed_at - s.started_at, 2)
+        s.status = "completed"
+
+    def _mark_report_completed(self, status: str) -> None:
+        """Finalise the report. ``status`` ∈ {``completed``, ``stopped``}."""
+        if self._report.completed_at is not None:
+            return
+        self._report.completed_at = time.time()
+        self._report.status = status
+        # Close out the current stage if it's still open.
+        if self._current_stage_idx < len(self._report.stages):
+            s = self._report.stages[self._current_stage_idx]
+            if s.status == "in_progress":
+                s.completed_at = time.time()
+                if s.started_at:
+                    s.actual_duration_s = round(s.completed_at - s.started_at, 2)
+                s.status = "completed" if status == "completed" else "skipped"
+        # Refresh aggregate totals one final time.
+        self._refresh_report_totals()
+
+    def _reset_report(self) -> None:
+        """Wipe per-run report state. Called on a restart command."""
+        for s in self._report.stages:
+            s.started_at = 0.0
+            s.completed_at = None
+            s.actual_duration_s = 0.0
+            s.packets_emitted = 0
+            s.status = "pending"
+            for a in s.actions:
+                a.fired_at = 0.0
+                a.fire_count = 0
+                a.packets_emitted = 0
+                a.targets_hit = []
+                a.iocs = {}
+        self._report.started_at = 0.0
+        self._report.completed_at = None
+        self._report.status = "in_progress"
+        self._report.total_packets = 0
+        self._report.total_actions = 0
+        self._report.stages_completed = 0
+        self._report.techniques_used = []
+        self._report.tactics_covered = []
+        self._report.targets_hit = []
+
+    def _record_action_fired(
+        self,
+        stage_idx: int,
+        action: AttackAction,
+        targets: list[TargetInfo],
+        packet_count: int,
+    ) -> None:
+        """Update per-action telemetry after a generator runs.
+
+        Captures IOCs (attacker IP, target IPs/ports, register
+        addresses, function codes, SNMP communities) so the after-action
+        report shows what the action actually did, not just what it
+        intended.
+        """
+        if stage_idx >= len(self._report.stages):
+            return
+        stage_report = self._report.stages[stage_idx]
+        action_report = next(
+            (a for a in stage_report.actions if a.action_id == action.action_id),
+            None,
+        )
+        if action_report is None:
+            return
+
+        if action_report.fired_at == 0.0:
+            action_report.fired_at = time.time()
+        action_report.fire_count += 1
+        action_report.packets_emitted += packet_count
+
+        # Merge target device IDs (unique).
+        existing = set(action_report.targets_hit)
+        for t in targets:
+            if t.device_id and t.device_id not in existing:
+                action_report.targets_hit.append(t.device_id)
+                existing.add(t.device_id)
+
+        # Capture IOCs from action parameters + targets. Best-effort:
+        # different action types use different param names, so we pull
+        # whatever's there. The report renderer formats this kindly.
+        iocs = action_report.iocs
+        iocs.setdefault("attacker_ip", self._attacker_ip)
+
+        target_ips = sorted({t.ip_address for t in targets if t.ip_address})
+        if target_ips:
+            existing_ips = set(iocs.get("target_ips", []))
+            for ip in target_ips:
+                existing_ips.add(ip)
+            iocs["target_ips"] = sorted(existing_ips)
+
+        params = action.parameters or {}
+        # Common protocol-specific IOC fields. Each key is only added if
+        # the action actually exercises it.
+        for ioc_key in (
+            "ports", "port_range", "function_codes", "register_address",
+            "register_count", "coil_address", "snmp_community", "communities",
+            "object_id", "exfil_size_bytes", "beacon_pattern", "c2_domain",
+            "c2_ip", "exfil_protocol", "scan_type", "payload_hex",
+        ):
+            if ioc_key in params and ioc_key not in iocs:
+                iocs[ioc_key] = params[ioc_key]
+
+        stage_report.packets_emitted += packet_count
+
+    def _refresh_report_totals(self) -> None:
+        """Recompute aggregate totals from per-stage state.
+
+        Cheap to call on every snapshot — keeps the report self-consistent.
+        """
+        report = self._report
+        report.total_packets = sum(s.packets_emitted for s in report.stages)
+        report.total_actions = sum(
+            sum(1 for a in s.actions if a.fire_count > 0)
+            for s in report.stages
+        )
+        report.stages_completed = sum(
+            1 for s in report.stages if s.status == "completed"
+        )
+
+        techniques: set[str] = set()
+        tactics: set[str] = set()
+        targets: set[str] = set()
+        for s in report.stages:
+            if s.status in ("completed", "in_progress"):
+                tactics.update(s.mitre_tactics)
+            for a in s.actions:
+                if a.fire_count > 0:
+                    if a.mitre_technique:
+                        techniques.add(a.mitre_technique)
+                    targets.update(a.targets_hit)
+        report.techniques_used = sorted(techniques)
+        report.tactics_covered = sorted(tactics)
+        report.targets_hit = sorted(targets)

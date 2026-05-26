@@ -10,10 +10,11 @@
 import React, { useState } from 'react';
 import { Drawer, Typography, Button, Space, Divider } from 'antd';
 import { ExpandOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import HelpSearch from './HelpSearch';
 import HelpTOC from './HelpTOC';
 import HelpArticle from './HelpArticle';
+import { getArticleForRoute } from '../../content/help';
 
 const { Title, Paragraph } = Typography;
 
@@ -24,6 +25,7 @@ interface HelpDrawerProps {
 
 const HelpDrawer: React.FC<HelpDrawerProps> = ({ open, onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
 
   const handleSelectArticle = (articleId: string) => {
@@ -43,12 +45,16 @@ const HelpDrawer: React.FC<HelpDrawerProps> = ({ open, onClose }) => {
     setSelectedArticle(null);
   };
 
-  // Reset selection when drawer closes
+  // When the drawer opens, jump straight to the article matching the current
+  // route if one exists. When it closes, reset so the next open re-evaluates.
   React.useEffect(() => {
-    if (!open) {
+    if (open) {
+      const match = getArticleForRoute(location.pathname);
+      setSelectedArticle(match ? match.id : null);
+    } else {
       setSelectedArticle(null);
     }
-  }, [open]);
+  }, [open, location.pathname]);
 
   return (
     <Drawer

@@ -1026,6 +1026,47 @@ async def export_scenario(
     )
 
 
+@router.get("/{scenario_id}/report.pdf")
+async def download_scenario_report(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    """Download a print-ready PDF report describing the scenario.
+
+    Includes a KPI summary, IP plan, Purdue-ordered zone list, the full
+    device inventory with vendor / model / IP / MAC / protocols, every
+    flow with timing, and any IEC 62443 conduits. Intended for hand-off,
+    archival, and customer-facing documentation — pair with
+    ``/export`` (JSON) for the machine-readable equivalent.
+    """
+    from fastapi.responses import Response
+    from app.services.scenario_report import build_scenario_pdf
+
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
+    )
+    pdf_bytes = build_scenario_pdf(scenario)
+    # Filename: slug of scenario name + short id suffix, .pdf
+    safe_name = "".join(
+        c if c.isalnum() or c in "-_" else "_" for c in (scenario.name or "scenario")
+    )[:60].strip("_") or "scenario"
+    short_id = str(scenario.id)[:8]
+    filename = f"{safe_name}-{short_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(pdf_bytes)),
+        },
+    )
+
+
 class ValidationWarning(BaseModel):
     """A single validation warning."""
     code: str
@@ -1523,6 +1564,15 @@ class RegenerateNamesRequest(BaseModel):
         min_length=3,
         max_length=200,
     )
+    descriptive_names: bool = Field(
+        False,
+        description=(
+            "Overlay longer, demo-friendly device.name labels (e.g. "
+            "'Front_Mixing_Line_PLC') on top of the structured site rail. "
+            "Canonical SNMP sys_name and other fingerprint identifiers are "
+            "left untouched so Cyber Vision matching still works."
+        ),
+    )
 
 
 class RegenerateNamesResponse(BaseModel):
@@ -1554,8 +1604,11 @@ async def regenerate_device_names(
     Returns:
         Summary of devices renamed
     """
-    from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
-    from app.mcp_server.ai_providers import AIProviderFactory
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from app.services.architecture.site_naming_pipeline import (
+        apply_site_naming_pipeline,
+    )
 
     # Get scenario
     scenario = await get_or_404_where(
@@ -1567,37 +1620,26 @@ async def regenerate_device_names(
     )
 
     definition = scenario.definition or {}
-    devices = definition.get("devices", {})
-    zones = definition.get("zones", {})
-
-    if not devices:
+    if not definition.get("devices"):
         raise ValidationError("Scenario has no devices to rename")
 
-    # Get AI provider
+    # Route the customization prompt through the site-identity rail so
+    # the LLM picks a fresh site_code/plant_name/role_patterns themed by
+    # the user's process_context, then deterministically renames every
+    # device under it. This keeps studio renames consistent with the
+    # rename pipeline used at template-creation time.
     try:
-        ai_provider = await AIProviderFactory.create(db)
-    except ValueError as e:
-        raise ValidationError(f"AI provider not configured: {e}. Configure API key in Settings.")
-
-    # Build naming context from scenario metadata and user-provided process context
-    context = DeviceNamingContext(
-        vertical=scenario.vertical or "manufacturing",
-        template_name=scenario.name,
-        template_description=scenario.description or "",
-        zones=zones,
-        process_context=request.process_context,
-    )
-
-    # Convert devices dict to list
-    device_list = list(devices.values())
-
-    # Regenerate names with AI
-    namer = AIDeviceNamer()
-    try:
-        enhanced_devices = await namer.enhance_device_names(
-            devices=device_list,
-            context=context,
-            ai_provider=ai_provider,
+        identity = await apply_site_naming_pipeline(
+            db=db,
+            definition=definition,
+            scenario_id=str(scenario.id),
+            vertical=scenario.vertical or "manufacturing",
+            template_name=scenario.name,
+            template_description=scenario.description or "",
+            archetype_id=None,
+            use_llm=True,
+            exclude_scenario_id=str(scenario.id),
+            process_context=request.process_context,
         )
     except Exception as e:
         raise ExternalServiceError(
@@ -1606,21 +1648,40 @@ async def regenerate_device_names(
             original_error=str(e),
         )
 
-    # Rebuild devices dict with enhanced names
-    definition["devices"] = {d["id"]: d for d in enhanced_devices}
+    if request.descriptive_names:
+        from app.services.architecture.descriptive_overlay import (
+            apply_descriptive_overlay,
+        )
 
-    # Update scenario
+        await apply_descriptive_overlay(
+            db=db,
+            definition=definition,
+            vertical=scenario.vertical or "manufacturing",
+            scenario_name=scenario.name,
+            scenario_description=scenario.description or "",
+            process_context=request.process_context,
+            user_id=current_user.id,
+            scenario_id=scenario_id,
+        )
+
     scenario.definition = definition
-    scenario.version += 1
+    # JSONB columns don't track in-place mutations — without this the
+    # rename is silently dropped on commit.
+    flag_modified(scenario, "definition")
+    scenario.version = (scenario.version or 1) + 1
     scenario.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(scenario)
 
+    renamed = len(definition.get("devices") or {})
     return RegenerateNamesResponse(
         scenario_id=str(scenario_id),
-        devices_renamed=len(enhanced_devices),
-        message=f"Successfully regenerated names for {len(enhanced_devices)} devices using AI",
+        devices_renamed=renamed,
+        message=(
+            f"Renamed {renamed} devices under site identity "
+            f"{identity.site_code} ({identity.plant_name})"
+        ),
     )
 
 
@@ -1695,3 +1756,260 @@ def _reassign_device_ips(definition: dict, allocation) -> dict:
     definition["zones"] = zones
     definition["devices"] = devices
     return definition
+
+
+# ========== Portable Scenario Standard (v1) ==========
+#
+# Public authoring format documented in docs/SCENARIO_SPEC.md and
+# schemas/packetarch-scenario.v1.json. External programs and AI tools
+# produce a portable JSON document; the importer materializes it into
+# the internal scenario shape.
+
+
+import json as _json
+from pathlib import Path as _Path
+
+from pydantic import ValidationError as _PydValidationError
+
+from app.schemas.portable_scenario import (
+    PortableScenario,
+    PortableValidateResponse,
+)
+from app.services.portable_scenario_importer import (
+    FingerprintResolutionError,
+    import_portable_scenario,
+    resolve_unspecified_fingerprints,
+    summarize_expansion,
+)
+
+_PORTABLE_SCHEMA_PATH = (
+    _Path(__file__).resolve().parent.parent.parent
+    / "static" / "downloads" / "packetarch-scenario.v1.json"
+)
+
+
+@router.get(
+    "/schema/portable.json",
+    summary="Get the portable scenario JSON Schema",
+    response_class=JSONResponse,
+)
+async def get_portable_schema() -> JSONResponse:
+    """Serve the portable scenario v1 JSON Schema.
+
+    External authoring tools (AI generators, custom scripts, IDE plugins)
+    should fetch this and use it to validate their output before calling
+    /scenarios/import/portable.
+    """
+    try:
+        schema = _json.loads(_PORTABLE_SCHEMA_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ExternalServiceError(
+            "Portable scenario schema is missing from this install."
+        ) from exc
+    return JSONResponse(content=schema, media_type="application/schema+json")
+
+
+@router.post(
+    "/validate/portable",
+    response_model=PortableValidateResponse,
+    summary="Validate a portable scenario without importing it",
+)
+async def validate_portable_scenario(
+    payload: dict,
+    _current_user: CurrentUser,
+) -> PortableValidateResponse:
+    """Dry-run validation: schema check + expansion preview.
+
+    Accepts a raw portable JSON document. Returns whether it passes
+    schema validation, a summary of what the importer would expand it
+    into, and (if the schema passes) a partial readiness preview
+    derived from the input itself (orphan-device check, protocol/vendor
+    affinity, etc.).
+    """
+    try:
+        portable = PortableScenario.model_validate(payload)
+    except _PydValidationError as exc:
+        return PortableValidateResponse(
+            valid=False,
+            schema_errors=[
+                {
+                    "path": ".".join(str(p) for p in err.get("loc", ())),
+                    "type": err.get("type"),
+                    "message": err.get("msg"),
+                }
+                for err in exc.errors()
+            ],
+        )
+
+    expanded = summarize_expansion(portable)
+
+    # Run the fingerprint resolver so capability-mode authors see which
+    # vendor/model the importer would pick. This is the headline piece of
+    # feedback for airgapped authors who can't query a registry endpoint.
+    resolution_errors: list[str] = []
+    resolution_warnings: list[str] = []
+    resolved_devices: list[dict] = []
+    try:
+        resolved, resolution_warnings = resolve_unspecified_fingerprints(portable)
+        for orig, res in zip(portable.devices, resolved.devices, strict=False):
+            if orig.vendor != res.vendor or orig.fingerprint_model != res.fingerprint_model:
+                resolved_devices.append(
+                    {
+                        "type": res.type,
+                        "zone": res.zone,
+                        "resolved_vendor": res.vendor,
+                        "resolved_fingerprint_model": res.fingerprint_model,
+                        "from": {
+                            "vendor": orig.vendor,
+                            "fingerprint_model": orig.fingerprint_model,
+                        },
+                    }
+                )
+    except FingerprintResolutionError as exc:
+        resolution_errors.append(str(exc))
+
+    # Lightweight pre-import readiness preview: catches issues the schema
+    # can't (orphans, vendor/protocol affinity, role-inventory at scale)
+    # so authors fix them before they pay the cost of an import.
+    warnings: list[str] = []
+    referenced_zones = {z.id for z in portable.zones}
+    for d in portable.devices:
+        if d.zone not in referenced_zones:
+            warnings.append(
+                f"device spec type={d.type} vendor={d.vendor} references "
+                f"unknown zone '{d.zone}'"
+            )
+    device_types = {d.type for d in portable.devices}
+    for f in portable.flows:
+        if not any(t in device_types for t in f.source_types):
+            warnings.append(
+                f"flow protocol={f.protocol} source_types={f.source_types} "
+                f"matches no declared device"
+            )
+        if not any(t in device_types for t in f.target_types):
+            warnings.append(
+                f"flow protocol={f.protocol} target_types={f.target_types} "
+                f"matches no declared device"
+            )
+
+    # Zone-aware orphan detection: a device is orphaned if no flow would
+    # match it as a source or target after the importer expands type +
+    # zone filters. Catches the common LLM trap of a jump server in an
+    # IDMZ that no flow ever touches. The importer auto-fixes orphans
+    # with a synthetic SNMP monitoring flow, but surfacing the warning
+    # here lets authors decide whether to write a more meaningful flow.
+    orphans: list[str] = []
+    for d in portable.devices:
+        in_some_flow = False
+        for f in portable.flows:
+            sz = set(f.source_zones) if f.source_zones else None
+            tz = set(f.target_zones) if f.target_zones else None
+            as_source = d.type in f.source_types and (sz is None or d.zone in sz)
+            as_target = d.type in f.target_types and (tz is None or d.zone in tz)
+            if as_source or as_target:
+                in_some_flow = True
+                break
+        if not in_some_flow:
+            orphans.append(
+                f"{d.name_pattern or d.type} (type={d.type!r} zone={d.zone!r})"
+            )
+    if orphans:
+        warnings.append(
+            "Orphan device(s) detected (no flow matches them after zone + "
+            "type expansion): " + "; ".join(orphans) + ". The importer "
+            "will synthesise an SNMP monitoring flow for each — readiness "
+            "won't fail, but a meaningful flow is more realistic."
+        )
+
+    # Vendor-protocol affinity preview (only for explicitly vendored devices —
+    # the resolver guarantees compatibility for capability-mode devices).
+    from app.protocol_engines.protocols import VENDOR_PROTOCOL_AFFINITIES
+    for d in portable.devices:
+        if not d.vendor:
+            continue
+        vendor_key = d.vendor.lower()
+        supported = VENDOR_PROTOCOL_AFFINITIES.get(vendor_key)
+        if supported is None:
+            continue
+        for p in d.protocols:
+            if p not in supported:
+                warnings.append(
+                    f"device {d.type}/{d.vendor} declares protocol '{p}' "
+                    f"which is not in the vendor's known affinity set "
+                    f"{sorted(supported)}; importer will repair this"
+                )
+
+    return PortableValidateResponse(
+        valid=not resolution_errors,
+        schema_errors=[
+            {"path": "devices", "type": "fingerprint_resolution", "message": err}
+            for err in resolution_errors
+        ],
+        expanded_summary={
+            **expanded,
+            "resolved_devices": resolved_devices,
+            "unresolved_count": len(resolution_errors),
+        },
+        readiness={
+            "preview_warnings": warnings,
+            "fallback_warnings": resolution_warnings,
+            "note": (
+                "This is a pre-import preview only. Full readiness "
+                "evaluation runs after import — call GET "
+                "/scenarios/{id}/readiness once the scenario exists."
+            ),
+        },
+    )
+
+
+@router.post(
+    "/import/portable",
+    response_model=ScenarioResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a scenario from a portable JSON document",
+)
+async def import_portable_scenario_route(
+    payload: dict,
+    current_user: CurrentUser,
+    db: DBSession,
+    use_ai_naming: bool = Query(
+        True,
+        description=(
+            "Apply the site-naming pipeline (LLM if AI is configured, "
+            "deterministic fallback otherwise). Set false to keep the "
+            "author-supplied names verbatim."
+        ),
+    ),
+) -> ScenarioResponse:
+    """Create a new scenario from a portable JSON document.
+
+    The portable format is documented at GET /scenarios/schema/portable.json
+    and in docs/SCENARIO_SPEC.md. The importer:
+
+    - Allocates a fresh /16 IP range
+    - Resolves `fingerprint_model` references to full vendor fingerprints
+    - Generates vendor-correct MAC addresses
+    - Allocates IPs per zone
+    - Auto-generates IEC 62443 conduits when authors omit them
+    - Repairs vendor/protocol mismatches
+    - Applies site-coherent naming (unless `use_ai_naming=false`)
+    """
+    try:
+        portable = PortableScenario.model_validate(payload)
+    except _PydValidationError as exc:
+        raise ValidationError(
+            f"Portable scenario failed schema validation: {exc.errors()}"
+        ) from exc
+
+    try:
+        scenario = await import_portable_scenario(
+            portable,
+            current_user=current_user,
+            db=db,
+            use_ai_naming=use_ai_naming,
+        )
+    except FingerprintResolutionError as exc:
+        # User input problem, not a server bug — surface the real reason
+        # (with suggested fixes) instead of a generic 500.
+        raise ValidationError(str(exc)) from exc
+    return ScenarioResponse.model_validate(scenario)

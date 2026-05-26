@@ -125,6 +125,115 @@ class AttackService:
             return None
         return deployment.get("attack")
 
+    def get_attack_report(self, scenario_id: str) -> dict[str, Any] | None:
+        """Pull the after-action report from the cached attack state.
+
+        The orchestrator embeds the report inside its state snapshot
+        (see ``AttackOrchestrator.get_state_snapshot``), so it rides
+        the same agent→traffic_dashboard pipeline as the live state.
+
+        Returns:
+            Report dict or None if no attack is associated with the
+            scenario yet.
+        """
+        state = self.get_attack_state(scenario_id)
+        if not state:
+            return None
+        return state.get("report")
+
+    async def persist_completed_report(
+        self,
+        scenario_id: str,
+        db: Any,
+    ) -> dict[str, Any] | None:
+        """If the current attack has completed, snapshot the report into
+        ``scenario.definition['attack_history'][]`` so it survives
+        deployment teardown.
+
+        Idempotent — already-persisted reports (matched by ``started_at``)
+        are not duplicated.
+
+        Returns the persisted report (or the existing duplicate), or
+        None if nothing has completed yet.
+        """
+        from sqlalchemy import select
+        from uuid import UUID
+
+        from app.models.scenario import Scenario
+
+        report = self.get_attack_report(scenario_id)
+        if not report or report.get("status") not in ("completed", "stopped"):
+            return None
+
+        try:
+            scenario_uuid = UUID(scenario_id)
+        except ValueError:
+            return None
+
+        result = await db.execute(
+            select(Scenario).where(Scenario.id == scenario_uuid),
+        )
+        scenario = result.scalar_one_or_none()
+        if not scenario:
+            return None
+
+        definition = dict(scenario.definition or {})
+        history = list(definition.get("attack_history", []))
+        # Dedupe by (playbook_id, started_at) — same run won't be saved twice.
+        started_at = report.get("started_at")
+        if any(
+            entry.get("playbook_id") == report.get("playbook_id")
+            and entry.get("started_at") == started_at
+            for entry in history
+        ):
+            return report
+
+        history.append(report)
+        # Cap history at 50 runs to keep definitions bounded.
+        if len(history) > 50:
+            history = history[-50:]
+        definition["attack_history"] = history
+        scenario.definition = definition
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(scenario, "definition")
+        await db.commit()
+        logger.info(
+            "Persisted attack report for scenario %s "
+            "(playbook=%s, status=%s, total_packets=%s)",
+            scenario_id,
+            report.get("playbook_id"),
+            report.get("status"),
+            report.get("total_packets"),
+        )
+        return report
+
+    async def get_attack_history(
+        self,
+        scenario_id: str,
+        db: Any,
+    ) -> list[dict[str, Any]]:
+        """Return all persisted attack reports for a scenario.
+
+        Includes runs from previous deployments — survives teardown.
+        """
+        from sqlalchemy import select
+        from uuid import UUID
+
+        from app.models.scenario import Scenario
+
+        try:
+            scenario_uuid = UUID(scenario_id)
+        except ValueError:
+            return []
+
+        result = await db.execute(
+            select(Scenario).where(Scenario.id == scenario_uuid),
+        )
+        scenario = result.scalar_one_or_none()
+        if not scenario:
+            return []
+        return list((scenario.definition or {}).get("attack_history", []))
+
     def get_injection_status(self, scenario_id: str) -> dict[str, Any]:
         """Poll injection outcome after POST /inject.
 

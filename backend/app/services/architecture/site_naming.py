@@ -255,6 +255,24 @@ def apply_site_identity(
             if not current or current == "{device_name}" or current == old:
                 snmp["sys_name"] = new_name
 
+    # Apply themed zone display-name overrides when the LLM supplied
+    # them (process_context re-themes). Always preserve the original
+    # name under `_archetype_name` so admins can rewind.
+    zone_names = identity.zone_names or {}
+    if zone_names:
+        zones = definition.get("zones") or {}
+        if isinstance(zones, dict):
+            for zid, zdata in zones.items():
+                if not isinstance(zdata, dict):
+                    continue
+                new_zone_name = zone_names.get(zid)
+                if not new_zone_name:
+                    continue
+                old_zone_name = zdata.get("name")
+                if old_zone_name and old_zone_name != new_zone_name:
+                    zdata.setdefault("_archetype_name", old_zone_name)
+                zdata["name"] = new_zone_name
+
     # Persist the identity on the definition so the UI can render it
     # and so admin operations can re-rename idempotently.
     definition["site_identity"] = identity.to_dict()

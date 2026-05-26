@@ -49,6 +49,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useCyberVisionStore } from '../stores/cyberVisionStore';
 import { scenariosApi } from '../api/scenarios';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 import type {
   CVDevice,
   CVVulnerability,
@@ -601,6 +602,7 @@ const CyberVisionPage: React.FC = () => {
       <div style={{ padding: 24 }}>
         <Title level={2}>
           <EyeOutlined /> Cyber Vision
+          <ContextualHelpIcon articleId="cyber-vision" tooltip="Cyber Vision integration help" />
         </Title>
         <Alert
           message="Not Connected"
@@ -1339,6 +1341,7 @@ const CyberVisionPage: React.FC = () => {
           <Col>
             <Title level={2} style={{ margin: 0 }}>
               <EyeOutlined /> Cyber Vision
+              <ContextualHelpIcon articleId="cyber-vision" tooltip="Cyber Vision integration help" />
             </Title>
             <Text type="secondary">
               View discovered devices and compare with scenarios

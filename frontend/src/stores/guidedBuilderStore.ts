@@ -66,6 +66,7 @@ interface GuidedBuilderState {
   phasePreset: string;
   useAINaming: boolean;
   processContext: string;
+  descriptiveNames: boolean;
 
   // Creation
   isCreating: boolean;
@@ -82,6 +83,7 @@ interface GuidedBuilderState {
   setPhasePreset: (preset: string) => void;
   setUseAINaming: (v: boolean) => void;
   setProcessContext: (ctx: string) => void;
+  setDescriptiveNames: (v: boolean) => void;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (step: WizardStep) => void;
@@ -117,6 +119,7 @@ const initialState = {
   phasePreset: 'standard',
   useAINaming: false,
   processContext: '',
+  descriptiveNames: true,
   isCreating: false,
   createError: null as string | null,
 };
@@ -236,6 +239,7 @@ export const useGuidedBuilderStore = create<GuidedBuilderState>((set, get) => ({
   setPhasePreset: (preset) => set({ phasePreset: preset }),
   setUseAINaming: (v) => set({ useAINaming: v }),
   setProcessContext: (ctx) => set({ processContext: ctx }),
+  setDescriptiveNames: (v) => set({ descriptiveNames: v }),
 
   nextStep: () => {
     const { currentStep } = get();
@@ -292,6 +296,7 @@ export const useGuidedBuilderStore = create<GuidedBuilderState>((set, get) => ({
         auto_assign_addresses: true,
         use_ai_naming: state.useAINaming,
         process_context: state.useAINaming ? state.processContext : undefined,
+        descriptive_names: state.descriptiveNames,
       });
 
       const scenarioId = result.scenario_id;

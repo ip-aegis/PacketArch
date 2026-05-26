@@ -254,6 +254,153 @@ class AttackState:
 
 
 @dataclass
+class ActionReport:
+    """Per-action telemetry captured during execution.
+
+    Aggregated into ``StageReport`` and ultimately the post-run
+    ``AttackReport``. Used by the after-action report view to show
+    exactly what each action did.
+    """
+
+    action_id: str = ""
+    action_name: str = ""
+    action_type: str = ""
+    mitre_technique: str = ""
+    expected_cv_detection: str = ""
+    description: str = ""
+    fired_at: float = 0.0
+    """Epoch seconds when the action first fired."""
+
+    fire_count: int = 0
+    """How many times the action ran (≥1 for repeating actions)."""
+
+    packets_emitted: int = 0
+    targets_hit: list[str] = field(default_factory=list)
+    """Device IDs the action targeted."""
+
+    iocs: dict[str, Any] = field(default_factory=dict)
+    """Protocol-specific indicators-of-compromise captured.
+
+    Examples: ``{"attacker_ip": "203.0.113.1", "target_ports": [502, 102],
+    "register_addresses": [4000, 4001], "function_codes": [3, 6],
+    "snmp_communities": ["public", "private"]}``.
+    """
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action_id": self.action_id,
+            "action_name": self.action_name,
+            "action_type": self.action_type,
+            "mitre_technique": self.mitre_technique,
+            "expected_cv_detection": self.expected_cv_detection,
+            "description": self.description,
+            "fired_at": self.fired_at,
+            "fire_count": self.fire_count,
+            "packets_emitted": self.packets_emitted,
+            "targets_hit": self.targets_hit,
+            "iocs": self.iocs,
+        }
+
+
+@dataclass
+class StageReport:
+    """Per-stage telemetry captured during execution."""
+
+    stage_id: str = ""
+    stage_name: str = ""
+    color: str = "#ff4d4f"
+    description: str = ""
+    planned_duration_s: int = 0
+    started_at: float = 0.0
+    completed_at: float | None = None
+    actual_duration_s: float = 0.0
+    actions: list[ActionReport] = field(default_factory=list)
+    packets_emitted: int = 0
+    mitre_tactics: list[str] = field(default_factory=list)
+    expected_cv_alerts: list[str] = field(default_factory=list)
+    status: str = "pending"
+    """``pending`` | ``in_progress`` | ``completed`` | ``skipped``."""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "stage_id": self.stage_id,
+            "stage_name": self.stage_name,
+            "color": self.color,
+            "description": self.description,
+            "planned_duration_s": self.planned_duration_s,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "actual_duration_s": self.actual_duration_s,
+            "actions": [a.to_dict() for a in self.actions],
+            "packets_emitted": self.packets_emitted,
+            "mitre_tactics": self.mitre_tactics,
+            "expected_cv_alerts": self.expected_cv_alerts,
+            "status": self.status,
+        }
+
+
+@dataclass
+class AttackReport:
+    """Structured after-action report for a playbook run.
+
+    Built incrementally by ``AttackOrchestrator`` as the attack
+    progresses. Fully populated when the playbook completes (naturally
+    or via STOP). Persisted into ``scenario.definition['attack_history'][]``
+    so the report survives deployment teardown.
+    """
+
+    playbook_id: str = ""
+    playbook_name: str = ""
+    mitre_software_id: str = ""
+    severity: str = ""
+    category: str = ""
+    started_at: float = 0.0
+    completed_at: float | None = None
+    status: str = "in_progress"
+    """``in_progress`` | ``completed`` | ``stopped`` | ``failed``."""
+
+    intensity: float = 1.0
+    auto_advance: bool = True
+    attacker_ip: str = ""
+    target_device_count: int = 0
+    stages: list[StageReport] = field(default_factory=list)
+
+    # Aggregate totals (derived from stages, included here for cheap
+    # UI rendering without summing client-side).
+    total_packets: int = 0
+    total_actions: int = 0
+    total_stages: int = 0
+    stages_completed: int = 0
+    techniques_used: list[str] = field(default_factory=list)
+    tactics_covered: list[str] = field(default_factory=list)
+    targets_hit: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "playbook_id": self.playbook_id,
+            "playbook_name": self.playbook_name,
+            "mitre_software_id": self.mitre_software_id,
+            "severity": self.severity,
+            "category": self.category,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "status": self.status,
+            "intensity": self.intensity,
+            "auto_advance": self.auto_advance,
+            "attacker_ip": self.attacker_ip,
+            "target_device_count": self.target_device_count,
+            "stages": [s.to_dict() for s in self.stages],
+            "total_packets": self.total_packets,
+            "total_actions": self.total_actions,
+            "total_stages": self.total_stages,
+            "stages_completed": self.stages_completed,
+            "techniques_used": self.techniques_used,
+            "tactics_covered": self.tactics_covered,
+            "targets_hit": self.targets_hit,
+        }
+
+
+@dataclass
 class AttackPlaybookConfig:
     """User-facing configuration when applying a playbook to a scenario.
 

@@ -19,10 +19,12 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAttackStore } from '../../stores/attackStore';
+import { scenariosApi } from '../../api/scenarios';
 import DevicePropertyForm from './DevicePropertyForm';
 import FlowPropertyForm from './FlowPropertyForm';
 import ConduitPropertyForm from './ConduitPropertyForm';
 import ZonePropertyForm from './ZonePropertyForm';
+import ClusterEdgePropertyForm from './ClusterEdgePropertyForm';
 import ChatInterface from '../ai/ChatInterface';
 import ChatInput from '../ai/ChatInput';
 import DeploymentPanel from '../deployment/DeploymentPanel';
@@ -56,6 +58,7 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   const [activeTab, setActiveTab] = useState(aiEnabled ? 'ai' : 'properties');
   const [generateDescModalOpen, setGenerateDescModalOpen] = useState(false);
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
+  const selectedAggregateEdge = useUIStore((state) => state.selectedAggregateEdge);
   const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar);
 
   const {
@@ -174,6 +177,17 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
     }
   }, [scenarioInjectionStatus]);
 
+  // Ensure the AI session is opened whenever the AI tab is the active tab
+  // and a scenario is loaded. Covers the initial-mount case where the AI
+  // tab is the default but the tab-change handler never fires — without
+  // this the chat input stays disabled (isConnected: false) until the
+  // user clicks away from the AI tab and back.
+  useEffect(() => {
+    if (activeTab === 'ai' && scenarioId && !isAIOpen) {
+      openPanel(scenarioId);
+    }
+  }, [activeTab, scenarioId, isAIOpen, openPanel]);
+
   // Handle tab change
   const handleTabChange = (activeKey: string) => {
     setActiveTab(activeKey);
@@ -183,7 +197,21 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   };
 
   const handleSaveDescription = async (description: string) => {
+    if (!scenarioId) {
+      // No scenario yet (shouldn't reach here from the modal). Just
+      // update the local store; the create flow will pick it up.
+      setMetadata({ description });
+      return;
+    }
+
+    // Persist immediately instead of waiting on the 2-second auto-save
+    // debounce — the AI-description modal closes right away and the
+    // user may navigate before the debounce fires, losing the change.
+    await scenariosApi.update(scenarioId, { description });
     setMetadata({ description });
+    // The change is already on the server; don't leave the studio in a
+    // dirty state or the auto-save will re-send the whole definition.
+    useScenarioStore.getState().setDirty(false);
   };
 
   // Scenario metadata panel shown when nothing is selected
@@ -212,10 +240,10 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
           Description
         </Text>
         <TextArea
-          rows={3}
           value={scenarioDescription}
           onChange={(e) => setMetadata({ description: e.target.value })}
           placeholder="Add a description for this scenario..."
+          autoSize={{ minRows: 6, maxRows: 14 }}
           style={{
             background: BG_CODE,
             border: `1px solid ${BORDER_DEFAULT}`,
@@ -307,6 +335,12 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
         <ZonePropertyForm zoneId={activePropertyContext.ids[0]} />
       ) : activePropertyContext.type === 'conduit' ? (
         <ConduitPropertyForm conduitId={activePropertyContext.ids[0]} />
+      ) : activePropertyContext.type === 'clusterEdge' ? (
+        selectedAggregateEdge ? (
+          <ClusterEdgePropertyForm aggregateInfo={selectedAggregateEdge} />
+        ) : (
+          scenarioMetadataPanel
+        )
       ) : activePropertyContext.type === 'multi' ? (
         <EmptyState
           message="Multiple items selected"

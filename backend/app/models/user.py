@@ -67,6 +67,12 @@ class User(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    welcome_seen: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.username}>"

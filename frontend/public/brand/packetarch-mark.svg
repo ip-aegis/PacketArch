@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PacketArch primary mark.
+
+  Geometry: flat-top hexagonal frame (industrial / IEC 62443 containment
+  visual), inner hex of six satellite nodes ringing a glowing central hub,
+  six radial trace lines, and three "packet" dots moving along three of
+  those traces to suggest live traffic. Cyan-to-teal gradient with a
+  subtle inner glow for depth. Pure SVG; reads at 24-512 px.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 256 256"
+     width="256" height="256"
+     role="img"
+     aria-label="PacketArch">
+  <defs>
+    <!-- Outer hex stroke gradient: top-left bright cyan, bottom-right teal. -->
+    <linearGradient id="hex-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#7FE3FF"/>
+      <stop offset="55%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#0299C2"/>
+    </linearGradient>
+
+    <!-- Inner hex fill: very subtle wash so the mark feels lit from inside. -->
+    <radialGradient id="hex-fill" cx="50%" cy="42%" r="62%">
+      <stop offset="0%"  stop-color="#0B6E91" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#0A2A3D" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#06182C" stop-opacity="1"/>
+    </radialGradient>
+
+    <!-- Central hub gradient: hot core fading to cyan. -->
+    <radialGradient id="hub-fill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#E8FBFF"/>
+      <stop offset="40%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#0488AC"/>
+    </radialGradient>
+
+    <!-- Satellite-node gradient. -->
+    <radialGradient id="node-fill" cx="35%" cy="30%" r="80%">
+      <stop offset="0%"  stop-color="#CFF6FF"/>
+      <stop offset="60%" stop-color="#34BEE4"/>
+      <stop offset="100%" stop-color="#0A6F8E"/>
+    </radialGradient>
+
+    <!-- Packet dot gradient (the bright moving dots on traces). -->
+    <radialGradient id="packet-fill" cx="40%" cy="35%" r="70%">
+      <stop offset="0%"  stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#7FE3FF"/>
+      <stop offset="100%" stop-color="#00D4FF"/>
+    </radialGradient>
+
+    <!-- Soft outer halo. -->
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="60%" stop-color="#00D4FF" stop-opacity="0"/>
+      <stop offset="85%" stop-color="#00D4FF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00D4FF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Drop-shadow / glow filter applied to the hub. -->
+    <filter id="hub-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer halo -->
+  <circle cx="128" cy="128" r="120" fill="url(#halo)"/>
+
+  <!--
+    Outer hexagon (flat-top).
+    Vertices for center (128,128) and radius 108:
+       L (20,128)
+       UL (74,34.46)
+       UR (182,34.46)
+       R (236,128)
+       LR (182,221.54)
+       LL (74,221.54)
+  -->
+  <polygon
+    points="20,128 74,34.46 182,34.46 236,128 182,221.54 74,221.54"
+    fill="url(#hex-fill)"
+    stroke="url(#hex-stroke)"
+    stroke-width="7"
+    stroke-linejoin="round"/>
+
+  <!-- Inner thin hex stroke for layered depth (90% scale). -->
+  <polygon
+    points="33.2,128 81.6,44.01 174.4,44.01 222.8,128 174.4,211.99 81.6,211.99"
+    fill="none"
+    stroke="#7FE3FF"
+    stroke-width="1.2"
+    stroke-opacity="0.5"
+    stroke-linejoin="round"/>
+
+  <!--
+    Six radial traces from the central hub to the six satellite-node
+    positions. Inner-hex radius 60.
+       N1 right   : (188, 128)
+       N2 UR      : (158, 76.04)
+       N3 UL      : (98,  76.04)
+       N4 left    : (68,  128)
+       N5 LL      : (98,  179.96)
+       N6 LR      : (158, 179.96)
+    The lines stop short of each node so the node circle sits on top
+    cleanly without visible overlap.
+  -->
+  <g stroke="#34D2FF" stroke-width="2.2" stroke-linecap="round" opacity="0.85">
+    <line x1="128" y1="128" x2="188" y2="128"/>
+    <line x1="128" y1="128" x2="158" y2="76.04"/>
+    <line x1="128" y1="128" x2="98"  y2="76.04"/>
+    <line x1="128" y1="128" x2="68"  y2="128"/>
+    <line x1="128" y1="128" x2="98"  y2="179.96"/>
+    <line x1="128" y1="128" x2="158" y2="179.96"/>
+  </g>
+
+  <!--
+    Three small "packet" dots along three of the traces — picked so the
+    mark reads as having traffic in motion without becoming busy.
+    Placed at ~55% along the trace from hub to node.
+  -->
+  <g fill="url(#packet-fill)">
+    <!-- on the trace to N1 (right): hub (128,128) -> (188,128). 55% = (161,128) -->
+    <circle cx="161" cy="128" r="3.4"/>
+    <!-- on the trace to N3 (UL): hub -> (98, 76.04). 55% = (111.5, 99.4) -->
+    <circle cx="111.5" cy="99.4" r="3.4"/>
+    <!-- on the trace to N5 (LL): hub -> (98, 179.96). 55% = (111.5, 156.6) -->
+    <circle cx="111.5" cy="156.6" r="3.4"/>
+  </g>
+
+  <!-- Satellite nodes -->
+  <g>
+    <circle cx="188" cy="128"    r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    <circle cx="158" cy="76.04"  r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    <circle cx="98"  cy="76.04"  r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    <circle cx="68"  cy="128"    r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    <circle cx="98"  cy="179.96" r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    <circle cx="158" cy="179.96" r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+  </g>
+
+  <!-- Central hub: glowing core. -->
+  <g filter="url(#hub-glow)">
+    <circle cx="128" cy="128" r="15" fill="url(#hub-fill)" stroke="#E8FBFF" stroke-width="1.2"/>
+  </g>
+</svg>

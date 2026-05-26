@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.mcp_server.ai_providers import AIProvider, AIProviderFactory
+from app.mcp_server.ai_providers import AIProvider, AIProviderFactory, AITask
 from app.mcp_server.server import mcp_server
 from app.core.constants import MAX_DEVICES_PER_SCENARIO
 from app.services.ai_session_service import AISessionService
@@ -68,32 +68,61 @@ def detect_convergence(tool_calls_history: list[dict]) -> tuple[bool, str]:
     Returns (should_stop, reason) tuple.
 
     Detection rules:
-    1. Any tool called 5+ times consecutively by name = stuck loop
-    2. Same tool + same parameters 3+ times = exact duplicate loop
-    3. Oscillating A-B-A-B-A-B pattern = ping-pong loop
+    1. ``add_device`` called 5+ times consecutively = stuck loop (the
+       model should be using ``generate_scenario_from_nl`` for bulk
+       device creation; we intervene to force the right tool).
+    2. Any tool called 5+ times consecutively where the inputs show
+       little variety (≤2 unique input signatures) = stuck loop.
+       Naturally-iterative tools — ``remove_device``, ``remove_flow``,
+       ``apply_cve_to_device``, etc. — legitimately fire many times
+       in a row with distinct inputs; that pattern is progress, not a
+       loop, so we allow it.
+    3. Same tool + identical parameters 3+ times consecutively = exact
+       duplicate loop.
+    4. Oscillating A-B-A-B-A-B pattern = ping-pong loop.
     """
     if len(tool_calls_history) < 3:
         return False, ""
 
-    # Rule 1: Same tool name called 5+ times consecutively
-    last_5_names = [tc.get("name") for tc in tool_calls_history[-5:]]
-    if len(last_5_names) == 5 and len(set(last_5_names)) == 1:
-        return True, f"Detected {last_5_names[0]} loop - same tool called 5 times consecutively"
+    def _signature(tc: dict) -> str:
+        try:
+            return json.dumps(tc.get("input", {}), sort_keys=True)
+        except (TypeError, ValueError):
+            return str(tc.get("input", {}))
 
-    # Rule 2: Same tool + identical parameters 3+ times consecutively
+    # Rule 1: special-case add_device — the model should pick
+    # generate_scenario_from_nl for bulk, so a 5-call streak is a
+    # tool-selection bug worth interrupting.
+    last_5_names = [tc.get("name") for tc in tool_calls_history[-5:]]
+    if (
+        len(last_5_names) == 5
+        and len(set(last_5_names)) == 1
+        and last_5_names[0] == "add_device"
+    ):
+        return True, "Detected add_device loop - model should be using generate_scenario_from_nl"
+
+    # Rule 2: 5 consecutive calls to the same tool where the inputs
+    # don't show variety. Bulk operations like remove_device produce
+    # 5 unique signatures (different device_id each call) and slip
+    # through this check; truly stuck loops hit the ≤2-unique guard.
+    if len(last_5_names) == 5 and len(set(last_5_names)) == 1:
+        sigs = {_signature(tc) for tc in tool_calls_history[-5:]}
+        if len(sigs) <= 2:
+            return True, (
+                f"Detected {last_5_names[0]} loop - 5 consecutive calls with "
+                f"only {len(sigs)} unique input(s)"
+            )
+
+    # Rule 3: Same tool + identical parameters 3+ times consecutively
     if len(tool_calls_history) >= 3:
         last_3 = tool_calls_history[-3:]
         sigs = []
         for tc in last_3:
-            try:
-                sig = (tc.get("name", ""), json.dumps(tc.get("input", {}), sort_keys=True))
-            except (TypeError, ValueError):
-                sig = (tc.get("name", ""), str(tc.get("input", {})))
-            sigs.append(sig)
+            sigs.append((tc.get("name", ""), _signature(tc)))
         if len(set(sigs)) == 1:
             return True, f"Detected exact duplicate loop: {sigs[0][0]} called 3 times with identical parameters"
 
-    # Rule 3: Oscillating patterns (A, B, A, B, A, B)
+    # Rule 4: Oscillating patterns (A, B, A, B, A, B)
     if len(tool_calls_history) >= 6:
         last_6_names = [tc.get("name") for tc in tool_calls_history[-6:]]
         if (
@@ -106,14 +135,20 @@ def detect_convergence(tool_calls_history: list[dict]) -> tuple[bool, str]:
     return False, ""
 
 
-async def get_ai_provider(db: AsyncSession) -> AIProvider:
-    """Get configured AI provider (Anthropic or OpenAI).
+async def get_ai_provider(
+    db: AsyncSession,
+    task: AITask | None = None,
+) -> AIProvider:
+    """Get configured AI provider for ``task``.
 
-    Uses AIProviderFactory to create the appropriate provider based on
-    system settings. Supports both Anthropic Claude and OpenAI GPT models.
+    The user picks a provider in Settings; this function resolves that
+    provider and asks the model router to pick the best model for the
+    given :class:`AITask`. Callers should pass the task they're about to
+    execute — omitting it falls back to the provider's flagship.
 
     Args:
         db: Database session
+        task: Which workload the provider will run. Drives model choice.
 
     Returns:
         Configured AI provider
@@ -122,7 +157,7 @@ async def get_ai_provider(db: AsyncSession) -> AIProvider:
         HTTPException: If API key not configured or provider unknown
     """
     try:
-        return await AIProviderFactory.create(db)
+        return await AIProviderFactory.create(db, task=task)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -180,6 +215,7 @@ def build_system_prompt(
 Current Scenario: {scenario_name} | Vertical: {vertical} - {vertical_context}
 Devices: {device_count} | Flows: {flow_count}
 
+Scenario id is auto-injected on every tool call — NEVER ask the user for it.
 TOOL SELECTION: For new scenarios with devices, use generate_scenario_from_nl. Only use add_device for 1-3 device additions.
 Apply vendor fingerprints for realism and suggest CVEs for security testing.
 When done, stop calling tools and provide a summary."""
@@ -228,6 +264,10 @@ When done, stop calling tools and provide a summary."""
 - **Scenario**: {scenario_name}
 - **Vertical**: {vertical} - {vertical_context}
 - **Devices**: {device_count} | **Flows**: {flow_count}
+
+> Every tool you can call already operates on this scenario — the
+> scenario identifier is injected automatically server-side. **Never
+> ask the user for a scenario ID or UUID; just call the tool.**
 
 ## Your Key Capabilities
 **Scenario Generation**:

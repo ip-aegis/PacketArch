@@ -24,6 +24,8 @@ import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
 import LiveTrafficDashboardPage from './pages/LiveTrafficDashboardPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
+import AttackLibraryPage from './pages/AttackLibraryPage';
+import AttackPlaybookDetailPage from './pages/AttackPlaybookDetailPage';
 
 function App() {
   return (
@@ -79,6 +81,11 @@ function App() {
         <Route path="help" element={<HelpPage />} />
         <Route path="help/:articleId" element={<HelpPage />} />
         <Route path="architecture" element={<ArchitectureReferencePage />} />
+        <Route path="attack-library" element={<AttackLibraryPage />} />
+        <Route
+          path="attack-library/:playbookId"
+          element={<AttackPlaybookDetailPage />}
+        />
 
         {/* Admin routes */}
         <Route

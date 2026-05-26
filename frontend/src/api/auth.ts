@@ -61,6 +61,14 @@ export const authApi = {
     setTokens(access_token, newRefreshToken);
     return response.data;
   },
+
+  /**
+   * Mark the Welcome Tour as dismissed for the current user.
+   */
+  async markWelcomeSeen(): Promise<User> {
+    const response = await apiClient.post<User>(`${AUTH_PREFIX}/me/welcome-seen`);
+    return response.data;
+  },
 };
 
 export default authApi;

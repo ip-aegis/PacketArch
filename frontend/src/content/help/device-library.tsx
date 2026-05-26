@@ -213,6 +213,6 @@ export const deviceLibraryArticle: HelpArticle = {
   summary: 'Browse and manage device profiles representing real-world industrial equipment.',
   content: DeviceLibraryContent,
   relatedArticles: ['scenario-studio', 'templates'],
-  relatedPages: ['/devices'],
+  relatedPages: ['/fingerprints'],
   order: 1,
 };

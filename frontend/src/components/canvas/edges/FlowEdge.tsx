@@ -20,6 +20,19 @@ import type { ProtocolType } from '../../../types';
 import { PROTOCOL_COLORS, PROTOCOL_EDGE_LABELS, PROTOCOL_SHORT_NAMES } from '../../../constants/protocols';
 import { useFlowRationality } from '../../../stores/rationalityStore';
 
+export interface AggregateEdgeInfo {
+  sourceClusterId: string;
+  sourceClusterLabel: string;
+  sourceClusterColor: string;
+  targetClusterId: string;
+  targetClusterLabel: string;
+  targetClusterColor: string;
+  flowIds: string[];
+  protocols: ProtocolType[];
+  groupMode: string;
+  groupModeLabel: string;
+}
+
 export interface FlowEdgeData extends Record<string, unknown> {
   protocol: ProtocolType;
   name?: string;
@@ -27,6 +40,8 @@ export interface FlowEdgeData extends Record<string, unknown> {
   flowCount?: number;
   /** Aggregate edge: unique protocols in the aggregate */
   protocolList?: string[];
+  /** Aggregate edge: full info for the Properties panel */
+  aggregateInfo?: AggregateEdgeInfo;
   /** Parallel edge index (0-based) among edges sharing the same node pair */
   parallelIndex?: number;
   /** Total number of parallel edges between the same node pair */

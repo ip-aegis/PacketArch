@@ -147,6 +147,52 @@ async def seed_default_settings(
     }
 
 
+@router.get("/ai/routing", response_model=dict)
+async def get_ai_routing(
+    db: DBSession,
+    _admin: AdminUser,
+) -> dict:
+    """Return the active provider's task → model routing table.
+
+    Lets the Settings UI render what model PacketArch will pick for
+    each AI task without duplicating the routing table on the frontend.
+    """
+    from app.mcp_server.ai_providers.model_router import (
+        TASK_MODEL_MAP, FALLBACK_MODEL, AITask,
+    )
+    provider_row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == "ai_provider")
+        )
+    ).scalar_one_or_none()
+    provider = provider_row.value if provider_row else "anthropic"
+
+    # Human-friendly task labels for the Settings UI.
+    task_labels: dict[str, str] = {
+        AITask.CHAT.value: "AI Assistant chat",
+        AITask.SCENARIO_GENERATION.value: "Scenario generation (from prompt)",
+        AITask.SCENARIO_REVIEW.value: "Scenario review / realism scoring",
+        AITask.DEVICE_NAMING.value: "Device naming",
+        AITask.SITE_IDENTITY.value: "Site identity generation",
+        AITask.DESCRIPTION_GENERATION.value: "Description generation",
+        AITask.AI_HELP.value: "Inline help / explanations",
+    }
+    mapping = TASK_MODEL_MAP.get(provider, {})
+    routing = [
+        {
+            "task": task.value,
+            "label": task_labels.get(task.value, task.value),
+            "model": model,
+        }
+        for task, model in mapping.items()
+    ]
+    return {
+        "provider": provider,
+        "fallback_model": FALLBACK_MODEL.get(provider),
+        "routing": routing,
+    }
+
+
 @router.post("/settings/test-connection", response_model=dict)
 async def test_api_connection(
     db: DBSession,
@@ -323,12 +369,14 @@ async def _test_circuit_connection(db: AsyncSession) -> dict:
         app_key=app_key, model=model, timeout_s=30,
     )
     try:
+        from app.ai_services.usage_recorder import AIUsageContext
         resp = await provider.chat(
             messages=[
                 {"role": "system", "content": "You are a chatbot."},
                 {"role": "user", "content": "Reply with OK."},
             ],
             max_tokens=10,
+            tracking=AIUsageContext(feature="connection_test"),
         )
         reply = next(
             (c.get("text", "") for c in resp.get("content", []) if c.get("type") == "text"),
@@ -488,7 +536,10 @@ async def regenerate_scenario_names(
         exclude_scenario_id=str(scenario.id),
     )
 
+    from sqlalchemy.orm.attributes import flag_modified
+
     scenario.definition = definition
+    flag_modified(scenario, "definition")
     scenario.version = (scenario.version or 1) + 1
     await db.commit()
     await db.refresh(scenario)

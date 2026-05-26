@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Typography, Steps, Table, Tag, Alert, Statistic, Row, Col, Card, Button, Collapse } from 'antd';
+import { Typography, Steps, Table, Tag, Alert, Statistic, Row, Col, Card, Button, Collapse, Checkbox } from 'antd';
 import {
   ReloadOutlined,
   CheckCircleOutlined,
@@ -131,6 +131,8 @@ const PreviewStep: React.FC = () => {
     previewError,
     createError,
     generatePreview,
+    descriptiveNames,
+    setDescriptiveNames,
   } = useAIScenarioWizardStore();
 
   if (isGenerating) {
@@ -355,6 +357,29 @@ const PreviewStep: React.FC = () => {
         size="small"
         scroll={{ y: 150 }}
       />
+
+      <div
+        style={{
+          marginTop: 16,
+          padding: 12,
+          background: '#1f1f3a',
+          border: '1px solid #2d2d52',
+          borderRadius: 8,
+        }}
+      >
+        <Checkbox
+          checked={descriptiveNames}
+          onChange={(e) => setDescriptiveNames(e.target.checked)}
+          style={{ color: '#e6e6f0' }}
+        >
+          Demo-friendly descriptive names
+        </Checkbox>
+        <div style={{ color: '#8aa4bc', fontSize: 12, marginTop: 6, marginLeft: 24 }}>
+          Devices show as e.g. <em>Front_Mixing_Line_PLC</em>. Untick to push the
+          scenario through the structured site rail
+          (<em>PDX-BKY-MIX-PLC-01</em>) for production / Cyber Vision workflows.
+        </div>
+      </div>
 
       <div style={{ marginTop: 16, textAlign: 'center' }}>
         <Button

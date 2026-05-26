@@ -29,6 +29,7 @@ import DeviceCountStep from '../components/ai-wizard/DeviceCountStep';
 import VendorSelectionStep from '../components/ai-wizard/VendorSelectionStep';
 import ProtocolSelectionStep from '../components/ai-wizard/ProtocolSelectionStep';
 import PreviewStep from '../components/ai-wizard/PreviewStep';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
 
@@ -103,6 +104,7 @@ const AIScenarioWizardPage: React.FC = () => {
         <div>
           <Title level={3} style={{ margin: 0, color: '#e0e8f0' }}>
             AI Scenario Creation
+            <ContextualHelpIcon articleId="ai-scenario-wizard" tooltip="AI scenario wizard help" />
           </Title>
           <Text style={{ color: '#8aa4bc' }}>
             Generate OT traffic scenarios using natural language

@@ -31,6 +31,8 @@ import {
   QuestionCircleOutlined,
   InfoCircleOutlined,
   ApartmentOutlined,
+  ThunderboltOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
@@ -44,6 +46,9 @@ import AboutModal from '../modals/AboutModal';
 import AcknowledgmentModal from '../modals/AcknowledgmentModal';
 import AgentVersionBanner from './AgentVersionBanner';
 import CommandPalette from '../command-palette/CommandPalette';
+import HelpButton from '../help/HelpButton';
+import KeyboardShortcutsModal from '../help/KeyboardShortcutsModal';
+import WelcomeTour from '../onboarding/WelcomeTour';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -56,16 +61,31 @@ const AppLayout: React.FC = () => {
   const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [ackRequired, setAckRequired] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
   const { liveTrafficEnabled } = useFeatures();
 
-  // Global Ctrl+K / Cmd+K shortcut for command palette
+  // Global keyboard shortcuts: Ctrl/Cmd+K for command palette, ? for shortcuts cheatsheet.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         toggleCommandPalette();
+        return;
+      }
+      // "?" opens the shortcuts cheatsheet — but never when typing in an input.
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const t = e.target;
+        const typing =
+          t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement ||
+          (t instanceof HTMLElement && t.isContentEditable);
+        if (!typing) {
+          e.preventDefault();
+          setShortcutsModalOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', handler);
@@ -78,6 +98,16 @@ const AppLayout: React.FC = () => {
     if (!user) return;
     loadFeatures();
   }, [user, loadFeatures]);
+
+  // First-login welcome tour: gated on User.welcome_seen (server-side), so
+  // dismissing it sticks across browsers and devices. Suppressed while the
+  // blocking EULA modal is up so users aren't hit with two dialogs at once.
+  useEffect(() => {
+    if (!user || ackRequired) return;
+    if (!user.welcome_seen) {
+      setWelcomeOpen(true);
+    }
+  }, [user, ackRequired]);
 
   // Check whether the current user has accepted the current EULA / license
   // acknowledgment. Blocking modal shows until they either accept or sign out.
@@ -180,6 +210,11 @@ const AppLayout: React.FC = () => {
       label: 'CVE Browser',
     },
     {
+      key: '/attack-library',
+      icon: <ThunderboltOutlined />,
+      label: 'Attack Library',
+    },
+    {
       key: '/cyber-vision',
       icon: <EyeOutlined />,
       label: 'Cyber Vision',
@@ -211,6 +246,22 @@ const AppLayout: React.FC = () => {
       icon: <LockOutlined />,
       label: 'Change Password',
       onClick: () => setPasswordModalOpen(true),
+    },
+    {
+      key: 'shortcuts',
+      icon: <ThunderboltOutlined />,
+      label: 'Keyboard Shortcuts',
+      onClick: () => setShortcutsModalOpen(true),
+    },
+    {
+      key: 'welcome-tour',
+      icon: <RocketOutlined />,
+      label: 'Replay Welcome Tour',
+      onClick: () => {
+        // Open without resetting welcome_seen — replay is transient; the
+        // user has already completed it on this account.
+        setWelcomeOpen(true);
+      },
     },
     {
       key: 'about',
@@ -258,7 +309,7 @@ const AppLayout: React.FC = () => {
           {panels.leftSidebarOpen ? (
             <img
               src="/logo.png"
-              alt="Industrial Packet Generator"
+              alt="PacketArch"
               style={{
                 maxWidth: '100%',
                 maxHeight: 48,
@@ -268,7 +319,7 @@ const AppLayout: React.FC = () => {
           ) : (
             <img
               src="/sidebar_icon.png"
-              alt="IPG"
+              alt="PacketArch"
               style={{
                 width: 32,
                 height: 32,
@@ -361,6 +412,9 @@ const AppLayout: React.FC = () => {
               />
             </Tooltip>
 
+            {/* Help — opens contextual drawer, Shift+click for full page */}
+            <HelpButton />
+
             {/* Health Notifications — agent-only, hidden in PCAP-only builds */}
             {liveTrafficEnabled && (
               <Tooltip title={healthAlertCount > 0 ? `${healthAlertCount} agent(s) need attention` : 'All agents healthy'}>
@@ -429,6 +483,15 @@ const AppLayout: React.FC = () => {
 
       {/* About Modal */}
       <AboutModal open={aboutModalOpen} onClose={() => setAboutModalOpen(false)} />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        open={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+      />
+
+      {/* First-login welcome tour */}
+      <WelcomeTour open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
 
       {/* First-run acknowledgment (blocking) */}
       <AcknowledgmentModal

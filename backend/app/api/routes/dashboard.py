@@ -72,11 +72,15 @@ async def get_live_dashboard() -> dict[str, Any]:
         try:
             from sqlalchemy import select
 
+            # Single DB hit for name + vertical + definition. The
+            # dashboard cards then get modes + a vertical pill + a
+            # static protocol-mix fallback without a second round-trip.
             async with async_session_maker() as db:
                 result = await db.execute(
-                    select(Scenario.id, Scenario.name, Scenario.definition).where(
-                        Scenario.id.in_(all_ids)
-                    )
+                    select(
+                        Scenario.id, Scenario.name,
+                        Scenario.vertical, Scenario.definition,
+                    ).where(Scenario.id.in_(all_ids))
                 )
                 rows_by_id = {str(row[0]): row for row in result.all()}
 
@@ -84,11 +88,12 @@ async def get_live_dashboard() -> dict[str, Any]:
                 row = rows_by_id.get(d["scenario_id"])
                 if not row:
                     continue
-                _, name, definition = row
+                _, name, vertical, definition = row
                 if not d.get("scenario_name") and name:
                     d["scenario_name"] = name
                     traffic_dashboard.set_scenario_name(d["scenario_id"], name)
                 definition = definition or {}
+                d["vertical"] = vertical
                 d["scenario_modes"] = {
                     "clean_demo_mode": bool(
                         definition.get("clean_demo_mode", False)
@@ -100,6 +105,26 @@ async def get_live_dashboard() -> dict[str, Any]:
                         (definition.get("cell_isolation") or {}).get("mode", "off")
                     ),
                 }
+                # Static protocol mix from the scenario definition. The
+                # live `protocol_breakdown` field still wins for runtime
+                # rates; this is a cheap fallback when an agent hasn't
+                # yet reported a breakdown.
+                proto_counts: dict[str, int] = {}
+                devices = definition.get("devices") or {}
+                device_iter = (
+                    devices.values() if isinstance(devices, dict) else devices
+                )
+                for dev in device_iter:
+                    if not isinstance(dev, dict):
+                        continue
+                    for p in (dev.get("protocols") or []):
+                        if isinstance(p, str) and p:
+                            proto_counts[p] = proto_counts.get(p, 0) + 1
+                d["scenario_protocol_mix"] = sorted(
+                    [{"protocol": p, "device_count": c}
+                     for p, c in proto_counts.items()],
+                    key=lambda r: r["device_count"], reverse=True,
+                )
         except Exception as e:
             logger.error(f"Failed to fetch scenario names/modes: {e}")
 

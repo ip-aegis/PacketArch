@@ -14,19 +14,26 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Alert, Button, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Modal, Space, Spin, Statistic, Tag, Typography, message } from 'antd';
 import {
   DeleteOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  FireOutlined,
   LoadingOutlined,
   ReloadOutlined,
   ThunderboltOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { PanelContainer } from '../common';
+import { attacksApi } from '../../api/attacks';
 import { useAttackStore } from '../../stores/attackStore';
 import AttackPlaybookLibrary from './AttackPlaybookLibrary';
 import AttackConfigurator from './AttackConfigurator';
 import KillChainTimeline from './KillChainTimeline';
-import type { AttackState } from '../../types/attackPlaybook';
+import AttackReportPanel from './AttackReportPanel';
+import MitreTechniquePanel from './MitreTechniquePanel';
+import type { AttackPlaybook, AttackState } from '../../types/attackPlaybook';
 
 const { Text } = Typography;
 
@@ -101,17 +108,64 @@ const AttackPanel: React.FC<AttackPanelProps> = ({
   attackState,
 }) => {
   const [view, setView] = useState<'library' | 'configure' | 'summary'>('library');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  // Local fallback playbook fetched by ID when `selectedPlaybook` is
+  // null (e.g. after a page refresh, or when the user is viewing an
+  // attack that was configured in a previous session). Without this
+  // the modal couldn't render the MITRE panel because the playbook
+  // structure wasn't available.
+  const [modalPlaybook, setModalPlaybook] = useState<AttackPlaybook | null>(null);
 
   const {
     selectedPlaybook,
     playbookConfig,
     injectionStatus: injectionStatusMap,
     injectionError: injectionErrorMap,
+    attackReports,
+    isFetchingReport,
     selectPlaybook,
     clearSelection,
     injectAndPoll,
     resetInjection,
+    fetchAttackReport,
   } = useAttackStore();
+
+  // Open the report modal and (re)fetch the latest report. The live
+  // state already includes `report`, but we fetch via the API to pick
+  // up the most recent persisted version when the deployment has
+  // already ended.
+  const handleViewReport = useCallback(() => {
+    if (!scenarioId) return;
+    setReportModalOpen(true);
+    fetchAttackReport(scenarioId);
+  }, [scenarioId, fetchAttackReport]);
+
+  const reportEnvelope = scenarioId ? attackReports[scenarioId] : null;
+  const reportLoading = scenarioId ? isFetchingReport[scenarioId] : false;
+  // Prefer the freshly-fetched report; otherwise fall back to whatever
+  // the live state carried (so the modal works immediately even before
+  // the dedicated GET /report call resolves).
+  const reportForModal =
+    reportEnvelope?.report ?? attackState?.report ?? null;
+  const playbookForModal = selectedPlaybook ?? modalPlaybook;
+
+  // When the modal opens for an attack we don't already have a
+  // playbook for, fetch its details by ID so the degraded view can
+  // still show MITRE coverage + planned stages.
+  useEffect(() => {
+    if (!reportModalOpen) return;
+    const playbookId =
+      reportForModal?.playbook_id ?? attackState?.playbook_id;
+    if (!playbookId) return;
+    if (selectedPlaybook?.playbook_id === playbookId) return;
+    if (modalPlaybook?.playbook_id === playbookId) return;
+    attacksApi
+      .getPlaybook(playbookId)
+      .then((pb) => setModalPlaybook(pb))
+      .catch(() => {
+        /* leave modalPlaybook null — degraded view tolerates this */
+      });
+  }, [reportModalOpen, reportForModal, attackState, selectedPlaybook, modalPlaybook]);
 
   // Get per-scenario injection state
   const injectionStatus = scenarioId ? (injectionStatusMap[scenarioId] ?? 'idle') : 'idle';
@@ -197,6 +251,60 @@ const AttackPanel: React.FC<AttackPanelProps> = ({
             </Text>
           </div>
         </div>
+
+        {/* After-action report — appears live (rolling stats) and on
+            completion. The Modal renders the full per-stage breakdown,
+            MITRE coverage, IOCs, and a JSON download. */}
+        <Button
+          type="default"
+          block
+          icon={<FileTextOutlined />}
+          onClick={handleViewReport}
+          style={{
+            marginTop: 8,
+            borderColor: attackState.is_completed ? '#52c41a' : '#2a3f54',
+            color: attackState.is_completed ? '#52c41a' : '#5a9fd4',
+          }}
+        >
+          {attackState.is_completed
+            ? 'View After-Action Report'
+            : 'View Live Report'}
+        </Button>
+
+        <Modal
+          title={
+            <Space>
+              <FileTextOutlined />
+              <span>Attack After-Action Report</span>
+            </Space>
+          }
+          open={reportModalOpen}
+          onCancel={() => setReportModalOpen(false)}
+          width={920}
+          footer={null}
+          styles={{
+            header: { background: '#141428', borderBottom: '1px solid #2d2d52' },
+            body: { background: '#0e0e1f', padding: 16, maxHeight: '80vh', overflow: 'auto' },
+            content: { background: '#0e0e1f' },
+          }}
+        >
+          {reportLoading && !reportForModal ? (
+            <div style={{ padding: 60, textAlign: 'center' }}>
+              <Spin />
+            </div>
+          ) : reportForModal && playbookForModal ? (
+            <AttackReportPanel
+              report={reportForModal}
+              playbook={playbookForModal}
+              source={reportEnvelope?.source ?? 'live'}
+            />
+          ) : (
+            <DegradedReportView
+              attackState={attackState ?? null}
+              playbook={playbookForModal}
+            />
+          )}
+        </Modal>
       </PanelContainer>
     );
   }
@@ -360,6 +468,124 @@ const AttackPanel: React.FC<AttackPanelProps> = ({
       />
       <AttackPlaybookLibrary scenarioId={scenarioId} onSelect={handleSelectPlaybook} />
     </PanelContainer>
+  );
+};
+
+/**
+ * DegradedReportView — fallback rendered inside the report modal when
+ * no per-action telemetry is available. Two common causes:
+ *
+ *   1. The attack ran on an agent older than v1.44.0 (no `report` field
+ *      emitted; nothing was persisted into scenario.attack_history).
+ *   2. The attack is brand-new and the orchestrator hasn't completed
+ *      its first tick yet — agent v1.44+ but the report is empty.
+ *
+ * We show whatever aggregate data exists (from AttackState counters)
+ * plus the planned MITRE coverage of the playbook so the modal still
+ * tells the operator something useful.
+ */
+const DegradedReportView: React.FC<{
+  attackState: AttackState | null;
+  playbook: AttackPlaybook | null;
+}> = ({ attackState, playbook }) => {
+  if (!attackState && !playbook) {
+    return (
+      <div style={{ padding: 30, color: '#8aa4bc' }}>
+        No report data available yet. Try again in a few seconds.
+      </div>
+    );
+  }
+
+  const completed = !!attackState?.is_completed;
+
+  return (
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Alert
+        type="warning"
+        showIcon
+        icon={<WarningOutlined />}
+        message={
+          completed
+            ? 'No per-action telemetry was captured for this run'
+            : 'Per-action telemetry not yet available'
+        }
+        description={
+          <div style={{ fontSize: 12, color: '#cfd6e4' }}>
+            <p style={{ margin: 0 }}>
+              The running agent didn't emit the action-level report
+              (introduced in agent <code>v1.44.0</code>). Aggregate
+              counters from the live state are shown below.
+            </p>
+            <p style={{ margin: '6px 0 0' }}>
+              To capture full reports on future runs:{' '}
+              <strong>Settings → Traffic Agents → Build Image</strong>,
+              then update each online agent.
+            </p>
+          </div>
+        }
+      />
+
+      {attackState && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: 12,
+            padding: 12,
+            background: '#141428',
+            border: '1px solid #2d2d52',
+            borderRadius: 6,
+          }}
+        >
+          <Statistic
+            title="Playbook"
+            value={attackState.playbook_name || attackState.playbook_id || '—'}
+            valueStyle={{ color: '#dde2ec', fontSize: 14 }}
+          />
+          <Statistic
+            title="Status"
+            value={
+              attackState.is_completed
+                ? 'Completed'
+                : attackState.is_paused
+                ? 'Paused'
+                : attackState.is_active
+                ? 'Running'
+                : 'Idle'
+            }
+            valueStyle={{ color: '#dde2ec', fontSize: 14 }}
+          />
+          <Statistic
+            title="Stages"
+            value={`${attackState.stages_completed} / ${attackState.total_stages}`}
+            prefix={<ExperimentOutlined />}
+            valueStyle={{ color: '#dde2ec', fontSize: 18 }}
+          />
+          <Statistic
+            title="Actions completed"
+            value={attackState.actions_completed}
+            valueStyle={{ color: '#dde2ec', fontSize: 18 }}
+          />
+          <Statistic
+            title="Packets emitted"
+            value={attackState.attack_packets_generated}
+            prefix={<FireOutlined style={{ color: '#fa8c16' }} />}
+            valueStyle={{ color: '#dde2ec', fontSize: 18 }}
+          />
+        </div>
+      )}
+
+      {playbook ? (
+        <MitreTechniquePanel
+          playbook={playbook}
+          title="MITRE ATT&CK — planned coverage"
+        />
+      ) : (
+        <div style={{ padding: 20, color: '#8aa4bc', fontSize: 12 }}>
+          Playbook details unavailable — MITRE coverage can't be rendered.
+        </div>
+      )}
+    </Space>
   );
 };
 

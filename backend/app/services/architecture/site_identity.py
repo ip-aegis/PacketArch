@@ -49,6 +49,11 @@ class SiteIdentity:
     role_patterns: dict[str, str]
     zone_codes: dict[str, str]
     source: str = "deterministic"  # "llm" | "deterministic"
+    # Optional display-name override for zones. When present, the rename
+    # pipeline updates `zone.name` so the studio canvas shows themed zone
+    # titles ("Mixing Bay" instead of "CNC Machining") for scenarios
+    # that have been re-themed via process_context.
+    zone_names: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -65,6 +70,7 @@ class SiteIdentity:
             naming_style=data.get("naming_style", "site_role_idx"),
             role_patterns=dict(data.get("role_patterns") or {}),
             zone_codes=dict(data.get("zone_codes") or {}),
+            zone_names=dict(data.get("zone_names") or {}),
             source=data.get("source", "deterministic"),
         )
 

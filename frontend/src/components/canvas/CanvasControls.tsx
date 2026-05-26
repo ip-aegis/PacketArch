@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Button, Space, Tooltip, Dropdown, Modal, Input, App } from 'antd';
+import { Button, Space, Tooltip, Dropdown, Modal, Input, App, Checkbox } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ZoomInOutlined,
@@ -80,6 +80,9 @@ const CanvasControls: React.FC = () => {
   const setClusterViewMode = useUIStore((state) => state.setClusterViewMode);
   const isDirty = useScenarioIsDirty();
   const { applyLayout } = useAutoLayout();
+  const scenarioName = useScenarioStore((s) => s.name);
+  const scenarioVertical = useScenarioStore((s) => s.vertical);
+  const scenarioIpRange = useScenarioStore((s) => s.ipRange);
   const broadcastTrafficEnabled = useScenarioStore((s) => s.broadcastTrafficEnabled);
   const setBroadcastTrafficEnabled = useScenarioStore((s) => s.setBroadcastTrafficEnabled);
   const cleanDemoMode = useScenarioStore((s) => s.cleanDemoMode);
@@ -95,6 +98,7 @@ const CanvasControls: React.FC = () => {
   // Customize Names modal state
   const [customizeNamesModalOpen, setCustomizeNamesModalOpen] = useState(false);
   const [processContext, setProcessContext] = useState('');
+  const [descriptiveNames, setDescriptiveNames] = useState(false);
 
   // Listen for command palette events
   useEffect(() => {
@@ -110,14 +114,57 @@ const CanvasControls: React.FC = () => {
 
   // Regenerate names mutation
   const regenerateNamesMutation = useMutation({
-    mutationFn: (data: { scenarioId: string; processContext: string }) =>
-      scenariosApi.regenerateDeviceNames(data.scenarioId, { process_context: data.processContext }),
-    onSuccess: (result) => {
+    mutationFn: (data: { scenarioId: string; processContext: string; descriptiveNames: boolean }) =>
+      scenariosApi.regenerateDeviceNames(data.scenarioId, {
+        process_context: data.processContext,
+        descriptive_names: data.descriptiveNames,
+      }),
+    onSuccess: async (result) => {
       message.success(`${result.devices_renamed} device names updated`);
       setCustomizeNamesModalOpen(false);
       setProcessContext('');
-      // Invalidate scenario query to reload with new names
-      queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId] });
+      setDescriptiveNames(false);
+      // Refetch the scenario and push it into the Zustand store so the
+      // canvas redraws with the new device/zone names. Invalidating the
+      // React Query alone doesn't update the local studio store.
+      if (scenarioId) {
+        try {
+          const fresh = await scenariosApi.get(scenarioId);
+          const defn = (fresh.definition || {}) as {
+            devices?: Record<string, import('../../types').ScenarioDevice>;
+            flows?: Record<string, import('../../types').ScenarioFlow>;
+            zones?: Record<string, import('../../types').ScenarioZone>;
+            conduits?: Record<string, import('../../types').ScenarioConduit>;
+            phases?: import('../../types').Phase[];
+            cell_isolation?: import('../../types').CellIsolationConfig;
+            broadcast_traffic_enabled?: boolean;
+            clean_demo_mode?: boolean;
+          };
+          useScenarioStore.getState().loadScenario({
+            id: fresh.id,
+            name: fresh.name,
+            description: fresh.description || '',
+            vertical: fresh.vertical || undefined,
+            totalDurationMs: fresh.total_duration_ms,
+            devices: defn.devices || {},
+            flows: defn.flows || {},
+            zones: defn.zones || {},
+            conduits: defn.conduits || {},
+            phases: defn.phases || [],
+            cellIsolation: defn.cell_isolation,
+            broadcastTrafficEnabled: defn.broadcast_traffic_enabled,
+            cleanDemoMode: defn.clean_demo_mode,
+            addressingConfig: fresh.addressing_config as {
+              ip_range?: string;
+              range_index?: number;
+              auto_assign_enabled?: boolean;
+            } | null,
+          });
+        } catch (err) {
+          console.error('Failed to reload scenario after rename:', err);
+        }
+        queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId] });
+      }
     },
     onError: (error: unknown) => {
       message.error(`Failed to regenerate names: ${extractErrorMessage(error, 'Unknown error')}`);
@@ -133,7 +180,11 @@ const CanvasControls: React.FC = () => {
       message.error('No scenario loaded');
       return;
     }
-    regenerateNamesMutation.mutate({ scenarioId, processContext: processContext.trim() });
+    regenerateNamesMutation.mutate({
+      scenarioId,
+      processContext: processContext.trim(),
+      descriptiveNames,
+    });
   };
 
   const handleSaveVersion = async () => {
@@ -328,8 +379,8 @@ const CanvasControls: React.FC = () => {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
         border: '1px solid #2a3f54',
         display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
+        flexDirection: 'column',
+        alignItems: 'stretch',
         rowGap: '6px',
         gap: '6px',
         // Bound width to the available canvas so wrapped rows don't extend
@@ -337,6 +388,71 @@ const CanvasControls: React.FC = () => {
         maxWidth: 'calc(100vw - 80px)',
       }}
     >
+      {/* Scenario title row — name + at-a-glance metadata so the user
+          always knows which scenario they are editing. Lives inside the
+          toolbar so it can never overlap menu buttons regardless of
+          how the toolbar wraps. */}
+      {scenarioName && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 10,
+            padding: '2px 4px 4px',
+            borderBottom: '1px solid #2a3f54',
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              color: '#e0e8f0',
+              fontWeight: 600,
+              fontSize: 13,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={scenarioName}
+          >
+            {scenarioName}
+          </span>
+          {scenarioVertical && (
+            <span
+              style={{
+                color: '#8aa4bc',
+                fontSize: 11,
+                textTransform: 'capitalize',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {scenarioVertical.replace(/_/g, ' ')}
+            </span>
+          )}
+          {scenarioIpRange?.cidr && (
+            <span
+              style={{
+                color: '#8aa4bc',
+                fontSize: 11,
+                fontFamily: 'monospace',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {scenarioIpRange.cidr}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Button rows — wrap as needed within the toolbar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          rowGap: '6px',
+          gap: '6px',
+        }}
+      >
       {/* View group */}
       <div style={groupStyle}>
         <span style={groupLabelStyle}>View</span>
@@ -686,6 +802,7 @@ const CanvasControls: React.FC = () => {
           )}
         </div>
       </div>
+      </div>
 
       {/* Version History Drawer */}
       <VersionHistoryDrawer
@@ -709,6 +826,7 @@ const CanvasControls: React.FC = () => {
         onCancel={() => {
           setCustomizeNamesModalOpen(false);
           setProcessContext('');
+          setDescriptiveNames(false);
         }}
         confirmLoading={regenerateNamesMutation.isPending}
         okText="Generate Names"
@@ -741,6 +859,28 @@ const CanvasControls: React.FC = () => {
 
           <div
             style={{
+              background: '#1f1f3a',
+              border: '1px solid #2d2d52',
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
+            <Checkbox
+              checked={descriptiveNames}
+              onChange={(e) => setDescriptiveNames(e.target.checked)}
+              style={{ color: '#e6e6f0' }}
+            >
+              Demo-friendly descriptive names
+            </Checkbox>
+            <div style={{ color: '#8a8aa8', fontSize: 12, marginTop: 6, marginLeft: 24 }}>
+              Overlay longer, human-readable labels on top of the structured
+              site names. SNMP and fingerprint identifiers stay canonical so
+              Cyber Vision matching still works.
+            </div>
+          </div>
+
+          <div
+            style={{
               background: '#253545',
               border: '1px solid #3a5068',
               borderRadius: 8,
@@ -748,13 +888,14 @@ const CanvasControls: React.FC = () => {
             }}
           >
             <div style={{ color: '#5a9fd4', fontWeight: 500, marginBottom: 4 }}>
-              Example Transformation
+              {descriptiveNames ? 'Descriptive (demo)' : 'Structured (default)'}
             </div>
             <div style={{ color: '#a8a8c0', fontSize: 12 }}>
               <span style={{ color: '#6b6b8a' }}>Before:</span> CNC_Machining_Main_PLC
             </div>
             <div style={{ color: '#a8a8c0', fontSize: 12 }}>
-              <span style={{ color: '#6b6b8a' }}>After:</span> Chocolate_Tempering_PLC
+              <span style={{ color: '#6b6b8a' }}>After:</span>{' '}
+              {descriptiveNames ? 'Chocolate_Tempering_PLC' : 'PDX-CDY-MIX-PLC-01'}
             </div>
           </div>
         </Space>

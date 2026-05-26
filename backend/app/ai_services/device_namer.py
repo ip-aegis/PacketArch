@@ -16,11 +16,14 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.mcp_server.ai_providers.base import AIProvider
+
+if TYPE_CHECKING:
+    from app.ai_services.usage_recorder import AIUsageContext
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +104,7 @@ class AIDeviceNamer:
         devices: list[dict[str, Any]],
         context: DeviceNamingContext,
         ai_provider: AIProvider,
+        tracking: "AIUsageContext | None" = None,
     ) -> list[dict[str, Any]]:
         """Enhance device names with AI-generated contextual names.
 
@@ -132,11 +136,17 @@ class AIDeviceNamer:
             {"role": "user", "content": user_prompt},
         ]
 
+        # Scale the output budget to the device count. Each entry costs
+        # roughly 70 chars (~18 tokens) for an ID + descriptive name + JSON
+        # punctuation; 4096 was too tight for 50+ devices and truncated.
+        max_tokens = max(4096, min(16384, 200 + len(devices) * 60))
+
         try:
             response = await ai_provider.chat(
                 messages=messages,
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 skills=[DEVICE_NAMING_SKILL],
+                tracking=tracking,
             )
 
             # Parse response
@@ -247,17 +257,47 @@ Return a JSON object with a "devices" array. Ensure all names are UNIQUE."""
             else:
                 raise ValueError(f"No valid JSON found in AI response: {text[:500]}")
 
-        # Parse JSON
+        # Parse JSON. If the response was truncated (large scenarios can
+        # blow the output-token budget), salvage every complete
+        # {"device_id": "...", "new_name": "..."} entry we can find so
+        # the overlay still applies to the devices we got back.
         try:
             data = json.loads(json_str)
+            naming_response = DeviceNamingResponse.model_validate(data)
+            return {item.device_id: item.new_name for item in naming_response.devices}
         except json.JSONDecodeError as e:
+            recovered = self._recover_partial_mappings(json_str)
+            if recovered:
+                logger.warning(
+                    "AI response JSON truncated (%s); recovered %d/%d mappings",
+                    e, len(recovered), json_str.count('"device_id"'),
+                )
+                return recovered
             raise ValueError(f"Failed to parse AI response JSON: {e}")
 
-        # Validate with Pydantic
-        naming_response = DeviceNamingResponse.model_validate(data)
-
-        # Build mapping
-        return {item.device_id: item.new_name for item in naming_response.devices}
+    def _recover_partial_mappings(self, json_str: str) -> dict[str, str]:
+        """Best-effort extraction of complete (device_id, new_name) pairs
+        from a truncated JSON blob. Tolerant of trailing junk after the
+        last valid entry."""
+        pattern = re.compile(
+            r'"device_id"\s*:\s*"([^"]+)"\s*,\s*"new_name"\s*:\s*"([^"]+)"'
+            r'|'
+            r'"new_name"\s*:\s*"([^"]+)"\s*,\s*"device_id"\s*:\s*"([^"]+)"'
+        )
+        recovered: dict[str, str] = {}
+        for match in pattern.finditer(json_str):
+            did = match.group(1) or match.group(4)
+            name = match.group(2) or match.group(3)
+            if did and name:
+                # Run name through the same validator so the salvaged
+                # values are sanitized identically to the happy-path
+                # results.
+                try:
+                    cleaned = DeviceNameMapping(device_id=did, new_name=name).new_name
+                    recovered[did] = cleaned
+                except Exception:  # noqa: BLE001
+                    continue
+        return recovered
 
     def _apply_name_mappings(
         self,

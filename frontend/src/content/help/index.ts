@@ -208,28 +208,40 @@ export function getArticleForRoute(route: string): HelpArticle | undefined {
 // Import and register all articles
 // These will be populated as content files are created
 import { gettingStartedArticle } from './getting-started';
+import { setupWizardArticle } from './setup-wizard';
 import { scenariosArticle } from './scenarios';
 import { scenarioStudioArticle } from './scenario-studio';
+import { aiScenarioWizardArticle } from './ai-scenario-wizard';
+import { guidedBuilderArticle } from './guided-builder';
 import { deviceLibraryArticle } from './device-library';
 
 import { deploymentsArticle } from './deployments';
+import { liveTrafficArticle } from './live-traffic';
 import { ipManagementArticle } from './ip-management';
 import { cveBrowserArticle } from './cve-browser';
+import { cyberVisionArticle } from './cyber-vision';
 import { adminSettingsArticle } from './admin-settings';
 import { templatesArticle } from './templates';
 import { anomaliesArticle } from './anomalies';
+import { architectureArticle } from './architecture';
 import { glossaryArticle } from './glossary';
 
 // Register all articles
 registerHelpArticle(gettingStartedArticle);
+registerHelpArticle(setupWizardArticle);
 registerHelpArticle(scenariosArticle);
 registerHelpArticle(scenarioStudioArticle);
+registerHelpArticle(aiScenarioWizardArticle);
+registerHelpArticle(guidedBuilderArticle);
 registerHelpArticle(deviceLibraryArticle);
 
 registerHelpArticle(deploymentsArticle);
+registerHelpArticle(liveTrafficArticle);
 registerHelpArticle(ipManagementArticle);
 registerHelpArticle(cveBrowserArticle);
+registerHelpArticle(cyberVisionArticle);
 registerHelpArticle(adminSettingsArticle);
 registerHelpArticle(templatesArticle);
 registerHelpArticle(anomaliesArticle);
+registerHelpArticle(architectureArticle);
 registerHelpArticle(glossaryArticle);

@@ -38,6 +38,8 @@ import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { useAgentsStore } from '../stores/agentsStore';
 import type { UnifiedDeployment, DeploymentStatus } from '../types/docker';
 import { ScenarioModeBadges } from '../components/common';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
+import { EmptyState } from '../components/common';
 
 const { Title, Text } = Typography;
 
@@ -335,6 +337,7 @@ const DeploymentsPage: React.FC = () => {
         <Title level={3} style={{ color: '#fff', marginBottom: 8 }}>
           <CloudServerOutlined style={{ marginRight: 12 }} />
           Deployments
+          <ContextualHelpIcon articleId="deployments" tooltip="Deployments help" />
         </Title>
         <Text style={{ color: '#8aa4bc' }}>
           View deployment history and status
@@ -386,6 +389,20 @@ const DeploymentsPage: React.FC = () => {
           size="middle"
           style={{
             background: 'transparent',
+          }}
+          locale={{
+            emptyText: !isLoading ? (
+              <EmptyState
+                icon={<CloudServerOutlined />}
+                message="No deployments yet"
+                hint="Open a scenario in Studio and click Deploy to send it to a connected agent."
+                marginTop={32}
+                actions={[
+                  { label: 'Go to Scenarios', primary: true, to: '/scenarios' },
+                ]}
+                helpArticleId="deployments"
+              />
+            ) : undefined,
           }}
           expandable={{
             expandedRowRender: (record) => (

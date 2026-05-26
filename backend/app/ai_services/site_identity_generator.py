@@ -17,7 +17,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.ai_services.usage_recorder import AIUsageContext
 
 from app.mcp_server.ai_providers.base import AIProvider
 from app.services.architecture.site_identity import (
@@ -41,6 +44,7 @@ def _build_user_prompt(
     zones: dict[str, dict[str, Any]],
     role_inventory: dict[str, int],
     avoid_site_codes: list[str],
+    process_context: str | None = None,
 ) -> str:
     zone_lines = []
     for zid, zdata in (zones or {}).items():
@@ -63,13 +67,35 @@ def _build_user_prompt(
 
     default_patterns_json = json.dumps(DEFAULT_ROLE_PATTERNS, indent=2)
 
+    has_user_theme = bool(process_context and process_context.strip())
+    user_context_block = (
+        f"\n**USER-SUPPLIED SITE/PROCESS THEME — HIGHEST PRIORITY.**\n"
+        f"Re-theme the ENTIRE scenario as if it is exactly this kind of\n"
+        f"facility. The user's words override every default below. The\n"
+        f"existing zone display names and template name describe the\n"
+        f"ORIGINAL scenario shape, not the desired theme — ignore their\n"
+        f"industrial flavor and replace it with the user theme. Pick:\n"
+        f"  - a site_code, plant_name, and operator that read like a\n"
+        f"    real plant of THIS kind\n"
+        f"  - zone_codes (3-8 char tokens) that match THIS process\n"
+        f"    (e.g. for a bakery: MIX / PROOF / BAKE / PACK / DMZ / OPS)\n"
+        f"  - zone_names (human-readable display names for each zone,\n"
+        f"    rewriting the originals into the new theme)\n"
+        f"  - role_patterns that, where natural, use process-themed\n"
+        f"    abbreviations instead of the manufacturing defaults\n"
+        f"User theme:\n"
+        f"  {process_context.strip()}\n"
+        if has_user_theme
+        else ""
+    )
+
     prompt = f"""## SCENARIO CONTEXT
 
 **Vertical:** {vertical}
 **Template:** {template_name}
 **Archetype:** {archetype_id or "(none — legacy template)"}
 **Process description:** {template_description}
-
+{user_context_block}
 **Zones in this scenario:**
 {zones_text}
 
@@ -127,9 +153,14 @@ Return ONLY a JSON object with this exact shape:
   "domain_suffix": "rr.example.com" or null,
   "naming_style": "site_role_idx",
   "zone_codes": {{ "zone_id_1": "Z1", "zone_id_2": "Z2", ... }},
+  "zone_names": {{ "zone_id_1": "Display Name 1", "zone_id_2": "Display Name 2", ... }},
   "role_patterns": {{ "role_id": "{{site}}-...-{{nnn}}", ... }}
 }}
 ```
+
+`zone_names` is the human-readable display name for each zone after
+re-theming. Include an entry for every zone id. When no user theme is
+provided, you MAY copy each zone's existing display name verbatim.
 
 No prose. No markdown outside the json block.
 """
@@ -183,6 +214,8 @@ async def generate_site_identity(
     zones: dict[str, dict[str, Any]],
     role_inventory: dict[str, int],
     avoid_site_codes: list[str],
+    process_context: str | None = None,
+    tracking: "AIUsageContext | None" = None,
 ) -> SiteIdentity:
     """Call Claude (or configured provider) to produce a SiteIdentity.
 
@@ -198,12 +231,14 @@ async def generate_site_identity(
         zones=zones,
         role_inventory=role_inventory,
         avoid_site_codes=avoid_site_codes,
+        process_context=process_context,
     )
 
     response = await ai_provider.chat(
         messages=[{"role": "user", "content": prompt}],
         max_tokens=4096,
         skills=[SITE_IDENTITY_SKILL],
+        tracking=tracking,
     )
 
     text = ""

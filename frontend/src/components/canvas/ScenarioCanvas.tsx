@@ -28,9 +28,11 @@ import ZoneNode from './nodes/ZoneNode';
 import ClusterNode from './nodes/ClusterNode';
 import type { ClusterNodeData } from './nodes/ClusterNode';
 import FlowEdge from './edges/FlowEdge';
+import type { FlowEdgeData } from './edges/FlowEdge';
 import ConduitEdge from './edges/ConduitEdge';
 import CanvasControls from './CanvasControls';
 import DeviceContextMenu from './DeviceContextMenu';
+import EmptyCanvasOverlay from './EmptyCanvasOverlay';
 import { useCanvasSync } from './hooks/useCanvasSync';
 import { useClusterView } from './hooks/useClusterView';
 import { useNodeDrag } from './hooks/useNodeDrag';
@@ -111,6 +113,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const removeConduit = useScenarioStore((state) => state.removeConduit);
   const pushHistory = useHistoryStore((state) => state.push);
   const setPropertyContext = useUIStore((state) => state.setPropertyContext);
+  const setSelectedAggregateEdge = useUIStore((state) => state.setSelectedAggregateEdge);
   const activeTool = useUIStore((state) => state.tool.activeTool);
   const setActiveTool = useUIStore((state) => state.setActiveTool);
   const setSelection = useUIStore((state) => state.setSelection);
@@ -129,6 +132,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   // catches templated scenarios that arrive with default {0,0}-ish state and
   // leaves manually-arranged scenarios alone.
   const scenarioId = useScenarioStore((s) => s.id);
+  const deviceCount = useScenarioStore((s) => Object.keys(s.devices).length);
   const autoLaidOutForRef = React.useRef<string | null>(null);
   useEffect(() => {
     if (!scenarioId || autoLaidOutForRef.current === scenarioId) return;
@@ -435,25 +439,35 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     [toggleCluster, fitView]
   );
 
-  // Handle edge selection (flow or conduit)
+  // Handle edge selection (flow, conduit, or aggregate cluster-to-cluster edge)
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       if (edge.type === 'conduitEdge') {
         setPropertyContext('conduit', [edge.id]);
+        setSelectedAggregateEdge(null);
       } else {
-        setPropertyContext('flow', [edge.id]);
+        const edgeData = edge.data as FlowEdgeData | undefined;
+        if (edgeData?.aggregateInfo) {
+          // Cluster-to-cluster aggregate edge (group-by view): show its info
+          setSelectedAggregateEdge(edgeData.aggregateInfo);
+          setPropertyContext('clusterEdge', [edge.id]);
+        } else {
+          setSelectedAggregateEdge(null);
+          setPropertyContext('flow', [edge.id]);
+        }
       }
       setSelection([], [edge.id]);
     },
-    [setPropertyContext, setSelection]
+    [setPropertyContext, setSelection, setSelectedAggregateEdge]
   );
 
   // Handle canvas click (deselect)
   const onPaneClick = useCallback(() => {
     setPropertyContext(null, []);
+    setSelectedAggregateEdge(null);
     setSelection([], []);
     setContextMenu(null);
-  }, [setPropertyContext, setSelection]);
+  }, [setPropertyContext, setSelection, setSelectedAggregateEdge]);
 
   // Handle delete key
   const onNodesDelete = useCallback(
@@ -627,6 +641,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
           <CanvasControls />
         </Panel>
       </ReactFlow>
+      {deviceCount === 0 && <EmptyCanvasOverlay />}
       {contextMenu && (
         <DeviceContextMenu
           deviceId={contextMenu.deviceId}

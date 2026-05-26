@@ -41,6 +41,7 @@ class UserResponse(UserBase):
     auth_source: str
     created_at: datetime
     last_login: datetime | None
+    welcome_seen: bool
 
     model_config = {"from_attributes": True}
 
@@ -58,6 +59,13 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    """Body schema for /auth/refresh — token rides in the JSON body, not
+    a query string, so it doesn't end up in nginx access logs."""
+
+    refresh_token: str
 
 
 class TokenPayload(BaseModel):

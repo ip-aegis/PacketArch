@@ -148,6 +148,15 @@ class AIScenarioCreateFromPreviewRequest(BaseModel):
     """Request to create scenario from preview."""
 
     preview_id: str = Field(..., description="Preview ID from generate-preview")
+    descriptive_names: bool = Field(
+        True,
+        description=(
+            "Keep the demo-friendly device names produced during preview "
+            "(default). When false, devices are renamed under a structured "
+            "site identity (e.g. PDX-BKY-01-MIX-PLC-01) for production / CV "
+            "fingerprint workflows."
+        ),
+    )
 
 
 class AIScenarioCreateFromPreviewResponse(BaseModel):

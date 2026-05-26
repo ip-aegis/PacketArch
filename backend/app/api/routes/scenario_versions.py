@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Query
 from sqlalchemy import delete as sql_delete, func, select
 
+from app.ai_services.usage_recorder import AIUsageContext
 from app.api.deps import CurrentUser, DBSession
 from app.api.helpers import get_or_404_where, paginate
 from app.core.exceptions import NotFoundError, ValidationError
@@ -325,8 +326,17 @@ async def summarize_diff(
         },
     ]
 
-    provider = await _get_ai_provider(db)
-    response = await provider.chat(messages=messages, max_tokens=1024)
+    from app.mcp_server.ai_providers import AITask
+    provider = await _get_ai_provider(db, task=AITask.DESCRIPTION_GENERATION)
+    response = await provider.chat(
+        messages=messages,
+        max_tokens=1024,
+        tracking=AIUsageContext(
+            feature="version_diff_summary",
+            user_id=current_user.id,
+            scenario_id=scenario_id,
+        ),
+    )
     result = _extract_response_text(response)
 
     if not result:

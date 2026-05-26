@@ -63,6 +63,7 @@ import {
   type DeviceTemplateDetail,
 } from '../api/fingerprints';
 import { TEXT_BODY, BORDER_ELEVATED } from '../constants/theme';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -239,6 +240,7 @@ const FingerprintingLibraryPage: React.FC = () => {
             <Title level={2} style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
               <DatabaseOutlined style={{ color: '#049FD9' }} />
               Device Library
+              <ContextualHelpIcon articleId="device-library" tooltip="Device library help" />
             </Title>
             <Text style={{ color: '#8b8fa3' }}>
               Browse protocols, vendors, and device templates for traffic generation

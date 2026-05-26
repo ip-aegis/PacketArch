@@ -162,6 +162,8 @@ interface AIScenarioWizardState {
   // Creating scenario
   isCreating: boolean;
   createError: string | null;
+  // Demo-friendly device.name overlay (default on)
+  descriptiveNames: boolean;
 
   // Actions
   setScenarioName: (name: string) => void;
@@ -176,6 +178,7 @@ interface AIScenarioWizardState {
   setCellIsolationMode: (value: 'off' | 'conduit_gated' | 'strict_northbound') => void;
   setLetAiDecideProtocols: (value: boolean) => void;
   toggleProtocol: (protocolId: string) => void;
+  setDescriptiveNames: (value: boolean) => void;
 
   nextStep: () => void;
   prevStep: () => void;
@@ -220,6 +223,7 @@ const initialState = {
   abortController: null as AbortController | null,
   isCreating: false,
   createError: null as string | null,
+  descriptiveNames: true,
 };
 
 export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get) => ({
@@ -258,6 +262,8 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
   },
 
   setIncludeVulnerableDevices: (value: boolean) => set({ includeVulnerableDevices: value }),
+
+  setDescriptiveNames: (value: boolean) => set({ descriptiveNames: value }),
 
   setCellIsolationMode: (value) => set({ cellIsolationMode: value }),
 
@@ -390,7 +396,10 @@ export const useAIScenarioWizardStore = create<AIScenarioWizardState>((set, get)
     set({ isCreating: true, createError: null });
 
     try {
-      const result = await aiScenarioApi.createFromPreview(state.preview.preview_id);
+      const result = await aiScenarioApi.createFromPreview(
+        state.preview.preview_id,
+        state.descriptiveNames,
+      );
       set({ isCreating: false });
       return result.scenario_id;
     } catch (error) {

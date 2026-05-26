@@ -5,11 +5,13 @@
 
 import json
 import logging
+import time
 from typing import Any, AsyncIterator
 
 from openai import AsyncOpenAI
 
 from app.ai_services.skills import SkillNotFoundError, get_registry
+from app.ai_services.usage_recorder import AIUsageContext, record_call
 from app.mcp_server.ai_providers.base import AIProvider
 
 logger = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ class OpenAIProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> dict[str, Any]:
         """Send a chat request to OpenAI.
 
@@ -116,11 +119,27 @@ class OpenAIProvider(AIProvider):
                     },
                 }
 
+            t0 = time.monotonic()
             response = await self.client.chat.completions.create(**kwargs)
-
-            return self._format_response(response)
+            formatted = self._format_response(response)
+            await record_call(
+                provider="openai",
+                model=self.model,
+                usage=formatted.get("usage"),
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                tracking=tracking,
+            )
+            return formatted
 
         except Exception as e:
+            await record_call(
+                provider="openai",
+                model=self.model,
+                usage=None,
+                latency_ms=None,
+                tracking=tracking,
+                error=str(e),
+            )
             logger.error(f"Error calling OpenAI API: {e}", exc_info=True)
             raise
 
@@ -132,6 +151,7 @@ class OpenAIProvider(AIProvider):
         temperature: float | None = None,
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
+        tracking: AIUsageContext | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to OpenAI.
 

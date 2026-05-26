@@ -13,6 +13,8 @@
 
 import { apiClient } from './client';
 
+const PREFIX = '/api/v1/architecture';
+
 // ---------- Types ----------
 
 export interface RoleSummary {
@@ -98,47 +100,47 @@ export interface FlowCheckResponse {
 
 export const architectureApi = {
   async getVerticals(): Promise<string[]> {
-    const { data } = await apiClient.get<string[]>('/architecture/verticals');
+    const { data } = await apiClient.get<string[]>(`${PREFIX}/verticals`);
     return data;
   },
 
   async getScaleTiers(): Promise<string[]> {
-    const { data } = await apiClient.get<string[]>('/architecture/scale-tiers');
+    const { data } = await apiClient.get<string[]>(`${PREFIX}/scale-tiers`);
     return data;
   },
 
   async getVendorProfiles(): Promise<string[]> {
-    const { data } = await apiClient.get<string[]>('/architecture/vendor-profiles');
+    const { data } = await apiClient.get<string[]>(`${PREFIX}/vendor-profiles`);
     return data;
   },
 
   async getRoles(vertical?: string): Promise<RoleSummary[]> {
     const params = vertical ? { vertical } : undefined;
-    const { data } = await apiClient.get<RoleSummary[]>('/architecture/roles', { params });
+    const { data } = await apiClient.get<RoleSummary[]>(`${PREFIX}/roles`, { params });
     return data;
   },
 
   async getRoleById(roleId: string): Promise<RoleSummary> {
-    const { data } = await apiClient.get<RoleSummary>(`/architecture/roles/${roleId}`);
+    const { data } = await apiClient.get<RoleSummary>(`${PREFIX}/roles/${roleId}`);
     return data;
   },
 
   async getArchetypes(vertical?: string): Promise<ArchetypeSummary[]> {
     const params = vertical ? { vertical } : undefined;
-    const { data } = await apiClient.get<ArchetypeSummary[]>('/architecture/archetypes', { params });
+    const { data } = await apiClient.get<ArchetypeSummary[]>(`${PREFIX}/archetypes`, { params });
     return data;
   },
 
   async getArchetypeById(archetypeId: string): Promise<ArchetypeSummary> {
     const { data } = await apiClient.get<ArchetypeSummary>(
-      `/architecture/archetypes/${archetypeId}`,
+      `${PREFIX}/archetypes/${archetypeId}`,
     );
     return data;
   },
 
   async getCommMatrix(vertical: string): Promise<CommMatrixEntrySummary[]> {
     const { data } = await apiClient.get<CommMatrixEntrySummary[]>(
-      '/architecture/comm-matrix',
+      `${PREFIX}/comm-matrix`,
       { params: { vertical } },
     );
     return data;
@@ -152,7 +154,7 @@ export const architectureApi = {
    */
   async checkFlow(request: FlowCheckRequest): Promise<FlowCheckResponse> {
     const { data } = await apiClient.post<FlowCheckResponse>(
-      '/architecture/check-flow',
+      `${PREFIX}/check-flow`,
       request,
     );
     return data;

@@ -14,6 +14,7 @@ import type {
   AttackPlaybook,
   AttackPlaybookConfig,
   AttackPlaybookSummary,
+  AttackReport,
   AttackState,
 } from '../types/attackPlaybook';
 
@@ -51,6 +52,12 @@ interface AttackStore {
   stopAttack: (scenarioId: string) => Promise<void>;
   advanceStage: (scenarioId: string) => Promise<void>;
   togglePause: (scenarioId: string, isPaused: boolean) => Promise<void>;
+
+  // After-action report — fetched on demand. Keyed by scenarioId so
+  // each scenario's last report is cached for re-open without refetch.
+  attackReports: Record<string, { source: 'live' | 'history' | 'none'; report: AttackReport | null }>;
+  isFetchingReport: Record<string, boolean>;
+  fetchAttackReport: (scenarioId: string) => Promise<void>;
 }
 
 // Internal timer refs per scenario (not in store state to avoid serialization issues)
@@ -244,6 +251,26 @@ export const useAttackStore = create<AttackStore>((set, get) => ({
       await attacksApi.pauseAttack(scenarioId, !isPaused);
     } catch (err) {
       console.error('Failed to toggle pause:', err);
+    }
+  },
+
+  attackReports: {},
+  isFetchingReport: {},
+  fetchAttackReport: async (scenarioId: string) => {
+    set((s) => ({
+      isFetchingReport: { ...s.isFetchingReport, [scenarioId]: true },
+    }));
+    try {
+      const response = await attacksApi.getReport(scenarioId);
+      set((s) => ({
+        attackReports: { ...s.attackReports, [scenarioId]: response },
+      }));
+    } catch (err) {
+      console.error('Failed to fetch attack report:', err);
+    } finally {
+      set((s) => ({
+        isFetchingReport: { ...s.isFetchingReport, [scenarioId]: false },
+      }));
     }
   },
 }));

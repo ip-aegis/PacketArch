@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Typography,
   Card,
@@ -21,9 +22,11 @@ import {
   Popconfirm,
   Radio,
   Select,
+  Collapse,
+  Tag,
 } from 'antd';
+import { settingsApi } from '../../api/settings';
 import {
-  KeyOutlined,
   GlobalOutlined,
   SettingOutlined,
   DatabaseOutlined,
@@ -37,6 +40,8 @@ import {
   FileOutlined,
   IdcardOutlined,
   DashboardOutlined,
+  DollarOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
@@ -45,9 +50,12 @@ import AgentsTab from '../../components/admin/AgentsTab';
 import DownloadsTab from '../../components/admin/DownloadsTab';
 import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
 import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab';
+import AICostsTab from '../../components/admin/AICostsTab';
+import AITokenUsageTab from '../../components/admin/AITokenUsageTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useFeatures } from '../../hooks/useFeatures';
 import type { SystemSetting } from '../../types';
+import ContextualHelpIcon from '../../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
 
@@ -140,6 +148,10 @@ const AIProviderTab: React.FC<{
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
   const [saving, setSaving] = useState(false);
+  // Task → model routing for the active provider, fetched from the
+  // backend so the UI never falls out of sync with the router table.
+  const [routing, setRouting] = useState<{ task: string; label: string; model: string }[]>([]);
+  const [routingLoading, setRoutingLoading] = useState(false);
   // CIRCUIT-specific config — three rows instead of one API key
   const [circuitClientId, setCircuitClientId] = useState('');
   const [circuitClientSecret, setCircuitClientSecret] = useState('');
@@ -190,12 +202,35 @@ const AIProviderTab: React.FC<{
     try {
       await updateSetting('ai_provider', provider);
       message.success(`AI Provider changed to ${providerLabel(provider)}`);
+      // Refresh routing so the table updates immediately.
+      void fetchRouting();
     } catch (error) {
       message.error('Failed to update provider');
     } finally {
       setSaving(false);
     }
   };
+
+  const fetchRouting = async () => {
+    setRoutingLoading(true);
+    try {
+      const data = await settingsApi.getAIRouting();
+      setRouting(data.routing);
+    } catch {
+      // Non-fatal — UI just hides the routing card on error.
+      setRouting([]);
+    } finally {
+      setRoutingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchRouting();
+    // Re-fetch whenever the active provider changes via handleProviderChange.
+    // Initial mount + handleProviderChange both call fetchRouting, so this
+    // effect only needs to run once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleApiKeySave = async () => {
     if (!apiKey.trim()) {
@@ -274,10 +309,18 @@ const AIProviderTab: React.FC<{
   ];
 
   const openaiModels = [
-    { value: 'o3', label: 'o3 (Reasoning)' },
-    { value: 'gpt-4.1', label: 'GPT-4.1' },
-    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-    { value: 'o4-mini', label: 'o4-mini (Fast Reasoning)' },
+    { value: 'gpt-5.5', label: 'GPT-5.5 (Latest flagship · 1M context)' },
+    { value: 'gpt-5.4', label: 'GPT-5.4 (recommended workhorse · 1M context)' },
+    { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)' },
+    { value: 'gpt-5.5-pro', label: 'GPT-5.5 Pro (highest-stakes reasoning)' },
+    { value: 'o3', label: 'o3 (reasoning)' },
+    { value: 'o4-mini', label: 'o4-mini (fast reasoning)' },
+    { value: 'gpt-5', label: 'GPT-5 (legacy)' },
+    { value: 'gpt-5-mini', label: 'GPT-5 Mini (legacy)' },
+    { value: 'gpt-5-nano', label: 'GPT-5 Nano (legacy)' },
+    { value: 'gpt-4.1', label: 'GPT-4.1 (legacy)' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini (legacy)' },
   ];
 
   // Cisco CIRCUIT exposes the full Azure OpenAI surface plus
@@ -345,8 +388,9 @@ const AIProviderTab: React.FC<{
       {/* Provider Selection */}
       <Card title="AI Provider Selection" size="small">
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Select which AI provider to use for the assistant. Both providers support function calling
-          for scenario modifications.
+          Pick a provider — PacketArch automatically chooses the best model from
+          that provider for each AI task (chat, scenario generation, device
+          naming, etc.). See the routing table below for the per-task picks.
         </Text>
         <Radio.Group
           value={selectedProvider}
@@ -369,7 +413,7 @@ const AIProviderTab: React.FC<{
             <Radio value="circuit">
               <Space>
                 <strong>Cisco CIRCUIT</strong>
-                <Text type="secondary">- Cisco internal gateway (chat-ai.cisco.com); requires Cisco VPN + appkey</Text>
+                <Text type="secondary">- Cisco CIRCUIT AI platform</Text>
               </Space>
             </Radio>
           </Space>
@@ -438,24 +482,80 @@ const AIProviderTab: React.FC<{
         </Card>
       )}
 
-      {/* Model Selection */}
-      <Card title="Model Selection" size="small">
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Select which model to use for AI responses. More capable models provide better results
-          but may have higher costs.
+      {/* AI Model Routing — PacketArch picks the best model per task
+          automatically. The user only chooses a provider; the table
+          below shows what each AI feature will run. Manual override
+          stays available in the Advanced section for power users. */}
+      <Card title="AI Model Routing" size="small">
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          PacketArch automatically picks the best model from{' '}
+          <strong>{providerLabel(selectedProvider)}</strong> for each AI task —
+          flagship models for complex reasoning (chat, scenario generation,
+          review) and smaller/faster tiers for short structured output (device
+          naming, descriptions). You don&apos;t need to pick a model.
         </Text>
-        <Space.Compact style={{ width: '100%' }}>
-          <Select
-            value={model}
-            onChange={setModel}
-            style={{ flex: 1 }}
-            placeholder="Select a model..."
-            options={modelsForProvider}
-          />
-          <Button type="primary" onClick={handleModelSave} loading={saving}>
-            Save Model
-          </Button>
-        </Space.Compact>
+        {routingLoading ? (
+          <Spin size="small" />
+        ) : routing.length > 0 ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr auto',
+              rowGap: 6,
+              columnGap: 12,
+            }}
+          >
+            {routing.map((r) => (
+              <React.Fragment key={r.task}>
+                <Text style={{ fontSize: 13 }}>{r.label}</Text>
+                <Tag style={{ margin: 0, fontFamily: 'monospace' }}>
+                  {r.model}
+                </Tag>
+              </React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <Text type="secondary">
+            Routing table unavailable. The provider may not be configured yet.
+          </Text>
+        )}
+
+        <Collapse
+          ghost
+          style={{ marginTop: 16 }}
+          items={[
+            {
+              key: 'advanced',
+              label: (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Advanced: manual model override
+                </Text>
+              ),
+              children: (
+                <>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                    Pin a single model for every AI task on this provider.
+                    Only takes effect for call sites that haven&apos;t been
+                    migrated to the task router — most callers ignore this.
+                    Leave the default unless you need to A/B test a model.
+                  </Text>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Select
+                      value={model}
+                      onChange={setModel}
+                      style={{ flex: 1 }}
+                      placeholder="Select a model..."
+                      options={modelsForProvider}
+                    />
+                    <Button type="primary" onClick={handleModelSave} loading={saving}>
+                      Save Override
+                    </Button>
+                  </Space.Compact>
+                </>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* Test Connection */}
@@ -496,7 +596,24 @@ const SettingsPage: React.FC = () => {
   } | null>(null);
   // Controlled active tab so the Overview card's "Configure →" buttons can
   // deep-link into other tabs.
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<string>(
+    searchParams.get('tab') || 'overview',
+  );
+
+  // Sync tab changes back to the URL so deep links survive reloads.
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setSearchParams({ tab: key }, { replace: true });
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -541,50 +658,7 @@ const SettingsPage: React.FC = () => {
           <DashboardOutlined /> Overview
         </span>
       ),
-      children: <SiteConfigOverviewTab onSelectTab={setActiveTab} />,
-    },
-    {
-      key: 'api_tokens',
-      label: (
-        <span>
-          <KeyOutlined /> API Tokens
-        </span>
-      ),
-      children: (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {connectionResult && (
-            <Alert
-              message={connectionResult.success ? 'Connection Successful' : 'Connection Failed'}
-              description={connectionResult.message}
-              type={connectionResult.success ? 'success' : 'error'}
-              showIcon
-              icon={
-                connectionResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />
-              }
-              closable
-              onClose={() => setConnectionResult(null)}
-            />
-          )}
-
-          {settings?.api_tokens.map((setting) => (
-            <SettingItem
-              key={setting.key}
-              setting={setting}
-              onSave={updateSetting}
-              isSecret
-            />
-          ))}
-
-          <Button
-            type="default"
-            onClick={handleTestConnection}
-            loading={testingConnection}
-            icon={<CheckCircleOutlined />}
-          >
-            Test API Connection
-          </Button>
-        </Space>
-      ),
+      children: <SiteConfigOverviewTab onSelectTab={handleTabChange} />,
     },
     {
       key: 'ai_provider',
@@ -603,6 +677,24 @@ const SettingsPage: React.FC = () => {
           setConnectionResult={setConnectionResult}
         />
       ),
+    },
+    {
+      key: 'ai_token_usage',
+      label: (
+        <span>
+          <BarChartOutlined /> AI Token Usage
+        </span>
+      ),
+      children: <AITokenUsageTab />,
+    },
+    {
+      key: 'ai_costs',
+      label: (
+        <span>
+          <DollarOutlined /> AI Costs
+        </span>
+      ),
+      children: <AICostsTab />,
     },
     {
       key: 'network',
@@ -735,7 +827,10 @@ const SettingsPage: React.FC = () => {
     <div>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
-          <Title level={2}>System Settings</Title>
+          <Title level={2}>
+            System Settings
+            <ContextualHelpIcon articleId="admin-settings" tooltip="System settings help" />
+          </Title>
           <Text type="secondary">
             Configure API tokens, network defaults, and system parameters.
           </Text>
@@ -756,7 +851,7 @@ const SettingsPage: React.FC = () => {
           <Tabs
             items={tabItems.filter((t) => liveTrafficEnabled || t.key !== 'agents')}
             activeKey={activeTab}
-            onChange={setActiveTab}
+            onChange={handleTabChange}
             destroyInactiveTabPane
           />
         </Card>

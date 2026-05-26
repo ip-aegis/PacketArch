@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PacketArch wide marketing lockup.
+
+  Primary mark on the left, wordmark + tagline on the right, against the
+  same dark navy panel used throughout the app. Designed for the login
+  hero (1536x1024 background) and any marketing surface that needs the
+  brand at scale. Pure SVG so it scales without resampling artifacts.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1536 1024"
+     width="1536" height="1024"
+     role="img"
+     aria-label="PacketArch — Industrial Network Traffic Architect">
+  <defs>
+    <!-- Page background: deep navy with a soft radial highlight top-left. -->
+    <radialGradient id="bg" cx="15%" cy="10%" r="85%">
+      <stop offset="0%"  stop-color="#1a2a4a"/>
+      <stop offset="55%" stop-color="#0e1a33"/>
+      <stop offset="100%" stop-color="#06112a"/>
+    </radialGradient>
+
+    <linearGradient id="hex-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#7FE3FF"/>
+      <stop offset="55%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#0299C2"/>
+    </linearGradient>
+    <radialGradient id="hex-fill" cx="50%" cy="42%" r="62%">
+      <stop offset="0%"  stop-color="#0B6E91" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#0A2A3D" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#06182C" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="hub-fill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#E8FBFF"/>
+      <stop offset="40%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#0488AC"/>
+    </radialGradient>
+    <radialGradient id="node-fill" cx="35%" cy="30%" r="80%">
+      <stop offset="0%"  stop-color="#CFF6FF"/>
+      <stop offset="60%" stop-color="#34BEE4"/>
+      <stop offset="100%" stop-color="#0A6F8E"/>
+    </radialGradient>
+    <radialGradient id="packet-fill" cx="40%" cy="35%" r="70%">
+      <stop offset="0%"  stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#7FE3FF"/>
+      <stop offset="100%" stop-color="#00D4FF"/>
+    </radialGradient>
+    <linearGradient id="wordmark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C5E6F4"/>
+    </linearGradient>
+    <linearGradient id="accent-bar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"  stop-color="#00D4FF" stop-opacity="0.0"/>
+      <stop offset="30%" stop-color="#00D4FF" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#00D4FF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#00D4FF" stop-opacity="0.0"/>
+    </linearGradient>
+    <radialGradient id="mark-halo" cx="50%" cy="50%" r="50%">
+      <stop offset="60%" stop-color="#00D4FF" stop-opacity="0"/>
+      <stop offset="80%" stop-color="#00D4FF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00D4FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="hub-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background panel -->
+  <rect width="1536" height="1024" fill="url(#bg)"/>
+
+  <!--
+    Mark group: anchored at (380, 512) with a 1.6 scale of the 256-canvas
+    primary mark, so the hex occupies roughly 35% of the canvas height.
+    All geometry below mirrors the primary-mark file, translated to keep
+    the centre at (380, 512).
+  -->
+  <g transform="translate(380,512) scale(1.6) translate(-128,-128)">
+    <circle cx="128" cy="128" r="120" fill="url(#mark-halo)"/>
+    <polygon
+      points="20,128 74,34.46 182,34.46 236,128 182,221.54 74,221.54"
+      fill="url(#hex-fill)"
+      stroke="url(#hex-stroke)"
+      stroke-width="7"
+      stroke-linejoin="round"/>
+    <polygon
+      points="33.2,128 81.6,44.01 174.4,44.01 222.8,128 174.4,211.99 81.6,211.99"
+      fill="none" stroke="#7FE3FF" stroke-width="1.2"
+      stroke-opacity="0.5" stroke-linejoin="round"/>
+    <g stroke="#34D2FF" stroke-width="2.2" stroke-linecap="round" opacity="0.85">
+      <line x1="128" y1="128" x2="188" y2="128"/>
+      <line x1="128" y1="128" x2="158" y2="76.04"/>
+      <line x1="128" y1="128" x2="98"  y2="76.04"/>
+      <line x1="128" y1="128" x2="68"  y2="128"/>
+      <line x1="128" y1="128" x2="98"  y2="179.96"/>
+      <line x1="128" y1="128" x2="158" y2="179.96"/>
+    </g>
+    <g fill="url(#packet-fill)">
+      <circle cx="161" cy="128" r="3.4"/>
+      <circle cx="111.5" cy="99.4" r="3.4"/>
+      <circle cx="111.5" cy="156.6" r="3.4"/>
+    </g>
+    <g>
+      <circle cx="188" cy="128"    r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+      <circle cx="158" cy="76.04"  r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+      <circle cx="98"  cy="76.04"  r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+      <circle cx="68"  cy="128"    r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+      <circle cx="98"  cy="179.96" r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+      <circle cx="158" cy="179.96" r="10" fill="url(#node-fill)" stroke="#CFF6FF" stroke-width="1"/>
+    </g>
+    <g filter="url(#hub-glow)">
+      <circle cx="128" cy="128" r="15" fill="url(#hub-fill)" stroke="#E8FBFF" stroke-width="1.2"/>
+    </g>
+  </g>
+
+  <!-- Vertical divider between mark and wordmark -->
+  <line x1="710" y1="380" x2="710" y2="644"
+        stroke="#244466" stroke-width="2" stroke-linecap="round"/>
+
+  <!--
+    Wordmark + tagline. Helvetica family (universally rasterizable with
+    librsvg without bundling a webfont). Letter-spacing 4px on the
+    wordmark, 6px on the tagline.
+  -->
+  <!--
+    Font: DejaVu Sans is installed on every Linux distro and inside
+    the Alpine rasterizer container, so the wide-logo PNG always
+    renders with text. Web consumers fall back to system sans-serif
+    if they ever read the SVG directly.
+  -->
+  <g font-family="'DejaVu Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+    <text x="760" y="510"
+          fill="url(#wordmark)"
+          font-size="108"
+          font-weight="700"
+          letter-spacing="0"
+          dominant-baseline="alphabetic">PacketArch</text>
+
+    <!-- Accent bar under the wordmark -->
+    <rect x="762" y="535" width="540" height="3" fill="url(#accent-bar)" rx="1.5"/>
+
+    <text x="762" y="588"
+          fill="#7FB3CE"
+          font-size="30"
+          font-weight="400"
+          letter-spacing="3">OT Traffic Simulation Platform</text>
+
+    <text x="762" y="630"
+          fill="#4A7896"
+          font-size="18"
+          font-weight="400"
+          letter-spacing="4">PROTOCOL ACCURATE  ·  VENDOR REALISTIC  ·  ATTACK READY</text>
+  </g>
+</svg>

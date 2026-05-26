@@ -4,41 +4,29 @@
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
 import React from 'react';
-import { Empty, Button, Typography } from 'antd';
 import { CloudServerOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-
-const { Text } = Typography;
+import { EmptyState } from '../common';
 
 const EmptyDashboard: React.FC = () => {
-  const navigate = useNavigate();
-
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
         padding: '80px 24px',
         background: '#1a1a2e',
         border: '1px solid #2d2d52',
         borderRadius: 8,
       }}
     >
-      <Empty
-        image={<CloudServerOutlined style={{ fontSize: 64, color: '#6b6b8a' }} />}
-        description={false}
+      <EmptyState
+        icon={<CloudServerOutlined />}
+        message="No active deployments"
+        hint="Deploy a scenario to an agent to see live traffic metrics here."
+        marginTop={0}
+        actions={[
+          { label: 'Go to Deployments', primary: true, to: '/deployments' },
+        ]}
+        helpArticleId="live-traffic"
       />
-      <Text style={{ color: '#fff', fontSize: 18, marginTop: 16 }}>
-        No Active Deployments
-      </Text>
-      <Text type="secondary" style={{ marginTop: 8, marginBottom: 24 }}>
-        Deploy a scenario to an agent to see live traffic metrics here.
-      </Text>
-      <Button type="primary" onClick={() => navigate('/deployments')}>
-        Go to Deployments
-      </Button>
     </div>
   );
 };

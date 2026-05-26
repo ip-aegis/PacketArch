@@ -8,13 +8,84 @@
  */
 
 import React, { useState } from 'react';
-import { Modal, Button, Space, Typography, Card, Upload, App } from 'antd';
+import { Modal, Button, Space, Typography, Card, Upload, App, Tag } from 'antd';
 import { ImportOutlined, InboxOutlined } from '@ant-design/icons';
 import type { ImportedScenarioData } from '../../hooks/useScenarioMutations';
 import { verticalConfig } from './scenarioConstants';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
+
+interface FilePreview {
+  data: ImportedScenarioData;
+  deviceCount: number;
+  flowCount: number;
+  zoneCount: number;
+}
+
+/**
+ * Detect which format the uploaded JSON document is.
+ *
+ *   portable — public authoring format. Required:
+ *              format_version === "1.0", name, zones[], devices[], flows[].
+ *   legacy   — previously-exported scenario. Required: name, definition.
+ *
+ * Returns a FilePreview when detection succeeds, or a string error message.
+ */
+function detectAndParse(raw: unknown): FilePreview | string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return 'File is not a JSON object.';
+  }
+  const obj = raw as Record<string, unknown>;
+
+  const looksPortable =
+    obj.format_version === '1.0' &&
+    Array.isArray(obj.zones) &&
+    Array.isArray(obj.devices) &&
+    Array.isArray(obj.flows);
+
+  if (looksPortable) {
+    if (typeof obj.name !== 'string' || !obj.name) {
+      return 'Portable scenario is missing required field: name.';
+    }
+    return {
+      data: {
+        format: 'portable',
+        payload: obj as { name: string; [key: string]: unknown },
+      },
+      deviceCount: (obj.devices as unknown[]).length,
+      flowCount: (obj.flows as unknown[]).length,
+      zoneCount: (obj.zones as unknown[]).length,
+    };
+  }
+
+  // Legacy export shape
+  if (obj.name && obj.definition && typeof obj.definition === 'object') {
+    const def = obj.definition as Record<string, unknown>;
+    const devices = (def.devices ?? {}) as Record<string, unknown>;
+    const flows = (def.flows ?? {}) as Record<string, unknown>;
+    const zones = (def.zones ?? {}) as Record<string, unknown>;
+    return {
+      data: {
+        format: 'legacy',
+        payload: obj as {
+          name: string;
+          definition: Record<string, unknown>;
+          [key: string]: unknown;
+        },
+      },
+      deviceCount: Object.keys(devices).length,
+      flowCount: Object.keys(flows).length,
+      zoneCount: Object.keys(zones).length,
+    };
+  }
+
+  return (
+    'Unrecognized scenario file. Expected either a PacketArch export ' +
+    '(top-level "name" + "definition") or a portable scenario ' +
+    '(format_version "1.0" + "zones", "devices", "flows" arrays).'
+  );
+}
 
 export interface ImportScenarioModalProps {
   open: boolean;
@@ -30,10 +101,10 @@ const ImportScenarioModal: React.FC<ImportScenarioModalProps> = ({
   onImport,
 }) => {
   const { message } = App.useApp();
-  const [fileData, setFileData] = useState<ImportedScenarioData | null>(null);
+  const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
 
   const handleCancel = () => {
-    setFileData(null);
+    setFilePreview(null);
     onCancel();
   };
 
@@ -69,9 +140,9 @@ const ImportScenarioModal: React.FC<ImportScenarioModalProps> = ({
           <Button onClick={handleCancel}>Cancel</Button>
           <Button
             type="primary"
-            disabled={!fileData}
+            disabled={!filePreview}
             loading={loading}
-            onClick={() => fileData && onImport(fileData)}
+            onClick={() => filePreview && onImport(filePreview.data)}
             style={{ background: '#722ed1', borderColor: '#722ed1' }}
           >
             Import Scenario
@@ -97,15 +168,17 @@ const ImportScenarioModal: React.FC<ImportScenarioModalProps> = ({
           reader.onload = (e) => {
             try {
               const content = e.target?.result as string;
-              const data = JSON.parse(content);
-              if (!data.name || !data.definition) {
-                message.error(
-                  'Invalid scenario file: missing required fields (name, definition)',
-                );
+              const parsed = JSON.parse(content);
+              const result = detectAndParse(parsed);
+              if (typeof result === 'string') {
+                message.error(result);
                 return;
               }
-              setFileData(data);
-              message.success(`File loaded: ${data.name}`);
+              setFilePreview(result);
+              const name = result.data.payload.name as string;
+              const kind =
+                result.data.format === 'portable' ? 'portable' : 'export';
+              message.success(`Loaded ${kind} scenario: ${name}`);
             } catch {
               message.error('Invalid JSON file');
             }
@@ -126,11 +199,12 @@ const ImportScenarioModal: React.FC<ImportScenarioModalProps> = ({
           Click or drag a JSON file to import
         </p>
         <p className="ant-upload-hint" style={{ color: '#6b6b8a' }}>
-          Import a scenario previously exported from PacketArch
+          Accepts both PacketArch exports and portable scenarios
+          (.pascenario.json)
         </p>
       </Dragger>
 
-      {fileData && (
+      {filePreview && (
         <Card
           style={{
             marginTop: 16,
@@ -139,30 +213,48 @@ const ImportScenarioModal: React.FC<ImportScenarioModalProps> = ({
           }}
           bodyStyle={{ padding: 16 }}
         >
-          <Text
-            strong
+          <Space
             style={{
-              color: '#fff',
-              display: 'block',
+              width: '100%',
+              justifyContent: 'space-between',
               marginBottom: 8,
             }}
           >
-            Ready to import:
-          </Text>
-          <Space direction="vertical" size={4}>
-            <Text style={{ color: '#a8a8c0' }}>
-              <strong>Name:</strong> {fileData.name}
+            <Text strong style={{ color: '#fff' }}>
+              Ready to import:
             </Text>
-            {fileData.vertical && (
+            <Tag color={filePreview.data.format === 'portable' ? 'gold' : 'blue'}>
+              {filePreview.data.format === 'portable'
+                ? 'Portable v1'
+                : 'PacketArch Export'}
+            </Tag>
+          </Space>
+          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Text style={{ color: '#a8a8c0' }}>
+              <strong>Name:</strong>{' '}
+              {filePreview.data.payload.name as string}
+            </Text>
+            {filePreview.data.payload.vertical && (
               <Text style={{ color: '#a8a8c0' }}>
                 <strong>Vertical:</strong>{' '}
-                {verticalConfig[fileData.vertical]?.label ||
-                  fileData.vertical}
+                {verticalConfig[filePreview.data.payload.vertical as string]
+                  ?.label || (filePreview.data.payload.vertical as string)}
               </Text>
             )}
-            {fileData.description && (
+            <Text style={{ color: '#a8a8c0' }}>
+              <strong>Contents:</strong> {filePreview.zoneCount} zones,{' '}
+              {filePreview.deviceCount} devices, {filePreview.flowCount} flows
+            </Text>
+            {filePreview.data.format === 'portable' && (
               <Text style={{ color: '#6b6b8a', fontSize: 12 }}>
-                {fileData.description}
+                The importer will resolve any unspecified vendor /
+                fingerprint_model values from the local catalog and allocate
+                IPs / MACs automatically.
+              </Text>
+            )}
+            {filePreview.data.payload.description && (
+              <Text style={{ color: '#6b6b8a', fontSize: 12 }}>
+                {filePreview.data.payload.description as string}
               </Text>
             )}
           </Space>

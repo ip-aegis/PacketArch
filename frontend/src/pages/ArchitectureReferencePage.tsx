@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Col, Descriptions, Row, Select, Space, Table, Tabs, Tag, Typography, Alert } from 'antd';
 import { architectureApi, type ArchetypeSummary, type CommMatrixEntrySummary, type RoleSummary } from '../api/architecture';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -160,7 +161,10 @@ const ArchitectureReferencePage = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={2}>Architecture Reference</Title>
+      <Title level={2}>
+        Architecture Reference
+        <ContextualHelpIcon articleId="architecture" tooltip="Architecture reference help" />
+      </Title>
       <Paragraph>
         PacketArch encodes a typed reference architecture for each industrial vertical it supports.
         Templates and AI-generated scenarios materialize from the catalog below — you can see

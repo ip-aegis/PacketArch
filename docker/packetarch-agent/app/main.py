@@ -593,15 +593,39 @@ class PacketArchAgent:
                 })
                 return
 
-            # Save current image ID for rollback
+            # Save current image ID for rollback. We capture TWO ids:
+            #   - `old_image_id` — the SHA the `packetarch-agent:latest`
+            #     tag currently points to. Used as the rollback target.
+            #   - `running_image_id` — the SHA of the image the running
+            #     container is ACTUALLY on. The freshness check below
+            #     uses this one, because the tag and the container can
+            #     diverge: when the agent shares a Docker daemon with
+            #     the PacketArch backend (the typical local-host
+            #     `LocalDiag` setup), the backend rebuilds the image
+            #     in-place and the tag is bumped to the new SHA before
+            #     UPDATE_AGENT ever reaches us. Comparing the load
+            #     against the tag would then say "already up to date"
+            #     even though our container is still on the old layers.
+            running_image_id = None
             try:
                 current_image = docker_client.images.get("packetarch-agent:latest")
                 old_image_id = current_image.id
-                logger.info(f"Current image ID for rollback: {old_image_id[:12]}")
+                logger.info(f"Tag 'packetarch-agent:latest' points at: {old_image_id[:12]}")
             except docker.errors.ImageNotFound:
                 logger.warning("Current image not found - no rollback available")
             except Exception as e:
                 logger.warning(f"Could not get current image for rollback: {e}")
+
+            try:
+                own_id = os.environ.get("HOSTNAME") or socket.gethostname()
+                if own_id:
+                    own_container = docker_client.containers.get(own_id)
+                    running_image_id = own_container.image.id
+                    logger.info(
+                        f"Running container ({own_id[:12]}) image: {running_image_id[:12]}"
+                    )
+            except Exception as e:
+                logger.warning(f"Could not inspect own container image: {e}")
 
             await self.ws.send({
                 "type": "UPDATE_STATUS",
@@ -715,9 +739,18 @@ class PacketArchAgent:
                     except Exception:
                         pass
 
-            # Verify new image is different from old
-            if old_image_id and loaded_image and loaded_image.id == old_image_id:
-                logger.info("New image is same as current - no update needed")
+            # Verify the loaded image differs from the IMAGE THE
+            # CONTAINER IS RUNNING (not just from the tag). Comparing
+            # against the tag's SHA is wrong when the builder shares
+            # our Docker daemon — the tag may already reflect the new
+            # build while our container still runs the older layers
+            # underneath. See the rationale comment near `old_image_id`.
+            compare_id = running_image_id or old_image_id
+            if compare_id and loaded_image and loaded_image.id == compare_id:
+                logger.info(
+                    "Loaded image matches the running container's image — "
+                    "no recreate needed."
+                )
                 await self.ws.send({
                     "type": "UPDATE_STATUS",
                     "status": "complete",

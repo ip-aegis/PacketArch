@@ -22,7 +22,8 @@ from pydantic import BaseModel, Field
 from app.core.exceptions import ExternalServiceError, ValidationError
 
 from app.api.deps import CurrentUser, DBSession
-from app.mcp_server.ai_providers import AIProviderFactory
+from app.ai_services.usage_recorder import AIUsageContext
+from app.mcp_server.ai_providers import AIProviderFactory, AITask
 from app.models.settings import SystemSetting
 
 logger = logging.getLogger(__name__)
@@ -238,22 +239,18 @@ CONTEXT_SKILLS: dict[str, list[str]] = {
 }
 
 
-async def _get_ai_provider(db: DBSession):
-    """Get the configured AI provider."""
-    from sqlalchemy import select
+async def _get_ai_provider(db: DBSession, task: "AITask | None" = None):
+    """Get the configured AI provider for ``task``.
 
-    result = await db.execute(
-        select(SystemSetting).where(SystemSetting.key == "anthropic_api_key")
-    )
-    setting = result.scalar_one_or_none()
-
-    if not setting or not setting.value:
-        raise ValidationError("AI provider not configured. Please set your Anthropic API key in Settings.")
-
-    return AIProviderFactory.create(
-        provider_type="anthropic",
-        api_key=setting.value,
-    )
+    Delegates to :class:`AIProviderFactory` which respects the
+    operator's provider choice in Settings and picks the best model for
+    the task via the model router. Callers should pass ``task`` so the
+    router uses the right tier (e.g. AI_HELP → small/fast model).
+    """
+    try:
+        return await AIProviderFactory.create(db, task=task)
+    except ValueError as e:
+        raise ValidationError(str(e))
 
 
 def _extract_response_text(response: dict | str) -> str:
@@ -301,12 +298,16 @@ async def help_chat(
     ]
 
     try:
-        provider = await _get_ai_provider(db)
+        provider = await _get_ai_provider(db, task=AITask.AI_HELP)
 
         response = await provider.chat(
             messages=messages,
             max_tokens=4096,
             skills=skills,
+            tracking=AIUsageContext(
+                feature=f"help_{request.context}"[:64],
+                user_id=current_user.id,
+            ),
         )
 
         response_text = _extract_response_text(response)

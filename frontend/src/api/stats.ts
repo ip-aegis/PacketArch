@@ -9,18 +9,44 @@
 
 import apiClient from './client';
 
-export interface OverviewStats {
+const STATS_PREFIX = '/api/v1/stats';
+
+export interface VerticalMixEntry {
+  vertical: string;
+  count: number;
+}
+
+export interface ProtocolUsageEntry {
+  protocol: string;
   scenarios: number;
   devices: number;
+}
+
+export interface RecentScenarioEntry {
+  id: string;
+  name: string;
+  vertical: string | null;
+  device_count: number;
+  flow_count: number;
+  updated_at: string | null;
+}
+
+export interface OverviewStats {
+  scenarios: number;
+  /** Total device *instances* across the user's scenarios. */
+  device_instances: number;
   protocols: number;
   pcaps: number;
+  vertical_mix: VerticalMixEntry[];
+  top_protocols: ProtocolUsageEntry[];
+  recent_scenarios: RecentScenarioEntry[];
 }
 
 /**
- * Get overview statistics for the dashboard
+ * Get overview statistics for the dashboard.
  */
 export const getOverviewStats = async (): Promise<OverviewStats> => {
-  const response = await apiClient.get<OverviewStats>('/stats/overview');
+  const response = await apiClient.get<OverviewStats>(`${STATS_PREFIX}/overview`);
   return response.data;
 };
 

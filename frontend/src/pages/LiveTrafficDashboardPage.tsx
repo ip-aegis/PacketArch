@@ -13,6 +13,7 @@ import AgentStatusCards from '../components/dashboard/AgentStatusCards';
 import DeploymentCard from '../components/dashboard/DeploymentCard';
 import EmptyDashboard from '../components/dashboard/EmptyDashboard';
 import HealthEventsFeed from '../components/dashboard/HealthEventsFeed';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
 
@@ -41,7 +42,10 @@ const LiveTrafficDashboardPage: React.FC = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ marginBottom: 0 }}>Live Traffic</Title>
+          <Title level={2} style={{ marginBottom: 0 }}>
+            Live Traffic
+            <ContextualHelpIcon articleId="live-traffic" tooltip="Live traffic dashboard help" />
+          </Title>
           <Space>
             {data && data.aggregate.active_deployments > 0 && (
               <Tag icon={<SyncOutlined spin />} color="green">Live</Tag>

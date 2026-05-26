@@ -17,6 +17,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession, RequireAIEnabled
 from app.protocol_engines.protocols import PROTOCOL_TO_IDENTITY_KEY
+from app.mcp_server.ai_providers import AITask
 from app.mcp_server.sanitization.sanitizer import DataSanitizer
 from app.mcp_server.server import mcp_server
 from app.models.scenario import Scenario
@@ -26,6 +27,7 @@ from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.ip_management import IPManagementService
 from app.services.fingerprint_cache import get_fingerprint_cache
 from app.ai_services.nl_parser import extract_device_counts, format_device_counts_for_prompt, get_device_limit_warning
+from app.ai_services.usage_recorder import AIUsageContext
 from app.protocol_engines.identity import generate_mac
 from app.services.device_identity_enricher import (
     enrich_device_serial_numbers,
@@ -72,6 +74,78 @@ router = APIRouter(
 
 # Backwards compatibility alias
 _get_anthropic_provider = _get_ai_provider
+
+
+def _strip_scenario_id(schema: dict) -> dict:
+    """Remove ``scenario_id`` from a tool input schema.
+
+    The chat loop auto-injects the current scenario id server-side, so
+    exposing it as a tool parameter just confuses the model — it
+    occasionally asks the user for a UUID or guesses one (e.g. uses
+    the vertical name). Hiding the parameter eliminates the class.
+    """
+    props = schema.get("properties") or {}
+    if "scenario_id" not in props:
+        return schema
+    new_props = {k: v for k, v in props.items() if k != "scenario_id"}
+    new_required = [
+        r for r in (schema.get("required") or []) if r != "scenario_id"
+    ]
+    out = dict(schema)
+    out["properties"] = new_props
+    if new_required:
+        out["required"] = new_required
+    elif "required" in out:
+        del out["required"]
+    return out
+
+
+def _build_chat_tools_list() -> list[dict]:
+    """Build the MCP tools list with ``scenario_id`` hidden from the model."""
+    return [
+        {
+            "name": tool_name,
+            "description": tool_info["description"],
+            "input_schema": _strip_scenario_id(tool_info["input_schema"]),
+        }
+        for tool_name, tool_info in mcp_server._tools.items()
+    ]
+
+
+# Tools whose count should appear in the post-convergence summary the
+# user sees when the chat loop self-aborts. Keep ordered most→least
+# common so the message reads naturally.
+_CONVERGENCE_SUMMARY_TOOLS: list[tuple[str, str]] = [
+    ("add_device", "{n} devices added"),
+    ("remove_device", "{n} devices removed"),
+    ("update_device", "{n} devices updated"),
+    ("add_flow", "{n} data flows created"),
+    ("remove_flow", "{n} data flows removed"),
+    ("apply_cve_to_device", "{n} CVEs applied"),
+    ("add_external_communication", "{n} external comms added"),
+]
+
+
+def _summarize_tool_calls(all_tool_calls: list[dict]) -> str:
+    """Build a user-facing message describing what a chat turn did.
+
+    Used by both the streaming and non-streaming chat paths when the
+    convergence detector trips so the user sees actual counts instead
+    of a generic "Operation completed."
+    """
+    counts: dict[str, int] = {}
+    for tc in all_tool_calls:
+        name = tc.get("name", "")
+        if name:
+            counts[name] = counts.get(name, 0) + 1
+    parts = [
+        template.format(n=counts[name])
+        for name, template in _CONVERGENCE_SUMMARY_TOOLS
+        if counts.get(name, 0) > 0
+    ]
+    if not parts:
+        return "Operation completed. Please check the Scenario Studio for results."
+    return f"Done — {', '.join(parts)}. Open the Scenario Studio to review."
 
 
 @router.post("/sessions", response_model=AISessionResponse)
@@ -233,8 +307,8 @@ async def chat_with_ai(
     if not scenario:
         raise NotFoundError("Scenario", request.scenario_id)
 
-    # Get AI provider
-    provider = await _get_anthropic_provider(db)
+    # Get AI provider — task=CHAT picks the provider's interactive-chat model
+    provider = await _get_anthropic_provider(db, task=AITask.CHAT)
 
     # Sanitize scenario data before sending to AI
     sanitizer = DataSanitizer()
@@ -284,14 +358,9 @@ async def chat_with_ai(
         "content": system_prompt,
     }
 
-    # Get available tools
-    tools_list = []
-    for tool_name, tool_info in mcp_server._tools.items():
-        tools_list.append({
-            "name": tool_name,
-            "description": tool_info["description"],
-            "input_schema": tool_info["input_schema"],
-        })
+    # Build the tools list with scenario_id stripped — see
+    # _build_chat_tools_list docstring for why.
+    tools_list = _build_chat_tools_list()
 
     # Call AI with tool execution loop
     try:
@@ -305,6 +374,11 @@ async def chat_with_ai(
         logger.info(f"Messages being sent (count): {len(current_messages)}")
         logger.info(f"Processed messages structure: {[(m.get('role'), type(m.get('content')).__name__) for m in messages]}")
 
+        tracking_ctx = AIUsageContext(
+            feature="scenario_chat",
+            user_id=current_user.id,
+            scenario_id=uuid.UUID(request.scenario_id),
+        )
         for iteration in range(max_iterations):
             logger.info(f"AI loop iteration {iteration + 1}/{max_iterations}")
             logger.debug(f"Sending {len(current_messages)} messages to Claude")
@@ -312,6 +386,7 @@ async def chat_with_ai(
                 messages=current_messages,
                 tools=tools_list,
                 max_tokens=16384,
+                tracking=tracking_ctx,
             )
 
             # Log the full response for debugging
@@ -341,21 +416,7 @@ async def chat_with_ai(
             should_stop, stop_reason = detect_convergence(all_tool_calls)
             if should_stop:
                 logger.warning(f"Convergence detected: {stop_reason}")
-                # Generate a completion message
-                tool_names = [tc.get("name", "") for tc in all_tool_calls]
-                device_adds = sum(1 for n in tool_names if n == "add_device")
-                flow_adds = sum(1 for n in tool_names if n == "add_flow")
-
-                completion_parts = []
-                if device_adds > 0:
-                    completion_parts.append(f"{device_adds} devices added")
-                if flow_adds > 0:
-                    completion_parts.append(f"{flow_adds} data flows created")
-
-                if completion_parts:
-                    final_response_text = f"Scenario creation completed! {', '.join(completion_parts)}. The scenario is ready for review."
-                else:
-                    final_response_text = "Operation completed. Please check the Scenario Studio for results."
+                final_response_text = _summarize_tool_calls(all_tool_calls)
 
                 await AISessionService.append_message_for_scenario(user_id, scenario_id, {
                     "role": "assistant",
@@ -531,8 +592,8 @@ async def chat_with_ai_stream(
             # Register MCP tools
             _register_mcp_tools(db, user_id=str(current_user.id))
 
-            # Get AI provider
-            provider = await _get_anthropic_provider(db)
+            # Get AI provider (task=CHAT routes to the provider's flagship)
+            provider = await _get_anthropic_provider(db, task=AITask.CHAT)
 
             # Sanitize scenario data
             sanitizer = DataSanitizer()
@@ -577,15 +638,8 @@ async def chat_with_ai_stream(
 
             system_message = {"role": "system", "content": system_prompt}
 
-            # Get tools
-            tools_list = [
-                {
-                    "name": tool_name,
-                    "description": tool_info["description"],
-                    "input_schema": tool_info["input_schema"],
-                }
-                for tool_name, tool_info in mcp_server._tools.items()
-            ]
+            # Get tools (scenario_id hidden — auto-injected server-side)
+            tools_list = _build_chat_tools_list()
 
             # Emit thinking event
             yield f"data: {json.dumps({'type': 'thinking', 'message': 'Analyzing your request...'})}\n\n"
@@ -596,6 +650,11 @@ async def chat_with_ai_stream(
             final_response_text = ""
             max_iterations = 15  # Increased for complex scenarios
 
+            tracking_ctx = AIUsageContext(
+                feature="scenario_chat_stream",
+                user_id=current_user.id,
+                scenario_id=uuid.UUID(scenario_id),
+            )
             for iteration in range(max_iterations):
                 yield f"data: {json.dumps({'type': 'thinking', 'iteration': iteration + 1, 'message': f'AI processing (iteration {iteration + 1})...'})}\n\n"
 
@@ -603,6 +662,7 @@ async def chat_with_ai_stream(
                     messages=current_messages,
                     tools=tools_list,
                     max_tokens=16384,
+                    tracking=tracking_ctx,
                 )
 
                 # Extract text and tool calls
@@ -630,21 +690,7 @@ async def chat_with_ai_stream(
                 should_stop, stop_reason = detect_convergence(all_tool_calls)
                 if should_stop:
                     logger.warning(f"Convergence detected (streaming): {stop_reason}")
-                    # Generate completion message
-                    tool_names = [tc.get("name", "") for tc in all_tool_calls]
-                    device_adds = sum(1 for n in tool_names if n == "add_device")
-                    flow_adds = sum(1 for n in tool_names if n == "add_flow")
-
-                    completion_parts = []
-                    if device_adds > 0:
-                        completion_parts.append(f"{device_adds} devices added")
-                    if flow_adds > 0:
-                        completion_parts.append(f"{flow_adds} flows created")
-
-                    if completion_parts:
-                        completion_msg = f"Scenario creation completed! {', '.join(completion_parts)}."
-                    else:
-                        completion_msg = "Operation completed."
+                    completion_msg = _summarize_tool_calls(all_tool_calls)
 
                     yield f"data: {json.dumps({'type': 'text', 'content': completion_msg})}\n\n"
                     await AISessionService.append_message_for_scenario(user_id, scenario_id, {
@@ -919,12 +965,21 @@ async def generate_scenario_preview(
         # Phase 6 of the architecture rollout: prefer the archetype rail
         # (matrix-driven, realism-clean by construction). The freeform
         # path is preserved as a fallback for edge cases.
+        archetype_tracking = AIUsageContext(
+            feature="ai_archetype_selection",
+            user_id=current_user.id,
+        )
+        design_tracking = AIUsageContext(
+            feature="ai_scenario_design",
+            user_id=current_user.id,
+        )
         result = await designer.design_scenario_via_archetype(
             description=request.description,
             name=request.name,
             duration_ms=request.duration_ms,
             vertical=request.vertical,
             preferred_vendors=request.vendors,
+            tracking=archetype_tracking,
         )
         if result.fallback_reason:
             logger.info(
@@ -942,6 +997,7 @@ async def generate_scenario_preview(
                 device_counts=request.device_counts,
                 include_vulnerable_devices=request.include_vulnerable_devices,
                 cell_isolation_mode=request.cell_isolation_mode,
+                tracking=design_tracking,
             )
 
         scenario = result.scenario
@@ -1130,6 +1186,10 @@ async def generate_scenario_preview_stream(
                 duration_ms=request.duration_ms,
                 vertical=request.vertical,
                 preferred_vendors=request.vendors,
+                tracking=AIUsageContext(
+                    feature="ai_archetype_selection",
+                    user_id=current_user.id,
+                ),
             )
             if not archetype_result.fallback_reason:
                 # Clean archetype materialization — finalize and return.
@@ -1165,6 +1225,10 @@ async def generate_scenario_preview_stream(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 total_device_count=request.total_device_count,
+                tracking=AIUsageContext(
+                    feature="ai_scenario_design",
+                    user_id=current_user.id,
+                ),
             )
 
             # Phase 4: Parse response
@@ -1216,7 +1280,7 @@ async def generate_scenario_preview_stream(
         # Enrich generic names (e.g. "PLC-001") with process-aware names
         # via AIDeviceNamer — same service used by template creation path.
         try:
-            ai_provider = await AIProviderFactory.create(session)
+            ai_provider = await AIProviderFactory.create(session, task=AITask.DEVICE_NAMING)
             namer = AIDeviceNamer()
             zone_dict = {
                 z.get("name", f"zone_{i}"): z
@@ -1240,7 +1304,11 @@ async def generate_scenario_preview_stream(
                 for d in scenario.devices
             ]
             enhanced = await namer.enhance_device_names(
-                device_dicts, context, ai_provider
+                device_dicts, context, ai_provider,
+                tracking=AIUsageContext(
+                    feature="device_naming",
+                    user_id=user.id,
+                ),
             )
             # Apply enhanced names back to GeneratedDevice objects
             name_map = {d["id"]: d["name"] for d in enhanced}
@@ -1595,7 +1663,10 @@ async def create_scenario_from_preview(
             "zoneId": zone_name,
             "network": network_config,
             "vendor": d.get("vendor"),
-            "fingerprint_model": fingerprint_model,  # CRITICAL: Store fingerprint_model
+            # Studio + property forms read camelCase device fields. Every
+            # other creation path (templates, archetype generator) writes
+            # this as fingerprintModel — keep it consistent here too.
+            "fingerprintModel": fingerprint_model,
         }
 
         # Apply deep fingerprint data if available
@@ -1715,6 +1786,38 @@ async def create_scenario_from_preview(
         enrich_device_serial_numbers(dev, dev_id, str(db_scenario.id))
         enrich_device_unique_identifiers(dev, dev_id, str(db_scenario.id))
 
+    # When the caller opts OUT of descriptive names, push the scenario
+    # through the site-identity rail so devices end up with structured
+    # site-coded names (e.g. PDX-BKY-01-MIX-PLC-01) and canonical SNMP
+    # sys_name set. With descriptive_names=True (default) we keep the
+    # demo-friendly labels AIDeviceNamer produced during preview.
+    if not request.descriptive_names:
+        from sqlalchemy.orm.attributes import flag_modified
+        from app.services.architecture.site_naming_pipeline import (
+            apply_site_naming_pipeline,
+        )
+
+        try:
+            await apply_site_naming_pipeline(
+                db=db,
+                definition=db_scenario.definition,
+                scenario_id=str(db_scenario.id),
+                vertical=db_scenario.vertical or "manufacturing",
+                template_name=db_scenario.name,
+                template_description=db_scenario.description or "",
+                archetype_id=None,
+                use_llm=True,
+                exclude_scenario_id=str(db_scenario.id),
+                process_context=db_scenario.description or None,
+            )
+            flag_modified(db_scenario, "definition")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "Structured-name fallback failed for AI scenario %s: %s — "
+                "keeping descriptive names",
+                db_scenario.id, e,
+            )
+
     await db.commit()
     await db.refresh(db_scenario)
 
@@ -1809,10 +1912,15 @@ Write ONLY the description text. Do not include any preamble, labels, or formatt
 
     # Get AI provider and generate description
     try:
-        provider = await _get_ai_provider(db)
+        provider = await _get_ai_provider(db, task=AITask.DESCRIPTION_GENERATION)
         response = await provider.chat(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
+            tracking=AIUsageContext(
+                feature="scenario_description",
+                user_id=current_user.id,
+                scenario_id=scenario.id,
+            ),
         )
 
         # Extract text from response
@@ -2152,7 +2260,7 @@ async def review_scenario(
     ]
 
     try:
-        provider = await _get_ai_provider(db)
+        provider = await _get_ai_provider(db, task=AITask.SCENARIO_REVIEW)
         response = await provider.chat(
             messages=messages,
             max_tokens=8192,
@@ -2167,6 +2275,11 @@ async def review_scenario(
                 "packetarch-fingerprint-validator",
                 "packetarch-device-naming",
             ],
+            tracking=AIUsageContext(
+                feature="scenario_review",
+                user_id=current_user.id,
+                scenario_id=scenario.id,
+            ),
         )
 
         # Extract JSON from structured output

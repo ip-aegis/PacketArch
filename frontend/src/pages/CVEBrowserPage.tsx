@@ -54,6 +54,8 @@ import {
   type VulnerableVariantsResponse,
 } from '../api/cve';
 import type { CVEVulnerability, VulnerableFingerprintVariant, CVESeverity } from '../types';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
+import { EmptyState } from '../components/common';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -160,6 +162,7 @@ const CVEBrowserPage: React.FC = () => {
             <Title level={2} style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
               <BugOutlined style={{ color: '#ff4d4f' }} />
               CVE Browser
+              <ContextualHelpIcon articleId="cve-browser" tooltip="CVE browser help" />
             </Title>
             <Text style={{ color: '#8b8fa3' }}>
               Browse vulnerabilities for ICS/OT security testing with Cisco Cyber Vision
@@ -324,13 +327,23 @@ const CVEBrowserPage: React.FC = () => {
           </div>
         </div>
       ) : filteredCVEs.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text style={{ color: '#8b8fa3' }}>
-              No CVEs found matching your criteria
-            </Text>
-          }
+        <EmptyState
+          icon={<BugOutlined />}
+          message="No CVEs found matching your criteria"
+          hint="Try widening the filters above, or browse all severities to see what's available."
+          actions={[
+            {
+              label: 'Clear Filters',
+              primary: true,
+              onClick: () => {
+                setSearchText('');
+                setSelectedVendor(undefined);
+                setSelectedSeverity(undefined);
+                setCyberVisionOnly(false);
+              },
+            },
+          ]}
+          helpArticleId="cve-browser"
         />
       ) : (
         <Row gutter={[16, 16]}>

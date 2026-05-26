@@ -46,6 +46,8 @@ export interface AggregateEdgeData {
   targetClusterId: string;
   flowCount: number;
   protocols: ProtocolType[];
+  /** IDs of the underlying flows merged into this aggregate edge */
+  flowIds: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -292,10 +294,10 @@ export function computeAggregateEdges(
   deviceToCluster: Map<string, string>,
   expandedClusterIds: Set<string>,
 ): AggregateEdgeData[] {
-  // key: "sourceCluster->targetCluster", value: { count, protocols set }
-  const edgeMap = new Map<string, { sourceClusterId: string; targetClusterId: string; count: number; protocols: Set<ProtocolType> }>();
+  // key: "sourceCluster->targetCluster"
+  const edgeMap = new Map<string, { sourceClusterId: string; targetClusterId: string; flowIds: string[]; protocols: Set<ProtocolType> }>();
 
-  for (const flow of Object.values(flows)) {
+  for (const [flowId, flow] of Object.entries(flows)) {
     const srcCluster = deviceToCluster.get(flow.sourceDeviceId);
     const tgtCluster = deviceToCluster.get(flow.targetDeviceId);
     if (!srcCluster || !tgtCluster) continue;
@@ -312,10 +314,10 @@ export function computeAggregateEdges(
 
     let entry = edgeMap.get(key);
     if (!entry) {
-      entry = { sourceClusterId: lo, targetClusterId: hi, count: 0, protocols: new Set() };
+      entry = { sourceClusterId: lo, targetClusterId: hi, flowIds: [], protocols: new Set() };
       edgeMap.set(key, entry);
     }
-    entry.count++;
+    entry.flowIds.push(flowId);
     entry.protocols.add(flow.protocol);
   }
 
@@ -323,7 +325,8 @@ export function computeAggregateEdges(
     id: `agg-edge-${e.sourceClusterId}-${e.targetClusterId}`,
     sourceClusterId: e.sourceClusterId,
     targetClusterId: e.targetClusterId,
-    flowCount: e.count,
+    flowCount: e.flowIds.length,
+    flowIds: e.flowIds,
     protocols: Array.from(e.protocols),
   }));
 }
@@ -387,6 +390,59 @@ export function layoutClustersPurdue(
     const level = cluster.groupKey === '__unassigned__' ? -1 : Number(cluster.groupKey);
     if (!byLevel.has(level)) byLevel.set(level, []);
     byLevel.get(level)!.push(cluster);
+  }
+
+  for (const [level, levelClusters] of byLevel) {
+    const y = level === -1 ? 2150 : (PURDUE_Y_POSITIONS[level] ?? 1250);
+    levelClusters.forEach((cluster, i) => {
+      positions[cluster.id] = {
+        x: 100 + i * 320,
+        y,
+      };
+    });
+  }
+
+  return positions;
+}
+
+/**
+ * Purdue-aware layout for the "group by zone" view.
+ *
+ * Each cluster's ``groupKey`` is a zone ID, so we look the zone up and
+ * use its ``inferPurdueLevel`` to slot the cluster into a horizontal
+ * band. Lower Purdue levels (0 = physical process) sit at the bottom,
+ * higher levels (4 = enterprise) sit at the top — matches how the
+ * Purdue model is conventionally drawn on whiteboards.
+ *
+ * Falls back to the generic grid layout when there are no zones to
+ * resolve against (defensive — should never happen in zone mode).
+ */
+export function layoutClustersZoneByPurdue(
+  clusters: ClusterData[],
+  zones: Record<string, ScenarioZone>,
+): Record<string, { x: number; y: number }> {
+  if (clusters.length === 0) return {};
+  if (Object.keys(zones).length === 0) return layoutClusters(clusters);
+
+  const positions: Record<string, { x: number; y: number }> = {};
+  const byLevel = new Map<number, ClusterData[]>();
+
+  for (const cluster of clusters) {
+    // groupKey is the zone ID (or __unzoned__ for orphans).
+    const zone = zones[cluster.groupKey];
+    const level = zone ? inferPurdueLevel(zone) : -1;
+    if (!byLevel.has(level)) byLevel.set(level, []);
+    byLevel.get(level)!.push(cluster);
+  }
+
+  // Stable ordering within a band: largest cluster first, then alpha
+  // by label so identical sizes don't shuffle between renders.
+  for (const levelClusters of byLevel.values()) {
+    levelClusters.sort((a, b) => {
+      const sizeDiff = b.stats.deviceCount - a.stats.deviceCount;
+      if (sizeDiff !== 0) return sizeDiff;
+      return a.label.localeCompare(b.label);
+    });
   }
 
   for (const [level, levelClusters] of byLevel) {

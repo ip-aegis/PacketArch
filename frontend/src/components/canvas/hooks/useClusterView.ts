@@ -18,9 +18,18 @@ import { useUIStore } from '../../../stores/uiStore';
 import type { ClusterViewMode } from '../../../stores/uiStore';
 import { useScenarioStore } from '../../../stores/scenarioStore';
 import type { ClusterNodeData } from '../nodes/ClusterNode';
-import type { FlowEdgeData } from '../edges/FlowEdge';
+import type { FlowEdgeData, AggregateEdgeInfo } from '../edges/FlowEdge';
 import type { ProtocolType } from '../../../types';
 import { PROTOCOL_SHORT_NAMES } from '../../../constants/protocols';
+
+const GROUP_MODE_LABELS: Record<ClusterViewMode, string> = {
+  none: 'None',
+  zone: 'Zone',
+  protocol: 'Protocol',
+  vendor: 'Vendor',
+  purdueLevel: 'Purdue Level',
+  deviceType: 'Device Type',
+};
 import {
   groupByZone,
   groupByProtocol,
@@ -31,6 +40,7 @@ import {
   buildDeviceToClusterMap,
   layoutClusters,
   layoutClustersPurdue,
+  layoutClustersZoneByPurdue,
   layoutExpandedDevices,
   type ClusterData,
 } from '../../../utils/clusterGrouping';
@@ -122,10 +132,17 @@ export function useClusterView(
     const deviceToCluster = buildDeviceToClusterMap(clusters);
 
     // 2. Compute cluster positions
+    //    - purdueLevel mode: horizontal bands keyed off the level itself.
+    //    - zone mode: horizontal bands keyed off each zone's Purdue
+    //      level so the canvas reads like a whiteboard Purdue diagram
+    //      (L0 at the bottom, L4 at the top).
+    //    - everything else: weighted grid.
     const clusterArray = Array.from(clusters.values());
     const clusterPositions =
       clusterViewMode === 'purdueLevel'
         ? layoutClustersPurdue(clusterArray)
+        : clusterViewMode === 'zone'
+        ? layoutClustersZoneByPurdue(clusterArray, zones)
         : layoutClusters(clusterArray);
 
     // 3. Build nodes
@@ -197,6 +214,10 @@ export function useClusterView(
     // 4. Build edges
     const edges: Edge[] = [];
 
+    // Build a reverse map id → ClusterData for quick aggregate-info lookup
+    const clustersById = new Map<string, typeof clusterArray[number]>();
+    for (const c of clusterArray) clustersById.set(c.id, c);
+
     // Aggregate edges between collapsed clusters
     const aggEdges = computeAggregateEdges(flows, deviceToCluster, expandedClusterIds);
     for (const agg of aggEdges) {
@@ -209,11 +230,28 @@ export function useClusterView(
         .map((p) => `${PROTOCOL_SHORT_NAMES[p as ProtocolType] || p}`)
         .join(', ');
 
+      const sourceCluster = clustersById.get(agg.sourceClusterId);
+      const targetCluster = clustersById.get(agg.targetClusterId);
+
+      const aggregateInfo: AggregateEdgeInfo = {
+        sourceClusterId: agg.sourceClusterId,
+        sourceClusterLabel: sourceCluster?.label ?? agg.sourceClusterId,
+        sourceClusterColor: sourceCluster?.color ?? '#6a9fd4',
+        targetClusterId: agg.targetClusterId,
+        targetClusterLabel: targetCluster?.label ?? agg.targetClusterId,
+        targetClusterColor: targetCluster?.color ?? '#6a9fd4',
+        flowIds: agg.flowIds,
+        protocols: agg.protocols,
+        groupMode: clusterViewMode,
+        groupModeLabel: GROUP_MODE_LABELS[clusterViewMode],
+      };
+
       const edgeData: FlowEdgeData = {
         protocol: (agg.protocols[0] ?? 'modbus_tcp') as ProtocolType,
         name: `${agg.flowCount} flows`,
         flowCount: agg.flowCount,
         protocolList: agg.protocols,
+        aggregateInfo,
       };
 
       edges.push({

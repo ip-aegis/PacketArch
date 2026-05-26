@@ -110,18 +110,21 @@ async def _resolve_identity_via_llm(
     zones: dict[str, dict[str, Any]],
     role_inventory: dict[str, int],
     avoid_site_codes: list[str],
+    process_context: str | None = None,
 ) -> SiteIdentity | None:
     """Best-effort LLM identity. Returns None on any failure so the
     caller can drop back to the deterministic identity."""
     try:
         from app.core.features import get_features
-        from app.mcp_server.ai_providers import AIProviderFactory
+        from app.mcp_server.ai_providers import AIProviderFactory, AITask
         from app.ai_services.site_identity_generator import generate_site_identity
 
         if not get_features().ai_enabled:
             return None
 
-        provider = await AIProviderFactory.create(db)
+        from app.ai_services.usage_recorder import AIUsageContext
+
+        provider = await AIProviderFactory.create(db, task=AITask.SITE_IDENTITY)
         identity = await generate_site_identity(
             ai_provider=provider,
             vertical=vertical,
@@ -131,6 +134,8 @@ async def _resolve_identity_via_llm(
             zones=zones,
             role_inventory=role_inventory,
             avoid_site_codes=avoid_site_codes,
+            process_context=process_context,
+            tracking=AIUsageContext(feature="site_identity"),
         )
         return identity
     except Exception as e:  # noqa: BLE001
@@ -152,6 +157,7 @@ async def apply_site_naming_pipeline(
     archetype_id: str | None,
     use_llm: bool = True,
     exclude_scenario_id: str | None = None,
+    process_context: str | None = None,
 ) -> SiteIdentity:
     """Site-identity + rename + re-enrichment pipeline.
 
@@ -188,6 +194,7 @@ async def apply_site_naming_pipeline(
             zones=definition.get("zones") or {},
             role_inventory=role_inventory,
             avoid_site_codes=avoid,
+            process_context=process_context,
         )
 
     if identity is None:

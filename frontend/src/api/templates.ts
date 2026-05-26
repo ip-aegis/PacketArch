@@ -90,6 +90,9 @@ export interface CreateFromTemplateRequest {
   // AI device naming options
   use_ai_naming?: boolean;  // Default false - templates have meaningful built-in names
   process_context?: string; // User description for AI naming (e.g., "candy factory")
+  // Overlay demo-friendly device.name labels on top of the site rail
+  // (default true). SNMP / fingerprint identifiers stay canonical.
+  descriptive_names?: boolean;
 }
 
 export interface CreateFromTemplateResponse {

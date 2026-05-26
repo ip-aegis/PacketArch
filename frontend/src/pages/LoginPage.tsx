@@ -114,17 +114,74 @@ const LoginPage: React.FC = () => {
         }}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Logo */}
-          <div style={{ textAlign: 'center' }}>
+          {/* Brand lockup — mark image + HTML wordmark so the text
+              stays crisp and readable at the card's compact width. */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 14,
+              paddingTop: 4,
+            }}
+          >
             <img
-              src="/logo.png"
-              alt="Industrial Packet Generator"
+              src="/dashboard_logo.png"
+              alt="PacketArch"
               style={{
-                maxWidth: 280,
-                width: '100%',
+                width: 110,
+                height: 110,
                 objectFit: 'contain',
+                filter: 'drop-shadow(0 6px 18px rgba(0, 212, 255, 0.18))',
               }}
             />
+            <div style={{ textAlign: 'center' }}>
+              <div
+                style={{
+                  fontSize: 36,
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  background: 'linear-gradient(180deg, #FFFFFF 0%, #C5E6F4 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  lineHeight: 1.1,
+                }}
+              >
+                PacketArch
+              </div>
+              <div
+                style={{
+                  width: '70%',
+                  height: 2,
+                  margin: '8px auto 10px',
+                  background:
+                    'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.9) 30%, rgba(0,212,255,0.9) 70%, transparent 100%)',
+                  borderRadius: 1,
+                }}
+              />
+              <div
+                style={{
+                  color: '#7FB3CE',
+                  fontSize: 13,
+                  letterSpacing: '2px',
+                  textTransform: 'none',
+                  marginBottom: 4,
+                }}
+              >
+                OT Traffic Simulation Platform
+              </div>
+              <div
+                style={{
+                  color: '#4A7896',
+                  fontSize: 9.5,
+                  letterSpacing: '2.2px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Protocol Accurate · Vendor Realistic · Attack Ready
+              </div>
+            </div>
           </div>
 
           {error && (

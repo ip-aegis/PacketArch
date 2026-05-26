@@ -167,10 +167,18 @@ const Step3Capabilities: React.FC<Props> = ({
 
         {cvEnabled && (
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Form.Item name="cv_url" label="Cyber Vision URL">
+            <Form.Item
+              name="cv_url"
+              label="Cyber Vision URL"
+              tooltip="Base URL of your CV center, e.g. https://cv-center.example.com. No trailing slash."
+            >
               <Input placeholder="https://cv.example.com" />
             </Form.Item>
-            <Form.Item name="cv_api_token" label="API token">
+            <Form.Item
+              name="cv_api_token"
+              label="API token"
+              tooltip="API token from CV with read access. Stored encrypted at rest."
+            >
               <Input.Password autoComplete="off" />
             </Form.Item>
             <Form.Item

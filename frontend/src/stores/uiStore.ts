@@ -9,6 +9,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { AggregateEdgeInfo } from '../components/canvas/edges/FlowEdge';
 
 interface PanelState {
   leftSidebarOpen: boolean;
@@ -71,10 +72,16 @@ interface UIState {
 
   // Active property context
   activePropertyContext: {
-    type: 'device' | 'flow' | 'zone' | 'conduit' | 'multi' | null;
+    type: 'device' | 'flow' | 'zone' | 'conduit' | 'clusterEdge' | 'multi' | null;
     ids: string[];
   };
-  setPropertyContext: (type: 'device' | 'flow' | 'zone' | 'conduit' | 'multi' | null, ids: string[]) => void;
+  setPropertyContext: (type: 'device' | 'flow' | 'zone' | 'conduit' | 'clusterEdge' | 'multi' | null, ids: string[]) => void;
+
+  // Aggregate (cluster-to-cluster) edge selection side-channel.
+  // Populated when the user clicks an aggregate edge in cluster view so the
+  // Properties panel has enough data to describe the group-to-group link.
+  selectedAggregateEdge: AggregateEdgeInfo | null;
+  setSelectedAggregateEdge: (info: AggregateEdgeInfo | null) => void;
 
   // Modals
   activeModal: string | null;
@@ -206,6 +213,9 @@ export const useUIStore = create<UIState>()(
         set({
           activePropertyContext: { type, ids },
         }),
+
+      selectedAggregateEdge: null,
+      setSelectedAggregateEdge: (info) => set({ selectedAggregateEdge: info }),
 
       // Modals
       activeModal: null,

@@ -25,6 +25,7 @@ import {
   Checkbox,
   Modal,
   App,
+  Dropdown,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -41,6 +42,11 @@ import {
   FileAddOutlined,
   ThunderboltOutlined,
   CompassOutlined,
+  FileMarkdownOutlined,
+  FilePdfOutlined,
+  CodeOutlined,
+  DatabaseOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useFeatures } from '../hooks/useFeatures';
@@ -59,7 +65,10 @@ import { verticalConfig } from '../components/scenarios/scenarioConstants';
 import CreateScenarioModal from '../components/scenarios/CreateScenarioModal';
 import TemplateWizardModal from '../components/scenarios/TemplateWizardModal';
 import ImportScenarioModal from '../components/scenarios/ImportScenarioModal';
+import { downloadsApi } from '../api/downloads';
 import QuickDemoModal from '../components/scenarios/QuickDemoModal';
+import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
+import { EmptyState } from '../components/common';
 import {
   useScenarioMutations,
   type ImportedScenarioData,
@@ -215,6 +224,7 @@ const ScenariosPage: React.FC = () => {
     items.push(
       { key: 'duplicate', icon: <CopyOutlined />, label: 'Duplicate' },
       { key: 'export', icon: <ExportOutlined />, label: 'Export JSON' },
+      { key: 'download-report', icon: <FilePdfOutlined />, label: 'Download Report (PDF)' },
       { type: 'divider' },
       { key: 'delete', icon: <DeleteOutlined />, label: 'Delete', danger: true },
     );
@@ -245,6 +255,16 @@ const ScenariosPage: React.FC = () => {
         break;
       case 'export':
         handleExportScenario(scenario.id, scenario.name);
+        break;
+      case 'download-report':
+        void (async () => {
+          try {
+            await scenariosApi.downloadReport(scenario.id, scenario.name);
+            message.success('Scenario report downloaded');
+          } catch {
+            message.error('Failed to generate scenario report');
+          }
+        })();
         break;
       case 'delete':
         confirmDelete(scenario);
@@ -288,6 +308,7 @@ const ScenariosPage: React.FC = () => {
         <div>
           <Title level={3} style={{ color: '#fff', margin: 0 }}>
             Scenarios
+            <ContextualHelpIcon articleId="scenarios" tooltip="Scenario management help" />
           </Title>
           <Text style={{ color: '#6b6b8a' }}>
             Create and manage your OT traffic simulation scenarios
@@ -325,6 +346,60 @@ const ScenariosPage: React.FC = () => {
           >
             Import
           </Button>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'header',
+                  type: 'group',
+                  label: 'Portable Scenario Authoring Kit',
+                },
+                {
+                  key: 'prompt',
+                  icon: <RobotOutlined />,
+                  label: 'LLM prompt — start here (LLM_PROMPT.md)',
+                  onClick: () => downloadsApi.downloadFile('LLM_PROMPT.md'),
+                },
+                {
+                  key: 'spec',
+                  icon: <FileMarkdownOutlined />,
+                  label: 'Authoring guide (SCENARIO_SPEC.md)',
+                  onClick: () => downloadsApi.downloadFile('SCENARIO_SPEC.md'),
+                },
+                {
+                  key: 'schema',
+                  icon: <CodeOutlined />,
+                  label: 'JSON Schema (packetarch-scenario.v1.json)',
+                  onClick: () =>
+                    downloadsApi.downloadFile('packetarch-scenario.v1.json'),
+                },
+                {
+                  key: 'registry',
+                  icon: <DatabaseOutlined />,
+                  label: 'Fingerprint registry snapshot',
+                  onClick: () =>
+                    downloadsApi.downloadFile('fingerprint-registry.v1.json'),
+                },
+                { type: 'divider' },
+                {
+                  key: 'all',
+                  label: 'See all downloads in Settings →',
+                  onClick: () => navigate('/admin/settings?tab=downloads'),
+                  extra: <span style={{ fontSize: 11, color: '#888' }}>Downloads tab</span>,
+                },
+              ],
+            }}
+            placement="bottomRight"
+            trigger={['click']}
+          >
+            <Button
+              icon={<ExportOutlined />}
+              style={{ borderColor: '#2d2d52' }}
+              title="Download the LLM prompt, schema, spec, and registry so external authors or AI tools can produce importable scenario files."
+            >
+              Format spec <DownOutlined style={{ fontSize: 10 }} />
+            </Button>
+          </Dropdown>
           <Button
             icon={<RocketOutlined />}
             style={{ borderColor: '#6CC04A', color: '#6CC04A' }}
@@ -423,32 +498,34 @@ const ScenariosPage: React.FC = () => {
           style={{
             background: '#141428',
             border: '1px solid #2d2d52',
-            textAlign: 'center',
-            padding: 60,
+            padding: 40,
           }}
         >
-          <FolderOutlined
-            style={{ fontSize: 48, color: '#2d2d52', marginBottom: 16 }}
+          <EmptyState
+            icon={<FolderOutlined />}
+            message="No scenarios yet"
+            hint="Pick the workflow that matches how you want to start."
+            marginTop={0}
+            actions={[
+              {
+                label: 'From Template',
+                icon: <CompassOutlined />,
+                primary: true,
+                onClick: () => navigate('/scenarios/guided-builder'),
+              },
+              {
+                label: 'Generate with AI',
+                icon: <RobotOutlined />,
+                onClick: () => navigate('/scenarios/ai-create'),
+              },
+              {
+                label: 'Blank Scenario',
+                icon: <PlusOutlined />,
+                onClick: () => setCreateModalOpen(true),
+              },
+            ]}
+            helpArticleId="scenarios"
           />
-          <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-            No scenarios yet
-          </Title>
-          <Text
-            style={{
-              color: '#6b6b8a',
-              display: 'block',
-              marginBottom: 24,
-            }}
-          >
-            Create your first scenario to start simulating OT traffic
-          </Text>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalOpen(true)}
-          >
-            Create Scenario
-          </Button>
         </Card>
       ) : (
         <>

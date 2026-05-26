@@ -17,7 +17,10 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.ai_services.usage_recorder import AIUsageContext
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -285,7 +288,10 @@ class AIScenarioDesigner:
         Raises:
             ValueError: If provider is not configured
         """
-        return await AIProviderFactory.create(self.db)
+        from app.mcp_server.ai_providers import AITask
+        return await AIProviderFactory.create(
+            self.db, task=AITask.SCENARIO_GENERATION,
+        )
 
     def phase_build_prompts(
         self,
@@ -325,6 +331,7 @@ class AIScenarioDesigner:
         user_prompt: str,
         max_tokens: int = 32768,
         total_device_count: int | None = None,
+        tracking: "AIUsageContext | None" = None,
     ) -> dict[str, Any]:
         """Phase 3: Call the AI provider.
 
@@ -356,6 +363,7 @@ class AIScenarioDesigner:
                         "packetarch-fingerprint-validator",
                         "packetarch-device-naming",
                     ],
+                    tracking=tracking,
                 ),
                 timeout=300.0,
             )
@@ -465,6 +473,7 @@ class AIScenarioDesigner:
         vertical: str | None = None,
         scale: str | None = None,
         preferred_vendors: list[str] | None = None,
+        tracking: "AIUsageContext | None" = None,
     ) -> AIDesignResult:
         """Architecture-rail design path (Phase 6 of the rollout).
 
@@ -588,6 +597,7 @@ class AIScenarioDesigner:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             total_device_count=None,
+            tracking=tracking,
         )
 
         # Phase 4: Parse {archetype_id, vendor_profile, scale}.
@@ -759,6 +769,7 @@ class AIScenarioDesigner:
         device_counts: dict[str, int] | None = None,
         include_vulnerable_devices: bool = False,
         cell_isolation_mode: str = "off",
+        tracking: "AIUsageContext | None" = None,
     ) -> AIDesignResult:
         """Design a scenario using AI with rule-based fallback.
 
@@ -810,6 +821,7 @@ class AIScenarioDesigner:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             total_device_count=total_device_count,
+            tracking=tracking,
         )
 
         # Phase 4: Parse response

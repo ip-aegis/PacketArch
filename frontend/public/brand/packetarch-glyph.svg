@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PacketArch simplified glyph.
+
+  Drops the inner stroke, the packet dots, and the hub glow filter from
+  the primary mark so the shape stays readable at 16-64 px. Same
+  hex+hub+six-satellites geometry; thicker strokes; flatter palette.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 256 256"
+     width="256" height="256"
+     role="img"
+     aria-label="PacketArch">
+  <defs>
+    <linearGradient id="hex-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#7FE3FF"/>
+      <stop offset="100%" stop-color="#0299C2"/>
+    </linearGradient>
+    <radialGradient id="hex-fill" cx="50%" cy="40%" r="60%">
+      <stop offset="0%"  stop-color="#0B6E91" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#06182C" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="hub-fill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#E8FBFF"/>
+      <stop offset="60%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#0488AC"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Outer hexagon, slightly thicker stroke than the primary mark
+       so silhouette holds at small sizes. -->
+  <polygon
+    points="20,128 74,34.46 182,34.46 236,128 182,221.54 74,221.54"
+    fill="url(#hex-fill)"
+    stroke="url(#hex-stroke)"
+    stroke-width="10"
+    stroke-linejoin="round"/>
+
+  <!-- Six radial spokes. Thicker than the primary so they read at 16-24 px. -->
+  <g stroke="#34D2FF" stroke-width="4" stroke-linecap="round">
+    <line x1="128" y1="128" x2="188" y2="128"/>
+    <line x1="128" y1="128" x2="158" y2="76.04"/>
+    <line x1="128" y1="128" x2="98"  y2="76.04"/>
+    <line x1="128" y1="128" x2="68"  y2="128"/>
+    <line x1="128" y1="128" x2="98"  y2="179.96"/>
+    <line x1="128" y1="128" x2="158" y2="179.96"/>
+  </g>
+
+  <!-- Satellite nodes — larger than the primary so they remain visible at 16px. -->
+  <g fill="#CFF6FF">
+    <circle cx="188" cy="128"    r="12"/>
+    <circle cx="158" cy="76.04"  r="12"/>
+    <circle cx="98"  cy="76.04"  r="12"/>
+    <circle cx="68"  cy="128"    r="12"/>
+    <circle cx="98"  cy="179.96" r="12"/>
+    <circle cx="158" cy="179.96" r="12"/>
+  </g>
+
+  <!-- Central hub: bigger and flatter than primary so it dominates at tiny sizes. -->
+  <circle cx="128" cy="128" r="18" fill="url(#hub-fill)" stroke="#E8FBFF" stroke-width="2"/>
+</svg>

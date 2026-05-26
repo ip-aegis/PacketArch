@@ -19,7 +19,7 @@ from app.core.security import (
     verify_token,
 )
 from app.models.user import User
-from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
+from app.schemas.user import RefreshRequest, Token, UserCreate, UserLogin, UserResponse
 from app.services import ldap_service
 
 logger = logging.getLogger(__name__)
@@ -140,11 +140,11 @@ async def login(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str,
+    body: RefreshRequest,
     db: DBSession,
 ) -> Token:
     """Refresh access token using refresh token."""
-    payload = verify_token(refresh_token, token_type="refresh")
+    payload = verify_token(body.refresh_token, token_type="refresh")
 
     if payload is None:
         raise HTTPException(
@@ -186,6 +186,19 @@ async def get_current_user_info(
     current_user: CurrentUser,
 ) -> UserResponse:
     """Get current user information."""
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/me/welcome-seen", response_model=UserResponse)
+async def mark_welcome_seen(
+    current_user: CurrentUser,
+    db: DBSession,
+) -> UserResponse:
+    """Mark the Welcome Tour as dismissed for the current user."""
+    if not current_user.welcome_seen:
+        current_user.welcome_seen = True
+        await db.commit()
+        await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
 
 

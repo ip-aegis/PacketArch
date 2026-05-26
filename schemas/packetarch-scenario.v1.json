@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://packetarch.io/schemas/scenario.v1.json",
+  "title": "PacketArch Portable Scenario",
+  "description": "Public authoring format for PacketArch OT scenarios. Generated documents can be imported via POST /api/v1/scenarios/import/portable. The importer resolves vendor fingerprints, generates vendor-correct MAC addresses, allocates IP addresses, and auto-creates conduits — authors do not need to supply these.",
+  "type": "object",
+  "required": ["format_version", "name", "zones", "devices", "flows"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference. Should point at this schema."
+    },
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Portable scenario schema version. Pinned to 1.0 for this revision."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Human-readable scenario name."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional long-form description of what this scenario simulates."
+    },
+    "vertical": {
+      "$ref": "#/$defs/Vertical",
+      "description": "Industry vertical. Drives default conduit policy, role inventory expectations, and process simulation templates."
+    },
+    "total_duration_ms": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 86400000,
+      "default": 60000,
+      "description": "Total scenario duration in milliseconds. PCAP mode runs for exactly this long; agent mode treats it as a planning hint."
+    },
+    "zones": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Zone" },
+      "description": "Network zones (Purdue model levels). Every device must belong to a declared zone."
+    },
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Device" },
+      "description": "Device specifications. Each entry may produce multiple devices via `count` + `name_pattern`."
+    },
+    "flows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Flow" },
+      "description": "Traffic flow specifications. Flows match endpoints by device `type`, not by name."
+    },
+    "conduits": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Conduit" },
+      "description": "IEC 62443 conduits — explicit cross-zone communication permissions. If omitted, the importer auto-generates conduits matching the declared flows."
+    },
+    "anomalies": {
+      "$ref": "#/$defs/SuggestedAnomalies",
+      "description": "Optional suggested anomaly types (advisory metadata; does not inject anomalies)."
+    },
+    "external_comms": {
+      "$ref": "#/$defs/ExternalComms",
+      "description": "Optional external-communication configuration (C2 beaconing, exfiltration, recon)."
+    },
+    "phases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Phase" },
+      "description": "Optional deployment phases. If omitted, default phases are derived from `total_duration_ms`."
+    },
+    "modes": {
+      "$ref": "#/$defs/ScenarioModes",
+      "description": "Optional behavioral mode flags."
+    },
+    "preferences": {
+      "$ref": "#/$defs/Preferences",
+      "description": "Optional preferences for the importer's fingerprint resolver. Used only when devices omit `vendor` or `fingerprint_model`."
+    }
+  },
+
+  "$defs": {
+    "Vertical": {
+      "type": "string",
+      "enum": [
+        "manufacturing",
+        "water_wastewater",
+        "energy_power",
+        "oil_gas",
+        "transportation",
+        "building_automation",
+        "distribution_logistics",
+        "testing"
+      ]
+    },
+
+    "Protocol": {
+      "type": "string",
+      "description": "Protocol identifier. Aliases are accepted: `modbus`→`modbus_tcp`, `enip`→`ethernet_ip`, `bacnet_ip`→`bacnet`, `s7comm_plus`→`s7comm`, `profisafe`→`profinet`, `cip_safety`→`ethernet_ip`.",
+      "enum": [
+        "modbus_tcp",
+        "ethernet_ip",
+        "profinet",
+        "s7comm",
+        "bacnet",
+        "snmp",
+        "opc_ua",
+        "dnp3",
+        "iec104",
+        "modbus",
+        "enip",
+        "bacnet_ip",
+        "s7comm_plus",
+        "profisafe",
+        "cip_safety"
+      ]
+    },
+
+    "SecurityLevel": {
+      "type": "string",
+      "enum": ["minimal", "standard", "high", "critical"]
+    },
+
+    "ConduitDirection": {
+      "type": "string",
+      "enum": ["bidirectional", "a_to_b", "b_to_a"]
+    },
+
+    "FlowPattern": {
+      "type": "string",
+      "enum": ["poll", "cyclic_io", "subscription", "safety", "event"]
+    },
+
+    "JitterType": {
+      "type": "string",
+      "enum": ["uniform", "gaussian", "exponential"]
+    },
+
+    "Zone": {
+      "type": "object",
+      "required": ["id", "name", "purdue_level"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Stable zone identifier. Used by devices, flows, and conduits to reference this zone. Lowercase letters, digits, and underscores only."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "purdue_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5,
+          "description": "Purdue model level. 0=process/field, 1=basic control (PLCs/RTUs/drives), 2=area supervision (HMIs), 3=operations (SCADA/historians), 3.5=IDMZ, 4=enterprise IT."
+        },
+        "vlan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094,
+          "description": "Optional VLAN ID. If omitted, the importer assigns one."
+        },
+        "security_level": {
+          "$ref": "#/$defs/SecurityLevel",
+          "default": "standard"
+        },
+        "subnet": {
+          "type": "string",
+          "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$",
+          "description": "Optional CIDR subnet override. If omitted, the importer allocates a /24 inside the scenario's auto-assigned /16."
+        }
+      }
+    },
+
+    "Device": {
+      "type": "object",
+      "required": ["type", "zone", "protocols"],
+      "additionalProperties": false,
+      "description": "Device specification. Three authoring modes are supported:\n  1. CAPABILITY mode — supply `type` + `protocols` only. The importer picks vendor + model from the local catalog.\n  2. VENDOR-PINNED mode — also supply `vendor`. The importer picks a model from that vendor's catalog.\n  3. FULLY-SPECIFIED mode — also supply `fingerprint_model`. The importer uses that exact model.\n\nResolution is deterministic (seeded by scenario name + device index), so the same file always materializes the same scenario on the same install. Capability mode is recommended for airgapped authoring — the author needs no knowledge of the PacketArch device catalog.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Device role keyword (e.g., plc, hmi, rtu, drive, sensor, historian, engineering_workstation, scada). Used by flow matching and fingerprint resolution."
+        },
+        "vendor": {
+          "type": "string",
+          "description": "OPTIONAL. Vendor name in lowercase (e.g., siemens, rockwell, schneider, ge, honeywell, abb, yokogawa). If omitted, the importer picks one according to the top-level `preferences` block. Required only when you want to pin a specific vendor."
+        },
+        "fingerprint_model": {
+          "type": "string",
+          "description": "OPTIONAL. Specific device model ID from the PacketArch device template catalog (e.g., '1756-L83E', 'CPU 1517-3 PN/DP'). If omitted, the importer picks a model that matches `vendor` (if set), `type`, and `protocols`. Authors writing for airgapped installs should leave this blank — the catalog ships with the install."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Number of devices to instantiate from this spec. The importer expands `count: N` into N devices using `name_pattern`."
+        },
+        "zone": {
+          "type": "string",
+          "description": "ID of the zone this device belongs to. Must match a zone declared in `zones`."
+        },
+        "name_pattern": {
+          "type": "string",
+          "description": "Device name template. Supports `{n}` and `{n:02d}` for the per-spec index (1-based). If omitted, a default like '{type}-{n:03d}' is applied. For count=1, a literal name (no placeholders) is fine."
+        },
+        "protocols": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Protocol" },
+          "description": "Protocols this device speaks. Must be vendor-compatible (e.g., Siemens devices should use PROFINET/S7comm, not EtherNet/IP)."
+        },
+        "role": {
+          "type": "string",
+          "description": "Free-text functional role label (e.g., 'Process Controller', 'Tank Level Sensor'). Cosmetic; does not affect generation."
+        },
+        "architectural_role": {
+          "type": "string",
+          "description": "Canonical role from the PacketArch role catalog (scada_primary, engineering_workstation, cell_controller, area_supervisor_plc, jump_server, asset_management_server, historian_replica, etc.). Used by readiness checks for role-inventory health. See /api/v1/architecture/roles."
+        },
+        "cve_ids": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^CVE-[0-9]{4}-[0-9]+$" },
+          "description": "Optional CVE identifiers for vulnerable firmware emulation."
+        },
+        "error_config": {
+          "$ref": "#/$defs/ErrorConfig"
+        }
+      }
+    },
+
+    "ErrorConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exception_rate": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.001 },
+        "timeout_rate":   { "type": "number", "minimum": 0, "maximum": 1, "default": 0.0005 },
+        "retry_behavior": { "type": "boolean", "default": true },
+        "max_retries":    { "type": "integer", "minimum": 0, "default": 3 }
+      }
+    },
+
+    "Flow": {
+      "type": "object",
+      "required": ["protocol", "pattern", "interval_ms", "source_types", "target_types"],
+      "additionalProperties": false,
+      "properties": {
+        "protocol": { "$ref": "#/$defs/Protocol" },
+        "pattern":  { "$ref": "#/$defs/FlowPattern" },
+        "interval_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Polling/cycle interval in milliseconds. Modbus poll: 500–5000ms is typical. Cyclic I/O: 1–32ms. SNMP poll: 30000–60000ms."
+        },
+        "source_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Device types that initiate this flow. The importer expands to all matching devices."
+        },
+        "target_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Device types that receive this flow."
+        },
+        "source_zones": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional zone filter for source devices. If omitted, sources from all zones are eligible."
+        },
+        "target_zones": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional zone filter for target devices."
+        },
+        "jitter_ms":   { "type": "integer", "minimum": 0, "default": 0 },
+        "jitter_type": { "$ref": "#/$defs/JitterType", "default": "uniform" }
+      }
+    },
+
+    "Conduit": {
+      "type": "object",
+      "required": ["id", "source_zone", "target_zone"],
+      "additionalProperties": false,
+      "properties": {
+        "id":   { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "name": { "type": "string" },
+        "source_zone":     { "type": "string", "description": "ID of source zone." },
+        "target_zone":     { "type": "string", "description": "ID of target zone." },
+        "direction":       { "$ref": "#/$defs/ConduitDirection", "default": "bidirectional" },
+        "allowed_protocols": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Protocol" },
+          "default": []
+        },
+        "security_level":  { "$ref": "#/$defs/SecurityLevel", "default": "standard" },
+        "description":     { "type": "string" }
+      }
+    },
+
+    "SuggestedAnomalies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timing":   { "type": "array", "items": { "type": "string" } },
+        "protocol": { "type": "array", "items": { "type": "string" } },
+        "sequence": { "type": "array", "items": { "type": "string" } },
+        "payload":  { "type": "array", "items": { "type": "string" } },
+        "network":  { "type": "array", "items": { "type": "string" } },
+        "security": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "ExternalComms": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_c2":      { "type": "boolean", "default": false },
+        "c2_protocol":    { "type": "string", "enum": ["http", "https", "dns"], "default": "http" },
+        "c2_pattern":     { "type": "string", "default": "jittered_1m" },
+        "enable_exfil":   { "type": "boolean", "default": false },
+        "exfil_protocol": { "type": "string", "enum": ["http", "dns"], "default": "http" },
+        "exfil_data_size":{ "type": "integer", "minimum": 1, "default": 1024 },
+        "enable_exploits":{ "type": "boolean", "default": false },
+        "exploit_patterns":{ "type": "array", "items": { "type": "string" } },
+        "enable_recon":   { "type": "boolean", "default": false },
+        "scan_ot_ports":  { "type": "boolean", "default": true },
+        "target_device_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["hmi", "plc"]
+        }
+      }
+    },
+
+    "Phase": {
+      "type": "object",
+      "required": ["name", "start_time_ms", "duration_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "name":          { "type": "string" },
+        "description":   { "type": "string" },
+        "start_time_ms": { "type": "integer", "minimum": 0 },
+        "duration_ms":   { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "ScenarioModes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clean_demo_mode":           { "type": "boolean", "default": false },
+        "broadcast_traffic_enabled": { "type": "boolean", "default": true },
+        "cell_isolation_mode":       { "type": "string", "enum": ["off", "soft", "hard"], "default": "off" }
+      }
+    },
+
+    "Preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Resolver preferences. Only consulted for devices that omit `vendor` or `fingerprint_model`. Fully-specified devices are not affected.",
+      "properties": {
+        "vendor_strategy": {
+          "type": "string",
+          "enum": ["preferred", "diverse", "any"],
+          "default": "preferred",
+          "description": "How the resolver picks vendors for capability-mode devices.\n  - `preferred`: try `preferred_vendors` in order, fall back to `any` if none can serve the protocols.\n  - `diverse`: spread vendor selection across multiple vendors (avoids monoculture).\n  - `any`: pick whichever vendor has the largest catalog matching `type` + `protocols`."
+        },
+        "preferred_vendors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Ordered list of vendors to prefer (lowercase, e.g., `[\"siemens\", \"rockwell\"]`). Empty list means no preference."
+        },
+        "exclude_vendors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Vendors to avoid entirely."
+        },
+        "deterministic_seed": {
+          "type": "string",
+          "description": "Optional explicit seed for the resolver. If omitted, the seed is derived from the scenario `name` so identical files produce identical scenarios."
+        }
+      }
+    }
+  }
+}

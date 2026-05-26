@@ -80,3 +80,12 @@ backend/app/static/agent/*.tar.gz
 # Agent build staging directory (created during image build)
 docker/packetarch-agent/_shared/
 screenshots/
+
+# Runtime user uploads (CSVs, PCAPs, rule dumps) — not source
+uploads/
+
+# Internal reference docs, not part of project source
+CIRCUIT/
+
+# Dead backup of templates refactored into services/device_templates package
+backend/app/scenario_templates_legacy_backup/

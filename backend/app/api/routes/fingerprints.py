@@ -213,6 +213,81 @@ async def list_fingerprint_vendors(
     ]
 
 
+class PortableRegistryEntry(BaseModel):
+    """One entry in the portable scenario fingerprint registry.
+
+    These are the valid `(vendor, model, type, protocols)` tuples that
+    portable scenario authors can use as `fingerprint_model` values.
+    """
+
+    vendor: str
+    model: str
+    device_type: str
+    protocols: list[str]
+    description: str | None = None
+
+
+class PortableRegistryResponse(BaseModel):
+    """Response for GET /api/v1/fingerprints/registry."""
+
+    format_version: str
+    entries: list[PortableRegistryEntry]
+    vendors: list[str]
+    device_types: list[str]
+
+
+@router.get(
+    "/registry",
+    response_model=PortableRegistryResponse,
+    summary="Discovery endpoint for portable-scenario authors",
+)
+async def get_portable_fingerprint_registry(
+    _current_user: CurrentUser,
+    vendor: str | None = Query(None, description="Filter to one vendor"),
+    device_type: str | None = Query(
+        None, description="Filter to one device type (plc, hmi, drive, ...)",
+    ),
+) -> PortableRegistryResponse:
+    """Return the valid `fingerprint_model` registry for portable scenarios.
+
+    External authoring tools (AI generators, custom scripts) should fetch
+    this before producing a `.pascenario.json` so they only emit
+    `fingerprint_model` values the importer can resolve.
+
+    Pair with GET /scenarios/schema/portable.json (the JSON Schema).
+    """
+    from app.services.device_templates import get_all_templates
+
+    templates = get_all_templates()
+
+    if vendor:
+        templates = [t for t in templates if t.vendor.lower() == vendor.lower()]
+    if device_type:
+        templates = [t for t in templates if t.device_type == device_type]
+
+    entries = [
+        PortableRegistryEntry(
+            vendor=t.vendor.lower(),
+            model=t.model,
+            device_type=t.device_type,
+            protocols=list(t.supported_protocols),
+            description=t.description or None,
+        )
+        for t in templates
+    ]
+    entries.sort(key=lambda e: (e.vendor, e.device_type, e.model))
+
+    vendors = sorted({e.vendor for e in entries})
+    device_types = sorted({e.device_type for e in entries})
+
+    return PortableRegistryResponse(
+        format_version="1.0",
+        entries=entries,
+        vendors=vendors,
+        device_types=device_types,
+    )
+
+
 @router.get("/list", response_model=list[FingerprintSummaryResponse])
 async def list_fingerprints(
     _current_user: CurrentUser,

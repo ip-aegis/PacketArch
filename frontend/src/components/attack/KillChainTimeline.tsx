@@ -17,7 +17,8 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { attacksApi } from '../../api/attacks';
-import type { AttackState } from '../../types/attackPlaybook';
+import type { ActionReport, AttackState, StageReport } from '../../types/attackPlaybook';
+import AttackIpMatrix from './AttackIpMatrix';
 
 const { Text } = Typography;
 
@@ -176,6 +177,30 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
 
   const totalDuration = stageList.reduce((sum, s) => sum + s.duration_seconds, 0);
 
+  // ── Action-level data (from the embedded report) ──────────────────
+  // The orchestrator's report rides alongside live state. Each stage
+  // carries its action list with fire counts, packet counts, target
+  // hits, and fired_at timestamps. We use this for:
+  //   - Action dots inside the current stage segment
+  //   - The live "recent actions" stream below the timeline
+  const report = currentState.report;
+  const currentStageReport: StageReport | undefined =
+    report?.stages?.[currentState.current_stage_index];
+  const currentStageActions: ActionReport[] = currentStageReport?.actions ?? [];
+
+  // Flat list of every action that's fired, sorted newest-first.
+  // Capped at 5 entries for the sidebar — full history lives in the
+  // after-action report modal.
+  const recentActions: Array<ActionReport & { stageName: string; stageColor: string }> =
+    (report?.stages ?? [])
+      .flatMap((s) =>
+        s.actions
+          .filter((a) => a.fire_count > 0)
+          .map((a) => ({ ...a, stageName: s.stage_name, stageColor: s.color })),
+      )
+      .sort((a, b) => b.fired_at - a.fired_at)
+      .slice(0, 5);
+
   return (
     <div style={{ marginTop: 8, padding: '6px 0' }}>
       {/* Header */}
@@ -309,6 +334,45 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
                     }}
                   />
                 )}
+                {/* Action dots — one per action in the current stage,
+                    overlaid on the active segment. Filled = fired,
+                    outline = pending. Tiny but high-signal: "I've
+                    completed 3 of 7 actions in this stage". */}
+                {isCurrent && currentStageActions.length > 0 && currentStageActions.length <= 12 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: 0,
+                      right: 0,
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      justifyContent: 'space-evenly',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                      paddingInline: 4,
+                    }}
+                  >
+                    {currentStageActions.map((a) => {
+                      const fired = a.fire_count > 0;
+                      return (
+                        <div
+                          key={a.action_id}
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: '50%',
+                            background: fired ? '#fff' : 'transparent',
+                            border: '1px solid rgba(255,255,255,0.8)',
+                            boxShadow: fired
+                              ? '0 0 4px rgba(255,255,255,0.9)'
+                              : undefined,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </Tooltip>
           );
@@ -342,6 +406,144 @@ const KillChainTimeline: React.FC<KillChainTimelineProps> = ({
           );
         })}
       </div>
+
+      {/* Current-stage action progress + recent-action stream. Only
+          rendered when the orchestrator's embedded report has data;
+          older agents (pre-v1.44) skip this gracefully. */}
+      {currentStageReport && currentStageActions.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 4,
+            }}
+          >
+            <Text style={{ color: '#6a8caf', fontSize: 9 }}>
+              Stage actions:{' '}
+              <span style={{ color: '#ffa39e', fontWeight: 600 }}>
+                {currentStageActions.filter((a) => a.fire_count > 0).length}
+              </span>
+              {' / '}
+              {currentStageActions.length}
+            </Text>
+            {currentStageReport.packets_emitted > 0 && (
+              <Text style={{ color: '#6a8caf', fontSize: 9 }}>
+                Stage packets:{' '}
+                <span style={{ color: '#ffa39e', fontWeight: 600 }}>
+                  {currentStageReport.packets_emitted}
+                </span>
+              </Text>
+            )}
+          </div>
+        </div>
+      )}
+
+      {recentActions.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <Text
+            style={{
+              color: '#8aa4bc',
+              fontSize: 9,
+              display: 'block',
+              marginBottom: 3,
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
+            }}
+          >
+            Recent actions
+          </Text>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+              maxHeight: 130,
+              overflowY: 'auto',
+            }}
+          >
+            {recentActions.map((a) => (
+              <Tooltip
+                key={`${a.action_id}-${a.fired_at}`}
+                title={
+                  <div style={{ maxWidth: 280 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                      {a.action_name}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#a8a8c0' }}>
+                      {a.description || a.action_type}
+                    </div>
+                    {a.expected_cv_detection && (
+                      <div style={{ fontSize: 11, marginTop: 6, color: '#52c41a' }}>
+                        CV: {a.expected_cv_detection}
+                      </div>
+                    )}
+                  </div>
+                }
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '3px 6px',
+                    background: '#0d1117',
+                    borderRadius: 3,
+                    borderLeft: `2px solid ${a.stageColor}`,
+                    cursor: 'default',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#e6f1ff',
+                      fontSize: 10,
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {a.action_name}
+                  </Text>
+                  {a.mitre_technique && (
+                    <Tag
+                      style={{
+                        margin: 0,
+                        fontSize: 8,
+                        lineHeight: '12px',
+                        padding: '0 3px',
+                        background: '#1d1d3a',
+                        borderColor: '#3d3d7a',
+                        color: '#b3b3ff',
+                      }}
+                    >
+                      {a.mitre_technique}
+                    </Tag>
+                  )}
+                  {a.fire_count > 1 && (
+                    <Text style={{ color: '#52c41a', fontSize: 9 }}>
+                      ×{a.fire_count}
+                    </Text>
+                  )}
+                  <Text style={{ color: '#ff7875', fontSize: 9, minWidth: 32, textAlign: 'right' }}>
+                    {a.packets_emitted}p
+                  </Text>
+                </div>
+              </Tooltip>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Live IP attack matrix — appears when the report carries at
+          least one (attacker, target) pair. Compact for the sidebar;
+          the full sortable table lives in the after-action modal. */}
+      {report && (
+        <div style={{ marginTop: 8 }}>
+          <AttackIpMatrix report={report} variant="compact" maxRows={5} />
+        </div>
+      )}
 
       {/* Pulse animation */}
       <style>{`

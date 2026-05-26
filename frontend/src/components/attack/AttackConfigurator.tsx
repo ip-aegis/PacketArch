@@ -7,10 +7,11 @@
  * AttackConfigurator - Configure playbook settings before deployment.
  */
 
-import React from 'react';
-import { Button, Collapse, InputNumber, Slider, Space, Switch, Tag, Typography, Radio } from 'antd';
-import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Button, Collapse, InputNumber, Modal, Slider, Space, Switch, Tag, Typography, Radio } from 'antd';
+import { ArrowLeftOutlined, AppstoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAttackStore } from '../../stores/attackStore';
+import MitreTechniquePanel from './MitreTechniquePanel';
 
 const { Text, Title } = Typography;
 
@@ -41,12 +42,21 @@ const severityColors: Record<string, string> = {
 
 const AttackConfigurator: React.FC<AttackConfiguratorProps> = ({ onBack, onApply, isDeployed, onInject, injectionStatus = 'idle' }) => {
   const { selectedPlaybook, playbookConfig, setConfig } = useAttackStore();
+  const [mitreModalOpen, setMitreModalOpen] = useState(false);
 
   if (!selectedPlaybook || !playbookConfig) return null;
 
   const updateConfig = (updates: Partial<typeof playbookConfig>) => {
     setConfig({ ...playbookConfig, ...updates });
   };
+
+  // Count unique MITRE techniques referenced by the playbook for the
+  // pre-flight CTA. Cheap; gates an "X techniques planned" badge.
+  const techniqueCount = new Set(
+    selectedPlaybook.stages.flatMap((s) =>
+      s.actions.map((a) => a.mitre_technique).filter(Boolean),
+    ),
+  ).size;
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -219,6 +229,44 @@ const AttackConfigurator: React.FC<AttackConfiguratorProps> = ({ onBack, onApply
           },
         ]}
       />
+
+      {/* MITRE coverage preview — opens the rich panel in a modal so
+          the rich grid view isn't constrained to the narrow sidebar. */}
+      <Button
+        type="dashed"
+        block
+        size="small"
+        icon={<AppstoreOutlined />}
+        onClick={() => setMitreModalOpen(true)}
+        style={{
+          marginTop: 8,
+          borderColor: '#3d3d7a',
+          color: '#b3b3ff',
+        }}
+      >
+        MITRE ATT&CK coverage ({techniqueCount} technique
+        {techniqueCount === 1 ? '' : 's'} planned)
+      </Button>
+
+      <Modal
+        title={
+          <Space>
+            <AppstoreOutlined />
+            <span>Planned MITRE ATT&CK coverage</span>
+          </Space>
+        }
+        open={mitreModalOpen}
+        onCancel={() => setMitreModalOpen(false)}
+        width={820}
+        footer={null}
+        styles={{
+          header: { background: '#141428', borderBottom: '1px solid #2d2d52' },
+          body: { background: '#0e0e1f', padding: 16, maxHeight: '80vh', overflow: 'auto' },
+          content: { background: '#0e0e1f' },
+        }}
+      >
+        <MitreTechniquePanel playbook={selectedPlaybook} />
+      </Modal>
 
       {/* Action buttons */}
       {isDeployed ? (

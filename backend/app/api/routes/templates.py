@@ -40,9 +40,6 @@ from app.services.device_identity_enricher import (
     enrich_device_serial_numbers,
     enrich_device_unique_identifiers,
 )
-from app.ai_services.device_namer import AIDeviceNamer, DeviceNamingContext
-from app.mcp_server.ai_providers import AIProviderFactory
-
 logger = logging.getLogger(__name__)
 
 
@@ -121,6 +118,14 @@ class CreateFromTemplateRequest(BaseModel):
         None,
         description="Optional additional context about the industrial process for AI naming",
         max_length=500,
+    )
+    descriptive_names: bool = Field(
+        True,
+        description=(
+            "Overlay demo-friendly device.name labels on top of the structured "
+            "site rail. Canonical SNMP sys_name and other fingerprint identifiers "
+            "are left untouched so Cyber Vision matching still works."
+        ),
     )
 
 
@@ -453,46 +458,12 @@ async def create_scenario_from_template(
 
             devices[device_id] = device
 
-    # STEP 4.5: AI-Enhanced Device Naming
-    # Generate meaningful, process-aware device names using AI
+    # NOTE: device renames now happen exclusively in STEP 7
+    # (apply_site_naming_pipeline). Running AIDeviceNamer here as well
+    # only burns an extra LLM call — the site rail overwrites every
+    # name. `request.process_context` and `request.use_ai_naming` flow
+    # into the site identity LLM prompt below.
     ai_naming_applied = False
-    if request.use_ai_naming:
-        try:
-            ai_provider = await AIProviderFactory.create(db)
-            namer = AIDeviceNamer()
-
-            context = DeviceNamingContext(
-                vertical=request.vertical,
-                template_name=request.template_name,
-                template_description=template.get("description", ""),
-                zones=zones,
-                process_context=request.process_context,
-            )
-
-            # Convert devices dict to list for AI processing
-            device_list = list(devices.values())
-
-            # Enhance names with AI
-            enhanced_devices = await namer.enhance_device_names(
-                devices=device_list,
-                context=context,
-                ai_provider=ai_provider,
-            )
-
-            # Rebuild devices dict with enhanced names
-            devices = {d["id"]: d for d in enhanced_devices}
-            ai_naming_applied = True
-
-            logger.info(
-                f"AI-enhanced naming applied to {len(devices)} devices"
-            )
-
-        except Exception as e:
-            logger.warning(
-                f"AI naming failed, using generic names: {e}. "
-                "Check that AI provider is configured in Settings."
-            )
-            # Continue with generic names - don't fail scenario creation
 
     # STEP 4.6: Enrich protocol identities with device names
     # This ensures Cyber Vision displays the contextual device names (AI-generated or generic)
@@ -804,6 +775,7 @@ async def create_scenario_from_template(
                 archetype_cfg.archetype_id if archetype_cfg is not None else None
             ),
             use_llm=True,
+            process_context=request.process_context,
         )
         ai_naming_applied = (site_identity.source == "llm")
         logger.info(
@@ -817,6 +789,27 @@ async def create_scenario_from_template(
             "Site naming pipeline failed for scenario %s: %s — "
             "keeping archetype/template names",
             scenario.id, e,
+        )
+
+    # Overlay demo-friendly device.name labels on top of the structured
+    # site rail when the caller asked for them. The site_naming rail
+    # has already set canonical sys_name etc. — this only touches the
+    # display name, so Cyber Vision matching is unaffected.
+    if request.descriptive_names:
+        from app.services.architecture.descriptive_overlay import (
+            apply_descriptive_overlay,
+        )
+
+        await apply_descriptive_overlay(
+            db=db,
+            definition=definition,
+            vertical=request.vertical,
+            scenario_name=request.scenario_name,
+            scenario_description=request.description or template.get("description", ""),
+            process_context=request.process_context,
+            user_id=current_user.id,
+            scenario_id=scenario.id,
+            feature_tag="device_naming_descriptive_overlay_template",
         )
 
     # Update scenario with final definition

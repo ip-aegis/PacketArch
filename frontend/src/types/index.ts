@@ -16,6 +16,7 @@ export interface User {
   is_admin: boolean;
   created_at: string;
   last_login: string | null;
+  welcome_seen: boolean;
 }
 
 export interface Token {

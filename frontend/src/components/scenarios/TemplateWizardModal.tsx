@@ -61,6 +61,7 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
     useState<TemplateSummary | null>(null);
   const [useAINaming, setUseAINaming] = useState(false);
   const [processContext, setProcessContext] = useState('');
+  const [descriptiveNames, setDescriptiveNames] = useState(true);
   const [form] = Form.useForm();
 
   // Fetch verticals
@@ -82,6 +83,7 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
     setSelectedTemplate(null);
     setUseAINaming(false);
     setProcessContext('');
+    setDescriptiveNames(true);
     form.resetFields();
     onCancel();
   };
@@ -100,6 +102,7 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
       phase_preset: 'standard',
       use_ai_naming: useAINaming,
       process_context: useAINaming ? processContext : undefined,
+      descriptive_names: descriptiveNames,
     });
   };
 
@@ -426,6 +429,21 @@ const TemplateWizardModal: React.FC<TemplateWizardModalProps> = ({
                 />
               </Form.Item>
             )}
+
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Checkbox
+                checked={descriptiveNames}
+                onChange={(e) => setDescriptiveNames(e.target.checked)}
+                style={{ color: '#a8a8c0' }}
+              >
+                Demo-friendly descriptive names
+              </Checkbox>
+              <div style={{ color: '#6b6b8a', fontSize: 12, marginTop: 4, marginLeft: 24 }}>
+                Devices show as e.g. <em>Front_Mixing_Line_PLC</em>. Untick for
+                structured site-coded names (<em>PDX-BKY-MIX-PLC-01</em>) for
+                production / Cyber Vision workflows.
+              </div>
+            </Form.Item>
 
             <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
               <Space

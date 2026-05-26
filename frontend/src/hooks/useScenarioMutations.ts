@@ -26,12 +26,36 @@ import {
 } from '../api/templates';
 import { extractErrorMessage } from '../utils/errorUtils';
 
-export interface ImportedScenarioData {
-  name: string;
-  definition: Record<string, unknown>;
-  vertical?: string;
-  description?: string;
-}
+/**
+ * Discriminated payload from the import modal.
+ *
+ * - `legacy`  — a previously-exported scenario from PacketArch (has top-level
+ *               `name` + `definition`). Goes to POST /scenarios/import.
+ * - `portable`— a portable scenario authored against the public JSON Schema
+ *               (has `format_version: "1.0"` + top-level `zones`/`devices`/
+ *               `flows`). Goes to POST /scenarios/import/portable, which runs
+ *               the fingerprint resolver and template materializer.
+ */
+export type ImportedScenarioData =
+  | {
+      format: 'legacy';
+      payload: {
+        name: string;
+        definition: Record<string, unknown>;
+        vertical?: string;
+        description?: string;
+        [key: string]: unknown;
+      };
+    }
+  | {
+      format: 'portable';
+      payload: {
+        name: string;
+        vertical?: string;
+        description?: string;
+        [key: string]: unknown;
+      };
+    };
 
 export interface ForceDeleteModalState {
   visible: boolean;
@@ -186,9 +210,16 @@ export function useScenarioMutations(options: UseScenarioMutationsOptions = {}) 
   });
 
   // ── Import ─────────────────────────────────────────────────────────
+  // Two import paths share this mutation:
+  //   legacy   → POST /scenarios/import           (previously-exported file)
+  //   portable → POST /scenarios/import/portable  (public authoring format)
   const importMutation = useMutation({
-    mutationFn: (data: ImportedScenarioData) =>
-      scenariosApi.import(data as Record<string, unknown>),
+    mutationFn: (data: ImportedScenarioData) => {
+      if (data.format === 'portable') {
+        return scenariosApi.importPortable(data.payload);
+      }
+      return scenariosApi.import(data.payload);
+    },
     onSuccess: (scenario) => {
       queryClient.invalidateQueries({ queryKey: ['scenarios'] });
       message.success('Scenario imported successfully');

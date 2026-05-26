@@ -1,0 +1,3197 @@
+{
+    "format_version": "1.0",
+    "entries": [
+        {
+            "vendor": "abb",
+            "model": "ACS580",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "ABB ACS580"
+        },
+        {
+            "vendor": "abb",
+            "model": "ACS580-01-073A-4",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "profinet"
+            ],
+            "description": "General purpose variable frequency drive with built-in features"
+        },
+        {
+            "vendor": "abb",
+            "model": "ACS880-01",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "High-performance industrial drive for demanding applications"
+        },
+        {
+            "vendor": "abb",
+            "model": "CP620",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "6-inch touch panel for PLC integration"
+        },
+        {
+            "vendor": "abb",
+            "model": "CI501",
+            "device_type": "io_module",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "CI501 communication interface for distributed I/O"
+        },
+        {
+            "vendor": "abb",
+            "model": "M2BAX 180MLB",
+            "device_type": "motor",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "ABB M2BAX 180MLB"
+        },
+        {
+            "vendor": "abb",
+            "model": "PM5630-2ETH",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "profinet"
+            ],
+            "description": "High-performance AC500 PLC with dual Ethernet"
+        },
+        {
+            "vendor": "abb",
+            "model": "PM583-ETH",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "opc_ua"
+            ],
+            "description": "AC500 CPU with Ethernet interface for medium applications"
+        },
+        {
+            "vendor": "abb",
+            "model": "PM590-ETH",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "opc_ua"
+            ],
+            "description": "High-performance AC500 CPU with Ethernet interface"
+        },
+        {
+            "vendor": "abb",
+            "model": "REF615",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Feeder protection and control relay for distribution"
+        },
+        {
+            "vendor": "abb",
+            "model": "REX640",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850",
+                "iec104"
+            ],
+            "description": "Next-generation protection and control for utility applications"
+        },
+        {
+            "vendor": "abb",
+            "model": "PM554-TP-ETH",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Compact AC500-eCo CPU for remote applications"
+        },
+        {
+            "vendor": "abb",
+            "model": "RTU560",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp",
+                "iec104"
+            ],
+            "description": "Modular RTU for power utility automation"
+        },
+        {
+            "vendor": "abb",
+            "model": "800xA Operator Workplace 6.1.1",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "opc_ua"
+            ],
+            "description": "ABB 800xA Operator Workplace (DCS HMI on Windows)"
+        },
+        {
+            "vendor": "advantech",
+            "model": "ADAM-6052",
+            "device_type": "remote_io",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "16-channel digital I/O module with Modbus/TCP"
+        },
+        {
+            "vendor": "automated logic",
+            "model": "Server",
+            "device_type": "bms_server",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "WebCTRL building automation server"
+        },
+        {
+            "vendor": "automated logic",
+            "model": "WebCTRL",
+            "device_type": "bms_server",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Enterprise building automation software platform"
+        },
+        {
+            "vendor": "automated logic",
+            "model": "ME812U",
+            "device_type": "building_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Automated Logic ME812U"
+        },
+        {
+            "vendor": "aveva",
+            "model": "InTouch Alarm Server 2023",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "opc_ua",
+                "mssql"
+            ],
+            "description": "Aveva InTouch Alarm + Event Server"
+        },
+        {
+            "vendor": "aveva",
+            "model": "OSIsoft PI Server 2018",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "opc_ua",
+                "pi"
+            ],
+            "description": "Aveva / OSIsoft PI Server (data archive + AF)"
+        },
+        {
+            "vendor": "axis",
+            "model": "P1455-LE",
+            "device_type": "camera",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Outdoor bullet camera for traffic monitoring"
+        },
+        {
+            "vendor": "axis",
+            "model": "P1448-LE",
+            "device_type": "ip_camera",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "4K outdoor network camera with IR illumination"
+        },
+        {
+            "vendor": "b&r",
+            "model": "X20CP1586",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "powerlink"
+            ],
+            "description": "High-performance compact PLC with integrated I/O"
+        },
+        {
+            "vendor": "beckhoff",
+            "model": "CX5130",
+            "device_type": "plc",
+            "protocols": [
+                "ethercat"
+            ],
+            "description": "Fanless Intel Atom-based embedded PC controller"
+        },
+        {
+            "vendor": "bosch",
+            "model": "MIC IP 7100i",
+            "device_type": "camera",
+            "protocols": [
+                "snmp",
+                "ssh",
+                "telnet",
+                "rdp",
+                "https"
+            ],
+            "description": "Bosch MIC IP 7100i"
+        },
+        {
+            "vendor": "broadcom",
+            "model": "Symantec Endpoint Protection Manager 14",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "smb"
+            ],
+            "description": "Broadcom Symantec Endpoint Protection Manager (SEPM)"
+        },
+        {
+            "vendor": "carel",
+            "model": "pCO5+",
+            "device_type": "hvac_controller",
+            "protocols": [
+                "modbus_tcp",
+                "bacnet"
+            ],
+            "description": "Programmable controller for HVAC applications"
+        },
+        {
+            "vendor": "carrier",
+            "model": "Pro Open",
+            "device_type": "bms_server",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Carrier Pro Open"
+        },
+        {
+            "vendor": "carrier",
+            "model": "i-Vu Pro",
+            "device_type": "bms_server",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Web-based building automation system"
+        },
+        {
+            "vendor": "carrier",
+            "model": "33CS2PP",
+            "device_type": "thermostat",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Commercial programmable thermostat with BACnet"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-3300-8T2S",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8-port rugged industrial Ethernet switch with 2 SFP"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-3500-8P3S-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8x GE PoE/PoE+ + 3x GE SFP compact industrial switch with 240W PoE budget"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-3500-8T3S-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8x GE copper + 3x GE SFP compact industrial switch (non-PoE)"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-3500-8U3X-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8x GE PoE/PoE+/4PPoE + 3x 10G SFP+ high-power industrial switch with 480W PoE budget"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-3505-8P3S-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8x GE PoE+ + 3x GE SFP industrial switch with HSR/PRP/DLR redundancy"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-4000-8GT4G-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "8x 10/100/1000 + 4x combo GE industrial managed switch"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-9310-26S2C-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "22x GE SFP + 2x dual-media + 4x GE SFP base model industrial switch"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-9320-24P4X-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "24x GE PoE+ RJ45 + 4x 10G SFP+ industrial switch with Network Essentials"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-9320-24T4X-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "24x GE copper RJ45 + 4x 10G SFP+ industrial switch"
+        },
+        {
+            "vendor": "cisco",
+            "model": "IE-9320-26S2C-E",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp",
+                "lldp",
+                "cdp",
+                "profinet",
+                "ethernet_ip",
+                "ssh",
+                "telnet",
+                "https"
+            ],
+            "description": "22x GE SFP + 2x dual-media + 4x GE SFP industrial switch"
+        },
+        {
+            "vendor": "cisco",
+            "model": "Stratix 5700",
+            "device_type": "network_switch",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Cisco Stratix 5700"
+        },
+        {
+            "vendor": "cognex",
+            "model": "DataMan 280",
+            "device_type": "barcode_scanner",
+            "protocols": [
+                "ethernet_ip",
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "Cognex DataMan 280"
+        },
+        {
+            "vendor": "cognex",
+            "model": "DataMan 370",
+            "device_type": "barcode_scanner",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Cognex DataMan 370"
+        },
+        {
+            "vendor": "cognex",
+            "model": "In-Sight 7802",
+            "device_type": "vision_system",
+            "protocols": [
+                "ethernet_ip",
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "Cognex In-Sight 7802"
+        },
+        {
+            "vendor": "daktronics",
+            "model": "Venus 1500",
+            "device_type": "dms",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Dynamic Message Sign controller for transportation"
+        },
+        {
+            "vendor": "daktronics",
+            "model": "Venus 7000",
+            "device_type": "dms",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Large format dynamic message sign controller"
+        },
+        {
+            "vendor": "delta controls",
+            "model": "enteliBUS Manager",
+            "device_type": "ahu_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "Building automation controller for HVAC applications"
+        },
+        {
+            "vendor": "delta controls",
+            "model": "enteliBUS",
+            "device_type": "bms_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Modular building automation controller"
+        },
+        {
+            "vendor": "delta controls",
+            "model": "Manager",
+            "device_type": "building_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Delta Controls Manager"
+        },
+        {
+            "vendor": "delta controls",
+            "model": "eBCON",
+            "device_type": "zone_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Delta Controls eBCON"
+        },
+        {
+            "vendor": "dematic",
+            "model": "iQ WCS Controller",
+            "device_type": "server",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Dematic iQ WCS Controller"
+        },
+        {
+            "vendor": "distech controls",
+            "model": "EC-BOS-8",
+            "device_type": "vav_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Connected controller for VAV box and equipment control"
+        },
+        {
+            "vendor": "distech controls",
+            "model": "ECY-VAV",
+            "device_type": "vav_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Distech Controls ECY-VAV"
+        },
+        {
+            "vendor": "econolite",
+            "model": "ASC/3-2100",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Econolite ASC/3-2100"
+        },
+        {
+            "vendor": "econolite",
+            "model": "ASC/3-2100 Cobalt",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Advanced traffic signal controller with NTCIP support"
+        },
+        {
+            "vendor": "econolite",
+            "model": "Cobalt ATC",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Advanced traffic signal controller with NTCIP support"
+        },
+        {
+            "vendor": "emerson",
+            "model": "MD Plus",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Mid-range DeltaV controller for small to medium applications"
+        },
+        {
+            "vendor": "emerson",
+            "model": "S-series",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Process automation controller for DeltaV DCS"
+        },
+        {
+            "vendor": "emerson",
+            "model": "5700",
+            "device_type": "flow_meter",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Coriolis flow transmitter for custody transfer"
+        },
+        {
+            "vendor": "emerson",
+            "model": "Continuous Historian",
+            "device_type": "historian",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Process historian for DeltaV DCS"
+        },
+        {
+            "vendor": "emerson",
+            "model": "OWS",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "DeltaV operator workstation for process monitoring"
+        },
+        {
+            "vendor": "emerson",
+            "model": "ROC800",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Standard ROC800 flow computer and RTU"
+        },
+        {
+            "vendor": "emerson",
+            "model": "ROC800L",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Flow computer and RTU for oil & gas"
+        },
+        {
+            "vendor": "emerson",
+            "model": "3051S",
+            "device_type": "transmitter",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "SuperModule pressure transmitter with advanced diagnostics"
+        },
+        {
+            "vendor": "emerson",
+            "model": "DVC6200",
+            "device_type": "valve_positioner",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Digital valve controller with advanced diagnostics"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "CM442",
+            "device_type": "analyzer",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Multi-parameter transmitter for liquid analysis"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "FMU90",
+            "device_type": "field_instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Endress+Hauser FMU90"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "Promag W 400",
+            "device_type": "field_instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Endress+Hauser Promag W 400"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "Promag 400",
+            "device_type": "flow_meter",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Electromagnetic flowmeter for process measurement applications"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "Promag 400",
+            "device_type": "flow_sensor",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Electromagnetic flow meter for process applications"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "FMP50",
+            "device_type": "level_sensor",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Guided wave radar level transmitter for liquids and solids"
+        },
+        {
+            "vendor": "endress+hauser",
+            "model": "PMC71",
+            "device_type": "pressure_sensor",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Digital pressure transmitter for process measurement"
+        },
+        {
+            "vendor": "f5 networks",
+            "model": "BIG-IP i2800",
+            "device_type": "appliance",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "ssh"
+            ],
+            "description": "F5 BIG-IP LTM reverse proxy / load balancer"
+        },
+        {
+            "vendor": "fanuc",
+            "model": "0i-TF Plus",
+            "device_type": "cnc_controller",
+            "protocols": [
+                "fanuc",
+                "modbus_tcp"
+            ],
+            "description": "High-performance CNC controller for turning and milling"
+        },
+        {
+            "vendor": "fanuc",
+            "model": "R-30iB Plus",
+            "device_type": "robot_controller",
+            "protocols": [
+                "fanuc",
+                "ethernet_ip"
+            ],
+            "description": "Latest generation robot controller with integrated motion control"
+        },
+        {
+            "vendor": "flir",
+            "model": "TrafiOne",
+            "device_type": "thermal_sensor",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Thermal imaging sensor for traffic detection"
+        },
+        {
+            "vendor": "flir",
+            "model": "TrafiSense",
+            "device_type": "thermal_sensor",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "FLIR TrafiSense"
+        },
+        {
+            "vendor": "ge",
+            "model": "IS420UCSBH1A",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Turbine control system controller with redundancy support"
+        },
+        {
+            "vendor": "ge",
+            "model": "Proficy Historian",
+            "device_type": "historian",
+            "protocols": [
+                "opc_ua",
+                "modbus_tcp"
+            ],
+            "description": "Industrial data historian for process and manufacturing data"
+        },
+        {
+            "vendor": "ge",
+            "model": "IC200UDD104",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "GE IC200UDD104"
+        },
+        {
+            "vendor": "ge",
+            "model": "IC695CPE310",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "GE IC695CPE310"
+        },
+        {
+            "vendor": "ge",
+            "model": "IC695CPE400",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "High-performance PACSystems controller"
+        },
+        {
+            "vendor": "ge",
+            "model": "850",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850",
+                "dnp3"
+            ],
+            "description": "Advanced feeder protection and bay control relay"
+        },
+        {
+            "vendor": "ge",
+            "model": "F650",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3"
+            ],
+            "description": "Digital bay controller with comprehensive protection"
+        },
+        {
+            "vendor": "ge",
+            "model": "T60",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Transformer protection relay with comprehensive protection functions"
+        },
+        {
+            "vendor": "ge",
+            "model": "Proficy Historian 7.2",
+            "device_type": "server",
+            "protocols": [
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "GE Proficy Historian 7.2"
+        },
+        {
+            "vendor": "hikvision",
+            "model": "DS-2CD7A26G0/P",
+            "device_type": "anpr_camera",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "2MP ANPR camera with deep learning license plate recognition"
+        },
+        {
+            "vendor": "hms",
+            "model": "Anybus Communicator",
+            "device_type": "gateway",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "HMS Anybus Communicator"
+        },
+        {
+            "vendor": "hms",
+            "model": "Anybus X-gateway",
+            "device_type": "gateway",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "Multi-protocol industrial gateway"
+        },
+        {
+            "vendor": "hms",
+            "model": "Cosy 131",
+            "device_type": "remote_access",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "snmp"
+            ],
+            "description": "HMS Cosy 131"
+        },
+        {
+            "vendor": "hms",
+            "model": "Flexy 205",
+            "device_type": "remote_access",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "snmp"
+            ],
+            "description": "HMS Flexy 205"
+        },
+        {
+            "vendor": "hms",
+            "model": "Flexy 205",
+            "device_type": "remote_access",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "HMS Flexy 205"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "JACE 8000",
+            "device_type": "bms_controller",
+            "protocols": [
+                "modbus_tcp",
+                "bacnet"
+            ],
+            "description": "Niagara Framework-based building automation controller"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "C200",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Mid-range process controller for Experion PKS DCS"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "C300",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "High-performance process controller for Experion PKS DCS"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "XL Web",
+            "device_type": "hvac_controller",
+            "protocols": [
+                "modbus_tcp",
+                "bacnet"
+            ],
+            "description": "Excel Web controller for boiler and HVAC applications"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "HC900 Controller",
+            "device_type": "instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Honeywell HC900 Controller"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "STT850",
+            "device_type": "instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Honeywell STT850"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "UDA2182",
+            "device_type": "instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Honeywell UDA2182"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "UDC3500",
+            "device_type": "instrument",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Honeywell UDC3500"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Pipeline LDS",
+            "device_type": "leak_detection",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Honeywell Pipeline LDS"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Optiflex 6000",
+            "device_type": "level_gauge",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Servo tank gauge for custody transfer applications"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Experion Station",
+            "device_type": "operator_station",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Operator workstation for Experion PKS HMI"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "LCNP4M",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "High-performance process controller"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Series C I/O",
+            "device_type": "remote_io",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Series C distributed I/O for Experion PKS"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "RTU2020",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Remote terminal unit for tank gauging and control"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Safety Manager",
+            "device_type": "safety_plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "SIL 3 safety controller for Experion PKS"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "Experion Server",
+            "device_type": "scada_server",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Experion PKS application server for DCS operation"
+        },
+        {
+            "vendor": "honeywell",
+            "model": "PUB6438S",
+            "device_type": "vav_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "Programmable VAV controller with BACnet"
+        },
+        {
+            "vendor": "impinj",
+            "model": "Speedway R420",
+            "device_type": "rfid_reader",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Impinj Speedway R420"
+        },
+        {
+            "vendor": "impinj",
+            "model": "Speedway R700",
+            "device_type": "rfid_reader",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Impinj Speedway R700"
+        },
+        {
+            "vendor": "johnson controls",
+            "model": "NAE55",
+            "device_type": "bac",
+            "protocols": [
+                "bacnet",
+                "snmp"
+            ],
+            "description": "Building automation network controller"
+        },
+        {
+            "vendor": "johnson controls",
+            "model": "NAE55",
+            "device_type": "bms_controller",
+            "protocols": [
+                "bacnet",
+                "snmp"
+            ],
+            "description": "Building automation network engine for Metasys"
+        },
+        {
+            "vendor": "johnson controls",
+            "model": "SNC",
+            "device_type": "building_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Johnson Controls SNC"
+        },
+        {
+            "vendor": "johnson controls",
+            "model": "FEC26",
+            "device_type": "field_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "BACnet field controller for HVAC equipment"
+        },
+        {
+            "vendor": "johnson controls",
+            "model": "FEC26",
+            "device_type": "lighting_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Field equipment controller for lighting and HVAC"
+        },
+        {
+            "vendor": "kapsch",
+            "model": "TCS 2000",
+            "device_type": "toll_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Central toll collection system controller"
+        },
+        {
+            "vendor": "kepware",
+            "model": "KEPServerEX",
+            "device_type": "gateway",
+            "protocols": [
+                "opc_ua",
+                "modbus_tcp",
+                "ethernet_ip",
+                "s7comm"
+            ],
+            "description": "OPC UA gateway for multi-protocol industrial connectivity"
+        },
+        {
+            "vendor": "kuka",
+            "model": "KMP 1500",
+            "device_type": "agv",
+            "protocols": [
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "KUKA KMP 1500"
+        },
+        {
+            "vendor": "kuka",
+            "model": "KMP 600",
+            "device_type": "agv",
+            "protocols": [
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "KUKA KMP 600"
+        },
+        {
+            "vendor": "kuka",
+            "model": "KUKA.FleetManager",
+            "device_type": "fleet_manager",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "KUKA KUKA.FleetManager"
+        },
+        {
+            "vendor": "kuka",
+            "model": "KR C4",
+            "device_type": "robot_controller",
+            "protocols": [
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "8th generation robot controller for KUKA industrial robots"
+        },
+        {
+            "vendor": "lansweeper",
+            "model": "Lansweeper 11",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "wmi",
+                "mssql"
+            ],
+            "description": "Lansweeper IT asset discovery + inventory server"
+        },
+        {
+            "vendor": "lutron",
+            "model": "QSN-4T16-S",
+            "device_type": "lighting_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Enterprise lighting control processor"
+        },
+        {
+            "vendor": "mccain",
+            "model": "170E",
+            "device_type": "detector_rack",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "170E cabinet detector rack for vehicle detection"
+        },
+        {
+            "vendor": "mccain",
+            "model": "2070 ATC",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Type 2070 Advanced Transportation Controller"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "Defender for Endpoint 2022",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "smb",
+                "rdp"
+            ],
+            "description": "Microsoft Defender for Endpoint management server"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "Jump Server 2008 R2 (Vulnerable)",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ssh",
+                "telnet",
+                "rdp",
+                "https"
+            ],
+            "description": "Microsoft Jump Server 2008 R2 (Vulnerable)"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "Jump Server 2016 (Vulnerable)",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ssh",
+                "telnet",
+                "rdp",
+                "https"
+            ],
+            "description": "Microsoft Jump Server 2016 (Vulnerable)"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "Jump Server 2019",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ssh",
+                "telnet",
+                "rdp",
+                "https"
+            ],
+            "description": "Microsoft Jump Server 2019"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "Jump Server 2019 (PrintNightmare)",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ssh",
+                "telnet",
+                "rdp",
+                "https"
+            ],
+            "description": "Microsoft Jump Server 2019 (PrintNightmare)"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "MECM Server 2022",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "smb",
+                "rdp",
+                "mssql"
+            ],
+            "description": "Microsoft Endpoint Configuration Manager (SCCM / MECM)"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "WSUS Server 2019",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "smb",
+                "rdp"
+            ],
+            "description": "Microsoft Windows Server Update Services 2019 (WSUS)"
+        },
+        {
+            "vendor": "microsoft",
+            "model": "WSUS Server 2022",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "smb",
+                "rdp"
+            ],
+            "description": "Microsoft Windows Server Update Services 2022 (WSUS)"
+        },
+        {
+            "vendor": "mir",
+            "model": "MiR Fleet",
+            "device_type": "agv",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "MiR MiR Fleet"
+        },
+        {
+            "vendor": "mir",
+            "model": "MiR100",
+            "device_type": "agv",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "MiR MiR100"
+        },
+        {
+            "vendor": "mir",
+            "model": "MiR250",
+            "device_type": "agv",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "MiR MiR250"
+        },
+        {
+            "vendor": "mir",
+            "model": "MiR500",
+            "device_type": "agv",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "MiR MiR500"
+        },
+        {
+            "vendor": "mitsubishi",
+            "model": "FX5U-32MT/ES",
+            "device_type": "plc",
+            "protocols": [
+                "slmp"
+            ],
+            "description": "Compact PLC with built-in Ethernet"
+        },
+        {
+            "vendor": "mitsubishi",
+            "model": "R08CPU",
+            "device_type": "plc",
+            "protocols": [
+                "slmp"
+            ],
+            "description": "High-speed universal CPU module for iQ-R platform"
+        },
+        {
+            "vendor": "moxa",
+            "model": "ioLogik E1210",
+            "device_type": "remote_io",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "16-channel digital input remote I/O with Modbus/TCP"
+        },
+        {
+            "vendor": "notifier",
+            "model": "NFS2-3030",
+            "device_type": "fire_panel",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Intelligent fire alarm control panel"
+        },
+        {
+            "vendor": "omron",
+            "model": "CJ2M-CPU35",
+            "device_type": "plc",
+            "protocols": [
+                "fins"
+            ],
+            "description": "High-speed compact PLC for machine control"
+        },
+        {
+            "vendor": "omron",
+            "model": "NJ501-1300",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "fins"
+            ],
+            "description": "Machine automation controller with EtherCAT and EtherNet/IP"
+        },
+        {
+            "vendor": "paessler",
+            "model": "PRTG Network Monitor 24",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "icmp",
+                "wmi"
+            ],
+            "description": "Paessler PRTG Network Monitor \u2014 NMS appliance"
+        },
+        {
+            "vendor": "pelco",
+            "model": "Spectra Enhanced",
+            "device_type": "camera",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Pelco Spectra Enhanced"
+        },
+        {
+            "vendor": "pelco",
+            "model": "SD436-PG-E1",
+            "device_type": "ptz_camera",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "High-speed PTZ dome camera for surveillance"
+        },
+        {
+            "vendor": "phoenix contact",
+            "model": "AXC F 2152",
+            "device_type": "plc",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "Linux-based open automation controller"
+        },
+        {
+            "vendor": "q-free",
+            "model": "RSU 5000",
+            "device_type": "toll_rsu",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "DSRC roadside unit for tolling and V2X"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-EN2T",
+            "device_type": "communication_module",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1756-EN2T"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "20F-D052N103",
+            "device_type": "drive",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "High-performance AC drive for demanding applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "25B-D030N104",
+            "device_type": "drive",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "Compact AC drive for simple stand-alone applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "25B-D030N104",
+            "device_type": "drive",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "Compact AC drive with embedded Ethernet/IP"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "PowerFlex 753",
+            "device_type": "drive",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "High-performance AC drive for industrial applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "PowerFlex 755",
+            "device_type": "drive",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "Rockwell PowerFlex 755"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "2711P-T10C22D9P",
+            "device_type": "hmi",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "10-inch color touchscreen operator interface"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "2711P-T15C22D9P",
+            "device_type": "hmi",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "15-inch graphic terminal with touchscreen"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "2711R-T7T",
+            "device_type": "hmi",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "7-inch color touchscreen HMI for Micro800 systems"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1734-AENT",
+            "device_type": "io_module",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "EtherNet/IP adapter for POINT I/O distributed I/O"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "5094-AEN2TR",
+            "device_type": "io_module",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "Dual-port EtherNet/IP adapter for FLEX 5000 I/O"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L73",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp",
+                "opc_ua",
+                "snmp"
+            ],
+            "description": "Mid-range ControlLogix controller for complex applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L73S",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1756-L73S"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L81E",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1756-L81E"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L82E",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1756-L82E"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L83E",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "High-performance ControlLogix controller for complex applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L84E",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1756-L84E"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L85E",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp",
+                "opc_ua",
+                "snmp"
+            ],
+            "description": "High-performance ControlLogix controller with 80MB memory"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1763-L16BWA",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1763-L16BWA"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1766-L32AWAA",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1766-L32AWAA"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1766-L32BWA",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "Legacy MicroLogix 1400 PLC with built-in Ethernet"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1766-L32BWAA",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1766-L32BWAA"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1766-L32BXB",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1766-L32BXB"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1766-L32BXBA",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1766-L32BXBA"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L24ER-QB1B",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "Compact controller for small to medium applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L30ERM",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1769-L30ERM"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L31ES",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1769-L31ES"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L32ES",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Rockwell 1769-L32ES"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L33ER",
+            "device_type": "plc",
+            "protocols": [
+                "ethernet_ip",
+                "modbus_tcp"
+            ],
+            "description": "Mid-range CompactLogix controller with embedded EtherNet/IP"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1734-AENT",
+            "device_type": "remote_io",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "EtherNet/IP adapter for Point I/O modules"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "5094-AEN2TR",
+            "device_type": "remote_io",
+            "protocols": [
+                "ethernet_ip"
+            ],
+            "description": "Dual-port EtherNet/IP adapter for FLEX 5000 I/O"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1756-L83ES",
+            "device_type": "safety_plc",
+            "protocols": [
+                "ethernet_ip",
+                "cip_safety"
+            ],
+            "description": "Safety-rated ControlLogix controller for SIL3/PLe applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "1769-L33ERMS",
+            "device_type": "safety_plc",
+            "protocols": [
+                "ethernet_ip",
+                "cip_safety",
+                "modbus_tcp"
+            ],
+            "description": "Safety-rated CompactLogix controller for SIL2/PLd applications"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "FactoryTalk View SE Station 14",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ethernet_ip",
+                "https",
+                "http",
+                "opc_ua"
+            ],
+            "description": "Rockwell FactoryTalk View SE Station (HMI/SCADA on Windows)"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "Studio 5000 Logix Designer 36",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "ethernet_ip",
+                "https",
+                "http"
+            ],
+            "description": "Rockwell Studio 5000 Logix Designer (engineering workstation)"
+        },
+        {
+            "vendor": "rockwell",
+            "model": "2198-D012-ERS3",
+            "device_type": "servo",
+            "protocols": [
+                "ethernet_ip",
+                "cip_motion"
+            ],
+            "description": "Integrated servo drive for motion control applications"
+        },
+        {
+            "vendor": "schneider",
+            "model": "CX9680",
+            "device_type": "bms_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "Advanced BMS controller for building automation"
+        },
+        {
+            "vendor": "schneider",
+            "model": "LT2",
+            "device_type": "controller",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Schneider LT2"
+        },
+        {
+            "vendor": "schneider",
+            "model": "InRow DX",
+            "device_type": "crac_unit",
+            "protocols": [
+                "snmp",
+                "modbus_tcp",
+                "bacnet"
+            ],
+            "description": "InRow precision cooling for data centers"
+        },
+        {
+            "vendor": "schneider",
+            "model": "ATV320",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Schneider ATV320"
+        },
+        {
+            "vendor": "schneider",
+            "model": "ATV630D15N4",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "Variable frequency drive for process applications with advanced connectivity"
+        },
+        {
+            "vendor": "schneider",
+            "model": "ATV930",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Schneider ATV930"
+        },
+        {
+            "vendor": "schneider",
+            "model": "ATV930D15N4",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "profinet"
+            ],
+            "description": "High-performance variable frequency drive with advanced process functions"
+        },
+        {
+            "vendor": "schneider",
+            "model": "LXM32MD18M2",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Schneider LXM32MD18M2"
+        },
+        {
+            "vendor": "schneider",
+            "model": "HMIGTO5310",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Schneider HMIGTO5310"
+        },
+        {
+            "vendor": "schneider",
+            "model": "HMIST6700",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "15-inch touchscreen HMI for demanding applications"
+        },
+        {
+            "vendor": "schneider",
+            "model": "HMISTM6",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Compact 3.4-inch color touchscreen HMI panel"
+        },
+        {
+            "vendor": "schneider",
+            "model": "STB NIP 2311",
+            "device_type": "io_module",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Advantys STB distributed I/O network interface module"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TM3DI32K",
+            "device_type": "io_module",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "32-point digital input expansion module"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TM262L20MESE8T",
+            "device_type": "motion_controller",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Motion controller with 8 axis support and EtherNet/IP"
+        },
+        {
+            "vendor": "schneider",
+            "model": "Rack PDU",
+            "device_type": "pdu",
+            "protocols": [
+                "snmp",
+                "modbus_tcp"
+            ],
+            "description": "Switched metered rack power distribution unit"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMEH586040",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "High-performance Ethernet programmable automation controller with redundancy"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMEP582040",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Entry-level M580 ePAC with 2MB program memory"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMEP584040",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "High-performance Ethernet programmable automation controller"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMEP586040",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "opc_ua",
+                "snmp"
+            ],
+            "description": "Schneider BMEP586040"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMXP342020",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Mid-range automation processor with embedded Ethernet"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMXP3420302",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip",
+                "opc_ua"
+            ],
+            "description": "Mid-range Modicon M340 processor with Ethernet"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TM241CE40R",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Compact logic controller with Ethernet and CANopen"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TM251MESE",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Compact logic controller with Ethernet and serial ports"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TSXP57154M",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Legacy Premium PLC with Ethernet communication"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TSXP57204M",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Legacy Modicon Premium processor - still widely deployed"
+        },
+        {
+            "vendor": "schneider",
+            "model": "ION8650",
+            "device_type": "power_meter",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3"
+            ],
+            "description": "High-accuracy power quality meter for utility revenue metering"
+        },
+        {
+            "vendor": "schneider",
+            "model": "PM8000",
+            "device_type": "power_meter",
+            "protocols": [
+                "modbus_tcp",
+                "bacnet",
+                "snmp"
+            ],
+            "description": "Advanced power quality and energy meter with communications"
+        },
+        {
+            "vendor": "schneider",
+            "model": "STBNIP2311",
+            "device_type": "remote_io",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Advantys STB distributed I/O network interface module"
+        },
+        {
+            "vendor": "schneider",
+            "model": "SCADAPack 350",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3"
+            ],
+            "description": "Compact RTU for remote monitoring and control"
+        },
+        {
+            "vendor": "schneider",
+            "model": "BMEP586040S",
+            "device_type": "safety_plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Safety-rated Ethernet programmable automation controller for SIL3 applications"
+        },
+        {
+            "vendor": "schneider",
+            "model": "TM5CSLC100FS",
+            "device_type": "safety_plc",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "Safety logic controller for machine safety applications (SIL 3/PLe)"
+        },
+        {
+            "vendor": "schneider",
+            "model": "EcoStruxure Control Expert 16",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "modbus_tcp",
+                "https",
+                "http",
+                "opc_ua"
+            ],
+            "description": "Schneider EcoStruxure Control Expert (PLC engineering on Windows)"
+        },
+        {
+            "vendor": "schneider",
+            "model": "Geo SCADA Expert 2022",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "opc_ua",
+                "modbus_tcp"
+            ],
+            "description": "Schneider Geo SCADA Expert (SCADA on Windows)"
+        },
+        {
+            "vendor": "schneider",
+            "model": "LXM32MD18N4",
+            "device_type": "servo",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Motion servo drive for automation applications"
+        },
+        {
+            "vendor": "schneider",
+            "model": "MS-CPU32",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Schneider MS-CPU32"
+        },
+        {
+            "vendor": "schneider",
+            "model": "Galaxy VM",
+            "device_type": "ups",
+            "protocols": [
+                "snmp",
+                "modbus_tcp"
+            ],
+            "description": "Three-phase modular UPS for data centers"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-311C",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850"
+            ],
+            "description": "Distance relay for transmission line protection"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-451",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850"
+            ],
+            "description": "Bay controller with protection and control functions"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-487E",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850"
+            ],
+            "description": "Transformer differential protection relay"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-751",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850"
+            ],
+            "description": "Feeder protection relay with comprehensive protection functions"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-3530",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850",
+                "iec104"
+            ],
+            "description": "Real-Time Automation Controller for substation automation"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-2411",
+            "device_type": "substation_controller",
+            "protocols": [
+                "modbus_tcp",
+                "dnp3",
+                "iec61850"
+            ],
+            "description": "Programmable logic controller for substation automation"
+        },
+        {
+            "vendor": "sel",
+            "model": "SEL-5030 acSELerator",
+            "device_type": "workstation",
+            "protocols": [
+                "snmp",
+                "dnp3",
+                "modbus_tcp",
+                "iec61850",
+                "https"
+            ],
+            "description": "SEL acSELerator Quickset \u2014 relay engineering software running on a hardened Windows workstation. Operators and protection engineers use it as the substation HMI and engineering pivot."
+        },
+        {
+            "vendor": "sick",
+            "model": "CLV650-0120",
+            "device_type": "barcode_scanner",
+            "protocols": [
+                "ethernet_ip",
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "Industrial barcode scanner for logistics and manufacturing"
+        },
+        {
+            "vendor": "sick",
+            "model": "SICK CLV650",
+            "device_type": "barcode_scanner",
+            "protocols": [
+                "modbus_tcp",
+                "ethernet_ip"
+            ],
+            "description": "SICK SICK CLV650"
+        },
+        {
+            "vendor": "sick",
+            "model": "Inspector P631",
+            "device_type": "vision_sensor",
+            "protocols": [
+                "ethernet_ip",
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "2D vision sensor for quality inspection applications"
+        },
+        {
+            "vendor": "siemens",
+            "model": "5WG1255-1AB02",
+            "device_type": "bms_controller",
+            "protocols": [
+                "bacnet",
+                "snmp"
+            ],
+            "description": "Building management system for HVAC, lighting, and access control"
+        },
+        {
+            "vendor": "siemens",
+            "model": "Desigo CC",
+            "device_type": "bms_server",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Integrated building management platform"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3130-7TE25-5AA3",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "profinet"
+            ],
+            "description": "Siemens 6SL3130-7TE25-5AA3"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3210-1KE21-7UF1",
+            "device_type": "drive",
+            "protocols": [
+                "modbus_tcp",
+                "profinet"
+            ],
+            "description": "Siemens 6SL3210-1KE21-7UF1"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3210-1PE21-1UL0",
+            "device_type": "drive",
+            "protocols": [
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "Compact frequency converter for simple drive tasks"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3525-0PE21-5AA1",
+            "device_type": "drive",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "Distributed frequency converter for conveyor applications"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3544-0FB21-1FA0",
+            "device_type": "drive",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "Siemens 6SL3544-0FB21-1FA0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "G120",
+            "device_type": "drive",
+            "protocols": [
+                "profinet",
+                "modbus_tcp"
+            ],
+            "description": "Modular drive system for a wide range of applications"
+        },
+        {
+            "vendor": "siemens",
+            "model": "TIA Portal",
+            "device_type": "engineering_station",
+            "protocols": [
+                "s7comm",
+                "profinet"
+            ],
+            "description": "Engineering and programming station for Siemens PLCs"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6AV2 123-2GB03-0AX0",
+            "device_type": "hmi",
+            "protocols": [
+                "profinet",
+                "s7comm"
+            ],
+            "description": "7-inch Basic Panel with touch and key operation"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6AV2 123-2JB03-0AX0",
+            "device_type": "hmi",
+            "protocols": [
+                "profinet",
+                "s7comm"
+            ],
+            "description": "9-inch Basic Panel with touch and key operation"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6AV2 124-0MC01-0AX0",
+            "device_type": "hmi",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "12-inch Comfort Panel with touch operation"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6AV2 124-0QC02-0AX1",
+            "device_type": "hmi",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "15-inch Comfort Panel with widescreen display"
+        },
+        {
+            "vendor": "siemens",
+            "model": "WinCC Unified",
+            "device_type": "hmi",
+            "protocols": [
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "New generation HMI with OPC UA support"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 155-5AA01-0AB0",
+            "device_type": "io_module",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "Siemens 6ES7 155-5AA01-0AB0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 155-6AU01-0BN0",
+            "device_type": "io_module",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "Siemens 6ES7 155-6AU01-0BN0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7155-6AU01-0BN0",
+            "device_type": "io_module",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "PROFINET interface module for ET 200SP distributed I/O"
+        },
+        {
+            "vendor": "siemens",
+            "model": "ET 200MP IM155-5 PN",
+            "device_type": "io_module",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "ET 200MP distributed I/O interface module for PROFINET"
+        },
+        {
+            "vendor": "siemens",
+            "model": "M60",
+            "device_type": "master_station",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Master traffic signal controller for intersection coordination"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 214-1AG40-0XB0",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "Compact S7-1200 CPU for small to medium automation tasks"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 214-1HF40-0XB0",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "profinet",
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "Siemens 6ES7 214-1HF40-0XB0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 315-2EH14-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "profinet",
+                "s7comm"
+            ],
+            "description": "Siemens 6ES7 315-2EH14-0AB0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 416-3ES07-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "profinet",
+                "s7comm"
+            ],
+            "description": "Siemens 6ES7 416-3ES07-0AB0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 511-1AK02-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "Compact S7-1500 CPU for small automation tasks"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 516-3AN01-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "S7-1500 CPU with PROFINET and PROFIBUS interfaces (earlier version)"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 516-3AN02-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 516-3FN02-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "profinet",
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "Siemens 6ES7 516-3FN02-0AB0"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 517-3AP00-0AB0",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces"
+        },
+        {
+            "vendor": "siemens",
+            "model": "CPU 315-2 PN/DP",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm"
+            ],
+            "description": "S7-300 CPU with integrated PROFINET and PROFIBUS interfaces (legacy)"
+        },
+        {
+            "vendor": "siemens",
+            "model": "CPU 416-3 PN/DP",
+            "device_type": "plc",
+            "protocols": [
+                "profinet",
+                "s7comm"
+            ],
+            "description": "High-end S7-400 CPU for complex automation tasks (legacy)"
+        },
+        {
+            "vendor": "siemens",
+            "model": "7SD87",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Line differential protection relay"
+        },
+        {
+            "vendor": "siemens",
+            "model": "7SJ85",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Overcurrent and motor protection relay"
+        },
+        {
+            "vendor": "siemens",
+            "model": "7SL87",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Line differential protection relay for transmission lines"
+        },
+        {
+            "vendor": "siemens",
+            "model": "7UT87",
+            "device_type": "protection_relay",
+            "protocols": [
+                "modbus_tcp",
+                "iec61850"
+            ],
+            "description": "Transformer differential protection relay"
+        },
+        {
+            "vendor": "siemens",
+            "model": "DXR2.E12",
+            "device_type": "room_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "Compact room automation controller for HVAC"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6ES7 516-3FN01-0AB0",
+            "device_type": "safety_plc",
+            "protocols": [
+                "profinet",
+                "profisafe",
+                "s7comm",
+                "modbus_tcp",
+                "opc_ua"
+            ],
+            "description": "Failsafe S7-1500 CPU for safety applications up to SIL3/PLe"
+        },
+        {
+            "vendor": "siemens",
+            "model": "CPU 1214FC DC/DC/DC",
+            "device_type": "safety_plc",
+            "protocols": [
+                "profinet",
+                "profisafe",
+                "s7comm",
+                "opc_ua"
+            ],
+            "description": "S7-1200 Fail-safe CPU with integrated safety I/O"
+        },
+        {
+            "vendor": "siemens",
+            "model": "WinCC Professional",
+            "device_type": "scada",
+            "protocols": [
+                "s7comm",
+                "opc_ua",
+                "modbus_tcp"
+            ],
+            "description": "SCADA system for visualization and process control"
+        },
+        {
+            "vendor": "siemens",
+            "model": "Opcenter Execution Discrete 2406",
+            "device_type": "server",
+            "protocols": [
+                "snmp",
+                "https",
+                "http",
+                "opc_ua",
+                "mssql"
+            ],
+            "description": "Siemens Opcenter Execution Discrete (MES)"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6SL3310-1TE32-6AA3",
+            "device_type": "servo",
+            "protocols": [
+                "profinet"
+            ],
+            "description": "High-performance servo drive system for motion control"
+        },
+        {
+            "vendor": "siemens",
+            "model": "6NH3112-3BA00-0XX0",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Central traffic management controller for ITS applications"
+        },
+        {
+            "vendor": "siemens",
+            "model": "C600",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp",
+                "bacnet"
+            ],
+            "description": "Field traffic signal controller with NTCIP support"
+        },
+        {
+            "vendor": "siemens",
+            "model": "CP-8000",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Siemens CP-8000"
+        },
+        {
+            "vendor": "siemens",
+            "model": "XM-400",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Siemens XM-400"
+        },
+        {
+            "vendor": "siemens",
+            "model": "TCS-LIGHT",
+            "device_type": "tunnel_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Siemens TCS-LIGHT"
+        },
+        {
+            "vendor": "siemens",
+            "model": "TCS-VENT",
+            "device_type": "tunnel_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Siemens TCS-VENT"
+        },
+        {
+            "vendor": "siemens its",
+            "model": "CP-8000",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp",
+                "modbus_tcp"
+            ],
+            "description": "Central traffic management controller for arterial coordination"
+        },
+        {
+            "vendor": "siemens its",
+            "model": "M60",
+            "device_type": "traffic_controller",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Advanced Transportation Controller with NTCIP support"
+        },
+        {
+            "vendor": "trane",
+            "model": "SC+",
+            "device_type": "bms_controller",
+            "protocols": [
+                "bacnet",
+                "modbus_tcp"
+            ],
+            "description": "Building automation system controller"
+        },
+        {
+            "vendor": "trane",
+            "model": "UC600",
+            "device_type": "building_controller",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Trane UC600"
+        },
+        {
+            "vendor": "trane",
+            "model": "XL950",
+            "device_type": "thermostat",
+            "protocols": [
+                "bacnet"
+            ],
+            "description": "Wi-Fi enabled smart thermostat with touchscreen"
+        },
+        {
+            "vendor": "vaisala",
+            "model": "RWIS500",
+            "device_type": "weather_station",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Road weather station for transportation applications"
+        },
+        {
+            "vendor": "wago",
+            "model": "750-8212",
+            "device_type": "plc",
+            "protocols": [
+                "modbus_tcp",
+                "codesys"
+            ],
+            "description": "Compact Linux-based controller with CODESYS runtime"
+        },
+        {
+            "vendor": "wavetronix",
+            "model": "SmartSensor Advance",
+            "device_type": "radar_detector",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "Advanced radar sensor with vehicle classification capability"
+        },
+        {
+            "vendor": "wavetronix",
+            "model": "SmartSensor HD",
+            "device_type": "radar_detector",
+            "protocols": [
+                "snmp"
+            ],
+            "description": "High-definition radar vehicle detection sensor"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "FLXA402",
+            "device_type": "analyzer",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Four-wire pH/ORP analyzer for water quality monitoring"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "GC8000",
+            "device_type": "analyzer",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Process gas chromatograph for natural gas and refinery applications"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "TDLS8000",
+            "device_type": "analyzer",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Tunable diode laser spectrometer for gas analysis"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "AFV10D",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Field control unit for CENTUM VP distributed control system"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "CENTUM VP",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Yokogawa CENTUM VP"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "ProSafe-RS",
+            "device_type": "dcs_controller",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Yokogawa ProSafe-RS"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "EWS",
+            "device_type": "engineering_station",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Engineering workstation for CENTUM VP configuration"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "Exaopc",
+            "device_type": "historian",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "OPC server and historian for CENTUM VP and ProSafe-RS"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "HIS",
+            "device_type": "hmi",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Operator interface station for CENTUM VP DCS"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "RC400G",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Yokogawa RC400G"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "SC450G",
+            "device_type": "rtu",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Yokogawa SC450G"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "SSC60D",
+            "device_type": "safety_plc",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Safety instrumented system controller for SIL3 applications"
+        },
+        {
+            "vendor": "yokogawa",
+            "model": "EJA530A",
+            "device_type": "transmitter",
+            "protocols": [
+                "modbus_tcp"
+            ],
+            "description": "Digital differential pressure transmitter for process measurement"
+        },
+        {
+            "vendor": "zebra",
+            "model": "FX7500",
+            "device_type": "rfid_reader",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Zebra FX7500"
+        },
+        {
+            "vendor": "zebra",
+            "model": "FX9600",
+            "device_type": "rfid_reader",
+            "protocols": [
+                "modbus_tcp",
+                "snmp"
+            ],
+            "description": "Zebra FX9600"
+        }
+    ],
+    "vendors": [
+        "abb",
+        "advantech",
+        "automated logic",
+        "aveva",
+        "axis",
+        "b&r",
+        "beckhoff",
+        "bosch",
+        "broadcom",
+        "carel",
+        "carrier",
+        "cisco",
+        "cognex",
+        "daktronics",
+        "delta controls",
+        "dematic",
+        "distech controls",
+        "econolite",
+        "emerson",
+        "endress+hauser",
+        "f5 networks",
+        "fanuc",
+        "flir",
+        "ge",
+        "hikvision",
+        "hms",
+        "honeywell",
+        "impinj",
+        "johnson controls",
+        "kapsch",
+        "kepware",
+        "kuka",
+        "lansweeper",
+        "lutron",
+        "mccain",
+        "microsoft",
+        "mir",
+        "mitsubishi",
+        "moxa",
+        "notifier",
+        "omron",
+        "paessler",
+        "pelco",
+        "phoenix contact",
+        "q-free",
+        "rockwell",
+        "schneider",
+        "sel",
+        "sick",
+        "siemens",
+        "siemens its",
+        "trane",
+        "vaisala",
+        "wago",
+        "wavetronix",
+        "yokogawa",
+        "zebra"
+    ],
+    "device_types": [
+        "agv",
+        "ahu_controller",
+        "analyzer",
+        "anpr_camera",
+        "appliance",
+        "bac",
+        "barcode_scanner",
+        "bms_controller",
+        "bms_server",
+        "building_controller",
+        "camera",
+        "cnc_controller",
+        "communication_module",
+        "controller",
+        "crac_unit",
+        "dcs_controller",
+        "detector_rack",
+        "dms",
+        "drive",
+        "engineering_station",
+        "field_controller",
+        "field_instrument",
+        "fire_panel",
+        "fleet_manager",
+        "flow_meter",
+        "flow_sensor",
+        "gateway",
+        "historian",
+        "hmi",
+        "hvac_controller",
+        "instrument",
+        "io_module",
+        "ip_camera",
+        "leak_detection",
+        "level_gauge",
+        "level_sensor",
+        "lighting_controller",
+        "master_station",
+        "motion_controller",
+        "motor",
+        "network_switch",
+        "operator_station",
+        "pdu",
+        "plc",
+        "power_meter",
+        "pressure_sensor",
+        "protection_relay",
+        "ptz_camera",
+        "radar_detector",
+        "remote_access",
+        "remote_io",
+        "rfid_reader",
+        "robot_controller",
+        "room_controller",
+        "rtu",
+        "safety_plc",
+        "scada",
+        "scada_server",
+        "server",
+        "servo",
+        "substation_controller",
+        "thermal_sensor",
+        "thermostat",
+        "toll_controller",
+        "toll_rsu",
+        "traffic_controller",
+        "transmitter",
+        "tunnel_controller",
+        "ups",
+        "valve_positioner",
+        "vav_controller",
+        "vision_sensor",
+        "vision_system",
+        "weather_station",
+        "workstation",
+        "zone_controller"
+    ]
+}
