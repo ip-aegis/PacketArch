@@ -6,8 +6,11 @@ services:
       POSTGRES_USER: packetarch
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: packetarch
+    # Bound to loopback only — DB is reached by other containers over the
+    # internal Docker network (host "postgres"), never the published port.
+    # For off-box DB access use an SSH tunnel rather than exposing 5432.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -21,8 +24,9 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
+    # Loopback only — reached by other containers via host "redis".
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -35,7 +39,10 @@ services:
     build: ./backend
     restart: unless-stopped
     group_add:
-      - "987"  # docker group GID for Docker socket access
+      # Must match the host's docker group GID so the backend can reach the
+      # mounted Docker socket. Set DOCKER_GID in .env (getent group docker
+      # | cut -d: -f3). Defaults to 987 (this dev host) if unset.
+      - "${DOCKER_GID:-987}"
     security_opt:
       - label:disable  # Disable SELinux label separation for Docker socket access
     environment:
@@ -124,8 +131,10 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@packetarch.local
       PGADMIN_DEFAULT_PASSWORD: admin
+    # Loopback only — weak default creds, opt-in via the "tools" profile.
+    # Reach it through an SSH tunnel: ssh -L 5050:localhost:5050 <server>
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     depends_on:
       - postgres
 

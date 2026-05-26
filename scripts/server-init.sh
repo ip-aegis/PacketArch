@@ -13,9 +13,9 @@ echo "============================================"
 echo "  PacketArch Server Initialization"
 echo "============================================"
 
-# Configuration - UPDATE THESE
-GITHUB_REPO="${GITHUB_REPO:-kingsmanrocky-max/PacketArch}"
-BRANCH="${BRANCH:-main}"
+# Configuration (override via env vars if needed)
+GITHUB_REPO="${GITHUB_REPO:-ip-aegis/PacketArch}"
+BRANCH="${BRANCH:-master}"
 INSTALL_DIR="$HOME/packetarch"
 
 # Colors for output
@@ -33,8 +33,8 @@ if [ "$EUID" -eq 0 ]; then
     error "Do not run as root. Run as a regular user with sudo privileges."
 fi
 
-# Prompt for GitHub repo if not set
-if [ "$GITHUB_REPO" = "YOUR_ORG/PacketArch" ]; then
+# Prompt for GitHub repo if the default placeholder is still in place
+if [ "$GITHUB_REPO" = "ORG/REPO" ]; then
     read -p "Enter GitHub repository (org/repo): " GITHUB_REPO
 fi
 
@@ -106,12 +106,18 @@ if [ ! -f .env ]; then
     SECRET_KEY=$(openssl rand -hex 32)
     POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
     ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    # Fernet key (url-safe base64 of 32 bytes) — persists encrypted settings
+    # (CV token, AI keys) across restarts. Without it they'd break on reboot.
+    ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
+    # Match the host docker group so the backend can use the Docker socket.
+    DOCKER_GID=$(getent group docker | cut -d: -f3)
 
     cat > .env << ENVEOF
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 SECRET_KEY=${SECRET_KEY}
-ENCRYPTION_KEY=
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
+DOCKER_GID=${DOCKER_GID}
 DEBUG=false
 ENVEOF
 
@@ -144,13 +150,14 @@ echo "============================================"
 echo "  Setup Complete!"
 echo "============================================"
 echo ""
-echo "Access URLs:"
-echo "  Frontend:  http://${SERVER_IP}:3001"
-echo "  API Docs:  http://${SERVER_IP}:8001/api/docs"
+echo "Access URLs (HTTPS on 443, self-signed cert):"
+echo "  Frontend:  https://${SERVER_IP}/"
+echo "  API Docs:  https://${SERVER_IP}/api/docs"
 echo ""
-echo "Default Credentials:"
-echo "  Username:  admin"
-echo "  Password:  (see ADMIN_PASSWORD in .env file)"
+echo "First boot lands on the setup wizard — create the admin there."
+echo "(ADMIN_PASSWORD in .env is the fallback for automated harnesses.)"
+echo ""
+echo "Off-box access: open inbound 443 (and 80) in your cloud/network firewall."
 echo ""
 echo "GitHub Actions Secrets Required:"
 echo "  SSH_HOST:          ${SERVER_IP}"
