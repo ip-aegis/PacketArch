@@ -34,9 +34,10 @@ cat > .env <<EOF
 POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
 SECRET_KEY=$(openssl rand -hex 32)
 ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
-ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
 DOCKER_GID=$(getent group docker | cut -d: -f3)
 DEBUG=false
+# ADMIN_PASSWORD intentionally omitted => first boot shows the setup wizard.
+# Add ADMIN_PASSWORD=<value> only for a headless install (skips the wizard).
 EOF
 chmod 600 .env
 
@@ -50,9 +51,9 @@ Or run the one-shot helper (does all of the above):
 ./scripts/server-init.sh         # defaults to ip-aegis/PacketArch @ master
 ```
 
-Then open `https://<server-ip>/` and complete the first-run **setup wizard**
-(create the admin, name the site). The `ADMIN_PASSWORD` in `.env` is only a
-fallback for automated test harnesses.
+Then open `https://<server-ip>/` and complete the first-run **setup wizard** —
+create the admin and name the site. (Set `ADMIN_PASSWORD` in `.env` only for a
+headless install: it auto-creates the `admin` user and skips the wizard.)
 
 ### Required / recommended `.env` values
 
@@ -60,9 +61,9 @@ fallback for automated test harnesses.
 |-----|----------|-------|
 | `POSTGRES_PASSWORD` | ✅ | Compose refuses to start without it |
 | `SECRET_KEY` | ✅ | `openssl rand -hex 32` |
-| `ADMIN_PASSWORD` | ✅ | Fallback admin; wizard normally creates the admin |
-| `ENCRYPTION_KEY` | recommended | Persists encrypted settings (CV token, AI keys) across restarts. Empty = regenerated each boot, breaking them. |
-| `DOCKER_GID` | recommended | Must match the host docker group (`getent group docker \| cut -d: -f3`) or the backend can't reach the Docker socket to spawn traffic containers. Defaults to 987. |
+| `ADMIN_PASSWORD` | optional | **Unset = setup wizard (recommended).** Set = auto-create `admin` with this password and skip the wizard (headless installs). |
+| `ENCRYPTION_KEY` | optional | If unset, it's derived deterministically from `SECRET_KEY` and is stable across reboots. Set an explicit Fernet key only to rotate it independently of `SECRET_KEY`. |
+| `DOCKER_GID` | recommended | Must match the host docker group (`getent group docker \| cut -d: -f3`) or the backend can't reach the Docker socket to spawn traffic containers. Varies by distro (988 on Ubuntu 24.04); falls back to 987 if unset. |
 | `DEBUG` | optional | `false` in production |
 
 ---

@@ -3,7 +3,7 @@
 # PacketArch Server Initialization Script
 # Run this ONCE on a new production server to set up GitHub-based deployments.
 #
-# Usage: curl -sSL https://raw.githubusercontent.com/YOUR_ORG/PacketArch/main/scripts/server-init.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ip-aegis/PacketArch/master/scripts/server-init.sh | bash
 #    or: ./server-init.sh
 #
 
@@ -105,7 +105,6 @@ if [ ! -f .env ]; then
     # Generate secure random values
     SECRET_KEY=$(openssl rand -hex 32)
     POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
-    ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
     # Fernet key (url-safe base64 of 32 bytes) — persists encrypted settings
     # (CV token, AI keys) across restarts. Without it they'd break on reboot.
     ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
@@ -116,9 +115,11 @@ if [ ! -f .env ]; then
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 SECRET_KEY=${SECRET_KEY}
 ENCRYPTION_KEY=${ENCRYPTION_KEY}
-ADMIN_PASSWORD=${ADMIN_PASSWORD}
 DOCKER_GID=${DOCKER_GID}
 DEBUG=false
+# ADMIN_PASSWORD unset => first boot shows the setup wizard (create admin there).
+# Uncomment + set for a headless install that auto-creates admin and skips it:
+# ADMIN_PASSWORD=changeme
 ENVEOF
 
     chmod 600 .env

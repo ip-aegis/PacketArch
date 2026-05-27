@@ -16,8 +16,11 @@ from app.core.config import settings
 def _get_encryption_key() -> bytes:
     """Get or generate the encryption key."""
     if settings.encryption_key:
-        # Use provided key (should be base64-encoded 32-byte key)
-        return base64.urlsafe_b64decode(settings.encryption_key)
+        # ENCRYPTION_KEY is a Fernet key: url-safe base64 of 32 bytes (44 chars).
+        # Fernet wants that ENCODED form as bytes — it base64-decodes internally.
+        # Pass it through (do NOT decode here); matches the derived-key branch
+        # below which also returns the base64-encoded form.
+        return settings.encryption_key.encode()
     else:
         # Derive key from secret_key using PBKDF2
         # This is deterministic, so the same secret_key always produces the same encryption key

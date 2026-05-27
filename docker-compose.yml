@@ -50,7 +50,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # Optional headless-admin bootstrap. Unset (default) => first boot shows
+      # the setup wizard. Set => auto-create admin and skip the wizard.
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       DEBUG: ${DEBUG:-false}
       # Cisco CIRCUIT provider — env-var overrides for the encrypted
       # system_settings rows. Empty/unset = use whatever's in the DB.
@@ -87,8 +89,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      # Required by app.core.config Settings validator (same as backend service)
-      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      # Optional headless-admin bootstrap (mirrors backend); unset => wizard.
+      FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       # CIRCUIT pass-through (same set as backend service so PCAP /
       # Celery-driven AI calls have access to the same provider).
       CIRCUIT_CLIENT_ID: ${CIRCUIT_CLIENT_ID:-}
@@ -114,6 +116,7 @@ services:
     build: ./frontend
     restart: unless-stopped
     ports:
+      - "80:80"    # HTTP -> HTTPS redirect (nginx returns 301 to 443)
       - "443:443"
     volumes:
       - ssl_certs:/etc/nginx/ssl
