@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
 from app.api.websocket import agent_hub
 from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete
 from app.mcp_server.transport import http_sse
@@ -179,6 +179,9 @@ app.include_router(attacks.router, prefix=settings.api_prefix, dependencies=[Req
 app.include_router(cve.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(cloud_services.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(cyber_vision.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+# CML auto-deploy is meaningless in the PCAP-only build (no agents / no
+# install bundle), so gate it like the agents router.
+app.include_router(cml.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(ldap.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(users.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(agents.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])

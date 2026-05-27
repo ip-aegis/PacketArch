@@ -49,6 +49,20 @@ class TrafficAgent(Base):
         String(100),
         nullable=True,
     )
+    # CML deployment linkage (set when this agent was auto-deployed into a
+    # Cisco Modeling Labs lab; null for manually-installed agents)
+    cml_lab_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    cml_node_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    cml_node_label: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
     # Agent status: online, offline
     status: Mapped[str] = mapped_column(
         String(20),

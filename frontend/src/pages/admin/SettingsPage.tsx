@@ -36,6 +36,7 @@ import {
   RobotOutlined,
   EyeOutlined,
   RocketOutlined,
+  CloudServerOutlined,
   DownloadOutlined,
   FileOutlined,
   IdcardOutlined,
@@ -46,6 +47,7 @@ import {
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
+import CmlTab from '../../components/admin/CmlTab';
 import LdapTab from '../../components/admin/LdapTab';
 import AgentsTab from '../../components/admin/AgentsTab';
 import DownloadsTab from '../../components/admin/DownloadsTab';
@@ -747,6 +749,15 @@ const SettingsPage: React.FC = () => {
       children: <CyberVisionTab />,
     },
     {
+      key: 'cml',
+      label: (
+        <span>
+          <CloudServerOutlined /> Modeling Labs
+        </span>
+      ),
+      children: <CmlTab />,
+    },
+    {
       key: 'ldap',
       label: (
         <span>
@@ -860,7 +871,7 @@ const SettingsPage: React.FC = () => {
 
         <Card>
           <Tabs
-            items={tabItems.filter((t) => liveTrafficEnabled || t.key !== 'agents')}
+            items={tabItems.filter((t) => liveTrafficEnabled || (t.key !== 'agents' && t.key !== 'cml'))}
             activeKey={activeTab}
             onChange={handleTabChange}
             destroyInactiveTabPane

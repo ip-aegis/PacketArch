@@ -253,6 +253,44 @@ DEFAULT_SETTINGS = [
         "category": "cyber_vision",
         "description": "Verify SSL certificates when connecting to Cyber Vision",
     },
+    # Cisco Modeling Labs (CML) settings
+    {
+        "key": "cml_url",
+        "value": "",
+        "is_secret": False,
+        "category": "cml",
+        "description": "Cisco Modeling Labs base URL (e.g., https://10.10.20.230)",
+    },
+    {
+        "key": "cml_username",
+        "value": "",
+        "is_secret": False,
+        "category": "cml",
+        "description": "CML username for JWT authentication",
+    },
+    {
+        "key": "cml_password",
+        "is_secret": True,
+        "category": "cml",
+        "description": "CML password (encrypted at rest; used to mint short-lived JWTs)",
+    },
+    {
+        "key": "cml_verify_ssl",
+        "value": "false",
+        "is_secret": False,
+        "category": "cml",
+        "description": "Verify SSL certificates when connecting to CML",
+    },
+    {
+        "key": "cml_packetarch_server_url",
+        "value": "",
+        "is_secret": False,
+        "category": "cml",
+        "description": (
+            "URL the deployed agent phones home to (reachable from inside the CML lab; "
+            "may differ from the browser-facing URL). Blank = fall back to site.fqdn."
+        ),
+    },
     # LDAP / Active Directory settings
     {
         "key": "ldap_enabled",

@@ -44,6 +44,10 @@ class AgentResponse(BaseModel):
         None,
         description="When the agent first connected (null if never connected)"
     )
+    # CML deployment linkage (set when auto-deployed into a Modeling Labs lab)
+    cml_lab_id: str | None = None
+    cml_node_id: str | None = None
+    cml_node_label: str | None = None
     created_at: datetime
     updated_at: datetime
 
