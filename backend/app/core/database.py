@@ -123,7 +123,16 @@ def get_sync_session():
 
 
 async def init_db() -> None:
-    """Initialize database tables."""
+    """Initialize database tables.
+
+    create_all is the schema BASELINE for this project: the alembic migration
+    chain is incremental (it patches a create_all-built schema and does not
+    rebuild it from scratch), so create_all must run every boot to materialize
+    any model tables a release added. It is idempotent — it only creates
+    missing tables, never alters existing ones. The container entrypoint runs
+    `alembic upgrade head` BEFORE this to apply column/data deltas that
+    create_all cannot. See backend/entrypoint.sh.
+    """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

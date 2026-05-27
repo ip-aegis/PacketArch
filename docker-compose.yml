@@ -54,6 +54,15 @@ services:
       # the setup wizard. Set => auto-create admin and skip the wizard.
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       DEBUG: ${DEBUG:-false}
+      # Entrypoint applies alembic deltas before uvicorn (create_all stays the
+      # baseline). ONLY set on backend (celery_worker must not migrate).
+      RUN_MIGRATIONS: "true"
+      # Self-upgrade: host install dir (so the backend can launch the updater
+      # container against the real repo) + pinned compose project name + docker
+      # group GID for the updater's socket access.
+      HOST_INSTALL_DIR: ${HOST_INSTALL_DIR:-}
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-packetarch}
+      DOCKER_GID: ${DOCKER_GID:-987}
       # Cisco CIRCUIT provider — env-var overrides for the encrypted
       # system_settings rows. Empty/unset = use whatever's in the DB.
       CIRCUIT_CLIENT_ID: ${CIRCUIT_CLIENT_ID:-}
@@ -67,7 +76,12 @@ services:
       - pcap_uploads:/app/data/pcap_uploads
       - pcap_output:/app/output/pcap
       - ./docker/packetarch-agent:/docker/packetarch-agent:ro
+      # Updater build context (for build-on-demand if the image is missing).
+      - ./docker/packetarch-updater:/docker/packetarch-updater:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      # Shared with the updater container; survives backend recreate so the
+      # self-upgrade status outlives the backend restarting mid-upgrade.
+      - upgrade_state:/state
     depends_on:
       postgres:
         condition: service_healthy
@@ -141,9 +155,34 @@ services:
     depends_on:
       - postgres
 
+  # Self-upgrade runner. Never auto-starts (profiled). The backend launches a
+  # one-off container FROM this image via the Docker socket to run
+  # scripts/upgrade.sh; because that container is standalone (not a tracked
+  # compose service), upgrade.sh's `docker compose up -d --build` recreate
+  # can't kill it mid-run. Defined here so the image is versioned with the repo
+  # and built alongside the rest: `docker compose --profile updater build`.
+  # The pinned `image:` name is what the backend references.
+  updater:
+    profiles: ["updater"]
+    build: ./docker/packetarch-updater
+    image: packetarch-updater:latest
+    working_dir: /repo
+    group_add:
+      - "${DOCKER_GID:-987}"
+    security_opt:
+      - label:disable
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-packetarch}
+      DOCKER_GID: ${DOCKER_GID:-987}
+    volumes:
+      - .:/repo
+      - /var/run/docker.sock:/var/run/docker.sock
+      - upgrade_state:/state
+
 volumes:
   postgres_data:
   redis_data:
   pcap_uploads:
   pcap_output:
   ssl_certs:
+  upgrade_state:

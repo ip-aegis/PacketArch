@@ -42,6 +42,7 @@ import {
   DashboardOutlined,
   DollarOutlined,
   BarChartOutlined,
+  CloudUploadOutlined,
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
@@ -52,6 +53,7 @@ import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
 import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab';
 import AICostsTab from '../../components/admin/AICostsTab';
 import AITokenUsageTab from '../../components/admin/AITokenUsageTab';
+import SystemUpdatesTab from '../../components/admin/SystemUpdatesTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useFeatures } from '../../hooks/useFeatures';
 import type { SystemSetting } from '../../types';
@@ -820,6 +822,15 @@ const SettingsPage: React.FC = () => {
           </Card>
         </Space>
       ),
+    },
+    {
+      key: 'updates',
+      label: (
+        <span>
+          <CloudUploadOutlined /> Updates
+        </span>
+      ),
+      children: <SystemUpdatesTab />,
     },
   ];
 

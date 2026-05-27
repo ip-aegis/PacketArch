@@ -22,9 +22,16 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "PacketArch"
-    app_version: str = "1.0.0"
+    app_version: str = "1.1.0"
     debug: bool = False
     environment: str = "development"
+
+    # Self-upgrade (git-clone installs). Populated from the host on Docker
+    # installs so the backend can launch the updater container against the
+    # real install directory. Empty outside Docker.
+    host_install_dir: str = ""
+    compose_project_name: str = "packetarch"
+    docker_gid: str = ""
 
     # API
     api_prefix: str = "/api/v1"

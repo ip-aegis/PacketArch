@@ -117,6 +117,10 @@ SECRET_KEY=${SECRET_KEY}
 ENCRYPTION_KEY=${ENCRYPTION_KEY}
 DOCKER_GID=${DOCKER_GID}
 DEBUG=false
+# Self-upgrade (one-button UI upgrade): this install's host path + pinned
+# compose project name so the updater container targets the right repo/project.
+HOST_INSTALL_DIR=${INSTALL_DIR}
+COMPOSE_PROJECT_NAME=packetarch
 # ADMIN_PASSWORD unset => first boot shows the setup wizard (create admin there).
 # Uncomment + set for a headless install that auto-creates admin and skips it:
 # ADMIN_PASSWORD=changeme

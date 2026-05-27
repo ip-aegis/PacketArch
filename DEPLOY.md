@@ -35,6 +35,8 @@ POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
 SECRET_KEY=$(openssl rand -hex 32)
 ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 DOCKER_GID=$(getent group docker | cut -d: -f3)
+HOST_INSTALL_DIR=$(pwd)
+COMPOSE_PROJECT_NAME=packetarch
 DEBUG=false
 # ADMIN_PASSWORD intentionally omitted => first boot shows the setup wizard.
 # Add ADMIN_PASSWORD=<value> only for a headless install (skips the wizard).
@@ -142,6 +144,15 @@ cd ~/packetarch
 `alembic upgrade head`, verifies backend health, and **auto-rolls back code +
 database** if the new stack doesn't come up healthy. The pre-upgrade backup is
 kept under `./backups/`.
+
+**One-button upgrade (UI):** admins can also upgrade from **Settings →
+Updates** — it shows the installed vs latest release and runs the same
+`upgrade.sh` inside a detached updater container (so the backend can restart
+itself), streaming progress that survives the restart. Requires
+`HOST_INSTALL_DIR` + `COMPOSE_PROJECT_NAME` in `.env` (the runbook above and
+`server-init.sh` set these). Boot-time migrations: the backend entrypoint runs
+`alembic upgrade head` on every start (gated by `RUN_MIGRATIONS=true`), so a
+schema delta lands even on a plain `docker compose up`.
 
 > Note: the app currently builds tables via `create_all` on boot *and* ships
 > alembic migrations. `upgrade.sh` bootstraps alembic tracking (stamps the

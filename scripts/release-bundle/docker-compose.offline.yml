@@ -42,6 +42,9 @@ services:
       # FIRST_USER_PASSWORD is optional — leave blank for the wizard path.
       # If set, the backend auto-creates an admin on first boot (legacy).
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Offline installs have no upgrade.sh, so boot-time migration is the
+      # ONLY way their schema advances. Must be set (backend only, not celery).
+      RUN_MIGRATIONS: "true"
       AI_ENABLED: ${AI_ENABLED:-false}
       LIVE_TRAFFIC_ENABLED: ${LIVE_TRAFFIC_ENABLED:-true}
       BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
@@ -95,6 +98,7 @@ services:
     image: packetarch/frontend:${PACKETARCH_VERSION:-latest}
     restart: unless-stopped
     ports:
+      - "80:80"    # HTTP -> HTTPS redirect (nginx returns 301 to 443)
       - "443:443"
     volumes:
       - ssl_certs:/etc/nginx/ssl

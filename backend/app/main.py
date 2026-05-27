@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
 from app.api.websocket import agent_hub
 from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete
 from app.mcp_server.transport import http_sse
@@ -153,6 +153,7 @@ app.include_router(setup_routes.router, prefix=settings.api_prefix)
 app.include_router(auth.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(acknowledgments.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(admin.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(system_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(ai_usage.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(site_config.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(scenarios.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
