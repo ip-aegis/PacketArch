@@ -82,6 +82,9 @@ services:
       # Shared with the updater container; survives backend recreate so the
       # self-upgrade status outlives the backend restarting mid-upgrade.
       - upgrade_state:/state
+      # Built agent image/artifacts — persists across `up --build` so the served
+      # agent doesn't revert to a stale baked tarball (auto-rebuilt on boot if stale).
+      - agent_dist:/app/app/static/agent/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -186,3 +189,4 @@ volumes:
   pcap_output:
   ssl_certs:
   upgrade_state:
+  agent_dist:

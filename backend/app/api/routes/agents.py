@@ -57,20 +57,29 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-# Agent image path (define early for use in routes)
-AGENT_IMAGE_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "packetarch-agent.tar.gz"
-AGENT_VERSION_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "version.txt"
-AGENT_BUILD_STATUS_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "build_status.json"
-AGENT_CHECKSUM_PATH = Path(__file__).parent.parent.parent / "static" / "agent" / "checksum.txt"
+# Built agent artifacts live in static/agent/dist/ — a named volume in compose so
+# they persist across `docker compose up --build` (the source install.sh stays in
+# static/agent/, baked into the image; only the build output is volume-backed).
+_AGENT_DIST = Path(__file__).parent.parent.parent / "static" / "agent" / "dist"
+AGENT_IMAGE_PATH = _AGENT_DIST / "packetarch-agent.tar.gz"
+AGENT_VERSION_PATH = _AGENT_DIST / "version.txt"
+AGENT_BUILD_STATUS_PATH = _AGENT_DIST / "build_status.json"
+AGENT_CHECKSUM_PATH = _AGENT_DIST / "checksum.txt"
 AGENT_SOURCE_PATH = Path(__file__).parent.parent.parent.parent.parent / "docker" / "packetarch-agent"
 BACKEND_APP_PATH = Path(__file__).parent.parent.parent  # backend/app/
 
 
 def get_standard_agent_version() -> str | None:
-    """Get the current standard (built) agent version."""
+    """Get the current standard agent version.
+
+    Prefer the built image's version.txt, but fall back to the agent SOURCE
+    version when it is missing — otherwise a missing version.txt makes the
+    "standard" version null, which silently disables out-of-date detection
+    (exactly how stale 1.0.0 agents went unflagged).
+    """
     if AGENT_VERSION_PATH.exists():
         return AGENT_VERSION_PATH.read_text().strip()
-    return None
+    return extract_agent_version_from_source()
 
 
 def extract_agent_version_from_source() -> str | None:

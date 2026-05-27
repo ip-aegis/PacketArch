@@ -13,7 +13,8 @@ router = APIRouter(prefix="/agent", tags=["agent-install"])
 # Path to the install script (in backend/app/static/agent/)
 STATIC_DIR = Path(__file__).parent.parent.parent / "static" / "agent"
 INSTALL_SCRIPT_PATH = STATIC_DIR / "install.sh"
-AGENT_IMAGE_PATH = STATIC_DIR / "packetarch-agent.tar.gz"
+# Built image lives in the volume-backed dist/ subdir (see agents.py).
+AGENT_IMAGE_PATH = STATIC_DIR / "dist" / "packetarch-agent.tar.gz"
 
 
 @router.get("/install.sh", response_class=PlainTextResponse)

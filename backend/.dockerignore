@@ -18,3 +18,8 @@ debug_*.py
 htmlcov/
 .coverage
 *.log
+app/static/agent/dist/
+app/static/agent/*.tar.gz
+app/static/agent/version.txt
+app/static/agent/checksum.txt
+app/static/agent/build_status.json

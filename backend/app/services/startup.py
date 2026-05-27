@@ -199,6 +199,49 @@ async def reconcile_agent_statuses(db: AsyncSession) -> int:
     return agents_reset
 
 
+async def ensure_agent_image_current() -> str:
+    """Rebuild the served agent image if it's missing or older than the source.
+
+    Keeps installs/upgrades automatically current: after an agent version bump,
+    the next backend boot rebuilds the served tarball so `install.sh` hands out
+    the latest agent. The heavy build runs in a background thread (so startup is
+    not blocked) and reuses the build-image route's logic, including its
+    concurrent-build guard. Gated by the caller to live-traffic deployments.
+    """
+    import asyncio
+    import re
+    import threading
+
+    from fastapi import BackgroundTasks
+
+    from app.api.routes.agents import (
+        AGENT_IMAGE_PATH,
+        AGENT_VERSION_PATH,
+        build_agent_image,
+        extract_agent_version_from_source,
+    )
+
+    def _vt(v: str | None) -> tuple:
+        return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
+
+    source_v = extract_agent_version_from_source()
+    if not source_v:
+        return "skipped (no agent source version)"
+    served_v = AGENT_VERSION_PATH.read_text().strip() if AGENT_VERSION_PATH.exists() else None
+    if served_v and AGENT_IMAGE_PATH.exists() and _vt(served_v) >= _vt(source_v):
+        return f"up to date (served v{served_v})"
+
+    # Stale or missing — trigger a background rebuild via the route's own logic.
+    bt = BackgroundTasks()
+    await build_agent_image(bt)  # writes build status, guards concurrent builds, queues the build
+    if bt.tasks:
+        threading.Thread(
+            target=lambda: asyncio.run(bt()), name="agent-image-autobuild", daemon=True
+        ).start()
+        return f"rebuilding agent image (served v{served_v or 'none'} -> source v{source_v})"
+    return f"build already in progress / unavailable (served v{served_v or 'none'})"
+
+
 async def run_startup_tasks(db: AsyncSession) -> dict:
     """Run all startup tasks."""
     results = {}
@@ -247,6 +290,12 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
             results["agent_reconcile"] = f"Reset {agents_reset} stale 'online' agent(s) to offline"
         else:
             results["agent_reconcile"] = "No stale agent statuses found"
+        # Keep the served agent image current so installs/upgrades get the latest build.
+        try:
+            results["agent_image"] = await ensure_agent_image_current()
+        except Exception as e:  # never let an image-build hiccup block startup
+            logger.warning("ensure_agent_image_current failed: %s", e)
+            results["agent_image"] = f"check failed: {e}"
     else:
         results["agent_reconcile"] = "skipped (live_traffic_enabled=false)"
 
