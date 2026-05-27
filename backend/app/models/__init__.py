@@ -18,6 +18,7 @@ from app.models.generation_job import GenerationJob, GenerationJobStatus
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.scenario_version import ScenarioVersion
 from app.models.ai_call_audit import AICallAudit
+from app.models.user_audit import UserAuditLog
 
 __all__ = [
     "User",
@@ -42,4 +43,5 @@ __all__ = [
     "CloudServiceProvider",
     "ScenarioVersion",
     "AICallAudit",
+    "UserAuditLog",
 ]

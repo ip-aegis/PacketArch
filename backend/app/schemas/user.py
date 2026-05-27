@@ -22,6 +22,13 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
 
 
+class AdminUserCreate(UserCreate):
+    """Schema for an admin creating a user (can set role + active status)."""
+
+    is_admin: bool = False
+    is_active: bool = True
+
+
 class UserUpdate(BaseModel):
     """Schema for updating a user."""
 
@@ -42,6 +49,19 @@ class UserResponse(UserBase):
     created_at: datetime
     last_login: datetime | None
     welcome_seen: bool
+
+    model_config = {"from_attributes": True}
+
+
+class UserAuditEntry(BaseModel):
+    """One admin user-management action, for the audit view."""
+
+    id: uuid.UUID
+    created_at: datetime
+    actor_username: str
+    target_username: str | None
+    action: str
+    detail: str | None
 
     model_config = {"from_attributes": True}
 
