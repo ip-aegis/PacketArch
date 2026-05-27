@@ -155,6 +155,9 @@ fi
 
 # ---- backup ----------------------------------------------------------------
 if [[ $DO_BACKUP -eq 1 ]]; then
+  # Create the dir first: packetarch-backup.sh canonicalizes --output with
+  # `readlink -f`, which fails (silently, under set -e) if the parent is absent.
+  mkdir -p "${REPO_DIR}/backups"
   BACKUP_FILE="${REPO_DIR}/backups/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tgz"
   write_status backup running "Backing up database + volumes"
   log "Backing up to ${BACKUP_FILE} ..."

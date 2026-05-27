@@ -89,3 +89,6 @@ CIRCUIT/
 
 # Dead backup of templates refactored into services/device_templates package
 backend/app/scenario_templates_legacy_backup/
+
+# Snapshot tarballs written by packetarch-backup.sh / upgrade.sh
+backups/
