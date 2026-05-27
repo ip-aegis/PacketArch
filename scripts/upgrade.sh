@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+#
+# PacketArch upgrade — move an install to a tagged release, safely.
+#
+# Labs track RELEASES (git tags vX.Y.Z), not bleeding-edge master. This script
+# backs up, checks out the target tag, rebuilds, applies database migrations,
+# verifies health, and AUTOMATICALLY ROLLS BACK (code + database) if the
+# upgraded stack doesn't come up healthy.
+#
+# Run from anywhere inside the install — it resolves the repo root from its
+# own location. Needs Docker access (uses sudo automatically if you're not in
+# the docker group).
+#
+#   ./scripts/upgrade.sh                 # upgrade to the latest release tag
+#   ./scripts/upgrade.sh --to v1.2.0     # upgrade (or downgrade) to a tag
+#   ./scripts/upgrade.sh --check         # report current vs latest, do nothing
+#   ./scripts/upgrade.sh --list          # list available release tags
+#   ./scripts/upgrade.sh --no-backup     # skip the pre-upgrade backup (faster)
+#   ./scripts/upgrade.sh --force         # proceed even with a dirty working tree
+#
+set -euo pipefail
+
+# ---- locate repo + compose wrapper -----------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${REPO_DIR}"
+
+C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'; C_RED='\033[0;31m'; C_OFF='\033[0m'
+log()  { printf "${C_GREEN}[upgrade]${C_OFF} %s\n" "$*"; }
+warn() { printf "${C_YELLOW}[upgrade]${C_OFF} %s\n" "$*" >&2; }
+die()  { printf "${C_RED}[upgrade] ERROR:${C_OFF} %s\n" "$*" >&2; exit 1; }
+
+usage() { sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; }
+
+[[ -f docker-compose.yml ]] || die "docker-compose.yml not found in ${REPO_DIR}"
+
+if docker info >/dev/null 2>&1; then SUDO=""; else SUDO="sudo"; fi
+DC="${SUDO} docker compose"
+
+# ---- args ------------------------------------------------------------------
+TARGET=""; DO_BACKUP=1; FORCE=0; MODE="upgrade"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --to)        TARGET="${2:-}"; shift 2 ;;
+    --check)     MODE="check"; shift ;;
+    --list)      MODE="list"; shift ;;
+    --no-backup) DO_BACKUP=0; shift ;;
+    --force)     FORCE=1; shift ;;
+    -h|--help)   usage; exit 0 ;;
+    *)           die "unknown arg: $1 (try --help)" ;;
+  esac
+done
+
+# ---- version discovery -----------------------------------------------------
+log "Fetching release tags..."
+git fetch --tags --force --quiet origin || warn "git fetch failed (offline?); using local tags"
+
+CURRENT_REF="$(git rev-parse HEAD)"
+CURRENT_DESC="$(git describe --tags --always 2>/dev/null || echo "${CURRENT_REF:0:12}")"
+
+if [[ "$MODE" == "list" ]]; then
+  echo "Available release tags (newest first):"
+  git tag -l 'v*' --sort=-v:refname | head -20
+  exit 0
+fi
+
+LATEST_TAG="$(git tag -l 'v*' --sort=-v:refname | head -1 || true)"
+[[ -n "$LATEST_TAG" ]] || die "no release tags (v*) found. Cut one with: git tag vX.Y.Z && git push origin vX.Y.Z"
+TARGET="${TARGET:-$LATEST_TAG}"
+git rev-parse -q --verify "refs/tags/${TARGET}^{commit}" >/dev/null 2>&1 \
+  || die "tag '${TARGET}' not found. Try: $0 --list"
+TARGET_REF="$(git rev-parse "refs/tags/${TARGET}^{commit}")"
+
+log "Current : ${CURRENT_DESC}"
+log "Target  : ${TARGET}   (latest available: ${LATEST_TAG})"
+
+if [[ "$MODE" == "check" ]]; then
+  if [[ "$TARGET_REF" == "$CURRENT_REF" ]]; then log "Already up to date."
+  else log "Update available: ${CURRENT_DESC} -> ${TARGET}"; fi
+  exit 0
+fi
+
+# ---- preflight -------------------------------------------------------------
+if [[ "$TARGET_REF" == "$CURRENT_REF" && $FORCE -ne 1 ]]; then
+  log "Already on ${TARGET}. Use --force to rebuild anyway."; exit 0
+fi
+
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  [[ $FORCE -eq 1 ]] || die "working tree has local changes to tracked files. Commit/stash them, or use --force."
+  warn "stashing local changes (--force)"
+  git stash push -m "upgrade.sh autostash $(date -u +%FT%TZ)" >/dev/null || true
+fi
+
+[[ -f .env ]] || die ".env missing — is this a configured install?"
+
+log "Ensuring database is up..."
+$DC up -d postgres redis >/dev/null
+for i in $(seq 1 30); do
+  if $DC exec -T postgres pg_isready -U packetarch >/dev/null 2>&1; then break; fi
+  if [[ $i -eq 30 ]]; then die "postgres did not become ready"; fi
+  sleep 2
+done
+
+# ---- alembic tracking bootstrap --------------------------------------------
+# This app builds tables via SQLAlchemy create_all on boot AND ships alembic
+# migrations. Installs that were never alembic-tracked have no version table;
+# stamp it at the CURRENT code's head so the upgrade applies only the *new*
+# migrations instead of trying to recreate already-existing tables.
+psql_q() { $DC exec -T postgres psql -U packetarch -d packetarch -tAc "$1" 2>/dev/null | tr -d '[:space:]'; }
+TRACKED="$(psql_q "SELECT to_regclass('public.alembic_version') IS NOT NULL" || echo f)"
+if [[ "$TRACKED" != "t" ]]; then
+  OLD_HEAD="$($DC run --rm --no-deps backend alembic heads 2>/dev/null | awk 'NR==1{print $1}' || true)"
+  if [[ -n "$OLD_HEAD" ]]; then
+    log "DB not alembic-tracked; stamping current head ${OLD_HEAD} before upgrade."
+    if $DC run --rm --no-deps backend alembic stamp "$OLD_HEAD"; then
+      TRACKED="$(psql_q "SELECT to_regclass('public.alembic_version') IS NOT NULL" || echo f)"
+    else
+      warn "alembic stamp failed; migrations will be skipped this run"
+    fi
+  else
+    warn "could not determine current alembic head; relying on create_all this run"
+  fi
+fi
+
+# ---- backup ----------------------------------------------------------------
+BACKUP_FILE=""
+if [[ $DO_BACKUP -eq 1 ]]; then
+  BACKUP_FILE="${REPO_DIR}/backups/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tgz"
+  log "Backing up to ${BACKUP_FILE} ..."
+  ${SUDO} bash "${SCRIPT_DIR}/packetarch-backup.sh" --install-dir "${REPO_DIR}" --output "${BACKUP_FILE}" \
+    || die "backup failed; aborting before any changes were made"
+fi
+
+# ---- rollback helper -------------------------------------------------------
+rollback() {
+  warn "ROLLBACK: reverting code to ${CURRENT_DESC} (${CURRENT_REF:0:12})"
+  git checkout --quiet "$CURRENT_REF" || warn "git checkout of previous ref failed"
+  $DC up -d --build || warn "rebuild during rollback failed"
+  if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
+    warn "restoring database from pre-upgrade backup"
+    ${SUDO} bash "${SCRIPT_DIR}/packetarch-restore.sh" --yes --install-dir "${REPO_DIR}" "$BACKUP_FILE" \
+      || warn "DB restore FAILED — backup preserved at ${BACKUP_FILE}"
+  fi
+  $DC up -d || true
+}
+
+# ---- apply -----------------------------------------------------------------
+log "Checking out ${TARGET} ..."
+git checkout --quiet "refs/tags/${TARGET}" || die "git checkout ${TARGET} failed"
+
+log "Building images for ${TARGET} (this can take a few minutes) ..."
+if ! $DC build; then rollback; die "image build failed — rolled back to ${CURRENT_DESC}"; fi
+
+# Migrate BEFORE the app boots so create_all can't race new-table migrations.
+if [[ "$TRACKED" == "t" ]]; then
+  log "Applying database migrations (alembic upgrade head) ..."
+  if ! $DC run --rm --no-deps backend alembic upgrade head; then
+    rollback; die "database migration failed — rolled back to ${CURRENT_DESC}"
+  fi
+else
+  warn "skipping alembic migrations (DB not tracked); create_all will add new tables only"
+fi
+
+log "Starting upgraded stack ..."
+if ! $DC up -d; then rollback; die "compose up failed — rolled back to ${CURRENT_DESC}"; fi
+
+# ---- verify ----------------------------------------------------------------
+log "Waiting for backend health ..."
+HEALTHY=0
+for i in $(seq 1 60); do
+  if $DC exec -T backend curl -fsS http://localhost:8001/health >/dev/null 2>&1; then HEALTHY=1; break; fi
+  sleep 5
+done
+if [[ $HEALTHY -ne 1 ]]; then
+  rollback
+  die "backend did not become healthy after upgrade — rolled back to ${CURRENT_DESC}"
+fi
+
+log "Upgrade complete: ${CURRENT_DESC} -> ${TARGET}"
+[[ -n "$BACKUP_FILE" ]] && log "Pre-upgrade backup kept at ${BACKUP_FILE}"
+log "Previous images are retained for fast rollback — run 'docker image prune' to reclaim space."

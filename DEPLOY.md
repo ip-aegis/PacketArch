@@ -124,7 +124,31 @@ docker compose restart             # restart all
 docker compose down                # stop (keeps volumes/data)
 ```
 
-**Rollback:**
+### Upgrading (release-tracked)
+
+Labs track tagged **releases** (`vX.Y.Z`), not bleeding-edge `master`. Cut a
+release from the dev box with `git tag vX.Y.Z && git push origin vX.Y.Z` (this
+also triggers the offline-bundle build in `release.yml`). On each lab box:
+
+```bash
+cd ~/packetarch
+./scripts/upgrade.sh --check     # what's installed vs latest release
+./scripts/upgrade.sh             # upgrade to the latest release tag
+./scripts/upgrade.sh --to v1.2.0 # pin a specific version
+```
+
+`upgrade.sh` backs up first, checks out the target tag, rebuilds, runs
+`alembic upgrade head`, verifies backend health, and **auto-rolls back code +
+database** if the new stack doesn't come up healthy. The pre-upgrade backup is
+kept under `./backups/`.
+
+> Note: the app currently builds tables via `create_all` on boot *and* ships
+> alembic migrations. `upgrade.sh` bootstraps alembic tracking (stamps the
+> current head) on first run so schema migrations apply correctly. The clean
+> long-term fix is to run `alembic upgrade head` in the backend entrypoint and
+> drop `create_all`; until then, `upgrade.sh` is the supported upgrade path.
+
+**Manual rollback** (if you're not using `upgrade.sh`):
 ```bash
 cd ~/packetarch
 git log --oneline -10
