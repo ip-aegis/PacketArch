@@ -90,9 +90,41 @@ if [[ "${SKIP_AGENT:-0}" == "1" ]]; then
     AGENT_INCLUDED=0
 else
     echo "[3/6] Building agent image ${AGENT_IMAGE}..."
+
+    # Stage shared code that the agent Dockerfile expects at
+    # `_shared/protocol_engines/` and `_shared/traffic_generator/`. This
+    # mirrors backend `agents.py:build_image_sync()` so a release build
+    # produces the same agent image the in-app rebuild flow does.
+    # Without this step every release CI run since v1.0.0 has failed
+    # with "COPY _shared/protocol_engines/: not found".
+    AGENT_BUILD_CTX="${REPO_ROOT}/docker/packetarch-agent"
+    SHARED_DIR="${AGENT_BUILD_CTX}/_shared"
+    rm -rf "${SHARED_DIR}"
+    mkdir -p "${SHARED_DIR}/traffic_generator"
+
+    # protocol_engines/ is the canonical source of truth for all protocols.
+    cp -r "${REPO_ROOT}/backend/app/protocol_engines" \
+          "${SHARED_DIR}/protocol_engines"
+
+    # Subset of traffic_generator/ that the agent actually imports. The
+    # rest of that package (orchestrator.py, tasks.py, models.py, etc.)
+    # has backend-only deps and is intentionally NOT shipped.
+    for f in scheduler.py flow_coordinator.py pcap_writer.py; do
+        cp "${REPO_ROOT}/backend/app/traffic_generator/${f}" \
+           "${SHARED_DIR}/traffic_generator/${f}"
+    done
+    cat > "${SHARED_DIR}/traffic_generator/__init__.py" <<'PYEOF'
+"""Traffic generator utilities (agent subset)."""
+PYEOF
+
+    # Clean staged files even on failure so the source tree doesn't
+    # accumulate cruft across local builds. _shared/ is gitignored.
+    trap "rm -rf '${SHARED_DIR}'" EXIT
+
     docker build \
         --tag "${AGENT_IMAGE}" \
-        "${REPO_ROOT}/docker/packetarch-agent"
+        "${AGENT_BUILD_CTX}"
+
     AGENT_INCLUDED=1
 fi
 
