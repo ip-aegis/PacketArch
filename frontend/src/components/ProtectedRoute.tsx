@@ -18,44 +18,72 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 
+// Module-level flag: have we round-tripped to the server during this app
+// load to confirm the persisted session is still valid? We need to do
+// that exactly ONCE per app load — not on every nested ProtectedRoute
+// mount, otherwise navigating to /admin/settings (which has a nested
+// `<ProtectedRoute requireAdmin>` inside the outer one) shows a spinner
+// flash on every click. The shared `bootPromise` deduplicates concurrent
+// callers (e.g. outer + inner mounting in the same tick).
+let initialAuthCheckDone = false;
+let bootPromise: Promise<void> | null = null;
+
+function runInitialAuthCheck(fetchCurrentUser: () => Promise<void>): Promise<void> {
+  if (initialAuthCheckDone) return Promise.resolve();
+  if (bootPromise) return bootPromise;
+  const token = getAccessToken();
+  if (!token) {
+    initialAuthCheckDone = true;
+    return Promise.resolve();
+  }
+  bootPromise = fetchCurrentUser()
+    .catch(() => {
+      // fetchCurrentUser already handles its own error state (clears
+      // tokens + sets isAuthenticated=false). We just need to swallow
+      // so the boot promise resolves.
+    })
+    .finally(() => {
+      initialAuthCheckDone = true;
+      bootPromise = null;
+    });
+  return bootPromise;
+}
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAdmin = false,
 }) => {
   const location = useLocation();
   const { user, isAuthenticated, isLoading, fetchCurrentUser } = useAuthStore();
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(!initialAuthCheckDone);
 
-  // On every mount (cold reload, tab restore, route nav), ALWAYS round-trip
-  // to the server before rendering. The old behavior trusted the
-  // `isAuthenticated` flag persisted in localStorage and painted the app
-  // shell before the server confirmed the session — which let an
-  // overnight-idle tab bypass the login page. We now treat the cached
-  // user as decorative (for username/avatar only) and require a fresh
-  // /auth/me before this route is considered authenticated.
+  // Run the server-side auth check exactly once per app load. Subsequent
+  // ProtectedRoute mounts (e.g. clicking a sidebar link) skip the check
+  // and trust the in-memory auth state — the axios interceptor in
+  // api/client.ts handles silent refresh on the next 401, and a
+  // refresh-failure there hard-redirects to /login. The OLD pre-1.4
+  // behavior trusted a persisted `isAuthenticated=true` flag across
+  // reloads and painted the app shell before the server had spoken,
+  // which is what let an overnight-idle tab bypass /login.
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
+    if (initialAuthCheckDone) {
       setChecking(false);
       return;
     }
     let cancelled = false;
-    (async () => {
-      try {
-        await fetchCurrentUser();
-      } finally {
-        if (!cancelled) setChecking(false);
-      }
-    })();
+    runInitialAuthCheck(fetchCurrentUser).finally(() => {
+      if (!cancelled) setChecking(false);
+    });
     return () => {
       cancelled = true;
     };
-    // We want this to run once per mount. fetchCurrentUser is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show loading while checking authentication (either our gate or the
-  // store's). Keeps the app shell hidden until the server has spoken.
+  // Spinner only while the FIRST check is in flight. Subsequent mounts
+  // never see `checking=true` because initialAuthCheckDone is already
+  // set, so nested ProtectedRoutes (e.g. /admin/settings) render
+  // instantly off the in-memory store.
   if (checking || isLoading) {
     return (
       <div
@@ -74,14 +102,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const token = getAccessToken();
 
   // If not authenticated, redirect to login. We check `isAuthenticated`
-  // (server-confirmed) rather than just the token's presence — a stale
-  // token with a deactivated user gets bounced to /login.
+  // (server-confirmed during boot) rather than just the token's presence —
+  // a stale token whose /auth/me 401'd lands here and gets bounced.
   if (!token || !isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If admin required but user is not admin, redirect to home
-  if (requireAdmin && user && !user.is_admin) {
+  // Admin gate: require an explicit is_admin=true. We DON'T render any
+  // admin page if `user` isn't loaded yet (the gate must fail closed,
+  // not pass through a brief !user window).
+  if (requireAdmin && (!user || !user.is_admin)) {
     return <Navigate to="/" replace />;
   }
 
