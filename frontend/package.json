@@ -20,7 +20,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@xyflow/react": "^12.6.0",
     "antd": "^5.24.0",
-    "axios": "^1.7.9",
+    "axios": "^1.15.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.56.0",

@@ -48,9 +48,20 @@ PacketArch Agent Installer
 
 Usage: $0 [OPTIONS]
 
+Recommended flow (token from UI):
+  1. In the PacketArch UI: Settings → Agents → "Add Agent". Copy the
+     one-time token shown after creation.
+  2. Run this installer with --token "<that token>".
+
 Required (one of):
   --token TOKEN         Agent authentication token (from PacketArch UI)
-  --register            Register a new agent with the server (requires --name)
+  --register            Register a new agent with the server
+                        (requires --name AND --admin-token)
+  --admin-token TOKEN   Admin bearer token used for --register. Get it from
+                        the UI: open DevTools → Network → any API call →
+                        copy the value of the Authorization header. Note
+                        admin tokens are short-lived; run --register
+                        promptly after generating one.
 
 Server Connection:
   --server URL          PacketArch server URL (e.g., https://10.10.20.231)
@@ -67,11 +78,12 @@ Other:
   --help                Show this help message
 
 Examples:
-  # Install with existing token
+  # Install with existing token (recommended — create the agent in the UI first)
   $0 --server https://10.10.20.231 --token "abc123..." --interface eth0
 
-  # Register new agent and install
-  $0 --server https://10.10.20.231 --name "Traffic-Agent-1" --register
+  # Register new agent inline (needs an admin bearer token)
+  $0 --server https://10.10.20.231 --name "Traffic-Agent-1" --register \\
+     --admin-token "eyJhbGciOi..."
 
   # Uninstall
   $0 --uninstall
@@ -111,12 +123,24 @@ register_agent() {
     fi
     payload+="}"
 
-    # Register with server
+    # Register with server. /api/v1/agents is admin-gated as of PacketArch
+    # 1.4.0, so --register requires --admin-token. (Pre-1.4 servers ignored
+    # the Authorization header; this works against both.)
+    if [[ -z "$ADMIN_TOKEN" ]]; then
+        print_error "--register requires --admin-token (PacketArch 1.4+)."
+        print_error "Either create the agent in the UI and re-run with --token,"
+        print_error "or pass an admin bearer token via --admin-token."
+        exit 1
+    fi
+
     local response
     response=$(curl -sf $CURL_OPTS -X POST "$server_url/api/v1/agents" \
         -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
         -d "$payload" 2>&1) || {
         print_error "Failed to register agent with server"
+        print_error "(401 usually means the --admin-token is expired — admin"
+        print_error " tokens are short-lived; grab a fresh one from the UI.)"
         print_error "Response: $response"
         exit 1
     }
@@ -265,6 +289,10 @@ while [[ $# -gt 0 ]]; do
         --register)
             REGISTER=true
             shift
+            ;;
+        --admin-token)
+            ADMIN_TOKEN="$2"
+            shift 2
             ;;
         --insecure|-k)
             INSECURE=true

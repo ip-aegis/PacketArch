@@ -81,10 +81,16 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Only persist the user object so the username/avatar render
+      // immediately on reload. `isAuthenticated` is INTENTIONALLY NOT
+      // persisted — relying on it across reloads let the app shell paint
+      // before the server confirmed the session was still alive, which is
+      // how an overnight-idle tab bypassed the login screen. The new flow:
+      // ProtectedRoute starts with isAuthenticated=false on every cold
+      // load, calls fetchCurrentUser, and only flips the flag after the
+      // server actually responds.
       partialize: (state) => ({
-        // Only persist user info, not loading/error states
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

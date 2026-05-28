@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.exceptions import ConflictError
 from app.core.security import (
     create_access_token,
@@ -143,7 +143,15 @@ async def refresh_token(
     body: RefreshRequest,
     db: DBSession,
 ) -> Token:
-    """Refresh access token using refresh token."""
+    """Refresh access token using refresh token.
+
+    Non-sliding session: the new refresh token preserves the ORIGINAL
+    `exp` of the inbound token instead of resetting the clock by
+    `refresh_token_expire_days`. So the absolute session length is bounded
+    by the original login, even if the user keeps the tab open and the
+    frontend keeps silently refreshing. Pre-1.4 behavior was unbounded
+    sliding refresh — see auth audit in tasks/todo.md.
+    """
     payload = verify_token(body.refresh_token, token_type="refresh")
 
     if payload is None:
@@ -170,10 +178,14 @@ async def refresh_token(
             detail="User not found or inactive",
         )
 
-    # Create new tokens
+    # Preserve the original `exp` so the absolute session window doesn't
+    # slide. `verify_token` already enforced that this `exp` is in the
+    # future (jose checks `exp` on decode).
+    original_exp = payload.get("exp")
+
     token_data = {"sub": str(user.id)}
     new_access_token = create_access_token(token_data)
-    new_refresh_token = create_refresh_token(token_data)
+    new_refresh_token = create_refresh_token(token_data, original_exp=original_exp)
 
     return Token(
         access_token=new_access_token,
@@ -206,8 +218,17 @@ async def mark_welcome_seen(
 async def register(
     user_data: UserCreate,
     db: DBSession,
+    _admin: AdminUser,
 ) -> UserResponse:
-    """Register a new user (first user becomes admin)."""
+    """Register a new user. Admin-only.
+
+    Historically this was anonymous self-signup with "first user becomes
+    admin" semantics. That role is now owned by the setup wizard, which runs
+    while `setup.completed=false` and creates the bootstrap admin. After
+    setup completes, this route is admin-only — same surface admins already
+    have at `POST /api/v1/users`. Kept here for backwards compatibility with
+    any tooling that hits `/auth/register`.
+    """
     # Check if username already exists
     result = await db.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():
@@ -219,16 +240,13 @@ async def register(
         if result.scalar_one_or_none():
             raise ConflictError("Email already registered", resource="User")
 
-    # Check if this is the first user (make them admin)
-    result = await db.execute(select(User).limit(1))
-    is_first_user = result.scalar_one_or_none() is None
-
-    # Create user
+    # Created by an admin; non-admin by default. Admins promote via
+    # PATCH /api/v1/users/{id} if needed.
     user = User(
         username=user_data.username,
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
-        is_admin=is_first_user,  # First user is admin
+        is_admin=False,
     )
 
     db.add(user)

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "PacketArch"
-    app_version: str = "1.3.0"
+    app_version: str = "1.4.0"
     debug: bool = False
     environment: str = "development"
 
@@ -50,11 +50,20 @@ class Settings(BaseSettings):
     # Redis
     redis_url: RedisDsn = "redis://localhost:6379/0"  # type: ignore
 
-    # JWT Authentication
+    # JWT Authentication.
+    #
+    # Defaults tuned for an internet-exposed deployment: a 30-min access
+    # token + 1-day refresh window means a stolen token is good for at
+    # most ~24h, and the absolute window does NOT slide on refresh (see
+    # `/auth/refresh` — the new refresh token preserves the inbound `exp`).
+    # `algorithm` is retained as a soft hint for tooling but the actual
+    # JWT decode whitelist is hardcoded to `["HS256"]` in
+    # `core/security.py:_JWT_ALGORITHMS`; setting this to "none" via env
+    # cannot disable signature checking.
     secret_key: str = ""
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 120
-    refresh_token_expire_days: int = 7
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 1
 
     # Encryption (for storing API keys and secrets)
     encryption_key: str = ""  # Will be generated if not provided

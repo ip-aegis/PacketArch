@@ -11,6 +11,14 @@ from jose import JWTError, jwt
 
 from app.core.config import settings
 
+# Algorithm whitelist. Hardcoded rather than read from settings so an
+# operator who misconfigures `ALGORITHM=none` in `.env` cannot disable JWT
+# signature checks — `python-jose` will happily accept unsigned tokens if
+# `algorithms=["none"]` is passed. The trade-off: switching to RS256/ES256
+# now requires a code change, not an env flip. That's the right default for
+# an internet-facing app.
+_JWT_ALGORITHMS = ["HS256"]
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash."""
@@ -36,23 +44,37 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
             minutes=settings.access_token_expire_minutes
         )
     to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=_JWT_ALGORITHMS[0])
     return encoded_jwt
 
 
-def create_refresh_token(data: dict[str, Any]) -> str:
-    """Create a JWT refresh token."""
+def create_refresh_token(
+    data: dict[str, Any],
+    original_exp: int | float | None = None,
+) -> str:
+    """Create a JWT refresh token.
+
+    If `original_exp` is provided (a unix timestamp), the new token inherits
+    that absolute expiration instead of resetting to `now + refresh_token_expire_days`.
+    Used by `/auth/refresh` so the absolute session length is bounded by the
+    original login — preventing the historical "sliding 7-day session that
+    resets to 7 days every API call" bypass.
+    """
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    if original_exp is not None:
+        # Carry the inbound exp through; jose accepts int / float / datetime here.
+        to_encode.update({"exp": original_exp, "type": "refresh"})
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=_JWT_ALGORITHMS[0])
     return encoded_jwt
 
 
 def decode_token(token: str) -> dict[str, Any] | None:
     """Decode and validate a JWT token."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=_JWT_ALGORITHMS)
         return payload
     except JWTError:
         return None

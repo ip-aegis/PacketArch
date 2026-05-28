@@ -41,6 +41,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useFeaturesStore } from '../../stores/featuresStore';
 import { useFeatures } from '../../hooks/useFeatures';
+import { useIdleLogout } from '../../hooks/useIdleLogout';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
 import AboutModal from '../modals/AboutModal';
 import AcknowledgmentModal from '../modals/AcknowledgmentModal';
@@ -156,10 +157,19 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, [liveTrafficEnabled]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/login');
-  };
+  }, [logout, navigate]);
+
+  // Idle-logout: 30 min of no mouse/keyboard/scroll activity → logout +
+  // redirect to /login. Only armed while a user session exists, so /login
+  // itself stays unaffected. See useIdleLogout.ts for activity sampling
+  // details and tasks/todo.md for the audit that drove this.
+  useIdleLogout({
+    enabled: !!user,
+    onIdle: handleLogout,
+  });
 
   // Handle menu navigation
   const handleMenuClick = useCallback(

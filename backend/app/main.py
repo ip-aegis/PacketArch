@@ -7,14 +7,14 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
 from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
 from app.api.websocket import agent_hub
-from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete
+from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete, get_current_user
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
@@ -62,14 +62,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("PacketArch API shutdown complete")
 
 
-# Create FastAPI application
+# Create FastAPI application.
+#
+# Docs / OpenAPI spec are disabled in non-debug deployments. The full spec
+# is a free attack-surface map for an internet-exposed box; operators who
+# need it during incident response can flip `DEBUG=true` in `.env`. Note
+# `frontend/nginx.conf` also drops the matching location blocks so even an
+# internal `/api/docs` proxy won't leak the docs.
+_docs_url = "/api/docs" if settings.debug else None
+_redoc_url = "/api/redoc" if settings.debug else None
+_openapi_url = "/api/openapi.json" if settings.debug else None
+
 app = FastAPI(
     title=settings.app_name,
     description="OT Traffic Simulation Platform - Generate hyper-realistic industrial network traffic",
     version=settings.app_version,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
     lifespan=lifespan,
 )
 
@@ -157,7 +167,7 @@ app.include_router(system_routes.router, prefix=settings.api_prefix, dependencie
 app.include_router(ai_usage.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(site_config.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(scenarios.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
-app.include_router(architecture_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(architecture_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, Depends(get_current_user)])
 app.include_router(scenario_versions.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(protocols.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(generation.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
@@ -168,7 +178,7 @@ app.include_router(anomalies.router, prefix=settings.api_prefix, dependencies=[R
 app.include_router(fingerprints.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(ip_management.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(stats.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
-app.include_router(dashboard.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+app.include_router(dashboard.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled, Depends(get_current_user)])
 app.include_router(adaptation.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 # attacks.router has per-route gating: read endpoints (playbooks list/get,
 # compatible-playbooks) stay open so the PCAP-only build can populate the
@@ -185,7 +195,7 @@ app.include_router(cml.router, prefix=settings.api_prefix, dependencies=[Require
 app.include_router(ldap.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(users.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(agents.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
-app.include_router(health_monitor_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(health_monitor_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, Depends(get_current_user)])
 app.include_router(downloads.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(http_sse.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 

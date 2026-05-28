@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_admin_user
 from app.api.helpers import get_or_404, paginate as paginate_query
 from app.core.database import get_db
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
@@ -44,7 +45,17 @@ from app.services.scenario_enrichment import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/agents", tags=["agents"])
+# Admin-only at the router level. The handlers below hand out agent
+# WebSocket tokens and accept deploy/update commands — every route here is an
+# admin operation, so we close the door once rather than relying on each
+# handler to declare its own dep (a missing dep was historically fail-open).
+# Setup-gating + live-traffic flag stay on main.py:include_router so the
+# router-wiring matrix is centralized there.
+router = APIRouter(
+    prefix="/agents",
+    tags=["agents"],
+    dependencies=[Depends(get_current_admin_user)],
+)
 
 
 def generate_agent_token() -> str:

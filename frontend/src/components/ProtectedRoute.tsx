@@ -7,7 +7,7 @@
  * Protected route component for authentication
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Spin } from 'antd';
 import { useAuthStore } from '../stores/authStore';
@@ -24,17 +24,39 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const location = useLocation();
   const { user, isAuthenticated, isLoading, fetchCurrentUser } = useAuthStore();
+  const [checking, setChecking] = useState(true);
 
+  // On every mount (cold reload, tab restore, route nav), ALWAYS round-trip
+  // to the server before rendering. The old behavior trusted the
+  // `isAuthenticated` flag persisted in localStorage and painted the app
+  // shell before the server confirmed the session — which let an
+  // overnight-idle tab bypass the login page. We now treat the cached
+  // user as decorative (for username/avatar only) and require a fresh
+  // /auth/me before this route is considered authenticated.
   useEffect(() => {
-    // If we have a token but no user, try to fetch user info
     const token = getAccessToken();
-    if (token && !user && !isLoading) {
-      fetchCurrentUser();
+    if (!token) {
+      setChecking(false);
+      return;
     }
-  }, [user, isLoading, fetchCurrentUser]);
+    let cancelled = false;
+    (async () => {
+      try {
+        await fetchCurrentUser();
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // We want this to run once per mount. fetchCurrentUser is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Show loading while checking authentication
-  if (isLoading) {
+  // Show loading while checking authentication (either our gate or the
+  // store's). Keeps the app shell hidden until the server has spoken.
+  if (checking || isLoading) {
     return (
       <div
         style={{
@@ -49,10 +71,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Check if token exists
   const token = getAccessToken();
 
-  // If not authenticated, redirect to login
+  // If not authenticated, redirect to login. We check `isAuthenticated`
+  // (server-confirmed) rather than just the token's presence — a stale
+  // token with a deactivated user gets bounced to /login.
   if (!token || !isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
