@@ -2,6 +2,15 @@
 #
 # PacketArch Agent Installer
 #
+# *** SINGLE SOURCE OF TRUTH ***
+# This file is served verbatim at GET /agent/install.sh
+# (see backend/app/api/routes/agent_install.py) and is what every
+# curl-pipe install and CML auto-deploy runs. Do NOT fork a second copy
+# elsewhere — a stale duplicate that omitted the Docker socket mount once
+# shipped agents that couldn't self-update ("Docker not available").
+# The generated docker-compose.yml MUST mount /var/run/docker.sock so the
+# agent can self-update. tests/test_agent_installer.py enforces this.
+#
 # Installs the PacketArch remote traffic agent on a Linux host.
 # The agent connects to the PacketArch server via WebSocket and
 # executes traffic generation commands.
