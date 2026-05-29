@@ -55,6 +55,15 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin_user)],
 )
 
+# Agents download their update image from /api/v1/agents/image during
+# self-update, authenticating only with their agent token (not an admin
+# JWT) — so this one route must NOT carry the admin dependency, or
+# self-update fails with HTTP 401. The image is non-secret (also served
+# publicly at /agent/image.tar.gz); this endpoint exists separately only
+# to add the X-Checksum-SHA256 verification header. Mounted ahead of the
+# admin router in main.py so /image resolves here, not as /{agent_id}.
+image_router = APIRouter(prefix="/agents", tags=["agents"])
+
 
 def generate_agent_token() -> str:
     """Generate a secure random token for agent authentication."""
@@ -406,12 +415,16 @@ async def get_agent_image_status() -> dict:
     }
 
 
-@router.get("/image")
+@image_router.get("/image")
 async def download_agent_image():
     """Download the agent Docker image tarball.
 
     This is used by agents to download the latest image during self-update.
     The X-Checksum-SHA256 header contains the expected checksum for verification.
+
+    Unauthenticated by design: agents present only their agent token, not an
+    admin JWT, and the image is already public at /agent/image.tar.gz. Lives on
+    ``image_router`` (no admin dependency) rather than the admin ``router``.
     """
     if not AGENT_IMAGE_PATH.exists():
         raise NotFoundError("Agent image", "packetarch-agent.tar.gz")

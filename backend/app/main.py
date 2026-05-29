@@ -194,6 +194,10 @@ app.include_router(cyber_vision.router, prefix=settings.api_prefix, dependencies
 app.include_router(cml.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(ldap.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(users.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+# Unauthenticated agent-image download (for agent self-update) — must be
+# included BEFORE the admin agents router so /agents/image matches this
+# exact route rather than the admin /agents/{agent_id} (which would 401).
+app.include_router(agents.image_router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(agents.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(health_monitor_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, Depends(get_current_user)])
 app.include_router(downloads.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])

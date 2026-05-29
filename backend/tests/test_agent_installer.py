@@ -17,6 +17,9 @@ installer anywhere in the repo) must mount the socket — and assert the
 single-source-of-truth so the drift can't return unnoticed.
 """
 
+import pytest
+from httpx import AsyncClient
+
 from app.api.routes.agent_install import STATIC_DIR
 
 SOCKET_MOUNT = "/var/run/docker.sock:/var/run/docker.sock"
@@ -75,4 +78,18 @@ def test_agent_installer_is_single_source_of_truth():
     assert not stale.exists(), (
         "docker/packetarch-agent/install.sh has reappeared — the agent installer "
         "lives only at backend/app/static/agent/install.sh (served at /agent/install.sh)."
+    )
+
+
+@pytest.mark.asyncio
+async def test_agent_image_download_is_not_admin_gated(client: AsyncClient):
+    """The agent downloads its update image from /api/v1/agents/image using only
+    its agent token (no admin JWT). If that route is admin-gated, self-update
+    fails with HTTP 401 (regression fixed in v1.5.6). No image exists in the
+    test env, so an un-authenticated request should reach the handler and 404 —
+    NOT be rejected with 401/403."""
+    resp = await client.get("/api/v1/agents/image")
+    assert resp.status_code not in (401, 403), (
+        f"/api/v1/agents/image must be reachable without admin auth for agent "
+        f"self-update, got {resp.status_code}"
     )
