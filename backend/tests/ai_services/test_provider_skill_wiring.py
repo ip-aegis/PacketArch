@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ai_services.skills import registry as registry_module
 from app.ai_services.skills.registry import SkillRegistry
 from app.mcp_server.ai_providers.anthropic_provider import AnthropicProvider
 

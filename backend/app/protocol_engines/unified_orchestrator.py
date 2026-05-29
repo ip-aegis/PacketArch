@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import random
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from app.protocol_engines import get_engine

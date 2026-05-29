@@ -136,7 +136,6 @@ class TestAssignZoneSubnetOffsets:
 
     def test_multiple_ranges(self):
         """Test with different range indices produce correct subnets."""
-        zones = [{"name": "Zone A"}]
 
         result1 = assign_zone_subnet_offsets([{"name": "Z1"}], range_index=1)
         result2 = assign_zone_subnet_offsets([{"name": "Z2"}], range_index=200)

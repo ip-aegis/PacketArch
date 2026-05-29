@@ -9,9 +9,8 @@ session caching issues.
 """
 
 import copy
-import json
 import uuid
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

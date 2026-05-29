@@ -11,9 +11,8 @@ Protocol versions:
 - V3 (modern): TCP port 11740, binary app upload, variable access
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, Enum
-from typing import Any
 
 
 # =============================================================================

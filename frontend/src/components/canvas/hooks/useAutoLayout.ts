@@ -33,17 +33,6 @@ const LAYOUT_CONFIG = {
   gridStartY: 100,
 };
 
-// Purdue model level positions (Y-axis) - 300px spacing between levels
-const PURDUE_LEVELS: Record<number, number> = {
-  5: 50,      // Enterprise Network
-  4: 350,     // Site Business
-  3.5: 650,   // Industrial DMZ
-  3: 950,     // Site Operations
-  2: 1250,    // Area Supervisory Control
-  1: 1550,    // Basic Control
-  0: 1850,    // Process (Field Devices)
-};
-
 // Group devices by zone
 function groupDevicesByZone(
   devices: Record<string, ScenarioDevice>,
@@ -436,7 +425,6 @@ function calculateDataFlowLayout(
   const sortedZones = [...zoneList].sort((a, b) => zoneLevels[a.id] - zoneLevels[b.id]);
 
   // Position zones left-to-right by flow level
-  const horizontalSpacing = 350;
   const verticalSpacing = 200;
   let currentX = LAYOUT_CONFIG.gridStartX;
 

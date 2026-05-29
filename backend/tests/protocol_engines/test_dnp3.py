@@ -17,7 +17,6 @@ from app.protocol_engines.dnp3.packets import (
     DNP3_START_BYTES,
     GROUP_ANALOG_INPUT,
     GROUP_BINARY_INPUT,
-    GROUP_COUNTER,
     build_data_link_frame,
     build_read_request,
     build_read_response,

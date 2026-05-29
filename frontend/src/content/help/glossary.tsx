@@ -8,9 +8,9 @@
  */
 
 import React from 'react';
-import { Typography, Space, Card, Divider, Input } from 'antd';
+import { Typography, Space, Card, Input } from 'antd';
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
-import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;

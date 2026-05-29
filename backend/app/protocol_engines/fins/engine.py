@@ -30,9 +30,7 @@ from collections.abc import Iterator
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.fins.packets import (
-    FINS_PORT,
     FINSCommand,
-    FINSTcpCommand,
     MemoryArea,
     ResponseCode,
     build_clock_read_command,

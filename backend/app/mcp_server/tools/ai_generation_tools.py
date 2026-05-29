@@ -233,7 +233,7 @@ async def inject_anomaly_campaign(
         result = await db.execute(
             select(AnomalyTemplate).where(
                 AnomalyTemplate.anomaly_type == anomaly_type,
-                AnomalyTemplate.is_active == True,
+                AnomalyTemplate.is_active.is_(True),
             )
         )
         template = result.scalar_one_or_none()
@@ -293,7 +293,7 @@ async def list_anomaly_templates(
     Returns:
         JSON string with template list
     """
-    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active == True)
+    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active.is_(True))
 
     if category:
         query = query.where(AnomalyTemplate.category == AnomalyCategory(category))
@@ -369,7 +369,7 @@ async def analyze_scenario_for_anomalies(
 
     # Protocol-specific anomalies
     query = select(AnomalyTemplate).where(
-        AnomalyTemplate.is_active == True,
+        AnomalyTemplate.is_active.is_(True),
     )
     result = await db.execute(query)
     all_templates = result.scalars().all()

@@ -799,7 +799,7 @@ async def enrich_devices(
                 )
                 success_count += 1
                 total_props += len(added) + (1 if label_set else 0)
-                logger.info(f"Enriched CV device {real_device_id} with {len(added)} properties" + (f" + label" if label_set else ""))
+                logger.info(f"Enriched CV device {real_device_id} with {len(added)} properties" + (" + label" if label_set else ""))
 
             except Exception as e:
                 logger.warning(f"Failed to enrich CV device {real_device_id}: {e}")

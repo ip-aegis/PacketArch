@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for VariableBinder — process variable → PayloadGenerator mapping."""
 
-import pytest
 
 from app.protocol_engines.payload_generator import (
     PayloadGenerator,

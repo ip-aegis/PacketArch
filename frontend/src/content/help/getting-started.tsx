@@ -11,9 +11,6 @@ import React from 'react';
 import { Typography, Space, Card, Alert, Divider } from 'antd';
 import {
   RocketOutlined,
-  FolderOutlined,
-  AppstoreOutlined,
-  CloudServerOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';

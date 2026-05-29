@@ -186,7 +186,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["bms_core"], "target_zones": ["bms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            
+
             # EWON Modbus polling to HVAC controllers (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["chiller_controller", "building_controller"],
@@ -407,7 +407,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["dcim_core"], "target_zones": ["power_zone", "rack_zone", "dcim_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            
+
             # EWON Modbus polling to UPS systems (10s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
              "source_types": ["remote_gateway"], "target_types": ["ups"],
@@ -763,7 +763,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "target_zones": ["campus_core", "building_a", "field_devices"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            
+
             # EWON Modbus polling to central plant (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["chiller_controller"],

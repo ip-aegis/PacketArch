@@ -24,7 +24,6 @@ from app.core.exceptions import ExternalServiceError, ValidationError
 from app.api.deps import CurrentUser, DBSession
 from app.ai_services.usage_recorder import AIUsageContext
 from app.mcp_server.ai_providers import AIProviderFactory, AITask
-from app.models.settings import SystemSetting
 
 logger = logging.getLogger(__name__)
 

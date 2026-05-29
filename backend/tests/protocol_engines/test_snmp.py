@@ -4,7 +4,7 @@
 """Unit tests for SNMP/NTCIP protocol engine."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.types import (
@@ -22,7 +22,6 @@ from app.protocol_engines.snmp.types import (
     SNMPFlowConfig,
     SNMPOperation,
     SNMPState,
-    SNMPValueType,
     SNMPVersion,
     VarBind,
     GenericTrapType,
@@ -42,7 +41,6 @@ from app.protocol_engines.snmp.oids import (
     get_next_oid,
     MIB2,
     NTCIP_ASC,
-    NTCIP_DMS,
 )
 from app.protocol_engines.snmp.packets import (
     build_snmp_get_request,
@@ -59,7 +57,6 @@ from app.protocol_engines.snmp.packets import (
     build_snmpv3_header,
     build_snmpv3_usm_params,
     build_snmpv3_scoped_pdu,
-    build_snmpv3_message,
     build_snmpv3_get_request,
     build_snmpv3_get_response,
     build_snmpv3_get_request_packet,

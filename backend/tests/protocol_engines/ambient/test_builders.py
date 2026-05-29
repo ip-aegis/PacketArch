@@ -5,7 +5,6 @@
 
 import struct
 
-import pytest
 
 from app.protocol_engines.ambient.stp import (
     STP_MULTICAST_MAC,

@@ -245,8 +245,6 @@ async def _assign_ips(
     Otherwise, all devices missing an IP address get one assigned.  Devices
     that already have an IP are left untouched.
     """
-    from app.mcp_server.tools.scenario_lock import safe_update_scenario
-    from app.services.ip_management import IPManagementService
 
     target_ids = set(params.get("device_ids", []))
     assigned_count = 0

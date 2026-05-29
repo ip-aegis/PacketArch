@@ -405,7 +405,7 @@ def get_fingerprint_from_db_sync(
             template = db.query(DeviceTemplate).filter(
                 func.lower(DeviceTemplate.vendor) == vendor.lower(),
                 DeviceTemplate.model == model,
-                DeviceTemplate.is_active == True,  # noqa: E712
+                DeviceTemplate.is_active.is_(True),  # noqa: E712
             ).first()
 
             return template_db_to_fingerprint_dict(template)
@@ -442,7 +442,7 @@ async def get_fingerprint_from_db_async(
             select(DeviceTemplate).where(
                 func.lower(DeviceTemplate.vendor) == vendor.lower(),
                 DeviceTemplate.model == model,
-                DeviceTemplate.is_active == True,  # noqa: E712
+                DeviceTemplate.is_active.is_(True),  # noqa: E712
             )
         )
         template = result.scalar_one_or_none()

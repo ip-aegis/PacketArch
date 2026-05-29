@@ -102,7 +102,7 @@ class FingerprintCache:
             enhancements: dict[tuple[str, str], dict[str, Any]] = {}
             with get_sync_session() as db:
                 templates = db.query(DeviceTemplate).filter(
-                    DeviceTemplate.is_active == True  # noqa: E712
+                    DeviceTemplate.is_active.is_(True)  # noqa: E712
                 ).all()
 
                 for template in templates:

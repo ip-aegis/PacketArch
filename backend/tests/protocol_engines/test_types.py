@@ -3,12 +3,10 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for typed conversation state classes."""
 
-import pytest
 
 from app.protocol_engines.types import (
     BACnetConversationState,
     ConversationState,
-    ConversationStateBase,
     DNP3ConversationState,
     EtherNetIPConversationState,
     IEC104ConversationState,

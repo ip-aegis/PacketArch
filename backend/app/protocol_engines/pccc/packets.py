@@ -11,20 +11,21 @@ Builds packets for:
 
 import struct
 import random
-from typing import Any
 
 from app.protocol_engines.pccc.types import (
-    PCCC_TCP_PORT,
-    ETHERNET_IP_PORT,
     DF1FrameChar,
     PCCCCommand,
     PCCCFunction,
     PCCCStatus,
-    PCCCFileType,
     PCCCAddress,
     PCCCDeviceIdentity,
-    ABDeviceType,
-    AB_VENDOR_ID,
+)
+
+# Re-exported so consumers (e.g. pccc/engine.py) can import the port
+# constants from this module alongside the packet builders.
+from app.protocol_engines.pccc.types import (  # noqa: F401
+    PCCC_TCP_PORT,
+    ETHERNET_IP_PORT,
 )
 
 

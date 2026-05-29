@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { Card, Steps, Button, Space, Typography, Result } from 'antd';
+import { Card, Steps, Button, Space, Typography } from 'antd';
 import {
   RobotOutlined,
   ArrowLeftOutlined,

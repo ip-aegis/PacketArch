@@ -40,6 +40,7 @@ import {
   UsageRange,
   UsageSummaryResponse,
 } from '../../api/aiUsage';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text, Title } = Typography;
 
@@ -104,12 +105,8 @@ const AITokenUsageTab: React.FC = () => {
     try {
       const data = await aiUsageApi.summary(r);
       setSummary(data);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail ||
-          err?.message ||
-          'Failed to load AI usage summary',
-      );
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load AI usage summary'));
     } finally {
       setLoading(false);
     }
@@ -125,7 +122,7 @@ const AITokenUsageTab: React.FC = () => {
       });
       setEvents(data.items);
       setEventsTotal(data.total);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Failed to load AI usage events', err);
     } finally {
       setEventsLoading(false);
@@ -256,7 +253,7 @@ const AITokenUsageTab: React.FC = () => {
 
       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
         <Segmented
-          options={RANGE_OPTIONS as any}
+          options={RANGE_OPTIONS}
           value={range}
           onChange={(v) => setRange(v as UsageRange)}
         />

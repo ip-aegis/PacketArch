@@ -14,9 +14,8 @@ Key characteristics:
 - Default 30-second transmission interval
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, Enum
-from typing import Any
 
 
 # =============================================================================

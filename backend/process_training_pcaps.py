@@ -4,7 +4,6 @@
 """Batch process all training PCAP files through the learning pipeline."""
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -151,7 +150,7 @@ async def process_all_pcaps():
                         print(f"  SUCCESS: Uploaded (ID: {capture_id[:8]}...)")
                         results["success"] += 1
                     elif status == 409:
-                        print(f"  SKIPPED: Already exists")
+                        print("  SKIPPED: Already exists")
                         results["skipped"] += 1
                     else:
                         print(f"  FAILED: {status} - {response.get('detail', response)}")

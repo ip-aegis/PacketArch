@@ -143,7 +143,7 @@ class CVEFingerprintService:
         # Get variants for these CVEs
         query = select(VulnerableFingerprintVariant).where(
             VulnerableFingerprintVariant.cve_vulnerability_id.in_(cve_db_ids),
-            VulnerableFingerprintVariant.is_active == True,
+            VulnerableFingerprintVariant.is_active.is_(True),
         )
 
         if vendor:
@@ -203,7 +203,7 @@ class CVEFingerprintService:
         # No CVE IDs specified - find any variant for this vendor/model
         query = select(VulnerableFingerprintVariant).where(
             VulnerableFingerprintVariant.target_vendor.ilike(vendor),
-            VulnerableFingerprintVariant.is_active == True,
+            VulnerableFingerprintVariant.is_active.is_(True),
         )
 
         if fingerprint_model:
@@ -471,7 +471,6 @@ class CVEFingerprintService:
         """
         from app.protocol_engines.identity import (
             derive_all_firmware_fields,
-            get_registered_protocols,
         )
         from app.protocol_engines.protocols import (
             get_supported_protocols,

@@ -56,9 +56,29 @@ include = '\.pyi?$'
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
 ignore = ["E501"]
-target-version = "py311"
+
+[tool.ruff.lint.per-file-ignores]
+# Dev/utility scripts and tests set up sys.path / do ordering-sensitive
+# imports before importing app modules — E402 is expected there.
+"scripts/**" = ["E402"]
+"tests/**" = ["E402"]
+# Alembic migrations are auto-generated; the template emits a trailing
+# space after "Revises:" (W291) and imports after the docstring (E402).
+"alembic/**" = ["E402", "W291"]
+# Deliberate late imports: FastAPI include_router at file end, builder
+# side-effect registration, _-aliased local imports, and TYPE_CHECKING
+# forward-ref blocks that must follow the module body.
+"app/api/routes/ai.py" = ["E402"]
+"app/api/routes/scenarios.py" = ["E402"]
+"app/services/seed_data.py" = ["E402"]
+"app/protocol_engines/identity/__init__.py" = ["E402"]
+"app/protocol_engines/modbus/rtu_packets.py" = ["E402"]
+"app/protocol_engines/fingerprint_applicator.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.11"

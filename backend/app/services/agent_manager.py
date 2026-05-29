@@ -244,17 +244,6 @@ class AgentManager:
 
         return success
 
-    def get_deployment(self, scenario_id: str) -> Any:
-        """Get deployment info for a scenario.
-
-        Args:
-            scenario_id: Scenario UUID string
-
-        Returns:
-            ScenarioDeployment or None
-        """
-        return self._deployments.get(scenario_id)
-
     async def send_adaptation_directive(
         self,
         scenario_id: str,

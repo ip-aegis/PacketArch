@@ -8,12 +8,12 @@
  */
 
 import React, { useState } from 'react';
-import { Button, Collapse, InputNumber, Modal, Slider, Space, Switch, Tag, Typography, Radio } from 'antd';
+import { Button, Collapse, Modal, Slider, Space, Switch, Tag, Typography, Radio } from 'antd';
 import { ArrowLeftOutlined, AppstoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useAttackStore } from '../../stores/attackStore';
 import MitreTechniquePanel from './MitreTechniquePanel';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
 

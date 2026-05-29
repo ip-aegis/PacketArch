@@ -10,7 +10,6 @@ out the WAN to utility EMS.
 
 from __future__ import annotations
 
-from app.services.architecture.archetypes._base import VendorProfile
 from app.services.architecture.comm_matrix._base import CommEntry
 from app.services.architecture.role_catalog import Vertical
 

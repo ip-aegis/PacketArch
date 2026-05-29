@@ -10,7 +10,7 @@ the status reporter reads them from the async main loop.
 
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

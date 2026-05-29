@@ -10,7 +10,6 @@ with CVE-vulnerable devices for Cisco Cyber Vision detection.
 
 import asyncio
 import httpx
-import json
 import sys
 
 # PacketArch API configuration
@@ -575,7 +574,7 @@ async def main():
         print("SCENARIO SUMMARY")
         print("="*60)
         print(f"Scenario ID: {scenario_id}")
-        print(f"Duration: 2 minutes")
+        print("Duration: 2 minutes")
         print(f"\nDevices ({len(devices)}):")
 
         vendors = {}
@@ -633,8 +632,8 @@ async def main():
         print(f"Interface: {NETWORK_INTERFACE}")
         print(f"Status: {deployment.get('status')}")
 
-        print(f"\n>>> Monitor in Cisco Cyber Vision at: https://10.10.20.115")
-        print(f"\nThe scenario will run for 2 minutes generating traffic from:")
+        print("\n>>> Monitor in Cisco Cyber Vision at: https://10.10.20.115")
+        print("\nThe scenario will run for 2 minutes generating traffic from:")
         print(f"  - {len(vendors)} vendors (Rockwell, Siemens, Schneider, ABB, Honeywell, GE)")
         print(f"  - {len(protocols_used)} protocols (EtherNet/IP, Modbus TCP, PROFINET, S7)")
         print(f"  - {cve_count} CVE-vulnerable device configurations")
@@ -644,6 +643,6 @@ async def main():
 
 if __name__ == "__main__":
     scenario_id, deployment_id = asyncio.run(main())
-    print(f"\nTest scenario created and running")
+    print("\nTest scenario created and running")
     print(f"  Scenario ID: {scenario_id}")
     print(f"  Deployment ID: {deployment_id}")

@@ -13,7 +13,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Select,
   Space,
   Typography,
   Tag,
@@ -26,19 +25,17 @@ import {
 import {
   ThunderboltOutlined,
   ClockCircleOutlined,
-  AimOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import {
   createCampaign,
-  listCampaigns,
   deleteCampaign,
   getAnomalyTemplate,
   type AnomalyCampaign,
   type AnomalyTemplate,
 } from '../../api/anomalies';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface CampaignBuilderProps {
   scenarioId: string;

@@ -9,10 +9,10 @@
  */
 
 import React from 'react';
-import { Form, Input, Select, Tag, Typography, Divider, Empty } from 'antd';
+import { Input, Select, Tag, Typography, Divider, Empty } from 'antd';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import type { ConduitDirection, ProtocolType } from '../../types';
-import { PROTOCOL_OPTIONS, getProtocolLabel, getProtocolColor } from '../../constants/protocols';
+import { PROTOCOL_OPTIONS, getProtocolColor } from '../../constants/protocols';
 import { TEXT_BODY, TEXT_MUTED, BG_CODE, BORDER_DEFAULT } from '../../constants/theme';
 
 const { Text } = Typography;

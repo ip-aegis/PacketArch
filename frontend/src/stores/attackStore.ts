@@ -10,12 +10,12 @@
 
 import { create } from 'zustand';
 import { attacksApi } from '../api/attacks';
+import { extractErrorMessage } from '../utils/errorUtils';
 import type {
   AttackPlaybook,
   AttackPlaybookConfig,
   AttackPlaybookSummary,
   AttackReport,
-  AttackState,
 } from '../types/attackPlaybook';
 
 type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
@@ -153,9 +153,8 @@ export const useAttackStore = create<AttackStore>((set, get) => ({
         start_mode: config.start_mode,
         intensity: config.intensity,
       });
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      const errorMsg = typeof detail === 'string' ? detail : 'Injection failed';
+    } catch (err) {
+      const errorMsg = extractErrorMessage(err, 'Injection failed');
       set((state) => ({
         injectionStatus: { ...state.injectionStatus, [scenarioId]: 'failed' },
         injectionError: { ...state.injectionError, [scenarioId]: errorMsg },

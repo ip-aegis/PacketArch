@@ -12,7 +12,6 @@ import { Typography, Space, Card, Table, Tag, Divider } from 'antd';
 import {
   DatabaseOutlined,
   SearchOutlined,
-  FilterOutlined,
   CopyOutlined,
   SettingOutlined,
 } from '@ant-design/icons';

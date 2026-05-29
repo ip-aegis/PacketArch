@@ -7,7 +7,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from sqlalchemy import select
@@ -21,8 +21,6 @@ from app.services.ip_management import IPManagementService
 from app.services.cve_fingerprint_service import CVEFingerprintService
 from app.services.device_templates import get_fingerprint_by_vendor_model, get_fingerprint_from_template
 from app.traffic_generator.flow_generator import (
-    DeviceSpec,
-    FlowPattern,
     generate_flows_for_scenario,
 )
 from app.scenario_templates import (
@@ -529,10 +527,9 @@ async def create_scenario_from_template(
             device_list.append(device_dict)
 
         # Get default protocol from template flows (first protocol found)
-        default_protocol = "modbus_tcp"
         template_flows = template.get("flows", [])
         if template_flows:
-            default_protocol = template_flows[0].get("protocol", "modbus_tcp")
+            template_flows[0].get("protocol", "modbus_tcp")
 
         # Get available protocols from template
         protocols = list({f.get("protocol") for f in template_flows if f.get("protocol")})
@@ -871,7 +868,7 @@ async def _create_cloud_service_links_from_template(
         # Look up cloud service endpoint from database
         query = select(CloudServiceEndpoint).where(
             CloudServiceEndpoint.provider == CloudServiceProvider(provider),
-            CloudServiceEndpoint.is_active == True,
+            CloudServiceEndpoint.is_active.is_(True),
         )
         if region:
             query = query.where(CloudServiceEndpoint.region == region)
@@ -971,7 +968,7 @@ async def _migrate_external_flows_to_cloud_links(
             query = select(CloudServiceEndpoint).where(
                 CloudServiceEndpoint.provider == CloudServiceProvider(provider),
                 CloudServiceEndpoint.region == region,
-                CloudServiceEndpoint.is_active == True,
+                CloudServiceEndpoint.is_active.is_(True),
             )
             result = await db.execute(query.limit(1))
             cloud_service = result.scalar_one_or_none()
@@ -1042,7 +1039,6 @@ def _build_zones_from_template(
     Returns:
         Dictionary of zone configurations
     """
-    from app.models.ip_range_allocation import IPRangeAllocation
 
     zones = {}
     range_idx = allocation.range_index if allocation else 1

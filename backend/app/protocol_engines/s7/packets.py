@@ -7,12 +7,10 @@ import struct
 from dataclasses import dataclass
 
 from .config import (
-    S7Area,
     S7ConnectionType,
     S7DataReturnCode,
     S7Function,
     S7ReadArea,
-    S7TransportSize,
     S7WriteArea,
 )
 
@@ -105,17 +103,7 @@ class COTPConnectionRequest:
         # Parameter 0xC2: Destination TSAP
         params += bytes([0xC2, len(self.dst_tsap)]) + self.dst_tsap
 
-        # Fixed part
-        fixed = struct.pack(
-            ">BHBHB",
-            6 + len(params),  # Length indicator (excludes LI itself)
-            COTPType.CR,  # PDU type (actually only 4 bits, top nibble)
-            0x00,  # CDT (credit)
-            self.dst_ref,  # Destination reference
-            self.src_ref & 0xFF,  # Source reference low byte
-        )
-        # Actually CR structure is slightly different, let me fix:
-        # LI | CR/CDT | DST-REF | SRC-REF | CLASS | PARAMS
+        # Fixed part: LI | CR/CDT | DST-REF | SRC-REF | CLASS | PARAMS
         header = bytes(
             [
                 6 + len(params),  # Length indicator

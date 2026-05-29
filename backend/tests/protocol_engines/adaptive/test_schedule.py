@@ -5,12 +5,10 @@
 
 from unittest.mock import patch
 
-import pytest
 
 from app.protocol_engines.adaptive.schedule import (
     TrafficSchedule,
     SCHEDULE_PRESETS,
-    _DEFAULT_PHASE,
 )
 from app.protocol_engines.adaptive.types import ScheduleConfig, SchedulePhase
 

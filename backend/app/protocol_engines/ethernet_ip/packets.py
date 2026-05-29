@@ -963,28 +963,11 @@ def build_list_services_response(
     return header + cpf_data
 
 
-def build_cip_error_response(
-    service: int,
-    status: int = CIP_STATUS_SERVICE_NOT_SUPPORTED,
-    additional_status: bytes = b"",
-) -> bytes:
-    """Build CIP error response.
-
-    Args:
-        service: Original service code (will be ORed with 0x80)
-        status: CIP error status code
-        additional_status: Additional status bytes
-
-    Returns:
-        CIP error response bytes
-    """
-    additional_status_size = len(additional_status) // 2  # Size in words
-    return struct.pack(
-        "<BBB",
-        service | CIP_SERVICE_RESPONSE_MASK,  # Reply service
-        0x00,  # Reserved
-        status,
-    ) + struct.pack("<B", additional_status_size) + additional_status
+# NOTE: build_cip_error_response is defined once, earlier in this module
+# (the version that handles `extended_status` as an int). A duplicate
+# definition here was removed — it shadowed the earlier one and silently
+# mis-bound the `extended_status` argument passed by the ForwardOpen /
+# ForwardClose error helpers as raw `additional_status` bytes.
 
 
 def build_cip_get_attribute_all_response(

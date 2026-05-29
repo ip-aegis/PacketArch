@@ -30,7 +30,6 @@ from collections.abc import Iterator
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.slmp.packets import (
-    SLMP_PORT,
     DeviceCode,
     ResponseCode,
     SLMPCommand,

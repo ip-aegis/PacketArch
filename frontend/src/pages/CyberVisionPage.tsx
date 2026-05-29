@@ -49,6 +49,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useCyberVisionStore } from '../stores/cyberVisionStore';
 import { scenariosApi } from '../api/scenarios';
+import { extractErrorMessage } from '../utils/errorUtils';
 import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 import type {
   CVDevice,
@@ -162,7 +163,7 @@ const CyberVisionPage: React.FC = () => {
   // Get available properties from a matched device for enrichment
   const getAvailableProperties = (match: MatchedDevice): { label: string; value: string }[] => {
     const props: { label: string; value: string }[] = [];
-    const sd = match.scenario_device as Record<string, any>;
+    const sd = match.scenario_device as Record<string, unknown>;
 
     // Debug: log what we're working with
     console.log('getAvailableProperties for device:', {
@@ -205,7 +206,7 @@ const CyberVisionPage: React.FC = () => {
     }
 
     // Hostname from network config
-    const network = sd['network'] as Record<string, any> | undefined;
+    const network = sd['network'] as Record<string, unknown> | undefined;
     if (network?.['hostname'] && typeof network['hostname'] === 'string') {
       props.push({ label: 'Hostname', value: network['hostname'] });
     }
@@ -396,9 +397,9 @@ const CyberVisionPage: React.FC = () => {
             errors.push(`${match.cv_device.name}: ${deviceError}`);
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         failed++;
-        errors.push(`${match.cv_device.name}: ${err.message || 'Unknown error'}`);
+        errors.push(`${match.cv_device.name}: ${extractErrorMessage(err, 'Unknown error')}`);
       }
 
       setBulkEnrichProgress(i + 1);

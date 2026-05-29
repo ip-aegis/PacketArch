@@ -293,7 +293,7 @@ def main() -> int:
         matches = [(v, t) for v, t in all_templates if t == args.template]
         if not matches:
             print(f"\n  {FAIL} Template '{args.template}' not found.")
-            print(f"  Available templates:")
+            print("  Available templates:")
             for v, t in all_templates:
                 print(f"    {v}/{t}")
             return 1
@@ -448,7 +448,7 @@ def _build_ambient_devices(result: ScenarioBuildResult) -> list[AmbientDevice]:
 
 def _crit(ok: bool, label: str) -> None:
     """Print a success criteria line."""
-    status = f"\033[92mPASS\033[0m" if ok else f"\033[91mFAIL\033[0m"
+    status = "\033[92mPASS\033[0m" if ok else "\033[91mFAIL\033[0m"
     print(f"    [{status}] {label}")
 
 

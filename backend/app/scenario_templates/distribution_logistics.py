@@ -377,7 +377,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["wms_core"], "target_zones": ["wms_core"]},
 
-            
+
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
@@ -812,7 +812,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["dc_core"], "target_zones": ["dc_core"]},
 
-            
+
             # eWON Modbus polling to conveyor PLCs (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
@@ -1720,7 +1720,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["jump_server"], "target_types": ["switch"],
              "source_zones": ["sort_control"], "target_zones": ["sort_control"]},
 
-            
+
             # eWON Modbus polling to SCADA (5s)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
              "source_types": ["remote_gateway"], "target_types": ["scada_server"],

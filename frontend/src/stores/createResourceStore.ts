@@ -31,22 +31,31 @@
 
 import { extractErrorMessage } from '../utils/errorUtils';
 
-/** Minimal API shape the factory can drive. */
-export interface ResourceApi<T, C = Partial<T>, U = Partial<T>> {
-  list: (...args: any[]) => Promise<any>;
+/** Loosely-typed Zustand state record for the dynamic-key stores this drives. */
+type ResourceState = Record<string, unknown>;
+/** Zustand `set` for a dynamic-key store. */
+type SetState = (
+  partial: ResourceState | ((state: ResourceState) => ResourceState),
+) => void;
+/** Zustand `get` for a dynamic-key store. */
+type GetState = () => ResourceState;
+
+/** Minimal API shape the factory can drive. `L` is the list() response type. */
+export interface ResourceApi<T, C = Partial<T>, U = Partial<T>, L = unknown> {
+  list: (...args: never[]) => Promise<L>;
   get: (id: string) => Promise<T>;
   create: (data: C) => Promise<T>;
   update: (id: string, data: U) => Promise<T>;
   delete: (id: string) => Promise<void>;
 }
 
-export interface ResourceConfig<T, C, U> {
+export interface ResourceConfig<T, C, U, L = unknown> {
   /** Human-readable name for error messages, e.g. "Docker host". */
   resourceName: string;
   /** API object with list/get/create/update/delete methods. */
-  api: ResourceApi<T, C, U>;
+  api: ResourceApi<T, C, U, L>;
   /** Extract the items array from the list() response. */
-  listExtractor: (response: any) => T[];
+  listExtractor: (response: L) => T[];
   /** Property name for the items array in the consuming store (e.g. "hosts"). */
   itemsKey: string;
   /** Property name for the selected item in the consuming store (e.g. "selectedHost"). */
@@ -56,7 +65,7 @@ export interface ResourceConfig<T, C, U> {
 }
 
 export interface CrudActions<T, C, U> {
-  fetchAll: (...args: any[]) => Promise<void>;
+  fetchAll: (...args: never[]) => Promise<void>;
   fetchOne: (id: string) => Promise<T>;
   createOne: (data: C) => Promise<T>;
   updateOne: (id: string, data: U) => Promise<T>;
@@ -70,9 +79,9 @@ export interface CrudActions<T, C, U> {
  *
  * Returns a function that accepts Zustand set/get and produces the actions.
  */
-export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
-  config: ResourceConfig<T, C, U>,
-): (set: any, get: any) => CrudActions<T, C, U> {
+export function createResourceSlice<T, C = Partial<T>, U = Partial<T>, L = unknown>(
+  config: ResourceConfig<T, C, U, L>,
+): (set: SetState, get: GetState) => CrudActions<T, C, U> {
   const {
     resourceName,
     api,
@@ -82,12 +91,12 @@ export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
     idField = 'id',
   } = config;
 
-  return (set: any, _get: any): CrudActions<T, C, U> => {
+  return (set: SetState, _get: GetState): CrudActions<T, C, U> => {
     const matchId = (item: T, id: string) =>
       String((item as Record<string, unknown>)[idField]) === id;
 
     return {
-      fetchAll: async (...args: any[]) => {
+      fetchAll: async (...args: never[]) => {
         set({ isLoading: true, error: null });
         try {
           const response = await api.list(...args);
@@ -103,10 +112,10 @@ export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
         set({ isLoading: true, error: null });
         try {
           const item = await api.get(id);
-          set((s: any) => ({
-            [itemsKey]: s[itemsKey].map((i: T) => (matchId(i, id) ? item : i)),
+          set((s: ResourceState) => ({
+            [itemsKey]: (s[itemsKey] as T[]).map((i) => (matchId(i, id) ? item : i)),
             [selectedKey]:
-              s[selectedKey] && matchId(s[selectedKey], id) ? item : s[selectedKey],
+              s[selectedKey] && matchId(s[selectedKey] as T, id) ? item : s[selectedKey],
             isLoading: false,
           }));
           return item;
@@ -121,8 +130,8 @@ export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
         set({ isLoading: true, error: null });
         try {
           const item = await api.create(data);
-          set((s: any) => ({
-            [itemsKey]: [...s[itemsKey], item],
+          set((s: ResourceState) => ({
+            [itemsKey]: [...(s[itemsKey] as T[]), item],
             isLoading: false,
           }));
           return item;
@@ -137,10 +146,10 @@ export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
         set({ isLoading: true, error: null });
         try {
           const item = await api.update(id, data);
-          set((s: any) => ({
-            [itemsKey]: s[itemsKey].map((i: T) => (matchId(i, id) ? item : i)),
+          set((s: ResourceState) => ({
+            [itemsKey]: (s[itemsKey] as T[]).map((i) => (matchId(i, id) ? item : i)),
             [selectedKey]:
-              s[selectedKey] && matchId(s[selectedKey], id) ? item : s[selectedKey],
+              s[selectedKey] && matchId(s[selectedKey] as T, id) ? item : s[selectedKey],
             isLoading: false,
           }));
           return item;
@@ -155,10 +164,10 @@ export function createResourceSlice<T, C = Partial<T>, U = Partial<T>>(
         set({ isLoading: true, error: null });
         try {
           await api.delete(id);
-          set((s: any) => ({
-            [itemsKey]: s[itemsKey].filter((i: T) => !matchId(i, id)),
+          set((s: ResourceState) => ({
+            [itemsKey]: (s[itemsKey] as T[]).filter((i) => !matchId(i, id)),
             [selectedKey]:
-              s[selectedKey] && matchId(s[selectedKey], id) ? null : s[selectedKey],
+              s[selectedKey] && matchId(s[selectedKey] as T, id) ? null : s[selectedKey],
             isLoading: false,
           }));
         } catch (error: unknown) {

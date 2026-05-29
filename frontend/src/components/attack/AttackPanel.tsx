@@ -37,8 +37,6 @@ import type { AttackPlaybook, AttackState } from '../../types/attackPlaybook';
 
 const { Text } = Typography;
 
-type InjectionStatus = 'idle' | 'injecting' | 'polling' | 'confirmed' | 'failed';
-
 interface AttackPanelProps {
   scenarioId: string | null;
   deploymentId?: string;
@@ -101,7 +99,6 @@ const DeploymentContextBar: React.FC<{
 
 const AttackPanel: React.FC<AttackPanelProps> = ({
   scenarioId,
-  deploymentId,
   isDeployed,
   deploymentAgentName,
   deploymentStatus,

@@ -5,12 +5,10 @@
 
 import time
 
-import pytest
 
 from app.protocol_engines.adaptive.micro_variations import (
     MicroVariationEngine,
     VENDOR_TRAITS,
-    _DEFAULT_TRAITS,
 )
 from app.protocol_engines.adaptive.types import MicroVariationConfig
 

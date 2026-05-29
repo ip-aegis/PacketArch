@@ -30,10 +30,7 @@ from app.protocol_engines.modbus.packets import (
     build_tcp_packet,
     build_tcp_packet_fingerprinted,
 )
-from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
-    ConversationState,
-    ConversationStateBase,
     FlowContext,
     ModbusConversationState,
     PacketEvent,

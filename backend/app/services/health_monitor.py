@@ -204,7 +204,7 @@ class HealthMonitorService:
         connections = agent_manager.get_all_connections()
 
         # Build set of connected agent IDs for offline detection
-        connected_ids = {conn.agent_id for conn in connections}
+        {conn.agent_id for conn in connections}
 
         # Prune health state for agents we no longer track
         # (Keep offline agents for a while for event history)
@@ -610,7 +610,7 @@ class HealthMonitorService:
                         agent_id,
                         agent_name,
                         scenario_id=dep.scenario_id,
-                        message=f"Auto-redeployed after reconnection",
+                        message="Auto-redeployed after reconnection",
                     )
                     # Reset grace period
                     health = self._get_or_create_health(agent_id)

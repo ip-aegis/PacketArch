@@ -62,7 +62,11 @@ const CyberVisionTab: React.FC = () => {
     }
   }, [settings, form]);
 
-  const handleSave = async (values: any) => {
+  const handleSave = async (values: {
+    cyber_vision_url: string;
+    cyber_vision_api_token?: string;
+    cyber_vision_verify_ssl?: boolean;
+  }) => {
     try {
       await updateSettings({
         cyber_vision_url: values.cyber_vision_url,

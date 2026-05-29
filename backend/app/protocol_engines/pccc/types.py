@@ -14,9 +14,8 @@ DF1 is the data link layer protocol for serial communication.
 PCCC can also run over TCP (port 2222) or EtherNet/IP (port 44818).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, Enum
-from typing import Any
 
 
 # =============================================================================

@@ -9,7 +9,6 @@ and bound to the current request's database session.
 """
 
 import logging
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for Fingerprint Cache service."""
 
-import pytest
 
 from app.services.fingerprint_cache import (
     FingerprintCache,

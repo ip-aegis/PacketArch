@@ -7,20 +7,16 @@ import pytest
 
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.types import (
-    ConversationState,
     DeviceContext,
     FlowContext,
-    PacketEvent,
     ProtocolType,
 )
 from app.protocol_engines.s7.engine import S7Engine
 from app.protocol_engines.s7.config import (
     S7Area,
     S7ConnectionType,
-    S7CPUProfile,
     S7DataReturnCode,
     S7FlowConfig,
-    S7Function,
     S7ReadArea,
     S7TransportSize,
     S7WriteArea,
@@ -35,14 +31,6 @@ from app.protocol_engines.s7.packets import (
     COTPDisconnectRequest,
     S7Header,
     S7PDUType,
-    S7SetupCommunicationRequest,
-    S7SetupCommunicationResponse,
-    S7ReadVarRequest,
-    S7ReadVarResponse,
-    S7WriteVarRequest,
-    S7WriteVarResponse,
-    S7UserdataRequest,
-    S7UserdataResponse,
     build_cotp_cr_packet,
     build_cotp_cc_packet,
     build_cotp_dr_packet,

@@ -583,7 +583,6 @@ class BackgroundNoiseGenerator:
             from app.protocol_engines.lldp.packets import build_lldpdu
             from app.protocol_engines.lldp.types import (
                 LLDPIdentity,
-                SystemCapability,
             )
         except ImportError:
             logger.debug("LLDP engine not available, skipping")
@@ -721,7 +720,6 @@ class BackgroundNoiseGenerator:
                 build_read_property_response_packet,
                 build_who_is_packet,
             )
-            from app.protocol_engines.types import DeviceContext
         except ImportError:
             logger.debug("BACnet engine not available, skipping")
             return []
@@ -873,7 +871,6 @@ class BackgroundNoiseGenerator:
                 build_dcp_identify_request_packet,
                 build_dcp_identify_response_packet_fingerprinted,
             )
-            from app.protocol_engines.types import DeviceContext
         except ImportError:
             logger.debug("PROFINET engine not available, skipping")
             return []

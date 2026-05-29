@@ -25,8 +25,6 @@ from app.services.device_templates import (
     get_fingerprint_by_vendor_model,
     get_fingerprints_by_vendor,
     get_fingerprints_by_vendor_and_type,
-    get_all_templates,
-    DEVICE_TEMPLATES,
 )
 from app.ai_services.nl_parser import extract_device_counts
 

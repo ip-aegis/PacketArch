@@ -47,15 +47,12 @@ from app.protocol_engines.codesys.types import (
     CODESYS_V3_PORT,
     CODESYS_V2_PORT,
     CodesysVersion,
-    CodesysService,
-    CodesysStatus,
     CodesysDataType,
     CodesysDeviceIdentity,
     CodesysVendor,
     CODESYS_VENDOR_NAMES,
     CODESYS_DEVICE_MODELS,
     PLCState,
-    DATA_TYPE_SIZES,
 )
 from app.protocol_engines.types import (
     FlowContext,

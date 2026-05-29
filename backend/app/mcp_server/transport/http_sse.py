@@ -120,7 +120,7 @@ async def stream_mcp_events(
                 # In a real implementation, this would pull from a queue
                 # For now, just keep the connection alive with heartbeats
                 await asyncio.sleep(30)
-                yield f"data: {{'type': 'heartbeat'}}\n\n"
+                yield "data: {'type': 'heartbeat'}\n\n"
 
         except asyncio.CancelledError:
             logger.info(f"SSE stream cancelled for session {session_id}")

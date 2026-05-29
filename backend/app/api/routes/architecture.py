@@ -33,7 +33,6 @@ from app.services.architecture.archetypes._base import (
 )
 from app.services.architecture.comm_matrix import (
     find_matrix_entries,
-    has_matrix_entry,
 )
 
 

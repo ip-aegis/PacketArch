@@ -30,10 +30,8 @@ from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.cdp.packets import (
     CDP_DEFAULT_INTERVAL,
     CDP_DEFAULT_TTL,
-    CDP_VERSION_2,
     CDPCapability,
     build_cdp_advertisement,
-    build_cdp_frame,
 )
 from app.protocol_engines.types import (
     CDPConversationState,

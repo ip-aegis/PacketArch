@@ -10,7 +10,7 @@
 import React from 'react';
 import { Typography, Space, Card, Alert, Tag } from 'antd';
 import { BarChartOutlined, CloudServerOutlined, WarningOutlined, BellOutlined } from '@ant-design/icons';
-import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;

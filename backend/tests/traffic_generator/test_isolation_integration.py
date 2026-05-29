@@ -9,7 +9,6 @@ the orchestrator's flow ingestion and the cell_isolation module, not
 the protocol engines themselves.
 """
 
-import pytest
 
 from app.traffic_generator.tasks import _build_flow_contexts
 

@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Data sanitization for sharing scenarios with AI."""
 
-import hashlib
 import re
 from typing import Any
 

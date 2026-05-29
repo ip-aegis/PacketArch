@@ -24,7 +24,6 @@ import numpy as np
 from .interface import (
     TimingConfig,
     TimingDistribution,
-    TimingModel,
     TimingSample,
 )
 

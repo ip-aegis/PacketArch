@@ -16,7 +16,6 @@ from app.protocol_engines.iec104.packets import (
     IEC104_PORT,
     IEC104_START_BYTE,
     STARTDT_ACT,
-    STARTDT_CON,
     COT_SPONTANEOUS,
     build_apci_u_format,
     build_apci_s_format,

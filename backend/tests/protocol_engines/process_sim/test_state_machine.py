@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for ProcessStateMachine transitions."""
 
-import pytest
 
 from app.protocol_engines.process_sim.state_machine import (
     ProcessStateMachine,

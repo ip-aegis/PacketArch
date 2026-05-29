@@ -8,7 +8,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError
 
@@ -48,7 +47,7 @@ async def list_cloud_services(
         query = query.where(CloudServiceEndpoint.provider == provider)
 
     if not include_inactive:
-        query = query.where(CloudServiceEndpoint.is_active == True)
+        query = query.where(CloudServiceEndpoint.is_active.is_(True))
 
     query = query.order_by(CloudServiceEndpoint.provider, CloudServiceEndpoint.name)
 

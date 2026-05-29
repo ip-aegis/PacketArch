@@ -7,11 +7,10 @@ import math
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
 from app.api.helpers import get_or_404, paginate
-from app.core.exceptions import NotFoundError
 from app.models.protocol_template import ProtocolTemplate
 from app.schemas.protocol_template import (
     ProtocolTemplateCreate,

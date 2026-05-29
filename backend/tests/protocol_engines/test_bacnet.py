@@ -24,7 +24,6 @@ from app.protocol_engines.bacnet.types import (
     BACnetSegmentation,
     BACnetState,
     BACnetUnconfirmedService,
-    BACnetUnits,
     BVLCFunction,
 )
 from app.protocol_engines.bacnet.packets import (

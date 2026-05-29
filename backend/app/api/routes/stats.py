@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 
 from app.api.deps import CurrentUser, DBSession
 from app.core.config import settings

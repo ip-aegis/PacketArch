@@ -22,7 +22,6 @@ from app.protocol_engines.s7.config import (
     S7FlowConfig,
     S7ReadArea,
     S7WriteArea,
-    S7_CPU_PROFILES,
     get_cpu_profile,
 )
 from app.protocol_engines.s7.packets import (
@@ -47,7 +46,6 @@ from app.protocol_engines.tcp_builder import (
 )
 from app.protocol_engines.types import (
     ConversationState,
-    DeviceContext,
     FlowContext,
     PacketEvent,
     ProtocolType,

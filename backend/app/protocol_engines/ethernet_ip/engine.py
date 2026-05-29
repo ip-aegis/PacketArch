@@ -19,7 +19,6 @@ from app.protocol_engines.ethernet_ip.packets import (
     CIP_CLASS_IDENTITY,
     CIP_SERVICE_GET_ATTRIBUTE_ALL,
     CIP_SERVICE_GET_ATTRIBUTE_SINGLE,
-    CIP_STATUS_CONNECTION_FAILURE,
     CIP_STATUS_CONNECTION_LOST,
     CIP_STATUS_RESOURCE_UNAVAILABLE,
     build_cip_error_response,
@@ -46,10 +45,8 @@ from app.protocol_engines.tcp_builder import (
     build_tcp_syn as build_tcp_handshake_syn,
     build_tcp_syn_ack as build_tcp_handshake_syn_ack,
 )
-from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
-    ConversationStateBase,
     EtherNetIPConversationState,
     FlowContext,
     PacketEvent,

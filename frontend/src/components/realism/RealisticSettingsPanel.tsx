@@ -47,9 +47,7 @@ interface RealisticSettingsPanelProps {
   scenarioId: string | null;
 }
 
-const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
-  scenarioId,
-}) => {
+const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = () => {
   const activePropertyContext = useUIStore((state) => state.activePropertyContext);
   const device = useScenarioStore((state) =>
     activePropertyContext.type === 'device' && activePropertyContext.ids[0]
@@ -258,7 +256,7 @@ const RealisticSettingsPanel: React.FC<RealisticSettingsPanelProps> = ({
               disabled={models.length === 0}
               loading={loadingModels}
               onChange={(model) => {
-                const vendor = vendors.find((v) => models.includes(model))?.vendor;
+                const vendor = vendors.find(() => models.includes(model))?.vendor;
                 if (vendor) handleModelChange(model, vendor);
               }}
               options={models.map((m) => ({ value: m, label: m }))}

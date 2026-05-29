@@ -54,7 +54,7 @@ def main():
     # Find orphans
     print(f"\nTotal devices: {len(devices)}")
     print(f"Devices with flows: {len(devices_with_flows)}")
-    print(f"\nOrphaned devices:")
+    print("\nOrphaned devices:")
 
     orphans_by_type = {}
     for device_id, device in devices.items():
@@ -69,8 +69,6 @@ def main():
 
     # Check which device types exist and which are in flows
     device_types = set(d.get("type") for d in devices.values())
-    flow_source_types = set()
-    flow_target_types = set()
 
     # Read template directly to see flow specs
     print(f"\nDevice types in scenario: {sorted(device_types)}")

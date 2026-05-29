@@ -41,7 +41,6 @@ from app.services.ai_chat_service import (
     build_system_prompt,
     build_completion_message,
     detect_convergence,
-    execute_tool_call,
     generate_serial_number as _generate_serial_number,
     get_ai_provider as _get_ai_provider,
 )
@@ -1963,10 +1962,8 @@ Write ONLY the description text. Do not include any preamble, labels, or formatt
 from app.schemas.scenario_review import (
     ReviewFinding,
     ScenarioReviewResponse,
-    RemediationAction,
     RemediateRequest,
     RemediateResponse,
-    RemediationResult,
 )
 
 SCENARIO_REVIEW_JSON_SCHEMA: dict[str, Any] = {

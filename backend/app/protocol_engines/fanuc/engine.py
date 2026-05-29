@@ -33,7 +33,6 @@ from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.fanuc.packets import (
     FOCAS_DEFAULT_PORT,
-    FOCASFunction,
     CNCType,
     AxisPosition,
     SpindleData,
@@ -58,7 +57,6 @@ from app.protocol_engines.fanuc.packets import (
     build_disconnect_response,
 )
 from app.protocol_engines.types import (
-    DeviceContext,
     FlowContext,
     PacketEvent,
     ProtocolType,
@@ -770,7 +768,7 @@ class FANUCEngine(ProtocolEngine):
         if "cnc_type" in config:
             cnc_type = config["cnc_type"]
             if cnc_type not in [t.value for t in CNCType]:
-                errors.append(f"cnc_type must be a valid CNCType value (0-5)")
+                errors.append("cnc_type must be a valid CNCType value (0-5)")
 
         return errors
 

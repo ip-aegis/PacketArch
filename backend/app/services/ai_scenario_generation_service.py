@@ -7,11 +7,10 @@ Template helpers, preview generation, and scenario creation from templates/previ
 """
 
 import logging
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.scenario_templates import get_template, list_templates, list_verticals
+from app.scenario_templates import get_template, list_templates
 
 logger = logging.getLogger(__name__)
 

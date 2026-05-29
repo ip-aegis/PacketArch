@@ -9,7 +9,7 @@ Maps industry verticals to their process model + fault builders.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Callable
 
 from ..faults import FaultScenario
 from ..process_model import ProcessModel

@@ -142,7 +142,11 @@ const CmlTab: React.FC = () => {
     if (password) {
       const result = await testConnection({ url, username, password, verify_ssl: verifySsl || false });
       setTestResult(result);
-      result.success ? message.success('Connection successful!') : message.error(`Connection failed: ${result.message}`);
+      if (result.success) {
+        message.success('Connection successful!');
+      } else {
+        message.error(`Connection failed: ${result.message}`);
+      }
     } else {
       await fetchStatus();
       if (connectionStatus?.connected) {
@@ -258,7 +262,11 @@ const CmlTab: React.FC = () => {
           okButtonProps={{ danger: true }}
           onConfirm={async () => {
             const ok = await undeploy({ agent_id: r.agent_id, remove_cml_node: true, deactivate_agent: true });
-            ok ? message.success('Undeployed') : message.error('Undeploy failed');
+            if (ok) {
+              message.success('Undeployed');
+            } else {
+              message.error('Undeploy failed');
+            }
           }}
         >
           <Button danger size="small">Undeploy</Button>

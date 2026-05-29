@@ -28,7 +28,7 @@ from scapy.packet import Raw
 from app.protocol_engines.types import DeviceContext
 
 if TYPE_CHECKING:
-    from app.protocol_engines.fingerprint_applicator import TcpOptions
+    pass
 
 
 # FINS Constants

@@ -13,7 +13,6 @@ from typing import Any
 
 from app.protocol_engines.protocols import (
     PROTOCOL_TO_IDENTITY_KEY,
-    get_supported_protocols,
     validate_protocol_vendor_affinity,
 )
 
@@ -69,7 +68,7 @@ class FingerprintValidator:
 
         # Get basic fingerprint info
         vendor = fingerprint.get("vendor", "")
-        model = fingerprint.get("model", "")
+        fingerprint.get("model", "")
         supported = fingerprint.get("supported_protocols", [])
 
         # Rule 1: Identity must exist for each supported protocol

@@ -11,8 +11,6 @@ This script tests the entire flow:
 4. Check protocol identity coverage
 """
 
-import asyncio
-import json
 import logging
 import sys
 from pathlib import Path
@@ -85,7 +83,7 @@ def test_fingerprint_lookup(vendor: str, model: str):
     fp = get_fingerprint_by_vendor_model(vendor, model)
 
     if fp is None:
-        print(f"    ❌ FAILED: No fingerprint found")
+        print("    ❌ FAILED: No fingerprint found")
         return None
 
     print(f"    ✓ Found fingerprint: {fp.get('vendor')} {fp.get('model')}")
@@ -199,7 +197,7 @@ def test_protocol_identity_validation():
             fp = get_fingerprint_by_vendor_model(device['vendor'], device['fingerprint_model'])
 
         if fp is None:
-            print(f"    ❌ No fingerprint found!")
+            print("    ❌ No fingerprint found!")
             issues.append(f"{device['name']}: No fingerprint for {device['vendor']}/{device['fingerprint_model']}")
             continue
 
@@ -268,7 +266,7 @@ def main():
     print("="*80)
 
     # Test 1: Check what fingerprints are available
-    fingerprints = test_fingerprint_availability()
+    test_fingerprint_availability()
 
     # Test 3: Test common AI selections
     test_common_ai_selections()

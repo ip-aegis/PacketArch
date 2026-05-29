@@ -3,7 +3,7 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Common schemas used across the application."""
 
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 

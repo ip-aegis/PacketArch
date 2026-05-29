@@ -160,7 +160,7 @@ const MitreTechniquePanel: React.FC<MitreTechniquePanelProps> = ({
   const actualMode = !!report;
 
   const allTechniques = new Set<string>();
-  let firedTechniques = new Set<string>();
+  const firedTechniques = new Set<string>();
   rows.forEach((r) =>
     r.actions.forEach((a) => {
       if (a.technique) allTechniques.add(a.technique);

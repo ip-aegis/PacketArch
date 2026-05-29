@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for ProcessModel — integrated variable + equation + state machine."""
 
-import pytest
 
 from app.protocol_engines.process_sim.equations import Equation
 from app.protocol_engines.process_sim.process_model import ProcessModel
@@ -144,7 +143,7 @@ class TestProcessModel:
         model = self._make_simple_model()
         model.force_state(ProcessState.WARMING_UP)
 
-        initial_level = model.get_value("level")
+        model.get_value("level")
 
         # Run for 10s: inflow=50, outflow=30 → net = 20/s
         for _ in range(100):

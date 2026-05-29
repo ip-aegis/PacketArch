@@ -5,7 +5,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession

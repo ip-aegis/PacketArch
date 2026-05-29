@@ -140,7 +140,7 @@ async def list_anomaly_templates(
     Returns:
         List of anomaly templates
     """
-    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active == True)
+    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active.is_(True))
 
     if category:
         try:
@@ -215,7 +215,7 @@ async def get_anomaly_template(
     template = await get_or_404_where(
         db, AnomalyTemplate,
         AnomalyTemplate.id == template_uuid,
-        AnomalyTemplate.is_active == True,
+        AnomalyTemplate.is_active.is_(True),
         resource_name="Anomaly template",
     )
 
@@ -284,7 +284,7 @@ async def suggest_anomalies_for_scenario(
             template_suggestions = template.get("suggested_anomalies", {})
 
     # Find matching anomaly templates from database
-    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active == True)
+    query = select(AnomalyTemplate).where(AnomalyTemplate.is_active.is_(True))
     result = await db.execute(query)
     all_templates = result.scalars().all()
 
@@ -403,7 +403,7 @@ async def create_anomaly_campaign(
         result = await db.execute(
             select(AnomalyTemplate).where(
                 AnomalyTemplate.anomaly_type == anomaly_type,
-                AnomalyTemplate.is_active == True,
+                AnomalyTemplate.is_active.is_(True),
             )
         )
         template = result.scalar_one_or_none()
@@ -618,7 +618,7 @@ async def get_external_communication_types(
     result = await db.execute(
         select(AnomalyTemplate).where(
             AnomalyTemplate.category == AnomalyCategory.EXTERNAL_COMMUNICATION,
-            AnomalyTemplate.is_active == True,
+            AnomalyTemplate.is_active.is_(True),
         )
     )
     templates = result.scalars().all()
@@ -663,7 +663,7 @@ async def list_external_templates(
     """
     query = select(AnomalyTemplate).where(
         AnomalyTemplate.category == AnomalyCategory.EXTERNAL_COMMUNICATION,
-        AnomalyTemplate.is_active == True,
+        AnomalyTemplate.is_active.is_(True),
     )
 
     if target_type:

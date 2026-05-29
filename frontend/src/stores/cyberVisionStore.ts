@@ -68,7 +68,7 @@ interface CyberVisionState {
   clearMacAnalysis: () => void;
 }
 
-export const useCyberVisionStore = create<CyberVisionState>()((set, get) => ({
+export const useCyberVisionStore = create<CyberVisionState>()((set) => ({
   // Initial state
   connectionStatus: null,
   settings: null,

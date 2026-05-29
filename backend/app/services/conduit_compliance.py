@@ -10,7 +10,6 @@ and produces compliance findings.
 from typing import Any
 
 from app.protocol_engines.cell_isolation import (
-    MODE_CONDUIT_GATED,
     MODE_OFF,
     MODE_STRICT_NORTHBOUND,
     classify_cell_zones,

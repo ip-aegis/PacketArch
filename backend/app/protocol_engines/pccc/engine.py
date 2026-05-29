@@ -41,13 +41,9 @@ from app.protocol_engines.pccc.packets import (
 )
 from app.protocol_engines.pccc.types import (
     PCCCTransport,
-    PCCCCommand,
-    PCCCFunction,
-    PCCCStatus,
     PCCCFileType,
     PCCCAddress,
     PCCCDeviceIdentity,
-    ABDeviceType,
     ABProductCode,
     AB_PRODUCT_NAMES,
 )

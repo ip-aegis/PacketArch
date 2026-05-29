@@ -15,7 +15,6 @@ import {
   getArticle,
   getRelatedArticles,
   categoryInfo,
-  type HelpArticle as HelpArticleType,
 } from '../../content/help';
 
 const { Title, Text, Paragraph } = Typography;

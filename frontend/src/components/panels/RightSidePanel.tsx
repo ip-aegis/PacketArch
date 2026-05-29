@@ -135,7 +135,6 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
 
   // Attack state from deployment (not global store)
   const deploymentAttackState = activeDeployment?.attack ?? null;
-  const selectedPlaybook = useAttackStore((s) => s.selectedPlaybook);
   const injectionStatusMap = useAttackStore((s) => s.injectionStatus);
   const scenarioInjectionStatus = scenarioId ? (injectionStatusMap[scenarioId] ?? 'idle') : 'idle';
   const hasActiveAttack = deploymentAttackState?.is_active === true;

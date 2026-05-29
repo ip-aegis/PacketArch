@@ -23,10 +23,8 @@ from app.protocol_engines.iec61850.types import (
     SV_MULTICAST_PREFIX,
     GOOSEDataType,
     MMSPduType,
-    MMSServiceType,
     GOOSEConfig,
     SVConfig,
-    QualityFlags,
 )
 from app.protocol_engines.types import DeviceContext
 

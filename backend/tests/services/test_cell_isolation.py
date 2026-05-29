@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for the Purdue-aware cell isolation gate."""
 
-import pytest
 
 from app.protocol_engines.cell_isolation import (
     DEFAULT_CELL_LEVELS,

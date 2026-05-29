@@ -19,7 +19,6 @@ import {
   Button,
   Select,
   List,
-  Empty,
   Collapse,
   Tooltip,
   message,
@@ -38,7 +37,6 @@ import {
   BugOutlined,
   DeleteOutlined,
   PlusOutlined,
-  InfoCircleOutlined,
   WarningOutlined,
   ScanOutlined,
   SendOutlined,
@@ -56,9 +54,6 @@ import {
 } from '../../api/externalComms';
 import { PanelContainer, LoadingSpinner } from '../common';
 import type {
-  BeaconPattern,
-  ExploitPattern,
-  ExternalTemplate,
   ExternalCampaign,
   ExternalEventType,
   CreateExternalCampaignRequest,
@@ -66,13 +61,29 @@ import type {
 import { extractErrorMessage } from '../../utils/errorUtils';
 import { TEXT_BODY, TEXT_MUTED, BG_PANEL, BG_CODE } from '../../constants/theme';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { Panel } = Collapse;
 const { Option } = Select;
 
 interface ExternalCommPanelProps {
   scenarioId: string | null;
   deviceIps?: string[];
+}
+
+/** Shape of the antd Form values for the create-campaign form. */
+interface CampaignFormValues {
+  name: string;
+  internal_device_ips: string[];
+  start_time_s?: number;
+  duration_s?: number;
+  use_realistic_ips?: boolean;
+  c2_pattern?: string;
+  c2_protocol?: string;
+  beacon_count?: number;
+  exfil_data_size?: number;
+  exploit_pattern?: string;
+  scan_type?: string;
+  scan_ot_ports?: boolean;
 }
 
 const EVENT_TYPES: { value: ExternalEventType; label: string; icon: React.ReactNode; description: string }[] = [
@@ -91,7 +102,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
   const [types, setTypes] = useState<ExternalCommTypesResponse | null>(null);
   const [campaigns, setCampaigns] = useState<ExternalCampaign[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [, setLoadingCampaigns] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedEventTypes, setSelectedEventTypes] = useState<ExternalEventType[]>([]);
@@ -134,7 +145,7 @@ const ExternalCommPanel: React.FC<ExternalCommPanelProps> = ({
   }, [fetchCampaigns]);
 
   // Create campaign
-  const handleCreateCampaign = async (values: any) => {
+  const handleCreateCampaign = async (values: CampaignFormValues) => {
     if (!scenarioId) {
       message.error('Please select a scenario first');
       return;

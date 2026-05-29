@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for BackgroundNoiseGenerator — broadcast filtering, scheduling, handlers."""
 
-import pytest
 
 from app.protocol_engines.ambient.noise_generator import (
     AmbientConfig,

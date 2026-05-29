@@ -8,8 +8,6 @@ import numpy as np
 
 from app.protocol_engines.timing import (
     DEFAULT_TIMING_CONFIG,
-    FAST_DEVICE_TIMING_CONFIG,
-    SLOW_DEVICE_TIMING_CONFIG,
     ExponentialTimingModel,
     GammaTimingModel,
     GaussianTimingModel,

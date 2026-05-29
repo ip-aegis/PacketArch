@@ -48,18 +48,15 @@ from app.protocol_engines.profinet.packets import (
     build_ptcp_followup_frame,
     build_ptcp_delay_request,
     build_ptcp_delay_response,
-    generate_io_data,
     allocate_irt_frame_id,
     IRTCycleState,
 )
 from app.protocol_engines.profinet.states import RTCycleState, IRTSyncState, IRTPhaseConfig
-from app.protocol_engines.jitter import apply_jitter, get_response_delay
+from app.protocol_engines.jitter import get_response_delay
 from app.protocol_engines.types import (
     ConversationState,
-    ConversationStateBase,
     FlowContext,
     PacketEvent,
-    ProfinetConversationState,
     ProtocolType,
 )
 

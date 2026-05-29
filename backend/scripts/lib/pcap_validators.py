@@ -986,9 +986,9 @@ def _parse_enip_identity(
 
                 vendor_id = struct.unpack_from("<H", payload, id_offset)[0]
                 id_offset += 2
-                device_type = struct.unpack_from("<H", payload, id_offset)[0]
+                struct.unpack_from("<H", payload, id_offset)[0]
                 id_offset += 2
-                product_code = struct.unpack_from("<H", payload, id_offset)[0]
+                struct.unpack_from("<H", payload, id_offset)[0]
                 id_offset += 2
                 rev_major = payload[id_offset]
                 id_offset += 1
@@ -1080,7 +1080,6 @@ def _parse_dcp_blocks(
             return results
 
         found_vendor_id = None
-        found_device_id = None
         found_station_name = None
         found_oem_device_id = None
 
@@ -1104,7 +1103,7 @@ def _parse_dcp_blocks(
             if option == 0x02:  # Device Properties
                 if suboption == 0x03 and len(inner) >= 4:
                     found_vendor_id = struct.unpack_from(">H", inner, 0)[0]
-                    found_device_id = struct.unpack_from(">H", inner, 2)[0]
+                    struct.unpack_from(">H", inner, 2)[0]
                 elif suboption == 0x02 and len(inner) >= 1:
                     found_station_name = inner.decode("ascii", errors="replace").rstrip("\x00")
                 elif suboption == 0x08 and len(inner) >= 5:

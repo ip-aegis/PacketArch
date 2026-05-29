@@ -16,18 +16,14 @@ means Cisco Cyber Vision cannot fingerprint the device.
 from __future__ import annotations
 
 import logging
-import struct
 from unittest.mock import MagicMock
 
-import pytest
-from scapy.all import Ether, IP, UDP, TCP, Raw
+from scapy.all import Ether, UDP, TCP
 
 from app.protocol_engines.ambient.noise_generator import (
-    AmbientConfig,
     AmbientDevice,
     BackgroundNoiseGenerator,
 )
-from app.protocol_engines.types import PacketEvent
 
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
@@ -614,7 +610,7 @@ class TestProfinetDcpDiscoveryPackets:
         response_raw = responses[0].packet_bytes
         # DCP uses raw Ethernet (no IP/UDP)
         pkt = Ether(response_raw)
-        payload = bytes(pkt.payload) if pkt.payload else b""
+        bytes(pkt.payload) if pkt.payload else b""
         all_bytes = response_raw
 
         # Vendor ID 0x002A = 42 decimal, encoded as big-endian in DCP

@@ -9,7 +9,6 @@ This module contains the core chat processing pipeline extracted from ai.py rout
 import json
 import logging
 import random
-from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.mcp_server.ai_providers import AIProvider, AIProviderFactory, AITask
 from app.mcp_server.server import mcp_server
 from app.core.constants import MAX_DEVICES_PER_SCENARIO
-from app.services.ai_session_service import AISessionService
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ then ODE integration, then all variables step (first-order lag + noise).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 from .variables import ProcessVariable

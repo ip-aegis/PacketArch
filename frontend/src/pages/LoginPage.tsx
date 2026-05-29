@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
       await login(values);
       const from = (location.state as LocationState)?.from?.pathname || '/';
       navigate(from, { replace: true });
-    } catch (err) {
+    } catch {
       // Error is handled by the store
     }
   };

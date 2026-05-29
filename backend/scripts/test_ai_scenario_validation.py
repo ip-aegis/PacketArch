@@ -14,7 +14,6 @@ Run with: docker compose exec backend python scripts/test_ai_scenario_validation
 """
 
 import asyncio
-import json
 import logging
 import sys
 from pathlib import Path

@@ -13,7 +13,6 @@ Implements the Codesys block driver protocol with:
 import struct
 import random
 import zlib
-from typing import Any
 
 from app.protocol_engines.codesys.types import (
     BLOCK_DRIVER_MAGIC,
@@ -23,9 +22,7 @@ from app.protocol_engines.codesys.types import (
     CodesysStatus,
     CodesysDataType,
     CodesysDeviceIdentity,
-    CodesysVariable,
     PLCState,
-    DATA_TYPE_SIZES,
 )
 
 

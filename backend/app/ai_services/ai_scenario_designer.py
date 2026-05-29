@@ -32,8 +32,6 @@ from app.ai_services.scenario_generator import (
     GeneratedFlow,
     GeneratedScenario,
     ScenarioGenerator,
-    VERTICAL_TEMPLATES,
-    DEVICE_PROTOCOL_MAP,
 )
 from app.mcp_server.ai_providers import AIProviderFactory
 from app.protocol_engines.vendor_oui import generate_mac_address
@@ -878,7 +876,7 @@ class AIScenarioDesigner:
             vendor = fp.get("vendor", "Unknown")
             model = fp.get("model", "Unknown")
             family = fp.get("vendor_family", "")
-            supported_protocols = fp.get("supported_protocols", [])
+            fp.get("supported_protocols", [])
 
             # Determine actual protocols this fingerprint has identity data for
             available_protocols = []
@@ -1684,7 +1682,7 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         # Categorize devices by OT level
         controllers = [d for d in devices if d.device_type in self.CONTROLLER_TYPES]
         field_devices = [d for d in devices if d.device_type in self.FIELD_DEVICE_TYPES]
-        supervisory = [d for d in devices if d.device_type in self.SUPERVISORY_TYPES]
+        [d for d in devices if d.device_type in self.SUPERVISORY_TYPES]
 
         # Find devices already in flows
         devices_in_flows: set[str] = set()
@@ -1702,7 +1700,7 @@ Generate the JSON response with realistic device names, appropriate vendors/prot
         logger.info(f"Detected {len(orphaned)} orphaned devices - generating flows")
 
         new_flows: list[GeneratedFlow] = []
-        device_map = {d.device_id: d for d in devices}
+        {d.device_id: d for d in devices}
 
         for orphan in orphaned:
             if orphan.device_type in self.FIELD_DEVICE_TYPES:

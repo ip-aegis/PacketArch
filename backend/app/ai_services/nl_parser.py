@@ -217,7 +217,7 @@ def extract_device_counts(description: str) -> dict[str, Any]:
         range_match = re.search(pattern3, description_lower)
         if range_match:
             min_count = int(range_match.group(1))
-            max_count = int(range_match.group(2))
+            int(range_match.group(2))
             canonical_type = DEVICE_TYPE_SYNONYMS.get(device_type, device_type)
             # Use lower bound for actual count
             result["device_counts"][canonical_type] = result["device_counts"].get(canonical_type, 0) + min_count

@@ -3,9 +3,8 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for ProcessVariable first-order lag dynamics."""
 
-import pytest
 
-from app.protocol_engines.process_sim.types import ProcessState, VariableRole
+from app.protocol_engines.process_sim.types import ProcessState
 from app.protocol_engines.process_sim.variables import ProcessVariable
 
 

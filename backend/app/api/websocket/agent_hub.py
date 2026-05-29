@@ -255,7 +255,7 @@ async def validate_agent_token(token: str) -> TrafficAgent | None:
         result = await db.execute(
             select(TrafficAgent).where(
                 TrafficAgent.token_hash == token_hash,
-                TrafficAgent.is_active == True,
+                TrafficAgent.is_active.is_(True),
             )
         )
         agent = result.scalar_one_or_none()

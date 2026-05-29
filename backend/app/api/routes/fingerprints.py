@@ -23,14 +23,12 @@ from app.models.device_template import DeviceTemplate as DeviceTemplateModel, Te
 from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
 from app.services.fingerprint_cache import get_fingerprint_cache
 from app.scenario_templates.base import (
-    FINGERPRINT_MODEL_MAP,
     DEFAULT_ERROR_CONFIGS,
     get_fingerprint_models_for_vendor,
 )
 from app.protocol_engines.vendor_oui import (
     VENDOR_OUIS,
     DEVICE_TYPE_VENDORS,
-    list_vendors,
     list_vendors_for_device_type,
 )
 from app.services.device_templates import (
@@ -1363,7 +1361,7 @@ async def list_palette_devices(
     Returns device templates in a shape compatible with the drag-and-drop palette,
     replacing the old /api/v1/devices endpoint.
     """
-    query = select(DeviceTemplateModel).where(DeviceTemplateModel.is_active == True)
+    query = select(DeviceTemplateModel).where(DeviceTemplateModel.is_active.is_(True))
 
     if device_type:
         query = query.where(DeviceTemplateModel.device_type == device_type)
@@ -1384,7 +1382,7 @@ async def list_palette_devices(
     query = query.order_by(DeviceTemplateModel.name).limit(page_size)
 
     # Count total
-    count_query = select(func.count(DeviceTemplateModel.id)).where(DeviceTemplateModel.is_active == True)
+    count_query = select(func.count(DeviceTemplateModel.id)).where(DeviceTemplateModel.is_active.is_(True))
     if device_type:
         count_query = count_query.where(DeviceTemplateModel.device_type == device_type)
     if protocol:

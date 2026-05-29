@@ -15,20 +15,11 @@
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { SearchOutlined } from '@ant-design/icons';
 import { useUIStore } from '../../stores/uiStore';
-import { useCommands, type CanvasDeps } from './useCommands';
+import { useCommands } from './useCommands';
 import { useCommandPalette } from './useCommandPalette';
 import CommandPaletteItem from './CommandPaletteItem';
+import { getCanvasDeps } from './canvasDepsBridge';
 import { CATEGORY_LABELS, type CommandCategory } from './types';
-
-// ── Canvas deps bridge ───────────────────────────────────────
-// Studio page registers its ReactFlow-dependent callbacks here.
-// This avoids lifting ReactFlowProvider to AppLayout.
-
-let _canvasDeps: CanvasDeps | null = null;
-
-export function registerCanvasDeps(deps: CanvasDeps | null): void {
-  _canvasDeps = deps;
-}
 
 // ── Platform detection ───────────────────────────────────────
 
@@ -53,16 +44,7 @@ const CommandPalette: React.FC = () => {
   const isOpen = useUIStore((s) => s.commandPaletteOpen);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const commands = useCommands(
-    // We read query from the hook below, but need it for useCommands too.
-    // Solve with a ref-based approach: pass query string through the palette hook state.
-    '', // placeholder — real filtering happens below
-    _canvasDeps,
-  );
-
-  // We need query to drive useCommands, but useCommandPalette needs commands.
-  // Break the cycle: CommandPaletteInner does the real work once open.
-
+  // CommandPaletteInner does the real work once open.
   if (!isOpen) return null;
 
   return <CommandPaletteInner inputRef={inputRef} />;
@@ -75,7 +57,7 @@ const CommandPaletteInner: React.FC<{
 
   // Local query state
   const [query, setQuery] = React.useState('');
-  const commands = useCommands(query, _canvasDeps);
+  const commands = useCommands(query, getCanvasDeps());
   const palette = useCommandPalette(commands);
 
   // Sync query into palette (palette.setQuery triggers its own reset logic)
@@ -113,15 +95,6 @@ const CommandPaletteInner: React.FC<{
     });
     return flat;
   }, [commands, query, grouped]);
-
-  // Mouse hover → update highlight
-  const handleMouseMove = useCallback(
-    (index: number) => {
-      // We can't call setHighlightedIndex directly from useCommandPalette,
-      // so we access it via the same React state. We'll use a wrapper.
-    },
-    [],
-  );
 
   // Backdrop click
   const handleBackdropClick = useCallback(

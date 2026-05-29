@@ -36,7 +36,6 @@ import {
   ArrowUpOutlined,
   BuildOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   CopyOutlined,
   DeleteOutlined,
   DesktopOutlined,
@@ -55,7 +54,7 @@ import { ErrorAlert } from '../common';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
 import { healthMonitorApi, type HealthStatusResponse } from '../../api/healthMonitor';
-import type { TrafficAgent, TrafficAgentWithToken } from '../../types/agent';
+import type { TrafficAgent, TrafficAgentWithToken, AgentCreate } from '../../types/agent';
 import AgentDetailsDrawer from './AgentDetailsDrawer';
 import AgentInstallDrawer from './AgentInstallDrawer';
 import { formatRelativeTime } from '../../utils/dateUtils';
@@ -175,7 +174,7 @@ const AgentsTab: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: AgentCreate) => {
     try {
       if (editingAgent) {
         await updateAgent(editingAgent.id, values);
@@ -188,7 +187,7 @@ const AgentsTab: React.FC = () => {
       }
       setModalVisible(false);
       form.resetFields();
-    } catch (err) {
+    } catch {
       // Error handled by store
     }
   };
@@ -197,7 +196,7 @@ const AgentsTab: React.FC = () => {
     try {
       await deleteAgent(id);
       message.success('Agent deleted successfully');
-    } catch (err) {
+    } catch {
       // Error handled by store
     }
   };
@@ -208,7 +207,7 @@ const AgentsTab: React.FC = () => {
       setNewAgentToken(agentWithToken);
       setTokenModalVisible(true);
       message.success('Token regenerated successfully');
-    } catch (err) {
+    } catch {
       // Error handled by store
     }
   };

@@ -99,7 +99,7 @@ async def ensure_remote_access_cloud_links(
         # Region-preferred lookup, fallback to any region for the provider.
         query = select(CloudServiceEndpoint).where(
             CloudServiceEndpoint.provider == provider_enum,
-            CloudServiceEndpoint.is_active == True,  # noqa: E712
+            CloudServiceEndpoint.is_active.is_(True),  # noqa: E712
         )
         endpoint = None
         if region_hint:
@@ -304,10 +304,7 @@ def _pick_partner(
     orphan_type = _device_type(orphan)
     orphan_zone_id = _zone_id_of(orphan)
     orphan_zone = zones.get(orphan_zone_id, {}) if orphan_zone_id else {}
-    orphan_zone_level = _zone_level(orphan_zone)
-    orphan_in_cell = (
-        orphan_zone_level is not None and orphan_zone_level in cell_levels
-    )
+    _zone_level(orphan_zone)
 
     def _candidate_iter(
         zone_filter: str | None = None,

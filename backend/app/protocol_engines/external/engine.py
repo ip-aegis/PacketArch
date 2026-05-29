@@ -11,14 +11,12 @@ Integrates all external packet builders with timing patterns.
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Iterator
 
 from scapy.packet import Packet
 
 from app.protocol_engines.external.ip_pools import (
-    ExternalIPPool,
     ExternalIPRegistry,
-    ExternalTargetType,
     get_c2_server_ip,
     get_exfil_destination_ip,
     get_attack_source_ip,
@@ -26,29 +24,20 @@ from app.protocol_engines.external.ip_pools import (
 from app.protocol_engines.external.http_packets import (
     HTTPBeaconConfig,
     HTTPExfilConfig,
-    build_http_beacon_request,
-    build_http_beacon_response,
     build_http_exfil_request,
     generate_beacon_sequence,
 )
 from app.protocol_engines.external.dns_packets import (
     DNSTunnelConfig,
-    DNSExfilConfig,
-    build_dns_tunnel_query,
     generate_dns_tunnel_sequence,
     generate_dns_beacon_sequence,
 )
 from app.protocol_engines.external.c2_patterns import (
-    BeaconPattern,
-    BeaconPatternType,
     get_beacon_pattern,
     list_beacon_patterns,
-    BEACON_PATTERNS,
 )
 from app.protocol_engines.external.exploit_patterns import (
-    ExploitPattern,
     EXPLOIT_PATTERNS,
-    build_exploit_packet,
     generate_port_scan_sequence,
     generate_ot_port_scan,
     generate_exploit_attempt,

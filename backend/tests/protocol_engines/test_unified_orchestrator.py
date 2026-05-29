@@ -8,9 +8,8 @@ import tempfile
 import threading
 import time
 
-import pytest
 
-from app.protocol_engines.output import PcapOutput, LiveOutput
+from app.protocol_engines.output import PcapOutput
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator, OrchestrationResult
 

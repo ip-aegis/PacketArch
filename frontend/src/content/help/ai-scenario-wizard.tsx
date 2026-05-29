@@ -17,7 +17,7 @@ import {
   ApiOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
 
 const { Title, Paragraph, Text } = Typography;

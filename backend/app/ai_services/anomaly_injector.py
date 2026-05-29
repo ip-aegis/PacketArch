@@ -27,9 +27,6 @@ from app.protocol_engines.external.engine import (
 )
 from app.protocol_engines.external.ip_pools import (
     ExternalIPRegistry,
-    get_c2_server_ip,
-    get_exfil_destination_ip,
-    get_attack_source_ip,
 )
 from app.protocol_engines.external.c2_patterns import list_beacon_patterns
 from app.protocol_engines.external.exploit_patterns import list_exploit_patterns
@@ -168,7 +165,7 @@ class AnomalyInjector:
         from app.models.anomaly_template import AnomalyTemplate
 
         result = await db_session.execute(
-            select(AnomalyTemplate).where(AnomalyTemplate.is_active == True)
+            select(AnomalyTemplate).where(AnomalyTemplate.is_active.is_(True))
         )
         templates = result.scalars().all()
 

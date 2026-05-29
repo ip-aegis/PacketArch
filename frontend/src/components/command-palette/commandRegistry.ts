@@ -40,7 +40,6 @@ import {
   PartitionOutlined,
   ApiOutlined,
   ShopOutlined,
-  GroupOutlined,
   PlusOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,

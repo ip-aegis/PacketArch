@@ -48,7 +48,7 @@ import type { DeviceNodeData } from './nodes/DeviceNode';
 import { getDeviceTypeColor } from '../../constants/deviceTypeRegistry';
 import { validateProtocolVendorAffinity } from '../../utils/protocolVendorAffinity';
 import { message } from 'antd';
-import { registerCanvasDeps } from '../command-palette/CommandPalette';
+import { registerCanvasDeps } from '../command-palette/canvasDepsBridge';
 
 const nodeTypes = {
   deviceNode: DeviceNode,
@@ -114,13 +114,11 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
   const pushHistory = useHistoryStore((state) => state.push);
   const setPropertyContext = useUIStore((state) => state.setPropertyContext);
   const setSelectedAggregateEdge = useUIStore((state) => state.setSelectedAggregateEdge);
-  const activeTool = useUIStore((state) => state.tool.activeTool);
   const setActiveTool = useUIStore((state) => state.setActiveTool);
   const setSelection = useUIStore((state) => state.setSelection);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
   const pendingFitToNode = useUIStore((state) => state.pendingFitToNode);
   const setPendingFitToNode = useUIStore((state) => state.setPendingFitToNode);
-  const selectedNodeIds = useUIStore((state) => state.selectedNodeIds);
   const { applyLayout } = useAutoLayout();
   // Phase 7: evaluate every flow against the architecture comm matrix
   // and stash results in rationalityStore for FlowEdge / CanvasControls

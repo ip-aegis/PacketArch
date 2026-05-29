@@ -8,7 +8,6 @@ Bypasses the UI and preset issues - uses main device IDs directly.
 """
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -16,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import httpx
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -144,7 +143,7 @@ async def main():
         verify_ssl = settings.get("cyber_vision_verify_ssl", "false").lower() == "true"
 
         if not cv_url or not cv_token:
-            print(f"ERROR: CV URL or token not configured in settings!")
+            print("ERROR: CV URL or token not configured in settings!")
             print(f"  cv_url: '{cv_url}'")
             print(f"  cv_token: '{cv_token[:20]}...' (length: {len(cv_token)})" if cv_token else "  cv_token: EMPTY")
             return
@@ -192,7 +191,7 @@ async def main():
         try:
             response = await client.get(f"{cv_url}/api/3.0/devices", params={"size": 1})
             response.raise_for_status()
-            print(f"  Connected to CV successfully!")
+            print("  Connected to CV successfully!")
         except Exception as e:
             print(f"  ERROR connecting to CV: {e}")
             return

@@ -58,7 +58,7 @@ import AITokenUsageTab from '../../components/admin/AITokenUsageTab';
 import SystemUpdatesTab from '../../components/admin/SystemUpdatesTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useFeatures } from '../../hooks/useFeatures';
-import type { SystemSetting } from '../../types';
+import type { SystemSetting, SettingsResponse } from '../../types';
 import ContextualHelpIcon from '../../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
@@ -79,7 +79,7 @@ const SettingItem: React.FC<{
       await onSave(setting.key, value || null);
       message.success(`${setting.key} updated successfully`);
       setEditing(false);
-    } catch (error) {
+    } catch {
       message.error('Failed to update setting');
     } finally {
       setSaving(false);
@@ -134,7 +134,7 @@ const SettingItem: React.FC<{
 
 // AI Provider Tab Component
 const AIProviderTab: React.FC<{
-  settings: any;
+  settings: SettingsResponse | null;
   updateSetting: (key: string, value: string | null) => Promise<void>;
   testConnection: () => Promise<void>;
   testingConnection: boolean;
@@ -208,7 +208,7 @@ const AIProviderTab: React.FC<{
       message.success(`AI Provider changed to ${providerLabel(provider)}`);
       // Refresh routing so the table updates immediately.
       void fetchRouting();
-    } catch (error) {
+    } catch {
       message.error('Failed to update provider');
     } finally {
       setSaving(false);
@@ -248,7 +248,7 @@ const AIProviderTab: React.FC<{
       await updateSetting(keyName, apiKey);
       message.success('API key updated successfully');
       setApiKey('');
-    } catch (error) {
+    } catch {
       message.error('Failed to update API key');
     } finally {
       setSaving(false);
@@ -272,7 +272,7 @@ const AIProviderTab: React.FC<{
         setCircuitClientSecret('');
       }
       message.success('CIRCUIT credentials updated');
-    } catch (error) {
+    } catch {
       message.error('Failed to update CIRCUIT credentials');
     } finally {
       setSaving(false);
@@ -293,7 +293,7 @@ const AIProviderTab: React.FC<{
         : 'openai_model';
       await updateSetting(modelKey, model);
       message.success('Model updated successfully');
-    } catch (error) {
+    } catch {
       message.error('Failed to update model');
     } finally {
       setSaving(false);
@@ -640,7 +640,7 @@ const SettingsPage: React.FC = () => {
     try {
       const result = await seedSettings();
       message.success(`Created ${result.created} settings, skipped ${result.skipped} existing`);
-    } catch (error) {
+    } catch {
       message.error('Failed to seed settings');
     }
   };

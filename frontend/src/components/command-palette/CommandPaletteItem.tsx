@@ -41,9 +41,6 @@ const CommandPaletteItem: React.FC<Props> = ({ command, isHighlighted, onClick }
       ref={ref}
       className={`command-palette-item${isHighlighted ? ' highlighted' : ''}`}
       onClick={onClick}
-      onMouseEnter={(e) => {
-        // Parent handles highlight-on-hover via onMouseMove on the list
-      }}
     >
       <div className="command-palette-item-left">
         {command.icon && (

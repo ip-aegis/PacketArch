@@ -22,7 +22,6 @@ Limitations vs production builder:
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -60,7 +59,7 @@ def populate_definition_from_template(
         _build_zones_from_template,
         _auto_assign_ips,
     )
-    from app.scenario_templates import get_template, VERTICAL_TEMPLATES
+    from app.scenario_templates import get_template
     from app.services.conduit_service import generate_default_conduits
     from app.services.device_templates._fingerprints import (
         get_fingerprint_by_vendor_model,

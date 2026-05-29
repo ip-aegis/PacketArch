@@ -18,10 +18,9 @@ the scenario_generator does the rest.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
-from app.services.architecture.role_catalog import Vertical
 
 
 # ---------------------------------------------------------------------------

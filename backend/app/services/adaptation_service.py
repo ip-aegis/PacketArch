@@ -8,7 +8,6 @@ Manages adaptation directives and routes them to agents running scenarios.
 
 import logging
 from typing import Any
-from uuid import UUID
 
 logger = logging.getLogger(__name__)
 

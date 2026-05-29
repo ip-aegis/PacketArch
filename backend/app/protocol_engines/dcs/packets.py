@@ -17,11 +17,9 @@ port patterns, timing characteristics, and security research.
 
 import struct
 import random
-import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any
 
 
 # =============================================================================
@@ -227,7 +225,6 @@ def build_deltav_header(
     """
     magic = b"DV"  # DeltaV identifier
     version = 0x02
-    flags = 0x00
 
     return (
         magic +
@@ -322,7 +319,6 @@ def build_experion_header(
     """
     magic = b"HC"  # Honeywell C300
     version = 0x01
-    flags = 0x00
 
     return (
         magic +
@@ -416,7 +412,6 @@ def build_vnetip_header(
     """
     magic = b"YV"  # Yokogawa Vnet
     version = 0x01
-    flags = 0x00
 
     return (
         magic +
@@ -507,7 +502,6 @@ def build_triconex_header(
     """
     magic = b"TS"  # TriStation
     version = 0x01
-    flags = 0x00
 
     return (
         magic +

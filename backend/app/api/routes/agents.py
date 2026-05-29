@@ -3,11 +3,9 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """REST API routes for managing traffic agents."""
 
-import asyncio
 import hashlib
 import logging
 import secrets
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID

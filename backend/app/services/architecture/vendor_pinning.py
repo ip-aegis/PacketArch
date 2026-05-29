@@ -171,25 +171,9 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
 
     # ====================================================================
-    # SEL_PROTECTION (energy substations)
-    # ====================================================================
-    (VendorProfile.SEL_PROTECTION, "protection_relay"): (
-        ("sel", "SEL-411L"),
-        ("sel", "SEL-751"),
-    ),
-    (VendorProfile.SEL_PROTECTION, "aggregator_rtu"): (
-        ("sel", "SEL-3530"),
-    ),
-    (VendorProfile.SEL_PROTECTION, "scada_primary"): (
-        ("sel", "SEL-5030 acSELerator"),
-    ),
-    (VendorProfile.SEL_PROTECTION, "engineering_workstation"): (
-        ("sel", "SEL-5030 acSELerator"),
-    ),
-    (VendorProfile.SEL_PROTECTION, "local_historian"): (
-        ("ge", "Proficy Historian"),
-    ),
-
+    # NOTE: SEL_PROTECTION pins are defined once, further below (the
+    # "pin to actual catalog models" block). An earlier duplicate block
+    # here was removed — it was silently overwritten by the later one.
     # ====================================================================
     # SCHNEIDER_SHOP (extended)
     # ====================================================================

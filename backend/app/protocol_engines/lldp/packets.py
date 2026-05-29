@@ -8,7 +8,6 @@ LLDP is a Layer 2 protocol - no IP headers required.
 """
 
 import struct
-from typing import Any
 
 from app.protocol_engines.lldp.types import (
     LLDP_ETHERTYPE,
@@ -16,7 +15,6 @@ from app.protocol_engines.lldp.types import (
     LLDPTLVType,
     ChassisIDSubtype,
     PortIDSubtype,
-    SystemCapability,
     AddressFamily,
     InterfaceNumberingSubtype,
     OUI_IEEE_802_1,

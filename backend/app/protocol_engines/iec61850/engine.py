@@ -34,15 +34,11 @@ from app.protocol_engines.iec61850.packets import (
 )
 from app.protocol_engines.iec61850.types import (
     MMS_PORT,
-    GOOSE_ETHERTYPE,
-    SV_ETHERTYPE,
     GOOSEConfig,
     SVConfig,
-    MMSConfig,
     GOOSEDataType,
 )
 from app.protocol_engines.types import (
-    ConversationState,
     FlowContext,
     IEC61850ConversationState,
     PacketEvent,

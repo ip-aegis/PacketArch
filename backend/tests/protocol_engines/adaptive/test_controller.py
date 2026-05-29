@@ -4,7 +4,7 @@
 """Tests for AdaptiveController — composition of micro, schedule, and directives."""
 
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 

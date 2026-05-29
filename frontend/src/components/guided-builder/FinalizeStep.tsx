@@ -33,7 +33,6 @@ const FinalizeStep: React.FC = () => {
     selectedVertical,
     selectedTemplate,
     expandedDevices,
-    templateDetail,
     scenarioName,
     description,
     phasePreset,

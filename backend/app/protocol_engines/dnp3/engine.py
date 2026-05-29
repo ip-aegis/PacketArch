@@ -20,15 +20,12 @@ from collections.abc import Iterator
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.dnp3.packets import (
-    DNP3_PORT,
     GROUP_ANALOG_INPUT,
     GROUP_BINARY_INPUT,
     GROUP_COUNTER,
     build_dnp3_packet,
     build_read_request,
     build_read_response,
-    build_write_request,
-    build_write_response,
 )
 from app.protocol_engines.modbus.packets import (
     build_tcp_fin,

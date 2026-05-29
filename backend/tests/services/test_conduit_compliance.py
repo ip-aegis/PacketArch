@@ -3,10 +3,8 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for conduit compliance validation service."""
 
-import pytest
 
 from app.services.conduit_compliance import (
-    PROTOCOL_ALIASES,
     _resolve_protocol,
     _get_device_zone,
     _find_matching_conduit,

@@ -341,8 +341,6 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
     });
 
     try {
-      let finalToolCalls: ToolCall[] = [];
-
       await aiApi.sendMessageStream(
         {
           session_id: state.sessionId,
@@ -392,8 +390,6 @@ export const useAIAssistantStore = create<AIAssistantState>((set, get) => ({
           },
 
           onDone: async (event: AIStreamDoneEvent) => {
-            finalToolCalls = event.tool_calls;
-
             // Finalize the assistant message
             const assistantMessage: Message = {
               id: assistantMessageId,

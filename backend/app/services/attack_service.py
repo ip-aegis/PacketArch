@@ -11,7 +11,6 @@ import logging
 from typing import Any
 
 from app.protocol_engines.attacks import get_playbook, list_playbooks
-from app.protocol_engines.attacks.types import AttackPlaybook
 
 logger = logging.getLogger(__name__)
 

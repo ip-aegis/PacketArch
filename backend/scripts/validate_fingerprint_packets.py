@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from scapy.all import rdpcap, Ether, IP, UDP, TCP, Raw, SNMP, SNMPresponse
+    from scapy.all import rdpcap, Ether, IP, UDP, TCP, Raw
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -147,7 +147,7 @@ class FingerprintValidator:
                 if sys_name:
                     finding.values["sys_name"] = sys_name
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  SNMP: Found {snmp_count} response packets")
@@ -288,7 +288,7 @@ class FingerprintValidator:
                 if 0x02 in values:
                     finding.values["major_minor_revision"] = values[0x02]
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  Modbus FC43: Found {modbus_count} response packets")
@@ -366,7 +366,7 @@ class FingerprintValidator:
 
                     pos += item_length
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  EtherNet/IP: Found {enip_count} ListIdentity responses")
@@ -467,7 +467,7 @@ class FingerprintValidator:
                 finding.packet_count += 1
                 finding.values.update(values)
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  PROFINET DCP: Found {profinet_count} Identify Response packets")
@@ -494,7 +494,7 @@ class FingerprintValidator:
                 if payload[0] != 0x03:  # TPKT version
                     continue
 
-                tpkt_length = struct.unpack(">H", payload[2:4])[0]
+                struct.unpack(">H", payload[2:4])[0]
 
                 # COTP header starts at offset 4
                 cotp_length = payload[4]
@@ -559,7 +559,7 @@ class FingerprintValidator:
                 finding.values["firmware_version"] = firmware_version
                 finding.values["module_type"] = module_type
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  S7comm SZL: Found {s7_count} Userdata response packets")
@@ -585,8 +585,8 @@ class FingerprintValidator:
                     continue
 
                 bvlc_type = payload[0]
-                bvlc_function = payload[1]
-                bvlc_length = struct.unpack(">H", payload[2:4])[0]
+                payload[1]
+                struct.unpack(">H", payload[2:4])[0]
 
                 # Type 0x81 = BACnet/IP
                 if bvlc_type != 0x81:
@@ -622,7 +622,7 @@ class FingerprintValidator:
                                     finding.values["firmware_revision"] = fw_string
                                 break
 
-            except Exception as e:
+            except Exception:
                 continue
 
         print(f"  BACnet: Found {bacnet_count} packets")
@@ -630,8 +630,8 @@ class FingerprintValidator:
     def compare_findings(self):
         """Compare findings against expected values."""
         for device_ip, expected_data in self.expected.items():
-            device_name = expected_data.get("device_name", device_ip)
-            expected_firmware = expected_data.get("expected_firmware", "")
+            expected_data.get("device_name", device_ip)
+            expected_data.get("expected_firmware", "")
 
             # Check SNMP
             if "snmp_sys_descr" in expected_data or "snmp_sys_descr_contains" in expected_data:
@@ -829,7 +829,6 @@ class FingerprintValidator:
             print(f"\n{device_name} ({device_ip}):")
 
             for r in by_device[device_ip]:
-                status = "PASS" if r.passed else "FAIL"
                 status_symbol = "[+]" if r.passed else "[-]"
                 print(f"  {status_symbol} {r.protocol} - {r.field_name}")
                 print(f"      Expected: {r.expected}")

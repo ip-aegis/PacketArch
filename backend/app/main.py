@@ -18,7 +18,7 @@ from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete, get_cu
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
-from app.core.exceptions import PacketArchError, ValidationError as AppValidationError
+from app.core.exceptions import PacketArchError
 from app.core.version import get_startup_banner
 from app.services.health_monitor import health_monitor
 from app.services.startup import run_startup_tasks

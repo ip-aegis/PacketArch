@@ -697,7 +697,7 @@ async def create_scenario(
             "range_index": allocation.range_index,
             "auto_assign_enabled": True,
         }
-    except ValueError as e:
+    except ValueError:
         # No IP ranges available - proceed without allocation
         pass
 
@@ -1138,7 +1138,7 @@ async def validate_scenario(
             warnings.append(ValidationWarning(
                 code="incomplete_flow",
                 severity="error",
-                message=f"Flow is missing source device",
+                message="Flow is missing source device",
                 details=f"Flow ID: {flow_id}",
             ))
         elif not target_id and not is_external_flow:
@@ -1146,7 +1146,7 @@ async def validate_scenario(
             warnings.append(ValidationWarning(
                 code="incomplete_flow",
                 severity="error",
-                message=f"Flow is missing target device",
+                message="Flow is missing target device",
                 details=f"Flow ID: {flow_id}",
             ))
 

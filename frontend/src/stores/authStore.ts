@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await authApi.getCurrentUser();
           set({ user, isAuthenticated: true, isLoading: false });
-        } catch (error) {
+        } catch {
           clearTokens();
           set({ user: null, isAuthenticated: false, isLoading: false });
         }

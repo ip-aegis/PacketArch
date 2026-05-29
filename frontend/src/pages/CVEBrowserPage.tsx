@@ -17,7 +17,6 @@ import {
   Col,
   Tag,
   Space,
-  Empty,
   Spin,
   Button,
   Tooltip,
@@ -49,9 +48,6 @@ import {
   listVulnerableVariants,
   getSeverityColor,
   formatCVSSScore,
-  type CVEListResponse,
-  type CVEStatsResponse,
-  type VulnerableVariantsResponse,
 } from '../api/cve';
 import type { CVEVulnerability, VulnerableFingerprintVariant, CVESeverity } from '../types';
 import ContextualHelpIcon from '../components/help/ContextualHelpIcon';

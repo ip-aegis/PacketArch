@@ -7,18 +7,16 @@ import pytest
 
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.types import (
-    ConversationState,
     DeviceContext,
     FlowContext,
-    PacketEvent,
     ProtocolType,
 )
 from app.protocol_engines.modbus.engine import ModbusTcpEngine
 from app.protocol_engines.modbus.function_codes import (
     FUNCTION_CODE_HANDLERS,
     get_handler,
-    ReadHoldingRegistersHandler,
-    WriteSingleRegisterHandler,
+    FC03ReadHoldingRegisters,
+    FC06WriteSingleRegister,
 )
 from app.protocol_engines.modbus.packets import (
     build_mbap_header,
@@ -47,7 +45,7 @@ class TestModbusFunctionCodes:
     def test_fc03_read_holding_registers_request(self):
         """Test FC03 request building."""
         handler = get_handler(0x03)
-        assert isinstance(handler, ReadHoldingRegistersHandler)
+        assert isinstance(handler, FC03ReadHoldingRegisters)
 
         config = {
             "start_address": 100,
@@ -77,7 +75,7 @@ class TestModbusFunctionCodes:
     def test_fc06_write_single_register_request(self):
         """Test FC06 request building."""
         handler = get_handler(0x06)
-        assert isinstance(handler, WriteSingleRegisterHandler)
+        assert isinstance(handler, FC06WriteSingleRegister)
 
         config = {
             "address": 50,

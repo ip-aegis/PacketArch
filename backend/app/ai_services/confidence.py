@@ -11,7 +11,6 @@ The goal is to ensure confidence scores are comparable and meaningful.
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 
 class ConfidenceLevel(str, Enum):

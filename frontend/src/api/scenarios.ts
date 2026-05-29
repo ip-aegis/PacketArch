@@ -63,7 +63,7 @@ export interface ScenarioCreate {
   addressing_config?: Record<string, unknown>;
 }
 
-export interface ScenarioUpdate extends Partial<ScenarioCreate> {}
+export type ScenarioUpdate = Partial<ScenarioCreate>;
 
 export interface ValidationWarning {
   code: string;

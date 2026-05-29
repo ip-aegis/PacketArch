@@ -11,7 +11,6 @@ Defines OIDs for roadside weather station polling including:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from app.protocol_engines.snmp.oids import NTCIP_ESS, OIDDefinition
 

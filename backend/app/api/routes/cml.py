@@ -20,7 +20,6 @@ from app.models.settings import SystemSetting
 from app.models.traffic_agent import TrafficAgent
 from app.schemas.cml import (
     CMLConnectionStatusResponse,
-    CMLDataAttachment,
     CMLDeploymentItem,
     CMLDeploymentListResponse,
     CMLDeployRequest,
@@ -192,8 +191,8 @@ async def list_labs(db: DBSession, _user: CurrentUser) -> CMLLabListResponse:
     finally:
         await service.close()
     return CMLLabListResponse(items=[
-        CMLLabResponse(id=l.id, title=l.title, state=l.state, node_count=l.node_count, owner=l.owner)
-        for l in labs
+        CMLLabResponse(id=lab.id, title=lab.title, state=lab.state, node_count=lab.node_count, owner=lab.owner)
+        for lab in labs
     ])
 
 

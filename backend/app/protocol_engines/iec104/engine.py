@@ -23,7 +23,6 @@ from app.protocol_engines.base import ProtocolEngine
 from app.protocol_engines.iec104.packets import (
     COT_INTERROGATION,
     COT_SPONTANEOUS,
-    IEC104_PORT,
     STARTDT_ACT,
     STARTDT_CON,
     STOPDT_ACT,

@@ -10,7 +10,6 @@ updated file back.
 
 Run from backend/: python scripts/add_snmp_identity.py
 """
-import ast
 import re
 import sys
 import os
@@ -427,7 +426,7 @@ def build_snmp_identity_text(template: dict, indent: str = "        ") -> str:
 
 def add_snmp_to_template(content: str, template: dict) -> str:
     """Add snmp_identity to a template that's missing it."""
-    template_text = template['text']
+    template['text']
 
     # Determine indent — typically 8 spaces for fields
     indent = "        "

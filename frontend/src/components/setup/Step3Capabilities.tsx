@@ -63,7 +63,7 @@ const Step3Capabilities: React.FC<Props> = ({
         ok: res.valid,
         message: res.valid ? 'Anthropic accepted the key.' : (res.error ?? 'Key rejected.'),
       });
-    } catch (e) {
+    } catch {
       setKeyResult({
         ok: false,
         message: 'Test failed. Air-gapped sites can skip — your key will be saved un-validated.',

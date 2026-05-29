@@ -138,7 +138,7 @@ async def seed_cloud_services(db: AsyncSession) -> int:
         result = await db.execute(
             select(CloudServiceEndpoint).where(
                 CloudServiceEndpoint.name == service_data["name"],
-                CloudServiceEndpoint.is_builtin == True,
+                CloudServiceEndpoint.is_builtin.is_(True),
             )
         )
         existing = result.scalar_one_or_none()

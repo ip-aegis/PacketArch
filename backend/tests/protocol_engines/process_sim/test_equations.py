@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for EquationSet — ODE and algebraic equation solving."""
 
-import pytest
 
 from app.protocol_engines.process_sim.equations import Equation, EquationSet
 from app.protocol_engines.process_sim.variables import ProcessVariable

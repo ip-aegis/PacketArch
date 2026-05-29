@@ -11,7 +11,6 @@ Defines OIDs for traffic signal controller polling including:
 """
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from app.protocol_engines.snmp.oids import NTCIP_ASC, OIDDefinition
 

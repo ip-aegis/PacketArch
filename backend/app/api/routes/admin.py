@@ -3,7 +3,7 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Admin routes for system settings management."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

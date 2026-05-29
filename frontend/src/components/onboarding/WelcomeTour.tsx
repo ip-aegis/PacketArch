@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 interface Slide {
   icon: React.ReactNode;

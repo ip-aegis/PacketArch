@@ -6,12 +6,8 @@
 import pytest
 from uuid import uuid4
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import patch, MagicMock
 
-from app.models.scenario import Scenario
-from app.models.user import User
-from app.protocol_engines.types import ProtocolType
 
 
 class TestGenerationProtocols:

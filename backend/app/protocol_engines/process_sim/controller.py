@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from .binder import VariableBinder
 from .faults import FaultScenario
 from .process_model import ProcessModel
-from .types import ProcessSimConfig, ProcessState, VariableBinding
+from .types import ProcessSimConfig, ProcessState
 
 if TYPE_CHECKING:
     from app.protocol_engines.payload_generator import PayloadGenerator

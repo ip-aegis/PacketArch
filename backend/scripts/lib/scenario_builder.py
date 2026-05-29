@@ -42,7 +42,6 @@ from app.services.device_templates._fingerprints import get_fingerprint_by_vendo
 # in flow_generator.py — all callers now agree on the same map.
 from app.protocol_engines.protocols import (
     PROTOCOL_ALIASES,
-    PROTOCOL_DEFAULT_PORTS as PROTOCOL_PORTS,
     get_default_port,
 )
 

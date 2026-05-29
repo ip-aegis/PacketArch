@@ -20,13 +20,11 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 # Add backend to Python path
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -333,7 +331,7 @@ class TemplateAuditor:
                     template_name,
                     device_name,
                     f"Device missing fingerprint_model (vendor={vendor}, type={device_type})",
-                    f"Add fingerprint_model for better device emulation",
+                    "Add fingerprint_model for better device emulation",
                 )
                 continue
 

@@ -35,7 +35,6 @@ from app.protocol_engines.wmi.packets import (
     build_ntlmssp_authenticate,
     build_ntlmssp_challenge,
     build_ntlmssp_negotiate,
-    build_rpc_bind,
     build_rpc_bind_ack,
     build_rpc_request,
     build_rpc_response,
@@ -45,11 +44,8 @@ from app.protocol_engines.wmi.packets import (
     build_wmi_bind_to_services,
     build_wmi_exec_query,
     build_wmi_query_response,
-    IWBEMSERVICES_UUID,
-    IWBEMSERVICES_VERSION,
 )
 from app.protocol_engines.types import (
-    DeviceContext,
     FlowContext,
     PacketEvent,
     ProtocolType,
@@ -149,7 +145,6 @@ def build_tcp_packet(
 
     # TCP header (20 bytes, no options)
     tcp_data_offset = 0x50  # 5 words (20 bytes)
-    tcp_reserved = 0
     tcp_urgent = 0
 
     # Simple TCP checksum (pseudo-header + TCP)

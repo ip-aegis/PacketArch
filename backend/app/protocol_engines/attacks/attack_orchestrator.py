@@ -22,14 +22,13 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Any, Iterator
+from typing import Any
 
 from app.protocol_engines.external.engine import ExternalCommEngine, ExternalTrafficConfig
 from app.protocol_engines.external.ip_pools import get_attack_source_ip
 from app.protocol_engines.types import PacketEvent
 
 from .action_registry import (
-    ATTACK_FLOW_PREFIX,
     TargetInfo,
     get_action_generator,
 )
@@ -432,7 +431,7 @@ class AttackOrchestrator:
                 self._stage_actions_fired.add(action_key)
             else:
                 # Repeating: check if it's time for the next repeat
-                fire_count = self._stage_actions_fired.get(action_key, 0) if isinstance(
+                self._stage_actions_fired.get(action_key, 0) if isinstance(
                     self._stage_actions_fired, dict) else (
                         1 if action_key in self._stage_actions_fired else 0
                     )

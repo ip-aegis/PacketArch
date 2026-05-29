@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Tests for conduit auto-generation service."""
 
-import pytest
 
 from app.services.conduit_service import (
     PURDUE_ADJACENCY,

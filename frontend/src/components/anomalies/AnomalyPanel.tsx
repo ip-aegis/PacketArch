@@ -19,15 +19,12 @@ import {
   Empty,
   Collapse,
   Badge,
-  Tooltip,
   message,
 } from 'antd';
 import {
   ThunderboltOutlined,
   FilterOutlined,
   ReloadOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
   PlusOutlined,
   BugOutlined,
 } from '@ant-design/icons';
@@ -39,7 +36,7 @@ import {
   type SuggestedAnomaly,
 } from '../../api/anomalies';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { Panel } = Collapse;
 
 interface AnomalyPanelProps {

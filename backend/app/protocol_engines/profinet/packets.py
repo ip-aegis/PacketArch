@@ -14,12 +14,12 @@ This module builds:
 import logging
 import struct
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from app.protocol_engines.types import DeviceContext
 
 if TYPE_CHECKING:
-    from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
+    pass
 
 # Module-level dedupe for "vendor_id absent on X/Y fingerprint" — the
 # PROFINET DCP/cyclic path runs many times per second, so without

@@ -3,7 +3,6 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Routes for serving downloadable resources."""
 
-import os
 from pathlib import Path
 from typing import List
 

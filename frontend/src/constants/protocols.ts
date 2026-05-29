@@ -10,7 +10,7 @@
  * lists live here so every component draws from a single source of truth.
  */
 
-import type { DeviceType, ProtocolType } from '../types';
+import type { ProtocolType } from '../types';
 
 // ---------------------------------------------------------------------------
 // Protocol colors - used for edge labels, tags, badges, and charts

@@ -13,7 +13,6 @@ from celery import Celery, Task
 from sqlalchemy import select, update
 
 from app.core.config import settings
-from app.core.database import async_session_maker
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
 from app.protocol_engines.cell_isolation import parse_config as parse_isolation_config, should_drop_flow as should_drop_for_isolation

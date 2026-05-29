@@ -18,7 +18,6 @@ import struct
 from dataclasses import dataclass
 from typing import Iterator
 
-from scapy.layers.http import HTTP, HTTPRequest, HTTPResponse
 from scapy.layers.inet import IP, TCP
 from scapy.packet import Packet, Raw
 

@@ -17,11 +17,8 @@ Supported CNC models (simulated):
 """
 
 import struct
-import random
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any
 
 
 # =============================================================================

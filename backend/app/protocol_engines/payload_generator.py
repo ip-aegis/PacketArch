@@ -10,9 +10,8 @@ that follow industry-typical patterns including drift, noise, and trends.
 import math
 import random
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 
 class TrendType(str, Enum):

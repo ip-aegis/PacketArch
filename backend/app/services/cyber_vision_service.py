@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 import httpx
 
@@ -487,7 +486,7 @@ class CyberVisionService:
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to fetch CV devices: {e.response.status_code}")
             raise
-        except Exception as e:
+        except Exception:
             logger.exception("Error fetching CV devices")
             raise
 
@@ -534,7 +533,7 @@ class CyberVisionService:
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to fetch CV devices for preset {preset_id}: {e.response.status_code}")
             raise
-        except Exception as e:
+        except Exception:
             logger.exception(f"Error fetching CV devices for preset {preset_id}")
             raise
 
@@ -604,7 +603,7 @@ class CyberVisionService:
             data = await self._request("GET", "/presets")
             presets = data if isinstance(data, list) else []
             return [{"id": p.get("id"), "label": p.get("label", p.get("name", "Unknown"))} for p in presets]
-        except Exception as e:
+        except Exception:
             logger.exception("Error fetching CV presets")
             return []
 
@@ -694,7 +693,7 @@ class CyberVisionService:
             if e.response.status_code == 404:
                 return None
             raise
-        except Exception as e:
+        except Exception:
             logger.exception(f"Error fetching CV device {device_id}")
             raise
 
@@ -726,7 +725,7 @@ class CyberVisionService:
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to fetch CV vulnerabilities: {e.response.status_code}")
             raise
-        except Exception as e:
+        except Exception:
             logger.exception("Error fetching CV vulnerabilities")
             raise
 

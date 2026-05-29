@@ -16,7 +16,6 @@ Key characteristics:
 - TTL typically 120 seconds (30 * 4)
 """
 
-import random
 from collections.abc import Iterator
 
 from app.protocol_engines import register_engine

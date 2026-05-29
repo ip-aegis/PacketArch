@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.scenario import Scenario
-from app.protocol_engines.vendor_oui import generate_mac_address, get_oui_for_device_type
+from app.protocol_engines.vendor_oui import generate_mac_address
 
 
 async def auto_assign_addresses(
@@ -36,7 +36,7 @@ async def auto_assign_addresses(
 
     definition = scenario.definition.copy()
     devices = definition.get("devices", {})
-    zones = definition.get("zones", {})
+    definition.get("zones", {})
 
     if scheme == "zone_based":
         # Assign based on zones

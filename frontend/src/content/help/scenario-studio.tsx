@@ -15,8 +15,6 @@ import {
   NodeIndexOutlined,
   SettingOutlined,
   SaveOutlined,
-  PlayCircleOutlined,
-  ZoomInOutlined,
 } from '@ant-design/icons';
 import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, BG_INSET, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';

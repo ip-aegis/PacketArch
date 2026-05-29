@@ -36,12 +36,10 @@ from app.protocol_engines.ethercat.packets import (
     ESCRegister,
     EtherCATCommand,
     auto_increment_address,
-    build_coe_sdo_upload_request,
     build_ethercat_datagram,
     build_ethercat_frame,
     build_fmmu_config,
     build_syncmanager_config,
-    calculate_expected_wkc,
 )
 from app.protocol_engines.types import (
     EtherCATConversationState,
@@ -78,7 +76,7 @@ class EtherCATEngine(ProtocolEngine):
     def create_initial_state(self, flow: FlowContext) -> EtherCATConversationState:
         """Create initial conversation state for EtherCAT."""
         num_slaves = flow.config.get("num_slaves", 4)
-        cycle_mode = flow.config.get("cycle_mode", "standard")
+        flow.config.get("cycle_mode", "standard")
 
         return EtherCATConversationState(
             flow_id=flow.flow_id,
@@ -108,7 +106,6 @@ class EtherCATEngine(ProtocolEngine):
         """
         current_time = start_time_ms
         num_slaves = state.num_slaves
-        src_mac = flow.source.mac_address
 
         # Phase 1: Broadcast read to discover slaves
         # BRD command to AL Status register
@@ -761,7 +758,7 @@ class EtherCATEngine(ProtocolEngine):
             return
 
         bytes_per_slave = flow.config.get("bytes_per_slave", 8)
-        total_data_size = state.num_slaves * bytes_per_slave
+        state.num_slaves * bytes_per_slave
 
         # Generate output data (simulated control values)
         output_data = self._generate_process_data(state, bytes_per_slave)

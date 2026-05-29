@@ -35,7 +35,6 @@ from scapy.packet import Raw
 
 from app.protocol_engines.snmp.types import (
     SNMPVersion,
-    SNMPOperation,
     VarBind,
     SNMP_AGENT_PORT,
     SNMP_TRAP_PORT,

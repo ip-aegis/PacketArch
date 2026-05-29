@@ -12,7 +12,6 @@ displayed instead of generic model names.
 """
 
 import logging
-from typing import Any
 
 from app.services.serial_number_generator import SerialNumberGenerator
 

@@ -14,7 +14,6 @@ from sqlalchemy import delete as sql_delete, func, select
 from app.ai_services.usage_recorder import AIUsageContext
 from app.api.deps import CurrentUser, DBSession
 from app.api.helpers import get_or_404_where, paginate
-from app.core.exceptions import NotFoundError, ValidationError
 from app.models.scenario import Scenario
 from app.models.scenario_version import ScenarioVersion
 from app.schemas.scenario_version import (

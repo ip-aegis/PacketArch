@@ -26,7 +26,6 @@ from app.protocol_engines.dcs.packets import (
     DCSVendor,
     DCS_VENDOR_CONFIG,
     DCSTag,
-    DCSAlarm,
     DCSController,
     # DeltaV
     DELTAV_UDP_PORT,
@@ -36,7 +35,6 @@ from app.protocol_engines.dcs.packets import (
     build_deltav_data_request,
     build_deltav_data_response,
     # Honeywell Experion
-    EXPERION_CDA_PORT,
     build_experion_connect,
     build_experion_connect_ack,
     build_experion_status_request,
@@ -57,7 +55,6 @@ from app.protocol_engines.dcs.packets import (
     build_udp_packet,
 )
 from app.protocol_engines.types import (
-    DeviceContext,
     FlowContext,
     PacketEvent,
     ProtocolType,
@@ -207,7 +204,6 @@ class DCSEngine(ProtocolEngine):
         current_time = 0.0
 
         src = flow.source
-        dst = flow.destination
         config = flow.config
 
         # Determine vendor
@@ -221,8 +217,8 @@ class DCSEngine(ProtocolEngine):
 
         state.server_port = port
 
-        ttl = src.get_tcp_ttl()
-        window = src.get_tcp_window_size()
+        src.get_tcp_ttl()
+        src.get_tcp_window_size()
 
         if protocol == "tcp":
             # TCP handshake for Experion

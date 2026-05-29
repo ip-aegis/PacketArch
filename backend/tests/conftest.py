@@ -5,19 +5,36 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.settings import SystemSetting
 from app.models.user import User
 from app.core.security import get_password_hash
+
+
+# Models declare Postgres-specific column types. The in-memory sqlite test
+# engine can't compile JSONB / ARRAY (postgresql.UUID already falls back to
+# CHAR on sqlite in SQLAlchemy 2.0, but JSONB and ARRAY have no built-in
+# fallback), so render them as plain JSON for the test DB. Production still
+# uses the real Postgres types.
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_as_json_on_sqlite(element, compiler, **kw):  # noqa: N802
+    return "JSON"
+
+
+@compiles(ARRAY, "sqlite")
+def _compile_array_as_json_on_sqlite(element, compiler, **kw):  # noqa: N802
+    return "JSON"
 
 
 # Test database URL (in-memory SQLite for speed)
@@ -62,6 +79,11 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     )
 
     async with async_session_maker() as session:
+        # Satisfy the first-run setup gate (RequireSetupComplete) so gated
+        # API routes return their real status instead of 503 in tests. Tests
+        # that exercise the wizard itself hit the exempt /api/v1/setup/* routes.
+        session.add(SystemSetting(key="setup.completed", value="true"))
+        await session.commit()
         yield session
 
 

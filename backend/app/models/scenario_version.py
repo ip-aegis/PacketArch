@@ -14,7 +14,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.scenario import Scenario
-    from app.models.user import User
 
 from app.core.database import Base
 

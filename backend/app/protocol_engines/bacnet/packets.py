@@ -23,7 +23,6 @@ from app.protocol_engines.bacnet.types import (
     BACNET_BVLC_TYPE,
     BACnetApplicationTag,
     BACnetConfirmedService,
-    BACnetObjectIdentifier,
     BACnetObjectType,
     BACnetPDUType,
     BACnetPropertyIdentifier,

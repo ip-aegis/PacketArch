@@ -61,7 +61,7 @@ const HelpCard: React.FC<HelpCardProps> = ({
         direction="vertical"
         size="small"
         current={-1}
-        items={steps.map((step, index) => ({
+        items={steps.map((step) => ({
           title: (
             <Text style={{ color: '#fff', fontWeight: 500 }}>
               {step.title}

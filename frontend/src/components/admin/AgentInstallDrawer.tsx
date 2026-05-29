@@ -15,13 +15,12 @@
  * - Upgrade and maintenance
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Alert,
   Button,
   Card,
   Collapse,
-  Divider,
   Drawer,
   message,
   Space,
@@ -35,16 +34,45 @@ import {
   CheckCircleOutlined,
   CodeOutlined,
   CopyOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
   RocketOutlined,
   SettingOutlined,
   ToolOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 
-const { Text, Title, Paragraph, Link } = Typography;
+const { Text, Paragraph } = Typography;
 const { Panel } = Collapse;
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text);
+  message.success('Copied to clipboard');
+};
+
+const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
+  <div style={{ position: 'relative', marginBottom: 16 }}>
+    <pre
+      style={{
+        background: '#1e1e1e',
+        color: '#d4d4d4',
+        padding: 16,
+        borderRadius: 6,
+        overflow: 'auto',
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}
+    >
+      <code>{code}</code>
+    </pre>
+    <Button
+      size="small"
+      icon={<CopyOutlined />}
+      style={{ position: 'absolute', top: 8, right: 8 }}
+      onClick={() => copyToClipboard(code)}
+    >
+      Copy
+    </Button>
+  </div>
+);
 
 interface AgentInstallDrawerProps {
   open: boolean;
@@ -53,37 +81,6 @@ interface AgentInstallDrawerProps {
 
 const AgentInstallDrawer: React.FC<AgentInstallDrawerProps> = ({ open, onClose }) => {
   const serverUrl = `https://${window.location.hostname}`;
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    message.success('Copied to clipboard');
-  };
-
-  const CodeBlock: React.FC<{ code: string; language?: string }> = ({ code, language = 'bash' }) => (
-    <div style={{ position: 'relative', marginBottom: 16 }}>
-      <pre
-        style={{
-          background: '#1e1e1e',
-          color: '#d4d4d4',
-          padding: 16,
-          borderRadius: 6,
-          overflow: 'auto',
-          fontSize: 13,
-          lineHeight: 1.5,
-        }}
-      >
-        <code>{code}</code>
-      </pre>
-      <Button
-        size="small"
-        icon={<CopyOutlined />}
-        style={{ position: 'absolute', top: 8, right: 8 }}
-        onClick={() => copyToClipboard(code)}
-      >
-        Copy
-      </Button>
-    </div>
-  );
 
   const envVarsData = [
     {

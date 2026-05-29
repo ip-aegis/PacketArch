@@ -36,7 +36,6 @@ from app.protocol_engines.snmp.packets import (
 from app.protocol_engines.snmp.types import (
     SNMP_AGENT_PORT,
     SNMPFlowConfig,
-    SNMPOperation,
     SNMPState,
     SNMPVersion,
     VarBind,

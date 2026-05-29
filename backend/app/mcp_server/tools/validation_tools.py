@@ -351,7 +351,7 @@ async def score_realism(db: AsyncSession, scenario_id: str) -> str:
         # Check expected protocols for vertical
         expected_protocols = set(norms.get("expected_protocols", []))
         if expected_protocols and protocols_used:
-            missing_protocols = expected_protocols - protocols_used
+            expected_protocols - protocols_used
             unexpected_protocols = protocols_used - expected_protocols
 
             if len(unexpected_protocols) > len(protocols_used) / 2:

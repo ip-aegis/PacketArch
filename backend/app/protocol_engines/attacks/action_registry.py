@@ -299,7 +299,7 @@ def _generate_exploit_attempt(
     )
 
     pattern_name = params.get("exploit_pattern", "buffer_overflow_generic")
-    repeat = params.get("repeat_count", 3)
+    params.get("repeat_count", 3)
 
     config = ExternalTrafficConfig(
         enable_exploits=True,

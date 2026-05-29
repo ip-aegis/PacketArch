@@ -4,7 +4,6 @@
 """Conduit schemas for IEC 62443 zone-to-zone communication boundaries."""
 
 from enum import Enum
-from typing import Any
 
 from pydantic import BaseModel, Field
 

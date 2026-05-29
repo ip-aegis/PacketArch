@@ -4,7 +4,6 @@
 """Public query API for the device template library."""
 
 import random
-from typing import Any
 
 from app.services.device_templates._helpers import (
     generate_serial_number,

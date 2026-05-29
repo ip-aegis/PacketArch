@@ -90,7 +90,11 @@ jobs:
           cd backend
           poetry run pytest -x --tb=short --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=50
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          # No DATABASE_URL: config.py types it as PostgresDsn (a sqlite URL
+          # fails validation at Settings() import). Tests don't need it —
+          # conftest.py stands up its own in-memory sqlite engine and
+          # overrides the get_db dependency. Settings falls back to its
+          # postgres default DSN, which is never actually connected to.
           SECRET_KEY: "test-secret-key-for-ci-minimum-32-characters"
           REDIS_URL: "redis://localhost:6379/0"
 

@@ -254,9 +254,6 @@ def _modbus_force_listen(
 
     CV should detect: Modbus diagnostic command / denial of service.
     """
-    from app.protocol_engines.external.exploit_patterns import (
-        MODBUS_ATTACK_PATTERNS,
-    )
 
     tid = random.randint(1, 65535)
     unit_id = params.get("unit_id", 0)  # broadcast
@@ -1079,7 +1076,7 @@ def _cross_device_comm(
     """
     count = params.get("count", 5)
     interval_ms = params.get("interval_ms", 1000)
-    target_type = params.get("target_type", "plc")
+    params.get("target_type", "plc")
 
     if len(targets) < 2:
         return

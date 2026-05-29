@@ -780,7 +780,6 @@ class FingerprintApplicator:
             KeyError: If protocol is not supported
         """
         from app.protocol_engines.identity import (
-            IdentityResponse,
             get_builder,
         )
 

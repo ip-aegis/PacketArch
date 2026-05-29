@@ -11,7 +11,6 @@ seed file which was not being used during initial seeding.
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 import json
 
 # revision identifiers, used by Alembic.

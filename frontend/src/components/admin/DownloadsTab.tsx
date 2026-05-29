@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { downloadsApi, DownloadableFile } from '../../api/downloads';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text, Title } = Typography;
 
@@ -48,8 +49,8 @@ const DownloadsTab: React.FC = () => {
     try {
       const response = await downloadsApi.list();
       setFiles(response.files);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load downloads');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load downloads'));
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +64,8 @@ const DownloadsTab: React.FC = () => {
     setDownloadingFile(filename);
     try {
       await downloadsApi.downloadFile(filename);
-    } catch (err: any) {
-      setError(err.message || 'Failed to download file');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to download file'));
     } finally {
       setDownloadingFile(null);
     }
