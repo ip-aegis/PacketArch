@@ -14,12 +14,15 @@ import { CloudUploadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
+import BulkAgentUpdateModal, { type BulkUpdateTarget } from '../agents/BulkAgentUpdateModal';
 
 const AgentVersionBanner: React.FC = () => {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const [dismissed, setDismissed] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkTargets, setBulkTargets] = useState<BulkUpdateTarget[]>([]);
   const fetched = useRef(false);
 
   const agents = useAgentsStore((s) => s.agents);
@@ -38,25 +41,31 @@ const AgentVersionBanner: React.FC = () => {
     (a) => a.status === 'online' && a.version && a.version !== standardVersion,
   );
 
-  if (!standardVersion || outdatedAgents.length === 0 || dismissed) {
-    return null;
-  }
+  // Show the warning banner only when there are outdated agents and it
+  // hasn't been dismissed — but keep the component mounted so the bulk
+  // progress modal survives agents becoming up-to-date mid-update.
+  const showBanner = Boolean(standardVersion) && outdatedAgents.length > 0 && !dismissed;
 
   const handleUpdateAll = async () => {
     setUpdating(true);
+    // Snapshot the targets now — the banner disappears once versions update.
+    const targets: BulkUpdateTarget[] = outdatedAgents.map((a) => ({ id: a.id, name: a.name }));
     try {
       const results = await Promise.allSettled(
         outdatedAgents.map((a) => agentsApi.triggerUpdate(a.id)),
       );
-      const succeeded = results.filter((r) => r.status === 'fulfilled').length;
-      const failed = results.length - succeeded;
-      if (failed === 0) {
-        message.success(`Update triggered for ${succeeded} agent(s)`);
-      } else {
-        message.warning(`Updated ${succeeded}, failed ${failed} agent(s)`);
+      // Only track agents whose update command was actually accepted.
+      const accepted = targets.filter((_, i) => results[i].status === 'fulfilled');
+      const rejected = results.length - accepted.length;
+      if (rejected > 0) {
+        message.warning(`Could not start ${rejected} update(s); tracking ${accepted.length}.`);
       }
-      // Refresh agent list after a delay to pick up new versions
-      setTimeout(() => fetchAgents().catch(() => {}), 3000);
+      if (accepted.length > 0) {
+        setBulkTargets(accepted);
+        setBulkOpen(true);
+      } else {
+        message.error('Failed to start any agent updates');
+      }
     } catch {
       message.error('Failed to trigger agent updates');
     } finally {
@@ -64,7 +73,15 @@ const AgentVersionBanner: React.FC = () => {
     }
   };
 
+  const handleBulkClose = () => {
+    setBulkOpen(false);
+    // Pick up new versions (banner hides once all agents are current).
+    fetchAgents().catch(() => {});
+  };
+
   return (
+    <>
+      {showBanner && (
     <Alert
       type="warning"
       banner
@@ -93,6 +110,14 @@ const AgentVersionBanner: React.FC = () => {
         </div>
       }
     />
+      )}
+      <BulkAgentUpdateModal
+        open={bulkOpen}
+        targets={bulkTargets}
+        targetVersion={standardVersion}
+        onClose={handleBulkClose}
+      />
+    </>
   );
 };
 

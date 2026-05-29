@@ -660,6 +660,15 @@ class AgentManager:
             )
         return status
 
+    def get_active_update_statuses(self) -> list[AgentUpdateStatus]:
+        """Return all tracked (non-cleared) per-agent update statuses.
+
+        Lets the UI poll once for every in-flight/just-finished update
+        instead of N per-agent requests — used by the "Update All" bulk
+        progress view and the Agents-tab "Updating…" indicators.
+        """
+        return list(self._update_statuses.values())
+
     async def handle_update_status(self, agent_id: UUID, message: dict[str, Any]) -> None:
         """Handle UPDATE_STATUS message from an agent.
 

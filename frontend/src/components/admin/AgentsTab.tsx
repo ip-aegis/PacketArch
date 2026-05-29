@@ -36,6 +36,7 @@ import {
   ArrowUpOutlined,
   BuildOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
   CopyOutlined,
   DeleteOutlined,
   DesktopOutlined,
@@ -54,7 +55,7 @@ import { ErrorAlert } from '../common';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
 import { healthMonitorApi, type HealthStatusResponse } from '../../api/healthMonitor';
-import type { TrafficAgent, TrafficAgentWithToken, AgentCreate } from '../../types/agent';
+import type { TrafficAgent, TrafficAgentWithToken, AgentCreate, AgentUpdateStatus } from '../../types/agent';
 import AgentDetailsDrawer from './AgentDetailsDrawer';
 import AgentInstallDrawer from './AgentInstallDrawer';
 import { formatRelativeTime } from '../../utils/dateUtils';
@@ -97,6 +98,9 @@ const AgentsTab: React.FC = () => {
   const buildPollRef = useRef<NodeJS.Timeout | null>(null);
   const [form] = Form.useForm();
   const [healthStatus, setHealthStatus] = useState<HealthStatusResponse | null>(null);
+  // Live per-agent update status (keyed by agent id) so the table shows an
+  // "Updating…" indicator while an update is in flight or just finished.
+  const [updateStatuses, setUpdateStatuses] = useState<Record<string, AgentUpdateStatus>>({});
 
   // Poll for build status
   const pollBuildStatus = useCallback(async () => {
@@ -143,19 +147,35 @@ const AgentsTab: React.FC = () => {
     }
   }, []);
 
+  const fetchUpdateStatuses = useCallback(async () => {
+    try {
+      const all = await agentsApi.getActiveUpdateStatuses();
+      const map: Record<string, AgentUpdateStatus> = {};
+      for (const s of all) map[s.agent_id] = s;
+      setUpdateStatuses(map);
+    } catch {
+      // Silently ignore
+    }
+  }, []);
+
   // Fetch agents on mount and set up polling
   useEffect(() => {
     fetchAgents();
     fetchHealth();
+    fetchUpdateStatuses();
 
-    // Poll for status updates every 10 seconds
+    // Poll status every 10s; poll in-flight update progress more often (3s).
     const interval = setInterval(() => {
       fetchAgents();
       fetchHealth();
     }, 10000);
+    const updateInterval = setInterval(fetchUpdateStatuses, 3000);
 
-    return () => clearInterval(interval);
-  }, [fetchAgents]);
+    return () => {
+      clearInterval(interval);
+      clearInterval(updateInterval);
+    };
+  }, [fetchAgents, fetchHealth, fetchUpdateStatuses]);
 
   // Handlers
   const handleCreate = () => {
@@ -348,23 +368,44 @@ const AgentsTab: React.FC = () => {
       key: 'version',
       width: 180,
       render: (_, record) => {
-        if (!record.version) {
+        const upd = updateStatuses[record.id];
+        const activeUpd = upd && !['idle', 'complete'].includes(upd.status);
+        const inProgress = upd && ['initiated', 'downloading', 'loading', 'restarting'].includes(upd.status);
+        const failedUpd = upd && ['failed', 'timeout', 'error'].includes(upd.status);
+        if (!record.version && !upd) {
           return <Text type="secondary">-</Text>;
         }
         const isOutdated = standardVersion && record.version !== standardVersion;
         return (
-          <Space size={4} wrap={false}>
-            <Text code style={isOutdated ? { color: '#faad14' } : undefined}>
-              v{record.version}
-            </Text>
-            {isOutdated && (
+          <Space size={4} wrap>
+            {record.version && (
+              <Text code style={isOutdated ? { color: '#faad14' } : undefined}>
+                v{record.version}
+              </Text>
+            )}
+            {/* Live update state takes precedence over the outdated/latest tag */}
+            {inProgress && (
+              <Tooltip title={upd!.message}>
+                <Tag color="processing" icon={<LoadingOutlined />} style={{ margin: 0 }}>
+                  Updating{upd!.status === 'downloading' && upd!.progress != null ? ` ${upd!.progress}%` : `: ${upd!.status}`}
+                </Tag>
+              </Tooltip>
+            )}
+            {failedUpd && (
+              <Tooltip title={upd!.error || upd!.message}>
+                <Tag color="error" icon={<CloseCircleOutlined />} style={{ margin: 0 }}>
+                  Update failed
+                </Tag>
+              </Tooltip>
+            )}
+            {!activeUpd && isOutdated && (
               <Tooltip title={`Update available: v${standardVersion}`}>
                 <Tag color="warning" icon={<ArrowUpOutlined />} style={{ margin: 0 }}>
                   v{standardVersion}
                 </Tag>
               </Tooltip>
             )}
-            {!isOutdated && standardVersion && (
+            {!activeUpd && !isOutdated && standardVersion && record.version && (
               <Tag color="success" style={{ margin: 0 }}>Latest</Tag>
             )}
           </Space>

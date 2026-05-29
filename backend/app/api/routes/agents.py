@@ -535,6 +535,29 @@ async def create_agent(
     return response
 
 
+@router.get("/update-statuses", response_model=list[AgentUpdateStatus])
+async def get_active_agent_update_statuses() -> list[AgentUpdateStatus]:
+    """Return every tracked agent update status in one call.
+
+    Defined before ``/{agent_id}`` so the literal path wins. Powers the
+    "Update All" bulk progress view and the Agents-tab "Updating…" tags,
+    which would otherwise need one request per agent.
+    """
+    return [
+        AgentUpdateStatus(
+            agent_id=s.agent_id,
+            status=s.status,
+            progress=s.progress,
+            message=s.message,
+            target_version=s.target_version,
+            initiated_at=s.initiated_at,
+            completed_at=s.completed_at,
+            error=s.error,
+        )
+        for s in agent_manager.get_active_update_statuses()
+    ]
+
+
 @router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(
     agent_id: UUID,

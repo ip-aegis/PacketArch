@@ -146,6 +146,13 @@ export const agentsApi = {
     return response.data;
   },
 
+  // All tracked per-agent update statuses in one request — used by the
+  // "Update All" bulk progress modal and the Agents-tab "Updating…" tags.
+  async getActiveUpdateStatuses(): Promise<AgentUpdateStatus[]> {
+    const response = await apiClient.get<AgentUpdateStatus[]>(`${PREFIX}/update-statuses`);
+    return response.data;
+  },
+
   async clearUpdateStatus(agentId: string): Promise<void> {
     await apiClient.delete(`${PREFIX}/${agentId}/update-status`);
   },
