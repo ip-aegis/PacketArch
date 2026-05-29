@@ -197,6 +197,11 @@ services:
       - NET_RAW
     env_file:
       - .env
+    volumes:
+      # Required for agent self-update (UPDATE_AGENT): the agent uses the
+      # host Docker daemon to `docker load` the new image and restart
+      # itself. Without this mount, updates fail with "Docker not available".
+      - /var/run/docker.sock:/var/run/docker.sock
     logging:
       driver: json-file
       options:
