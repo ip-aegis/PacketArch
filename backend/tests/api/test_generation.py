@@ -55,7 +55,7 @@ class TestGenerationStart:
         )
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        assert "not found" in response.json()["message"].lower()
 
     @pytest.mark.asyncio
     async def test_start_generation_no_auth(self, client: AsyncClient):
@@ -65,7 +65,8 @@ class TestGenerationStart:
             json={"scenario_id": str(uuid4())},
         )
 
-        assert response.status_code == 401
+        # HTTPBearer returns 403 when the Authorization header is absent.
+        assert response.status_code == 403
 
 
 class TestGenerationStatus:
@@ -76,8 +77,10 @@ class TestGenerationStatus:
         self, client: AsyncClient, auth_headers: dict
     ):
         """Test getting status for non-existent job."""
+        # Valid UUID format so the route reaches the not-found check rather
+        # than rejecting the ID format with 400.
         response = await client.get(
-            "/api/v1/generation/nonexistent-job-id",
+            f"/api/v1/generation/{uuid4()}",
             headers=auth_headers,
         )
 
@@ -93,7 +96,7 @@ class TestGenerationDownload:
     ):
         """Test downloading PCAP for non-existent job."""
         response = await client.get(
-            "/api/v1/generation/nonexistent-job-id/download",
+            f"/api/v1/generation/{uuid4()}/download",
             headers=auth_headers,
         )
 
@@ -109,7 +112,7 @@ class TestGenerationCancel:
     ):
         """Test cancelling non-existent job."""
         response = await client.delete(
-            "/api/v1/generation/nonexistent-job-id",
+            f"/api/v1/generation/{uuid4()}",
             headers=auth_headers,
         )
 

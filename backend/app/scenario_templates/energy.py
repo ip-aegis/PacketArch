@@ -58,7 +58,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SEL-3530 RTAC - Substation Gateway
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_lan",
-             "name": "Substation_Gateway_RTAC", "protocols": ["modbus_tcp", "dnp3", "snmp"],
+             # SEL-3530 RTAC also acts as the PDC, concentrating C37.118
+             # synchrophasor streams from the protection-relay PMUs.
+             "name": "Substation_Gateway_RTAC", "protocols": ["modbus_tcp", "dnp3", "snmp", "c37118"],
              "fingerprint_model": "SEL-3530",
              "role": "Substation Gateway"},
 
@@ -976,13 +978,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # Honeywell Experion Server - Primary SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp"],
+             "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp", "ethernet_ip", "iec104"],
              "fingerprint_model": "Experion Server",
              "role": "Primary SCADA Server"},
 
             # Honeywell Experion Server - Backup SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
-             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp"],
+             "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp", "ethernet_ip", "iec104"],
              "fingerprint_model": "Experion Server",
              "role": "Backup SCADA Server"},
 

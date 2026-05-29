@@ -489,8 +489,13 @@ class TestBACnetEngine:
         assert state.state_name == BACnetState.IDLE.value
         assert "invoke_id" in state.custom_data
         assert 1 <= state.custom_data["invoke_id"] <= 255
+        # device_instance is injected per-instance-unique by the
+        # FingerprintApplicator (UniqueIdentifierGenerator), deliberately
+        # overriding the shared template value to stop Cyber Vision from
+        # collapsing identically-fingerprinted devices. So it's a valid
+        # BACnet instance, not necessarily the template's 1001.
         assert "device_instance" in state.custom_data
-        assert state.custom_data["device_instance"] == 1001
+        assert 1 <= state.custom_data["device_instance"] <= 4194302
         assert state.custom_data["discovered"] is False
 
     def test_generate_startup_with_who_is(self, engine: BACnetEngine, flow_context: FlowContext):
@@ -511,7 +516,10 @@ class TestBACnetEngine:
         assert events[1].direction == "response"
         assert events[1].metadata["vendor_id"] == 5
         assert events[1].metadata["vendor_name"] == "Johnson Controls"
-        assert events[1].metadata["device_instance"] == 1001
+        # I-Am advertises the same applicator-assigned (unique) instance
+        # that create_initial_state recorded — internal consistency, not
+        # the raw template's 1001 (see test_create_initial_state).
+        assert events[1].metadata["device_instance"] == state.custom_data["device_instance"]
 
         # Timing
         assert events[1].timestamp_ms > events[0].timestamp_ms

@@ -388,12 +388,18 @@ class TestS7Engine:
         assert 100_000_000 <= state.custom_data["tcp_seq_server"] <= 4_000_000_000
 
     def test_generate_startup_sequence(self, engine: S7Engine, flow_context: FlowContext):
-        """Test startup sequence: TCP handshake + COTP CR/CC + S7 setup."""
+        """Test startup sequence: TCP handshake + COTP CR/CC + S7 setup + SZL."""
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # Expect: 3 TCP + 2 COTP + 2 S7 Setup = 7 events
-        assert len(events) == 7
+        # Expect: 3 TCP + 2 COTP + 2 S7 Setup + 2 SZL = 9 events.
+        # The trailing SZL (System Status List) request/response carries
+        # the module identification Cyber Vision reads to fingerprint S7.
+        assert len(events) == 9
+
+        # SZL module-identification query closes out the startup handshake.
+        assert events[7].metadata["type"] == "s7_szl_request"
+        assert events[8].metadata["type"] == "s7_szl_response"
 
         # Check TCP handshake
         assert events[0].metadata["type"] == "tcp_syn"
@@ -416,9 +422,10 @@ class TestS7Engine:
         for i in range(1, len(events)):
             assert events[i].timestamp_ms >= events[i - 1].timestamp_ms
 
-        # State should be updated
+        # State should be updated. pdu_ref has advanced to 2: the S7 setup
+        # consumed ref 0 and the trailing SZL query consumed ref 1.
         assert state.state_name == "connected"
-        assert state.custom_data["pdu_ref"] == 1
+        assert state.custom_data["pdu_ref"] == 2
 
     def test_generate_poll_cycle_read(self, engine: S7Engine, flow_context: FlowContext):
         """Test read poll cycle generation."""

@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.45.0"
+VERSION = "1.45.1"
 
 # Version history:
+# 1.45.1 - Resolve IEC 60870-5-104 protocol alias. Templates and the identity
+#   layer spell it "iec104" but the runtime ProtocolType value (and engine
+#   registration) is "iec_104", so "iec104" flows resolved to an unknown
+#   ProtocolType and were silently dropped by traffic_generator/tasks.py.
+#   Added "iec104" -> "iec_104" to PROTOCOL_ALIASES in protocol_engines/
+#   protocols.py. Fixes silently-dropped IEC-104 flows in the energy/power
+#   templates (electrical_substation, grid_control_center, etc.).
 # 1.45.0 - Energy/power vertical expansion. Adds (1) IEEE C37.118.2-2011 synchrophasor engine in protocol_engines/synchrophasor/ — PMU/PDC command/CFG-2/DATA frame builders with CRC-CCITT trailer, registered on new ProtocolType.C37118 (default port 4712 TCP / 4713 UDP). SEL-411L and SEL-787 templates ship c37118_identity so they stream real synchrophasor data. (2) Fingerprint ProtocolType.IEC61850 added (engine was already present, just unreachable through the supported_protocols enum). MMS/GOOSE/SV strings now alias to iec61850 at runtime. (3) Six new attack action generators in attacks/ics_actions.py: iec104_breaker_open (ASDU 46 select-and-execute), iec104_select_before_operate_abuse, iec61850_goose_spoof (L2 multicast 01:0C:CD:01:00:01, EtherType 0x88B8), iec61850_mms_write (TPKT+COTP+MMS over TCP/102), c37118_phasor_spoof (UDP/4713 with abnormal frequency), dnp3_unsolicited_flood. (4) Two new playbooks: INDUSTROYER2_LIKE (S1072, 2022 Ukraine IEC-104 + 61850 focus) and VOLT_TYPHOON_LIKE (G1017, LotL stealth recon).
 # 1.44.1 - Fix agent self-update "already up to date" false-positive when the agent shares a Docker daemon with the PacketArch backend builder (e.g. local LocalDiag agent on the dev host). The previous check compared the freshly-loaded image SHA against the `packetarch-agent:latest` tag's current SHA — but when the backend builds the image in-place, the tag is bumped BEFORE UPDATE_AGENT reaches the agent, so the comparison says "same image, skip" even though the running container is still on the older layers. `_handle_update_agent` now also captures the running container's actual image SHA (via HOSTNAME → container.image.id) and uses THAT as the comparison reference. Separate-daemon agents (e.g. remote TrafficGen02) behave the same as before since their tag and container image always agree pre-update.
 # 1.44.0 - Attack after-action report telemetry. AttackOrchestrator now captures per-action packet counts, fire timestamps, targets-hit list, and protocol IOCs (attacker IP, target IPs, ports, register addresses, function codes, SNMP communities, etc.) into a structured AttackReport dataclass that lives alongside live state. Report rides the existing agent→backend STATUS pipeline (embedded as `attack.report` field) so no new WebSocket plumbing. New backend endpoints: `GET /attacks/{id}/report` returns the current report, `GET /attacks/{id}/history` returns persisted past runs. On completion, reports are snapshotted into `scenario.definition.attack_history[]` (cap 50, deduped by playbook_id+started_at) so they survive deployment teardown.

@@ -184,21 +184,27 @@ class TestModbusEngine:
         assert state.flow_id == flow_context.flow_id
         assert state.state_name == "idle"
         assert 1 <= state.transaction_id <= 65535
-        assert "tcp_seq_client" in state.custom_data
-        assert "tcp_seq_server" in state.custom_data
+        # TCP sequence numbers live on the typed ModbusConversationState
+        # (not custom_data) and are seeded in the valid randint range.
+        assert 100_000_000 <= state.tcp_seq_client <= 4_000_000_000
+        assert 100_000_000 <= state.tcp_seq_server <= 4_000_000_000
 
     def test_generate_startup_sequence(self, engine: ModbusTcpEngine, flow_context: FlowContext):
-        """Test TCP handshake generation."""
+        """Test TCP handshake + Modbus MEI device-ID discovery generation."""
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # Should generate SYN, SYN-ACK, ACK
-        assert len(events) == 3
+        # SYN, SYN-ACK, ACK, then a Modbus Encapsulated Interface (FC43)
+        # Read Device Identification request/response — the latter two are
+        # what Cyber Vision uses to fingerprint the device at startup.
+        assert len(events) == 5
 
         # Check event types
         assert events[0].metadata["type"] == "tcp_syn"
         assert events[1].metadata["type"] == "tcp_syn_ack"
         assert events[2].metadata["type"] == "tcp_ack"
+        assert events[3].metadata["type"] == "modbus_mei_request"
+        assert events[4].metadata["type"] == "modbus_mei_response"
 
         # Check timing order
         assert events[0].timestamp_ms < events[1].timestamp_ms

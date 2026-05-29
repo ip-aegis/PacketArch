@@ -124,10 +124,11 @@ class TestScenarioList:
 
     @pytest.mark.asyncio
     async def test_list_scenarios_no_auth(self, client: AsyncClient):
-        """Test listing scenarios without auth fails."""
+        """Test listing scenarios without auth fails. HTTPBearer returns 403
+        when the Authorization header is absent."""
         response = await client.get("/api/v1/scenarios")
 
-        assert response.status_code == 401
+        assert response.status_code == 403
 
 
 class TestScenarioCreate:

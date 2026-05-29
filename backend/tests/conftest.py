@@ -142,7 +142,9 @@ def auth_headers(test_user: User) -> dict[str, str]:
     """Get authorization headers for test user."""
     from app.core.security import create_access_token
 
-    token = create_access_token(data={"sub": test_user.username, "type": "access"})
+    # get_current_user resolves `sub` as the user's UUID (User.id), matching
+    # the real /auth/login token contract — not the username.
+    token = create_access_token(data={"sub": str(test_user.id)})
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -151,5 +153,5 @@ def admin_auth_headers(admin_user: User) -> dict[str, str]:
     """Get authorization headers for admin user."""
     from app.core.security import create_access_token
 
-    token = create_access_token(data={"sub": admin_user.username, "type": "access"})
+    token = create_access_token(data={"sub": str(admin_user.id)})
     return {"Authorization": f"Bearer {token}"}

@@ -15,10 +15,10 @@ class TestAuthRegistration:
     """Test user registration."""
 
     @pytest.mark.asyncio
-    async def test_register_first_user_becomes_admin(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
-        """Test that first registered user becomes admin."""
+    async def test_register_requires_admin(self, client: AsyncClient):
+        """Anonymous registration is rejected. The 'first user becomes admin'
+        flow now lives in the setup wizard; /auth/register is admin-only.
+        With no bearer credentials, HTTPBearer returns 403."""
         response = await client.post(
             "/api/v1/auth/register",
             json={
@@ -28,20 +28,38 @@ class TestAuthRegistration:
             },
         )
 
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_admin_registers_regular_user(
+        self, client: AsyncClient, admin_auth_headers: dict
+    ):
+        """An admin can register a new user, who is non-admin by default."""
+        response = await client.post(
+            "/api/v1/auth/register",
+            headers=admin_auth_headers,
+            json={
+                "username": "newuser",
+                "email": "new@example.com",
+                "password": "securepassword123",
+            },
+        )
+
         assert response.status_code == 201
         data = response.json()
-        assert data["username"] == "firstuser"
-        assert data["email"] == "first@example.com"
-        assert data["is_admin"] is True
+        assert data["username"] == "newuser"
+        assert data["email"] == "new@example.com"
+        assert data["is_admin"] is False
         assert data["is_active"] is True
 
     @pytest.mark.asyncio
     async def test_register_duplicate_username(
-        self, client: AsyncClient, test_user: User
+        self, client: AsyncClient, test_user: User, admin_auth_headers: dict
     ):
-        """Test registration with duplicate username fails."""
+        """Test registration with duplicate username fails (409 Conflict)."""
         response = await client.post(
             "/api/v1/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": test_user.username,
                 "email": "different@example.com",
@@ -49,16 +67,17 @@ class TestAuthRegistration:
             },
         )
 
-        assert response.status_code == 400
-        assert "already registered" in response.json()["detail"]
+        assert response.status_code == 409
+        assert "already registered" in response.json()["message"]
 
     @pytest.mark.asyncio
     async def test_register_duplicate_email(
-        self, client: AsyncClient, test_user: User
+        self, client: AsyncClient, test_user: User, admin_auth_headers: dict
     ):
-        """Test registration with duplicate email fails."""
+        """Test registration with duplicate email fails (409 Conflict)."""
         response = await client.post(
             "/api/v1/auth/register",
+            headers=admin_auth_headers,
             json={
                 "username": "differentuser",
                 "email": test_user.email,
@@ -66,8 +85,8 @@ class TestAuthRegistration:
             },
         )
 
-        assert response.status_code == 400
-        assert "already registered" in response.json()["detail"]
+        assert response.status_code == 409
+        assert "already registered" in response.json()["message"]
 
 
 class TestAuthLogin:
@@ -163,10 +182,11 @@ class TestAuthMe:
 
     @pytest.mark.asyncio
     async def test_get_current_user_no_auth(self, client: AsyncClient):
-        """Test getting current user without auth fails."""
+        """Test getting current user without auth fails. HTTPBearer returns
+        403 when the Authorization header is absent."""
         response = await client.get("/api/v1/auth/me")
 
-        assert response.status_code == 401
+        assert response.status_code == 403
 
 
 class TestAuthRefresh:
@@ -187,10 +207,11 @@ class TestAuthRefresh:
         )
         tokens = login_response.json()
 
-        # Refresh token
+        # Refresh token — rides in the JSON body (RefreshRequest), not a
+        # query string, so it stays out of access logs.
         response = await client.post(
             "/api/v1/auth/refresh",
-            params={"refresh_token": tokens["refresh_token"]},
+            json={"refresh_token": tokens["refresh_token"]},
         )
 
         assert response.status_code == 200
@@ -203,7 +224,7 @@ class TestAuthRefresh:
         """Test refresh with invalid token fails."""
         response = await client.post(
             "/api/v1/auth/refresh",
-            params={"refresh_token": "invalid.token.here"},
+            json={"refresh_token": "invalid.token.here"},
         )
 
         assert response.status_code == 401

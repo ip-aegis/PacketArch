@@ -184,8 +184,12 @@ class TestEtherNetIPEngine:
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # Should have: SYN, SYN-ACK, ACK, RegisterSession req/resp (no ForwardOpen)
-        assert len(events) == 5
+        # With ForwardOpen disabled, startup is: 3 TCP + RegisterSession
+        # req/resp + the CIP fingerprinting probes Cyber Vision reads —
+        # GetAttributeAll(Identity) req/resp, four GetAttributeSingle
+        # req/resp pairs, and ListServices req/resp = 17 events. No CIP
+        # I/O connection is opened.
+        assert len(events) == 17
 
         # No ForwardOpen events
         event_types = [e.metadata["type"] for e in events]

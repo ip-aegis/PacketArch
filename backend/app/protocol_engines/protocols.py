@@ -102,6 +102,9 @@ PROTOCOL_ALIASES: dict[str, str] = {
     "modbus":      "modbus_tcp",
     "enip":        "ethernet_ip",
     "bacnet_ip":   "bacnet",
+    # IEC 60870-5-104: templates / identity layer spell it "iec104" but the
+    # runtime ProtocolType value (and engine registration) is "iec_104".
+    "iec104":      "iec_104",
     # IEC 61850 variants — the engine handles MMS/GOOSE/SV through the same code path
     "iec_61850":   "iec61850",
     "mms":         "iec61850",
