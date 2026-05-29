@@ -298,7 +298,7 @@ async def _test_openai_connection(db: AsyncSession) -> dict:
             select(SystemSetting).where(SystemSetting.key == "openai_model")
         )
     ).scalar_one_or_none()
-    model = (model_row.value if model_row else "gpt-4o-mini") or "gpt-4o-mini"
+    model = (model_row.value if model_row else "gpt-5.4-nano") or "gpt-5.4-nano"
     try:
         from openai import AsyncOpenAI, AuthenticationError, RateLimitError
         client = AsyncOpenAI(api_key=api_key)
@@ -362,7 +362,7 @@ async def _test_circuit_connection(db: AsyncSession) -> dict:
     model = (
         os.getenv("CIRCUIT_MODEL")
         or (await _setting("circuit_model"))
-        or "gpt-4.1"
+        or "gpt-5-nano"
     )
     provider = CircuitProvider(
         client_id=client_id, client_secret=client_secret,

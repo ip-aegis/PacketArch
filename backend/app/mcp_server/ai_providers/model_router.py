@@ -67,11 +67,11 @@ class AITask(str, Enum):
 # upstream gateway.
 TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
     "anthropic": {
-        # Flagship Opus 4.7 for the heavy lifters — tool use,
+        # Flagship Opus 4.8 for the heavy lifters — tool use,
         # multi-turn reasoning, design review.
-        AITask.CHAT: "claude-opus-4-7",
-        AITask.SCENARIO_GENERATION: "claude-opus-4-7",
-        AITask.SCENARIO_REVIEW: "claude-opus-4-7",
+        AITask.CHAT: "claude-opus-4-8",
+        AITask.SCENARIO_GENERATION: "claude-opus-4-8",
+        AITask.SCENARIO_REVIEW: "claude-opus-4-8",
         # Sonnet 4.6 for medium-complexity prose generation.
         AITask.DESCRIPTION_GENERATION: "claude-sonnet-4-6",
         AITask.AI_HELP: "claude-sonnet-4-6",
@@ -81,13 +81,16 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
         AITask.SITE_IDENTITY: "claude-haiku-4-5",
     },
     "openai": {
-        AITask.CHAT: "gpt-5",
-        AITask.SCENARIO_GENERATION: "gpt-5",
-        AITask.SCENARIO_REVIEW: "gpt-5",
-        AITask.DESCRIPTION_GENERATION: "gpt-5-mini",
-        AITask.AI_HELP: "gpt-5-mini",
-        AITask.DEVICE_NAMING: "gpt-5-mini",
-        AITask.SITE_IDENTITY: "gpt-5-mini",
+        # Flagship GPT-5.5 for the heavy lifters (mirrors the Opus tier).
+        AITask.CHAT: "gpt-5.5",
+        AITask.SCENARIO_GENERATION: "gpt-5.5",
+        AITask.SCENARIO_REVIEW: "gpt-5.5",
+        # GPT-5.4 Mini for medium-complexity prose generation.
+        AITask.DESCRIPTION_GENERATION: "gpt-5.4-mini",
+        AITask.AI_HELP: "gpt-5.4-mini",
+        # GPT-5.4 Nano for short structured output (cheapest current tier).
+        AITask.DEVICE_NAMING: "gpt-5.4-nano",
+        AITask.SITE_IDENTITY: "gpt-5.4-nano",
     },
     "circuit": {
         # See module docstring — Rocky's dev appkey constrains us to
@@ -108,8 +111,8 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
 # task is given. Keeps the legacy "pick one model from settings"
 # behaviour working when the router can't decide.
 FALLBACK_MODEL: dict[str, str] = {
-    "anthropic": "claude-opus-4-7",
-    "openai": "gpt-5",
+    "anthropic": "claude-opus-4-8",
+    "openai": "gpt-5.5",
     "circuit": "gpt-5-nano",
 }
 

@@ -101,7 +101,7 @@ class AIProviderFactory:
                 raise ValueError("Anthropic API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
-            model = await _resolve_model("anthropic_model") or "claude-opus-4-7"
+            model = await _resolve_model("anthropic_model") or "claude-opus-4-8"
 
             logger.info(
                 "Creating Anthropic provider for task=%s with model: %s",
@@ -119,7 +119,7 @@ class AIProviderFactory:
                 raise ValueError("OpenAI API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
-            model = await _resolve_model("openai_model") or "gpt-5"
+            model = await _resolve_model("openai_model") or "gpt-5.5"
 
             logger.info(
                 "Creating OpenAI provider for task=%s with model: %s",

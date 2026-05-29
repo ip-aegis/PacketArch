@@ -44,9 +44,12 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     # Cache write rate is the **5-minute** tier (1.25x input). The 1-hour
     # tier (2x input) is not currently used by PacketArch.
     #
-    # Opus 4.5 / 4.6 / 4.7: $5 / $25 per M (NEW tokenizer in 4.7 can use
-    # ~35% more tokens for the same text — that's a token-count effect,
-    # not a per-token price change).
+    # Opus 4.5 / 4.6 / 4.7 / 4.8: $5 / $25 per M (NEW tokenizer in 4.7 can
+    # use ~35% more tokens for the same text — that's a token-count effect,
+    # not a per-token price change). 4.8 holds the same per-token tier.
+    ("anthropic", "claude-opus-4-8"): ModelPrice(
+        input=5.0, output=25.0, cache_read=0.5, cache_write=6.25,
+    ),
     ("anthropic", "claude-opus-4-7"): ModelPrice(
         input=5.0, output=25.0, cache_read=0.5, cache_write=6.25,
     ),
@@ -120,6 +123,7 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     ("circuit", "o3"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "o3-mini"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "o4-mini"): ModelPrice(input=0.0, output=0.0),
+    ("circuit", "claude-opus-4-8"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-opus-4-7"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-opus-4-6"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-sonnet-4-6"): ModelPrice(input=0.0, output=0.0),

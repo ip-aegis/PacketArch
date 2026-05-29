@@ -48,12 +48,12 @@ def _prepend_skills_as_system(
 class OpenAIProvider(AIProvider):
     """OpenAI GPT provider."""
 
-    def __init__(self, api_key: str, model: str = "gpt-4.1") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-5.4") -> None:
         """Initialize OpenAI provider.
 
         Args:
             api_key: OpenAI API key
-            model: Model to use (default: GPT-4.1)
+            model: Model to use (default: GPT-5.4 — current workhorse)
         """
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model

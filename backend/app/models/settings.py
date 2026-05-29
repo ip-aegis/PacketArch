@@ -106,14 +106,14 @@ DEFAULT_SETTINGS = [
     },
     {
         "key": "anthropic_model",
-        "value": "claude-opus-4-7",
+        "value": "claude-opus-4-8",
         "is_secret": False,
         "category": "ai",
         "description": "Anthropic model to use for AI features",
     },
     {
         "key": "openai_model",
-        "value": "gpt-4.1",
+        "value": "gpt-5.4",
         "is_secret": False,
         "category": "ai",
         "description": "OpenAI model to use for AI features",
@@ -139,10 +139,10 @@ DEFAULT_SETTINGS = [
     # dev / containerised deploys can configure without touching the DB.
     {
         "key": "circuit_model",
-        "value": "gpt-4.1",
+        "value": "gpt-5-nano",
         "is_secret": False,
         "category": "ai",
-        "description": "CIRCUIT model deployment to use (gpt-4.1, gpt-4o, gpt-4o-mini, o3, o4-mini, gemini-2.5-pro, gemini-2.5-flash, gpt-5*)",
+        "description": "CIRCUIT model deployment to use (gpt-5-nano, gpt-5-mini, gpt-5, gemini-3.1-pro, gemini-3.1-flash-lite, claude-opus-4-8, etc. — subject to per-appkey entitlement)",
     },
     {
         "key": "circuit_client_id",

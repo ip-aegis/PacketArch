@@ -78,7 +78,7 @@ class CircuitProvider(AIProvider):
         client_id: str,
         client_secret: str,
         app_key: str,
-        model: str = "gpt-4.1",
+        model: str = "gpt-5-nano",
         timeout_s: float = 120.0,
     ) -> None:
         """Initialise CIRCUIT provider.
@@ -88,7 +88,7 @@ class CircuitProvider(AIProvider):
             client_secret: Okta client_secret (treat as a password).
             app_key: CIRCUIT appkey (``egai-...``) — identifies the
                 Cisco application charged for the request.
-            model: Deployment / model name (e.g. ``gpt-4.1``).
+            model: Deployment / model name (e.g. ``gpt-5-nano``).
             timeout_s: Per-request timeout. CIRCUIT can take ~30 s on
                 reasoning models; 120 s leaves headroom.
         """
