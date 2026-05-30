@@ -1,0 +1,22 @@
+# One-shot first-boot initializer for the PacketArch appliance.
+#
+# Runs /opt/packetarch/firstboot.sh exactly once — the ConditionPathExists
+# guard makes it a no-op on every subsequent boot, since install.sh writes
+# /opt/packetarch/.env on success.
+[Unit]
+Description=PacketArch appliance first-boot init
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+# Only run until the stack has been initialized (install.sh writes .env).
+ConditionPathExists=!/opt/packetarch/.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/packetarch
+ExecStart=/opt/packetarch/firstboot.sh
+# Give image-load + compose-up + healthcheck room on a cold VM.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

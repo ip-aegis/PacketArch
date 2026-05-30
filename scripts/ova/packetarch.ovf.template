@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- OVF 1.0 descriptor for the PacketArch appliance. AT-sign-delimited
+     placeholder tokens are substituted by build-ova.sh. Targets broad compatibility:
+     imports into VirtualBox, VMware Workstation/Player, and ESXi/vSphere.
+     The disk is a stream-optimized VMDK (required for VMware OVA import). -->
+<Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1"
+          xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1"
+          xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData"
+          xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData"
+          xmlns:vmw="http://www.vmware.com/schema/ovf"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <References>
+    <File ovf:href="@VMDK_NAME@" ovf:id="file1" ovf:size="@VMDK_FILE_SIZE@"/>
+  </References>
+  <DiskSection>
+    <Info>Virtual disk information</Info>
+    <Disk ovf:capacity="@DISK_CAPACITY@" ovf:capacityAllocationUnits="byte"
+          ovf:diskId="vmdisk1" ovf:fileRef="file1"
+          ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
+  </DiskSection>
+  <NetworkSection>
+    <Info>The list of logical networks</Info>
+    <Network ovf:name="VM Network">
+      <Description>The network the appliance gets its DHCP lease from</Description>
+    </Network>
+  </NetworkSection>
+  <VirtualSystem ovf:id="PacketArch-@VERSION@">
+    <Info>PacketArch OT Traffic Simulation Appliance</Info>
+    <Name>PacketArch-@VERSION@</Name>
+    <OperatingSystemSection ovf:id="94" vmw:osType="ubuntu64Guest">
+      <Info>The installed guest operating system</Info>
+      <Description>Ubuntu Linux (64-bit)</Description>
+    </OperatingSystemSection>
+    <VirtualHardwareSection>
+      <Info>Virtual hardware requirements</Info>
+      <System>
+        <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
+        <vssd:InstanceID>0</vssd:InstanceID>
+        <vssd:VirtualSystemIdentifier>PacketArch-@VERSION@</vssd:VirtualSystemIdentifier>
+        <vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType>
+      </System>
+      <Item>
+        <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
+        <rasd:Description>Number of Virtual CPUs</rasd:Description>
+        <rasd:ElementName>4 virtual CPU(s)</rasd:ElementName>
+        <rasd:InstanceID>1</rasd:InstanceID>
+        <rasd:ResourceType>3</rasd:ResourceType>
+        <rasd:VirtualQuantity>4</rasd:VirtualQuantity>
+      </Item>
+      <Item>
+        <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
+        <rasd:Description>Memory Size</rasd:Description>
+        <rasd:ElementName>8192 MB of memory</rasd:ElementName>
+        <rasd:InstanceID>2</rasd:InstanceID>
+        <rasd:ResourceType>4</rasd:ResourceType>
+        <rasd:VirtualQuantity>8192</rasd:VirtualQuantity>
+      </Item>
+      <Item>
+        <rasd:Address>0</rasd:Address>
+        <rasd:Description>SCSI Controller</rasd:Description>
+        <rasd:ElementName>SCSI Controller 0</rasd:ElementName>
+        <rasd:InstanceID>3</rasd:InstanceID>
+        <rasd:ResourceSubType>lsilogic</rasd:ResourceSubType>
+        <rasd:ResourceType>6</rasd:ResourceType>
+      </Item>
+      <Item>
+        <rasd:AddressOnParent>0</rasd:AddressOnParent>
+        <rasd:ElementName>Hard Disk 1</rasd:ElementName>
+        <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
+        <rasd:InstanceID>4</rasd:InstanceID>
+        <rasd:Parent>3</rasd:Parent>
+        <rasd:ResourceType>17</rasd:ResourceType>
+      </Item>
+      <Item>
+        <rasd:AddressOnParent>7</rasd:AddressOnParent>
+        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+        <rasd:Connection>VM Network</rasd:Connection>
+        <rasd:Description>VmxNet3 ethernet adapter</rasd:Description>
+        <rasd:ElementName>Network adapter 1</rasd:ElementName>
+        <rasd:InstanceID>5</rasd:InstanceID>
+        <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
+        <rasd:ResourceType>10</rasd:ResourceType>
+      </Item>
+    </VirtualHardwareSection>
+  </VirtualSystem>
+</Envelope>
