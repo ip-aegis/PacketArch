@@ -3,6 +3,8 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Routes for serving downloadable resources."""
 
+import os
+import re
 from pathlib import Path
 from typing import List
 
@@ -12,8 +14,16 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
-# Path to the downloads directory
+# Path to the downloads directory (small artifacts baked into the image).
 DOWNLOADS_DIR = Path(__file__).parent.parent.parent / "static" / "downloads"
+
+# Path to built virtual-appliance OVAs. These are large (~2 GB) so they are
+# NOT baked into the image — instead the host's build output dir (where
+# scripts/ova/build-ova.sh writes) is bind-mounted here read-only. Absent on
+# installs that never built an appliance, in which case no OVA is listed.
+APPLIANCE_DIR = Path(os.environ.get("APPLIANCE_DIR", "/app/appliance"))
+
+_OVA_VERSION_RE = re.compile(r"^packetarch-(?P<version>.+)-appliance\.ova$")
 
 
 class DownloadableFile(BaseModel):
@@ -154,6 +164,41 @@ AVAILABLE_DOWNLOADS = {
 }
 
 
+def scan_appliance_ovas() -> List[Path]:
+    """Return built appliance OVAs (newest first), or [] if none/absent."""
+    if not APPLIANCE_DIR.is_dir():
+        return []
+    ovas = [p for p in APPLIANCE_DIR.glob("*.ova") if p.is_file()]
+    return sorted(ovas, key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def _appliance_download(ova: Path) -> DownloadableFile:
+    """Build the DownloadableFile entry for an appliance OVA."""
+    match = _OVA_VERSION_RE.match(ova.name)
+    version = match.group("version") if match else None
+    name = (
+        f"PacketArch Virtual Appliance {version} (OVA)"
+        if version
+        else "PacketArch Virtual Appliance (OVA)"
+    )
+    size_bytes = ova.stat().st_size
+    return DownloadableFile(
+        name=name,
+        filename=ova.name,
+        description=(
+            "Self-contained virtual appliance. Import into VirtualBox, VMware "
+            "Workstation/Player, or ESXi/vSphere and power on — it self-configures "
+            "on first boot (loads images, mints fresh secrets + a self-signed TLS "
+            "cert) and lands on the setup wizard at https://<appliance-ip>/. "
+            "Console login ubuntu / packetarch (change after first login). "
+            "Large file — the download streams directly from the server."
+        ),
+        size_bytes=size_bytes,
+        size_human=get_human_size(size_bytes),
+        category="appliance",
+    )
+
+
 @router.get("", response_model=DownloadsListResponse)
 async def list_downloads():
     """List all available downloadable files."""
@@ -177,22 +222,31 @@ async def list_downloads():
                 )
             )
 
+    # Appliance OVAs (bind-mounted from the host build dir; usually 0 or 1).
+    for ova in scan_appliance_ovas():
+        files.append(_appliance_download(ova))
+
     return DownloadsListResponse(files=files)
 
 
 @router.get("/{filename}")
 async def download_file(filename: str):
     """Download a specific file by filename."""
-    # Security: only allow files that are in our allowed list
-    allowed_filenames = {meta["filename"] for meta in AVAILABLE_DOWNLOADS.values()}
+    # Security: only allow files that are in our allowed list. The allowed set
+    # is the static catalog plus any built appliance OVAs (resolved from a
+    # separate, bind-mounted dir — never inside DOWNLOADS_DIR).
+    static_allowed = {meta["filename"] for meta in AVAILABLE_DOWNLOADS.values()}
+    appliance_paths = {p.name: p for p in scan_appliance_ovas()}
 
-    if filename not in allowed_filenames:
+    if filename in static_allowed:
+        file_path = DOWNLOADS_DIR / filename
+    elif filename in appliance_paths:
+        file_path = appliance_paths[filename]
+    else:
         return JSONResponse(
             status_code=404,
             content={"error": "NOT_FOUND", "message": f"File '{filename}' not found"},
         )
-
-    file_path = DOWNLOADS_DIR / filename
 
     if not file_path.exists():
         return JSONResponse(
@@ -212,10 +266,16 @@ async def download_file(filename: str):
         ".json": "application/json",
         ".zip": "application/zip",
         ".tar.gz": "application/gzip",
+        ".ova": "application/octet-stream",
     }
 
-    suffix = "".join(file_path.suffixes) if file_path.suffixes else file_path.suffix
-    media_type = media_types.get(suffix, "application/octet-stream")
+    # Prefer a multi-suffix match (e.g. .tar.gz), else the final suffix. Using
+    # the final suffix avoids version dots in OVA names (1.6.0) confusing the
+    # multi-suffix join.
+    media_type = media_types.get(
+        "".join(file_path.suffixes),
+        media_types.get(file_path.suffix, "application/octet-stream"),
+    )
 
     return FileResponse(
         path=file_path,

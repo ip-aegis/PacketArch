@@ -30,6 +30,7 @@ import {
   CodeOutlined,
   ApiOutlined,
   PlaySquareOutlined,
+  CloudServerOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { downloadsApi, DownloadableFile } from '../../api/downloads';
@@ -87,6 +88,9 @@ const DownloadsTab: React.FC = () => {
     if (filename.endsWith('.html')) {
       return <FileTextOutlined style={{ color: '#52c41a', fontSize: 20 }} />;
     }
+    if (filename.endsWith('.ova')) {
+      return <CloudServerOutlined style={{ color: '#13c2c2', fontSize: 20 }} />;
+    }
     return <FileTextOutlined style={{ color: '#52c41a', fontSize: 20 }} />;
   };
 
@@ -97,6 +101,7 @@ const DownloadsTab: React.FC = () => {
       template: 'green',
       tool: 'purple',
       authoring: 'gold',
+      appliance: 'cyan',
     };
     return <Tag color={categoryColors[category] || 'default'}>{category}</Tag>;
   };
@@ -168,10 +173,14 @@ const DownloadsTab: React.FC = () => {
     );
   }
 
+  const applianceFiles = files.filter((f) => f.category === 'appliance');
   const presentationFiles = files.filter((f) => f.category === 'presentations');
   const authoringFiles = files.filter((f) => f.category === 'authoring');
   const otherFiles = files.filter(
-    (f) => f.category !== 'presentations' && f.category !== 'authoring',
+    (f) =>
+      f.category !== 'appliance' &&
+      f.category !== 'presentations' &&
+      f.category !== 'authoring',
   );
 
   // Group presentation files by deck so the table reads
@@ -233,6 +242,55 @@ const DownloadsTab: React.FC = () => {
         </Card>
       ) : (
         <>
+          {applianceFiles.length > 0 && (
+            <Card
+              title={
+                <Space>
+                  <CloudServerOutlined />
+                  <span>Virtual Appliance</span>
+                </Space>
+              }
+              size="small"
+              extra={
+                <Button onClick={fetchFiles} loading={isLoading} size="small">
+                  Refresh
+                </Button>
+              }
+            >
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message="Turn-key VM image — power on and go"
+                description={
+                  <Space direction="vertical" size={4}>
+                    <Text>
+                      A self-contained virtual appliance with the full PacketArch
+                      stack pre-baked. Import the <Text code>.ova</Text> into
+                      VirtualBox, VMware Workstation/Player, or ESXi/vSphere and
+                      power it on — it self-configures on first boot (loads images,
+                      generates fresh secrets and a self-signed TLS cert) and lands
+                      on the setup wizard at{' '}
+                      <Text code>https://&lt;appliance-ip&gt;/</Text>.
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Console login: ubuntu / packetarch (change after first login).
+                      First boot takes ~2–4 minutes while images load. Large file —
+                      the download streams directly from this server.
+                    </Text>
+                  </Space>
+                }
+              />
+              <Table
+                columns={columns}
+                dataSource={applianceFiles}
+                rowKey="filename"
+                pagination={false}
+                size="middle"
+              />
+            </Card>
+          )}
+
           {presentationFiles.length > 0 && (
             <Card
               title={
@@ -243,9 +301,11 @@ const DownloadsTab: React.FC = () => {
               }
               size="small"
               extra={
-                <Button onClick={fetchFiles} loading={isLoading} size="small">
-                  Refresh
-                </Button>
+                applianceFiles.length === 0 ? (
+                  <Button onClick={fetchFiles} loading={isLoading} size="small">
+                    Refresh
+                  </Button>
+                ) : undefined
               }
             >
               <Alert
@@ -304,7 +364,7 @@ const DownloadsTab: React.FC = () => {
               }
               size="small"
               extra={
-                presentationFiles.length === 0 ? (
+                applianceFiles.length === 0 && presentationFiles.length === 0 ? (
                   <Button onClick={fetchFiles} loading={isLoading} size="small">
                     Refresh
                   </Button>
@@ -354,7 +414,9 @@ const DownloadsTab: React.FC = () => {
               }
               size="small"
               extra={
-                presentationFiles.length === 0 && authoringFiles.length === 0 ? (
+                applianceFiles.length === 0 &&
+                presentationFiles.length === 0 &&
+                authoringFiles.length === 0 ? (
                   <Button onClick={fetchFiles} loading={isLoading} size="small">
                     Refresh
                   </Button>

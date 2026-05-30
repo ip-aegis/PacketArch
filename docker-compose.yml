@@ -80,6 +80,10 @@ services:
       - ./docker/packetarch-agent:/docker/packetarch-agent:ro
       # Updater build context (for build-on-demand if the image is missing).
       - ./docker/packetarch-updater:/docker/packetarch-updater:ro
+      # Built virtual-appliance OVAs (scripts/ova/build-ova.sh writes here).
+      # Read-only; the downloads route lists/streams *.ova from it. Absent on
+      # installs that never built an appliance — the route handles that.
+      - ./dist:/app/appliance:ro
       - /var/run/docker.sock:/var/run/docker.sock
       # Shared with the updater container; survives backend recreate so the
       # self-upgrade status outlives the backend restarting mid-upgrade.
