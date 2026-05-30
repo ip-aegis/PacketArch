@@ -8,8 +8,11 @@
 FROM docker:27-cli
 
 # docker:cli already bundles the compose plugin; add the rest upgrade.sh +
-# packetarch-backup.sh rely on.
-RUN apk add --no-cache git bash curl tar coreutils
+# packetarch-backup.sh / packetarch-restore.sh rely on. python3 is REQUIRED:
+# packetarch-restore.sh hard-fails its manifest check without it (breaking the
+# rollback DB-restore), and packetarch-backup.sh uses it to resolve the compose
+# project so it doesn't silently skip the PCAP volumes.
+RUN apk add --no-cache git bash curl tar coreutils python3
 
 # The bind-mounted /repo is owned by the host user but this container runs as
 # root; without this git refuses every command with "dubious ownership".
