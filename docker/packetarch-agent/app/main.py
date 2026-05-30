@@ -775,9 +775,17 @@ class PacketArchAgent:
             try:
                 if install_path and compose_file and os.path.isfile(compose_file):
                     logger.info(f"Recreating container with docker compose from {install_path}...")
-                    # Command to run in updater container - install docker compose and restart agent
+                    # Run the updater from the agent's OWN image: it already
+                    # bundles docker + the compose plugin (see Dockerfile), is
+                    # guaranteed present locally (we're running it + just loaded
+                    # the new one), so it needs NO package install and NO image
+                    # pull. The previous approach ran a minimal base image and
+                    # fetched the docker CLI over the internet AT UPDATE TIME —
+                    # after `down` had already removed the agent — which stranded
+                    # connectivity-constrained agents (e.g. CML-lab VMs): the
+                    # fetch failed/hung and nothing brought the agent back.
+                    # (agent v1.48.0)
                     update_cmd = (
-                        f"apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && "
                         f"sleep 3 && "
                         f"docker compose -f {compose_file} down --remove-orphans 2>/dev/null || true && "
                         f"docker compose -f {compose_file} up -d"
@@ -785,13 +793,14 @@ class PacketArchAgent:
 
                     # Use Docker SDK to run updater in a detached container
                     # This container will survive our shutdown
-                    logger.info("Launching updater container...")
+                    logger.info("Launching updater container (from agent image)...")
 
                     def launch_updater():
                         try:
                             docker_client.containers.run(
-                                "alpine:latest",
-                                command=["sh", "-c", update_cmd],
+                                "packetarch-agent:latest",
+                                entrypoint=["/bin/sh", "-c"],
+                                command=update_cmd,
                                 detach=True,
                                 remove=True,
                                 name="packetarch-updater",
@@ -805,23 +814,24 @@ class PacketArchAgent:
                             return False
 
                     if not launch_updater():
-                        # Pull alpine if not available
-                        logger.info("Pulling alpine image...")
-                        docker_client.images.pull("alpine:latest")
-                        launch_updater()
+                        logger.error(
+                            "packetarch-agent:latest not found for updater — this "
+                            "should never happen (the agent is running it). Aborting."
+                        )
+                        raise RuntimeError("agent image missing for updater container")
 
                     logger.info("Updater container launched, agent will restart shortly")
                 else:
                     # Fallback: use Docker API with container recreation
                     logger.warning("Install path not found, using Docker API fallback")
                     try:
-                        # Launch updater using alpine to do stop/rm/run
+                        # Updater runs from the agent image itself (bundles
+                        # docker; no apk / no internet) to stop+rm+recreate.
                         logger.info("Launching updater container (fallback mode)...")
                         docker_client.containers.run(
-                            "alpine:latest",
-                            command=[
-                                "sh", "-c",
-                                "apk add --no-cache docker-cli >/dev/null 2>&1 && "
+                            "packetarch-agent:latest",
+                            entrypoint=["/bin/sh", "-c"],
+                            command=(
                                 "sleep 3 && "
                                 "docker stop packetarch-agent 2>/dev/null || true && "
                                 "docker rm packetarch-agent 2>/dev/null || true && "
@@ -829,7 +839,7 @@ class PacketArchAgent:
                                 "--network host --cap-add NET_ADMIN --cap-add NET_RAW "
                                 "-v /var/run/docker.sock:/var/run/docker.sock "
                                 "packetarch-agent:latest"
-                            ],
+                            ),
                             detach=True,
                             remove=True,
                             name="packetarch-updater",

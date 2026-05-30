@@ -7,10 +7,11 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.47.0"
+VERSION = "1.48.0"
 
 # Version history:
-# 1.47.0 - Fix self-update on connectivity-constrained agents (CML-lab VMs). The detached updater container ran alpine:latest + `apk add docker-cli docker-cli-compose`, fetching the docker CLI from the internet AT UPDATE TIME — after `docker compose down` had already removed the agent. On a VM without reliable outbound internet the apk step failed/hung, stranding the agent (frozen "restarting", no container left to revive). Now the updater runs from packetarch-agent:latest itself, which already bundles docker + compose (per Dockerfile) and is guaranteed present locally, so the update needs NO apk and NO image pull. Both the compose path and the docker-run fallback updated.
+# 1.48.0 - ACTUAL self-update connectivity fix lands in code. The detached updater container ran alpine:latest + `apk add docker-cli docker-cli-compose`, fetching the docker CLI from the internet AT UPDATE TIME — after `docker compose down` had already removed the agent. On a VM without reliable outbound internet the apk step failed/hung, stranding the agent (frozen "restarting", no container left to revive). The updater now runs from packetarch-agent:latest itself (entrypoint=/bin/sh -c), which already bundles docker + compose (per Dockerfile) and is guaranteed present locally, so the update needs NO apk and NO image pull. Both the compose path and the docker-run fallback updated. NOTE: v1.47.0's commit (f65e869) claimed this fix but only bumped the version string; the served 1.47.0 image was built from still-buggy code. This 1.48.0 build is the first to actually contain the code fix.
+# 1.47.0 - (MISLABELED) commit f65e869 claimed the self-update connectivity fix but only changed this version string — the code fix did not land until 1.48.0. Do not ship the 1.47.0 agent image.
 # 1.46.0 - Release-pipeline verification bump (no agent code change). Cut alongside app v1.7.0 to exercise the agent image build + install/self-update path end-to-end after the Local Sensor Labs work.
 # 1.45.1 - Resolve IEC 60870-5-104 protocol alias. Templates and the identity
 #   layer spell it "iec104" but the runtime ProtocolType value (and engine
