@@ -204,6 +204,10 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    environment:
+      # Lets the agent locate its own install dir (and docker-compose.yml)
+      # for a clean compose-based self-update; see the volume mount below.
+      - AGENT_INSTALL_PATH=__INSTALL_DIR__
     env_file:
       - .env
     volumes:
@@ -211,12 +215,23 @@ services:
       # host Docker daemon to `docker load` the new image and restart
       # itself. Without this mount, updates fail with "Docker not available".
       - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the install dir at the SAME host path so the running agent can
+      # see its own docker-compose.yml + .env and drive the clean
+      # compose-based self-update (compose down + up -d). Without this,
+      # find_agent_install_path() returns None inside the container and the
+      # agent falls back to a docker-run path that loses the container env
+      # (token/server/interface) — leaving the update unable to complete on
+      # connectivity-constrained hosts (e.g. CML-lab VMs).
+      - __INSTALL_DIR__:__INSTALL_DIR__
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 EOF
+    # Bake the real install dir into the placeholders (kept the heredoc
+    # literal so backticks/`$` in the comments above stay intact).
+    sed -i "s|__INSTALL_DIR__|$install_dir|g" docker-compose.yml
 
     # Download and load agent image from PacketArch server
     print_status "Downloading agent image from server..."

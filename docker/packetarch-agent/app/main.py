@@ -822,9 +822,27 @@ class PacketArchAgent:
 
                     logger.info("Updater container launched, agent will restart shortly")
                 else:
-                    # Fallback: use Docker API with container recreation
+                    # Fallback (no compose file located inside the container):
+                    # recreate the agent container directly. CRITICAL: the
+                    # recreated container MUST inherit the agent's runtime env
+                    # (server/token/interface/…) — otherwise it starts with no
+                    # config and exits immediately (AgentConfig.from_env raises),
+                    # leaving the old container in place and the update stuck.
+                    # We hand the values to the UPDATER container's environment
+                    # and let `docker run -e VAR` (no value) inherit them, so the
+                    # token never appears in any command string or `ps` output.
                     logger.warning("Install path not found, using Docker API fallback")
                     try:
+                        passthrough = {
+                            k: os.environ[k]
+                            for k in (
+                                "PACKETARCH_SERVER", "AGENT_TOKEN", "SSL_VERIFY",
+                                "DEFAULT_INTERFACE", "LOG_LEVEL", "RECONNECT_DELAY",
+                                "HEARTBEAT_INTERVAL", "STATUS_REPORT_INTERVAL",
+                            )
+                            if k in os.environ
+                        }
+                        env_flags = " ".join(f"-e {k}" for k in passthrough)
                         # Updater runs from the agent image itself (bundles
                         # docker; no apk / no internet) to stop+rm+recreate.
                         logger.info("Launching updater container (fallback mode)...")
@@ -837,12 +855,13 @@ class PacketArchAgent:
                                 "docker rm packetarch-agent 2>/dev/null || true && "
                                 "docker run -d --name packetarch-agent --restart unless-stopped "
                                 "--network host --cap-add NET_ADMIN --cap-add NET_RAW "
-                                "-v /var/run/docker.sock:/var/run/docker.sock "
+                                f"-v /var/run/docker.sock:/var/run/docker.sock {env_flags} "
                                 "packetarch-agent:latest"
                             ),
                             detach=True,
                             remove=True,
                             name="packetarch-updater",
+                            environment=passthrough,
                             volumes={
                                 "/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
                             },
