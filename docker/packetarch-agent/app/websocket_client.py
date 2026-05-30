@@ -27,15 +27,20 @@ class AgentWebSocket:
         self,
         config: AgentConfig,
         on_command: Callable[[dict[str, Any]], Coroutine[Any, Any, None]],
+        on_connect: Callable[[], Coroutine[Any, Any, None]] | None = None,
     ):
         """Initialize WebSocket client.
 
         Args:
             config: Agent configuration
             on_command: Async callback for handling commands from server
+            on_connect: Optional async callback fired when the server
+                acknowledges the connection (CONNECTED). Used to publish the
+                agent's health/version signal to the supervisor sibling.
         """
         self.config = config
         self.on_command = on_command
+        self.on_connect = on_connect
         self.ws: websockets.WebSocketClientProtocol | None = None
         self._running = False
         self._connected = False
@@ -139,6 +144,11 @@ class AgentWebSocket:
                     await self.send({"type": "PONG"})
                 elif msg_type == "CONNECTED":
                     logger.info(f"Server acknowledged connection: {data}")
+                    if self.on_connect is not None:
+                        try:
+                            await self.on_connect()
+                        except Exception as e:
+                            logger.warning(f"on_connect hook failed: {e}")
                 else:
                     # Dispatch to command handler
                     await self.on_command(data)

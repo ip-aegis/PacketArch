@@ -549,13 +549,19 @@ async def create_agent(
 
 
 @router.get("/update-statuses", response_model=list[AgentUpdateStatus])
-async def get_active_agent_update_statuses() -> list[AgentUpdateStatus]:
+async def get_active_agent_update_statuses(
+    db: AsyncSession = Depends(get_db),
+) -> list[AgentUpdateStatus]:
     """Return every tracked agent update status in one call.
 
     Defined before ``/{agent_id}`` so the literal path wins. Powers the
     "Update All" bulk progress view and the Agents-tab "Updating…" tags,
-    which would otherwise need one request per agent.
+    which would otherwise need one request per agent. Filtered to currently-
+    existing agents so a deleted agent never shows up as a ghost entry even
+    if cleanup was missed.
     """
+    rows = await db.execute(select(TrafficAgent.id))
+    live_ids = {row[0] for row in rows.all()}
     return [
         AgentUpdateStatus(
             agent_id=s.agent_id,
@@ -568,6 +574,7 @@ async def get_active_agent_update_statuses() -> list[AgentUpdateStatus]:
             error=s.error,
         )
         for s in agent_manager.get_active_update_statuses()
+        if s.agent_id in live_ids
     ]
 
 
@@ -647,6 +654,10 @@ async def delete_agent(
     await db.delete(agent)
     await db.commit()
 
+    # Drop any lingering update-status tracking so the deleted agent doesn't
+    # show up as a ghost "restarting" entry in /agents/update-statuses.
+    agent_manager.clear_update_status(agent_id)
+
     logger.info(f"Deleted agent: {agent.name} ({agent.id})")
 
 
@@ -667,6 +678,9 @@ async def regenerate_agent_token(
 
     await db.commit()
     await db.refresh(agent)
+
+    # A token change orphans any in-flight update for this agent.
+    agent_manager.clear_update_status(agent_id)
 
     # Disconnect existing connection
     if agent_manager.is_connected(agent_id):
@@ -938,6 +952,16 @@ async def trigger_agent_update(
     # Check agent exists
     agent = await get_or_404(db, TrafficAgent, agent_id, "Agent")
 
+    # Local-sensor-lab agents are owned by the host-agent reconcile loop, which
+    # recreates them on the current image. A WebSocket self-update would fight
+    # that loop (rogue container, name/project mismatch), so it's disabled here
+    # — they pick up new images on the next reconcile.
+    if getattr(agent, "local_lab_id", None):
+        raise ValidationError(
+            "This agent is managed by a local sensor lab; it updates via the "
+            "host-agent reconcile loop, not self-update."
+        )
+
     if not agent_manager.is_connected(agent_id):
         raise ValidationError("Agent is not connected")
 
@@ -945,8 +969,24 @@ async def trigger_agent_update(
     if not AGENT_IMAGE_PATH.exists():
         raise ValidationError("Agent image not available. Build it first with POST /api/v1/agents/build-image")
 
+    # Don't start a second update while one is already in flight.
+    existing = agent_manager.get_update_status(agent_id)
+    if existing.status in agent_manager._UPDATE_NONTERMINAL:
+        raise ConflictError(
+            f"An update is already in progress for this agent (status: {existing.status})."
+        )
+
     # Get target version
     target_version = get_standard_agent_version()
+
+    # Skip a no-op update if the agent already reports the target version.
+    conn = agent_manager.get_connection(agent_id)
+    if conn and conn.version and target_version and conn.version == target_version:
+        return {
+            "status": "already_current",
+            "message": f"Agent {agent.name} is already on v{target_version}.",
+            "target_version": target_version,
+        }
 
     # Send update command with version tracking
     success = await agent_manager.send_update_command(agent_id, target_version)

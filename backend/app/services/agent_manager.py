@@ -39,10 +39,13 @@ class AgentUpdateStatus:
     """Tracks the status of an agent update."""
 
     agent_id: UUID
-    status: str = "idle"  # idle, initiated, downloading, loading, restarting, complete, failed, timeout
+    # idle, initiated, queued, downloading, loading, restarting, swapping,
+    # complete, failed, timeout
+    status: str = "idle"
     progress: int | None = None  # Download progress 0-100
     message: str = "No update in progress"
     target_version: str | None = None
+    target_sha: str | None = None  # optional image SHA to confirm against
     initiated_at: datetime | None = None
     completed_at: datetime | None = None
     error: str | None = None
@@ -71,6 +74,17 @@ class AgentManager:
     # Error codes that are attack-injection-specific (don't kill deployment)
     _INJECTION_ERROR_CODES = frozenset({"INJECT_ATTACK_FAILED", "INVALID_COMMAND"})
 
+    # Update statuses that are still in flight (not a terminal outcome). The
+    # reaper expires these when stale; a reconnect heartbeat reporting the
+    # target version/SHA transitions them to "complete".
+    _UPDATE_NONTERMINAL = frozenset(
+        {"initiated", "queued", "downloading", "loading", "restarting", "swapping"}
+    )
+    # How long an in-flight update may run with no confirmation before the
+    # reaper fails it. Generous enough for a slow tarball pull + load +
+    # recreate + reconnect on a connectivity-constrained CML VM.
+    _UPDATE_DEADLINE_SECONDS = 300.0
+
     def __init__(self):
         """Initialize the agent manager."""
         self._connections: dict[UUID, AgentConnection] = {}
@@ -79,6 +93,7 @@ class AgentManager:
         self._update_statuses: dict[UUID, AgentUpdateStatus] = {}  # agent_id -> update status
         self._injection_results: dict[str, dict[str, Any]] = {}  # scenario_id -> injection outcome
         self._lock = asyncio.Lock()
+        self._reaper_task: asyncio.Task | None = None
 
     @property
     def connected_agents(self) -> list[UUID]:
@@ -392,10 +407,15 @@ class AgentManager:
             conn.hostname = message.get("hostname")
             conn.platform = message.get("platform")
             new_version = message.get("version")
+            image_sha = message.get("image_sha")  # supervisor-era agents report this
 
-            # Check for version change (update verification)
-            if new_version and new_version != conn.version:
-                await self.verify_update_on_reconnect(agent_id, new_version)
+            # Closed-loop update confirmation. Runs on EVERY heartbeat (not
+            # only on a version *change*): an agent whose update failed may
+            # keep heartbeating the OLD version on the SAME connection, which
+            # a version-delta gate would never catch. We only ever mark
+            # "complete" here (positive confirmation); the reaper is what
+            # fails a stuck update after the deadline.
+            await self.reconcile_update_on_heartbeat(agent_id, new_version, image_sha)
 
             conn.version = new_version
 
@@ -629,7 +649,9 @@ class AgentManager:
                 initiated_at=datetime.utcnow(),
             )
 
-        success = await self.send_command(agent_id, {"type": "UPDATE_AGENT"})
+        success = await self.send_command(
+            agent_id, {"type": "UPDATE_AGENT", "target_version": target_version}
+        )
 
         if not success:
             async with self._lock:
@@ -700,34 +722,102 @@ class AgentManager:
 
         logger.info(f"Agent {agent_id} update status: {status_str} - {msg}")
 
-    async def verify_update_on_reconnect(self, agent_id: UUID, version: str | None) -> None:
-        """Check if a pending update completed successfully when agent reconnects.
+    async def reconcile_update_on_heartbeat(
+        self, agent_id: UUID, version: str | None, image_sha: str | None = None
+    ) -> None:
+        """Positively confirm an in-flight update from a heartbeat.
+
+        Called on every heartbeat. Marks a non-terminal update "complete" the
+        moment the (re)connected agent reports the target version (or target
+        SHA, if the backend recorded one). Does NOT mark failures here — a
+        not-yet-matching version may simply mean the update is still running;
+        the reaper (:meth:`expire_stale_updates`) fails it after the deadline.
 
         Args:
             agent_id: Agent UUID
-            version: Version reported by reconnected agent
+            version: Version reported by the agent's heartbeat
+            image_sha: Image SHA reported by supervisor-era agents (optional)
         """
+        if not version and not image_sha:
+            return
         async with self._lock:
             status = self._update_statuses.get(agent_id)
-            if status and status.status == "restarting":
-                # Agent was restarting for update and has reconnected
-                if status.target_version and version == status.target_version:
-                    status.status = "complete"
-                    status.message = f"Update completed successfully to v{version}"
-                    status.completed_at = datetime.utcnow()
-                    logger.info(f"Agent {agent_id} update verified: v{version}")
-                elif status.target_version:
-                    # Version mismatch - update may have failed
+            if not status or status.status not in self._UPDATE_NONTERMINAL:
+                return
+            matched = False
+            if status.target_sha and image_sha:
+                matched = image_sha == status.target_sha
+            elif status.target_version:
+                matched = version == status.target_version
+            else:
+                # No target recorded — any reconnect heartbeat confirms it.
+                matched = True
+            if matched:
+                status.status = "complete"
+                status.message = f"Update confirmed: agent reporting v{version}"
+                status.completed_at = datetime.utcnow()
+                logger.info(f"Agent {agent_id} update confirmed at v{version}")
+
+    async def expire_stale_updates(
+        self, max_age_seconds: float | None = None
+    ) -> int:
+        """Fail any in-flight update that has run past the deadline.
+
+        Without this, a stuck "restarting"/"swapping" (stranded agent, failed
+        swap, agent that never reported back) would rot forever. Returns the
+        number of statuses expired.
+        """
+        deadline = max_age_seconds or self._UPDATE_DEADLINE_SECONDS
+        now = datetime.utcnow()
+        expired = 0
+        async with self._lock:
+            for status in self._update_statuses.values():
+                if status.status not in self._UPDATE_NONTERMINAL:
+                    continue
+                started = status.initiated_at or now
+                age = (now - started).total_seconds()
+                if age > deadline:
+                    prior = status.status
                     status.status = "failed"
-                    status.message = f"Version mismatch: expected {status.target_version}, got {version}"
-                    status.error = "Version verification failed"
-                    status.completed_at = datetime.utcnow()
-                    logger.warning(f"Agent {agent_id} update version mismatch")
-                else:
-                    # No target version set, assume success if agent reconnected
-                    status.status = "complete"
-                    status.message = f"Agent reconnected with v{version}"
-                    status.completed_at = datetime.utcnow()
+                    status.message = (
+                        f"Update timed out after {int(age)}s with no "
+                        f"confirmation (stuck at '{prior}')"
+                    )
+                    status.error = "timeout"
+                    status.completed_at = now
+                    expired += 1
+        if expired:
+            logger.warning(f"Expired {expired} stale agent update status(es)")
+        return expired
+
+    async def _update_reaper_loop(self, interval_seconds: float = 30.0) -> None:
+        """Background loop that periodically expires stale update statuses."""
+        logger.info("Agent update reaper started")
+        try:
+            while True:
+                await asyncio.sleep(interval_seconds)
+                try:
+                    await self.expire_stale_updates()
+                except Exception as e:  # never let the reaper die on one bad sweep
+                    logger.warning(f"update reaper sweep failed: {e}")
+        except asyncio.CancelledError:
+            logger.info("Agent update reaper stopped")
+            raise
+
+    def start_update_reaper(self) -> None:
+        """Start the background update-status reaper (idempotent)."""
+        if self._reaper_task is None or self._reaper_task.done():
+            self._reaper_task = asyncio.create_task(self._update_reaper_loop())
+
+    async def stop_update_reaper(self) -> None:
+        """Stop the background reaper."""
+        if self._reaper_task and not self._reaper_task.done():
+            self._reaper_task.cancel()
+            try:
+                await self._reaper_task
+            except asyncio.CancelledError:
+                pass
+        self._reaper_task = None
 
     def clear_update_status(self, agent_id: UUID) -> None:
         """Clear update status for an agent (e.g., after user acknowledges).

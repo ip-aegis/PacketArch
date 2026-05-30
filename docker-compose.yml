@@ -92,6 +92,17 @@ services:
       # lab specs/requests here; the host-agent (privileged) acts on them. The
       # backend itself stays unprivileged — it only reads/writes JSON.
       - host_agent_state:/hostagent
+      # Serve the agent static dir (installer + standalone compose) from host
+      # source (RO) so edits go live WITHOUT a backend rebuild — these are
+      # otherwise baked into the image (COPY . .). A DIRECTORY bind (not a
+      # single-file bind) is used on purpose: single-file binds pin the original
+      # inode, so an atomic editor replace (new inode) would keep serving stale
+      # content. The built artifacts live one level down in dist/, overlaid by
+      # the agent_dist named volume below (more-specific mount wins, stays RW).
+      # Not :ro — the agent_dist volume needs to create its dist/ mountpoint
+      # under this bind (a :ro parent blocks that). The backend only writes
+      # under dist/ (the volume) anyway.
+      - ./backend/app/static/agent:/app/app/static/agent
       # Built agent image/artifacts — persists across `up --build` so the served
       # agent doesn't revert to a stale baked tarball (auto-rebuilt on boot if stale).
       - agent_dist:/app/app/static/agent/dist

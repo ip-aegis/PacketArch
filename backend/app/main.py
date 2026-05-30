@@ -51,12 +51,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Start health monitor
     await health_monitor.start()
 
+    # Start the agent update-status reaper (closed-loop self-update tracking):
+    # fails any in-flight update that runs past its deadline so the UI never
+    # shows a permanently-stuck "restarting". Live-traffic builds only.
+    if settings.live_traffic_enabled:
+        from app.services.agent_manager import agent_manager
+        agent_manager.start_update_reaper()
+
     logger.info("PacketArch API started successfully")
 
     yield
 
     # Shutdown
     logger.info("Shutting down PacketArch API...")
+    if settings.live_traffic_enabled:
+        from app.services.agent_manager import agent_manager
+        await agent_manager.stop_update_reaper()
     await health_monitor.stop()
     await close_db()
     logger.info("PacketArch API shutdown complete")

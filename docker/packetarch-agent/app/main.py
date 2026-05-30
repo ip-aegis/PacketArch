@@ -6,20 +6,24 @@
 import asyncio
 import hashlib
 import logging
+import logging.handlers
 import os
 import signal
 import socket
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any
 
 import docker
 import httpx
 import psutil
 
+from app import agent_state
 from app.config import AgentConfig
 from app.orchestrator_pool import OrchestratorPool, ScenarioState
+from app.version import VERSION
 from app.websocket_client import AgentWebSocket
 
 # Configure logging
@@ -69,10 +73,28 @@ class PacketArchAgent:
         """
         self.config = config
         self.pool = OrchestratorPool(on_status_change=self._on_status_change)
-        self.ws = AgentWebSocket(config, on_command=self._handle_command)
+        self.ws = AgentWebSocket(
+            config,
+            on_command=self._handle_command,
+            on_connect=self._on_ws_connect,
+        )
         self.ws.get_running_scenarios = lambda: self.pool.running_scenarios
         self._status_queue: asyncio.Queue[tuple[str, ScenarioState, int, str | None]] = asyncio.Queue()
         self._running = False
+        self._supervised = agent_state.supervised()
+
+    async def _on_ws_connect(self) -> None:
+        """Publish our health/version to the supervisor on every connect.
+
+        The supervisor uses a fresh ``agent-online`` timestamp to confirm that
+        a self-update swap actually produced a connected agent (else it rolls
+        back). No-op for unsupervised (legacy single-service) installs.
+        """
+        if self._supervised:
+            try:
+                agent_state.write_agent_online(VERSION)
+            except Exception as e:
+                logger.warning(f"could not write agent-online signal: {e}")
 
     async def run(self) -> None:
         """Run the agent."""
@@ -80,10 +102,16 @@ class PacketArchAgent:
         logger.info("Starting PacketArch Agent...")
         logger.info(f"Server: {self.config.server_url}")
         logger.info(f"Default interface: {self.config.default_interface}")
+        if self._supervised:
+            logger.info("Supervised mode: a supervisor sibling owns updates")
 
         # Start status reporter and self-health check tasks
         status_task = asyncio.create_task(self._status_reporter())
         health_task = asyncio.create_task(self._self_health_check())
+        relay_task = (
+            asyncio.create_task(self._relay_supervisor_status())
+            if self._supervised else None
+        )
 
         try:
             # Connect to server (auto-reconnect loop)
@@ -95,14 +123,51 @@ class PacketArchAgent:
             self.pool.stop_all()
             status_task.cancel()
             health_task.cancel()
+            if relay_task:
+                relay_task.cancel()
+            for t in (status_task, health_task, relay_task):
+                if t:
+                    try:
+                        await t
+                    except asyncio.CancelledError:
+                        pass
+
+    async def _relay_supervisor_status(self) -> None:
+        """Forward the supervisor's update-status file to the backend.
+
+        The supervisor writes progress (downloading/loading/swapping) and the
+        terminal outcome to the shared volume; we relay each change over the
+        WebSocket so the UI sees live progress. Because the agent is recreated
+        mid-swap, the terminal status is typically relayed by the *new* agent
+        process on its first iteration. Stale terminal statuses (from a prior
+        update) are not re-reported on a normal restart.
+        """
+        last_key = None
+        started = time.time()
+        while self._running:
             try:
-                await status_task
-            except asyncio.CancelledError:
-                pass
-            try:
-                await health_task
-            except asyncio.CancelledError:
-                pass
+                st = agent_state.read_update_status()
+                if st:
+                    key = (st.get("status"), st.get("ts"))
+                    age = time.time() - float(st.get("ts", 0) or 0)
+                    terminal = st.get("status") in ("complete", "failed", "error")
+                    # On a fresh process, skip relaying an already-terminal
+                    # status older than the process start unless it is recent.
+                    skip_stale = (
+                        last_key is None and terminal and age > 120
+                    )
+                    if key != last_key and not skip_stale:
+                        last_key = key
+                        if self.ws.is_connected:
+                            await self.ws.send({
+                                "type": "UPDATE_STATUS",
+                                **{k: st[k] for k in ("status", "message", "progress", "error") if k in st},
+                            })
+                            if terminal:
+                                agent_state.clear_update_status()
+            except Exception as e:
+                logger.debug(f"supervisor status relay: {e}")
+            await asyncio.sleep(3)
 
     async def _status_reporter(self) -> None:
         """Report scenario status changes to server."""
@@ -416,6 +481,7 @@ class PacketArchAgent:
             else:
                 # Fallback: try reading from any available log file
                 log_paths = [
+                    os.path.join(agent_state.STATE_DIR, "agent.log"),
                     "/var/log/packetarch-agent.log",
                     "/opt/packetarch-agent/agent.log",
                 ]
@@ -552,18 +618,44 @@ class PacketArchAgent:
             )
 
     async def _handle_update_agent(self, command: dict[str, Any]) -> None:
-        """Handle UPDATE_AGENT command - download new image and restart.
+        """Handle UPDATE_AGENT command.
 
-        The agent will:
-        1. Save the current image for rollback
-        2. Download the latest image tarball from the PacketArch server
-        3. Verify checksum integrity
-        4. Load it with docker load
-        5. Restart this container to use the new image
-        6. Rollback to old image if restart fails
+        Supervised installs (the modern topology): hand the update off to the
+        supervisor sibling, which owns container recreation from OUTSIDE this
+        container (download → load → recreate → health-watch → rollback). The
+        agent never touches docker.sock. Legacy single-service installs fall
+        through to the in-container self-recreate path below.
         """
         logger.info("Received UPDATE_AGENT command")
 
+        if self._supervised:
+            server_url = self.config.server_url.replace("wss://", "https://").replace("ws://", "http://")
+            try:
+                agent_state.clear_update_status()  # drop any prior outcome
+                agent_state.write_update_request({
+                    "server_url": server_url,
+                    "token": self.config.agent_token,
+                    "ssl_verify": self.config.ssl_verify,
+                    "target_version": command.get("target_version"),
+                    "requested_at": time.time(),
+                })
+                await self.ws.send({
+                    "type": "UPDATE_STATUS",
+                    "status": "queued",
+                    "message": "Update queued; supervisor will perform the swap.",
+                })
+                logger.info("UPDATE_AGENT handed off to supervisor via /state")
+            except Exception as e:
+                logger.error(f"Failed to queue update for supervisor: {e}")
+                await self.ws.send({
+                    "type": "UPDATE_STATUS",
+                    "status": "failed",
+                    "error": str(e),
+                    "message": f"Could not queue update: {e}",
+                })
+            return
+
+        # ---- Legacy in-container self-update (no supervisor present) ----
         # Get server URL for downloading image (convert ws:// back to http://)
         server_url = self.config.server_url.replace("wss://", "https://").replace("ws://", "http://")
         image_url = f"{server_url}/api/v1/agents/image"
@@ -992,6 +1084,23 @@ def main() -> None:
 
     # Set log level from config
     logging.getLogger().setLevel(getattr(logging, config.log_level.upper(), logging.INFO))
+
+    # Supervised agents have no docker.sock, so GET_LOGS can't shell `docker
+    # logs`. Mirror our logs to the shared state volume so the backend can
+    # still retrieve them (see _handle_get_logs).
+    if agent_state.supervised():
+        try:
+            os.makedirs(agent_state.STATE_DIR, exist_ok=True)
+            fh = logging.handlers.RotatingFileHandler(
+                os.path.join(agent_state.STATE_DIR, "agent.log"),
+                maxBytes=2_000_000, backupCount=2,
+            )
+            fh.setFormatter(logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            ))
+            logging.getLogger().addHandler(fh)
+        except Exception as e:
+            logger.warning(f"could not set up file logging: {e}")
 
     agent = PacketArchAgent(config)
 

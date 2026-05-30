@@ -192,7 +192,13 @@ EOF
     # Set secure permissions
     chmod 600 .env
 
-    # Create docker-compose.yml
+    # Create docker-compose.yml — TWO services:
+    #   agent       the traffic agent (host net, raw sockets). NO docker.sock.
+    #   supervisor  same image, supervisor role. Owns the agent's lifecycle and
+    #               performs self-updates from OUTSIDE the agent (the agent
+    #               never recreates itself). Holds the ONLY docker.sock mount.
+    # They share the `agent_state` volume (file-queue: update-request /
+    # update-status / agent-online). See app/supervisor.py + app/agent_state.py.
     print_status "Creating docker-compose.yml..."
     cat > docker-compose.yml << 'EOF'
 services:
@@ -205,29 +211,47 @@ services:
       - NET_ADMIN
       - NET_RAW
     environment:
-      # Lets the agent locate its own install dir (and docker-compose.yml)
-      # for a clean compose-based self-update; see the volume mount below.
-      - AGENT_INSTALL_PATH=__INSTALL_DIR__
+      # Supervised topology: hand UPDATE_AGENT to the supervisor sibling via
+      # the shared /state volume instead of self-recreating. No docker.sock here.
+      - AGENT_SUPERVISED=true
+      - AGENT_STATE_DIR=/state
     env_file:
       - .env
     volumes:
-      # Required for agent self-update (UPDATE_AGENT): the agent uses the
-      # host Docker daemon to `docker load` the new image and restart
-      # itself. Without this mount, updates fail with "Docker not available".
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Mount the install dir at the SAME host path so the running agent can
-      # see its own docker-compose.yml + .env and drive the clean
-      # compose-based self-update (compose down + up -d). Without this,
-      # find_agent_install_path() returns None inside the container and the
-      # agent falls back to a docker-run path that loses the container env
-      # (token/server/interface) — leaving the update unable to complete on
-      # connectivity-constrained hosts (e.g. CML-lab VMs).
-      - __INSTALL_DIR__:__INSTALL_DIR__
+      - agent_state:/state
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    depends_on:
+      - supervisor
+  supervisor:
+    image: packetarch-agent:latest
+    container_name: packetarch-agent-supervisor
+    restart: unless-stopped
+    # Override the image ENTRYPOINT (python -m app.main) — `command:` would be
+    # APPENDED to it and just start a second agent instead of the supervisor.
+    entrypoint: ["python", "-m", "app.supervisor"]
+    environment:
+      - AGENT_STATE_DIR=/state
+      - AGENT_INSTALL_DIR=__INSTALL_DIR__
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # The supervisor is the ONLY component with the Docker socket: it loads
+      # the new image and recreates the agent service from outside it.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The install dir at the SAME host path so `docker compose -f
+      # <dir>/docker-compose.yml up -d agent` resolves on the host daemon.
+      - __INSTALL_DIR__:__INSTALL_DIR__
+      - agent_state:/state
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  agent_state:
 EOF
     # Bake the real install dir into the placeholders (kept the heredoc
     # literal so backticks/`$` in the comments above stay intact).

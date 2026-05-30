@@ -28,28 +28,45 @@ REPO_ROOT = STATIC_DIR.parents[3]
 # Marker that uniquely identifies a compose stanza for the agent container
 # (distinguishes the agent installer from the full-platform stack installer).
 AGENT_CONTAINER_MARKER = "container_name: packetarch-agent"
+# v2.0 supervisor topology markers: the socket lives on the supervisor sibling,
+# and the agent runs in supervised mode (hands updates off via /state).
+SUPERVISOR_MARKER = "app.supervisor"
+SUPERVISED_MARKER = "AGENT_SUPERVISED=true"
 
 
-def test_served_installer_exists_and_mounts_docker_socket():
-    """The served /agent/install.sh must write a compose that mounts the socket."""
+def test_served_installer_provisions_supervisor_topology():
+    """The served /agent/install.sh must write the 2-service supervisor compose:
+    a socket-holding supervisor sibling + a supervised agent. The socket must be
+    present (on the supervisor) so the agent can be updated; the agent itself
+    runs supervised and never touches the daemon."""
     install_sh = STATIC_DIR / "install.sh"
     assert install_sh.exists(), "served agent installer (static/agent/install.sh) is missing"
     text = install_sh.read_text()
     assert AGENT_CONTAINER_MARKER in text, "installer no longer writes the agent compose?"
     assert SOCKET_MOUNT in text, (
-        "served agent installer's generated docker-compose.yml must bind-mount "
-        "/var/run/docker.sock — without it the agent cannot self-update "
-        "(fails with 'Docker not available')."
+        "installer's compose must bind-mount /var/run/docker.sock (on the "
+        "supervisor) — without it the agent cannot be self-updated."
+    )
+    assert SUPERVISOR_MARKER in text, (
+        "installer must define the supervisor sibling (python -m app.supervisor) "
+        "that owns the agent's lifecycle."
+    )
+    assert SUPERVISED_MARKER in text, (
+        "installer must run the agent in supervised mode (AGENT_SUPERVISED=true)."
     )
 
 
-def test_served_compose_mounts_docker_socket():
-    """The served standalone /agent/docker-compose.yml must also mount the socket."""
+def test_served_compose_provisions_supervisor_topology():
+    """The served standalone /agent/docker-compose.yml must also use the 2-service
+    supervisor topology (socket on the supervisor, agent supervised)."""
     compose = STATIC_DIR / "docker-compose.agent.yml"
     assert compose.exists(), "served agent docker-compose.agent.yml is missing"
-    assert SOCKET_MOUNT in compose.read_text(), (
+    text = compose.read_text()
+    assert SOCKET_MOUNT in text, (
         "served agent docker-compose.agent.yml must bind-mount /var/run/docker.sock."
     )
+    assert SUPERVISOR_MARKER in text, "standalone compose must define the supervisor sibling."
+    assert SUPERVISED_MARKER in text, "standalone compose must run the agent supervised."
 
 
 def test_no_divergent_agent_installer_without_socket():
