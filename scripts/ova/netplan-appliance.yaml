@@ -1,0 +1,17 @@
+network:
+  # Appliance network config. The cloud image normally relies on a cloud-init
+  # datasource to generate /etc/netplan/50-cloud-init.yaml, but a standalone
+  # appliance has NO datasource — so without this the NIC is never configured
+  # and the appliance has no network. This DHCPs whatever the first ethernet
+  # is named (enp1s0 / ens3 / eth0 / ...), independent of hypervisor NIC naming.
+  # Paired with cloud-init network management disabled (see
+  # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg).
+  version: 2
+  renderer: networkd
+  ethernets:
+    appliance-dhcp:
+      match:
+        name: "e*"
+      dhcp4: true
+      dhcp6: false
+      optional: true

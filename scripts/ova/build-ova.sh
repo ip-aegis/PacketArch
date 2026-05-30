@@ -155,6 +155,10 @@ virt-customize -a "${QCOW}" --network \
     --run-command 'apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin' \
     --run-command 'systemctl enable docker' \
     --run-command 'systemctl enable qemu-guest-agent || true' \
+    --upload "${OVA_DIR}/netplan-appliance.yaml:/etc/netplan/99-appliance.yaml" \
+    --run-command 'chmod 600 /etc/netplan/99-appliance.yaml' \
+    --upload "${OVA_DIR}/cloud-init-disable-network.cfg:/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg" \
+    --run-command 'systemctl enable systemd-networkd' \
     --copy-in "${CLONE_STAGE}:/opt" \
     --copy-in "${OVA_DIR}/firstboot.sh:/usr/local/sbin" \
     --run-command 'mv /usr/local/sbin/firstboot.sh /usr/local/sbin/packetarch-firstboot.sh' \

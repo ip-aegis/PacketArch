@@ -108,6 +108,16 @@ target release, rebuilds, migrates, and restarts — with an automatic backup
 and rollback on failure. No new OVA required. (CLI equivalent on the
 appliance: `cd /opt/packetarch && sudo scripts/upgrade.sh --to vX.Y.Z`.)
 
+## Networking
+
+The cloud image normally derives its network config from a cloud-init
+*datasource*; a standalone appliance has none, so the build bakes a static
+netplan (`/etc/netplan/99-appliance.yaml`) that DHCPs whatever the first
+ethernet is named (`enp1s0` / `ens3` / `eth0` / …) and disables cloud-init
+network management (`99-disable-network-config.cfg`). Without this the NIC
+is never configured and the appliance has no network on a real hypervisor.
+The appliance gets its address from your network's DHCP.
+
 ## Notes / future work
 
 - **Cert SAN**: the self-signed cert won't match the appliance IP — that's
