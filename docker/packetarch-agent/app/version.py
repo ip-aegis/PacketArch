@@ -7,9 +7,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "1.45.1"
+VERSION = "1.46.0"
 
 # Version history:
+# 1.46.0 - Release-pipeline verification bump (no agent code change). Cut alongside app v1.7.0 to exercise the agent image build + install/self-update path end-to-end after the Local Sensor Labs work.
 # 1.45.1 - Resolve IEC 60870-5-104 protocol alias. Templates and the identity
 #   layer spell it "iec104" but the runtime ProtocolType value (and engine
 #   registration) is "iec_104", so "iec104" flows resolved to an unknown
