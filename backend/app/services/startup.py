@@ -242,6 +242,43 @@ async def ensure_agent_image_current() -> str:
     return f"build already in progress / unavailable (served v{served_v or 'none'})"
 
 
+async def reconcile_local_labs(db: AsyncSession) -> str:
+    """Re-converge app-managed local sensor labs after a full stack restart.
+
+    The host-agent already reconciles its own persisted specs on ITS boot, but a
+    full `docker compose up` restarts the backend too; this nudges the host-agent
+    to re-apply every desired lab so they come back without operator action.
+
+    We do NOT rebuild specs from the DB: the plaintext agent token isn't stored
+    here (only its hash), but it IS persisted in the host-agent's spec files on
+    the shared volume. So we just count non-stopped LocalLab rows and, if any,
+    fire a single reconcile request the host-agent acts on. Never raises.
+    """
+    from app.models.local_lab import LocalLab
+    from app.services import host_agent_client
+
+    pending = (
+        await db.execute(
+            select(LocalLab).where(LocalLab.state != "stopped")
+        )
+    ).scalars().all()
+
+    if not pending:
+        return "no local labs to reconcile"
+
+    if not host_agent_client.is_available():
+        logger.warning(
+            "reconcile_local_labs: %d local lab(s) in DB but host-agent volume "
+            "unavailable — not reconciled (rebuild from the Agents page if needed)",
+            len(pending),
+        )
+        return f"{len(pending)} lab(s) NOT reconciled (host-agent unavailable)"
+
+    host_agent_client.submit_reconcile()
+    logger.info("reconcile_local_labs: requested reconcile of %d local lab(s)", len(pending))
+    return f"requested reconcile of {len(pending)} local lab(s)"
+
+
 async def run_startup_tasks(db: AsyncSession) -> dict:
     """Run all startup tasks."""
     results = {}
@@ -296,6 +333,12 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
         except Exception as e:  # never let an image-build hiccup block startup
             logger.warning("ensure_agent_image_current failed: %s", e)
             results["agent_image"] = f"check failed: {e}"
+        # Re-converge app-managed local sensor labs after a full stack restart.
+        try:
+            results["local_labs"] = await reconcile_local_labs(db)
+        except Exception as e:  # never let lab reconcile block startup
+            logger.warning("reconcile_local_labs failed: %s", e)
+            results["local_labs"] = f"reconcile failed: {e}"
     else:
         results["agent_reconcile"] = "skipped (live_traffic_enabled=false)"
 

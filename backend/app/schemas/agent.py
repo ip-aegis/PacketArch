@@ -48,6 +48,7 @@ class AgentResponse(BaseModel):
     cml_lab_id: str | None = None
     cml_node_id: str | None = None
     cml_node_label: str | None = None
+    local_lab_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

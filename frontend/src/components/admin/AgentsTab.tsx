@@ -333,7 +333,16 @@ const AgentsTab: React.FC = () => {
       key: 'name',
       render: (name: string, record) => (
         <Space direction="vertical" size={0}>
-          <Text strong>{name}</Text>
+          <Space size={6}>
+            <Text strong>{name}</Text>
+            {record.local_lab_id ? (
+              <Tag color="cyan">Local</Tag>
+            ) : record.cml_lab_id ? (
+              <Tag color="geekblue">CML</Tag>
+            ) : (
+              <Tag>Manual</Tag>
+            )}
+          </Space>
           {record.description && (
             <Text type="secondary" style={{ fontSize: 12 }}>
               {record.description}

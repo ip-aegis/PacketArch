@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Typography,
   Card,
@@ -47,9 +47,7 @@ import {
 } from '@ant-design/icons';
 import UserManagementTab from '../../components/admin/UserManagementTab';
 import CyberVisionTab from '../../components/admin/CyberVisionTab';
-import CmlTab from '../../components/admin/CmlTab';
 import LdapTab from '../../components/admin/LdapTab';
-import AgentsTab from '../../components/admin/AgentsTab';
 import DownloadsTab from '../../components/admin/DownloadsTab';
 import GeneratedPcapsTab from '../../components/admin/GeneratedPcapsTab';
 import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab';
@@ -582,6 +580,32 @@ const AIProviderTab: React.FC<{
   );
 };
 
+// Settings is config-only now; live agent/lab operations moved to the Agents
+// hub. This pointer replaces the old in-Settings AgentsTab/CmlTab so there's one
+// operations home — the capability is RELOCATED, not removed (CML build/deploy
+// and traffic-agent management are fully functional at /agents).
+const ManagedInAgentsPointer: React.FC<{ what: string }> = ({ what }) => {
+  const navigate = useNavigate();
+  return (
+    <Alert
+      type="info"
+      showIcon
+      message={`${what} moved to the Agents page`}
+      description={
+        <Space direction="vertical">
+          <span>
+            {what} are now managed from the dedicated Agents page, alongside
+            Local Sensor Labs, Deployments, and the live Topology view.
+          </span>
+          <Button type="primary" onClick={() => navigate('/agents')}>
+            Go to Agents
+          </Button>
+        </Space>
+      }
+    />
+  );
+};
+
 const SettingsPage: React.FC = () => {
   const {
     settings,
@@ -739,7 +763,7 @@ const SettingsPage: React.FC = () => {
           <RocketOutlined /> Traffic Agents
         </span>
       ),
-      children: <AgentsTab />,
+      children: <ManagedInAgentsPointer what="Traffic agents" />,
     },
     {
       key: 'cyber_vision',
@@ -757,7 +781,7 @@ const SettingsPage: React.FC = () => {
           <CloudServerOutlined /> Modeling Labs
         </span>
       ),
-      children: <CmlTab />,
+      children: <ManagedInAgentsPointer what="Cisco Modeling Labs" />,
     },
     {
       key: 'ldap',

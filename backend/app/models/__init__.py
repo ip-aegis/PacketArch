@@ -14,6 +14,7 @@ from app.models.ip_range_allocation import IPRangeAllocation
 from app.models.cve_vulnerability import CVEVulnerability, CVESeverity
 from app.models.vulnerable_fingerprint import VulnerableFingerprintVariant
 from app.models.traffic_agent import TrafficAgent, AgentDeployment
+from app.models.local_lab import LocalLab
 from app.models.generation_job import GenerationJob, GenerationJobStatus
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
 from app.models.scenario_version import ScenarioVersion
@@ -37,6 +38,7 @@ __all__ = [
     "VulnerableFingerprintVariant",
     "TrafficAgent",
     "AgentDeployment",
+    "LocalLab",
     "GenerationJob",
     "GenerationJobStatus",
     "CloudServiceEndpoint",

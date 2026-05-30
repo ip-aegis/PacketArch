@@ -1,0 +1,34 @@
+# Reference: local traffic-agent compose (alternative to running install.sh).
+#
+# deploy-local-sensor.sh uses install.sh (the single source of truth) instead of
+# this file. This is here only to show the local-vs-remote delta explicitly:
+# the ONLY change from a normal remote agent is DEFAULT_INTERFACE pointing at the
+# host veth ($GEN_IF, default pa-gen) created by setup-local-span.sh.
+#
+# To use this directly:
+#   1. sudo ./setup-local-span.sh up
+#   2. create a .env next to this file:
+#        PACKETARCH_SERVER=https://10.10.20.231
+#        AGENT_TOKEN=<token-from-UI>
+#        DEFAULT_INTERFACE=pa-gen
+#        LOG_LEVEL=INFO
+#        SSL_VERIFY=false
+#   3. docker compose -f docker-compose.agent.local.yml up -d
+services:
+  agent:
+    image: packetarch-agent:latest
+    container_name: packetarch-agent-local
+    restart: unless-stopped
+    network_mode: host          # shares host netns -> can inject on the veth (pa-gen)
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # self-update (UPDATE_AGENT)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

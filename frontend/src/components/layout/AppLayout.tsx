@@ -22,7 +22,6 @@ import {
   DatabaseOutlined,
   FolderOutlined,
 
-  BarChartOutlined,
   CloudServerOutlined,
   GlobalOutlined,
   BugOutlined,
@@ -198,14 +197,9 @@ const AppLayout: React.FC = () => {
     ...(liveTrafficEnabled
       ? [
           {
-            key: '/deployments',
+            key: '/agents',
             icon: <CloudServerOutlined />,
-            label: 'Deployments',
-          },
-          {
-            key: '/live-traffic',
-            icon: <BarChartOutlined />,
-            label: 'Live Traffic',
+            label: 'Agents',
           },
         ]
       : []),
@@ -433,7 +427,7 @@ const AppLayout: React.FC = () => {
                     type="text"
                     icon={<BellOutlined style={{ fontSize: 18 }} />}
                     style={{ color: healthAlertCount > 0 ? '#fa8c16' : '#a8a8c0' }}
-                    onClick={() => navigate('/live-traffic')}
+                    onClick={() => navigate('/agents?tab=live-traffic')}
                   />
                 </Badge>
               </Tooltip>

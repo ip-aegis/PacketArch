@@ -7,7 +7,7 @@
  * DeploymentForm - Form for configuring and launching a deployment to a traffic agent.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -26,6 +26,7 @@ import type { FormInstance } from 'antd';
 import {
   FieldTimeOutlined,
   PlayCircleOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import type { RunMode } from '../../types/docker';
 import type { AgentInterface, TrafficAgent } from '../../types/agent';
@@ -86,6 +87,39 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   onFinish,
 }) => {
   const hasTargets = onlineAgents.length > 0;
+  const [showAllInterfaces, setShowAllInterfaces] = useState(false);
+
+  // Adapt the interface picker to the selected agent's kind.
+  const selectedAgentId = Form.useWatch('agent_id', form) as string | undefined;
+  const selectedAgent = onlineAgents.find((a) => a.id === selectedAgentId);
+  const recommendedIface = selectedAgent?.default_interface || undefined;
+  // Local-lab + CML agents are provisioned with a known-correct injection
+  // interface (a host-networked local agent otherwise exposes dozens of host
+  // interfaces — the "ton of options" footgun). Lock it; nothing to choose.
+  const isManagedAgent = !!(selectedAgent?.local_lab_id || selectedAgent?.cml_lab_id);
+
+  // Host plumbing that is never a valid injection target: loopback, docker
+  // bridges, and the veth/SPAN endpoints of OTHER local labs. (A managed
+  // agent's own pa-gen interface uses the locked path, not this filter.)
+  const isNoiseIface = (n: string) =>
+    /^(lo|docker0|br-|veth|pa-gen-|pa-mon-)/.test(n) && n !== recommendedIface;
+
+  const { visibleInterfaces, hiddenIfaceCount } = useMemo(() => {
+    const filtered = showAllInterfaces
+      ? agentInterfaces
+      : agentInterfaces.filter((i) => !isNoiseIface(i.name));
+    const sorted = [...filtered].sort((a, b) => {
+      if (a.name === recommendedIface) return -1;
+      if (b.name === recommendedIface) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    return {
+      visibleInterfaces: sorted,
+      hiddenIfaceCount: agentInterfaces.length - filtered.length,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentInterfaces, recommendedIface, showAllInterfaces]);
+
   const [phaseScheduleEnabled, setPhaseScheduleEnabled] = useState(false);
   const [cycleContinuously, setCycleContinuously] = useState(true);
   const [phaseDurations, setPhaseDurations] = useState<Record<string, number>>(() => {
@@ -190,7 +224,27 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
             rules={[
               { required: true, message: 'Select an interface' },
             ]}
+            extra={
+              isManagedAgent
+                ? 'Managed lab — injection uses its dedicated SPAN interface.'
+                : undefined
+            }
           >
+            {isManagedAgent ? (
+              // Locked: DeploymentPanel.handleAgentChange sets this field to the
+              // agent's default_interface; the disabled select just displays it
+              // so the wrong interface can't be chosen.
+              <Select disabled suffixIcon={<LockOutlined />}>
+                {recommendedIface && (
+                  <Select.Option value={recommendedIface}>
+                    <Space>
+                      <span>{recommendedIface}</span>
+                      <Tag color="green">managed</Tag>
+                    </Space>
+                  </Select.Option>
+                )}
+              </Select>
+            ) : (
             <Select
               placeholder={
                 loadingInterfaces
@@ -199,11 +253,31 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
               }
               loading={loadingInterfaces}
               disabled={agentInterfaces.length === 0}
-              options={agentInterfaces.map((i) => ({
+              popupRender={(menu) => (
+                <>
+                  {menu}
+                  {!showAllInterfaces && hiddenIfaceCount > 0 && (
+                    <div style={{ padding: '4px 8px', borderTop: '1px solid #2d2d52' }}>
+                      <Button
+                        type="link"
+                        size="small"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setShowAllInterfaces(true)}
+                      >
+                        Show {hiddenIfaceCount} hidden (loopback, docker, veth…)
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+              options={visibleInterfaces.map((i) => ({
                 value: i.name,
                 label: (
                   <Space>
                     <span>{i.name}</span>
+                    {i.name === recommendedIface && (
+                      <Tag color="green">recommended</Tag>
+                    )}
                     {i.mac && (
                       <Text
                         type="secondary"
@@ -216,6 +290,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
                 ),
               }))}
             />
+            )}
           </Form.Item>
 
           {/* Cell Isolation override */}

@@ -13,7 +13,6 @@ import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
 import ScenariosPage from './pages/ScenariosPage';
 
-import DeploymentsPage from './pages/DeploymentsPage';
 import IPManagementPage from './pages/IPManagementPage';
 import CVEBrowserPage from './pages/CVEBrowserPage';
 import HelpPage from './pages/HelpPage';
@@ -21,11 +20,11 @@ import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
 import GuidedBuilderPage from './pages/GuidedBuilderPage';
 import CyberVisionPage from './pages/CyberVisionPage';
 import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
-import LiveTrafficDashboardPage from './pages/LiveTrafficDashboardPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
 import AttackLibraryPage from './pages/AttackLibraryPage';
 import AttackPlaybookDetailPage from './pages/AttackPlaybookDetailPage';
+import AgentsHubPage from './pages/AgentsHubPage';
 
 function App() {
   return (
@@ -59,21 +58,16 @@ function App() {
         <Route path="devices" element={<Navigate to="/fingerprints" replace />} />
 
         <Route
-          path="deployments"
+          path="agents"
           element={
             <FeatureGate feature="liveTraffic" fallback="/scenarios">
-              <DeploymentsPage />
+              <AgentsHubPage />
             </FeatureGate>
           }
         />
-        <Route
-          path="live-traffic"
-          element={
-            <FeatureGate feature="liveTraffic" fallback="/scenarios">
-              <LiveTrafficDashboardPage />
-            </FeatureGate>
-          }
-        />
+        {/* Old standalone routes now live as tabs inside the Agents hub. */}
+        <Route path="deployments" element={<Navigate to="/agents?tab=deployments" replace />} />
+        <Route path="live-traffic" element={<Navigate to="/agents?tab=live-traffic" replace />} />
         <Route path="ip-management" element={<IPManagementPage />} />
         <Route path="cves" element={<CVEBrowserPage />} />
         <Route path="cyber-vision" element={<CyberVisionPage />} />

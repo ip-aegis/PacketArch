@@ -92,3 +92,7 @@ backend/app/scenario_templates_legacy_backup/
 
 # Snapshot tarballs written by packetarch-backup.sh / upgrade.sh
 backups/
+
+# Claude Code agent session data
+.claude/
+scripts/local-sensor/runtime/

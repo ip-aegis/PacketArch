@@ -110,10 +110,15 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
       setAgentInterfaces(result);
       const agent = agents.find((a) => a.id === agentId);
       if (agent?.default_interface) {
+        // Managed (local-lab / CML) agents have an authoritative injection
+        // interface — set it unconditionally so the locked picker always
+        // carries the right value even if the live interface query lags or
+        // doesn't list it. Manual agents only pre-select when present.
+        const isManaged = !!(agent.local_lab_id || agent.cml_lab_id);
         const hasDefault = result.some(
           (i) => i.name === agent.default_interface,
         );
-        if (hasDefault)
+        if (isManaged || hasDefault)
           form.setFieldValue(
             'network_interface',
             agent.default_interface,

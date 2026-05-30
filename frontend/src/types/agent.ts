@@ -20,6 +20,11 @@ export interface TrafficAgent {
   is_active: boolean;
   last_seen: string | null;
   first_connected_at: string | null;
+  // Agent "kind" linkage — set when provisioned via CML or a local sensor lab.
+  cml_lab_id?: string | null;
+  cml_node_id?: string | null;
+  cml_node_label?: string | null;
+  local_lab_id?: string | null;
   created_at: string;
   updated_at: string;
 }

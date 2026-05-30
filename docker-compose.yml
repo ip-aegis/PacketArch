@@ -63,6 +63,8 @@ services:
       HOST_INSTALL_DIR: ${HOST_INSTALL_DIR:-}
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-packetarch}
       DOCKER_GID: ${DOCKER_GID:-987}
+      # Local-sensor file-queue root (shared with the host-agent service).
+      HOST_AGENT_STATE: /hostagent/local-labs
       # Cisco CIRCUIT provider — env-var overrides for the encrypted
       # system_settings rows. Empty/unset = use whatever's in the DB.
       CIRCUIT_CLIENT_ID: ${CIRCUIT_CLIENT_ID:-}
@@ -82,6 +84,10 @@ services:
       # Shared with the updater container; survives backend recreate so the
       # self-upgrade status outlives the backend restarting mid-upgrade.
       - upgrade_state:/state
+      # Shared file-queue with the host-agent: the backend writes local-sensor
+      # lab specs/requests here; the host-agent (privileged) acts on them. The
+      # backend itself stays unprivileged — it only reads/writes JSON.
+      - host_agent_state:/hostagent
       # Built agent image/artifacts — persists across `up --build` so the served
       # agent doesn't revert to a stale baked tarball (auto-rebuilt on boot if stale).
       - agent_dist:/app/app/static/agent/dist
@@ -158,6 +164,32 @@ services:
     depends_on:
       - postgres
 
+  # Host-agent: long-running privileged sibling that owns ALL host-level ops for
+  # local sensor labs (per-lab veth crossovers, /etc/docker/daemon.json registry
+  # trust, per-lab CV-sensor + traffic-agent containers). The unprivileged
+  # backend never touches the host — it drops request files on the shared
+  # host_agent_state volume and this watcher acts on them + reconciles desired
+  # specs on boot (so labs survive reboots). Idles cheaply when no labs exist.
+  # privileged + network_mode host (veth in host netns) + pid host (SIGHUP the
+  # host dockerd to live-reload daemon.json — never restart).
+  host-agent:
+    build: ./docker/packetarch-host-agent
+    image: packetarch-host-agent:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-packetarch}-host-agent
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    pid: host
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-packetarch}
+      HOST_AGENT_STATE: /hostagent/local-labs
+      LOG_LEVEL: ${HOST_AGENT_LOG_LEVEL:-INFO}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/docker:/etc/docker            # daemon.json (insecure-registries)
+      - host_agent_state:/hostagent        # file-queue shared with the backend
+      - ./docker/packetarch-host-agent:/app:ro  # live-edit watcher w/o rebuild
+
   # Self-upgrade runner. Never auto-starts (profiled). The backend launches a
   # one-off container FROM this image via the Docker socket to run
   # scripts/upgrade.sh; because that container is standalone (not a tracked
@@ -190,3 +222,4 @@ volumes:
   ssl_certs:
   upgrade_state:
   agent_dist:
+  host_agent_state:

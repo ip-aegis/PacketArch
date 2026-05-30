@@ -63,6 +63,13 @@ class TrafficAgent(Base):
         String(255),
         nullable=True,
     )
+    # Local sensor lab linkage (set when this agent was provisioned as part of
+    # an app-managed local sensor lab on the PacketArch host; null otherwise).
+    # Mirrors cml_lab_id — agent "kind" = CML / Local / Manual.
+    local_lab_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
     # Agent status: online, offline
     status: Mapped[str] = mapped_column(
         String(20),
