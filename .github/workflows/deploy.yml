@@ -1,9 +1,11 @@
 name: Deploy to Production
 
+# Manual-only: the push trigger was removed because deploys are done locally
+# (dev = prod on this box) and the SSH_HOST/SSH_USER/SSH_PRIVATE_KEY secrets this
+# job needs are not configured — leaving the push trigger made every push go red.
+# Configure those repo secrets and run from the Actions tab to use CI deploy.
 on:
-  push:
-    branches: [main, master]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 env:
   REMOTE_DIR: /home/${{ secrets.SSH_USER }}/packetarch
