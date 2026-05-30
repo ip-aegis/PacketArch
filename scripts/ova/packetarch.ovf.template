@@ -27,7 +27,7 @@
   <VirtualSystem ovf:id="PacketArch-@VERSION@">
     <Info>PacketArch OT Traffic Simulation Appliance</Info>
     <Name>PacketArch-@VERSION@</Name>
-    <OperatingSystemSection ovf:id="94" vmw:osType="ubuntu64Guest">
+    <OperatingSystemSection ovf:id="101" vmw:osType="ubuntu64Guest">
       <Info>The installed guest operating system</Info>
       <Description>Ubuntu Linux (64-bit)</Description>
     </OperatingSystemSection>
@@ -75,10 +75,10 @@
         <rasd:AddressOnParent>7</rasd:AddressOnParent>
         <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
         <rasd:Connection>VM Network</rasd:Connection>
-        <rasd:Description>VmxNet3 ethernet adapter</rasd:Description>
+        <rasd:Description>E1000 ethernet adapter</rasd:Description>
         <rasd:ElementName>Network adapter 1</rasd:ElementName>
         <rasd:InstanceID>5</rasd:InstanceID>
-        <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
+        <rasd:ResourceSubType>E1000</rasd:ResourceSubType>
         <rasd:ResourceType>10</rasd:ResourceType>
       </Item>
     </VirtualHardwareSection>

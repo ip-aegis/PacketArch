@@ -1,22 +1,24 @@
-# One-shot first-boot initializer for the PacketArch appliance.
+# First-boot initializer for the PacketArch appliance.
 #
-# Runs /opt/packetarch/firstboot.sh exactly once — the ConditionPathExists
-# guard makes it a no-op on every subsequent boot, since install.sh writes
-# /opt/packetarch/.env on success.
+# Runs until it SUCCEEDS: the guard is a success SENTINEL written only after
+# the stack actually builds + starts, NOT .env. This way a transient
+# first-boot build failure (registry rate-limit, DNS blip) re-runs on the next
+# reboot instead of bricking the appliance (a stale .env must not block retry).
 [Unit]
 Description=PacketArch appliance first-boot init
 After=docker.service network-online.target
 Wants=docker.service network-online.target
-# Only run until the stack has been initialized (install.sh writes .env).
-ConditionPathExists=!/opt/packetarch/.env
+# Only run until the stack has successfully come up (sentinel written by the script).
+ConditionPathExists=!/opt/packetarch/.firstboot-done
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/packetarch
-ExecStart=/opt/packetarch/firstboot.sh
-# Give image-load + compose-up + healthcheck room on a cold VM.
-TimeoutStartSec=900
+ExecStart=/usr/local/sbin/packetarch-firstboot.sh
+# First boot builds backend + frontend from source — allow up to 30 min on a
+# cold VM with a slow link before systemd considers the unit failed.
+TimeoutStartSec=1800
 
 [Install]
 WantedBy=multi-user.target

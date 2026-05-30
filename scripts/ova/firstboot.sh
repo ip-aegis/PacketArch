@@ -1,57 +1,146 @@
 #!/usr/bin/env bash
-# PacketArch appliance first-boot initializer.
+# PacketArch appliance first-boot initializer (git-clone install).
 #
-# Baked into the OVA and run ONCE by packetarch-firstboot.service the first
-# time the appliance powers on. It defers all per-VM state to boot time so
-# every cloned/deployed appliance gets its OWN fresh secrets and its OWN
-# self-signed TLS cert (instead of baking those into the shared image).
+# Baked to /usr/local/sbin/packetarch-firstboot.sh and run by
+# packetarch-firstboot.service until it SUCCEEDS (the unit is guarded by
+# ConditionPathExists=!/opt/packetarch/.firstboot-done — a success sentinel
+# written only after the stack actually builds + comes up).
 #
-# All the real work — docker-load the baked images, generate .env with
-# fresh secrets, `docker compose up`, wait for healthy — lives in the
-# offline bundle's install.sh. We just invoke it. This keeps a single
-# source of truth for "stand up the stack" shared with manual installs.
+# The appliance is a real git clone of the repo at a release tag (in
+# /opt/packetarch, origin = public HTTPS). This script defers all per-VM
+# state to boot time so every cloned appliance gets its OWN fresh secrets
+# and its OWN self-signed TLS cert, then builds + starts the prod stack.
 #
-# The systemd unit guards re-runs with ConditionPathExists=!/opt/packetarch/.env,
-# so once install.sh has written .env this never fires again.
+# Because it is a git clone using the prod docker-compose.yml, the in-app
+# Settings -> System upgrade works natively afterwards (the updater container
+# git-fetches a newer tag and rebuilds).
+#
+# IMPORTANT idempotency contract: the run guard is the SENTINEL, not .env.
+# .env is generated once (secrets are stable across retries) but its mere
+# existence must NOT stop a retry — a transient first-boot build failure
+# (registry rate-limit, DNS blip, mirror hiccup) must be recoverable. So:
+#   - .env is (re)used if present, generated if not;
+#   - the build is retried in-script before giving up;
+#   - the sentinel is written ONLY after a successful build, so a failed
+#     boot re-runs on the next reboot instead of bricking the appliance.
 
 set -euo pipefail
 
 INSTALL_DIR="/opt/packetarch"
-BUNDLE_DIR="${INSTALL_DIR}/bundle"
+SENTINEL="${INSTALL_DIR}/.firstboot-done"
 LOG="/var/log/packetarch-firstboot.log"
 
 # Tee everything to a log the operator can inspect from the console.
 exec > >(tee -a "${LOG}") 2>&1
 
 echo "================================================================"
-echo "  PacketArch first-boot init  ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+echo "  PacketArch appliance first-boot  ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 echo "================================================================"
 
-if [[ ! -x "${BUNDLE_DIR}/install.sh" ]]; then
-    echo "FATAL: ${BUNDLE_DIR}/install.sh missing or not executable." >&2
+if [[ ! -f "${INSTALL_DIR}/docker-compose.yml" ]]; then
+    echo "FATAL: ${INSTALL_DIR} is not a PacketArch checkout." >&2
     echo "       The OVA was built incorrectly. See scripts/ova/README.md." >&2
     exit 1
 fi
 
-# Wait for the Docker daemon (the unit orders us After=docker.service, but
-# socket readiness can still lag a beat on a cold VM).
+# Wait for the Docker daemon (ordered After=docker.service, but socket
+# readiness can lag on a cold VM). If it never comes up, exit non-zero WITHOUT
+# the sentinel so the next reboot retries (do not fall through into the build).
+docker_ready=0
 for i in $(seq 1 30); do
-    if docker info >/dev/null 2>&1; then break; fi
+    if docker info >/dev/null 2>&1; then docker_ready=1; break; fi
     echo "  waiting for docker daemon... (${i}/30)"
     sleep 2
 done
+if [[ "${docker_ready}" -ne 1 ]]; then
+    echo "FATAL: docker daemon not ready after 60s — will retry on next boot." >&2
+    exit 1
+fi
 
-# Hand off to the canonical installer. It stages compose/init-db into
-# INSTALL_DIR, loads images from ${BUNDLE_DIR}/images, generates .env with
-# fresh openssl secrets (no ADMIN_PASSWORD -> wizard path), and brings the
-# stack up. The frontend container mints the self-signed cert on first
-# start, so the appliance lands on the setup wizard at https://<ip>/.
-"${BUNDLE_DIR}/install.sh" --install-dir "${INSTALL_DIR}"
+cd "${INSTALL_DIR}"
+
+# --- generate .env with fresh per-VM secrets (server-init.sh contract) ---
+# Generated ONCE: a retry/reboot reuses the same secrets (do not regenerate).
+if [[ ! -f .env ]]; then
+    echo "[1/3] Generating .env with fresh secrets..."
+    SECRET_KEY="$(openssl rand -hex 32)"
+    POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)"
+    # Fernet key (url-safe base64 of 32 bytes) — persists encrypted settings.
+    ENCRYPTION_KEY="$(openssl rand -base64 32 | tr '+/' '-_')"
+    # Match the host docker group so the backend can use the Docker socket.
+    # '|| true' so a (theoretical) missing group doesn't abort under pipefail.
+    DOCKER_GID="$(getent group docker 2>/dev/null | cut -d: -f3 || true)"
+
+    cat > .env <<EOF
+# Generated by packetarch-firstboot on $(date -u +%Y-%m-%dT%H:%M:%SZ).
+# Treat this file like any other secret material.
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+SECRET_KEY=${SECRET_KEY}
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
+DOCKER_GID=${DOCKER_GID}
+DEBUG=false
+# Self-upgrade (one-button UI upgrade): this install's host path + pinned
+# compose project name so the updater container targets the right repo/project.
+HOST_INSTALL_DIR=${INSTALL_DIR}
+COMPOSE_PROJECT_NAME=packetarch
+# ADMIN_PASSWORD unset => first boot shows the setup wizard (create admin there).
+ADMIN_PASSWORD=
+EOF
+    chmod 600 .env
+else
+    echo "[1/3] .env already present — reusing (retry/reboot)."
+fi
+
+# --- build + start the stack, with retries -------------------------------
+# First boot builds backend + frontend from source: needs internet and ~10-15
+# min. Transient failures (registry rate-limit, DNS, mirror) are common, so
+# retry before giving up. On total failure we exit non-zero WITHOUT the
+# sentinel, so the next reboot retries instead of bricking the appliance.
+echo "[2/3] Building + starting the stack (first boot can take 10-15 min)..."
+built=0
+for attempt in 1 2 3; do
+    echo "  build attempt ${attempt}/3..."
+    if docker compose up -d --build; then built=1; break; fi
+    echo "  attempt ${attempt} failed; retrying in 30s..."
+    sleep 30
+done
+if [[ "${built}" -ne 1 ]]; then
+    echo "FATAL: 'docker compose up -d --build' failed after 3 attempts." >&2
+    echo "       The stack did NOT start. The appliance will RETRY on the next" >&2
+    echo "       reboot (no sentinel written). Check internet access + logs." >&2
+    exit 1
+fi
+
+# Build succeeded and containers are up — record success so the unit stops
+# re-running. (Health below is informational; a slow/failing healthcheck is a
+# separate, deterministic problem that re-building would not fix.)
+touch "${SENTINEL}"
+
+# --- wait for backend health (informational; never fails the unit) -------
+echo "[3/3] Waiting for backend healthcheck..."
+healthy=0
+for i in $(seq 1 60); do
+    # Exact match on the health token — NOT a substring (which would match
+    # "unhealthy"). --format '{{.Health}}' prints exactly healthy/unhealthy/starting.
+    state="$(docker compose ps backend --format '{{.Health}}' 2>/dev/null || true)"
+    if [[ "${state}" == "healthy" ]]; then healthy=1; echo "  backend healthy after ~$((i * 10))s."; break; fi
+    sleep 10
+done
 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo ""
 echo "================================================================"
-echo "  PacketArch appliance is up."
-echo "  Open https://${IP:-<this-host-ip>}/  (accept the self-signed cert)"
-echo "  and complete the first-run setup wizard to create the admin user."
+if [[ "${healthy}" -eq 1 ]]; then
+    echo "  PacketArch appliance is up."
+    echo "  Open https://${IP:-<this-host-ip>}/  (accept the self-signed cert)"
+    echo "  and complete the first-run setup wizard to create the admin user."
+else
+    echo "  Stack built and started, but the backend did NOT report healthy"
+    echo "  within 10 minutes. It may still be migrating — check:"
+    echo "    cd ${INSTALL_DIR} && docker compose logs backend"
+    echo "  Then browse to https://${IP:-<this-host-ip>}/."
+fi
+echo ""
+echo "  Updates: Settings -> System -> Upgrade (pulls a newer release tag"
+echo "  from GitHub and rebuilds in place)."
 echo "================================================================"
