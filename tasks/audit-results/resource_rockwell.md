@@ -1,0 +1,35 @@
+# Rockwell CVE RE-SOURCE (agent ab89b4822ef85ec75) — VERIFIED replacements
+
+Every current assignment had problems. Keepable: CVE-2022-3157(1756-L73), CVE-2022-1161(L83E,L33ER).
+
+## 1734-AENT (POINT I/O): REMOVE CVE-2020-6084(=1794 FLEX), CVE-2022-3156(=Studio5000 sw)
+  ADD CVE-2022-1737 (8.6 S:C, EtherNet/IP OOB-write DoS) ICSA-23-236-06
+
+## 1756-L73 (ControlLogix 5570): KEEP CVE-2022-3157
+  ADD CVE-2021-22681(9.8), CVE-2022-1161(9.8), CVE-2020-6998(8.6)
+
+## 1756-L83E (ControlLogix 5580): KEEP CVE-2022-1161
+  ADD CVE-2021-22681(9.8), CVE-2024-6207(7.5 SD1707), CVE-2024-6077(7.5 SD1963)
+  REMOVE CVE-2019-10955(=5370), CVE-2020-6998(=5570/5370), CVE-2022-3157(=5570/5370 fw20-33; 5580 not listed)
+
+## 1766-L32BWA (MicroLogix 1400): REMOVE CVE-2017-7924(=ML1100), CVE-2020-6088(=1794 FLEX)
+  ADD CVE-2022-3166(7.5 web DoS), CVE-2017-14470(9.8, FRN≤21.2) ICSA-17-115-04
+  (CVE-2021-33012 is ML1100-scoped — omit for 1400)
+
+## 1769-L24ER-QB1B (CompactLogix 5370): REMOVE CVE-2022-3166(=MicroLogix)
+  ADD CVE-2021-22681(9.8), CVE-2022-1161(9.8), CVE-2020-6998(8.6), CVE-2022-3157(7.5)
+
+## 1769-L33ER (CompactLogix 5370): KEEP CVE-2022-1161
+  ADD CVE-2021-22681(9.8), CVE-2020-6998(8.6), CVE-2022-3157(7.5)
+
+## 25B-D030N104 (PowerFlex 525): REMOVE CVE-2022-3166(=MicroLogix)
+  ADD CVE-2018-19282 (use CISA 7.5, NOT NVD legacy 9.8) ICSA-19-087-01
+
+## 2711P-T15C22D9P (PanelView Plus 7): REMOVE CVE-2020-14480, CVE-2022-2848(=Kepware)
+  ADD CVE-2023-2071(9.8 RCE) ICSA-23-264-06, CVE-2023-29464(9.1 FactoryTalk Linx)
+
+## 5094-AEN2TR (FLEX 5000 adapter): REMOVE CVE-2022-3156 → ADD none (no verifiable adapter CVE; empty correct)
+## PowerFlex 753: REMOVE CVE-2021-22682(=Horner), CVE-2022-3158(=FactoryTalk VantagePoint) → ADD none (753-specific none; empty correct)
+
+Lessons: 1794-FLEX vs 1734-POINT, 5570 vs 5580, ML1100 vs ML1400 all matter; 3rd-party CVEs
+(Horner/Kepware/VantagePoint) were on Rockwell hw; 2 devices correctly empty.

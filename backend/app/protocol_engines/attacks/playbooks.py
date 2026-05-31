@@ -213,7 +213,7 @@ TRITON_LIKE = AttackPlaybook(
                     action_type="s7_upload_block",
                     description="Upload rogue program block to override safety logic.",
                     target_selector="plc",
-                    mitre_technique="T0845",
+                    mitre_technique="T0843",  # Program Download (push logic TO controller); T0845=Program Upload (reverse)
                     expected_cv_detection="S7 block transfer to safety controller",
                     delay_after_ms=3000,
                 ),
@@ -690,7 +690,7 @@ INDUSTROYER_LIKE = AttackPlaybook(
                     action_type="s7_upload_block",
                     description="Upload logic to prevent automatic breaker reclosing.",
                     target_selector="plc",
-                    mitre_technique="T0845",
+                    mitre_technique="T0843",  # Program Download (pushing logic TO the controller); T0845 is the reverse (Program Upload)
                     expected_cv_detection="S7 block transfer to protection relay controller",
                     delay_after_ms=3000,
                 ),
@@ -1687,7 +1687,7 @@ SNORT_VALIDATION = AttackPlaybook(
                         "target_path": "/authenticate.aspx",
                     },
                     target_selector="any",
-                    mitre_technique="T1437.001",
+                    mitre_technique="T1071.001",  # Enterprise Web Protocols (was T1437.001 Mobile matrix)
                     expected_cv_detection="iSpyoo Android spyware authentication attempt",
                     delay_after_ms=5000,
                 ),

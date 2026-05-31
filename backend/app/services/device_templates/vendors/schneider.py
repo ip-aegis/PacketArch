@@ -1017,7 +1017,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V4.6",
                 release_date=date(2015, 11, 20),
-                cves=["CVE-2019-6857", "CVE-2017-7579"],
+                cves=["CVE-2019-6857", ],
                 notes="Legacy firmware - upgrade strongly recommended",
             ),
         ],
@@ -2998,7 +2998,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V30.20",
                 release_date=date(2022, 1, 25),
-                cves=["CVE-2022-37300", "CVE-2022-37301", "CVE-2023-37193"],
+                cves=["CVE-2022-37300", "CVE-2022-37301", ],
                 notes="Multiple Easergy authentication and credential vulnerabilities",
             ),
         ],
@@ -3082,7 +3082,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.7.0",
                 release_date=date(2021, 8, 14),
-                cves=["CVE-2022-37300", "CVE-2022-37301", "CVE-2023-37193"],
+                cves=["CVE-2022-37300", "CVE-2022-37301", ],
                 notes="Easergy authentication bypass and hard-coded credentials",
             ),
         ],

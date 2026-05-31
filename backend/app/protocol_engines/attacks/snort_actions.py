@@ -1293,7 +1293,7 @@ def _ispyoo_auth(
                     "c2_ip": c2_ip,
                     "device_id": device_id,
                     "snort_sid": "50438",
-                    "mitre_technique": "T1437.001",  # Application Layer Protocol
+                    "mitre_technique": "T1071.001",  # Enterprise Web Protocols (was T1437.001 Mobile matrix - wrong for an IT/OT host)
                     "attempt_index": i + 1,
                 },
             )

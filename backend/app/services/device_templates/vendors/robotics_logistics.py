@@ -192,12 +192,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V8.5.10",
                 release_date=date(2022, 8, 20),
-                cves=["CVE-2022-43560"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V8.3.5",
                 release_date=date(2020, 11, 15),
-                cves=["CVE-2022-43560", "CVE-2020-10292"],
+                cves=["CVE-2020-10292"],
             ),
         ],
 

@@ -60,7 +60,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V6.45",
                 release_date=date(2020, 9, 20),
-                cves=["CVE-2022-25343", "CVE-2020-14476"],
+                cves=["CVE-2022-25343", ],
             ),
         ],
 
@@ -166,7 +166,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.0.0",
                 release_date=date(2022, 7, 20),
-                cves=["CVE-2022-35586"],
+                cves=[],
             ),
         ],
 
@@ -603,7 +603,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.2.0",
                 release_date=date(2022, 9, 10),
-                cves=["CVE-2022-37064"],
+                cves=[],
             ),
         ],
 
@@ -660,7 +660,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V11.3.64",
                 release_date=date(2022, 7, 15),
-                cves=["CVE-2022-37065"],
+                cves=[],
             ),
         ],
 
@@ -717,7 +717,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V11.5.64",
                 release_date=date(2022, 8, 15),
-                cves=["CVE-2022-37065"],
+                cves=[],
             ),
         ],
 

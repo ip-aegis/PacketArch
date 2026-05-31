@@ -328,69 +328,7 @@ ENERGY_CVES: list[dict] = [
 
     # ==================== ABB Protection Relay CVEs ====================
 
-    # CVE-2021-22287 - ABB REF615 Authentication Bypass
-    {
-        "cve_id": "CVE-2021-22287",
-        "title": "ABB REF615 Feeder Protection Authentication Bypass",
-        "description": (
-            "ABB REF615 feeder protection relays contain an authentication bypass "
-            "vulnerability that allows unauthorized access to configuration interfaces. "
-            "An attacker could modify protection settings leading to equipment damage."
-        ),
-        "severity": "critical",
-        "cvss_score": 9.1,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-        "vendor": "ABB",
-        "product_family": "Relion",
-        "affected_models": ["REF615", "REX640", "REM615"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "9.2",
-        "fixed_firmware_version": "9.3",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-110-02",
-        "references": [
-            "https://search.abb.com/library/Download.aspx?DocumentID=9AKK107991A5688",
-        ],
-        "mitre_techniques": ["T0859", "T0831"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2021, 4, 20),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "9.2",
-                "display_name": "ABB REF615 (CVE-2021-22287)",
-                "snmp_sys_descr_template": "ABB REF615 Feeder Protection Relay v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "ABB",
-                    "product_code": "REF615",
-                    "major_minor_revision": "9.2",
-                    "product_name": "REF615 Feeder Protection Relay",
-                },
-                "iec104_identity_override": {
-                    "station_name": "REF615-VULN",
-                    "common_address": 1,
-                },
-            },
-            {
-                "firmware_version": "2.1",
-                "display_name": "ABB REX640 (CVE-2021-22287)",
-                "snmp_sys_descr_template": "ABB REX640 IEC 61850 Protection Relay v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "ABB",
-                    "product_code": "REX640",
-                    "major_minor_revision": "2.1",
-                    "product_name": "REX640 IEC 61850 Protection Relay",
-                },
-                "iec104_identity_override": {
-                    "station_name": "REX640-VULN",
-                    "common_address": 1,
-                },
-            },
-        ],
-    },
-
-    # ==================== Schneider ION Meter CVEs ====================
+# ==================== Schneider ION Meter CVEs ====================
 
     # CVE-2021-22714 - Schneider ION Meters DoS
     {
@@ -1148,56 +1086,7 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2023-32785 - Siemens SIPROTEC 5 7UM85 specific
-    {
-        "cve_id": "CVE-2023-32785",
-        "title": "Siemens SIPROTEC 7UM85 Generator Protection Authentication Weakness",
-        "description": (
-            "SIPROTEC 7UM85 generator protection relays running affected firmware "
-            "implement an authentication mechanism that can be bypassed under "
-            "specific network conditions, allowing limited read access to "
-            "engineering data."
-        ),
-        "severity": "medium",
-        "cvss_score": 5.3,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-        "vendor": "Siemens",
-        "product_family": "SIPROTEC 5",
-        "affected_models": ["7UM85"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V9.20",
-        "fixed_firmware_version": "V9.30",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-XXX-XX",
-        "references": [
-            "https://cert-portal.siemens.com/productcert/",
-        ],
-        "mitre_techniques": ["T0859"],
-        "exploit_available": False,
-        "exploit_complexity": "medium",
-        "published_date": datetime(2023, 7, 11),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V9.20",
-                "display_name": "SIPROTEC 7UM85 (CVE-2023-32785)",
-                "snmp_sys_descr_template": "Siemens SIPROTEC 7UM85 Generator Protection {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Siemens AG",
-                    "product_code": "7UM85",
-                    "major_minor_revision": "V9.20",
-                    "product_name": "SIPROTEC 7UM85 Generator Protection",
-                },
-                "iec61850_identity_override": {
-                    "ied_name": "SIE_7UM85_AUTH_VULN",
-                    "vendor": "Siemens AG",
-                    "software_version": "V9.20",
-                },
-            },
-        ],
-    },
-
-    # CVE-2015-5374 - Siemens SIPROTEC firmware DoS (historic, INDUSTROYER-relevant)
+# CVE-2015-5374 - Siemens SIPROTEC firmware DoS (historic, INDUSTROYER-relevant)
     # Originally targeted SIPROTEC 4 / EN100 module; templates apply it to legacy
     # variants of 7SS85 and 7VK87 as a representative historic DoS vulnerability.
     {
@@ -1774,68 +1663,4 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2023-37193 - Schneider Easergy P3 / T300 Info Disclosure
-    {
-        "cve_id": "CVE-2023-37193",
-        "title": "Schneider Electric Easergy P3 / T300 Information Disclosure",
-        "description": (
-            "Easergy P3 and T300 devices running affected firmware allow an "
-            "unauthenticated remote attacker to retrieve sensitive configuration "
-            "information from the management interface. The disclosed data can be "
-            "used to plan further attacks against the device or the surrounding "
-            "distribution-automation network."
-        ),
-        "severity": "high",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-        "vendor": "Schneider",
-        "product_family": "Easergy",
-        "affected_models": ["P3U30", "T300"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V30.20",
-        "fixed_firmware_version": "see Schneider advisory",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-XXX-XX",
-        "references": [
-            "https://www.se.com/ww/en/download/document/SEVD-2023-194-XX/",
-        ],
-        "mitre_techniques": ["T0846", "T0888"],
-        "exploit_available": False,
-        "exploit_complexity": "low",
-        "published_date": datetime(2023, 7, 11),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V30.20",
-                "display_name": "Easergy P3 (CVE-2023-37193)",
-                "snmp_sys_descr_template": "Schneider Electric Easergy P3 Universal Feeder Protection Relay {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Schneider Electric",
-                    "product_code": "P3U30",
-                    "major_minor_revision": "V30.20",
-                    "product_name": "Easergy P3 Universal Feeder Protection Relay",
-                },
-                "iec61850_identity_override": {
-                    "ied_name": "EASERGY_P3_INFO_VULN",
-                    "vendor": "Schneider Electric",
-                    "software_version": "V30.20",
-                },
-            },
-            {
-                "firmware_version": "V2.7.0",
-                "display_name": "Easergy T300 (CVE-2023-37193)",
-                "snmp_sys_descr_template": "Schneider Electric Easergy T300 Feeder RTU {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Schneider Electric",
-                    "product_code": "T300",
-                    "major_minor_revision": "V2.7.0",
-                    "product_name": "Easergy T300 Feeder RTU",
-                },
-                "iec104_identity_override": {
-                    "station_name": "EASERGY-T300-INFO-VULN",
-                    "common_address": 1,
-                },
-            },
-        ],
-    },
 ]

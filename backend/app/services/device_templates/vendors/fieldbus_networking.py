@@ -402,7 +402,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.02",
                 release_date=date(2022, 4, 20),
-                cves=["CVE-2022-29497"],
+                cves=[],
             ),
         ],
 
