@@ -74,7 +74,7 @@ const severityIcons: Record<string, React.ReactNode> = {
   low: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
 };
 
-const CVEBrowserPage: React.FC = () => {
+const CVEBrowserPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { message: antMessage } = App.useApp();
   const [searchText, setSearchText] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<string | undefined>();
@@ -150,8 +150,9 @@ const CVEBrowserPage: React.FC = () => {
   const isLoading = loadingStats || loadingCVEs;
 
   return (
-    <div style={{ padding: '24px', background: '#0d0d1a', minHeight: '100vh' }}>
-      {/* Page Header */}
+    <div style={embedded ? {} : { padding: '24px', background: '#0d0d1a', minHeight: '100vh' }}>
+      {/* Page Header (hidden when embedded in the Library hub) */}
+      {!embedded && (
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -173,6 +174,7 @@ const CVEBrowserPage: React.FC = () => {
           </Button>
         </div>
       </div>
+      )}
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

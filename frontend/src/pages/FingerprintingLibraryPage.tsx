@@ -80,7 +80,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'Specialized': <ApiOutlined />,
 };
 
-const FingerprintingLibraryPage: React.FC = () => {
+const FingerprintingLibraryPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { message: antMessage } = App.useApp();
   const [activeTab, setActiveTab] = useState('protocols');
   const [searchText, setSearchText] = useState('');
@@ -232,8 +232,9 @@ const FingerprintingLibraryPage: React.FC = () => {
   const isLoading = loadingStats || loadingProtocols || loadingVendors || loadingTemplates;
 
   return (
-    <div style={{ padding: '24px', background: '#0d0d1a', minHeight: '100vh' }}>
-      {/* Page Header */}
+    <div style={embedded ? {} : { padding: '24px', background: '#0d0d1a', minHeight: '100vh' }}>
+      {/* Page Header (hidden when embedded in the Library hub) */}
+      {!embedded && (
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -255,6 +256,7 @@ const FingerprintingLibraryPage: React.FC = () => {
           </Button>
         </div>
       </div>
+      )}
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

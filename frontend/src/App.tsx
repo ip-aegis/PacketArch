@@ -14,17 +14,16 @@ import ScenarioStudioPage from './pages/ScenarioStudioPage';
 import ScenariosPage from './pages/ScenariosPage';
 
 import IPManagementPage from './pages/IPManagementPage';
-import CVEBrowserPage from './pages/CVEBrowserPage';
 import HelpPage from './pages/HelpPage';
 import AIScenarioWizardPage from './pages/AIScenarioWizardPage';
 import GuidedBuilderPage from './pages/GuidedBuilderPage';
 import CyberVisionPage from './pages/CyberVisionPage';
-import FingerprintingLibraryPage from './pages/FingerprintingLibraryPage';
+import LibraryHubPage from './pages/LibraryHubPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
-import AttackLibraryPage from './pages/AttackLibraryPage';
 import AttackPlaybookDetailPage from './pages/AttackPlaybookDetailPage';
 import AgentsHubPage from './pages/AgentsHubPage';
+import LiveTrafficPage from './pages/LiveTrafficPage';
 
 function App() {
   return (
@@ -55,7 +54,7 @@ function App() {
           }
         />
         <Route path="scenarios/guided-builder" element={<GuidedBuilderPage />} />
-        <Route path="devices" element={<Navigate to="/fingerprints" replace />} />
+        <Route path="devices" element={<Navigate to="/libraries?tab=devices" replace />} />
 
         <Route
           path="agents"
@@ -65,19 +64,25 @@ function App() {
             </FeatureGate>
           }
         />
-        {/* Old standalone routes now live as tabs inside the Agents hub. */}
-        <Route path="deployments" element={<Navigate to="/agents?tab=deployments" replace />} />
-        <Route path="live-traffic" element={<Navigate to="/agents?tab=live-traffic" replace />} />
+        {/* Runtime view: live dashboard + deployments (infrastructure stays in the Agents hub). */}
+        <Route
+          path="live-traffic"
+          element={
+            <FeatureGate feature="liveTraffic" fallback="/scenarios">
+              <LiveTrafficPage />
+            </FeatureGate>
+          }
+        />
+        <Route path="deployments" element={<Navigate to="/live-traffic?tab=deployments" replace />} />
         <Route path="ip-management" element={<IPManagementPage />} />
-        <Route path="cves" element={<CVEBrowserPage />} />
         <Route path="cyber-vision" element={<CyberVisionPage />} />
-        <Route path="fingerprints" element={<FingerprintingLibraryPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="help/:articleId" element={<HelpPage />} />
         <Route path="architecture" element={<ArchitectureReferencePage />} />
-        <Route path="attack-library" element={<AttackLibraryPage />} />
+        {/* Consolidated reference libraries: CVEs, Attacks, Device Library */}
+        <Route path="libraries" element={<LibraryHubPage />} />
         <Route
-          path="attack-library/:playbookId"
+          path="libraries/attacks/:playbookId"
           element={<AttackPlaybookDetailPage />}
         />
 

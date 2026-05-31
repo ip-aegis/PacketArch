@@ -285,7 +285,7 @@ const AttackPlaybookDetailPage: React.FC = () => {
       <div style={{ padding: 24 }}>
         <Button
           icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/attack-library')}
+          onClick={() => navigate('/libraries?tab=attacks')}
           style={{ marginBottom: 12 }}
         >
           Back to library
@@ -300,7 +300,7 @@ const AttackPlaybookDetailPage: React.FC = () => {
       <Button
         type="text"
         icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/attack-library')}
+        onClick={() => navigate('/libraries?tab=attacks')}
         style={{ color: '#8aa4bc', marginBottom: 12 }}
       >
         Attack Library

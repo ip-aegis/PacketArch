@@ -160,6 +160,6 @@ export const deploymentsArticle: HelpArticle = {
   summary: 'Deploy scenarios to traffic agents for live traffic injection onto network interfaces.',
   content: DeploymentsContent,
   relatedArticles: ['scenarios', 'scenario-studio', 'admin-settings'],
-  relatedPages: ['/deployments'],
+  relatedPages: ['/live-traffic'],
   order: 1,
 };

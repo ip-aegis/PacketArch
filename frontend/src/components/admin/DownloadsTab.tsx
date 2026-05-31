@@ -29,14 +29,13 @@ import {
   FolderOpenOutlined,
   CodeOutlined,
   ApiOutlined,
-  PlaySquareOutlined,
   CloudServerOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { downloadsApi, DownloadableFile } from '../../api/downloads';
 import { extractErrorMessage } from '../../utils/errorUtils';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const DownloadsTab: React.FC = () => {
   const [files, setFiles] = useState<DownloadableFile[]>([]);
@@ -174,44 +173,10 @@ const DownloadsTab: React.FC = () => {
   }
 
   const applianceFiles = files.filter((f) => f.category === 'appliance');
-  const presentationFiles = files.filter((f) => f.category === 'presentations');
   const authoringFiles = files.filter((f) => f.category === 'authoring');
   const otherFiles = files.filter(
-    (f) =>
-      f.category !== 'appliance' &&
-      f.category !== 'presentations' &&
-      f.category !== 'authoring',
+    (f) => f.category !== 'appliance' && f.category !== 'authoring',
   );
-
-  // Group presentation files by deck so the table reads
-  // "Executive Briefing" once with four format rows instead of eight
-  // mixed entries. Deck key = filename without extension.
-  const groupedPresentations = (() => {
-    const groups: Record<string, DownloadableFile[]> = {};
-    for (const f of presentationFiles) {
-      const base = f.filename.replace(/\.(pdf|pptx|html|md)$/i, '');
-      if (!groups[base]) groups[base] = [];
-      groups[base].push(f);
-    }
-    // Preferred display order: PPTX → PDF → HTML → Marp source
-    const formatRank = (filename: string) => {
-      if (filename.endsWith('.pptx')) return 0;
-      if (filename.endsWith('.pdf')) return 1;
-      if (filename.endsWith('.html')) return 2;
-      return 3;
-    };
-    for (const key in groups) {
-      groups[key].sort(
-        (a, b) => formatRank(a.filename) - formatRank(b.filename),
-      );
-    }
-    // Sort the decks themselves: Executive first, then Technical.
-    return Object.entries(groups).sort(([a], [b]) => {
-      if (a.includes('Executive')) return -1;
-      if (b.includes('Executive')) return 1;
-      return a.localeCompare(b);
-    });
-  })();
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -291,69 +256,6 @@ const DownloadsTab: React.FC = () => {
             </Card>
           )}
 
-          {presentationFiles.length > 0 && (
-            <Card
-              title={
-                <Space>
-                  <PlaySquareOutlined />
-                  <span>Presentations</span>
-                </Space>
-              }
-              size="small"
-              extra={
-                applianceFiles.length === 0 ? (
-                  <Button onClick={fetchFiles} loading={isLoading} size="small">
-                    Refresh
-                  </Button>
-                ) : undefined
-              }
-            >
-              <Alert
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-                message="Executive briefing and technical deep-dive decks"
-                description={
-                  <Text>
-                    Pre-built slide decks for sharing PacketArch with stakeholders.
-                    The <Text strong>Executive Briefing</Text> targets C-suite and
-                    security leadership (business value, deployment models,
-                    economics). The <Text strong>Technical Deep-Dive</Text> targets
-                    security architects and OT engineers (architecture, protocol
-                    engines, attack simulation, Cyber Vision integration). Each deck
-                    is available as <Text code>.pptx</Text> for editing,{' '}
-                    <Text code>.pdf</Text> for distribution, <Text code>.html</Text>
-                    {' '}for browser viewing, and Marp <Text code>.md</Text> source
-                    for re-export.
-                  </Text>
-                }
-              />
-              {groupedPresentations.map(([deckKey, deckFiles]) => {
-                const deckTitle = deckKey
-                  .replace('PacketArch-', '')
-                  .replace(/-/g, ' ');
-                return (
-                  <div
-                    key={deckKey}
-                    style={{ marginBottom: 16, paddingBottom: 8 }}
-                  >
-                    <Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
-                      {deckTitle}
-                    </Title>
-                    <Table
-                      columns={columns}
-                      dataSource={deckFiles}
-                      rowKey="filename"
-                      pagination={false}
-                      size="middle"
-                      showHeader={false}
-                    />
-                  </div>
-                );
-              })}
-            </Card>
-          )}
-
           {authoringFiles.length > 0 && (
             <Card
               title={
@@ -364,7 +266,7 @@ const DownloadsTab: React.FC = () => {
               }
               size="small"
               extra={
-                applianceFiles.length === 0 && presentationFiles.length === 0 ? (
+                applianceFiles.length === 0 ? (
                   <Button onClick={fetchFiles} loading={isLoading} size="small">
                     Refresh
                   </Button>
@@ -414,9 +316,7 @@ const DownloadsTab: React.FC = () => {
               }
               size="small"
               extra={
-                applianceFiles.length === 0 &&
-                presentationFiles.length === 0 &&
-                authoringFiles.length === 0 ? (
+                applianceFiles.length === 0 && authoringFiles.length === 0 ? (
                   <Button onClick={fetchFiles} loading={isLoading} size="small">
                     Refresh
                   </Button>

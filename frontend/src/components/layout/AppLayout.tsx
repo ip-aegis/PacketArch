@@ -24,7 +24,7 @@ import {
 
   CloudServerOutlined,
   GlobalOutlined,
-  BugOutlined,
+  BarChartOutlined,
   LockOutlined,
   EyeOutlined,
   QuestionCircleOutlined,
@@ -190,9 +190,9 @@ const AppLayout: React.FC = () => {
       label: 'Scenarios',
     },
     {
-      key: '/fingerprints',
+      key: '/libraries',
       icon: <DatabaseOutlined />,
-      label: 'Device Library',
+      label: 'Libraries',
     },
     ...(liveTrafficEnabled
       ? [
@@ -201,22 +201,17 @@ const AppLayout: React.FC = () => {
             icon: <CloudServerOutlined />,
             label: 'Agents',
           },
+          {
+            key: '/live-traffic',
+            icon: <BarChartOutlined />,
+            label: 'Live Traffic',
+          },
         ]
       : []),
     {
       key: '/ip-management',
       icon: <GlobalOutlined />,
       label: 'IP Management',
-    },
-    {
-      key: '/cves',
-      icon: <BugOutlined />,
-      label: 'CVE Browser',
-    },
-    {
-      key: '/attack-library',
-      icon: <ThunderboltOutlined />,
-      label: 'Attack Library',
     },
     {
       key: '/cyber-vision',
@@ -427,7 +422,7 @@ const AppLayout: React.FC = () => {
                     type="text"
                     icon={<BellOutlined style={{ fontSize: 18 }} />}
                     style={{ color: healthAlertCount > 0 ? '#fa8c16' : '#a8a8c0' }}
-                    onClick={() => navigate('/agents?tab=live-traffic')}
+                    onClick={() => navigate('/live-traffic')}
                   />
                 </Badge>
               </Tooltip>

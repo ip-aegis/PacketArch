@@ -23,7 +23,7 @@ const EmptyDashboard: React.FC = () => {
         hint="Deploy a scenario to an agent to see live traffic metrics here."
         marginTop={0}
         actions={[
-          { label: 'Go to Deployments', primary: true, to: '/deployments' },
+          { label: 'Go to Deployments', primary: true, to: '/live-traffic?tab=deployments' },
         ]}
         helpArticleId="live-traffic"
       />

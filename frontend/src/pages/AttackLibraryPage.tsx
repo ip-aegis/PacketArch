@@ -61,7 +61,7 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-const AttackLibraryPage: React.FC = () => {
+const AttackLibraryPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const navigate = useNavigate();
   const [playbooks, setPlaybooks] = useState<AttackPlaybookSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +116,8 @@ const AttackLibraryPage: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={embedded ? {} : { padding: 24 }}>
+      {!embedded && (
       <div style={{ marginBottom: 20 }}>
         <Space align="center" size={10}>
           <BookOutlined style={{ fontSize: 24, color: '#ff7875' }} />
@@ -135,6 +136,7 @@ const AttackLibraryPage: React.FC = () => {
           alert on.
         </Paragraph>
       </div>
+      )}
 
       {/* Filter bar */}
       <Card
@@ -206,7 +208,7 @@ const AttackLibraryPage: React.FC = () => {
             <Card
               key={pb.playbook_id}
               hoverable
-              onClick={() => navigate(`/attack-library/${pb.playbook_id}`)}
+              onClick={() => navigate(`/libraries/attacks/${pb.playbook_id}`)}
               style={{
                 background: '#141428',
                 border: `1px solid ${

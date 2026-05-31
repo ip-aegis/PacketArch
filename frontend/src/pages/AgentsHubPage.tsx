@@ -10,10 +10,12 @@
  * prop-less components, so nothing is duplicated or lost (additive).
  *
  *   Agents        — traffic-agent fleet (lifted from Settings → Traffic Agents)
- *   Local Labs    — on-box agent + CV sensor labs (new this feature)
- *   Modeling Labs — CML build/deploy (lifted from Settings → Modeling Labs)
- *   Deployments   — scenario deployment history (lifted from /deployments)
- *   Live Traffic  — live agent/deployment dashboard (lifted from /live-traffic)
+ *   Topology      — live agent → SPAN → sensor flow visualization
+ *   Local Labs    — on-box agent + CV sensor labs
+ *   Modeling Labs — CML build/deploy
+ *
+ * The runtime view (Live Dashboard + Deployments) lives on its own page,
+ * /live-traffic, so this hub stays focused on infrastructure.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -23,8 +25,6 @@ import {
   CloudServerOutlined,
   ApiOutlined,
   ClusterOutlined,
-  RocketOutlined,
-  BarChartOutlined,
   WifiOutlined,
   PartitionOutlined,
 } from '@ant-design/icons';
@@ -34,8 +34,6 @@ import AgentsTab from '../components/admin/AgentsTab';
 import AgentTopology from '../components/agents/AgentTopology';
 import LocalLabsTab from '../components/agents/LocalLabsTab';
 import CmlTab from '../components/admin/CmlTab';
-import DeploymentsPage from './DeploymentsPage';
-import LiveTrafficDashboardPage from './LiveTrafficDashboardPage';
 import { agentsApi } from '../api/agents';
 import { localSensorApi } from '../api/localSensor';
 
@@ -156,24 +154,6 @@ const AgentsHubPage: React.FC = () => {
         </span>
       ),
       children: <CmlTab />,
-    },
-    {
-      key: 'deployments',
-      label: (
-        <span>
-          <RocketOutlined /> Deployments
-        </span>
-      ),
-      children: <DeploymentsPage />,
-    },
-    {
-      key: 'live-traffic',
-      label: (
-        <span>
-          <BarChartOutlined /> Live Traffic
-        </span>
-      ),
-      children: <LiveTrafficDashboardPage />,
     },
   ];
 

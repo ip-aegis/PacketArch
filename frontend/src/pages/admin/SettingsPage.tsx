@@ -19,7 +19,6 @@ import {
   Alert,
   message,
   Spin,
-  Popconfirm,
   Radio,
   Select,
   Collapse,
@@ -27,16 +26,12 @@ import {
 } from 'antd';
 import { settingsApi } from '../../api/settings';
 import {
-  GlobalOutlined,
   SettingOutlined,
-  DatabaseOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   TeamOutlined,
   RobotOutlined,
   EyeOutlined,
-  RocketOutlined,
-  CloudServerOutlined,
   DownloadOutlined,
   FileOutlined,
   IdcardOutlined,
@@ -55,7 +50,6 @@ import AICostsTab from '../../components/admin/AICostsTab';
 import AITokenUsageTab from '../../components/admin/AITokenUsageTab';
 import SystemUpdatesTab from '../../components/admin/SystemUpdatesTab';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { useFeatures } from '../../hooks/useFeatures';
 import type { SystemSetting, SettingsResponse } from '../../types';
 import ContextualHelpIcon from '../../components/help/ContextualHelpIcon';
 
@@ -580,44 +574,17 @@ const AIProviderTab: React.FC<{
   );
 };
 
-// Settings is config-only now; live agent/lab operations moved to the Agents
-// hub. This pointer replaces the old in-Settings AgentsTab/CmlTab so there's one
-// operations home — the capability is RELOCATED, not removed (CML build/deploy
-// and traffic-agent management are fully functional at /agents).
-const ManagedInAgentsPointer: React.FC<{ what: string }> = ({ what }) => {
-  const navigate = useNavigate();
-  return (
-    <Alert
-      type="info"
-      showIcon
-      message={`${what} moved to the Agents page`}
-      description={
-        <Space direction="vertical">
-          <span>
-            {what} are now managed from the dedicated Agents page, alongside
-            Local Sensor Labs, Deployments, and the live Topology view.
-          </span>
-          <Button type="primary" onClick={() => navigate('/agents')}>
-            Go to Agents
-          </Button>
-        </Space>
-      }
-    />
-  );
-};
-
 const SettingsPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     settings,
     isLoading,
     error,
     fetchSettings,
     updateSetting,
-    seedSettings,
     testConnection,
     clearError,
   } = useSettingsStore();
-  const { liveTrafficEnabled } = useFeatures();
 
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{
@@ -645,6 +612,15 @@ const SettingsPage: React.FC = () => {
     setSearchParams({ tab: key }, { replace: true });
   };
 
+  // The Overview cards deep-link using backend subsystem keys, some of which no
+  // longer map 1:1 to a settings tab (AI is now consolidated; agents live on
+  // their own page). Remap those before switching tabs.
+  const handleSelectSubsystem = (key: string) => {
+    if (key === 'ai_provider') return handleTabChange('ai');
+    if (key === 'agents') return navigate('/agents');
+    handleTabChange(key);
+  };
+
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
@@ -657,15 +633,6 @@ const SettingsPage: React.FC = () => {
       setConnectionResult(result);
     } finally {
       setTestingConnection(false);
-    }
-  };
-
-  const handleSeedSettings = async () => {
-    try {
-      const result = await seedSettings();
-      message.success(`Created ${result.created} settings, skipped ${result.skipped} existing`);
-    } catch {
-      message.error('Failed to seed settings');
     }
   };
 
@@ -688,57 +655,57 @@ const SettingsPage: React.FC = () => {
           <DashboardOutlined /> Overview
         </span>
       ),
-      children: <SiteConfigOverviewTab onSelectTab={handleTabChange} />,
+      children: <SiteConfigOverviewTab onSelectTab={handleSelectSubsystem} />,
     },
     {
-      key: 'ai_provider',
+      key: 'ai',
       label: (
         <span>
-          <RobotOutlined /> AI Provider
+          <RobotOutlined /> AI Integrations
         </span>
       ),
       children: (
-        <AIProviderTab
-          settings={settings}
-          updateSetting={updateSetting}
-          testConnection={handleTestConnection}
-          testingConnection={testingConnection}
-          connectionResult={connectionResult}
-          setConnectionResult={setConnectionResult}
+        <Tabs
+          defaultActiveKey="provider"
+          items={[
+            {
+              key: 'provider',
+              label: (
+                <span>
+                  <RobotOutlined /> Provider
+                </span>
+              ),
+              children: (
+                <AIProviderTab
+                  settings={settings}
+                  updateSetting={updateSetting}
+                  testConnection={handleTestConnection}
+                  testingConnection={testingConnection}
+                  connectionResult={connectionResult}
+                  setConnectionResult={setConnectionResult}
+                />
+              ),
+            },
+            {
+              key: 'usage',
+              label: (
+                <span>
+                  <BarChartOutlined /> Usage
+                </span>
+              ),
+              children: <AITokenUsageTab />,
+            },
+            {
+              key: 'costs',
+              label: (
+                <span>
+                  <DollarOutlined /> Costs
+                </span>
+              ),
+              children: <AICostsTab />,
+            },
+          ]}
         />
-      ),
-    },
-    {
-      key: 'ai_token_usage',
-      label: (
-        <span>
-          <BarChartOutlined /> AI Token Usage
-        </span>
-      ),
-      children: <AITokenUsageTab />,
-    },
-    {
-      key: 'ai_costs',
-      label: (
-        <span>
-          <DollarOutlined /> AI Costs
-        </span>
-      ),
-      children: <AICostsTab />,
-    },
-    {
-      key: 'network',
-      label: (
-        <span>
-          <GlobalOutlined /> Network Defaults
-        </span>
-      ),
-      children: (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {settings?.network.map((setting) => (
-            <SettingItem key={setting.key} setting={setting} onSave={updateSetting} />
-          ))}
-        </Space>
       ),
     },
     {
@@ -757,15 +724,6 @@ const SettingsPage: React.FC = () => {
       ),
     },
     {
-      key: 'agents',
-      label: (
-        <span>
-          <RocketOutlined /> Traffic Agents
-        </span>
-      ),
-      children: <ManagedInAgentsPointer what="Traffic agents" />,
-    },
-    {
       key: 'cyber_vision',
       label: (
         <span>
@@ -773,15 +731,6 @@ const SettingsPage: React.FC = () => {
         </span>
       ),
       children: <CyberVisionTab />,
-    },
-    {
-      key: 'cml',
-      label: (
-        <span>
-          <CloudServerOutlined /> Modeling Labs
-        </span>
-      ),
-      children: <ManagedInAgentsPointer what="Cisco Modeling Labs" />,
     },
     {
       key: 'ldap',
@@ -820,47 +769,6 @@ const SettingsPage: React.FC = () => {
       children: <GeneratedPcapsTab />,
     },
     {
-      key: 'seed',
-      label: (
-        <span>
-          <DatabaseOutlined /> Seed Data
-        </span>
-      ),
-      children: (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Card title="Initialize Default Settings">
-            <Text type="secondary">
-              Seed the database with default system settings. This will create any
-              missing settings without overwriting existing values.
-            </Text>
-            <div style={{ marginTop: 16 }}>
-              <Button type="primary" onClick={handleSeedSettings} icon={<DatabaseOutlined />}>
-                Seed Default Settings
-              </Button>
-            </div>
-          </Card>
-
-          <Card title="Reset to Defaults">
-            <Text type="secondary">
-              Reset all settings to their default values. This action cannot be undone.
-            </Text>
-            <div style={{ marginTop: 16 }}>
-              <Popconfirm
-                title="Reset all settings?"
-                description="This will overwrite all current settings with default values."
-                onConfirm={() => message.info('Reset functionality not yet implemented')}
-                okText="Yes, Reset"
-                cancelText="Cancel"
-                okButtonProps={{ danger: true }}
-              >
-                <Button danger>Reset All Settings</Button>
-              </Popconfirm>
-            </div>
-          </Card>
-        </Space>
-      ),
-    },
-    {
       key: 'updates',
       label: (
         <span>
@@ -880,7 +788,7 @@ const SettingsPage: React.FC = () => {
             <ContextualHelpIcon articleId="admin-settings" tooltip="System settings help" />
           </Title>
           <Text type="secondary">
-            Configure API tokens, network defaults, and system parameters.
+            Configure AI integrations, authentication, and system parameters.
           </Text>
         </div>
 
@@ -897,7 +805,7 @@ const SettingsPage: React.FC = () => {
 
         <Card>
           <Tabs
-            items={tabItems.filter((t) => liveTrafficEnabled || (t.key !== 'agents' && t.key !== 'cml'))}
+            items={tabItems}
             activeKey={activeTab}
             onChange={handleTabChange}
             destroyInactiveTabPane
