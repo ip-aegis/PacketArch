@@ -280,6 +280,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
              "name": "ATMS_Coordination_Master_Station", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
+             "cve_ids": ["CVE-2018-13798", "CVE-2022-29884"],
              "role": "ATMS Coordination Master"},
 
             # Distribution Switches - Cisco IE-3500-8P3S-E
@@ -351,6 +352,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "camera_anpr", "vendor": "hikvision", "count": 2, "zone": "camera_zone",
              "name_pattern": "Intersection_ANPR_Enforcement_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "DS-2CD7A26G0/P",
+             "cve_ids": ["CVE-2021-36260"],
              "role": "ANPR Camera"},
 
             # Bosch PTZ Camera
@@ -814,6 +816,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "toll_center",
              "name_pattern": "Toll_Center_Network_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3500-8P3S-E",
+             "cve_ids": ["CVE-2023-20198"],
              "role": "Toll Center Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy

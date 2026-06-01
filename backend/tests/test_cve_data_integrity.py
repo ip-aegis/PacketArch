@@ -18,6 +18,20 @@ import re
 
 from app.services.cve_data import ALL_CVES
 from app.services.device_templates import get_all_templates
+from app.scenario_templates import VERTICAL_TEMPLATES
+
+
+def _iter_cve_id_lists(obj):
+    """Yield every ``cve_ids`` list found anywhere in a nested structure."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "cve_ids" and isinstance(v, list):
+                yield v
+            else:
+                yield from _iter_cve_id_lists(v)
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            yield from _iter_cve_id_lists(item)
 
 # CVE IDs referenced by a template but intentionally NOT carried in the DB.
 # Keep this EMPTY. Any addition must come with a written justification —
@@ -80,4 +94,19 @@ def test_every_template_cve_exists_in_db():
     assert not missing, (
         "Template CVEs absent from the CVE DB (add a DB record or whitelist "
         f"with justification): {sorted(missing)}"
+    )
+
+
+def test_every_scenario_template_cve_exists_in_db():
+    """Same cross-system invariant for the vertical scenario templates:
+    every device ``cve_ids`` entry must resolve to a curated DB row."""
+    db_ids = {c["cve_id"] for c in ALL_CVES}
+    missing: set[str] = set()
+    for vertical in VERTICAL_TEMPLATES.values():
+        for cve_list in _iter_cve_id_lists(vertical):
+            for cid in cve_list:
+                if cid not in db_ids and cid not in TEMPLATE_CVE_DB_WHITELIST:
+                    missing.add(cid)
+    assert not missing, (
+        f"Scenario-template CVEs absent from the CVE DB: {sorted(missing)}"
     )

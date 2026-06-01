@@ -62,13 +62,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              # synchrophasor streams from the protection-relay PMUs.
              "name": "Substation_Gateway_RTAC", "protocols": ["modbus_tcp", "dnp3", "snmp", "c37118"],
              "fingerprint_model": "SEL-3530",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31150", "CVE-2023-2310"],
              "role": "Substation Gateway"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "substation_lan",
              "name": "Substation_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
+             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # ABB CP620 HMI - Local Operator Panel
@@ -81,6 +82,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_lan",
              "name": "Substation_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -105,13 +107,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Bus_Section_{n:02d}_Bay_Controller",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SEL-451",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-31176"],
              "role": "Bay Controller"},
 
             # ABB REX640 - Bus Tie Protection (IEC 61850 + Modbus)
             {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "bay_control",
              "name": "Bus_Tie_Protection_IED", "protocols": ["modbus_tcp", "iec61850", "snmp"],
              "fingerprint_model": "REX640",
+             "cve_ids": ["CVE-2022-1596", "CVE-2024-8036"],
              "role": "Bus Protection"},
 
             # Siemens 7SJ85 - Bus Overcurrent (IEC 61850 + Modbus)
@@ -125,6 +128,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bay_control",
              "name_pattern": "Bay_Network_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Bay Network Switch"},
 
             # ============================================================
@@ -136,7 +140,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Feeder_{n:02d}_Protection_Relay",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SEL-751",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-2103"],
              "role": "Feeder Protection"},
 
             # GE Multilin 850 - Feeder Backup Relays
@@ -164,7 +168,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Transformer_{n:02d}_Backup_Differential",
              "protocols": ["modbus_tcp", "iec61850"],
              "fingerprint_model": "7UT87",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "Transformer Backup"},
 
             # SEL-311C Line Distance Relays
@@ -179,6 +183,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Transmission_Line_{n:02d}_Differential",
              "protocols": ["modbus_tcp", "iec61850"],
              "fingerprint_model": "7SD87",
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452"],
              "role": "Line Differential"},
 
             # ============================================================
@@ -190,6 +195,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Feeder_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
              "role": "Revenue Meter"},
 
             # Schneider PM8000 Power Quality Meters
@@ -213,6 +219,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wan_zone",
              "name": "WAN_Edge_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "WAN Edge Switch"},
 
             # --- WAMS / EXTENDED PROTECTION (added) - 9 devices: SEL PMUs, RTAC PDC, Siemens busbar, ABB line distance, Schneider C264, Beckwith OLTC ---
@@ -227,7 +234,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Line_Diff_PMU_South",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Line Differential Protection + PMU"},
 
             # SEL-787 Transformer Protection + PMU (transformer zone)
@@ -235,7 +242,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Xfmr_Diff_PMU_T1",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-787",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-2103"],
              "role": "Transformer Differential Protection + PMU"},
 
             # SEL-3555 RTAC - Substation PDC / Station RTAC
@@ -250,7 +257,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Busbar_Differential_7SS85",
              "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
              "fingerprint_model": "7SS85",
-             "cve_ids": ["CVE-2015-5374"],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "Busbar Differential Protection"},
 
             # ABB REL630 Line Distance Protection (feeder_zone)
@@ -258,7 +265,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Feeder_{n:02d}_Line_Distance_REL630",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL630",
-             "cve_ids": ["CVE-2021-22276"],
+             "cve_ids": ["CVE-2024-8036"],
              "role": "Line Distance Protection"},
 
             # Schneider MiCOM C264 Bay Controller
@@ -266,7 +273,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Bay_Computer_C264",
              "protocols": ["modbus_tcp", "iec61850", "iec104", "snmp"],
              "fingerprint_model": "C264",
-             "cve_ids": ["CVE-2021-22772"],
+             "cve_ids": [],
              "role": "Bay Computer / Bay Controller"},
 
             # Beckwith M-2001D OLTC Digital Tap-Changer Control
@@ -530,13 +537,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "plant_scada",
              "name": "Plant_DCS_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
+             "cve_ids": ["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
              "role": "Plant DCS Server"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "plant_scada",
              "name": "Plant_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
+             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # Honeywell Experion Station - Operator Workstations
@@ -544,12 +552,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Plant_Operator_Workstation_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
+             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "Operator Workstation"},
 
             # Cisco IE-4000 - Core Switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "plant_scada",
              "name": "Plant_SCADA_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -574,7 +584,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Gas_Turbine_Mark_VIe_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "IS420UCSBH1A",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2019-13559", "CVE-2019-13554"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Gas Turbine Controller"},
 
@@ -583,7 +593,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Steam_Turbine_Mark_VIe_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "IS420UCSBH1A",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2019-13559", "CVE-2019-13554"],
              "role": "Steam Turbine Controller"},
 
             # ABB CP620 HMI - Turbine Floor Panels
@@ -591,6 +601,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Turbine_Floor_HMI_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "CP620",
+             "cve_ids": ["CVE-2019-7225"],
              "role": "Turbine Floor Panel"},
 
             # GE PACSystems RX3i - HRSG Control PLCs
@@ -598,7 +609,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "HRSG_Control_PLC_{n:02d}",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "IC695CPE400",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2019-13524"],
              "role": "Heat Recovery Steam Generator"},
 
             # Cisco IE-3300 - Turbine Network Switches
@@ -616,18 +627,21 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
              "name": "Cooling_Tower_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "PM590-ETH",
+             "cve_ids": ["CVE-2025-7745"],
              "role": "Cooling Tower Controller"},
 
             # ABB AC500 PM590 - Fuel Gas System PLC
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
              "name": "Fuel_Gas_System_PLC", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "PM590-ETH",
+             "cve_ids": ["CVE-2025-7745"],
              "role": "Fuel Gas Controller"},
 
             # ABB AC500 PM5630 - Water Treatment PLC
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "bop_control",
              "name": "Water_Treatment_PLC", "protocols": ["modbus_tcp"],
              "fingerprint_model": "PM5630-2ETH",
+             "cve_ids": ["CVE-2024-12429"],
              "role": "Water Treatment Controller"},
 
             # ABB ACS880 - Cooling Water Pump VFDs
@@ -635,12 +649,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Cooling_Water_Pump_VFD_{n:02d}",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Cooling Water Pump"},
 
             # ABB ACS880 - ID Fan VFD
             {"type": "drive", "vendor": "abb", "count": 1, "zone": "bop_control",
              "name": "ID_Fan_VFD", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Induced Draft Fan"},
 
             # ABB ACS580 - Boiler Feed Pump VFDs
@@ -669,6 +685,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Excitation_Protection",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "REX640",
+             "cve_ids": ["CVE-2022-1596", "CVE-2024-8036"],
              "role": "Excitation Protection"},
 
             # GE Multilin T60 - GSU Transformer Protection
@@ -694,7 +711,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Overcurrent_Relay",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "7SJ85",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "Generator Overcurrent"},
 
             # ============================================================
@@ -706,6 +723,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
              "role": "Revenue Meter"},
 
             # Schneider PM8000 Power Quality Meters
@@ -735,7 +753,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Gen_Unit_2_Protection",
              "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
              "fingerprint_model": "7UM85",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "Generator Differential / Field-Failure Protection"},
 
             # Siemens SIPROTEC 7VK87 - Autoreclose + Synchrocheck
@@ -744,7 +762,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Gen_Autoreclose_Synchrocheck_7VK87",
              "protocols": ["s7comm", "iec61850", "modbus_tcp", "snmp"],
              "fingerprint_model": "7VK87",
-             "cve_ids": ["CVE-2015-5374"],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "Autoreclose / Synchrocheck"},
 
             # ABB Symphony Plus HPG800 - Plant Controller (placed in plant_scada)
@@ -980,19 +998,21 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
              "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp", "ethernet_ip", "iec104"],
              "fingerprint_model": "Experion Server",
+             "cve_ids": ["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
              "role": "Primary SCADA Server"},
 
             # Honeywell Experion Server - Backup SCADA
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
              "name": "EMS_Backup_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp", "ethernet_ip", "iec104"],
              "fingerprint_model": "Experion Server",
+             "cve_ids": ["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
              "role": "Backup SCADA Server"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "ems_core",
              "name": "EMS_Grid_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
+             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Grid Historian"},
 
             # Honeywell Experion Station - Operator Consoles
@@ -1000,6 +1020,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "EMS_Operator_Console_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
+             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "Operator Console"},
 
             # Cisco IE-4000 - Core Switch
@@ -1024,6 +1045,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "EMS_Application_Server",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "IC695CPE400",
+             "cve_ids": ["CVE-2019-13524"],
              "role": "EMS Application Engine"},
 
             # ABB CP620 - Engineering Workstation
@@ -1036,6 +1058,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "engineering",
              "name": "Engineering_Network_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Engineering Network Switch"},
 
             # ============================================================
@@ -1047,6 +1070,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Comm_Hub_RTAC_Primary",
              "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "SEL-3530",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31150", "CVE-2023-2310"],
              "role": "Primary Communications Front-End"},
 
             # SEL-3530 RTAC - Redundant Comm Front-End
@@ -1061,6 +1085,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Comm_Hub_WAN_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Communications WAN Switch"},
 
             # ============================================================
@@ -1072,6 +1097,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_RTAC",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SEL-3530",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31150", "CVE-2023-2310"],
              "role": "Remote Substation Gateway"},
 
             # SEL-751 Feeder Relays (1 per substation)
@@ -1094,6 +1120,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
              "role": "Revenue Meter"},
 
             # ============================================================
@@ -1105,6 +1132,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_RTU",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "RTU560",
+             "cve_ids": ["CVE-2023-5768", "CVE-2023-5769"],
              "role": "Remote Substation RTU"},
 
             # ABB REF615 Feeder Relays
@@ -1112,7 +1140,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Feeder_Relay",
              "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "REF615",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-8036"],
              "role": "Feeder Protection"},
 
             # GE Multilin T60 Transformer Relays (substations 5-6)
@@ -1120,7 +1148,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Transformer_Relay",
              "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "T60",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2021-27426", "CVE-2021-27428", "CVE-2021-27420", "CVE-2021-27424"],
              "role": "Transformer Protection"},
 
             # Schneider PM8000 Power Meters
@@ -1147,6 +1175,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Regional_PDC_North",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
              "fingerprint_model": "SEL-3555",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
              "role": "Regional Phasor Data Concentrator"},
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "ems_core",
              "name": "Regional_PDC_South",
@@ -1159,13 +1188,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_A{n:02d}_PMU_SEL411L",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Substation PMU"},
             {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "remote_sub_b",
              "name": "Substation_B01_PMU_SEL411L",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Substation PMU"},
 
             # Schneider MiCOM C264 Bay Controller (placed at remote_sub_a)
@@ -1173,7 +1202,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Substation_A_Bay_Computer_C264",
              "protocols": ["modbus_tcp", "iec61850", "iec104", "snmp"],
              "fingerprint_model": "C264",
-             "cve_ids": ["CVE-2021-22772"],
+             "cve_ids": [],
              "role": "Bay Computer / Bay Controller"},
 
             # Substation PMU concentrators (SEL-3555 at substations)
@@ -1181,11 +1210,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Substation_A_Local_PDC_SEL3555",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
              "fingerprint_model": "SEL-3555",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
              "role": "Substation Phasor Data Concentrator"},
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "remote_sub_b",
              "name": "Substation_B_Local_PDC_SEL3555",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
              "fingerprint_model": "SEL-3555",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
              "role": "Substation Phasor Data Concentrator"},
 
             # Beckwith M-7679 Transformer Monitor (asset monitoring at EMS)
@@ -1442,7 +1473,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "microgrid_control",
              "name": "Plant_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
+             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # ABB CP620 HMI - Plant Control Room
@@ -1455,12 +1486,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "honeywell", "count": 1, "zone": "microgrid_control",
              "name": "Plant_Operator_Workstation", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
+             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "Operator Workstation"},
 
             # Cisco IE-4000 - Core Switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "microgrid_control",
              "name": "Microgrid_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access
@@ -1475,6 +1508,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Plant_SCADA_Gateway_RTAC",
              "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "SEL-3530",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31150", "CVE-2023-2310"],
              "role": "SCADA Gateway"},
 
             # ============================================================
@@ -1501,6 +1535,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Inverter_Field_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Inverter Field Switch"},
 
             # ============================================================
@@ -1512,7 +1547,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "BESS_Rack_{n:02d}_Controller",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "IC695CPE400",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2019-13524"],
              "role": "Battery Rack Controller"},
 
             # GE PACSystems RX3i - BESS Master Controller
@@ -1527,12 +1562,14 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "BESS_Power_Converter_VFD",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Power Converter"},
 
             # ABB CP620 HMI - BESS Local Panel
             {"type": "hmi", "vendor": "abb", "count": 1, "zone": "bess_control",
              "name": "BESS_Local_Panel", "protocols": ["modbus_tcp"],
              "fingerprint_model": "CP620",
+             "cve_ids": ["CVE-2019-7225"],
              "role": "BESS Local Panel"},
 
             # Cisco IE-3300 - BESS Switch
@@ -1550,6 +1587,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "zone": "poi_protection",
              "name": "POI_Main_Protection_IED", "protocols": ["modbus_tcp"],
              "fingerprint_model": "REX640",
+             "cve_ids": ["CVE-2022-1596", "CVE-2024-8036"],
              "role": "POI Main Protection"},
 
             # ABB REF615 - POI Feeder Protection
@@ -1557,7 +1595,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "zone": "poi_protection",
              "name": "POI_Feeder_Protection", "protocols": ["modbus_tcp"],
              "fingerprint_model": "REF615",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-8036"],
              "role": "POI Feeder Protection"},
 
             # SEL-751 - Anti-Islanding Relay
@@ -1573,7 +1611,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "zone": "poi_protection",
              "name": "POI_Transformer_Protection", "protocols": ["modbus_tcp"],
              "fingerprint_model": "7UT87",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2018-11451", "CVE-2018-11452", "CVE-2024-54017"],
              "role": "POI Transformer Protection"},
 
             # Schneider ION8650 - Net Revenue Meters
@@ -1582,6 +1620,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "POI_Net_Meter_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "cve_ids": ["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
              "role": "Net Revenue Meter"},
 
             # ============================================================
@@ -1622,6 +1661,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wan",
              "name": "WAN_Edge_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "WAN Edge Switch"},
 
             # --- DER PROTECTION + POI METERING (added) - 6 devices: Easergy P3/T300/P1, ABB RED615, ION9000 ---
@@ -1630,7 +1670,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Inverter_Array_{n:02d}_Feeder_Protection_P3",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "P3U30",
-             "cve_ids": ["CVE-2022-37300", "CVE-2022-37301"],
+             "cve_ids": ["CVE-2022-22725"],
              "role": "Feeder Protection Relay"},
 
             # Schneider Easergy T300 - POI RTU
@@ -1638,7 +1678,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "POI_RTU_T300",
              "protocols": ["modbus_tcp", "dnp3", "iec104", "snmp"],
              "fingerprint_model": "T300",
-             "cve_ids": ["CVE-2022-37300"],
+             "cve_ids": ["CVE-2020-7561"],
              "role": "POI RTU"},
 
             # Schneider Easergy P1 - BESS String Protection
@@ -1646,7 +1686,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "BESS_String_Protection_P1",
              "protocols": ["modbus_tcp", "iec61850"],
              "fingerprint_model": "P1F30",
-             "cve_ids": ["CVE-2022-37300", "CVE-2022-37301"],
+             "cve_ids": [],
              "role": "BESS String Protection"},
 
             # ABB RED615 - Microgrid Tie-Line Differential
@@ -1654,7 +1694,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Microgrid_TieLine_Differential_RED615",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "RED615",
-             "cve_ids": ["CVE-2021-22276"],
+             "cve_ids": ["CVE-2024-8036"],
              "role": "Microgrid Tie-Line Differential"},
 
             # Schneider PowerLogic ION9000 - Revenue Meter at POI
@@ -1909,13 +1949,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "SubA_PMU_SEL411L_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Line Differential PMU"},
             {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_a",
              "name": "SubA_Xfmr_PMU_SEL787",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-787",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-2103"],
              "role": "Transformer Differential + PMU"},
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_a",
              "name": "SubA_PDC_SEL3555",
@@ -1926,11 +1966,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "SubA_LineDistance_Backup_REL670",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL670",
+             "cve_ids": ["CVE-2019-18253", "CVE-2021-27196", "CVE-2021-35534"],
              "role": "Line Distance Backup Protection"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_a",
              "name": "SubA_Network_Switch",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Substation Network Switch"},
 
             # --- SUBSTATION B (Level 2) - 6 devices ---
@@ -1944,22 +1986,25 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "SubB_Xfmr_PMU_SEL787",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-787",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-2103"],
              "role": "Transformer Differential + PMU"},
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_b",
              "name": "SubB_PDC_SEL3555",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
              "fingerprint_model": "SEL-3555",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
              "role": "Substation Phasor Data Concentrator"},
             {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_b",
              "name": "SubB_LineDistance_Backup_REL670",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL670",
+             "cve_ids": ["CVE-2019-18253", "CVE-2021-35534"],
              "role": "Line Distance Backup Protection"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_b",
              "name": "SubB_Network_Switch",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Substation Network Switch"},
 
             # --- SUBSTATION C (Level 2) - 6 devices ---
@@ -1967,7 +2012,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "SubC_PMU_SEL411L_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Line Differential PMU"},
             {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_c",
              "name": "SubC_Xfmr_PMU_SEL787",
@@ -1979,11 +2024,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "SubC_PDC_SEL3555",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "iec104", "snmp", "c37118"],
              "fingerprint_model": "SEL-3555",
+             "cve_ids": ["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
              "role": "Substation Phasor Data Concentrator"},
             {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "substation_c",
              "name": "SubC_LineDistance_Backup_REL670",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL670",
+             "cve_ids": ["CVE-2019-18253", "CVE-2021-27196", "CVE-2021-35534"],
              "role": "Line Distance Backup Protection"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_c",
              "name": "SubC_Network_Switch",
@@ -1996,13 +2043,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "SubD_PMU_SEL411L_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2023-2265"],
              "role": "Line Differential PMU"},
             {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_d",
              "name": "SubD_Xfmr_PMU_SEL787",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-787",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2024-2103"],
              "role": "Transformer Differential + PMU"},
             {"type": "rtu", "vendor": "sel", "count": 1, "zone": "substation_d",
              "name": "SubD_PDC_SEL3555",
@@ -2013,11 +2060,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "SubD_LineDistance_Backup_REL670",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL670",
+             "cve_ids": ["CVE-2019-18253", "CVE-2021-27196", "CVE-2021-35534"],
              "role": "Line Distance Backup Protection"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_d",
              "name": "SubD_Network_Switch",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Substation Network Switch"},
 
             # --- EMS CONTROL CENTER (Level 4) - 4 devices: Super-PDC, state estimator, historian, core switch ---
@@ -2035,7 +2084,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "EMS_WAMS_Historian",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46660"],
+             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "WAMS Historian"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "ems_control_center",
              "name": "EMS_Core_Switch_IE4000",

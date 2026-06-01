@@ -50,6 +50,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "bms_server", "vendor": "automated_logic", "count": 1, "zone": "bms_core",
              "name_pattern": "Office_BMS_Server_{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "Server",
+             "cve_ids": ["CVE-2021-44228", "CVE-2017-9650", "CVE-2016-5795"],
              "role": "Central BMS Server"},
 
             # Supervisory Controllers - Johnson Controls NAE55
@@ -82,6 +83,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "hvac_control",
              "name_pattern": "HVAC_Supervisor_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "SC+",
+             "cve_ids": ["CVE-2021-38450", "CVE-2021-42534"],
              "role": "HVAC Supervisory Controller"},
 
             # AHU Controllers - Johnson Controls FEC26
@@ -96,6 +98,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "hvac_control",
              "name_pattern": "Chiller_Controller_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
+             "cve_ids": ["CVE-2019-13553"],
              "role": "Chiller Controller"},
 
             # Building Controllers - Schneider CX9680
@@ -103,6 +106,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "hvac_control",
              "name_pattern": "Building_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
+             "cve_ids": ["CVE-2020-7480"],
              "role": "Building Controller"},
 
             # ============================================================
@@ -121,6 +125,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "room_controller", "vendor": "siemens", "count": 6, "zone": "floor_zone",
              "name_pattern": "Room_Controller_{n:02d}", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
+             "cve_ids": ["CVE-2021-41545", "CVE-2022-24044", "CVE-2022-24040"],
              "role": "Room Automation Station"},
 
             # Field Controllers - Delta Controls eBCON
@@ -289,6 +294,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "dcim_server", "vendor": "automated_logic", "count": 1, "zone": "dcim_core",
              "name_pattern": "DataCenter_DCIM_Server_{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "Server",
+             "cve_ids": ["CVE-2021-44228", "CVE-2017-9650", "CVE-2016-5795"],
              "role": "DCIM Server"},
 
             # Building Controllers - Schneider CX9680
@@ -296,6 +302,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "building_controller", "vendor": "schneider", "count": 2, "zone": "dcim_core",
              "name_pattern": "DataCenter_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
+             "cve_ids": ["CVE-2020-7480"],
              "role": "Data Center Controller"},
 
             # Core Switch
@@ -363,6 +370,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "rack_zone",
              "name_pattern": "Rack_Network_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Rack Network Switch"},
         ],
         "flows": [
@@ -539,6 +547,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "engineering_station", "vendor": "honeywell", "count": 1, "zone": "campus_core",
              "name": "Campus_Engineering_Workstation", "protocols": ["bacnet"],
              "fingerprint_model": "XL Web",
+             "cve_ids": ["CVE-2017-5143", "CVE-2017-5141", "CVE-2017-5140", "CVE-2017-5139"],
              "role": "Engineering Workstation"},
 
             # ============================================================
@@ -571,6 +580,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "building_controller", "vendor": "distech", "count": 2, "zone": "building_a",
              "name_pattern": "Building_A_Controller_{n}", "protocols": ["bacnet"],
              "fingerprint_model": "EC-BOS-8",
+             "cve_ids": ["CVE-2025-3936", "CVE-2025-3937", "CVE-2025-3944", "CVE-2025-3945"],
              "role": "Building Controller"},
 
             # ============================================================
@@ -589,6 +599,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "room_controller", "vendor": "siemens", "count": 4, "zone": "building_b",
              "name_pattern": "Building_B_Room_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
+             "cve_ids": ["CVE-2021-41545", "CVE-2022-24044", "CVE-2022-24040"],
              "role": "Room Automation Station"},
 
             # Building Controllers - Siemens Climatix C600
@@ -603,6 +614,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "zone_controller", "vendor": "schneider", "count": 2, "zone": "building_b",
              "name_pattern": "Building_B_Zone_{n}_Controller", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "CX9680",
+             "cve_ids": ["CVE-2020-7480"],
              "role": "Zone Controller"},
 
             # ============================================================
@@ -614,6 +626,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "chiller_controller", "vendor": "carel", "count": 3, "zone": "central_plant",
              "name_pattern": "Central_Plant_Chiller_{n}_Controller", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
+             "cve_ids": ["CVE-2019-13553"],
              "role": "Chiller Controller"},
 
             # Boiler Controller - Carrier Pro Open
@@ -635,6 +648,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hvac_controller", "vendor": "trane", "count": 2, "zone": "central_plant",
              "name_pattern": "Central_Plant_HVAC_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "SC+",
+             "cve_ids": ["CVE-2021-38450", "CVE-2021-42534"],
              "role": "Plant HVAC Controller"},
 
             # ============================================================
@@ -653,6 +667,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "room_controller", "vendor": "siemens", "count": 2, "zone": "field_devices",
              "name_pattern": "Field_Room_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
+             "cve_ids": ["CVE-2021-41545", "CVE-2022-24044", "CVE-2022-24040"],
              "role": "Room Controller"},
 
             # Field Controllers - Delta Controls eBCON
