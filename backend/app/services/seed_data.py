@@ -1315,7 +1315,10 @@ async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
 
     Returns the number of newly inserted rows (kept for caller compatibility).
     """
+    from sqlalchemy import delete as sql_delete
+
     from app.models.cve_vulnerability import CVESeverity, CVEVulnerability
+    from app.models.vulnerable_fingerprint import VulnerableFingerprintVariant
     from app.services.cve_data import ALL_CVES
 
     # Source of truth, keyed by cve_id (source is already de-duplicated;
@@ -1363,10 +1366,28 @@ async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
                 updated += 1
         # else: user-created row with a clashing id — leave it alone.
 
-    for cve_id, row in existing.items():
-        if cve_id not in source and row.is_builtin:
-            await db.delete(row)  # variants cascade
-            pruned += 1
+    # Prune built-in rows no longer in source. Use Core DELETEs (variants
+    # first, then the CVEs) rather than ORM ``session.delete``: the ORM
+    # relationship nullifies the child FK (which is NOT NULL) instead of
+    # cascading, so an ORM delete would fail. Explicit deletes are robust
+    # regardless of how the relationship cascade is configured.
+    prune_ids = [
+        cid for cid, row in existing.items()
+        if cid not in source and row.is_builtin
+    ]
+    if prune_ids:
+        prune_db_ids = [existing[c].id for c in prune_ids]
+        await db.execute(
+            sql_delete(VulnerableFingerprintVariant).where(
+                VulnerableFingerprintVariant.cve_vulnerability_id.in_(prune_db_ids)
+            )
+        )
+        await db.execute(
+            sql_delete(CVEVulnerability).where(
+                CVEVulnerability.cve_id.in_(prune_ids)
+            )
+        )
+        pruned = len(prune_ids)
 
     if new_rows:
         db.add_all(new_rows)
