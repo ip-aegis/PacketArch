@@ -113,7 +113,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "BMXP3420302",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
-             "cve_ids": []},
+             "cve_ids": ["CVE-2022-45788", "CVE-2021-22779"]},
 
             # Safety PLC - Schneider M580 Safety
             {"type": "safety_plc", "vendor": "schneider", "count": 1, "zone": "control",
@@ -134,6 +134,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "Cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Control Zone Switch"},
 
             # ============================================================
@@ -144,7 +145,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "intake",
              "name": "Intake_Field_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2021-22681"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Intake Controller"},
 
@@ -209,7 +210,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "distribution",
              "name": "Distribution_Field_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2021-22681"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Distribution Controller"},
 
@@ -530,6 +531,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "station_booster",
              "name_pattern": "Booster_Station_PLC_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
+             "cve_ids": ["CVE-2017-6028", "CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Booster Station PLC"},
 
@@ -795,6 +797,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "dmz",
              "name": "WWTP_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
+             "cve_ids": ["CVE-2023-20198"],
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
@@ -866,7 +869,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "headworks",
              "name": "Headworks_Screening_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Headworks Controller"},
 
@@ -896,13 +899,14 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "io_module", "vendor": "rockwell", "count": 2, "zone": "primary",
              "name_pattern": "Primary_Clarifier_IO_{n:02d}", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
+             "cve_ids": ["CVE-2022-1737"],
              "role": "Primary Clarifier I/O"},
 
             # Clarifier Drives - ABB ACS880
             {"type": "drive", "vendor": "abb", "count": 2, "zone": "primary",
              "name_pattern": "Primary_Clarifier_Drive_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
-             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
+             "cve_ids": [],
              "role": "Clarifier Drive"},
 
             # Level/Sludge Blanket - E+H Levelflex
@@ -925,7 +929,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "abb", "count": 4, "zone": "secondary",
              "name_pattern": "Secondary_Aeration_Blower_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
-             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
+             "cve_ids": [],
              "role": "Blower VFD"},
 
             # DO Analyzers - Yokogawa FLXA402
@@ -948,7 +952,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "tertiary",
              "name": "Tertiary_Filtration_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2021-22681"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Tertiary Controller"},
 
@@ -978,7 +982,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "sludge",
              "name": "Sludge_Processing_Controller", "protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Sludge Controller"},
 
@@ -986,6 +990,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "sludge",
              "name_pattern": "Sludge_Dewatering_Press_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Dewatering Press VFD"},
 
             # Digester Level/Temp - E+H
@@ -1202,6 +1207,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "control_room",
              "name": "Control_Room_Operator_HMI", "protocols": ["modbus_tcp"],
              "fingerprint_model": "HMISTM6",
+             "cve_ids": ["CVE-2024-11999"],
              "role": "Operator Interface"},
 
             # Industrial Switch - Cisco IE-4000
@@ -1268,6 +1274,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "well2",
              "name": "Well_2_Modern_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
+             "cve_ids": ["CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Well 2 Controller"},
 
@@ -1303,7 +1310,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "storage",
              "name": "Elevated_Tank_Booster_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
-             "cve_ids": ["CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
+             "cve_ids": ["CVE-2017-6028", "CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Tank/Booster Controller"},
 

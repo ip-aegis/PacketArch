@@ -579,6 +579,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
              "name": "E_Stop_Panel_Point_IO", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
+             "cve_ids": ["CVE-2022-1737"],
              "role": "Point I/O"},
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell",
              "name": "Light_Curtain_Point_IO", "protocols": ["ethernet_ip"],
@@ -1336,6 +1337,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
              "name": "Rockwell_Raw_Material_IO", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
+             "cve_ids": ["CVE-2022-1737"],
              "role": "Field I/O"},
 
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
@@ -1351,6 +1353,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "field_rockwell",
              "name": "Rockwell_Dock_Door_IO", "protocols": ["ethernet_ip"],
              "fingerprint_model": "1734-AENT",
+             "cve_ids": ["CVE-2022-1737"],
              "role": "Field I/O"},
 
             # Schneider Field Zone
@@ -2026,6 +2029,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Assembly_Conveyor_VFD",
              "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "ACS880-01",
+             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Variable Frequency Drive"},
             # Rockwell FLEX 5000 remote I/O — paired CIP Safety target for the GuardLogix.
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell4_assembly",

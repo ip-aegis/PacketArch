@@ -90,7 +90,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_S_Series_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "S-series",
-             "cve_ids": [],
+             "cve_ids": ["CVE-2022-29965", "CVE-2022-29957"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Primary DCS Controller"},
 
@@ -113,6 +113,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -456,6 +457,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
              "name": "SCADA_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -505,6 +507,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_Network_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -779,6 +782,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "engineering",
              "name": "Engineering_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -1158,6 +1162,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
              "name": "LNG_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -1207,6 +1212,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "LNG_Control_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================

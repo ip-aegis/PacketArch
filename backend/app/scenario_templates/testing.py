@@ -54,7 +54,7 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "test_net",
              "name": "CRIT-Rockwell-PLC", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2020-6998", "CVE-2021-22681", "CVE-2022-1161", "CVE-2022-3157"],
+             "cve_ids": ["CVE-2021-22681"],
              "role": "Demo PLC",
              "mac_address": "DE:AD:BE:EF:00:01"},
 

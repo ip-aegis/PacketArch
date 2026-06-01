@@ -64,6 +64,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bms_core",
              "name_pattern": "BMS_Core_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "BMS Network Switch"},
 
             # EWON Remote Access Gateway - Talk2M cloud connectivity
@@ -335,6 +336,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "chiller_controller", "vendor": "carel", "count": 2, "zone": "cooling_zone",
              "name_pattern": "Cooling_Chiller_Controller_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
              "fingerprint_model": "pCO5+",
+             "cve_ids": ["CVE-2019-13553"],
              "role": "Chiller Controller"},
 
             # ============================================================
@@ -526,12 +528,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "bms_server", "vendor": "honeywell", "count": 2, "zone": "campus_core",
              "name_pattern": "Campus_BMS_Server_{n}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "JACE 8000",
+             "cve_ids": ["CVE-2019-8998", "CVE-2019-13528"],
              "role": "Campus BMS Server"},
 
             # Core Switches
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "campus_core",
              "name_pattern": "Campus_Core_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Campus Network Switch"},
 
             # EWON Remote Access Gateway - Talk2M cloud connectivity
@@ -641,6 +645,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plant_controller", "vendor": "delta_controls", "count": 1, "zone": "central_plant",
              "name": "Central_Plant_Manager", "protocols": ["bacnet", "modbus_tcp"],
              "fingerprint_model": "Manager",
+             "cve_ids": ["CVE-2019-9569"],
              "role": "Central Plant Manager"},
 
             # AHU for Central Plant - Trane SC+
@@ -667,7 +672,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "room_controller", "vendor": "siemens", "count": 2, "zone": "field_devices",
              "name_pattern": "Field_Room_{n}_Controller", "protocols": ["bacnet"],
              "fingerprint_model": "DXR2.E12",
-             "cve_ids": ["CVE-2021-41545", "CVE-2022-24044", "CVE-2022-24040"],
+             "cve_ids": [],
              "role": "Room Controller"},
 
             # Field Controllers - Delta Controls eBCON
@@ -681,6 +686,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 3, "zone": "field_devices",
              "name_pattern": "Field_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "cve_ids": ["CVE-2022-20919"],
              "role": "Field Network Switch"},
         ],
         "flows": [
