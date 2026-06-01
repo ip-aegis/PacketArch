@@ -7,9 +7,10 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.0.3"
+VERSION = "2.0.4"
 
 # Version history:
+# 2.0.4 - Identifier-table corrections (protocol_engines/vendor_oui.py is staged into the agent, so this is a PATCH bump). Part of the 2026-05-31 CVE/attack/device-library realism audit phase B: 16 BACnet vendor IDs, 7 ODVA/EtherNet-IP vendor IDs, 6 SNMP enterprise PENs, and several OUI prefixes corrected against bacnet.org / Wireshark cip_vendor_vals / IANA / IEEE. This changes the vendor IDs and MAC OUIs the agent emits during live traffic so they match the real vendor (e.g. ABB no longer emits a Vacon/Foxconn OUI, Siemens BACnet ID 24->7). No behavior change beyond identifier accuracy.
 # 2.0.3 - Attack-playbook MITRE ATT&CK corrections (attacks/ is staged into the agent, so this is a PATCH bump). playbooks.py: T0845 (Program Upload) -> T0843 (Program Download) in the TRITON and INDUSTROYER "upload malicious block" stages — the original ID was the reverse data-direction. playbooks.py + snort_actions.py: T1437.001 (Mobile-matrix Web Protocols, on the iSpyoo snort action) -> T1071.001 (Enterprise Web Protocols), correct for an IT/OT host. No behavior change; technique-attribution accuracy only. Part of the 2026-05-31 CVE/attack/device-library realism audit.
 # 2.0.2 - Verification bump (no code change): validates supervisor self-update after fixing the supervisor service to OVERRIDE the image entrypoint (compose `command:` was appended to ENTRYPOINT python -m app.main, so the supervisor service was silently starting a second agent instead of the supervisor).
 # 2.0.1 - Verification bump (no code change): exercises the supervisor-driven self-update end-to-end on the CML-lab agents (UPDATE_AGENT -> supervisor downloads/loads/recreates the agent -> agent reconnects -> backend confirms complete).
