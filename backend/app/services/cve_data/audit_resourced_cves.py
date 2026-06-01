@@ -30,7 +30,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2009, 1, 6),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ADAM-6000 V2.02 (CVE-2008-5848)",
+                "firmware_version": "V2.02",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2015-2868",
@@ -53,7 +58,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 1, 6),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "XL V2.8.0 (CVE-2015-2868)",
+                "firmware_version": "V2.8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2015-5386",
@@ -76,7 +86,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "medium",
         "published_date": datetime(2015, 7, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SICAM V1.2.0 (CVE-2015-5386)",
+                "firmware_version": "V1.2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-5795",
@@ -99,7 +114,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 8, 31),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "WebCTRL V7.0 (CVE-2016-5795)",
+                "firmware_version": "V7.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-5809",
@@ -122,7 +142,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PowerLogic ION V4.005 (CVE-2016-5809)",
+                "firmware_version": "V4.005",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-7987",
@@ -145,7 +170,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SICAM V1.2.0 (CVE-2016-7987)",
+                "firmware_version": "V1.2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-8359",
@@ -168,7 +198,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ioLogik E1200 V3.1 (CVE-2016-8359)",
+                "firmware_version": "V3.1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-8372",
@@ -191,7 +226,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ioLogik E1200 V3.1 (CVE-2016-8372)",
+                "firmware_version": "V3.1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-9158",
@@ -214,7 +254,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2016, 12, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-300/S7-400 V7.0.9 (CVE-2016-9158)",
+                "firmware_version": "V7.0.9",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2016-9159",
@@ -237,7 +282,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2016, 12, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-300/S7-400 V7.0.9 (CVE-2016-9159)",
+                "firmware_version": "V7.0.9",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-14470",
@@ -260,7 +310,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 4, 5),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "MicroLogix 16.002 (CVE-2017-14470)",
+                "firmware_version": "16.002",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-2680",
@@ -283,7 +338,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SINAMICS V4.7 SP5 (CVE-2017-2680)",
+                "firmware_version": "V4.7 SP5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-2681",
@@ -306,7 +366,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 5, 11),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-300/S7-400 V7.0.9 (CVE-2017-2681)",
+                "firmware_version": "V7.0.9",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-5139",
@@ -329,7 +394,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Excel Web V5.2 (CVE-2017-5139)",
+                "firmware_version": "V5.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-5140",
@@ -352,7 +422,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Excel Web V5.2 (CVE-2017-5140)",
+                "firmware_version": "V5.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-5141",
@@ -375,7 +450,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Excel Web V5.2 (CVE-2017-5141)",
+                "firmware_version": "V5.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-5143",
@@ -398,7 +478,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 2, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Excel Web V5.2 (CVE-2017-5143)",
+                "firmware_version": "V5.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-6028",
@@ -421,7 +506,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 6, 29),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M241 V4.0.7 (CVE-2017-6028)",
+                "firmware_version": "V4.0.7",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2017-9650",
@@ -444,7 +534,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2017, 8, 25),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "WebCTRL V7.0 (CVE-2017-9650)",
+                "firmware_version": "V7.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-11451",
@@ -467,7 +562,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 7, 23),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIPROTEC 5 V9.20 (CVE-2018-11451)",
+                "firmware_version": "V9.20",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-11452",
@@ -490,7 +590,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 7, 23),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIPROTEC 5 V9.20 (CVE-2018-11452)",
+                "firmware_version": "V9.20",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-13798",
@@ -513,7 +618,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 3, 21),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SICAM A8000 V11.0.0 (CVE-2018-13798)",
+                "firmware_version": "V11.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-19282",
@@ -536,7 +646,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 4, 4),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PowerFlex 5.001 (CVE-2018-19282)",
+                "firmware_version": "5.001",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-7758",
@@ -559,7 +674,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 4, 18),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "MiCOM Px4x D4.0 (CVE-2018-7758)",
+                "firmware_version": "D4.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-7759",
@@ -582,7 +702,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 4, 18),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon Premium V6.0 (CVE-2018-7759)",
+                "firmware_version": "V6.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2018-8867",
@@ -605,7 +730,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2018, 5, 18),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PACSystems 9.30 (CVE-2018-8867)",
+                "firmware_version": "9.30",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-10916",
@@ -628,7 +758,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 5, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "WinCC V17.0 (CVE-2019-10916)",
+                "firmware_version": "V17.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-10997",
@@ -651,7 +786,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2019, 6, 17),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PLCnext V2021.0.3 (CVE-2019-10997)",
+                "firmware_version": "V2021.0.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-10998",
@@ -674,7 +814,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 6, 18),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PLCnext V2021.0.3 (CVE-2019-10998)",
+                "firmware_version": "V2021.0.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13524",
@@ -697,7 +842,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 1, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PACSystems V9.70 (CVE-2019-13524)",
+                "firmware_version": "V9.70",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13528",
@@ -720,7 +870,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 9, 24),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Niagara N4.8 (CVE-2019-13528)",
+                "firmware_version": "N4.8",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13553",
@@ -743,7 +898,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 10, 25),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "pCO V3.2.0 (CVE-2019-13553)",
+                "firmware_version": "V3.2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13554",
@@ -766,7 +926,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 4, 7),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Mark VIe 06.03.09 (CVE-2019-13554)",
+                "firmware_version": "06.03.09",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13559",
@@ -789,7 +954,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 4, 7),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Mark VIe 06.03.09 (CVE-2019-13559)",
+                "firmware_version": "06.03.09",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-13940",
@@ -812,7 +982,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 2, 11),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-300 V3.2.16 (CVE-2019-13940)",
+                "firmware_version": "V3.2.16",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-18269",
@@ -835,7 +1010,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 12, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CJ2M Series V2.0 (CVE-2019-18269)",
+                "firmware_version": "V2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-6568",
@@ -858,7 +1038,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 6, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SINAMICS V4.7 SP5 (CVE-2019-6568)",
+                "firmware_version": "V4.7 SP5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-6577",
@@ -881,7 +1066,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 5, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC HMI V18.0.0.0 (CVE-2019-6577)",
+                "firmware_version": "V18.0.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-6820",
@@ -904,7 +1094,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M241 V5.1.0.6 (CVE-2019-6820)",
+                "firmware_version": "V5.1.0.6",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-6857",
@@ -927,7 +1122,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 1, 6),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon Premium V6.0 (CVE-2019-6857)",
+                "firmware_version": "V6.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-7225",
@@ -950,7 +1150,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 6, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CP600 V1.65 (CVE-2019-7225)",
+                "firmware_version": "V1.65",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2019-8998",
@@ -973,7 +1178,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2019, 7, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Niagara N4.8 (CVE-2019-8998)",
+                "firmware_version": "N4.8",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-10055",
@@ -996,7 +1206,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 8, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Desigo V5.0 SP1 (CVE-2020-10055)",
+                "firmware_version": "V5.0 SP1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-6972",
@@ -1019,7 +1234,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 3, 24),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "NFS2 V4.0.0 (CVE-2020-6972)",
+                "firmware_version": "V4.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-6974",
@@ -1042,7 +1262,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 4, 7),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "NFS2 V4.0.0 (CVE-2020-6974)",
+                "firmware_version": "V4.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-6998",
@@ -1065,7 +1290,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 7, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ControlLogix / CompactLogix V33.013 (CVE-2020-6998)",
+                "firmware_version": "V33.013",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-7487",
@@ -1088,7 +1318,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 4, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M241 V5.1.0.6 (CVE-2020-7487)",
+                "firmware_version": "V5.1.0.6",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-7488",
@@ -1111,7 +1346,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 4, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M251 V5.0.0 (CVE-2020-7488)",
+                "firmware_version": "V5.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-7537",
@@ -1134,7 +1374,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 12, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon Controllers (M580 / M340 / Quantum / Premium) V6.0 (CVE-2020-7537)",
+                "firmware_version": "V6.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-7561",
@@ -1157,7 +1402,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 11, 19),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Easergy T300 RTU V2.7.0 (CVE-2020-7561)",
+                "firmware_version": "V2.7.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2020-7592",
@@ -1180,7 +1430,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2020, 7, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC HMI V18.0.0.0 (CVE-2020-7592)",
+                "firmware_version": "V18.0.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-20609",
@@ -1203,7 +1458,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 12, 1),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "MELSEC iQ-R Series V42 (CVE-2021-20609)",
+                "firmware_version": "V42",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-22275",
@@ -1226,7 +1486,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "B&R Automation Runtime V4.91 (CVE-2021-22275)",
+                "firmware_version": "V4.91",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-22699",
@@ -1249,7 +1514,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 5, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M241 V5.1.0.6 (CVE-2021-22699)",
+                "firmware_version": "V5.1.0.6",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-22702",
@@ -1272,7 +1542,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 2, 19),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PowerLogic ION V4.005 (CVE-2021-22702)",
+                "firmware_version": "V4.005",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-22713",
@@ -1295,7 +1570,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 3, 11),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PowerLogic ION V4.005 (CVE-2021-22713)",
+                "firmware_version": "V4.005",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-27196",
@@ -1318,7 +1598,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 6, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Relion V2.2.3 (CVE-2021-27196)",
+                "firmware_version": "V2.2.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-27383",
@@ -1341,7 +1626,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 5, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC HMI V16.0.0.0 (CVE-2021-27383)",
+                "firmware_version": "V16.0.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-27420",
@@ -1364,7 +1654,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 3, 23),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "UR Series V8.0 (CVE-2021-27420)",
+                "firmware_version": "V8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-27424",
@@ -1387,7 +1682,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 3, 23),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "UR Series V8.0 (CVE-2021-27424)",
+                "firmware_version": "V8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-27428",
@@ -1410,7 +1710,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 3, 23),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "UR Series V8.0 (CVE-2021-27428)",
+                "firmware_version": "V8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-32996",
@@ -1433,7 +1738,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 1, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Robot Controller V9.30 (CVE-2021-32996)",
+                "firmware_version": "V9.30",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-32998",
@@ -1456,7 +1766,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2022, 1, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Robot Controller V9.30 (CVE-2021-32998)",
+                "firmware_version": "V9.30",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-33014",
@@ -1479,7 +1794,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "KR C V8.3.5 (CVE-2021-33014)",
+                "firmware_version": "V8.3.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-33016",
@@ -1502,7 +1822,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "KR C V8.3.5 (CVE-2021-33016)",
+                "firmware_version": "V8.3.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-34569",
@@ -1525,7 +1850,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 11, 9),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PFC100 / PFC200 Controllers (750-8xx) FW18 (CVE-2021-34569)",
+                "firmware_version": "FW18",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-35534",
@@ -1548,7 +1878,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 11, 18),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Relion V2.2.5 (CVE-2021-35534)",
+                "firmware_version": "V2.2.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-37185",
@@ -1571,7 +1906,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 2, 9),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-1200 V4.2.1 (CVE-2021-37185)",
+                "firmware_version": "V4.2.1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-37205",
@@ -1594,7 +1934,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 2, 9),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC S7-1500 V2.8.1 (CVE-2021-37205)",
+                "firmware_version": "V2.8.1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-38395",
@@ -1617,7 +1962,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 10, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2021-38395)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-38399",
@@ -1640,7 +1990,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 10, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2021-38399)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-38450",
@@ -1663,7 +2018,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 10, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Tracer V6.10 (CVE-2021-38450)",
+                "firmware_version": "V6.10",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-40358",
@@ -1686,7 +2046,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 11, 9),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "WinCC V17.0 (CVE-2021-40358)",
+                "firmware_version": "V17.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-41545",
@@ -1709,7 +2074,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Desigo V4.0 (CVE-2021-41545)",
+                "firmware_version": "V4.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2021-44228",
@@ -1732,7 +2102,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2021, 12, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "i-Vu V7.0.0.15 (CVE-2021-44228)",
+                "firmware_version": "V7.0.0.15",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-1596",
@@ -1755,7 +2130,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 6, 21),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Relion V2.1.0 (CVE-2022-1596)",
+                "firmware_version": "V2.1.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-1737",
@@ -1778,7 +2158,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 7, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "POINT I/O V5.019 (CVE-2022-1737)",
+                "firmware_version": "V5.019",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-20919",
@@ -1801,7 +2186,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 9, 30),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "IE Series 17.9.04 (CVE-2022-20919)",
+                "firmware_version": "17.9.04",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-22725",
@@ -1824,7 +2214,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 2, 4),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Easergy P3 V30.20 (CVE-2022-22725)",
+                "firmware_version": "V30.20",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-24040",
@@ -1847,7 +2242,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Desigo V4.0 (CVE-2022-24040)",
+                "firmware_version": "V4.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-24044",
@@ -1870,7 +2270,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 5, 20),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Desigo V4.0 (CVE-2022-24044)",
+                "firmware_version": "V4.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-29884",
@@ -1893,7 +2298,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 7, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SICAM A8000 V11.0.0 (CVE-2022-29884)",
+                "firmware_version": "V11.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-29957",
@@ -1916,7 +2326,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 7, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "DeltaV V14.3 (CVE-2022-29957)",
+                "firmware_version": "V14.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-29965",
@@ -1939,7 +2354,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 7, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "DeltaV V14.3 (CVE-2022-29965)",
+                "firmware_version": "V14.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-30260",
@@ -1962,7 +2382,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 12, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "DeltaV V13.3 (CVE-2022-30260)",
+                "firmware_version": "V13.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-30264",
@@ -1985,7 +2410,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 8, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ROC V3.91 (CVE-2022-30264)",
+                "firmware_version": "V3.91",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-3157",
@@ -2008,7 +2438,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 12, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ControlLogix / CompactLogix V33.013 (CVE-2022-3157)",
+                "firmware_version": "V33.013",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-3166",
@@ -2031,7 +2466,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 12, 16),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "MicroLogix 21.003 (CVE-2022-3166)",
+                "firmware_version": "21.003",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-33971",
@@ -2054,7 +2494,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2022, 7, 3),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "NJ Series V1.49 (CVE-2022-33971)",
+                "firmware_version": "V1.49",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-40227",
@@ -2077,7 +2522,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 10, 11),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIMATIC HMI V18.0.0.0 (CVE-2022-40227)",
+                "firmware_version": "V18.0.0.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-40265",
@@ -2100,7 +2550,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2022, 11, 29),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "iQ-R Series V49 (CVE-2022-40265)",
+                "firmware_version": "V49",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-40267",
@@ -2123,7 +2578,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 20),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "FX5 Series V1.220 (CVE-2022-40267)",
+                "firmware_version": "V1.220",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-4046",
@@ -2146,7 +2606,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 8, 3),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ACS880 V2.40 (CVE-2022-4046)",
+                "firmware_version": "V2.40",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-43494",
@@ -2169,7 +2634,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 17),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Proficy 8.0 (CVE-2022-43494)",
+                "firmware_version": "8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-45788",
@@ -2192,7 +2662,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 30),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon Controllers / EcoStruxure Control Expert V3.20 (CVE-2022-45788)",
+                "firmware_version": "V3.20",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-45790",
@@ -2215,7 +2690,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 1, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CJ2M Series V2.0 (CVE-2022-45790)",
+                "firmware_version": "V2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2022-46732",
@@ -2238,7 +2718,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 17),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Proficy 8.0 (CVE-2022-46732)",
+                "firmware_version": "8.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-0451",
@@ -2261,7 +2746,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ASC/3 V7.10 (CVE-2023-0451)",
+                "firmware_version": "V7.10",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-0452",
@@ -2284,7 +2774,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 1, 26),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ASC/3 V7.10 (CVE-2023-0452)",
+                "firmware_version": "V7.10",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-2071",
@@ -2307,7 +2802,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 9, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PanelView Plus V12.00 (CVE-2023-2071)",
+                "firmware_version": "V12.00",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-21412",
@@ -2330,7 +2830,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 8, 3),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "P-Series V11.3.64 (CVE-2023-21412)",
+                "firmware_version": "V11.3.64",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-2265",
@@ -2353,7 +2858,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 11, 30),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-400 Series R123-V2 (CVE-2023-2265)",
+                "firmware_version": "R123-V2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-2310",
@@ -2376,7 +2886,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2023, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-3500 Series R150-V1 (CVE-2023-2310)",
+                "firmware_version": "R150-V1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-23585",
@@ -2399,7 +2914,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-23585)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-24474",
@@ -2422,7 +2942,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-24474)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-24480",
@@ -2445,7 +2970,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-24480)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-25178",
@@ -2468,7 +2998,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-25178)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-25948",
@@ -2491,7 +3026,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-25948)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-26597",
@@ -2514,7 +3054,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 7, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Experion PKS R520.2 (CVE-2023-26597)",
+                "firmware_version": "R520.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-29464",
@@ -2537,7 +3082,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 10, 13),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "FactoryTalk Linx V12.00 (CVE-2023-29464)",
+                "firmware_version": "V12.00",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-31148",
@@ -2560,7 +3110,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-3500 Series R150-V1 (CVE-2023-31148)",
+                "firmware_version": "R150-V1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-31149",
@@ -2583,7 +3138,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-3500 Series R150-V1 (CVE-2023-31149)",
+                "firmware_version": "R150-V1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-31150",
@@ -2606,7 +3166,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 5, 10),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-3500 Series R148-V2 (CVE-2023-31150)",
+                "firmware_version": "R148-V2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-31176",
@@ -2629,7 +3194,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 11, 30),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-400 Series R159-V2 (CVE-2023-31176)",
+                "firmware_version": "R159-V2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-37559",
@@ -2652,7 +3222,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 8, 3),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ACS880 V2.40 (CVE-2023-37559)",
+                "firmware_version": "V2.40",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-5768",
@@ -2675,7 +3250,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2023, 12, 4),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "RTU560 V12.4.3 (CVE-2023-5768)",
+                "firmware_version": "V12.4.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-5769",
@@ -2698,7 +3278,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 12, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "RTU560 V12.4.3 (CVE-2023-5769)",
+                "firmware_version": "V12.4.3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2023-5984",
@@ -2721,7 +3306,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 11, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "PowerLogic ION V4.005 (CVE-2023-5984)",
+                "firmware_version": "V4.005",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-11999",
@@ -2744,7 +3334,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 12, 17),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Magelis / Harmony HMI V5.2.0 (CVE-2024-11999)",
+                "firmware_version": "V5.2.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-12429",
@@ -2767,7 +3362,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 1, 7),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "AC500 V3.5.2 (CVE-2024-12429)",
+                "firmware_version": "V3.5.2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-2103",
@@ -2790,7 +3390,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 4, 4),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SEL-700 Series R206-V2 (CVE-2024-2103)",
+                "firmware_version": "R206-V2",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-41173",
@@ -2813,7 +3418,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 8, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CX Series V3.1.4024.22 (CVE-2024-41173)",
+                "firmware_version": "V3.1.4024.22",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-41175",
@@ -2836,7 +3446,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 8, 27),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CX Series V3.1.4024.22 (CVE-2024-41175)",
+                "firmware_version": "V3.1.4024.22",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-54017",
@@ -2859,7 +3474,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2026, 5, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "SIPROTEC 5 V9.20 (CVE-2024-54017)",
+                "firmware_version": "V9.20",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-5650",
@@ -2882,7 +3502,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2024, 6, 17),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "CENTUM VP R6.08.00 (CVE-2024-5650)",
+                "firmware_version": "R6.08.00",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-6077",
@@ -2905,7 +3530,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 9, 12),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ControlLogix / CompactLogix / GuardLogix V33.013 (CVE-2024-6077)",
+                "firmware_version": "V33.013",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-6207",
@@ -2928,7 +3558,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 10, 14),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ControlLogix / CompactLogix / GuardLogix V34.011 (CVE-2024-6207)",
+                "firmware_version": "V34.011",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-6528",
@@ -2951,7 +3586,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2024, 7, 11),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Modicon M262 V1.3.0 (CVE-2024-6528)",
+                "firmware_version": "V1.3.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-8036",
@@ -2974,7 +3614,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "high",
         "published_date": datetime(2024, 10, 25),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Relion V5.0 FP3 (CVE-2024-8036)",
+                "firmware_version": "V5.0 FP3",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2024-8527",
@@ -2997,7 +3642,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 11, 19),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "i-Vu V8.0.0.1 (CVE-2024-8527)",
+                "firmware_version": "V8.0.0.1",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-3936",
@@ -3020,7 +3670,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ECLYPSE V1.4.5 (CVE-2025-3936)",
+                "firmware_version": "V1.4.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-3937",
@@ -3043,7 +3698,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ECLYPSE V1.4.5 (CVE-2025-3937)",
+                "firmware_version": "V1.4.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-3944",
@@ -3066,7 +3726,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ECLYPSE V1.4.5 (CVE-2025-3944)",
+                "firmware_version": "V1.4.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-3945",
@@ -3089,7 +3754,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 5, 22),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "ECLYPSE V1.4.5 (CVE-2025-3945)",
+                "firmware_version": "V1.4.5",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-7405",
@@ -3112,7 +3782,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 9, 1),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "FX5 Series V1.220 (CVE-2025-7405)",
+                "firmware_version": "V1.220",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-7745",
@@ -3135,7 +3810,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 7, 24),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "AC500 V2.9.0 (CVE-2025-7745)",
+                "firmware_version": "V2.9.0",
+            },
+        ],
     },
     {
         "cve_id": "CVE-2025-7746",
@@ -3158,6 +3838,11 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2025, 9, 9),
-        "vulnerable_variants": [],
+        "vulnerable_variants": [
+            {
+                "display_name": "Altivar Process V3.6IE50 (CVE-2025-7746)",
+                "firmware_version": "V3.6IE50",
+            },
+        ],
     },
 ]
