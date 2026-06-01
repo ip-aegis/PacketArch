@@ -825,7 +825,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "1756-L85E",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Main Process Controller",
-             "cve_ids": []},
+             "cve_ids": ["CVE-2021-22681", "CVE-2022-1161", "CVE-2024-6207"]},
 
             # Area PLCs - Rockwell ControlLogix L73
             {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
@@ -841,7 +841,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "1756-L83ES",
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Safety Controller",
-             "cve_ids": []},
+             "cve_ids": ["CVE-2021-22681", "CVE-2024-6207"]},
 
             # Local HMI Panels - Rockwell PanelView Plus 7
             {"type": "hmi", "vendor": "rockwell", "count": 3, "zone": "control",
