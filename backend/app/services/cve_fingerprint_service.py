@@ -179,13 +179,20 @@ class CVEFingerprintService:
             Best matching variant or None
         """
         if cve_ids:
-            # Get variants for specified CVEs
+            # Get variants for the specified CVEs. Do NOT vendor-filter here:
+            # the cve_ids already scope the result to those exact CVEs, and a
+            # CVE's variants all belong to that single CVE (one vendor). The
+            # device explicitly listed these CVEs, so we always want their
+            # variant. Vendor-filtering only drops valid matches when the CVE
+            # record's vendor is a full name ("Schneider Electric", "GE
+            # Vernova") while the device vendor is the short form ("schneider",
+            # "ge") — which silently broke resolution for those devices.
             variants = await CVEFingerprintService.get_vulnerable_variants_for_cves(
-                db, cve_ids, vendor
+                db, cve_ids, vendor=None
             )
 
             if not variants:
-                logger.info(f"No variants found for CVEs {cve_ids}, vendor={vendor}")
+                logger.info(f"No variants found for CVEs {cve_ids}")
                 return None
 
             # If model specified, prefer variants that target it
