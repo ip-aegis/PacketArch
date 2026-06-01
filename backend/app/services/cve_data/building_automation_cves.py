@@ -52,7 +52,7 @@ BUILDING_AUTOMATION_CVES: list[dict] = [
             "JACE and Supervisor installations used in building automation."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 6.5,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Honeywell",
         "product_family": "Niagara",
@@ -62,7 +62,7 @@ BUILDING_AUTOMATION_CVES: list[dict] = [
         "fixed_firmware_version": "4.11.0",
         "cyber_vision_detectable": True,
         "detection_method": "bacnet_i_am",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-179-04",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-30312",
         "references": [
             "https://nvd.nist.gov/vuln/detail/CVE-2022-30312",
         ],

@@ -21,7 +21,7 @@ ROCKWELL_CVES: list[dict] = [
             "The attacker could potentially halt the PLC or modify the running program."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 7.2,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Rockwell",
         "product_family": "ControlLogix",
@@ -362,7 +362,7 @@ ROCKWELL_CVES: list[dict] = [
             "proper authorization. This can lead to full device compromise."
         ),
         "severity": "critical",
-        "cvss_score": 10.0,
+        "cvss_score": 9.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
         "vendor": "Rockwell",
         "product_family": "CompactLogix",

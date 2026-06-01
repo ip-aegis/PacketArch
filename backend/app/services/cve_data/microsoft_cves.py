@@ -157,7 +157,7 @@ MICROSOFT_CVES: list[dict] = [
             "WannaCry and NotPetya ransomware attacks."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 8.8,
         "cvss_vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Microsoft",
         "product_family": "Windows Server",

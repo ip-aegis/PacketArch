@@ -20,7 +20,7 @@ ABB_CVES: list[dict] = [
             "potentially compromising the entire DCS infrastructure."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 8.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "ABB",
         "product_family": "System 800xA",
@@ -185,7 +185,7 @@ ABB_CVES: list[dict] = [
             "by sending a specially crafted network packet."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 10.0,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "ABB",
         "product_family": "AC500",

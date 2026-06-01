@@ -280,52 +280,6 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2018-10936 - GE Multilin Stack Buffer Overflow
-    {
-        "cve_id": "CVE-2018-10936",
-        "title": "GE Multilin Relays Stack Buffer Overflow",
-        "description": (
-            "GE Multilin protection relays are vulnerable to a stack buffer overflow "
-            "via malformed network packets. Exploitation could allow remote code "
-            "execution or denial of service."
-        ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "vendor": "GE",
-        "product_family": "Multilin",
-        "affected_models": ["T60", "C60", "D60", "L60"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "7.4",
-        "fixed_firmware_version": "7.5",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-18-340-01",
-        "references": [],
-        "mitre_techniques": ["T0843", "T0831"],
-        "exploit_available": True,
-        "exploit_complexity": "medium",
-        "published_date": datetime(2018, 12, 6),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "7.4",
-                "display_name": "GE Multilin T60 (CVE-2018-10936)",
-                "snmp_sys_descr_template": "GE Digital Energy Multilin T60 Transformer Protection v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Digital Energy",
-                    "product_code": "T60",
-                    "major_minor_revision": "7.4",
-                    "product_name": "Multilin T60 Transformer Protection",
-                },
-                "dnp3_identity_override": {
-                    "vendor_name": "GE",
-                    "device_serial": "T60-VULN",
-                    "software_version": "7.4",
-                },
-            },
-        ],
-    },
-
     # ==================== ABB Protection Relay CVEs ====================
 
 # ==================== Schneider ION Meter CVEs ====================
@@ -340,7 +294,7 @@ ENERGY_CVES: list[dict] = [
             "and metering functions in critical facilities."
         ),
         "severity": "high",
-        "cvss_score": 7.5,
+        "cvss_score": 9.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
         "vendor": "Schneider",
         "product_family": "ION",
@@ -399,7 +353,7 @@ ENERGY_CVES: list[dict] = [
         ],
         "affected_firmware_min": None,
         "affected_firmware_max": "R151-V2",
-        "fixed_firmware_version": "see SEL advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-187-01",
@@ -614,7 +568,7 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["SEL-751", "SEL-451", "SEL-487E", "SEL-311C"],
         "affected_firmware_min": None,
         "affected_firmware_max": "R150-V0",
-        "fixed_firmware_version": "see SEL advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-208-XX",
@@ -724,10 +678,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["SEL-411L", "SEL-787", "SEL-735"],
         "affected_firmware_min": None,
         "affected_firmware_max": "R203-V0",
-        "fixed_firmware_version": "see SEL advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-20-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2020-24650",
         "references": [
             "https://selinc.com/support/security-notifications/",
         ],
@@ -914,7 +868,7 @@ ENERGY_CVES: list[dict] = [
         "fixed_firmware_version": "V8.40",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-20-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2020-15795",
         "references": [
             "https://cert-portal.siemens.com/productcert/",
         ],
@@ -993,7 +947,7 @@ ENERGY_CVES: list[dict] = [
         "fixed_firmware_version": "V9.30",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-24-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2024-31486",
         "references": [
             "https://cert-portal.siemens.com/productcert/",
         ],
@@ -1042,7 +996,7 @@ ENERGY_CVES: list[dict] = [
         "fixed_firmware_version": "V9.30",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-30899",
         "references": [
             "https://cert-portal.siemens.com/productcert/",
         ],
@@ -1175,10 +1129,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["REL630", "RED615", "REL670"],
         "affected_firmware_min": None,
         "affected_firmware_max": "V2.2.1",
-        "fixed_firmware_version": "see ABB advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2021-22276",
         "references": [
             "https://search.abb.com/library/Download.aspx?DocumentID=2NGA001214",
         ],
@@ -1269,10 +1223,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["HPG800", "REL630", "REL670"],
         "affected_firmware_min": None,
         "affected_firmware_max": "V3.1.0",
-        "fixed_firmware_version": "see ABB advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26143",
         "references": [
             "https://search.abb.com/library/Download.aspx?DocumentID=2NGA001311",
         ],
@@ -1349,10 +1303,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["RED615", "REL670"],
         "affected_firmware_min": None,
         "affected_firmware_max": "V4.2",
-        "fixed_firmware_version": "see ABB advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-26517",
         "references": [
             "https://search.abb.com/library/Download.aspx?DocumentID=2NGA001489",
         ],
@@ -1422,10 +1376,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["P145", "P543", "P746", "C264"],
         "affected_firmware_min": None,
         "affected_firmware_max": "D4.0",
-        "fixed_firmware_version": "see Schneider advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2021-22772",
         "references": [
             "https://www.se.com/ww/en/download/document/SEVD-2021-073-XX/",
         ],
@@ -1501,87 +1455,6 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2022-37300 - Schneider Easergy Path Traversal
-    {
-        "cve_id": "CVE-2022-37300",
-        "title": "Schneider Electric Easergy Path Traversal",
-        "description": (
-            "Schneider Electric Easergy P1, P3, and T300 product families contain a "
-            "path-traversal vulnerability in their embedded web interface. An "
-            "unauthenticated remote attacker could craft a request that escapes the "
-            "web root and reads arbitrary files from the device, disclosing "
-            "configuration data and credentials usable for further attack."
-        ),
-        "severity": "high",
-        "cvss_score": 8.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-        "vendor": "Schneider",
-        "product_family": "Easergy",
-        "affected_models": ["P1F30", "P3U30", "T300"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V30.20",
-        "fixed_firmware_version": "see Schneider advisory",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-XXX-XX",
-        "references": [
-            "https://www.se.com/ww/en/download/document/SEVD-2022-221-XX/",
-        ],
-        "mitre_techniques": ["T0846", "T0859"],
-        "exploit_available": False,
-        "exploit_complexity": "low",
-        "published_date": datetime(2022, 8, 9),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V1.6.0",
-                "display_name": "Easergy P1 (CVE-2022-37300)",
-                "snmp_sys_descr_template": "Schneider Electric Easergy P1 Feeder Protection Relay {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Schneider Electric",
-                    "product_code": "P1F30",
-                    "major_minor_revision": "V1.6.0",
-                    "product_name": "Easergy P1 Feeder Protection Relay",
-                },
-                "iec61850_identity_override": {
-                    "ied_name": "EASERGY_P1_VULN_01",
-                    "vendor": "Schneider Electric",
-                    "software_version": "V1.6.0",
-                },
-            },
-            {
-                "firmware_version": "V30.20",
-                "display_name": "Easergy P3 (CVE-2022-37300)",
-                "snmp_sys_descr_template": "Schneider Electric Easergy P3 Universal Feeder Protection Relay {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Schneider Electric",
-                    "product_code": "P3U30",
-                    "major_minor_revision": "V30.20",
-                    "product_name": "Easergy P3 Universal Feeder Protection Relay",
-                },
-                "iec61850_identity_override": {
-                    "ied_name": "EASERGY_P3_VULN_01",
-                    "vendor": "Schneider Electric",
-                    "software_version": "V30.20",
-                },
-            },
-            {
-                "firmware_version": "V2.7.0",
-                "display_name": "Easergy T300 (CVE-2022-37300)",
-                "snmp_sys_descr_template": "Schneider Electric Easergy T300 Feeder RTU {firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "Schneider Electric",
-                    "product_code": "T300",
-                    "major_minor_revision": "V2.7.0",
-                    "product_name": "Easergy T300 Feeder RTU",
-                },
-                "iec104_identity_override": {
-                    "station_name": "EASERGY-T300-VULN",
-                    "common_address": 1,
-                },
-            },
-        ],
-    },
-
     # CVE-2022-37301 - Schneider Easergy Hard-coded Credentials / Auth Bypass companion
     {
         "cve_id": "CVE-2022-37301",
@@ -1601,10 +1474,10 @@ ENERGY_CVES: list[dict] = [
         "affected_models": ["P1F30", "P3U30", "T300"],
         "affected_firmware_min": None,
         "affected_firmware_max": "V30.20",
-        "fixed_firmware_version": "see Schneider advisory",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-XXX-XX",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-37301",
         "references": [
             "https://www.se.com/ww/en/download/document/SEVD-2022-221-XX/",
         ],

@@ -122,7 +122,7 @@ SIEMENS_CVES: list[dict] = [
             "mechanisms to read and write to any memory area."
         ),
         "severity": "critical",
-        "cvss_score": 10.0,
+        "cvss_score": 9.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
         "vendor": "Siemens",
         "product_family": "S7-1500",
@@ -233,7 +233,7 @@ SIEMENS_CVES: list[dict] = [
             "key and decrypt the data."
         ),
         "severity": "medium",
-        "cvss_score": 6.8,
+        "cvss_score": 7.8,
         "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Siemens",
         "product_family": "S7-1500",

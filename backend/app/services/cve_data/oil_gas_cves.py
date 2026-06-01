@@ -28,7 +28,7 @@ OIL_GAS_CVES: list[dict] = [
             "to the controller and modify process control logic."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 7.5,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Honeywell",
         "product_family": "Experion PKS",
@@ -154,7 +154,7 @@ OIL_GAS_CVES: list[dict] = [
             "access to the engineering workstation and modify control logic."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 8.1,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Yokogawa",
         "product_family": "CENTUM",
@@ -195,7 +195,7 @@ OIL_GAS_CVES: list[dict] = [
             "crafted packets to cause denial of service or execute arbitrary code."
         ),
         "severity": "high",
-        "cvss_score": 8.6,
+        "cvss_score": 7.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:H",
         "vendor": "Yokogawa",
         "product_family": "CENTUM",

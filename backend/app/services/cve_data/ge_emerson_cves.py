@@ -185,7 +185,7 @@ GE_EMERSON_CVES: list[dict] = [
             "or modify historical process data in the database."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        "cvss_score": 6.5,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "GE",
         "product_family": "Proficy Historian",
@@ -214,74 +214,6 @@ GE_EMERSON_CVES: list[dict] = [
                     "major_minor_revision": "7.2",
                 },
                 "ethernet_ip_identity_override": None,
-            },
-        ],
-    },
-
-    # CVE-2018-10936 - PACSystems RX3i Hardcoded Credentials
-    {
-        "cve_id": "CVE-2018-10936",
-        "title": "GE PACSystems RX3i Hardcoded Credentials (CVSS 10.0)",
-        "description": (
-            "GE PACSystems RX3i controllers contain hardcoded credentials that allow "
-            "an attacker to gain administrative access. This is one of the most severe "
-            "vulnerabilities affecting these controllers."
-        ),
-        "severity": "critical",
-        "cvss_score": 10.0,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
-        "vendor": "GE",
-        "product_family": "PACSystems RX3i",
-        "affected_models": [
-            "IC695CPE310", "IC695CPE330", "IC695CPE400",
-        ],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "9.30",
-        "fixed_firmware_version": "9.40",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-18-331-01",
-        "references": [],
-        "mitre_techniques": ["T0812", "T0859"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2018, 11, 27),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "9.30",
-                "display_name": "PACSystems RX3i CPE400 (CVE-2018-10936)",
-                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Automation",
-                    "product_code": "IC695CPE400",
-                    "major_minor_revision": "9.30",
-                },
-                "ethernet_ip_identity_override": {
-                    "vendor_id": 0x001D,
-                    "device_type": 14,
-                    "product_code": 0x0400,
-                    "revision_major": 9,
-                    "revision_minor": 30,
-                    "product_name": "PACSystems RX3i CPE400",
-                },
-            },
-            {
-                "firmware_version": "9.21",
-                "display_name": "PACSystems RX3i CPE310 (CVE-2018-10936)",
-                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE310 v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Automation",
-                    "product_code": "IC695CPE310",
-                    "major_minor_revision": "9.21",
-                },
-                "ethernet_ip_identity_override": {
-                    "vendor_id": 0x001D,
-                    "device_type": 14,
-                    "product_code": 0x0310,
-                    "revision_major": 9,
-                    "revision_minor": 21,
-                    "product_name": "PACSystems RX3i CPE310",
-                },
             },
         ],
     },
