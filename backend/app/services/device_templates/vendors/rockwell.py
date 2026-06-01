@@ -617,20 +617,20 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V20.007",
-                release_date=date(2024, 2, 1),
+                version="V16.002",
+                release_date=date(2022, 6, 1),
                 is_latest=True,
                 is_default=True,
                 cves=[],
             ),
             FirmwareVariant(
-                version="V19.008",
-                release_date=date(2022, 8, 15),
+                version="V14.001",
+                release_date=date(2021, 5, 15),
                 cves=["CVE-2022-3158"],
             ),
             FirmwareVariant(
-                version="V18.013",
-                release_date=date(2021, 3, 10),
+                version="V12.001",
+                release_date=date(2019, 3, 10),
                 cves=["CVE-2022-3158", "CVE-2021-22682"],
             ),
         ],

@@ -13,10 +13,10 @@ TEMPLATES: list[DeviceTemplate] = [
         id="honeywell/controledge/lcnp4m",
         vendor="Honeywell",
         vendor_family="ControlEdge",
-        model="LCNP4M",
-        model_name="ControlEdge PLC",
+        model="900CP1",
+        model_name="ControlEdge 900 Controller",
         device_type="plc",
-        description="High-performance process controller",
+        description="ControlEdge 900 platform process controller (Modbus TCP)",
 
         oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
 
@@ -42,24 +42,24 @@ TEMPLATES: list[DeviceTemplate] = [
             serial_format="HW{10ALPHANUM}",
             station_name_pattern="{role}-cedge-{seq}",
             vendor_short="HON",
-            model_short="LCNP",
+            model_short="CE900",
         ),
 
         firmware_variants=[
             FirmwareVariant(
-                version="R431.2",
+                version="R161.1",
                 release_date=date(2024, 2, 20),
                 is_latest=True,
                 is_default=True,
                 cves=[],
             ),
             FirmwareVariant(
-                version="R430.1",
+                version="R150.2",
                 release_date=date(2022, 9, 15),
                 cves=["CVE-2022-30317"],
             ),
             FirmwareVariant(
-                version="R421.0",
+                version="R140.1",
                 release_date=date(2020, 6, 10),
                 cves=["CVE-2022-30317", "CVE-2020-6960"],
             ),
@@ -67,12 +67,12 @@ TEMPLATES: list[DeviceTemplate] = [
 
         modbus_identity={
             "vendor_name": "Honeywell International Inc.",
-            "product_code": "LCNP4M",
-            "product_name": "ControlEdge PLC",
+            "product_code": "900CP1",
+            "product_name": "ControlEdge 900 Controller",
         },
 
         snmp_identity={
-            "sys_descr": "Honeywell ControlEdge PLC VR431.2",
+            "sys_descr": "Honeywell ControlEdge 900 Controller R161.1",
             "sys_object_id": "1.3.6.1.4.1.2879.492.38",
             "sys_name": "CONTRO-PLC-001",
             "sys_location": "Production Floor",

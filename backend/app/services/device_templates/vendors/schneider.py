@@ -147,19 +147,19 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V5.2.6",
+                version="V5.2.6.30",
                 release_date=date(2024, 1, 10),
                 is_latest=True,
                 is_default=True,
                 cves=[],
             ),
             FirmwareVariant(
-                version="V5.1.0",
+                version="V5.1.0.6",
                 release_date=date(2022, 9, 15),
                 cves=["CVE-2022-45788"],
             ),
             FirmwareVariant(
-                version="V4.0.5",
+                version="V4.0.6.41",
                 release_date=date(2020, 6, 20),
                 cves=["CVE-2022-45788", "CVE-2020-7559"],
             ),
@@ -173,7 +173,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Schneider Electric M241 Logic Controller V5.2.6",
+            "sys_descr": "Schneider Electric M241 Logic Controller V5.2.6.30",
             "sys_object_id": "1.3.6.1.4.1.3833.91.56",
             "sys_name": "M241-LOGIC-001",
             "sys_location": "Production Floor",
@@ -2540,14 +2540,14 @@ TEMPLATES: list[DeviceTemplate] = [
     # --- Power protection & substation automation portfolio (MiCOM / Easergy / PowerLogic) ---
     DeviceTemplate(
         id="schneider/micom/p145",
-        vendor="Schneider",
-        vendor_family="MiCOM P40 Agile",
+        vendor="GE",
+        vendor_family="GE Vernova MiCOM P40 Agile",
         model="P145",
         model_name="MiCOM P40 Agile P145 Feeder Management Relay",
         device_type="protection_relay",
-        description="Overcurrent and feeder management protection relay for MV distribution feeders",
+        description="Overcurrent and feeder management protection relay for MV distribution feeders (GE Vernova Grid Solutions, formerly Alstom/Areva MiCOM)",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:22:52", "00:09:45", "00:50:99"],
 
         tcp_stack={
             "ttl": 64,
@@ -2575,7 +2575,7 @@ TEMPLATES: list[DeviceTemplate] = [
         instance_rules=InstanceGenerationRules(
             serial_format="P40{6NUM}",
             station_name_pattern="relay-p145-{seq}",
-            vendor_short="SCH",
+            vendor_short="GE",
             model_short="P145",
         ),
 
@@ -2596,27 +2596,27 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         modbus_identity={
-            "vendor_name": "Schneider Electric",
+            "vendor_name": "GE Vernova",
             "product_code": "P145",
             "product_name": "MiCOM P40 Agile P145 Feeder Management Relay",
         },
 
         snmp_identity={
-            "sys_descr": "Schneider Electric MiCOM P40 Agile P145 Feeder Management Relay C3.0",
-            "sys_object_id": "1.3.6.1.4.1.3833.1101.45",
+            "sys_descr": "GE Vernova MiCOM P40 Agile P145 Feeder Management Relay C3.0",
+            "sys_object_id": "1.3.6.1.4.1.3861.1101.45",
             "sys_name": "MICOM-P145-001",
             "sys_location": "Substation Feeder Bay",
         },
 
         dnp3_identity={
-            "vendor_name": "Schneider Electric",
+            "vendor_name": "GE Vernova",
             "device_name": "MiCOM P40 Agile P145 Feeder Management Relay",
             "hardware_version": "P145",
         },
 
         iec61850_identity={
             "ied_name": "P40MICOM_E01",
-            "vendor": "Schneider Electric",
+            "vendor": "GE Vernova",
             "software_version": "C3.0",
             "logical_devices": ["CTRL", "MEAS", "PROT"],
             "icd_filename": "MiCOMP40.icd",
