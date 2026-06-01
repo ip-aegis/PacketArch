@@ -733,6 +733,32 @@ async def create_scenario_from_template(
         zones = definition["zones"]
         devices = definition["devices"]
         flows = definition["flows"]
+
+        # The archetype generator assigns realistic cveIds but cannot resolve
+        # them (no DB session). Resolve here so archetype scenarios emit
+        # vulnerable firmware identities, same as the freeform path above.
+        cve_resolved = 0
+        for device_id, device in definition["devices"].items():
+            cve_ids = device.get("cveIds")
+            if not cve_ids:
+                continue
+            try:
+                resolved_cve = await CVEFingerprintService.resolve_cves_for_device(
+                    db,
+                    vendor=device.get("vendor", ""),
+                    model=device.get("fingerprintModel"),
+                    cve_ids=cve_ids,
+                    base_fingerprint=device.get("vendorFingerprint"),
+                )
+                if resolved_cve:
+                    device["vulnerableVariantId"] = resolved_cve.variant_id
+                    device["vulnerableFirmware"] = resolved_cve.firmware_version
+                    device["cveIdentityOverrides"] = resolved_cve.to_vulnerability_override()
+                    device["resolvedCveSeverity"] = resolved_cve.severity
+                    cve_resolved += 1
+            except Exception as e:
+                logger.warning(f"Archetype CVE resolve failed for {device_id}: {e}")
+
         logger.info(
             f"Archetype rail: scenario built from {archetype_cfg.archetype_id} "
             f"(vendor={archetype_cfg.vendor_profile.value}, "

@@ -410,6 +410,84 @@ def _emit_flows(
 # Top-level entry
 # ---------------------------------------------------------------------------
 
+# Hand-verified scenario-model -> device-template-model aliases (same product
+# family, CVEs verifiably apply). Mirrors the scenario-template projection.
+_CVE_MODEL_ALIAS = {
+    ("rockwell", "PowerFlex 525"): "25B-D030N104",
+    ("delta_controls", "Manager"): "enteliBUS Manager",
+    ("econolite", "Cobalt ATC"): "ASC/3-2100 Cobalt",
+    ("siemens", "6ES7 516-3FN01-0AB0"): "6ES7 516-3AN02-0AB0",
+    ("siemens", "6ES7 516-3FN02-0AB0"): "6ES7 516-3AN02-0AB0",
+    ("siemens", "6ES7 517-3AP00-0AB0"): "6ES7 516-3AN02-0AB0",
+    ("rockwell", "1756-L84E"): "1756-L83E",
+    ("rockwell", "1756-L85E"): "1756-L83E",
+    ("rockwell", "1756-L83ES"): "1756-L83E",
+}
+
+
+def _assign_realistic_cves(devices: dict[str, dict[str, Any]]) -> None:
+    """Assign realistic-fleet CVEs to generated devices, in place.
+
+    ~1/3 of each model's instances land on the oldest/most-vulnerable
+    firmware variant, ~1/3 mid, ~1/3 latest/patched (no CVEs) — a realistic
+    patch spread. Every CVE-capable model surfaces >=1 CVE (critical-bearing
+    variant preferred) so each scenario actually shows vulnerabilities. CVEs
+    come from the corrected device-template firmware variants. Sets
+    ``device["cveIds"]`` (only when non-empty); resolution to vulnerable
+    firmware happens later, in the create route, where a DB session exists.
+    """
+    from collections import defaultdict
+
+    from app.services.cve_data import ALL_CVES
+    from app.services.device_templates import get_all_templates
+
+    critical = {c["cve_id"] for c in ALL_CVES if (c.get("cvss_score") or 0) >= 9.0}
+
+    def _cvecount(vs):
+        return sum(len(c) for _v, c in vs)
+
+    mv: dict[Any, list] = {}
+    for t in get_all_templates():
+        vs = [(fv.version, list(fv.cves or [])) for fv in t.firmware_variants]
+        for key in ((t.vendor.lower(), t.model), t.model):
+            if key not in mv or _cvecount(vs) > _cvecount(mv[key]):
+                mv[key] = vs
+
+    def variants_for(vendor, fm):
+        if not fm:
+            return None
+        fm = _CVE_MODEL_ALIAS.get((vendor.lower(), fm), fm)
+        return mv.get((vendor.lower(), fm)) or mv.get(fm)
+
+    def bucket_idx(i, n):
+        return {0: n - 1, 1: n // 2, 2: 0}[i % 3]  # oldest / middle / latest
+
+    def show_idx(vs):
+        for i, (_v, cves) in enumerate(vs):
+            if any(c in critical for c in cves):
+                return i
+        for i, (_v, cves) in enumerate(vs):
+            if cves:
+                return i
+        return None
+
+    bymodel: dict[Any, list] = defaultdict(list)
+    for dev in devices.values():
+        vs = variants_for(dev.get("vendor") or "", dev.get("fingerprintModel"))
+        if vs is not None:
+            bymodel[((dev.get("vendor") or "").lower(), dev.get("fingerprintModel"))].append((dev, vs))
+
+    for grp in bymodel.values():
+        for i, (dev, vs) in enumerate(grp):
+            cves = list(vs[bucket_idx(i, len(vs))][1])
+            if cves:
+                dev["cveIds"] = cves
+        vs0 = grp[0][1]
+        si = show_idx(vs0)
+        if si is not None and not any(d.get("cveIds") for d, _ in grp):
+            grp[0][0]["cveIds"] = list(vs0[si][1])
+
+
 def generate_from_archetype(
     archetype: Archetype | str,
     vendor_profile: VendorProfile | str = None,  # type: ignore[assignment]
@@ -596,6 +674,11 @@ def generate_from_archetype(
         preset=overrides.get("phase_preset"),
         vertical=archetype.vertical,
     )
+
+    # Assign realistic-fleet CVEs to the generated devices (the archetype
+    # rail builds devices independently of the legacy template's per-device
+    # cve_ids, so CVEs must be assigned here or scenarios show none).
+    _assign_realistic_cves(devices)
 
     # ----- 7. Definition assembly -------------------------------------
     definition: dict[str, Any] = {
