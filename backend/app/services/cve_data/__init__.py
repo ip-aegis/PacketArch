@@ -19,6 +19,7 @@ from app.services.cve_data.building_automation_cves import BUILDING_AUTOMATION_C
 from app.services.cve_data.energy_cves import ENERGY_CVES
 from app.services.cve_data.oil_gas_cves import OIL_GAS_CVES
 from app.services.cve_data.microsoft_cves import MICROSOFT_CVES
+from app.services.cve_data.audit_resourced_cves import AUDIT_RESOURCED_CVES
 
 # Combined CVE data from all vendors
 ALL_CVES: list[dict] = [
@@ -33,6 +34,7 @@ ALL_CVES: list[dict] = [
     *ENERGY_CVES,
     *OIL_GAS_CVES,
     *MICROSOFT_CVES,
+    *AUDIT_RESOURCED_CVES,
 ]
 
 # Index by CVE ID for quick lookup
