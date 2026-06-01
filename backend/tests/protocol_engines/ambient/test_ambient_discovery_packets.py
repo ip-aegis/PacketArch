@@ -250,7 +250,9 @@ class TestSnmpDiscoveryPackets:
 
         response_bytes = [p.packet_bytes for p in packets if p.direction == "response"]
         all_bytes = b"".join(response_bytes)
-        assert b"WTP_PLC_1" in all_bytes, "sysName must match device name"
+        # sysName is the canonical hostname derived from the device name — the
+        # same string LLDP/PROFINET/S7 advertise so CV sees one component.
+        assert b"wtp-plc-1" in all_bytes, "sysName must be the canonical hostname"
 
     def test_snmp_synthesis_when_no_explicit_identity(self):
         """Devices without snmp_identity should get synthesized SNMP responses."""
@@ -390,11 +392,13 @@ class TestEnipDiscoveryPackets:
     """Validate EtherNet/IP ListIdentity request/response packets."""
 
     def test_enip_list_identity_response_contains_product(self):
-        """ListIdentity response must contain product_name from fingerprint."""
+        """ListIdentity product_name must be the canonical hostname (so CV merges
+        the EtherNet/IP component with the L2/SNMP hostname component)."""
         fp = _rockwell_fingerprint()
         device = _make_device(
             protocols=["ethernet_ip"],
             vendor="Rockwell Automation",
+            device_name="Assembly_Main_PLC_01",
             vendor_fingerprint=fp,
             zone_id="control",
         )
@@ -414,9 +418,9 @@ class TestEnipDiscoveryPackets:
         # ListIdentity command is 0x0063
         assert payload[:2] == b"\x63\x00", "Must be ListIdentity command (0x0063)"
 
-        # product_name should be in the response
-        assert b"1756-L83E" in payload or b"LOGIX5580" in payload, (
-            "ListIdentity must contain product name"
+        # product_name is the canonical hostname (CV labels the component by it).
+        assert b"assembly-main-plc-01" in payload, (
+            "ListIdentity product_name must be the canonical hostname"
         )
 
     def test_enip_list_identity_has_vendor_id(self):

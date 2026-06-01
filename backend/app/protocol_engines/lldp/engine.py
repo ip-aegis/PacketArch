@@ -253,6 +253,14 @@ class LLDPEngine(ProtocolEngine):
         # Determine capabilities based on device type
         capabilities = self._get_capabilities_for_device_type(device_type)
 
+        # Fallback system_name = canonical hostname (matches SNMP/PROFINET/S7),
+        # never the raw descriptive device.name.
+        from app.protocol_engines import canonical_identity
+
+        default_system_name = canonical_identity.canonical_hostname(
+            flow.source.device_name or "device"
+        )
+
         return LLDPIdentity(
             chassis_id=config.get("chassis_id", flow.source.mac_address),
             chassis_id_subtype=ChassisIDSubtype(
@@ -264,7 +272,7 @@ class LLDPEngine(ProtocolEngine):
             ),
             ttl=config.get("ttl", DEFAULT_TTL),
             port_description=config.get("port_description", ""),
-            system_name=config.get("system_name", flow.source.device_name or "Device"),
+            system_name=config.get("system_name", default_system_name),
             system_description=config.get("system_description", ""),
             capabilities=config.get("capabilities", capabilities),
             enabled_capabilities=config.get("enabled_capabilities", capabilities),

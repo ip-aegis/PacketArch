@@ -144,6 +144,11 @@ class FingerprintApplicator:
         self.dnp3_identity = dict(fingerprint.get("dnp3_identity") or {})
         self.iec104_identity = dict(fingerprint.get("iec104_identity") or {})
 
+        # Derive CIP/PROFINET vendor IDs from the canonical source-of-truth
+        # tables, overriding any stale template-baked value (e.g. a Schneider
+        # device carrying ODVA id 67 -> "NetSafety Monitoring" in Cyber Vision).
+        self._apply_vendor_ids()
+
         # Apply vulnerability overrides if provided
         if self._vulnerability_override:
             self._apply_vulnerability_overrides()
@@ -388,6 +393,27 @@ class FingerprintApplicator:
                 f"Generated unique PROFINET serial: {self.profinet_identity['im0_serial_number']}"
             )
 
+    def _apply_vendor_ids(self) -> None:
+        """Derive CIP/PROFINET vendor IDs from the canonical SoT tables.
+
+        Template fingerprints have historically carried wrong/stale vendor IDs
+        (e.g. Schneider as ODVA 67, which Cyber Vision resolves to "NetSafety
+        Monitoring, Inc."). The canonical tables in ``vendor_oui.py`` are the
+        source of truth; when the vendor is known there, its id wins over the
+        template value. Unknown vendors keep whatever the template supplied.
+        """
+        from app.protocol_engines import canonical_identity
+
+        vendor = self.fingerprint.get("vendor")
+        if self.ethernet_ip_identity:
+            self.ethernet_ip_identity["vendor_id"] = canonical_identity.cip_vendor_id(
+                vendor, fallback=self.ethernet_ip_identity.get("vendor_id")
+            )
+        if self.profinet_identity:
+            self.profinet_identity["vendor_id"] = canonical_identity.profinet_vendor_id(
+                vendor, fallback=self.profinet_identity.get("vendor_id")
+            )
+
     def _apply_unique_identifiers(self) -> None:
         """Generate unique network identifiers for all protocols.
 
@@ -495,47 +521,35 @@ class FingerprintApplicator:
                 f"Generated unique S7 plc_name: {self.s7_identity['plc_name']}"
             )
 
-        # EtherNet/IP identity: product_name (CIP Identity Object)
-        # CV uses this for BOTH model-ref and name.  The template's product_name
-        # is the manufacturer catalog string (e.g. "1756-L83E/B LOGIX5580") which
-        # lets CV properly identify the model.  Only generate a synthetic name
-        # when the template doesn't already supply one.
+        # EtherNet/IP identity: product_name (CIP Identity Object).
+        # CV labels the EtherNet/IP component by this field, so it carries the
+        # canonical hostname (same as LLDP/SNMP) and CV merges them into one
+        # component. The hardware model stays identifiable via product_code /
+        # device_type / vendor_id.
         if self.ethernet_ip_identity:
-            if not self.ethernet_ip_identity.get("product_name"):
-                self.ethernet_ip_identity["product_name"] = (
-                    UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
-                        device_id=self.device_id,
-                        scenario_id=self.scenario_id,
-                        device_name=self.device_name,
-                        model=model,
-                        vendor_family=vendor_family,
-                        vendor=vendor,
-                    )
+            self.ethernet_ip_identity["product_name"] = (
+                UniqueIdentifierGenerator.generate_ethernet_ip_product_name(
+                    device_id=self.device_id,
+                    scenario_id=self.scenario_id,
+                    device_name=self.device_name,
+                    model=model,
+                    vendor_family=vendor_family,
+                    vendor=vendor,
                 )
-                logger.debug(
-                    f"Generated unique EtherNet/IP product_name: "
-                    f"{self.ethernet_ip_identity['product_name']}"
-                )
+            )
 
-        # Modbus identity: product_name (for Modbus FC43 Device Identification)
-        # CV uses this from MEI responses for model identification.
-        # Preserve the template's product_name (manufacturer catalog string)
-        # so CV can properly identify the model. Only generate a synthetic
-        # name when the template doesn't already supply one.
+        # Modbus identity: product_name carries the canonical hostname (CV labels
+        # the Modbus component by it). The catalog model is preserved in the
+        # Modbus model_name field.
         if self.modbus_identity:
-            if not self.modbus_identity.get("product_name"):
-                if self.device_name:
-                    self.modbus_identity["product_name"] = self.device_name
-                elif model:
-                    hash_bytes = UniqueIdentifierGenerator._generate_hash(
-                        self.device_id, self.scenario_id
-                    )
-                    hash_suffix = hash_bytes[:2].hex().upper()
-                    self.modbus_identity["product_name"] = f"{model}-{hash_suffix}"
-                logger.debug(
-                    f"Generated unique Modbus product_name: "
-                    f"{self.modbus_identity.get('product_name')}"
-                )
+            from app.protocol_engines import canonical_identity
+
+            host = canonical_identity.canonical_hostname(
+                self.device_name or model or vendor_family or vendor
+            )
+            self.modbus_identity["product_name"] = canonical_identity.modbus_product_name(host)
+            if model and not self.modbus_identity.get("model_name"):
+                self.modbus_identity["model_name"] = model
 
     @property
     def is_vulnerable(self) -> bool:

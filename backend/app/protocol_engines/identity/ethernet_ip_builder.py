@@ -150,8 +150,10 @@ class EtherNetIPIdentityBuilder(ProtocolIdentityBuilder):
         product_name = identity.get("product_name", "Unknown Device")
         state = identity.get("state", 3)
 
-        # Encode product name (length-prefixed string, max 32 chars)
-        product_name_bytes = product_name.encode("utf-8")[:32]
+        # Encode product name. CIP Product Name is a SHORT_STRING (1-byte
+        # length -> max 255). Cap at 64 so the full canonical hostname fits
+        # un-truncated and equals the LLDP/SNMP name (lets CV merge components).
+        product_name_bytes = product_name.encode("utf-8")[:64]
         product_name_len = len(product_name_bytes)
 
         # Socket address info

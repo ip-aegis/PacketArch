@@ -580,7 +580,9 @@ class TestSynthesizeSnmpIdentity:
         # Should NOT be Cisco OID
         assert result["sys_object_id"] != "1.3.6.1.4.1.9.1.1"
         assert "3833" in result["sys_object_id"]  # Schneider PEN
-        assert result["sys_name"] == "WTP_SCADA_Server"
+        # sysName is the canonical hostname (same string LLDP/PROFINET emit),
+        # not the raw descriptive device.name.
+        assert result["sys_name"] == "wtp-scada-server"
 
     def test_minimal_fingerprint_still_works(self):
         device = _make_device(

@@ -126,6 +126,10 @@ class TrafficOrchestrator:
                             vendor=fp.get("vendor", ""),
                             device_name=getattr(ctx, "device_name", "") or ctx.device_id,
                             vendor_fingerprint=fp,
+                            # Carry scenario_id so the ambient FingerprintApplicator
+                            # resolves the SAME canonical identity the protocol
+                            # engines emit (PCAP/live identity lockstep).
+                            scenario_id=getattr(ctx, "scenario_id", None),
                         )
                     elif ctx.device_id in seen_devices:
                         # Accumulate protocols from multiple flows

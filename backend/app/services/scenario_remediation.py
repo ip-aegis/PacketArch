@@ -326,7 +326,7 @@ async def _regenerate_macs(
     db: AsyncSession, scenario_id: str, params: dict,
 ) -> RemediationResult:
     from app.mcp_server.tools.scenario_lock import safe_update_scenario
-    from app.protocol_engines.identity import generate_mac
+    from app.protocol_engines import canonical_identity
 
     target_ids = set(params.get("device_ids", []))
     regen_count = 0
@@ -338,15 +338,18 @@ async def _regenerate_macs(
             if target_ids and did not in target_ids:
                 continue
             vendor = device.get("vendor", "")
-            device_type = device.get("type", "")
             # Use fingerprint OUI prefixes when available for vendor-accurate MACs
             fp = device.get("vendorFingerprint") or device.get("vendor_fingerprint") or {}
             oui_prefixes = fp.get("oui_prefixes")
             network = device.setdefault("network", {})
-            network["macAddress"] = generate_mac(
-                vendor=vendor,
-                device_type=device_type,
-                oui_patterns=oui_prefixes if oui_prefixes else None,
+            # Deterministic: re-derives the SAME MAC the device was created with
+            # (seeded by device_id+scenario_id), so changing a device's vendor
+            # refreshes the OUI without drifting the address Cyber Vision learned.
+            network["macAddress"] = canonical_identity.canonical_mac(
+                did,
+                scenario_id,
+                vendor=vendor or fp.get("vendor"),
+                oui_prefixes=oui_prefixes,
             )
             regen_count += 1
         return {"success": True}

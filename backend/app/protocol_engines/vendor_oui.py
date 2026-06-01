@@ -633,6 +633,46 @@ _VENDOR_DIVISION_OUIS: dict[str, list[str]] = {
 VENDOR_OUI_PREFIXES: dict[str, list[str]] = {**VENDOR_OUIS, **_VENDOR_DIVISION_OUIS}
 
 
+# Vendor name aliases: maps variations to canonical short form. Lives here (a
+# stdlib-only module staged into the agent) so it is the single source of truth
+# for vendor normalization on BOTH the backend and the agent. The backend's
+# app.core.vendor_normalize re-exports normalize_vendor/VENDOR_NAME_ALIASES from
+# here for backward compatibility.
+VENDOR_NAME_ALIASES: dict[str, str] = {
+    # Full names -> canonical short names
+    "johnson controls": "johnson_controls",
+    "schneider electric": "schneider",
+    "delta controls": "delta_controls",
+    "distech controls": "distech",
+    "automated logic": "automated_logic",
+    "endress+hauser": "endress_hauser",
+    "endress hauser": "endress_hauser",
+    "ge multilin": "ge_multilin",
+    # Handle underscore variants in lookups
+    "johnson_controls": "johnson_controls",
+    "schneider_electric": "schneider",
+    "delta_controls": "delta_controls",
+    "distech_controls": "distech",
+    "automated_logic": "automated_logic",
+    "endress_hauser": "endress_hauser",
+    "ge_multilin": "ge_multilin",
+    # Handle Allen-Bradley variations
+    "allen-bradley": "allen_bradley",
+    "allen bradley": "allen_bradley",
+    "allen_bradley": "allen_bradley",
+}
+
+
+def normalize_vendor(vendor: str) -> str:
+    """Normalize a vendor name to its canonical short form for lookups.
+
+    Examples: "Johnson Controls" -> "johnson_controls", "Schneider Electric" ->
+    "schneider", "Allen-Bradley" -> "allen_bradley".
+    """
+    lower = vendor.lower().strip()
+    return VENDOR_NAME_ALIASES.get(lower, lower)
+
+
 def get_random_oui_for_vendor(vendor: str) -> str | None:
     """Get a random OUI prefix for a vendor from the full OUI database."""
     import random as _rand

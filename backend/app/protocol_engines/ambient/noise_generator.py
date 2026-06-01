@@ -588,11 +588,18 @@ class BackgroundNoiseGenerator:
             logger.debug("LLDP engine not available, skipping")
             return []
 
+        from app.protocol_engines import canonical_identity
+
         caps = self._infer_lldp_capabilities(device)
         identity = LLDPIdentity(
             chassis_id=device.mac_address,
             port_id="eth0",
-            system_name=device.device_name or device.device_id,
+            # Canonical hostname — the SAME string SNMP/PROFINET/S7 advertise, so
+            # Cyber Vision reconciles this L2 sighting with the L3 host instead of
+            # creating a second component.
+            system_name=canonical_identity.canonical_hostname(
+                device.device_name or device.device_id
+            ),
             system_description=f"{device.vendor} {device.device_type}".strip(),
             management_address=device.ip_address,
             capabilities=caps,
@@ -677,13 +684,18 @@ class BackgroundNoiseGenerator:
         """Emit CDP advertisement and reschedule."""
         from app.protocol_engines.ambient.cdp import build_cdp_frame
 
+        from app.protocol_engines import canonical_identity
+
         fp = device.vendor_fingerprint
         platform = fp.get("model", "cisco IE-4010-16S12P")
         sw_version = fp.get("firmware_version", "Cisco IOS Software, Version 15.2(7)E")
 
         pkt_bytes = build_cdp_frame(
             src_mac=device.mac_address,
-            device_id=device.device_name or device.device_id,
+            # CDP Device ID = canonical hostname (matches LLDP/SNMP).
+            device_id=canonical_identity.canonical_hostname(
+                device.device_name or device.device_id
+            ),
             ip_address=device.ip_address,
             platform=platform,
             software_version=sw_version,
@@ -1035,10 +1047,14 @@ class BackgroundNoiseGenerator:
         if not sys_object_id:
             from app.protocol_engines.vendor_oui import get_enterprise_oid_for_vendor
             sys_object_id = get_enterprise_oid_for_vendor(device.vendor)
-        # Always prefer scenario device_name for sysName — CV uses this for
-        # display.  Template snmp_identity.sys_name is a generic placeholder
-        # shared across devices; device_name is unique per scenario instance.
-        sys_name = device.device_name or snmp_id.get("sys_name", device.device_id)
+        # sysName MUST be the canonical hostname — the SAME string LLDP and the
+        # PROFINET/S7 engines advertise — so Cyber Vision reconciles the L2 and
+        # L3 sightings into one component instead of splitting the device.
+        from app.protocol_engines import canonical_identity
+
+        sys_name = canonical_identity.canonical_hostname(
+            device.device_name or snmp_id.get("sys_name") or device.device_id
+        )
         sys_location = snmp_id.get("sys_location", "Industrial Site")
 
         # MIB-II system OIDs to poll
@@ -1186,13 +1202,9 @@ class BackgroundNoiseGenerator:
             ip_address=mgr_ip,
             port=src_port,
         )
-        dev_ctx = DeviceContext(
-            device_id=device.device_id,
-            mac_address=device.mac_address,
-            ip_address=device.ip_address,
-            port=502,
-            vendor_fingerprint=fp,
-        )
+        # Shared builder so the applicator resolves the canonical identity
+        # (device_name) for the Modbus product_name.
+        dev_ctx = self._device_context(device, port=502)
 
         seq = random.randint(1000, 0xFFFFFF)
         ack = random.randint(1000, 0xFFFFFF)
@@ -1284,13 +1296,11 @@ class BackgroundNoiseGenerator:
             ip_address=mgr_ip,
             port=44818,
         )
-        dev_ctx = DeviceContext(
-            device_id=device.device_id,
-            mac_address=device.mac_address,
-            ip_address=device.ip_address,
-            port=44818,
-            vendor_fingerprint=fp,
-        )
+        # Use the shared builder so the FingerprintApplicator resolves the
+        # canonical identity (device_id/scenario_id/device_name) — otherwise the
+        # CIP product_name falls back to a model-derived string and the
+        # EtherNet/IP component diverges from the LLDP/SNMP hostname in CV.
+        dev_ctx = self._device_context(device, port=44818)
 
         try:
             req_bytes = build_list_identity_request_packet(
@@ -1397,13 +1407,9 @@ class BackgroundNoiseGenerator:
             ip_address=mgr_ip,
             port=src_port,
         )
-        dev_ctx = DeviceContext(
-            device_id=device.device_id,
-            mac_address=device.mac_address,
-            ip_address=device.ip_address,
-            port=102,
-            vendor_fingerprint=fp,
-        )
+        # Shared builder so the applicator resolves the canonical identity
+        # (device_name) for the S7 plc_name.
+        dev_ctx = self._device_context(device, port=102)
 
         seq = random.randint(1000, 0xFFFFFF)
         ack = random.randint(1000, 0xFFFFFF)
@@ -1462,6 +1468,13 @@ class BackgroundNoiseGenerator:
             build_dhcp_request,
         )
 
+        from app.protocol_engines import canonical_identity
+
+        # DHCP Option 12 hostname = canonical hostname (matches LLDP/SNMP).
+        dhcp_hostname = canonical_identity.canonical_hostname(
+            device.device_name or device.device_id
+        )
+
         xid = random.randint(1, 0xFFFFFFFF)
         # Use a real device (switch/server) as DHCP server instead of phantom
         dhcp_dev = self._pick_query_source(device)
@@ -1478,7 +1491,7 @@ class BackgroundNoiseGenerator:
             packet_bytes=build_dhcp_discover(
                 client_mac=device.mac_address,
                 xid=xid,
-                hostname=device.device_name or "",
+                hostname=dhcp_hostname,
             ),
             direction="broadcast",
             metadata={"type": "dhcp_discover", "device_id": device.device_id},
@@ -1608,7 +1621,15 @@ class BackgroundNoiseGenerator:
 
     @staticmethod
     def _device_context(device: AmbientDevice, port: int = 0) -> Any:
-        """Build a minimal DeviceContext from an AmbientDevice."""
+        """Build a DeviceContext from an AmbientDevice.
+
+        Passes device_id/scenario_id/device_name so the lazily-built
+        FingerprintApplicator runs unique-identifier resolution and emits the
+        SAME canonical identity the protocol engines do. Without these, ambient
+        PROFINET-DCP / SNMP / S7 responses would fall back to raw template
+        values and diverge from the engine path (the original Cyber Vision
+        component-split bug).
+        """
         from app.protocol_engines.types import DeviceContext
 
         return DeviceContext(
@@ -1617,6 +1638,8 @@ class BackgroundNoiseGenerator:
             ip_address=device.ip_address,
             port=port,
             vendor_fingerprint=device.vendor_fingerprint,
+            scenario_id=device.scenario_id,
+            device_name=device.device_name,
         )
 
     # ------------------------------------------------------------------
@@ -1646,10 +1669,14 @@ class BackgroundNoiseGenerator:
             parts.append(fw_str)
         sys_descr = " ".join(parts) if parts else device.device_name or device.device_id
 
+        from app.protocol_engines import canonical_identity
+
         return {
             "sys_descr": sys_descr,
             "sys_object_id": get_enterprise_oid_for_vendor(vendor),
-            "sys_name": device.device_name or device.device_id,
+            "sys_name": canonical_identity.canonical_hostname(
+                device.device_name or device.device_id
+            ),
             "sys_location": "Industrial Site",
         }
 

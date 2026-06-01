@@ -97,6 +97,24 @@ def enrich_device_serial_numbers(
                 device_id, scenario_id
             )
 
+    # Deterministic, vendor-appropriate MAC seeded by device_id+scenario_id.
+    # This is the single source of truth for the device MAC: it is stable across
+    # deployments AND across any fingerprint re-resolution (re-derives the same
+    # value). During skip_existing backfills we preserve an already-assigned MAC
+    # so we never churn a MAC Cyber Vision has already learned for a legacy
+    # device; for fresh scenarios it deterministically replaces the random
+    # placeholder the template builder seeds.
+    network = device.get("network")
+    if isinstance(network, dict) and not (skip_existing and network.get("macAddress")):
+        from app.protocol_engines import canonical_identity
+
+        network["macAddress"] = canonical_identity.canonical_mac(
+            device_id,
+            scenario_id,
+            vendor=fingerprint.get("vendor") or device.get("vendor"),
+            oui_prefixes=fingerprint.get("oui_prefixes"),
+        )
+
     # Update both camelCase and snake_case versions for compatibility
     device["vendorFingerprint"] = fingerprint
     device["vendor_fingerprint"] = fingerprint
@@ -171,6 +189,7 @@ def enrich_device_unique_identifiers(
         device_id: Unique device identifier
         scenario_id: Scenario UUID
     """
+    from app.protocol_engines import canonical_identity
     from app.services.unique_identifier_generator import UniqueIdentifierGenerator
 
     device_name = device.get("name")
@@ -184,12 +203,11 @@ def enrich_device_unique_identifiers(
         """Check if identity has any data."""
         return bool(identity and isinstance(identity, dict) and len(identity) > 0)
 
-    # EtherNet/IP identity - product_name (CIP Identity Object)
-    # CV uses this as the primary display label for EtherNet/IP devices.
-    # Always override with a unique name that includes the device's functional
-    # name.  The generator produces "MODEL DEVICE_NAME" format (e.g.
-    # "1756-L85E Rockwell_Line_1_Main_PLC") so CV can still identify the
-    # hardware type while showing a unique per-device label.
+    # EtherNet/IP identity - product_name (CIP Identity Object).
+    # Carries the canonical hostname: CV labels the EtherNet/IP component by this
+    # field, so it must equal the LLDP/SNMP hostname for CV to merge the L2 and
+    # L3 sightings into one component. The model stays identifiable via
+    # product_code / device_type / vendor_id.
     if "ethernet_ip" in protocols:
         existing_identity = fingerprint.get("ethernet_ip_identity")
         if identity_exists(existing_identity):
@@ -204,10 +222,22 @@ def enrich_device_unique_identifiers(
                 )
             )
 
+    # Derive CIP/PROFINET vendor IDs from the canonical source-of-truth tables,
+    # overriding stale template-baked values so the persisted definition matches
+    # what the engines emit (e.g. Schneider 67 -> 243, not "NetSafety").
+    enip_identity = fingerprint.get("ethernet_ip_identity")
+    if identity_exists(enip_identity):
+        enip_identity["vendor_id"] = canonical_identity.cip_vendor_id(
+            vendor, fallback=enip_identity.get("vendor_id")
+        )
+
     # PROFINET identity - station_name (must be unique on PROFINET network)
     if "profinet" in protocols or "profisafe" in protocols:
         existing_identity = fingerprint.get("profinet_identity")
         if identity_exists(existing_identity):
+            existing_identity["vendor_id"] = canonical_identity.profinet_vendor_id(
+                vendor, fallback=existing_identity.get("vendor_id")
+            )
             existing_identity["station_name"] = (
                 UniqueIdentifierGenerator.generate_profinet_station_name(
                     device_id=device_id,
@@ -234,16 +264,18 @@ def enrich_device_unique_identifiers(
                 )
             )
 
-    # Modbus identity - product_name (from FC43 MEI response)
+    # Modbus identity - product_name (from FC43 MEI response).
+    # Carries the canonical hostname (CV labels the Modbus component by it); the
+    # catalog model is preserved in the Modbus model_name field.
     if "modbus_tcp" in protocols or "modbus" in protocols:
         existing_identity = fingerprint.get("modbus_identity")
         if identity_exists(existing_identity):
-            if device_name:
-                existing_identity["product_name"] = device_name
-            elif model:
-                hash_bytes = UniqueIdentifierGenerator._generate_hash(device_id, scenario_id)
-                hash_suffix = hash_bytes[:2].hex().upper()
-                existing_identity["product_name"] = f"{model}-{hash_suffix}"
+            host = canonical_identity.canonical_hostname(
+                device_name or model or vendor_family or vendor
+            )
+            existing_identity["product_name"] = canonical_identity.modbus_product_name(host)
+            if model and not existing_identity.get("model_name"):
+                existing_identity["model_name"] = model
 
     # SNMP identity - sys_name (what CV displays for network devices)
     if "snmp" in protocols:
