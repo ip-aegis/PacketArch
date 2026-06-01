@@ -1299,61 +1299,85 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
 
 
 async def seed_cve_vulnerabilities(db: AsyncSession) -> int:
-    """Seed CVE vulnerabilities from Python data files.
+    """Reconcile built-in CVE vulnerabilities to the curated Python source.
 
-    These CVEs are used to generate protocol identity responses with
-    vulnerable firmware versions that security tools will detect.
+    The ``cve_data/`` Python files are the single source of truth. On every
+    boot this reconciles the DB to them:
+      * inserts CVEs that are new to the DB,
+      * updates built-in rows whose data changed (CVSS, product, firmware,
+        advisory, etc.),
+      * prunes built-in rows no longer present in the source (their
+        vulnerable_fingerprint_variants are removed via FK ``ON DELETE
+        CASCADE``).
+    User-created rows (``is_builtin=False``) are never touched. This makes
+    deletes/edits in the curated files actually propagate to a persistent
+    DB instead of accumulating stale rows (insert-only seeding never did).
+
+    Returns the number of newly inserted rows (kept for caller compatibility).
     """
     from app.models.cve_vulnerability import CVESeverity, CVEVulnerability
     from app.services.cve_data import ALL_CVES
 
-    # Pre-load all existing CVE IDs in a single query
-    result = await db.execute(select(CVEVulnerability.cve_id))
-    existing_cve_ids = {row[0] for row in result.all()}
-
-    new_cves = []
-    seen_cve_ids: set[str] = set()
-
+    # Source of truth, keyed by cve_id (source is already de-duplicated;
+    # first occurrence wins if not).
+    source: dict[str, dict] = {}
     for cve_data in ALL_CVES:
-        cve_id = cve_data["cve_id"]
+        source.setdefault(cve_data["cve_id"], cve_data)
 
-        # Skip duplicates within the batch and already-seeded entries
-        if cve_id in seen_cve_ids or cve_id in existing_cve_ids:
-            continue
-        seen_cve_ids.add(cve_id)
+    result = await db.execute(select(CVEVulnerability))
+    existing = {row.cve_id: row for row in result.scalars().all()}
 
-        severity_str = cve_data.get("severity", "medium").lower()
-        severity = CVESeverity(severity_str)
+    # Mutable scalar/JSON columns kept in sync from the source dict.
+    MUTABLE = (
+        "title", "description", "cvss_score", "cvss_vector", "vendor",
+        "product_family", "affected_models", "affected_firmware_min",
+        "fixed_firmware_version", "detection_method", "advisory_url",
+        "references", "mitre_techniques", "exploit_complexity",
+        "published_date",
+    )
 
-        new_cves.append(CVEVulnerability(
-            cve_id=cve_data["cve_id"],
-            title=cve_data["title"],
-            description=cve_data.get("description"),
-            severity=severity,
-            cvss_score=cve_data.get("cvss_score"),
-            cvss_vector=cve_data.get("cvss_vector"),
-            vendor=cve_data["vendor"],
-            product_family=cve_data["product_family"],
-            affected_models=cve_data.get("affected_models"),
-            affected_firmware_min=cve_data.get("affected_firmware_min"),
-            affected_firmware_max=cve_data.get("affected_firmware_max", "unknown"),
-            fixed_firmware_version=cve_data.get("fixed_firmware_version"),
-            cyber_vision_detectable=cve_data.get("cyber_vision_detectable", True),
-            detection_method=cve_data.get("detection_method"),
-            advisory_url=cve_data.get("advisory_url"),
-            references=cve_data.get("references"),
-            mitre_techniques=cve_data.get("mitre_techniques"),
-            exploit_available=cve_data.get("exploit_available", False),
-            exploit_complexity=cve_data.get("exploit_complexity"),
-            published_date=cve_data.get("published_date"),
-            is_builtin=True,
-        ))
+    def field_values(cve_data: dict) -> dict:
+        vals = {k: cve_data.get(k) for k in MUTABLE}
+        # NOT NULL column — never store None.
+        vals["affected_firmware_max"] = cve_data.get("affected_firmware_max") or "unknown"
+        vals["cyber_vision_detectable"] = cve_data.get("cyber_vision_detectable", True)
+        vals["exploit_available"] = cve_data.get("exploit_available", False)
+        vals["severity"] = CVESeverity(cve_data.get("severity", "medium").lower())
+        return vals
 
-    if new_cves:
-        db.add_all(new_cves)
+    inserted = updated = pruned = 0
+    new_rows = []
+    for cve_id, cve_data in source.items():
+        vals = field_values(cve_data)
+        row = existing.get(cve_id)
+        if row is None:
+            new_rows.append(CVEVulnerability(cve_id=cve_id, is_builtin=True, **vals))
+            inserted += 1
+        elif row.is_builtin:
+            changed = False
+            for key, val in vals.items():
+                if getattr(row, key) != val:
+                    setattr(row, key, val)
+                    changed = True
+            if changed:
+                updated += 1
+        # else: user-created row with a clashing id — leave it alone.
+
+    for cve_id, row in existing.items():
+        if cve_id not in source and row.is_builtin:
+            await db.delete(row)  # variants cascade
+            pruned += 1
+
+    if new_rows:
+        db.add_all(new_rows)
+    if inserted or updated or pruned:
         await db.commit()
 
-    return len(new_cves)
+    logger.info(
+        "CVE reconcile: +%d inserted, %d updated, %d pruned (DB now matches source)",
+        inserted, updated, pruned,
+    )
+    return inserted
 
 
 async def seed_vulnerable_variants(db: AsyncSession) -> int:
