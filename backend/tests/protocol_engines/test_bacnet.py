@@ -93,9 +93,10 @@ class TestBACnetTypes:
 
     def test_bacnet_vendor_ids(self):
         """Test vendor ID dictionary has expected entries."""
-        assert 5 in BACNET_VENDOR_IDS  # Johnson Controls
-        assert 17 in BACNET_VENDOR_IDS  # Honeywell
-        assert 24 in BACNET_VENDOR_IDS  # Siemens
+        # IDs verified against bacnet.org/assigned-vendor-ids (audit 2026-05-31)
+        assert BACNET_VENDOR_IDS[5] == "Johnson Controls"
+        assert BACNET_VENDOR_IDS[17] == "Honeywell"
+        assert BACNET_VENDOR_IDS[7] == "Siemens"
 
     def test_bacnet_object_identifier_valid(self):
         """Test BACnet Object Identifier encoding."""

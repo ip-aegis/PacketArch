@@ -55,16 +55,17 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "64:3A:EA",  # Schneider Electric
     ],
     "abb": [
-        "00:21:99",  # ABB Stotz Kontakt
-        "00:24:2B",  # ABB Inc
-        "00:1F:ED",  # ABB AS
-        "00:C0:53",  # ABB Power Automation
-        "C4:93:00",  # ABB
+        # Audit 2026-05-31: prior five OUIs were all misattributed per IEEE —
+        # 00:21:99 (Vacon), 00:24:2B (Foxconn), 00:1F:ED / 00:C0:53 / C4:93:00.
+        "94:F6:65",  # ABB Switzerland (IEEE MA-L, audit-verified)
+        "00:03:2C",  # ABB
+        "00:12:93",  # ABB
     ],
     "emerson": [
         # NOTE: Emerson/Fisher-Rosemount often uses embedded NICs from other vendors.
         # Protocol-based identification (Modbus FC43, EtherNet/IP identity) is more reliable.
-        "00:0D:3A",  # Emerson Network Power (verified IEEE)
+        # "00:0D:3A" REMOVED 2026-05-31 — actually Microsoft per IEEE. No confirmed
+        # Emerson Electric MA-L replacement (00:E0:86 is Emerson Network Power/Avocent).
         # "00:A0:F8" REMOVED - Actually Zebra/Symbol Technologies per IEEE
         # "00:50:43" REMOVED - Actually Marvell Semiconductor per IEEE
         # "00:60:35" REMOVED - Actually Dallas Semiconductor per IEEE
@@ -87,10 +88,12 @@ VENDOR_OUIS: dict[str, list[str]] = {
         "00:1C:73",  # SEL Inc
     ],
     "basler": [
-        "00:1E:C9",  # Basler Electric
+        # "00:1E:C9" REMOVED 2026-05-31 — actually Dell per IEEE
+        "4C:06:8A",  # Basler Electric (IEEE MA-L, audit-verified)
     ],
     "beckwith": [
-        "00:1A:F0",  # Beckwith Electric
+        # "00:1A:F0" REMOVED 2026-05-31 — actually Alcatel-Lucent per IEEE.
+        # No Beckwith Electric MA-L block found in IEEE — UNRESOLVED.
     ],
     "phoenix_contact": [
         "00:A0:45",  # Phoenix Contact
@@ -185,8 +188,9 @@ VENDOR_OUIS: dict[str, list[str]] = {
     # NOTE: Many building automation devices use embedded NICs from other vendors
     # (Cisco, Intel, Microchip). Protocol-based detection (SNMP, BACnet) is more reliable.
     "johnson_controls": [
-        "00:1A:17",  # Johnson Controls
+        # "00:1A:17" REMOVED 2026-05-31 — actually Teak Technologies per IEEE
         # "00:16:C7" REMOVED - Actually Cisco Systems per IEEE registry
+        "00:10:8D",  # Johnson Controls Inc (IEEE MA-L, audit-verified)
         "00:23:BE",  # Johnson Controls Systems
     ],
     "tridium": [
@@ -562,18 +566,19 @@ VENDOR_DISPLAY_NAMES: dict[str, str] = {
 
 # ODVA (CIP/EtherNet/IP) Vendor IDs - official ODVA registrations
 ODVA_VENDOR_IDS: dict[str, int] = {
+    # Audit 2026-05-31: IDs verified against Wireshark packet-cip.c cip_vendor_vals.
     "rockwell": 1,  # Allen-Bradley (Rockwell Automation)
-    "schneider": 67,  # Schneider Electric
-    "siemens": 285,  # Siemens
-    "cisco": 680,  # Cisco Systems
-    "abb": 75,  # ABB (ODVA Licensed Vendor)
-    "honeywell": 50,  # Honeywell
-    "emerson": 90,  # Emerson
-    "ge": 82,  # General Electric
+    "schneider": 243,  # Schneider Electric (was 67 — wrong)
+    "siemens": 145,  # Siemens (was 285 — wrong)
+    "cisco": 680,  # Cisco Systems (UNRESOLVED — left as-is)
+    "abb": 46,  # ABB (was 75 — wrong)
+    "honeywell": 3,  # Honeywell (was 50 — wrong)
+    "emerson": 90,  # Emerson (UNRESOLVED — left as-is)
+    "ge": 143,  # General Electric (was 82 — wrong)
     "omron": 47,  # Omron
-    "mitsubishi": 121,  # Mitsubishi
-    "kuka": 368,  # KUKA Roboter GmbH
-    "cognex": 112,  # Cognex Corporation
+    "mitsubishi": 161,  # Mitsubishi (was 121 — that ID is actually KUKA)
+    "kuka": 121,  # KUKA Roboter GmbH (was 368 — wrong)
+    "cognex": 112,  # Cognex Corporation (UNRESOLVED — left as-is)
 }
 
 # PROFINET Vendor IDs
@@ -587,28 +592,29 @@ PROFINET_VENDOR_IDS: dict[str, int] = {
 }
 
 # BACnet Vendor IDs (ASHRAE-registered)
+# Audit 2026-05-31: IDs verified against bacnet.org/assigned-vendor-ids.
 BACNET_VENDOR_IDS: dict[int, str] = {
     5: "Johnson Controls",
     17: "Honeywell",
-    24: "Siemens",
-    67: "Schneider Electric",
-    86: "Automated Logic",
-    95: "TAC (Schneider)",
-    97: "Trane",
-    122: "Delta Controls",
-    165: "Distech Controls",
-    200: "KMC Controls",
-    236: "Alerton",
+    7: "Siemens",  # was 24
+    10: "Schneider Electric",  # was 67
+    24: "Automated Logic",  # was 86
+    11: "TAC (Schneider)",  # was 95
+    2: "Trane",  # was 97
+    8: "Delta Controls",  # was 122
+    332: "Distech Controls",  # was 165
+    28: "KMC Controls",  # was 200
+    18: "Alerton",  # was 236
     252: "Continental Automated Buildings Association",
-    260: "Carel Industries",
-    279: "Carrier",
+    77: "Carel Industries",  # was 260
+    16: "Carrier",  # was 279
     301: "Carrier Corp.",
-    317: "Reliable Controls",
-    353: "Lennox",
-    381: "McQuay",
-    416: "Novar (Honeywell)",
-    438: "Computrols",
-    489: "Contemporary Controls",
+    35: "Reliable Controls",  # was 317
+    255: "Lennox",  # was 353
+    381: "McQuay",  # UNRESOLVED — not found in assigned-vendor-ids
+    91: "Novar (Honeywell)",  # was 416
+    225: "Computrols",  # was 438
+    245: "Contemporary Controls",  # was 489
 }
 
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to
@@ -746,10 +752,10 @@ def get_vendor_for_oui(oui: str, human_readable: bool = True) -> Optional[str]:
 # ---------------------------------------------------------------------------
 VENDOR_ENTERPRISE_OIDS: dict[str, str] = {
     "siemens": "1.3.6.1.4.1.4329",
-    "rockwell": "1.3.6.1.4.1.53148",
+    "rockwell": "1.3.6.1.4.1.95",      # PEN 95 (was 53148 — wrong)
     "schneider": "1.3.6.1.4.1.3833",
-    "abb": "1.3.6.1.4.1.26381",
-    "emerson": "1.3.6.1.4.1.3530",
+    "abb": "1.3.6.1.4.1.908",          # PEN 908 (was 26381 — wrong)
+    "emerson": "1.3.6.1.4.1.476",      # PEN 476 (was 3530 — wrong)
     "honeywell": "1.3.6.1.4.1.2879",
     "ge": "1.3.6.1.4.1.3861",
     "yokogawa": "1.3.6.1.4.1.2745",
@@ -758,10 +764,10 @@ VENDOR_ENTERPRISE_OIDS: dict[str, str] = {
     "hirschmann": "1.3.6.1.4.1.248",
     "hms": "1.3.6.1.4.1.8284",
     "phoenix_contact": "1.3.6.1.4.1.4346",
-    "beckhoff": "1.3.6.1.4.1.2510",
+    "beckhoff": "1.3.6.1.4.1.25157",   # PEN 25157 (was 2510 — wrong)
     "wago": "1.3.6.1.4.1.13576",
-    "omron": "1.3.6.1.4.1.1103",
-    "mitsubishi": "1.3.6.1.4.1.18296",
+    "omron": "1.3.6.1.4.1.16838",      # PEN 16838 (was 1103 — wrong)
+    "mitsubishi": "1.3.6.1.4.1.409",   # PEN 409 (was 18296 — wrong)
     "sel": "1.3.6.1.4.1.1027",
     "beckwith": "1.3.6.1.4.1.2456",        # Beckwith Electric Co. (IANA PEN 2456)
     "basler": "1.3.6.1.4.1.16654",         # Basler Electric (IANA PEN 16654)

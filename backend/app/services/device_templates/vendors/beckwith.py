@@ -26,7 +26,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="meter",
         description="Power transformer monitor with thermal modeling and LTC condition assessment",
 
-        oui_prefixes=["00:1A:F0"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -105,7 +105,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="tap_changer",
         description="Microprocessor-based load tap-changer control for voltage regulation",
 
-        oui_prefixes=["00:1A:F0"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -184,7 +184,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Integrated generator protection relay for synchronous machines",
 
-        oui_prefixes=["00:1A:F0"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,

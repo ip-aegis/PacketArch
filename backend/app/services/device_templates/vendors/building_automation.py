@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bac",
         description="Building automation network controller",
 
-        oui_prefixes=["00:1A:17", "00:16:C7", "00:23:BE"],
+        oui_prefixes=["00:23:BE"],
 
         tcp_stack={
             "ttl": 128,
@@ -85,7 +85,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="field_controller",
         description="BACnet field controller for HVAC equipment",
 
-        oui_prefixes=["00:1A:17", "00:16:C7", "00:23:BE"],
+        oui_prefixes=["00:23:BE"],
 
         tcp_stack={
             "ttl": 64,
@@ -1060,7 +1060,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ME812U",
         device_type="building_controller",
         description="Automated Logic ME812U",
-        oui_prefixes=['00:14:C1', '00:1C:12'],
+        oui_prefixes=["00:14:C1", "00:1C:12"],
         tcp_stack={},
         response_timing={
                 "min_ms": 8.0,
@@ -1112,7 +1112,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Pro Open",
         device_type="bms_server",
         description="Carrier Pro Open",
-        oui_prefixes=['00:0D:AD', '00:1E:8E'],
+        oui_prefixes=["00:0D:AD", "00:1E:8E"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 65535,
@@ -1168,7 +1168,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Manager",
         device_type="building_controller",
         description="Delta Controls Manager",
-        oui_prefixes=['00:0B:AB', '00:0D:9F'],
+        oui_prefixes=["00:0B:AB", "00:0D:9F"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -1225,7 +1225,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="eBCON",
         device_type="zone_controller",
         description="Delta Controls eBCON",
-        oui_prefixes=['00:0B:AB', '00:0D:9F'],
+        oui_prefixes=["00:0B:AB", "00:0D:9F"],
         tcp_stack={},
         response_timing={
                 "min_ms": 10.0,
@@ -1277,7 +1277,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ECY-VAV",
         device_type="vav_controller",
         description="Distech Controls ECY-VAV",
-        oui_prefixes=['00:1E:C0', 'D0:77:14'],
+        oui_prefixes=["00:1E:C0", "D0:77:14"],
         tcp_stack={},
         response_timing={
                 "min_ms": 8.0,
@@ -1329,7 +1329,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="SNC",
         device_type="building_controller",
         description="Johnson Controls SNC",
-        oui_prefixes=['00:1A:17', '00:23:BE'],
+        oui_prefixes=["00:23:BE"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -1386,7 +1386,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="UC600",
         device_type="building_controller",
         description="Trane UC600",
-        oui_prefixes=['00:0D:AD', '00:1C:C0'],
+        oui_prefixes=["00:0D:AD", "00:1C:C0"],
         tcp_stack={},
         response_timing={
                 "min_ms": 12.0,

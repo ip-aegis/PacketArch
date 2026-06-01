@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance AC500 PLC with dual Ethernet",
 
-        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "C4:93:00"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -97,7 +97,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance AC500 CPU with Ethernet interface",
 
-        oui_prefixes=["00:20:99", "00:21:99", "00:24:CB"],
+        oui_prefixes=["00:20:99", "00:24:CB"],
 
         tcp_stack={
             "ttl": 64,
@@ -184,7 +184,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="AC500 CPU with Ethernet interface for medium applications",
 
-        oui_prefixes=["00:20:99", "00:21:99", "00:24:CB"],
+        oui_prefixes=["00:20:99", "00:24:CB"],
 
         tcp_stack={
             "ttl": 64,
@@ -268,7 +268,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Compact AC500-eCo CPU for remote applications",
 
-        oui_prefixes=["00:20:99", "00:21:99"],
+        oui_prefixes=["00:20:99"],
 
         tcp_stack={
             "ttl": 64,
@@ -328,7 +328,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="High-performance industrial drive for demanding applications",
 
-        oui_prefixes=["00:20:99", "00:21:99", "00:24:CB"],
+        oui_prefixes=["00:20:99", "00:24:CB"],
 
         tcp_stack={
             "ttl": 64,
@@ -401,7 +401,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="CI501 communication interface for distributed I/O",
 
-        oui_prefixes=["00:20:99", "00:21:99"],
+        oui_prefixes=["00:20:99"],
 
         tcp_stack={
             "ttl": 64,
@@ -480,7 +480,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Feeder protection and control relay for distribution",
 
-        oui_prefixes=["00:21:99", "00:24:2B"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -548,7 +548,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Next-generation protection and control for utility applications",
 
-        oui_prefixes=["00:21:99", "00:24:2B"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -618,7 +618,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="General purpose variable frequency drive with built-in features",
 
-        oui_prefixes=["00:21:99", "00:24:2B"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -689,7 +689,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="6-inch touch panel for PLC integration",
 
-        oui_prefixes=["00:21:99", "00:24:2B"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -752,7 +752,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Modular RTU for power utility automation",
 
-        oui_prefixes=["00:21:99", "00:24:2B"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -820,7 +820,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ACS580",
         device_type="drive",
         description="ABB ACS580",
-        oui_prefixes=['00:20:99', '00:21:99', 'CC:DA:0C'],
+        oui_prefixes=["00:20:99", "CC:DA:0C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -883,7 +883,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="M2BAX 180MLB",
         device_type="motor",
         description="ABB M2BAX 180MLB",
-        oui_prefixes=['00:20:99', '00:21:99', 'CC:DA:0C'],
+        oui_prefixes=["00:20:99", "CC:DA:0C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 4096,
@@ -940,7 +940,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Relion 630 series distance protection relay for sub-transmission lines",
 
-        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -1032,7 +1032,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Relion 615 series line differential protection relay (87L)",
 
-        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -1124,7 +1124,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Relion 670 series high-end transmission line distance protection IED",
 
-        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
@@ -1223,7 +1223,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="controller",
         description="Symphony Plus Harmony Process Gateway DCS controller for power generation",
 
-        oui_prefixes=["00:21:99", "00:24:2B", "00:1F:ED", "00:C0:53", "C4:93:00"],
+        oui_prefixes=[],
 
         tcp_stack={
             "ttl": 64,
