@@ -89,7 +89,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_S_Series_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "S-series",
-             "cve_ids": ["CVE-2022-29966"],
+             "cve_ids": [],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Primary DCS Controller"},
 
@@ -98,7 +98,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_MD_Plus_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "MD Plus",
-             "cve_ids": ["CVE-2022-29966"],
+             "cve_ids": [],
              "role": "Secondary DCS Controller"},
 
             # Honeywell Experion Station - ESD Override Panel

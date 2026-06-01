@@ -132,49 +132,6 @@ ABB_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2022-26057 - SPIET800/SPICT800 Information Disclosure
-    {
-        "cve_id": "CVE-2022-26057",
-        "title": "ABB SPIET800/SPICT800 Information Disclosure",
-        "description": (
-            "ABB SPIET800 and SPICT800 devices are vulnerable to information disclosure. "
-            "An attacker can extract sensitive configuration data including credentials "
-            "through the network interface."
-        ),
-        "severity": "high",
-        "cvss_score": 8.6,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
-        "vendor": "ABB",
-        "product_family": "SPI Ethernet",
-        "affected_models": [
-            "SPIET800", "SPICT800", "SPI600",
-        ],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "3.4.1",
-        "fixed_firmware_version": "3.4.2",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-095-01",
-        "references": [],
-        "mitre_techniques": ["T0811", "T0846"],
-        "exploit_available": False,
-        "exploit_complexity": "low",
-        "published_date": datetime(2022, 4, 5),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "3.4.1",
-                "display_name": "SPIET800 (CVE-2022-26057)",
-                "snmp_sys_descr_template": "ABB SPI SPIET800 Ethernet Interface v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "ABB",
-                    "product_code": "SPIET800",
-                    "major_minor_revision": "3.4.1",
-                },
-                "ethernet_ip_identity_override": None,
-            },
-        ],
-    },
-
     # CVE-2019-18253 - PM554-TP-ETH Stack Buffer Overflow
     {
         "cve_id": "CVE-2019-18253",

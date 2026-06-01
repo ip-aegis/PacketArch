@@ -10,75 +10,6 @@ These vulnerabilities are detectable via firmware version strings in protocol re
 from datetime import datetime
 
 GE_EMERSON_CVES: list[dict] = [
-    # CVE-2022-23925 - PACSystems RX3i Authentication Bypass
-    {
-        "cve_id": "CVE-2022-23925",
-        "title": "GE PACSystems RX3i Authentication Bypass",
-        "description": (
-            "GE PACSystems RX3i controllers are vulnerable to authentication bypass "
-            "via a specially crafted request. An attacker could exploit this to gain "
-            "unauthorized access to the controller and modify its configuration."
-        ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "vendor": "GE",
-        "product_family": "PACSystems RX3i",
-        "affected_models": [
-            "IC695CPE310", "IC695CPE330", "IC695CPE400",
-            "IC695PSD040", "IC695PSD140",
-        ],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "9.80",
-        "fixed_firmware_version": "9.85",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-081-01",
-        "references": [],
-        "mitre_techniques": ["T0859", "T0843"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2022, 3, 22),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "9.80",
-                "display_name": "PACSystems RX3i CPE400 (CVE-2022-23925)",
-                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Automation",
-                    "product_code": "IC695CPE400",
-                    "major_minor_revision": "9.80",
-                    "product_name": "PACSystems RX3i CPE400",
-                },
-                "ethernet_ip_identity_override": {
-                    "vendor_id": 0x001D,  # GE ODVA vendor ID
-                    "device_type": 14,
-                    "product_code": 0x0400,
-                    "revision_major": 9,
-                    "revision_minor": 80,
-                    "product_name": "PACSystems RX3i CPE400",
-                },
-            },
-            {
-                "firmware_version": "9.70",
-                "display_name": "PACSystems RX3i CPE330 (CVE-2022-23925)",
-                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE330 v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Automation",
-                    "product_code": "IC695CPE330",
-                    "major_minor_revision": "9.70",
-                },
-                "ethernet_ip_identity_override": {
-                    "vendor_id": 0x001D,
-                    "device_type": 14,
-                    "product_code": 0x0330,
-                    "revision_major": 9,
-                    "revision_minor": 70,
-                    "product_name": "PACSystems RX3i CPE330",
-                },
-            },
-        ],
-    },
 
     # CVE-2021-27426 - MarkVIe Remote Code Execution
     {
@@ -120,57 +51,6 @@ GE_EMERSON_CVES: list[dict] = [
                     "product_name": "MarkVIe Speedtronic Controller",
                 },
                 "ethernet_ip_identity_override": None,
-            },
-        ],
-    },
-
-    # CVE-2020-12525 - PACSystems Improper Input Validation
-    {
-        "cve_id": "CVE-2020-12525",
-        "title": "GE PACSystems Improper Input Validation",
-        "description": (
-            "GE PACSystems RX3i and RSTi-EP controllers are vulnerable to improper input "
-            "validation. A malformed packet can cause the controller to enter a fault "
-            "state, resulting in denial of service."
-        ),
-        "severity": "high",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-        "vendor": "GE",
-        "product_family": "PACSystems",
-        "affected_models": [
-            "IC695CPE310", "IC695CPE330", "IC695CPE400",
-            "RSTi-EP", "IC695RMX128",
-        ],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "9.45",
-        "fixed_firmware_version": "9.50",
-        "cyber_vision_detectable": True,
-        "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-20-154-01",
-        "references": [],
-        "mitre_techniques": ["T0831"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2020, 6, 2),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "9.45",
-                "display_name": "PACSystems RX3i (CVE-2020-12525)",
-                "snmp_sys_descr_template": "GE Automation PACSystems RX3i CPE400 v{firmware_version}",
-                "modbus_identity_override": {
-                    "vendor_name": "GE Automation",
-                    "product_code": "IC695CPE400",
-                    "major_minor_revision": "9.45",
-                },
-                "ethernet_ip_identity_override": {
-                    "vendor_id": 0x001D,
-                    "device_type": 14,
-                    "product_code": 0x0400,
-                    "revision_major": 9,
-                    "revision_minor": 45,
-                    "product_name": "PACSystems RX3i CPE400",
-                },
             },
         ],
     },
