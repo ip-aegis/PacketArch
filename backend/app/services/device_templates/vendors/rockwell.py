@@ -1109,8 +1109,8 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V20.003",
-                release_date=date(2023, 7, 1),
+                version="V16.002",
+                release_date=date(2022, 6, 1),
                 is_latest=True,
                 is_default=True,
                 cves=[],
@@ -2532,8 +2532,8 @@ TEMPLATES: list[DeviceTemplate] = [
             },
         supported_protocols=['ethernet_ip'],
         firmware_variants=[FirmwareVariant(
-            version="20.013",
-            release_date=date(2024, 1, 1),
+            version="16.002",
+            release_date=date(2022, 6, 1),
             is_default=True,
             is_latest=True,
         )],
@@ -2541,14 +2541,14 @@ TEMPLATES: list[DeviceTemplate] = [
                 "vendor_id": 1,
                 "device_type": 2,
                 "product_code": 56,
-                "revision_major": 20,
-                "revision_minor": 13,
+                "revision_major": 16,
+                "revision_minor": 2,
                 "product_name": "PowerFlex 755",
                 "state": 3,
             },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation PowerFlex 755 V20.013",
+            "sys_descr": "Rockwell Automation PowerFlex 755 V16.002",
             "sys_object_id": "1.3.6.1.4.1.53148.556.48",
             "sys_name": "POWERF-755-001",
             "sys_location": "Motor Control Center",
