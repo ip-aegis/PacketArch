@@ -70,13 +70,13 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.20",
                 release_date=date(2022, 4, 10),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2022-45788", "CVE-2022-45789"],
                 notes="Vulnerable to authentication bypass",
             ),
             FirmwareVariant(
                 version="V2.80",
                 release_date=date(2020, 11, 5),
-                cves=["CVE-2022-45788", "CVE-2021-22779", "CVE-2020-7561"],
+                cves=["CVE-2018-7760", "CVE-2019-6829", "CVE-2020-7537", "CVE-2021-22779", "CVE-2022-45788", "CVE-2022-45789"],
                 notes="Multiple critical vulnerabilities",
             ),
         ],
@@ -156,12 +156,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.1.0.6",
                 release_date=date(2022, 9, 15),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
             ),
             FirmwareVariant(
                 version="V4.0.6.41",
                 release_date=date(2020, 6, 20),
-                cves=["CVE-2022-45788", "CVE-2020-7559"],
+                cves=["CVE-2017-6028", "CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
             ),
         ],
 
@@ -228,19 +228,19 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 1, 20),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2025-7746"],
                 notes="Latest firmware with security patches",
             ),
             FirmwareVariant(
                 version="V1.6IE42",
                 release_date=date(2022, 7, 15),
-                cves=["CVE-2022-22804"],
+                cves=["CVE-2025-7746"],
                 notes="Vulnerable to improper input validation",
             ),
             FirmwareVariant(
                 version="V1.5IE35",
                 release_date=date(2021, 3, 10),
-                cves=["CVE-2022-22804", "CVE-2020-7571"],
+                cves=["CVE-2025-7746"],
                 notes="Multiple vulnerabilities - upgrade recommended",
             ),
         ],
@@ -325,12 +325,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.20",
                 release_date=date(2022, 4, 10),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2022-45788", "CVE-2022-45789"],
             ),
             FirmwareVariant(
                 version="V2.80",
                 release_date=date(2020, 11, 5),
-                cves=["CVE-2022-45788", "CVE-2021-22779"],
+                cves=["CVE-2018-7760", "CVE-2019-6829", "CVE-2020-7537", "CVE-2021-22779", "CVE-2022-45788", "CVE-2022-45789"],
             ),
         ],
 
@@ -405,12 +405,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.10",
                 release_date=date(2022, 5, 15),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2022-45788", "CVE-2021-22779"],
             ),
             FirmwareVariant(
                 version="V2.90",
                 release_date=date(2020, 8, 20),
-                cves=["CVE-2022-45788", "CVE-2020-7537"],
+                cves=["CVE-2022-45788", "CVE-2020-7537", "CVE-2018-7760", "CVE-2021-22779", "CVE-2019-6829"],
             ),
         ],
 
@@ -495,12 +495,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.0.0",
                 release_date=date(2022, 6, 20),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2020-7487", "CVE-2020-7488", "CVE-2021-22699"],
             ),
             FirmwareVariant(
                 version="V4.0.7",
                 release_date=date(2020, 4, 15),
-                cves=["CVE-2022-45788", "CVE-2020-7559"],
+                cves=["CVE-2017-6028", "CVE-2020-7487", "CVE-2020-7488", "CVE-2021-22699"],
             ),
         ],
 
@@ -566,12 +566,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.3.0",
                 release_date=date(2022, 9, 15),
-                cves=["CVE-2022-45788"],
+                cves=["CVE-2024-6528"],
             ),
             FirmwareVariant(
                 version="V1.1.0",
                 release_date=date(2021, 5, 10),
-                cves=["CVE-2022-45788", "CVE-2021-22779"],
+                cves=["CVE-2024-6528"],
             ),
         ],
 
@@ -641,17 +641,17 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 2, 1),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2025-7746"],
             ),
             FirmwareVariant(
                 version="V3.3IE30",
                 release_date=date(2022, 8, 15),
-                cves=["CVE-2022-22804"],
+                cves=["CVE-2025-7746"],
             ),
             FirmwareVariant(
                 version="V3.1IE20",
                 release_date=date(2021, 4, 10),
-                cves=["CVE-2022-22804", "CVE-2020-7571"],
+                cves=["CVE-2025-7746"],
             ),
         ],
 
@@ -804,7 +804,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.80",
                 release_date=date(2022, 3, 10),
-                cves=["CVE-2021-22787"],
+                cves=[],
             ),
         ],
 
@@ -941,12 +941,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.3.0",
                 release_date=date(2022, 5, 10),
-                cves=["CVE-2022-0221"],
+                cves=["CVE-2024-11999"],
             ),
             FirmwareVariant(
                 version="V3.1.0",
                 release_date=date(2020, 11, 15),
-                cves=["CVE-2022-0221", "CVE-2020-7570"],
+                cves=["CVE-2024-11999"],
             ),
         ],
 
@@ -1012,12 +1012,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.0",
                 release_date=date(2018, 3, 10),
-                cves=["CVE-2019-6857"],
+                cves=["CVE-2019-6857", "CVE-2018-7760", "CVE-2020-7537", "CVE-2018-7759"],
             ),
             FirmwareVariant(
                 version="V4.6",
                 release_date=date(2015, 11, 20),
-                cves=["CVE-2019-6857", ],
+                cves=["CVE-2019-6857", "CVE-2018-7760", "CVE-2020-7537", "CVE-2018-7759"],
                 notes="Legacy firmware - upgrade strongly recommended",
             ),
         ],
@@ -1088,12 +1088,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.2.0",
                 release_date=date(2022, 8, 15),
-                cves=["CVE-2022-45788"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V1.0.0",
                 release_date=date(2021, 3, 10),
-                cves=["CVE-2022-45788", "CVE-2021-22779"],
+                cves=[],
             ),
         ],
 
@@ -1469,7 +1469,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2018, 6, 1),
                 is_latest=True,
                 is_default=True,
-                cves=["CVE-2019-6857", "CVE-2018-7821"],
+                cves=["CVE-2019-6857", "CVE-2018-7760", "CVE-2020-7537", "CVE-2018-7759"],
                 notes="Legacy product with limited security updates",
             ),
         ],
@@ -1657,7 +1657,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.3.0",
                 release_date=date(2022, 3, 15),
-                cves=["CVE-2022-22805"],
+                cves=[],
             ),
         ],
 
@@ -1719,7 +1719,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V6.8.4",
                 release_date=date(2022, 5, 15),
-                cves=["CVE-2022-0715"],
+                cves=[],
             ),
         ],
 
@@ -1782,12 +1782,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.6.0",
                 release_date=date(2022, 7, 15),
-                cves=["CVE-2022-22810"],
+                cves=["CVE-2020-7480"],
             ),
             FirmwareVariant(
                 version="V2.4.0",
                 release_date=date(2020, 11, 10),
-                cves=["CVE-2022-22810", "CVE-2020-7477"],
+                cves=["CVE-2020-7480"],
             ),
         ],
 
@@ -1856,7 +1856,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.2.0",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2022-42972"],
+                cves=["CVE-2024-11999"],
             ),
         ],
 
@@ -1983,12 +1983,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 1, 20),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
             ),
             FirmwareVariant(
                 version="V3.100",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2022-22810"],
+                cves=["CVE-2016-5809", "CVE-2021-22702", "CVE-2021-22713", "CVE-2023-5984"],
             ),
         ],
 
@@ -2057,7 +2057,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V8.2.0",
                 release_date=date(2022, 7, 20),
-                cves=["CVE-2022-45788"],
+                cves=[],
             ),
         ],
 
@@ -2590,7 +2590,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="B2.1",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2021-22772"],
+                cves=["CVE-2018-7758"],
                 notes="MiCOM legacy management interface vulnerability",
             ),
         ],
@@ -2674,7 +2674,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="D4.0",
                 release_date=date(2021, 9, 1),
-                cves=["CVE-2021-22772"],
+                cves=["CVE-2018-7758"],
                 notes="MiCOM legacy management interface vulnerability",
             ),
         ],
@@ -2758,7 +2758,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="B2.4",
                 release_date=date(2021, 11, 18),
-                cves=["CVE-2021-22772"],
+                cves=["CVE-2018-7758"],
                 notes="MiCOM legacy management interface vulnerability",
             ),
         ],
@@ -2842,7 +2842,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="P14.A1",
                 release_date=date(2022, 2, 8),
-                cves=["CVE-2021-22772"],
+                cves=[],
                 notes="MiCOM legacy management interface vulnerability",
             ),
         ],
@@ -2920,7 +2920,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.6.0",
                 release_date=date(2021, 12, 10),
-                cves=["CVE-2022-37300", "CVE-2022-37301"],
+                cves=[],
                 notes="Authentication bypass and hard-coded credentials in legacy Easergy firmware",
             ),
         ],
@@ -2998,7 +2998,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V30.20",
                 release_date=date(2022, 1, 25),
-                cves=["CVE-2022-37300", "CVE-2022-37301", ],
+                cves=["CVE-2022-22725"],
                 notes="Multiple Easergy authentication and credential vulnerabilities",
             ),
         ],
@@ -3082,7 +3082,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.7.0",
                 release_date=date(2021, 8, 14),
-                cves=["CVE-2022-37300", "CVE-2022-37301", ],
+                cves=["CVE-2020-7561"],
                 notes="Easergy authentication bypass and hard-coded credentials",
             ),
         ],

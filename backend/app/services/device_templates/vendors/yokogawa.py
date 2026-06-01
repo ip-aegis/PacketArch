@@ -51,17 +51,17 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 1, 15),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2024-5650"],
             ),
             FirmwareVariant(
                 version="R6.03",
                 release_date=date(2022, 8, 20),
-                cves=["CVE-2022-30997"],
+                cves=["CVE-2024-5650"],
             ),
             FirmwareVariant(
                 version="R6.01",
                 release_date=date(2021, 3, 10),
-                cves=["CVE-2022-30997", ],
+                cves=["CVE-2024-5650"],
             ),
         ],
 
@@ -126,7 +126,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R4.03",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2022-30997"],
+                cves=[],
             ),
         ],
 
@@ -190,7 +190,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V4.2",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2022-30997"],
+                cves=[],
             ),
         ],
 
@@ -254,7 +254,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V3.0",
                 release_date=date(2022, 7, 20),
-                cves=["CVE-2022-30997"],
+                cves=[],
             ),
         ],
 
@@ -439,7 +439,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2023, 9, 1),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2022-21177", "CVE-2024-5650", "CVE-2023-26593"],
             ),
         ],
 
@@ -498,7 +498,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2023, 9, 1),
                 is_latest=True,
                 is_default=True,
-                cves=[],
+                cves=["CVE-2022-21177", "CVE-2024-5650", "CVE-2023-26593"],
             ),
         ],
 
@@ -607,6 +607,7 @@ TEMPLATES: list[DeviceTemplate] = [
         supported_protocols=['modbus_tcp'],
         firmware_variants=[FirmwareVariant(
             version="R6.08.00",
+            cves=["CVE-2022-21177", "CVE-2024-5650", "CVE-2023-26593"],
             release_date=date(2024, 1, 1),
             is_default=True,
             is_latest=True,

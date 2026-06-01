@@ -56,13 +56,13 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.49",
                 release_date=date(2022, 8, 15),
-                cves=["CVE-2022-34151"],
+                cves=["CVE-2022-33971"],
                 notes="Vulnerable to authentication bypass via FINS",
             ),
             FirmwareVariant(
                 version="V1.40",
                 release_date=date(2021, 5, 10),
-                cves=["CVE-2022-34151", "CVE-2022-33971"],
+                cves=["CVE-2022-33971"],
             ),
         ],
 
@@ -126,7 +126,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.0",
                 release_date=date(2021, 11, 20),
-                cves=["CVE-2022-34151"],
+                cves=["CVE-2019-18269", "CVE-2022-45790"],
             ),
         ],
 
@@ -247,7 +247,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.220",
                 release_date=date(2022, 6, 20),
-                cves=["CVE-2022-25164"],
+                cves=["CVE-2025-7405", "CVE-2022-40267"],
             ),
         ],
 

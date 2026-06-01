@@ -55,12 +55,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R151-V2",
                 release_date=date(2022, 5, 20),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2024-2103"],
             ),
             FirmwareVariant(
                 version="R150-V0",
                 release_date=date(2020, 10, 10),
-                cves=["CVE-2023-31170", "CVE-2021-31553"],
+                cves=["CVE-2024-2103"],
             ),
         ],
 
@@ -130,7 +130,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R148-V2",
                 release_date=date(2022, 8, 15),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2023-31148", "CVE-2023-31150", "CVE-2023-2310"],
             ),
         ],
 
@@ -205,12 +205,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R159-V2",
                 release_date=date(2022, 6, 20),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2023-31176"],
             ),
             FirmwareVariant(
                 version="R157-V0",
                 release_date=date(2020, 11, 10),
-                cves=["CVE-2023-31170", "CVE-2021-31553"],
+                cves=["CVE-2023-31176"],
             ),
         ],
 
@@ -280,7 +280,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R131-V2",
                 release_date=date(2022, 7, 15),
-                cves=["CVE-2023-31170"],
+                cves=[],
             ),
         ],
 
@@ -349,12 +349,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R110-V3",
                 release_date=date(2022, 4, 15),
-                cves=["CVE-2023-31170"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="R108-V0",
                 release_date=date(2020, 8, 10),
-                cves=["CVE-2023-31170", "CVE-2021-31553"],
+                cves=[],
             ),
         ],
 
@@ -423,12 +423,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R158-V2",
                 release_date=date(2022, 5, 20),
-                cves=["CVE-2023-31170"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="R156-V0",
                 release_date=date(2020, 9, 15),
-                cves=["CVE-2023-31170", "CVE-2021-31553"],
+                cves=[],
             ),
         ],
 
@@ -599,12 +599,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R123-V2",
                 release_date=date(2022, 9, 12),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2023-2265"],
             ),
             FirmwareVariant(
                 version="R120-V0",
                 release_date=date(2020, 5, 18),
-                cves=["CVE-2023-31170", "CVE-2020-24650"],
+                cves=["CVE-2023-2265"],
             ),
         ],
 
@@ -704,12 +704,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R206-V2",
                 release_date=date(2022, 6, 8),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2024-2103"],
             ),
             FirmwareVariant(
                 version="R203-V0",
                 release_date=date(2020, 4, 22),
-                cves=["CVE-2023-31170", "CVE-2020-24650"],
+                cves=["CVE-2024-2103"],
             ),
         ],
 
@@ -810,7 +810,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R150-V1",
                 release_date=date(2022, 11, 18),
-                cves=["CVE-2023-31170"],
+                cves=["CVE-2023-31148", "CVE-2023-31149", "CVE-2023-2310"],
             ),
         ],
 
@@ -904,7 +904,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="R108-V1",
                 release_date=date(2022, 3, 14),
-                cves=["CVE-2020-24650"],
+                cves=[],
             ),
         ],
 
