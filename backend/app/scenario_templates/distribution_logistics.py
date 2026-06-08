@@ -165,27 +165,27 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "KMP 600",
              "role": "Automated Guided Vehicle"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_01", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_01", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_02", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_02", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_03", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_03", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_04", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_04", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_05", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_05", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "agv_zone",
-             "name": "AMR_MiR_06", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "AMR_MiR_06", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR250",
              "role": "Autonomous Mobile Robot"},
 
@@ -341,8 +341,17 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["wms_core"], "target_zones": ["pick_zone"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
-            # WCS to Fleet Managers - EtherNet/IP (500ms)
+            # WCS to KUKA Fleet Manager - EtherNet/IP (500ms). KUKA.FleetManager
+            # supports EtherNet/IP; the MiR controller (Modbus-only) is polled
+            # over Modbus in the flow below.
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["scada_server"], "target_types": ["fleet_manager"],
+             "source_zones": ["wms_core"], "target_zones": ["fleet_mgmt"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # WCS to MiR Fleet Controller - Modbus TCP (500ms). MiR Fleet speaks
+            # Modbus/HTTPS only, never EtherNet/IP.
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
              "source_types": ["scada_server"], "target_types": ["fleet_manager"],
              "source_zones": ["wms_core"], "target_zones": ["fleet_mgmt"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
@@ -436,9 +445,9 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "wms_to_fleet", "name": "WMS Core \u2194 Fleet Management",
              "source_zone": "wms_core", "target_zone": "fleet_mgmt",
              "direction": "bidirectional",
-             "allowed_protocols": ["ethernet_ip"],
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
              "security_level": "high",
-             "description": "WCS servers polling KUKA and MiR fleet managers for AGV coordination and status"},
+             "description": "WCS servers polling KUKA fleet manager (EtherNet/IP) and MiR fleet controller (Modbus) for AGV coordination and status"},
             # L3 (wms_core) <-> L2 (conveyor_zone): WCS to conveyor automation
             {"id": "wms_to_conveyor", "name": "WMS Core \u2194 Conveyor Zone",
              "source_zone": "wms_core", "target_zone": "conveyor_zone",
@@ -498,7 +507,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # DC CORE ZONE (Level 3) - 4 devices
             # ============================================================
             {"type": "scada_server", "vendor": "siemens", "count": 1, "zone": "dc_core",
-             "name": "DC_Operations_Server", "protocols": ["s7comm_plus", "ethernet_ip", "snmp"],
+             "name": "DC_Operations_Server", "protocols": ["s7comm_plus", "modbus_tcp", "snmp"],
              "fingerprint_model": "6ES7 517-3AP00-0AB0",
              "role": "Distribution Operations"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dc_core",
@@ -743,9 +752,12 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 0.3, "jitter_type": "gaussian"},
 
             # Safety PLC to zone PLCs - safety interlock (4ms)
+            # Dock safety controller protects only its own shipping cell; PROFIsafe
+            # interlocks are zone-local, not broadcast horizontally into the
+            # receiving cell. Receiving has its own dock safety provisions.
             {"protocol": "profisafe", "pattern": "safety", "interval_ms": 4,
              "source_types": ["safety_plc"], "target_types": ["plc"],
-             "source_zones": ["shipping"], "target_zones": ["receiving", "shipping"],
+             "source_zones": ["shipping"], "target_zones": ["shipping"],
              "jitter_ms": 0.3, "jitter_type": "gaussian"},
 
             # ============================================================
@@ -791,7 +803,10 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 50, "jitter_type": "uniform"},
 
             # Historian data collection from Operations Server (30s)
-            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 30000,
+            # Siemens S7-1500 operations server speaks S7comm/PROFINET/Modbus, NOT
+            # EtherNet/IP. GE Proficy historian polls it over Modbus TCP (both
+            # vendors natively support Modbus).
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
              "source_types": ["historian"], "target_types": ["scada_server"],
              "source_zones": ["dc_core"], "target_zones": ["dc_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
@@ -1069,19 +1084,19 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "MiR Fleet",
              "role": "Cold-Rated AMR Fleet"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "ambient_zone",
-             "name": "Cold_AMR_1", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Cold_AMR_1", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR500",
              "role": "Cold-Rated Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "ambient_zone",
-             "name": "Cold_AMR_2", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Cold_AMR_2", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR500",
              "role": "Cold-Rated Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "ambient_zone",
-             "name": "Cold_AMR_3", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Cold_AMR_3", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR500",
              "role": "Cold-Rated Mobile Robot"},
             {"type": "amr", "vendor": "mir", "count": 1, "zone": "ambient_zone",
-             "name": "Cold_AMR_4", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "Cold_AMR_4", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR500",
              "role": "Cold-Rated Mobile Robot"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "ambient_zone",

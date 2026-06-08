@@ -1480,21 +1480,14 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["scada_server"], "target_types": ["switch"],
              "source_zones": ["dmz"], "target_zones": ["dmz", "siemens_zone", "rockwell_zone", "schneider_zone", "abb_zone"]},
 
-            # CROSS-ZONE FLOWS (Material Handoff)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["siemens_zone"], "target_zones": ["rockwell_zone"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["rockwell_zone"], "target_zones": ["schneider_zone"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
-
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["plc"], "target_types": ["plc"],
-             "source_zones": ["schneider_zone"], "target_zones": ["abb_zone"],
-             "jitter_ms": 50, "jitter_type": "uniform"},
+            # NOTE: Cross-vendor material-handoff coordination between peer
+            # production cells is mediated by the L3.5 supervisory stack
+            # (Central SCADA + OPC UA aggregator already subscribe to every
+            # cell PLC above), NOT by direct horizontal PLC-to-PLC links.
+            # Real multi-vendor plants do not wire a Siemens S7 PLC as a
+            # Modbus client to a peer Rockwell PLC across vendor-isolated
+            # cells; that east-west path was removed (along with its
+            # handoff conduits) per strict IEC 62443 area-zone segmentation.
 
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["jump_server"], "target_types": ["switch"],
@@ -1606,25 +1599,10 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "allowed_protocols": ["modbus_tcp"],
              "security_level": "high",
              "description": "ABB PLCs poll field I/O modules via Modbus TCP"},
-            # Cross-zone material handoff conduits (L2 -> L2)
-            {"id": "siemens_rockwell_handoff", "name": "Siemens \u2194 Rockwell Handoff",
-             "source_zone": "siemens_zone", "target_zone": "rockwell_zone",
-             "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
-             "security_level": "high",
-             "description": "Cross-zone material handoff coordination between Siemens and Rockwell production lines via Modbus TCP"},
-            {"id": "rockwell_schneider_handoff", "name": "Rockwell \u2194 Schneider Handoff",
-             "source_zone": "rockwell_zone", "target_zone": "schneider_zone",
-             "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
-             "security_level": "high",
-             "description": "Cross-zone material handoff coordination between Rockwell and Schneider production lines via Modbus TCP"},
-            {"id": "schneider_abb_handoff", "name": "Schneider \u2194 ABB Handoff",
-             "source_zone": "schneider_zone", "target_zone": "abb_zone",
-             "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
-             "security_level": "high",
-             "description": "Cross-zone material handoff coordination between Schneider and ABB production lines via Modbus TCP"},
+            # NOTE: No horizontal L2 peer-cell conduits exist by design.
+            # Cross-vendor cells are hermetic at the IEC 62443 area-zone
+            # boundary; material-handoff coordination is mediated north
+            # through the L3.5 supervisory OPC UA stack, never east-west.
             # DMZ to external conduit (L3.5 -> L4)
             {"id": "dmz_external", "name": "DMZ \u2194 External",
              "source_zone": "dmz", "target_zone": "external",

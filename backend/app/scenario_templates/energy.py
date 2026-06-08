@@ -1238,11 +1238,17 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["ems_core"],
              "target_zones": ["ems_core", "engineering", "comm_hub"]},
 
-            # Remote relay polling revenue meters (10s)
+            # Remote RTU polling revenue meters (10s) - strictly intra-substation-group;
+            # split per zone so substation groups A and B never poll each other's meters.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
              "source_types": ["rtu"], "target_types": ["power_meter"],
-             "source_zones": ["remote_sub_a", "remote_sub_b"],
-             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "source_zones": ["remote_sub_a"],
+             "target_zones": ["remote_sub_a"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["rtu"], "target_types": ["power_meter"],
+             "source_zones": ["remote_sub_b"],
+             "target_zones": ["remote_sub_b"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
 
             # WAN backup DNP3 polling (5000ms)
@@ -1263,11 +1269,17 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["ems_core"], "target_zones": ["ems_core"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # C37.118 synchrophasor streaming - substation PMUs → substation PDCs (33 ms / 30 fps)
+            # C37.118 synchrophasor streaming - substation PMUs → LOCAL substation PDC (33 ms / 30 fps)
+            # Split per group: PMUs stream only to their own local PDC, never to the peer group.
             {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
              "source_types": ["protection_relay"], "target_types": ["rtu"],
-             "source_zones": ["remote_sub_a", "remote_sub_b"],
-             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "source_zones": ["remote_sub_a"],
+             "target_zones": ["remote_sub_a"],
+             "jitter_ms": 3, "jitter_type": "gaussian"},
+            {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 33,
+             "source_types": ["protection_relay"], "target_types": ["rtu"],
+             "source_zones": ["remote_sub_b"],
+             "target_zones": ["remote_sub_b"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
 
             # C37.118 aggregated PDC streams - substation PDCs → regional EMS PDCs (33 ms)
@@ -1284,10 +1296,18 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
             # IEC 61850 GOOSE intra-substation bay-to-bay (cyclic_io 4 ms)
+            # GOOSE is L2 multicast confined to a single substation bus; split per group
+            # so it never crosses between substation groups A and B.
             {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
              "source_types": ["protection_relay"], "target_types": ["protection_relay"],
-             "source_zones": ["remote_sub_a", "remote_sub_b"],
-             "target_zones": ["remote_sub_a", "remote_sub_b"],
+             "source_zones": ["remote_sub_a"],
+             "target_zones": ["remote_sub_a"],
+             "jitter_ms": 1, "jitter_type": "gaussian",
+             "config": {"mode": "goose"}},
+            {"protocol": "iec61850", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["protection_relay"], "target_types": ["protection_relay"],
+             "source_zones": ["remote_sub_b"],
+             "target_zones": ["remote_sub_b"],
              "jitter_ms": 1, "jitter_type": "gaussian",
              "config": {"mode": "goose"}},
         ],
@@ -2091,11 +2111,24 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "target_zones": ["ems_control_center"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # DNP3 from REL670 \u2192 SEL-3555 within each substation (status, 2000ms)
+            # DNP3 SEL-3555 PDC \u2192 REL670 within each substation (status, 2000ms)
+            # Split per-substation: protection status polling is strictly intra-substation;
+            # peer substations never exchange DNP3 directly (eliminates horizontal cross-cell).
             {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["rtu"], "target_types": ["protection_relay"],
-             "source_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
-             "target_zones": ["substation_a", "substation_b", "substation_c", "substation_d"],
+             "source_zones": ["substation_a"], "target_zones": ["substation_a"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_b"], "target_zones": ["substation_b"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_c"], "target_zones": ["substation_c"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "dnp3", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["protection_relay"],
+             "source_zones": ["substation_d"], "target_zones": ["substation_d"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
             # Historian collecting from Super-PDC (5000ms)

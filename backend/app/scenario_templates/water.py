@@ -593,11 +593,19 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["station1"], "target_zones": ["station1"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
-            # Local RTU polling sensors (2000ms)
+            # Local RTU polling sensors — each station's RTU only reaches its
+            # OWN wet-well/flow instruments (per-zone, not cross-station).
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["rtu"], "target_types": ["sensor"],
-             "source_zones": ["station1", "station_medium", "storage"],
-             "target_zones": ["station1", "station_medium", "storage"],
+             "source_zones": ["station1"], "target_zones": ["station1"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["sensor"],
+             "source_zones": ["station_medium"], "target_zones": ["station_medium"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["rtu"], "target_types": ["sensor"],
+             "source_zones": ["storage"], "target_zones": ["storage"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
             # Medium station RTU polling VFDs (1500ms)
@@ -997,11 +1005,27 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["control", "primary", "secondary", "tertiary"],
              "jitter_ms": 10, "jitter_type": "gaussian"},
 
-            # EtherNet/IP - PLCs to ABB Drives (500ms)
+            # EtherNet/IP - Control main PLCs to field ABB drives (vertical,
+            # 500ms). Main controllers reach down into every process zone.
             {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
              "source_types": ["plc"], "target_types": ["drive"],
-             "source_zones": ["control", "headworks", "tertiary", "sludge"],
+             "source_zones": ["control"],
              "target_zones": ["headworks", "primary", "secondary", "tertiary", "sludge"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
+            # EtherNet/IP - field PLCs to drives in their OWN process zone only
+            # (no peer headworks<->tertiary<->sludge cell-to-cell traffic).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["headworks"], "target_zones": ["headworks"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["tertiary"], "target_zones": ["tertiary"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["sludge"], "target_zones": ["sludge"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
             # CIP Safety communication (4ms)
@@ -1009,11 +1033,25 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["safety_plc"], "target_types": ["plc", "io_module"],
              "source_zones": ["control"], "target_zones": ["control", "headworks"]},
 
-            # Modbus TCP - PLCs to analyzers (2000ms)
+            # Modbus TCP - Control main PLCs to field analyzers (vertical, 2000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["plc"], "target_types": ["sensor"],
-             "source_zones": ["control", "headworks", "tertiary", "sludge"],
+             "source_zones": ["control"],
              "target_zones": ["headworks", "primary", "secondary", "tertiary", "sludge"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+
+            # Modbus TCP - field PLCs to analyzers in their OWN zone only
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["headworks"], "target_zones": ["headworks"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["tertiary"], "target_zones": ["tertiary"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["sludge"], "target_zones": ["sludge"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
             # HMI polling PLCs (500ms)
@@ -1350,17 +1388,29 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control_room"], "target_zones": ["distribution"],
              "jitter_ms": 1000, "jitter_type": "lognormal"},
 
-            # Well PLCs polling local VFDs (2000ms)
+            # Well PLCs polling local VFDs — each well controller drives only
+            # its own pump (no well1<->well2 cell-to-cell traffic).
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
              "source_types": ["plc"], "target_types": ["drive"],
-             "source_zones": ["well1", "well2"], "target_zones": ["well1", "well2"],
+             "source_zones": ["well1"], "target_zones": ["well1"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["well2"], "target_zones": ["well2"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
-            # Well PLCs polling local sensors (3000ms)
+            # Well/storage PLCs polling local sensors — per-zone only.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 3000,
              "source_types": ["plc"], "target_types": ["sensor"],
-             "source_zones": ["well1", "well2", "storage"],
-             "target_zones": ["well1", "well2", "storage"],
+             "source_zones": ["well1"], "target_zones": ["well1"],
+             "jitter_ms": 300, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 3000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["well2"], "target_zones": ["well2"],
+             "jitter_ms": 300, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 3000,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["storage"], "target_zones": ["storage"],
              "jitter_ms": 300, "jitter_type": "gaussian"},
 
             # Storage PLC polling booster VFDs (2000ms)

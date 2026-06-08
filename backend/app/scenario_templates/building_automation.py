@@ -55,7 +55,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Supervisory Controllers - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "bms_core",
-             "name_pattern": "BMS_Supervisor_Controller_{n:02d}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
+             "name_pattern": "BMS_Supervisor_Controller_{n:02d}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "NAE55",
              "role": "Supervisory Network Controller"},
 
@@ -169,14 +169,6 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["vav_controller", "room_controller"], "target_types": ["controller"],
              "source_zones": ["floor_zone"], "target_zones": ["bms_core"],
              "jitter_ms": 1000, "jitter_type": "uniform"},
-
-            # ============================================================
-            # Modbus TCP - Chiller/Building Controller polling (1s)
-            # ============================================================
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["controller"], "target_types": ["chiller_controller", "building_controller"],
-             "source_zones": ["bms_core"], "target_zones": ["hvac_control"],
-             "jitter_ms": 100, "jitter_type": "gaussian"},
 
             # ============================================================
             # SNMP - Infrastructure Monitoring (30s)
@@ -548,7 +540,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls NAE55
             # Fingerprint has: bacnet_identity, snmp_identity
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_a",
-             "name_pattern": "Building_A_Supervisor_{n}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
+             "name_pattern": "Building_A_Supervisor_{n}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "NAE55",
              "role": "Building Supervisor"},
 
@@ -580,7 +572,7 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Building Supervisor - Johnson Controls SNC
             # Fingerprint has: bacnet_identity ONLY
             {"type": "controller", "vendor": "johnson_controls", "count": 2, "zone": "building_b",
-             "name_pattern": "Building_B_Supervisor_{n}", "protocols": ["bacnet", "modbus_tcp", "snmp"],
+             "name_pattern": "Building_B_Supervisor_{n}", "protocols": ["bacnet", "snmp"],
              "fingerprint_model": "SNC",
              "role": "Building Supervisor"},
 
@@ -705,13 +697,6 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"protocol": "bacnet", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["controller"],
              "target_types": ["room_controller", "building_controller", "zone_controller"],
-             "source_zones": ["building_b"], "target_zones": ["building_b"],
-             "jitter_ms": 100, "jitter_type": "gaussian"},
-
-            # Modbus TCP - Schneider zone controllers (1s)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
-             "source_types": ["controller"],
-             "target_types": ["zone_controller"],
              "source_zones": ["building_b"], "target_zones": ["building_b"],
              "jitter_ms": 100, "jitter_type": "gaussian"},
 
@@ -846,6 +831,13 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "allowed_protocols": ["bacnet"],
              "security_level": "standard",
              "description": "Field VAV and room controllers sending BACnet COV notifications to building supervisors"},
+            # L3 (campus_core) <-> L1 (field_devices): SNMP infrastructure monitoring
+            {"id": "campus_to_field", "name": "Campus Core \u2194 Field Devices",
+             "source_zone": "campus_core", "target_zone": "field_devices",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "high",
+             "description": "Campus BMS server SNMP monitoring of field distribution switches (vertical NMS hierarchy)"},
             # L3 (campus_core) <-> L4 (external): Remote access cloud connectivity
             {"id": "campus_to_external", "name": "Campus Core \u2194 External",
              "source_zone": "campus_core", "target_zone": "external",

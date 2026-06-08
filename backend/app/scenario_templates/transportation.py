@@ -451,13 +451,20 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "allowed_protocols": ["snmp"],
              "security_level": "standard",
              "description": "ATMS coordination master polling secondary street signal controllers"},
-            # L2 (intersection_main/minor) <-> L1 (detection_zone): Controllers to detectors
-            {"id": "intersections_to_detection", "name": "Intersections \u2194 Detection Zone",
+            # L2 (intersection_main) <-> L1 (detection_zone): Main controllers to detectors
+            {"id": "main_to_detection", "name": "Main Intersections \u2194 Detection Zone",
              "source_zone": "intersection_main", "target_zone": "detection_zone",
              "direction": "bidirectional",
              "allowed_protocols": ["snmp"],
              "security_level": "standard",
-             "description": "Main and minor intersection controllers fast-polling radar and thermal sensors for signal actuation"},
+             "description": "Main intersection controllers fast-polling radar and thermal sensors for signal actuation"},
+            # L2 (intersection_minor) <-> L1 (detection_zone): Minor controllers to detectors
+            {"id": "minor_to_detection", "name": "Minor Intersections \u2194 Detection Zone",
+             "source_zone": "intersection_minor", "target_zone": "detection_zone",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "standard",
+             "description": "Minor street intersection controllers fast-polling radar and thermal sensors for signal actuation"},
             # L3 (atms_core) <-> L1 (camera_zone): ATMS to ANPR and PTZ cameras
             {"id": "atms_to_cameras", "name": "ATMS Core \u2194 Camera Zone",
              "source_zone": "atms_core", "target_zone": "camera_zone",
