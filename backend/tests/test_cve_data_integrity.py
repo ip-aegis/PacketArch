@@ -99,7 +99,11 @@ def test_every_template_cve_exists_in_db():
 
 def test_every_scenario_template_cve_exists_in_db():
     """Same cross-system invariant for the vertical scenario templates:
-    every device ``cve_ids`` entry must resolve to a curated DB row."""
+    every device ``cve_ids`` entry must resolve to a curated DB row.
+
+    (Vertical scenarios now pin ``firmware_version`` and derive CVEs from the
+    device-template menu, so this is usually vacuous — but it still guards any
+    explicit legacy ``cve_ids`` that remain or get re-added.)"""
     db_ids = {c["cve_id"] for c in ALL_CVES}
     missing: set[str] = set()
     for vertical in VERTICAL_TEMPLATES.values():
@@ -110,3 +114,101 @@ def test_every_scenario_template_cve_exists_in_db():
     assert not missing, (
         f"Scenario-template CVEs absent from the CVE DB: {sorted(missing)}"
     )
+
+
+# --- Menu reachability / emittability / firmware-agreement -----------------
+# These lock in the 2026-06-08 device-menu curation: the device template is the
+# flexible CVE menu and the scenario pins a firmware_version, so a CVE only
+# shows in Cyber Vision if SOME template firmware variant emits a version inside
+# the CVE's real vulnerable range. Promoted from scripts/cve_template_consistency.py.
+
+def _vtuple(s):
+    """Crude firmware version -> comparable int tuple (digits only)."""
+    if not s:
+        return None
+    nums = re.findall(r"\d+", str(s))
+    return tuple(int(n) for n in nums[:3]) if nums else None
+
+
+def _le(a, b):
+    """a <= b over ragged tuples; None on either side means 'unbounded'."""
+    if a is None or b is None:
+        return True
+    n = max(len(a), len(b))
+    return a + (0,) * (n - len(a)) <= b + (0,) * (n - len(b))
+
+
+def _templates_by_model():
+    from collections import defaultdict
+    idx = defaultdict(list)
+    for t in get_all_templates():
+        for key in (t.model, t.model_name):
+            if key:
+                idx[key].append(t)
+    return idx
+
+
+def test_cve_reachability():
+    """Every CVE whose affected_models matches a device template must have >=1
+    template firmware variant inside its vulnerable range — else the CVE is in
+    the DB/Browser but no device the tool builds can ever emit it."""
+    by_model = _templates_by_model()
+    fw_versions = {
+        c["cve_id"]: [_vtuple(v.get("firmware_version")) for v in (c.get("vulnerable_variants") or [])]
+        for c in ALL_CVES
+    }
+    unreachable: list[str] = []
+    for c in ALL_CVES:
+        models = c.get("affected_models") or []
+        matched = [t for m in models for t in by_model.get(m, [])]
+        if not matched:
+            continue  # NO_TEMPLATE — unmodeled / IT CVE, acceptable
+        fmin, fmax = _vtuple(c.get("affected_firmware_min")), _vtuple(c.get("affected_firmware_max"))
+        ok = any(
+            (_le(fmin, _vtuple(fv.version)) and _le(_vtuple(fv.version), fmax))
+            or _vtuple(fv.version) in fw_versions.get(c["cve_id"], [])
+            for t in matched for fv in t.firmware_variants
+        )
+        if not ok:
+            unreachable.append(c["cve_id"])
+    assert not unreachable, (
+        "CVEs whose vulnerable range no matching template firmware can emit "
+        f"(unreachable in Cyber Vision): {sorted(unreachable)}"
+    )
+
+
+def test_template_cves_are_emittable():
+    """Every CVE a template firmware variant carries must have a non-empty
+    vulnerable_variants[] in the DB (display-only CVEs cannot be emitted)."""
+    has_variants = {c["cve_id"]: bool(c.get("vulnerable_variants")) for c in ALL_CVES}
+    bad: list[str] = []
+    for t in get_all_templates():
+        for fv in t.firmware_variants:
+            for cid in fv.cves or []:
+                if cid in has_variants and not has_variants[cid]:
+                    bad.append(f"{t.model}:{cid}")
+    assert not bad, f"Template CVEs with no emittable DB vulnerable_variant: {sorted(bad)}"
+
+
+def test_template_firmware_agrees_with_cve_range():
+    """A template variant carrying cves=[C] must have a version inside C's real
+    vulnerable range, so the emitted fingerprint firmware and the CVE override
+    firmware agree on the wire (and CV actually matches)."""
+    cve_by_id = {c["cve_id"]: c for c in ALL_CVES}
+    fw_versions = {
+        c["cve_id"]: [_vtuple(v.get("firmware_version")) for v in (c.get("vulnerable_variants") or [])]
+        for c in ALL_CVES
+    }
+    bad: list[str] = []
+    for t in get_all_templates():
+        for fv in t.firmware_variants:
+            for cid in fv.cves or []:
+                c = cve_by_id.get(cid)
+                if c is None:
+                    continue  # covered by test_every_template_cve_exists_in_db
+                fwv = _vtuple(fv.version)
+                fmin, fmax = _vtuple(c.get("affected_firmware_min")), _vtuple(c.get("affected_firmware_max"))
+                in_range = (_le(fmin, fwv) and _le(fwv, fmax)) or fwv in fw_versions.get(cid, [])
+                if not in_range:
+                    bad.append(f"{t.model} fw={fv.version} carries {cid} (range<= {c.get('affected_firmware_max')})")
+    assert not bad, f"Template firmware out of its CVE's vulnerable range: {sorted(bad)}"
