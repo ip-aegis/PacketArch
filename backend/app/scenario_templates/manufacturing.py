@@ -2267,12 +2267,651 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "~140 devices across 10 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
-        "devices": [],
-        "flows": [],
-        "zones": [],
+        # Strict Purdue: bays are hermetic L0-L2; only L3 Operations crosses zones.
+        "cell_isolation": {
+            "mode": "strict_northbound",
+            "applies_to_levels": [0, 1, 2],
+        },
+        "zones": [
+            # Operations / Process Control - Level 3 (MES, historian, SCADA, EWS)
+            {"id": "operations", "name": "Fab Operations / MES", "level": 3,
+             "subnet_offset": 5, "vlan": 150, "security_level": "critical"},
+            # Process bays - Level 2 (each cluster-tool driven, self-contained)
+            {"id": "bay_litho", "name": "Bay 1 - Lithography", "level": 2,
+             "subnet_offset": 1, "vlan": 210, "security_level": "high"},
+            {"id": "bay_etch", "name": "Bay 2 - Etch", "level": 2,
+             "subnet_offset": 2, "vlan": 220, "security_level": "high"},
+            {"id": "bay_depo", "name": "Bay 3 - Deposition (CVD/PVD)", "level": 2,
+             "subnet_offset": 3, "vlan": 230, "security_level": "high"},
+            {"id": "bay_cmp", "name": "Bay 4 - CMP (Planarization)", "level": 2,
+             "subnet_offset": 4, "vlan": 240, "security_level": "high"},
+            {"id": "bay_metro", "name": "Bay 5 - Metrology / Inspection", "level": 2,
+             "subnet_offset": 6, "vlan": 250, "security_level": "high"},
+            {"id": "bay_diff", "name": "Bay 6 - Diffusion / Furnace", "level": 2,
+             "subnet_offset": 7, "vlan": 260, "security_level": "high"},
+            # AMHS - Level 2 (OHT/AGV material handling under a fleet manager)
+            {"id": "amhs", "name": "AMHS - Material Handling", "level": 2,
+             "subnet_offset": 8, "vlan": 270, "security_level": "high"},
+            # Cleanroom environmental monitoring - Level 2
+            {"id": "cleanroom", "name": "Cleanroom Environmental", "level": 2,
+             "subnet_offset": 9, "vlan": 280, "security_level": "high"},
+        ],
+        "conduits": [
+            # L3 Operations <-> each process bay / AMHS / cleanroom.
+            # One conduit per cross-zone flow zone-pair (all vertical L3<->bay).
+            {"id": "ops_bay_litho", "name": "Operations ↔ Bay 1 Lithography",
+             "source_zone": "operations", "target_zone": "bay_litho",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the lithography cluster-tool PLC, central HMI and engineering workstation S7comm access, SNMP infrastructure monitoring"},
+            {"id": "ops_bay_etch", "name": "Operations ↔ Bay 2 Etch",
+             "source_zone": "operations", "target_zone": "bay_etch",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the etch cluster-tool PLC, central HMI and engineering EtherNet/IP access, SNMP monitoring"},
+            {"id": "ops_bay_depo", "name": "Operations ↔ Bay 3 Deposition",
+             "source_zone": "operations", "target_zone": "bay_depo",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the deposition cluster-tool PLC, central HMI and engineering S7comm access, SNMP monitoring"},
+            {"id": "ops_bay_cmp", "name": "Operations ↔ Bay 4 CMP",
+             "source_zone": "operations", "target_zone": "bay_cmp",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the CMP cluster-tool PLC, central HMI and engineering Modbus TCP access, SNMP monitoring"},
+            {"id": "ops_bay_metro", "name": "Operations ↔ Bay 5 Metrology",
+             "source_zone": "operations", "target_zone": "bay_metro",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the metrology cluster-tool PLC, central HMI and engineering EtherNet/IP access, SNMP monitoring"},
+            {"id": "ops_bay_diff", "name": "Operations ↔ Bay 6 Diffusion",
+             "source_zone": "operations", "target_zone": "bay_diff",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA subscriptions to the diffusion furnace cluster-tool PLC, central HMI and engineering S7comm access, SNMP monitoring"},
+            {"id": "ops_amhs", "name": "Operations ↔ AMHS",
+             "source_zone": "operations", "target_zone": "amhs",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "MES dispatch and historian OPC UA / Modbus collection from the AMHS fleet manager, SNMP monitoring of the AMHS switch"},
+            {"id": "ops_cleanroom", "name": "Operations ↔ Cleanroom Environmental",
+             "source_zone": "operations", "target_zone": "cleanroom",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "MES/historian OPC UA and Modbus collection of cleanroom particle/temperature/humidity monitoring, SNMP infrastructure monitoring"},
+            # NOTE: No L0-L2 east/west conduits exist by design. Bays are hermetic
+            # at the IEC 62443 area-zone boundary; cell_isolation is strict_northbound
+            # so the runtime drops any bay-to-bay flow added later.
+        ],
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high",
+             "rationale": "Tests PIPEDREAM lateral movement against strict bay segmentation"},
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "Dense multi-vendor fab tests reconnaissance containment"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "Cluster-tool wafer processing simulation",
+            "key_variables": ["chamber_pressure", "rf_power", "gas_flow", "wafer_temp", "throughput"],
+            "available_faults": ["chamber_leak", "rf_arc", "gas_flow_fault"],
+        },
+        "devices": [
+            # ============================================================
+            # OPERATIONS / MES (Level 3) — 6 devices
+            # All cross-bay supervisory and engineering traffic originates here.
+            # ============================================================
+            {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "operations",
+             "name": "Fab_MES_SCADA_Server",
+             "protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Experion Server",
+             "firmware_version": "R510.1",
+             "role": "MES / SCADA Server"},
+            {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
+             "name": "Fab_Process_Historian",
+             "protocols": ["opc_ua", "modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
+             "role": "Process Historian"},
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "operations",
+             "name": "Fab_Central_Overview_HMI",
+             "protocols": ["s7comm", "opc_ua"],
+             "fingerprint_model": "WinCC Unified",
+             "role": "Central Overview HMI"},
+            {"type": "engineering_station", "vendor": "siemens", "count": 1, "zone": "operations",
+             "name": "Fab_Engineering_Workstation",
+             "protocols": ["s7comm", "profinet"],
+             "fingerprint_model": "TIA Portal",
+             "role": "OT Engineering Workstation"},
+            {"type": "engineering_station", "vendor": "yokogawa", "count": 1, "zone": "operations",
+             "name": "Fab_Analyzer_EWS",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EWS",
+             "firmware_version": "R6.05",
+             "role": "Analyzer Engineering Workstation"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "operations",
+             "name": "Ops_Core_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
+             "role": "Core Network Switch"},
+
+            # ============================================================
+            # BAY 1: LITHOGRAPHY — Siemens cluster tool (7 devices)
+            # PROFINET cyclic I/O + S7comm + alignment vision + RGA analyzer
+            # ============================================================
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Cluster_Tool_PLC",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 517-3AP00-0AB0",
+             "role": "Cluster Tool Controller"},
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Operator_HMI",
+             "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "firmware_version": "V17.0.0.0",
+             "role": "Operator Interface"},
+            {"type": "servo", "vendor": "siemens", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Stage_Servo",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6SL3310-1TE32-6AA3",
+             "role": "Wafer Stage Servo"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Track_IO",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6ES7155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "vision_sensor", "vendor": "sick", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Alignment_Vision",
+             "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "Inspector P631",
+             "role": "Wafer Alignment Vision"},
+            {"type": "analyzer", "vendor": "yokogawa", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Resist_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "Resist Process Analyzer"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_litho",
+             "name": "Litho_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # BAY 2: ETCH — Rockwell cluster tool (7 devices)
+            # EtherNet/IP cyclic I/O + RGA mass-spec + defect vision
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Cluster_Tool_PLC",
+             "protocols": ["ethernet_ip", "opc_ua"],
+             "fingerprint_model": "1756-L85E",
+             "role": "Cluster Tool Controller"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Operator_HMI",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T15C22D9P",
+             "firmware_version": "V12.00",
+             "role": "Operator Interface"},
+            {"type": "servo", "vendor": "rockwell", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Chamber_Servo",
+             "protocols": ["ethernet_ip", "cip_motion"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Chamber Lift Servo"},
+            {"type": "remote_io", "vendor": "rockwell", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Chamber_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "firmware_version": "V5.019",
+             "role": "Remote I/O"},
+            {"type": "vision_system", "vendor": "cognex", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Defect_Vision",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "In-Sight 7802",
+             "role": "Post-Etch Defect Vision"},
+            {"type": "analyzer", "vendor": "yokogawa", "count": 1, "zone": "bay_etch",
+             "name": "Etch_RGA_MassSpec",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TDLS8000",
+             "role": "RGA / Mass-Spec Analyzer"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_etch",
+             "name": "Etch_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # BAY 3: DEPOSITION (CVD/PVD) — Siemens cluster tool (7 devices)
+            # PROFINET cyclic I/O + gas chromatograph + gas-flow analyzers
+            # ============================================================
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Cluster_Tool_PLC",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 516-3AN02-0AB0",
+             "firmware_version": "V2.8.1",
+             "role": "Cluster Tool Controller"},
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Operator_HMI",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6AV2 124-0QC02-0AX1",
+             "role": "Operator Interface"},
+            {"type": "drive", "vendor": "siemens", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Vacuum_Pump_VFD",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6SL3310-1TE32-6AA3",
+             "role": "Vacuum Pump Drive"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Gas_Panel_IO",
+             "protocols": ["profinet"],
+             "fingerprint_model": "ET 200MP IM155-5 PN",
+             "role": "Gas Panel I/O"},
+            {"type": "analyzer", "vendor": "yokogawa", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Gas_Chromatograph",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "GC8000",
+             "role": "Gas Chromatograph"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_depo",
+             "name": "Depo_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # BAY 4: CMP (Planarization) — Schneider cluster tool (6 devices)
+            # Modbus TCP polling + slurry flow / pressure instrumentation
+            # ============================================================
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Cluster_Tool_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "BMXP3420302",
+             "firmware_version": "V2.90",
+             "role": "Cluster Tool Controller"},
+            {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Operator_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "firmware_version": "V3.3.0",
+             "role": "Operator Interface"},
+            {"type": "servo", "vendor": "schneider", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Polish_Head_Servo",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "LXM32MD18N4",
+             "role": "Polish Head Servo"},
+            {"type": "flow_sensor", "vendor": "endress+hauser", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Slurry_Flow_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Slurry Flow Meter"},
+            {"type": "pressure_sensor", "vendor": "endress+hauser", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Downforce_Pressure",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
+             "role": "Downforce Pressure Transmitter"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_cmp",
+             "name": "CMP_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # BAY 5: METROLOGY / INSPECTION — Rockwell + vision (6 devices)
+            # EtherNet/IP + metrology vision + defect vision
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "bay_metro",
+             "name": "Metro_Tool_PLC",
+             "protocols": ["ethernet_ip", "opc_ua"],
+             "fingerprint_model": "1756-L85E",
+             "role": "Metrology Tool Controller"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "bay_metro",
+             "name": "Metro_Operator_HMI",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "vision_system", "vendor": "cognex", "count": 1, "zone": "bay_metro",
+             "name": "Metro_CD_Vision",
+             "protocols": ["ethernet_ip", "profinet", "modbus_tcp"],
+             "fingerprint_model": "In-Sight 7802",
+             "role": "Critical-Dimension Metrology Vision"},
+            {"type": "remote_io", "vendor": "rockwell", "count": 1, "zone": "bay_metro",
+             "name": "Metro_Stage_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Stage Remote I/O"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_metro",
+             "name": "Metro_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # BAY 6: DIFFUSION / FURNACE — Siemens + safety (7 devices)
+            # PROFINET + PROFIsafe + furnace temp / gas instrumentation
+            # ============================================================
+            {"type": "plc", "vendor": "siemens", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Furnace_PLC",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 517-3AP00-0AB0",
+             "role": "Furnace Cluster Controller"},
+            {"type": "safety_plc", "vendor": "siemens", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Furnace_Safety_PLC",
+             "protocols": ["profinet", "profisafe", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 516-3FN01-0AB0",
+             "role": "Furnace Safety Controller"},
+            {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Operator_HMI",
+             "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "6AV2 123-2GB03-0AX0",
+             "firmware_version": "V16.0.0.0",
+             "role": "Operator Interface"},
+            {"type": "io_module", "vendor": "siemens", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Thermocouple_IO",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6ES7155-6AU01-0BN0",
+             "role": "Thermocouple I/O"},
+            {"type": "analyzer", "vendor": "yokogawa", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Ambient_O2_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TDLS8000",
+             "role": "Furnace O2 Analyzer"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "bay_diff",
+             "name": "Diff_Bay_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # AMHS — Material Handling (7 devices)
+            # OHT/AGV fleet under a fleet manager + zone PLC
+            # ============================================================
+            {"type": "fleet_manager", "vendor": "kuka", "count": 1, "zone": "amhs",
+             "name": "AMHS_Fleet_Manager",
+             "protocols": ["modbus_tcp", "ethernet_ip", "profinet"],
+             "fingerprint_model": "KUKA.FleetManager",
+             "role": "AMHS Fleet Manager"},
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "amhs",
+             "name": "AMHS_Zone_PLC",
+             "protocols": ["ethernet_ip", "opc_ua"],
+             "fingerprint_model": "1756-L85E",
+             "role": "AMHS Zone Controller"},
+            {"type": "agv", "vendor": "kuka", "count": 1, "zone": "amhs",
+             "name": "AMHS_OHT_01",
+             "protocols": ["ethernet_ip", "profinet"],
+             "fingerprint_model": "KMP 1500",
+             "role": "Overhead Hoist Transport"},
+            {"type": "robot_controller", "vendor": "kuka", "count": 1, "zone": "amhs",
+             "name": "AMHS_LoadPort_Robot_Controller",
+             "protocols": ["ethernet_ip", "profinet"],
+             "fingerprint_model": "KR C4",
+             "firmware_version": "V8.3.5",
+             "role": "Load-Port / Sorter Robot Controller"},
+            {"type": "agv", "vendor": "mir", "count": 1, "zone": "amhs",
+             "name": "AMHS_FOUP_AGV_01",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "MiR250",
+             "role": "FOUP Floor AGV"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "amhs",
+             "name": "AMHS_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # CLEANROOM ENVIRONMENTAL MONITORING (7 devices)
+            # Particle / temp / humidity instrumentation under a monitoring PLC
+            # ============================================================
+            {"type": "plc", "vendor": "schneider", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_Monitor_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "BMXP3420302",
+             "role": "Environmental Monitoring Controller"},
+            {"type": "remote_io", "vendor": "moxa", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_Particle_IO",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ioLogik E1210",
+             "firmware_version": "V2.5",
+             "role": "Particle Counter I/O"},
+            {"type": "remote_io", "vendor": "advantech", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_TempHumidity_IO",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ADAM-6052",
+             "firmware_version": "V2.02",
+             "role": "Temp/Humidity I/O"},
+            {"type": "field_instrument", "vendor": "endress+hauser", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_Differential_Pressure",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMU90",
+             "role": "Room Differential Pressure"},
+            {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_Monitor_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMIGTO5310",
+             "role": "Environmental HMI"},
+            {"type": "network_switch", "vendor": "cisco", "count": 1, "zone": "cleanroom",
+             "name": "Cleanroom_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3300-8T2S",
+             "role": "Industrial Switch"},
+        ],
+        "flows": [
+            # ============================================================
+            # BAY 1 LITHOGRAPHY INTRA-BAY — Siemens PROFINET / S7comm
+            # ============================================================
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["bay_litho"], "target_zones": ["bay_litho"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["bay_litho"], "target_zones": ["bay_litho"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["plc"], "target_types": ["vision_sensor"],
+             "source_zones": ["bay_litho"], "target_zones": ["bay_litho"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["analyzer"],
+             "source_zones": ["bay_litho"], "target_zones": ["bay_litho"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bay_litho"], "target_zones": ["bay_litho"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # BAY 2 ETCH INTRA-BAY — Rockwell EtherNet/IP
+            # ============================================================
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["bay_etch"], "target_zones": ["bay_etch"],
+             "jitter_ms": 0.2, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["remote_io"],
+             "source_zones": ["bay_etch"], "target_zones": ["bay_etch"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
+             "source_types": ["plc"], "target_types": ["vision_system"],
+             "source_zones": ["bay_etch"], "target_zones": ["bay_etch"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["analyzer"],
+             "source_zones": ["bay_etch"], "target_zones": ["bay_etch"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bay_etch"], "target_zones": ["bay_etch"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # BAY 3 DEPOSITION INTRA-BAY — Siemens PROFINET / S7comm
+            # ============================================================
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["bay_depo"], "target_zones": ["bay_depo"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["bay_depo"], "target_zones": ["bay_depo"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["analyzer"],
+             "source_zones": ["bay_depo"], "target_zones": ["bay_depo"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bay_depo"], "target_zones": ["bay_depo"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # BAY 4 CMP INTRA-BAY — Schneider Modbus TCP
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["bay_cmp"], "target_zones": ["bay_cmp"],
+             "jitter_ms": 15, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["flow_sensor", "pressure_sensor"],
+             "source_zones": ["bay_cmp"], "target_zones": ["bay_cmp"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bay_cmp"], "target_zones": ["bay_cmp"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # BAY 5 METROLOGY INTRA-BAY — Rockwell EtherNet/IP + vision
+            # ============================================================
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["remote_io"],
+             "source_zones": ["bay_metro"], "target_zones": ["bay_metro"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 50,
+             "source_types": ["plc"], "target_types": ["vision_system"],
+             "source_zones": ["bay_metro"], "target_zones": ["bay_metro"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["bay_metro"], "target_zones": ["bay_metro"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # BAY 6 DIFFUSION INTRA-BAY — Siemens PROFINET / PROFIsafe / S7comm
+            # ============================================================
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["bay_diff"], "target_zones": ["bay_diff"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 8,
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
+             "source_zones": ["bay_diff"], "target_zones": ["bay_diff"]},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["analyzer"],
+             "source_zones": ["bay_diff"], "target_zones": ["bay_diff"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["bay_diff"], "target_zones": ["bay_diff"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # AMHS INTRA-ZONE — fleet manager dispatch + OHT/AGV cyclic
+            # ============================================================
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["fleet_manager"], "target_types": ["agv"],
+             "source_zones": ["amhs"], "target_zones": ["amhs"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["fleet_manager"], "target_types": ["agv"],
+             "source_zones": ["amhs"], "target_zones": ["amhs"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["plc"], "target_types": ["fleet_manager"],
+             "source_zones": ["amhs"], "target_zones": ["amhs"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+             "source_types": ["fleet_manager"], "target_types": ["robot_controller"],
+             "source_zones": ["amhs"], "target_zones": ["amhs"],
+             "jitter_ms": 2, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # CLEANROOM INTRA-ZONE — Schneider Modbus TCP environmental polling
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["remote_io"],
+             "source_zones": ["cleanroom"], "target_zones": ["cleanroom"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["plc"], "target_types": ["field_instrument"],
+             "source_zones": ["cleanroom"], "target_zones": ["cleanroom"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["cleanroom"], "target_zones": ["cleanroom"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # ============================================================
+            # L3 OPERATIONS → BAY SUPERVISORY FLOWS (northbound only)
+            # MES/SCADA, historian, central HMI and EWS all live in Operations.
+            # Strict Purdue: no bay initiates northbound, no bay-to-bay lateral.
+            # ============================================================
+            # OPC UA - SCADA server subscriptions to all bay/zone PLCs (1s)
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["plc", "safety_plc", "fleet_manager"],
+             "source_zones": ["operations"],
+             "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_cmp",
+                              "bay_metro", "bay_diff", "amhs", "cleanroom"]},
+            # OPC UA - Historian data collection from all bay/zone PLCs (5s)
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["plc", "fleet_manager"],
+             "source_zones": ["operations"],
+             "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_cmp",
+                              "bay_metro", "bay_diff", "amhs", "cleanroom"]},
+            # OPC UA - Central HMI polling all bay/zone PLCs (1s). The L3 HMI is
+            # Siemens; cross-vendor PLCs all support OPC UA, so the supervisory
+            # poll is authored as opc_ua to avoid a runtime snap to snmp.
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_cmp",
+                              "bay_metro", "bay_diff", "amhs", "cleanroom"]},
+
+            # ============================================================
+            # ENGINEERING WORKSTATION FLOWS (L3 Operations → Bays)
+            # Occasional engineering access: program uploads, tag browsing.
+            # Low-frequency (30s) to represent non-production activity.
+            # ============================================================
+            # S7comm - Siemens EWS → Siemens bays (litho/depo/diffusion)
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_station"], "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["bay_litho", "bay_depo", "bay_diff"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # Modbus TCP - Yokogawa analyzer EWS → analyzers across bays
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_station"], "target_types": ["analyzer"],
+             "source_zones": ["operations"],
+             "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_diff"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # SNMP INFRASTRUCTURE MONITORING (L3 → all switches)
+            # SCADA polls every bay/zone switch + the core/AMHS switches.
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["network_switch"],
+             "source_zones": ["operations"],
+             "target_zones": ["operations", "bay_litho", "bay_etch", "bay_depo",
+                              "bay_cmp", "bay_metro", "bay_diff", "amhs", "cleanroom"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+        ],
         "total_duration_ms": 600000,
     },
-
     "ev_battery_cell_plant": {
         "name": "EV Battery Cell Plant — 5-Stage Line",
         "description": "Lithium-ion cell manufacturing line. Five process "
@@ -2285,16 +2924,508 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "(vision + X-ray + hi-pot test); pack assembly "
                        "(robotic cell-to-pack welding + safety SIS). "
                        "Showcases process + cell + power-meter + vision + "
-                       "robot patterns in one plant. ~95 devices across "
-                       "7 zones.",
+                       "robot patterns in one plant. ~50 devices across "
+                       "6 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
-        "devices": [],
-        "flows": [],
-        "zones": [],
         "total_duration_ms": 600000,
-    },
 
+        # Cells are hermetic at the area-zone boundary; only the L3 Operations
+        # zone may reach into a stage (northbound supervisory data + engineering).
+        "cell_isolation": {
+            "mode": "strict_northbound",
+            "applies_to_levels": [0, 1, 2],
+        },
+
+        "zones": [
+            # Operations / Process Control - Level 3 (SCADA, historian, EWS, central HMI)
+            {"id": "operations", "name": "Process Control / Operations", "level": 3,
+             "subnet_offset": 5, "vlan": 150, "security_level": "critical"},
+            # Stage 1 - Electrode Coating & Drying (Yokogawa DCS continuous web, L0-L2)
+            {"id": "stage1_coating", "name": "Stage 1 - Coating & Drying", "level": 2,
+             "subnet_offset": 1, "vlan": 211, "security_level": "high"},
+            # Stage 2 - Calendaring & Slitting (Rockwell servo-precision motion, L0-L2)
+            {"id": "stage2_calender", "name": "Stage 2 - Calendaring & Slitting", "level": 2,
+             "subnet_offset": 2, "vlan": 212, "security_level": "high"},
+            # Stage 3 - Formation & Aging (Schneider cyclers + revenue power metering, L0-L2)
+            {"id": "stage3_formation", "name": "Stage 3 - Formation & Aging", "level": 2,
+             "subnet_offset": 3, "vlan": 213, "security_level": "high"},
+            # Stage 4 - Quality (vision + X-ray + hi-pot, Siemens, L0-L2)
+            {"id": "stage4_quality", "name": "Stage 4 - Quality Inspection", "level": 2,
+             "subnet_offset": 4, "vlan": 214, "security_level": "high"},
+            # Stage 5 - Pack Assembly (robotic cell-to-pack weld + safety SIS, L0-L2)
+            {"id": "stage5_pack", "name": "Stage 5 - Pack Assembly", "level": 2,
+             "subnet_offset": 6, "vlan": 215, "security_level": "critical"},
+        ],
+
+        "conduits": [
+            # Operations <-> Stage 1 (Yokogawa DCS speaks Modbus TCP; OPC UA via SCADA)
+            {"id": "ops_stage1_coating", "name": "Operations ↔ Stage 1 Coating",
+             "source_zone": "operations", "target_zone": "stage1_coating",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA and Modbus TCP supervisory polling of the "
+                            "Yokogawa coating DCS, web-thickness analyzer trends, SNMP infrastructure monitoring"},
+            # Operations <-> Stage 2 (Rockwell EtherNet/IP; OPC UA + SNMP supervisory)
+            {"id": "ops_stage2_calender", "name": "Operations ↔ Stage 2 Calendaring",
+             "source_zone": "operations", "target_zone": "stage2_calender",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to the Rockwell motion controller, "
+                            "engineering workstation EtherNet/IP access, SNMP monitoring"},
+            # Operations <-> Stage 3 (Schneider Modbus TCP; OPC UA + SNMP supervisory)
+            {"id": "ops_stage3_formation", "name": "Operations ↔ Stage 3 Formation",
+             "source_zone": "operations", "target_zone": "stage3_formation",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA + Modbus TCP collection of cycler set-points and "
+                            "revenue power-meter energy accounting, SNMP monitoring"},
+            # Operations <-> Stage 4 (Siemens S7comm+ / OPC UA; SNMP supervisory)
+            {"id": "ops_stage4_quality", "name": "Operations ↔ Stage 4 Quality",
+             "source_zone": "operations", "target_zone": "stage4_quality",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to the Siemens quality PLC, central HMI "
+                            "S7comm access to pass/fail results, SNMP monitoring"},
+            # Operations <-> Stage 5 (mixed ABB Modbus TCP / Rockwell EtherNet/IP; OPC UA supervisory)
+            {"id": "ops_stage5_pack", "name": "Operations ↔ Stage 5 Pack Assembly",
+             "source_zone": "operations", "target_zone": "stage5_pack",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "ethernet_ip", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/Historian OPC UA subscriptions to the ABB pack-line PLC and Rockwell "
+                            "safety controller status, central HMI Modbus TCP access, SNMP monitoring"},
+            # NOTE: No L0-L2 east/west conduits exist by design. Stages are hermetic at the
+            # IEC 62443 area-zone boundary; cell_isolation.mode = strict_northbound drops any
+            # stage-to-stage flow added later.
+        ],
+
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high",
+             "rationale": "Tests PIPEDREAM lateral movement against the Purdue-segmented stage model"},
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "Strict northbound model tests reconnaissance containment between stages"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "Electrode coating + calendaring + formation cycling simulation",
+            "key_variables": ["web_speed", "coat_weight", "oven_temp", "calender_gap", "cell_voltage", "cell_temp"],
+            "available_faults": ["coat_streak", "web_break", "thermal_runaway", "servo_overload"],
+        },
+
+        "devices": [
+            # ============================================================
+            # OPERATIONS / PROCESS CONTROL (Level 3) — 5 devices
+            # All cross-stage supervisory and engineering traffic originates here.
+            # ============================================================
+            {"type": "scada_server", "vendor": "Siemens", "count": 1, "zone": "operations",
+             "name": "Ops_Central_SCADA",
+             "protocols": ["opc_ua", "s7comm", "modbus_tcp"],
+             "fingerprint_model": "WinCC Professional",
+             "firmware_version": "V17.0",
+             "role": "Central SCADA Server"},
+            {"type": "historian", "vendor": "GE", "count": 1, "zone": "operations",
+             "name": "Ops_Process_Historian",
+             "protocols": ["opc_ua", "modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
+             "role": "Process Historian"},
+            {"type": "hmi", "vendor": "Siemens", "count": 1, "zone": "operations",
+             "name": "Ops_Overview_HMI",
+             "protocols": ["s7comm", "opc_ua"],
+             "fingerprint_model": "WinCC Unified",
+             "role": "Central Overview HMI"},
+            {"type": "engineering_workstation", "vendor": "Microsoft", "count": 1, "zone": "operations",
+             "name": "Ops_Engineering_Workstation",
+             "protocols": ["rdp", "https", "snmp"],
+             "fingerprint_model": "Jump Server 2019",
+             "role": "OT Engineering Workstation"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "operations",
+             "name": "Ops_Core_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
+             "role": "Core Network Switch"},
+
+            # ============================================================
+            # STAGE 1: ELECTRODE COATING & DRYING — Yokogawa DCS continuous web (9 devices)
+            # Modbus TCP polling throughout (CENTUM VP / analyzers / sensors) +
+            # Cognex defect-vision (ethernet_ip) for coating-defect detection.
+            # ============================================================
+            {"type": "dcs_controller", "vendor": "Yokogawa", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_DCS_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "AFV10D",
+             "firmware_version": "R6.06",
+             "role": "DCS Field Control Unit"},
+            {"type": "hmi", "vendor": "Yokogawa", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Operator_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HIS",
+             "role": "Operator Interface"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Thickness_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "Web Thickness Analyzer"},
+            {"type": "vision_system", "vendor": "Cognex", "count": 2, "zone": "stage1_coating",
+             "name": "Coating_Defect_Vision",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "In-Sight 7802",
+             "role": "Coating Defect Vision"},
+            {"type": "sensor", "vendor": "Endress+Hauser", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Slurry_Pressure",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
+             "role": "Slurry Pressure Transmitter"},
+            {"type": "sensor", "vendor": "Endress+Hauser", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Solvent_Flow",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Solvent Flow Meter"},
+            {"type": "drive", "vendor": "Siemens", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Web_Drive",
+             "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "6SL3210-1PE21-1UL0",
+             "role": "Web Transport Drive"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "stage1_coating",
+             "name": "Coating_Stage_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # STAGE 2: CALENDARING & SLITTING — Rockwell servo-precision motion (8 devices)
+            # EtherNet/IP implicit I/O + CIP Motion. Tight servo loops on the
+            # calender rolls and slitter knives.
+            # ============================================================
+            {"type": "plc", "vendor": "Rockwell", "count": 1, "zone": "stage2_calender",
+             "name": "Calender_Line_PLC",
+             "protocols": ["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
+             "fingerprint_model": "1756-L73",
+             "firmware_version": "V33.011",
+             "role": "Line Controller"},
+            {"type": "hmi", "vendor": "Rockwell", "count": 1, "zone": "stage2_calender",
+             "name": "Calender_Operator_HMI",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "servo", "vendor": "Rockwell", "count": 3, "zone": "stage2_calender",
+             "name": "Calender_Roll_Servo",
+             "protocols": ["ethernet_ip", "cip_motion"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Calender Roll Servo"},
+            {"type": "servo", "vendor": "Rockwell", "count": 2, "zone": "stage2_calender",
+             "name": "Slitter_Knife_Servo",
+             "protocols": ["ethernet_ip", "cip_motion"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Slitter Knife Servo"},
+            {"type": "vision_sensor", "vendor": "SICK", "count": 1, "zone": "stage2_calender",
+             "name": "Slitter_Edge_Vision",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "Inspector P631",
+             "role": "Slit Edge Inspection"},
+            {"type": "io_module", "vendor": "Rockwell", "count": 1, "zone": "stage2_calender",
+             "name": "Calender_Station_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Remote I/O"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "stage2_calender",
+             "name": "Calender_Stage_Switch",
+             "protocols": ["snmp", "ethernet_ip"],
+             "fingerprint_model": "IE-9320-24T4X-E",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # STAGE 3: FORMATION & AGING — Schneider cyclers + revenue power metering (11 devices)
+            # Modbus TCP polling. Banks of charge/discharge cyclers (modeled as
+            # drives) with revenue-grade power metering for energy accounting.
+            # ============================================================
+            {"type": "plc", "vendor": "Schneider", "count": 1, "zone": "stage3_formation",
+             "name": "Formation_Process_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "BMXP3420302",
+             "firmware_version": "V3.10",
+             "role": "Process Controller"},
+            {"type": "hmi", "vendor": "Schneider", "count": 1, "zone": "stage3_formation",
+             "name": "Formation_Operator_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMIGTO5310",
+             "role": "Operator Interface"},
+            {"type": "drive", "vendor": "Schneider", "count": 6, "zone": "stage3_formation",
+             "name": "Formation_Cycler",
+             "protocols": ["modbus_tcp", "ethernet_ip", "profinet"],
+             "fingerprint_model": "ATV930D15N4",
+             "role": "Charge/Discharge Cycler"},
+            {"type": "power_meter", "vendor": "Schneider", "count": 2, "zone": "stage3_formation",
+             "name": "Formation_Revenue_Meter",
+             "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
+             "fingerprint_model": "ION9000",
+             "role": "Revenue Power Meter"},
+            {"type": "io_module", "vendor": "Schneider", "count": 1, "zone": "stage3_formation",
+             "name": "Formation_Bank_IO",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TM3DI32K",
+             "role": "Remote I/O"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "stage3_formation",
+             "name": "Formation_Stage_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # STAGE 4: QUALITY INSPECTION — Siemens + vision/X-ray/hi-pot (9 devices)
+            # PROFINET RT + S7comm. Cognex vision + SICK barcode + hi-pot test
+            # station feeding a Siemens quality PLC.
+            # ============================================================
+            {"type": "plc", "vendor": "Siemens", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_Cell_PLC",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 516-3AN02-0AB0",
+             "firmware_version": "V2.9.2",
+             "role": "Cell Controller"},
+            {"type": "hmi", "vendor": "Siemens", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_Operator_HMI",
+             "protocols": ["profinet", "s7comm"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "role": "Operator Interface"},
+            {"type": "vision_system", "vendor": "Cognex", "count": 2, "zone": "stage4_quality",
+             "name": "Quality_Cap_Vision",
+             "protocols": ["ethernet_ip", "profinet", "modbus_tcp"],
+             "fingerprint_model": "In-Sight 7802",
+             "role": "Cell Cap Inspection Vision"},
+            {"type": "barcode_scanner", "vendor": "SICK", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_Traceability_Scanner",
+             "protocols": ["ethernet_ip", "profinet", "modbus_tcp"],
+             "fingerprint_model": "CLV650-0120",
+             "role": "Cell Traceability Scanner"},
+            {"type": "sensor", "vendor": "Endress+Hauser", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_HiPot_Sense",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FMP50",
+             "role": "Hi-Pot Test Sensing"},
+            {"type": "io_module", "vendor": "Siemens", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_Station_IO",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6ES7155-6AU01-0BN0",
+             "role": "Distributed I/O"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "stage4_quality",
+             "name": "Quality_Stage_Switch",
+             "protocols": ["snmp", "profinet"],
+             "fingerprint_model": "IE-3500-8T3S-E",
+             "role": "Industrial Switch"},
+
+            # ============================================================
+            # STAGE 5: PACK ASSEMBLY — robotic cell-to-pack weld + safety SIS (10 devices)
+            # ABB process control (Modbus TCP) + KUKA / Fanuc weld robots
+            # (EtherNet/IP) + Rockwell GuardLogix safety SIS over CIP Safety.
+            # ============================================================
+            {"type": "plc", "vendor": "ABB", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Line_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "PM590-ETH",
+             "firmware_version": "V2.9.0",
+             "role": "Line Controller"},
+            {"type": "safety_plc", "vendor": "Rockwell", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Safety_Controller",
+             "protocols": ["ethernet_ip", "cip_safety"],
+             "fingerprint_model": "1756-L83ES",
+             "role": "Safety Controller (SIS)"},
+            {"type": "robot_controller", "vendor": "KUKA", "count": 2, "zone": "stage5_pack",
+             "name": "Pack_Weld_Robot",
+             "protocols": ["ethernet_ip", "profinet"],
+             "fingerprint_model": "KR C4",
+             "firmware_version": "V8.3.5",
+             "role": "Cell-to-Pack Weld Robot"},
+            {"type": "robot_controller", "vendor": "Fanuc", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Handling_Robot",
+             "protocols": ["fanuc", "ethernet_ip"],
+             "fingerprint_model": "R-30iB Plus",
+             "firmware_version": "V9.30",
+             "role": "Pack Handling Robot"},
+            {"type": "hmi", "vendor": "ABB", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Operator_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CP620",
+             "role": "Operator Interface"},
+            {"type": "drive", "vendor": "ABB", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Conveyor_VFD",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Variable Frequency Drive"},
+            {"type": "io_module", "vendor": "Rockwell", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Safety_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Safety Remote I/O"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "stage5_pack",
+             "name": "Pack_Stage_Switch",
+             "protocols": ["snmp", "ethernet_ip"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "role": "Industrial Switch"},
+        ],
+
+        "flows": [
+            # ============================================================
+            # STAGE 1 INTRA-CELL — Yokogawa DCS Modbus TCP + Cognex EtherNet/IP
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["dcs_controller"], "target_types": ["drive"],
+             "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 15, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["dcs_controller"], "target_types": ["analyzer"],
+             "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["dcs_controller"], "target_types": ["sensor"],
+             "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 50,
+             "source_types": ["dcs_controller"], "target_types": ["vision_system"],
+             "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["dcs_controller"],
+             "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # STAGE 2 INTRA-CELL — Rockwell EtherNet/IP + CIP Motion
+            # ============================================================
+            {"protocol": "cip_motion", "pattern": "cyclic_io", "interval_ms": 2,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["stage2_calender"], "target_zones": ["stage2_calender"],
+             "jitter_ms": 0.2, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["stage2_calender"], "target_zones": ["stage2_calender"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 50,
+             "source_types": ["plc"], "target_types": ["vision_sensor"],
+             "source_zones": ["stage2_calender"], "target_zones": ["stage2_calender"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["stage2_calender"], "target_zones": ["stage2_calender"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # STAGE 3 INTRA-CELL — Schneider Modbus TCP cyclers + metering
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["stage3_formation"], "target_zones": ["stage3_formation"],
+             "jitter_ms": 15, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["power_meter"],
+             "source_zones": ["stage3_formation"], "target_zones": ["stage3_formation"],
+             "jitter_ms": 75, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["stage3_formation"], "target_zones": ["stage3_formation"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["stage3_formation"], "target_zones": ["stage3_formation"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # STAGE 4 INTRA-CELL — Siemens PROFINET + S7comm + vision
+            # ============================================================
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 4,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["stage4_quality"], "target_zones": ["stage4_quality"],
+             "jitter_ms": 0.5, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 50,
+             "source_types": ["plc"], "target_types": ["vision_system"],
+             "source_zones": ["stage4_quality"], "target_zones": ["stage4_quality"],
+             "jitter_ms": 5, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["plc"], "target_types": ["barcode_scanner"],
+             "source_zones": ["stage4_quality"], "target_zones": ["stage4_quality"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["sensor"],
+             "source_zones": ["stage4_quality"], "target_zones": ["stage4_quality"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["stage4_quality"], "target_zones": ["stage4_quality"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # STAGE 5 INTRA-CELL — ABB Modbus TCP + robot EtherNet/IP + CIP Safety
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["stage5_pack"], "target_zones": ["stage5_pack"],
+             "jitter_ms": 15, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["robot_controller"],
+             "source_zones": ["stage5_pack"], "target_zones": ["stage5_pack"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
+             "source_types": ["safety_plc"], "target_types": ["io_module"],
+             "source_zones": ["stage5_pack"], "target_zones": ["stage5_pack"]},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["stage5_pack"], "target_zones": ["stage5_pack"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # L3 OPERATIONS → STAGE SUPERVISORY FLOWS (northbound only)
+            # SCADA, historian, central HMI live in Operations. Strict Purdue:
+            # no stage initiates northbound, no stage-to-stage lateral.
+            # ============================================================
+            # OPC UA - SCADA subscriptions to the OPC-UA stage controllers (1s).
+            # Stage 1 is excluded here: the Yokogawa CENTUM VP DCS exposes data
+            # northbound over Modbus TCP only (it speaks no OPC UA), so Stage 1 is
+            # collected via the dedicated Modbus TCP flow below.
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["scada_server"],
+             "target_types": ["plc", "safety_plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["stage2_calender", "stage3_formation",
+                              "stage4_quality", "stage5_pack"]},
+            # OPC UA - Historian collection from the OPC-UA stage controllers (5s).
+            # Stage 1 excluded for the same reason (Yokogawa DCS is Modbus TCP only).
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["historian"],
+             "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["stage2_calender", "stage3_formation",
+                              "stage4_quality", "stage5_pack"]},
+            # Modbus TCP - SCADA + Historian northbound collection of the Yokogawa
+            # coating DCS (Stage 1), which speaks Modbus TCP only (2s).
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["scada_server", "historian"],
+             "target_types": ["dcs_controller"],
+             "source_zones": ["operations"], "target_zones": ["stage1_coating"],
+             "jitter_ms": 150, "jitter_type": "gaussian"},
+            # Modbus TCP - SCADA energy accounting poll of revenue meters (Stage 3) (2s)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["scada_server"], "target_types": ["power_meter"],
+             "source_zones": ["operations"], "target_zones": ["stage3_formation"],
+             "jitter_ms": 150, "jitter_type": "gaussian"},
+            # S7comm - Central Siemens HMI polling the Siemens quality PLC (Stage 4) (1s)
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["operations"], "target_zones": ["stage4_quality"]},
+            # OPC UA - Central HMI polling cross-vendor stage controllers (1s).
+            # The L3 HMI is Siemens; cross-vendor controllers (Rockwell/Schneider/
+            # ABB/Yokogawa) share opc_ua only where present, else SCADA covers them.
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["stage2_calender", "stage3_formation", "stage5_pack"]},
+        ],
+    },
     "pharma_vaccine_bioreactor": {
         "name": "Pharma — Vaccine Bioreactor Plant",
         "description": "GMP-regulated vaccine / monoclonal-antibody plant. "
@@ -2311,9 +3442,618 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
                        "~115 devices across 9 zones.",
         "vertical": "manufacturing",
         "phase_preset": "with_maintenance",
-        "devices": [],
-        "flows": [],
-        "zones": [],
         "total_duration_ms": 600000,
+
+        # Strict Purdue: cells are hermetic at L0-L2; only declared vertical
+        # conduits to L3 operations are permitted. The studio UI can relax this.
+        "cell_isolation": {
+            "mode": "strict_northbound",
+            "applies_to_levels": [0, 1, 2],
+        },
+
+        "zones": [
+            # ---- Level 3: Operations / Process Control --------------------
+            {"id": "operations", "name": "Plant Operations / Process Control", "level": 3,
+             "subnet_offset": 5, "vlan": 150, "security_level": "critical"},
+            # ---- Level 2: Bioreactor Trains (each a self-contained DCS cell)
+            {"id": "train_a", "name": "Bioreactor Train A", "level": 2,
+             "subnet_offset": 1, "vlan": 211, "security_level": "high"},
+            {"id": "train_b", "name": "Bioreactor Train B", "level": 2,
+             "subnet_offset": 2, "vlan": 212, "security_level": "high"},
+            {"id": "train_c", "name": "Bioreactor Train C", "level": 2,
+             "subnet_offset": 3, "vlan": 213, "security_level": "high"},
+            # ---- Level 2: Downstream Purification (TFF + chromatography) ---
+            {"id": "purification", "name": "Purification (TFF + Chromatography)", "level": 2,
+             "subnet_offset": 4, "vlan": 220, "security_level": "high"},
+            # ---- Level 2: Fill / Finish (filling + lyo + vision) ----------
+            {"id": "fill_finish", "name": "Aseptic Fill / Finish", "level": 2,
+             "subnet_offset": 6, "vlan": 230, "security_level": "high"},
+            # ---- Level 2: Safety Instrumented System (SIL-3) --------------
+            {"id": "sis", "name": "Safety Instrumented System (SIL-3)", "level": 2,
+             "subnet_offset": 7, "vlan": 240, "security_level": "critical"},
+            # ---- Level 2: Clean Utilities (WFI / clean steam / air) -------
+            {"id": "utilities", "name": "Clean Utilities (WFI / Steam / Air)", "level": 2,
+             "subnet_offset": 8, "vlan": 250, "security_level": "high"},
+        ],
+
+        "conduits": [
+            # Every cross-zone flow pair below is L3 operations <-> a cell.
+            {"id": "ops_train_a", "name": "Operations ↔ Bioreactor Train A",
+             "source_zone": "operations", "target_zone": "train_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA + Modbus collection from Train A DCS, "
+                            "PI asset-management polling, engineering access, SNMP monitoring"},
+            {"id": "ops_train_b", "name": "Operations ↔ Bioreactor Train B",
+             "source_zone": "operations", "target_zone": "train_b",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA + Modbus collection from Train B DCS, "
+                            "PI asset-management polling, engineering access, SNMP monitoring"},
+            {"id": "ops_train_c", "name": "Operations ↔ Bioreactor Train C",
+             "source_zone": "operations", "target_zone": "train_c",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA + Modbus collection from Train C DCS, "
+                            "PI asset-management polling, engineering access, SNMP monitoring"},
+            {"id": "ops_purification", "name": "Operations ↔ Purification",
+             "source_zone": "operations", "target_zone": "purification",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA + Modbus collection from the TFF/"
+                            "chromatography PLC, engineering access, SNMP monitoring"},
+            {"id": "ops_fill_finish", "name": "Operations ↔ Aseptic Fill / Finish",
+             "source_zone": "operations", "target_zone": "fill_finish",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA subscriptions to the Rockwell fill/"
+                            "finish line, Modbus engineering access, SNMP monitoring"},
+            {"id": "ops_sis", "name": "Operations ↔ Safety Instrumented System",
+             "source_zone": "operations", "target_zone": "sis",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "Read-only SIS state collection to the historian and alarm "
+                            "server; SNMP health monitoring. No write path."},
+            {"id": "ops_utilities", "name": "Operations ↔ Clean Utilities",
+             "source_zone": "operations", "target_zone": "utilities",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "security_level": "critical",
+             "description": "SCADA/historian OPC UA + Modbus collection from the clean-"
+                            "utilities controller, engineering access, SNMP monitoring"},
+        ],
+
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high",
+             "rationale": "Tests PIPEDREAM lateral movement against strict Purdue segmentation in a regulated plant"},
+            {"playbook_id": "triton_like", "relevance": "high",
+             "rationale": "Dedicated SIL-3 SIS is a TRITON-style safety-system target"},
+            {"playbook_id": "network_recon", "relevance": "medium",
+             "rationale": "Validates reconnaissance containment across the L3<->cell conduits"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "Bioreactor batch process simulation (fed-batch growth + downstream purification)",
+            "key_variables": ["ph", "dissolved_oxygen", "optical_density", "glucose", "lactate", "agitation_rpm"],
+            "available_faults": ["foaming_event", "do_crash", "feed_pump_failure", "sis_overpressure_trip"],
+        },
+
+        "devices": [
+            # =====================================================================
+            # OPERATIONS / PROCESS CONTROL (Level 3) — 6 devices
+            # All northbound collection, asset-management, alarm/audit, and
+            # engineering access originate here.
+            # =====================================================================
+            {"type": "scada_server", "vendor": "Honeywell", "count": 1, "zone": "operations",
+             "name": "Plant_Central_SCADA",
+             "protocols": ["opc_ua", "modbus_tcp", "snmp"],
+             "fingerprint_model": "Experion Server",
+             "firmware_version": "R520.2",
+             "role": "Central SCADA Server"},
+            {"type": "historian", "vendor": "GE", "count": 1, "zone": "operations",
+             "name": "Process_Historian",
+             "protocols": ["opc_ua", "modbus_tcp"],
+             "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
+             "role": "Process Historian (21 CFR Part 11 audit trail)"},
+            {"type": "server", "vendor": "Aveva", "count": 1, "zone": "operations",
+             "name": "PI_Asset_Management_Server",
+             "protocols": ["opc_ua", "snmp", "https"],
+             "fingerprint_model": "OSIsoft PI Server 2018",
+             "role": "Asset Management / PI Data Archive"},
+            {"type": "server", "vendor": "Aveva", "count": 1, "zone": "operations",
+             "name": "Alarm_Audit_Server",
+             "protocols": ["opc_ua", "snmp", "https"],
+             "fingerprint_model": "InTouch Alarm Server 2023",
+             "role": "Alarm + 21 CFR Part 11 Audit Server"},
+            {"type": "engineering_workstation", "vendor": "Schneider", "count": 1, "zone": "operations",
+             "name": "OT_Engineering_Workstation",
+             "protocols": ["modbus_tcp", "opc_ua", "snmp"],
+             "fingerprint_model": "EcoStruxure Control Expert 16",
+             "role": "OT Engineering Workstation"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "operations",
+             "name": "Ops_Core_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
+             "role": "Core Network Switch"},
+
+            # =====================================================================
+            # BIOREACTOR TRAIN A (Level 2) — Yokogawa CENTUM VP DCS + analyzer skid
+            # 9 devices. Dense Modbus analyzer instrumentation.
+            # =====================================================================
+            {"type": "dcs_controller", "vendor": "Yokogawa", "count": 1, "zone": "train_a",
+             "name": "Train_A_DCS_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "AFV10D",
+             "firmware_version": "R6.06",
+             "role": "Bioreactor DCS Field Control Unit"},
+            {"type": "hmi", "vendor": "Yokogawa", "count": 1, "zone": "train_a",
+             "name": "Train_A_Operator_HIS",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HIS",
+             "role": "Operator Human Interface Station"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_a",
+             "name": "Train_A_pH_DO_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH / DO Multi-Parameter Analyzer"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_a",
+             "name": "Train_A_OffGas_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TDLS8000",
+             "role": "Off-Gas Laser Analyzer (CO2/O2)"},
+            {"type": "analyzer", "vendor": "Endress+Hauser", "count": 1, "zone": "train_a",
+             "name": "Train_A_Glucose_Lactate_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CM442",
+             "role": "Glucose / Lactate Liquiline Analyzer"},
+            {"type": "transmitter", "vendor": "Emerson", "count": 1, "zone": "train_a",
+             "name": "Train_A_Pressure_Transmitter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "3051S",
+             "role": "Bioreactor Head-Pressure Transmitter"},
+            {"type": "drive", "vendor": "ABB", "count": 1, "zone": "train_a",
+             "name": "Train_A_Agitator_Drive",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
+             "role": "Agitator Variable Frequency Drive"},
+            {"type": "flow_meter", "vendor": "Emerson", "count": 1, "zone": "train_a",
+             "name": "Train_A_Feed_Flow_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "5700",
+             "role": "Coriolis Feed Flow Meter"},
+
+            # =====================================================================
+            # BIOREACTOR TRAIN B (Level 2) — Emerson DeltaV DCS + analyzer skid
+            # 9 devices.
+            # =====================================================================
+            {"type": "dcs_controller", "vendor": "Emerson", "count": 1, "zone": "train_b",
+             "name": "Train_B_DCS_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "S-series",
+             "firmware_version": "V14.3",
+             "role": "Bioreactor DeltaV S-series Controller"},
+            {"type": "hmi", "vendor": "Emerson", "count": 1, "zone": "train_b",
+             "name": "Train_B_Operator_Workstation",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "OWS",
+             "role": "Operator Workstation"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_b",
+             "name": "Train_B_pH_DO_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH / DO Multi-Parameter Analyzer"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_b",
+             "name": "Train_B_OffGas_GC",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "GC8000",
+             "role": "Off-Gas Gas Chromatograph"},
+            {"type": "analyzer", "vendor": "Endress+Hauser", "count": 1, "zone": "train_b",
+             "name": "Train_B_Glucose_Lactate_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CM442",
+             "role": "Glucose / Lactate Liquiline Analyzer"},
+            {"type": "instrument", "vendor": "Honeywell", "count": 1, "zone": "train_b",
+             "name": "Train_B_OD_Probe_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "UDA2182",
+             "role": "Optical Density Probe Controller"},
+            {"type": "drive", "vendor": "ABB", "count": 1, "zone": "train_b",
+             "name": "Train_B_Agitator_Drive",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "ACS880-01",
+             "role": "Agitator Variable Frequency Drive"},
+            {"type": "pressure_sensor", "vendor": "Endress+Hauser", "count": 1, "zone": "train_b",
+             "name": "Train_B_Head_Pressure_Sensor",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
+             "role": "Cerabar Head-Pressure Transmitter"},
+
+            # =====================================================================
+            # BIOREACTOR TRAIN C (Level 2) — Siemens PCS DCS surrogate + analyzers
+            # 9 devices. Siemens S7/PROFINET train.
+            # =====================================================================
+            {"type": "plc", "vendor": "Siemens", "count": 1, "zone": "train_c",
+             "name": "Train_C_Process_Controller",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6ES7 516-3AN02-0AB0",
+             "firmware_version": "V2.8.1",
+             "role": "Bioreactor Process Controller"},
+            {"type": "hmi", "vendor": "Siemens", "count": 1, "zone": "train_c",
+             "name": "Train_C_Operator_HMI",
+             "protocols": ["profinet", "s7comm", "opc_ua"],
+             "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "role": "Operator Interface (TP1200 Comfort)"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_c",
+             "name": "Train_C_pH_DO_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "FLXA402",
+             "role": "pH / DO Multi-Parameter Analyzer"},
+            {"type": "analyzer", "vendor": "Yokogawa", "count": 1, "zone": "train_c",
+             "name": "Train_C_OffGas_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "TDLS8000",
+             "role": "Off-Gas Laser Analyzer (CO2/O2)"},
+            {"type": "analyzer", "vendor": "Endress+Hauser", "count": 1, "zone": "train_c",
+             "name": "Train_C_Glucose_Lactate_Analyzer",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "CM442",
+             "role": "Glucose / Lactate Liquiline Analyzer"},
+            {"type": "instrument", "vendor": "Honeywell", "count": 1, "zone": "train_c",
+             "name": "Train_C_Temp_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "UDC3500",
+             "role": "Jacket Temperature Controller"},
+            {"type": "drive", "vendor": "Siemens", "count": 1, "zone": "train_c",
+             "name": "Train_C_Agitator_Drive",
+             "protocols": ["profinet", "modbus_tcp"],
+             "fingerprint_model": "G120",
+             "firmware_version": "V4.7 SP5",
+             "role": "Agitator Variable Frequency Drive"},
+            {"type": "io_module", "vendor": "Siemens", "count": 1, "zone": "train_c",
+             "name": "Train_C_Skid_IO",
+             "protocols": ["profinet"],
+             "fingerprint_model": "6ES7155-6AU01-0BN0",
+             "role": "ET 200SP Distributed I/O"},
+
+            # =====================================================================
+            # PURIFICATION — TFF + CHROMATOGRAPHY (Level 2) — Schneider Modbus
+            # 8 devices.
+            # =====================================================================
+            {"type": "plc", "vendor": "Schneider", "count": 1, "zone": "purification",
+             "name": "Purification_Skid_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "BMXP3420302",
+             "firmware_version": "V2.90",
+             "role": "TFF / Chromatography Skid PLC"},
+            {"type": "hmi", "vendor": "Schneider", "count": 1, "zone": "purification",
+             "name": "Purification_Operator_HMI",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HMISTM6",
+             "role": "Operator Interface (Magelis STM6)"},
+            {"type": "drive", "vendor": "Schneider", "count": 1, "zone": "purification",
+             "name": "TFF_Feed_Pump_Drive",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV630D15N4",
+             "firmware_version": "V1.6IE42",
+             "role": "TFF Feed Pump Drive"},
+            {"type": "drive", "vendor": "Schneider", "count": 1, "zone": "purification",
+             "name": "Chromatography_Pump_Drive",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ATV930",
+             "role": "Chromatography Buffer Pump Drive"},
+            {"type": "flow_meter", "vendor": "Endress+Hauser", "count": 1, "zone": "purification",
+             "name": "TFF_Permeate_Flow_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "Permeate Flow Meter"},
+            {"type": "pressure_sensor", "vendor": "Endress+Hauser", "count": 1, "zone": "purification",
+             "name": "TFF_TMP_Pressure_Sensor",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "PMC71",
+             "role": "Trans-Membrane Pressure Transmitter"},
+            {"type": "io_module", "vendor": "Schneider", "count": 1, "zone": "purification",
+             "name": "Purification_Valve_IO",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STB NIP 2311",
+             "role": "Advantys STB Valve I/O"},
+
+            # =====================================================================
+            # ASEPTIC FILL / FINISH (Level 2) — Rockwell EtherNet/IP line
+            # 8 devices. Filling + lyophilization + vision inspection.
+            # =====================================================================
+            {"type": "plc", "vendor": "Rockwell", "count": 1, "zone": "fill_finish",
+             "name": "Fill_Line_PLC",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1756-L83E",
+             "firmware_version": "V32.011",
+             "role": "Aseptic Fill Line Controller"},
+            {"type": "hmi", "vendor": "Rockwell", "count": 1, "zone": "fill_finish",
+             "name": "Fill_Line_HMI",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T15C22D9P",
+             "firmware_version": "V10.00",
+             "role": "Operator Interface (PanelView Plus 7)"},
+            {"type": "plc", "vendor": "Rockwell", "count": 1, "zone": "fill_finish",
+             "name": "Lyophilizer_PLC",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "1769-L33ER",
+             "role": "Lyophilization Cycle Controller"},
+            {"type": "drive", "vendor": "Rockwell", "count": 1, "zone": "fill_finish",
+             "name": "Vial_Conveyor_Drive",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "PowerFlex 753",
+             "role": "Vial Conveyor Drive"},
+            {"type": "robot_controller", "vendor": "Fanuc", "count": 1, "zone": "fill_finish",
+             "name": "Vial_Handling_Robot",
+             "protocols": ["ethernet_ip", "fanuc"],
+             "fingerprint_model": "R-30iB Plus",
+             "firmware_version": "V9.30",
+             "role": "Aseptic Vial Handling Robot"},
+            {"type": "vision_system", "vendor": "Cognex", "count": 1, "zone": "fill_finish",
+             "name": "Automated_Vision_Inspection",
+             "protocols": ["ethernet_ip", "modbus_tcp"],
+             "fingerprint_model": "In-Sight 7802",
+             "role": "Automated Fill Vision Inspection"},
+            {"type": "io_module", "vendor": "Rockwell", "count": 1, "zone": "fill_finish",
+             "name": "Fill_Finish_Remote_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "FLEX 5000 Remote I/O"},
+            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "fill_finish",
+             "name": "Fill_Finish_Cell_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E",
+             "firmware_version": "15.2(7)E6",
+             "role": "Industrial Switch"},
+
+            # =====================================================================
+            # SAFETY INSTRUMENTED SYSTEM — SIL-3 (Level 2) — Honeywell/Yokogawa
+            # 4 devices. Over-pressure / over-temp shutdown. Read-only northbound.
+            # =====================================================================
+            {"type": "safety_plc", "vendor": "Honeywell", "count": 1, "zone": "sis",
+             "name": "SIS_Safety_Manager",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Safety Manager",
+             "firmware_version": "V12.5",
+             "role": "SIL-3 Safety Manager (over-pressure/temp trip)"},
+            {"type": "safety_plc", "vendor": "Yokogawa", "count": 1, "zone": "sis",
+             "name": "SIS_ProSafe_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "SSC60D",
+             "role": "ProSafe-RS Safety Controller"},
+            {"type": "transmitter", "vendor": "Yokogawa", "count": 1, "zone": "sis",
+             "name": "SIS_Pressure_Transmitter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EJA530A",
+             "role": "SIL-rated Pressure Transmitter"},
+            {"type": "instrument", "vendor": "Honeywell", "count": 1, "zone": "sis",
+             "name": "SIS_Temperature_Transmitter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "STT850",
+             "role": "SIL-rated Temperature Transmitter"},
+
+            # =====================================================================
+            # CLEAN UTILITIES — WFI / CLEAN STEAM / COMPRESSED AIR (Level 2)
+            # 7 devices. ABB AC500 controller + instruments.
+            # =====================================================================
+            {"type": "plc", "vendor": "ABB", "count": 1, "zone": "utilities",
+             "name": "Clean_Utilities_PLC",
+             "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
+             "fingerprint_model": "PM590-ETH",
+             "firmware_version": "V2.9.0",
+             "role": "Clean Utilities Controller"},
+            {"type": "drive", "vendor": "ABB", "count": 1, "zone": "utilities",
+             "name": "WFI_Distribution_Pump_Drive",
+             "protocols": ["modbus_tcp", "ethernet_ip"],
+             "fingerprint_model": "ACS880-01",
+             "role": "WFI Distribution Pump Drive"},
+            {"type": "flow_meter", "vendor": "Endress+Hauser", "count": 1, "zone": "utilities",
+             "name": "WFI_Loop_Flow_Meter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "Promag 400",
+             "role": "WFI Loop Flow Meter"},
+            {"type": "instrument", "vendor": "Honeywell", "count": 1, "zone": "utilities",
+             "name": "Clean_Steam_Controller",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "HC900 Controller",
+             "role": "Clean Steam Loop Controller"},
+            {"type": "transmitter", "vendor": "Emerson", "count": 1, "zone": "utilities",
+             "name": "Compressed_Air_Pressure_Transmitter",
+             "protocols": ["modbus_tcp"],
+             "fingerprint_model": "3051S",
+             "role": "Compressed Air Header Pressure Transmitter"},
+            {"type": "io_module", "vendor": "ABB", "count": 1, "zone": "utilities",
+             "name": "Utilities_Remote_IO",
+             "protocols": ["modbus_tcp", "ethernet_ip", "profinet"],
+             "fingerprint_model": "CI501",
+             "role": "CI501 Remote I/O"},
+        ],
+
+        "flows": [
+            # =====================================================================
+            # TRAIN A INTRA-CELL — Yokogawa Modbus DCS
+            # =====================================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["dcs_controller"], "target_types": ["analyzer"],
+             "source_zones": ["train_a"], "target_zones": ["train_a"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["dcs_controller"], "target_types": ["transmitter", "flow_meter"],
+             "source_zones": ["train_a"], "target_zones": ["train_a"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["dcs_controller"], "target_types": ["drive"],
+             "source_zones": ["train_a"], "target_zones": ["train_a"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["dcs_controller"],
+             "source_zones": ["train_a"], "target_zones": ["train_a"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # =====================================================================
+            # TRAIN B INTRA-CELL — Emerson DeltaV Modbus DCS
+            # =====================================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["dcs_controller"], "target_types": ["analyzer", "instrument"],
+             "source_zones": ["train_b"], "target_zones": ["train_b"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["dcs_controller"], "target_types": ["pressure_sensor"],
+             "source_zones": ["train_b"], "target_zones": ["train_b"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["dcs_controller"], "target_types": ["drive"],
+             "source_zones": ["train_b"], "target_zones": ["train_b"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["dcs_controller"],
+             "source_zones": ["train_b"], "target_zones": ["train_b"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # =====================================================================
+            # TRAIN C INTRA-CELL — Siemens PROFINET / S7comm + Modbus analyzers
+            # =====================================================================
+            {"protocol": "profinet", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "source_zones": ["train_c"], "target_zones": ["train_c"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["analyzer", "instrument", "flow_meter"],
+             "source_zones": ["train_c"], "target_zones": ["train_c"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["train_c"], "target_zones": ["train_c"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # =====================================================================
+            # PURIFICATION INTRA-CELL — Schneider Modbus TCP
+            # =====================================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["purification"], "target_zones": ["purification"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["flow_meter", "pressure_sensor", "io_module"],
+             "source_zones": ["purification"], "target_zones": ["purification"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["purification"], "target_zones": ["purification"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+
+            # =====================================================================
+            # FILL / FINISH INTRA-CELL — Rockwell EtherNet/IP
+            # =====================================================================
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive", "io_module"],
+             "source_zones": ["fill_finish"], "target_zones": ["fill_finish"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["robot_controller", "vision_system"],
+             "source_zones": ["fill_finish"], "target_zones": ["fill_finish"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["fill_finish"], "target_zones": ["fill_finish"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # =====================================================================
+            # SIS INTRA-CELL — Honeywell/Yokogawa Modbus safety heartbeat
+            # =====================================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+             "source_types": ["safety_plc"], "target_types": ["transmitter", "instrument"],
+             "source_zones": ["sis"], "target_zones": ["sis"],
+             "jitter_ms": 20, "jitter_type": "gaussian"},
+
+            # =====================================================================
+            # UTILITIES INTRA-CELL — ABB Modbus / EtherNet/IP
+            # =====================================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 200,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["utilities"], "target_zones": ["utilities"],
+             "jitter_ms": 25, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["plc"], "target_types": ["flow_meter", "instrument", "transmitter", "io_module"],
+             "source_zones": ["utilities"], "target_zones": ["utilities"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+
+            # =====================================================================
+            # L3 OPERATIONS → CELL SUPERVISORY FLOWS (northbound, vertical only)
+            # SCADA, historian, PI asset-mgmt, alarm/audit server, and engineering
+            # workstation all live in operations. No cell-to-cell lateral flows.
+            # =====================================================================
+            # SCADA OPC UA subscriptions to OPC-UA-capable cell controllers (Siemens/
+            # Schneider/ABB/Rockwell). Yokogawa/Emerson Modbus trains collected below.
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
+             "source_types": ["scada_server"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_c", "purification", "fill_finish", "utilities"]},
+            # SCADA Modbus collection from the Yokogawa/Emerson Modbus-only DCS trains.
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["scada_server"], "target_types": ["dcs_controller"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_a", "train_b"],
+             "jitter_ms": 200, "jitter_type": "uniform"},
+            # Historian OPC UA collection from OPC-UA controllers (5s).
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_c", "purification", "fill_finish", "utilities"]},
+            # Historian Modbus collection from the Modbus DCS trains (5s).
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["dcs_controller"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_a", "train_b"],
+             "jitter_ms": 500, "jitter_type": "uniform"},
+            # PI asset-management OPC UA polling of OPC-UA controllers (10s).
+            {"protocol": "opc_ua", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["server"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_c", "purification", "fill_finish", "utilities"],
+             "jitter_ms": 1000, "jitter_type": "uniform"},
+            # Historian read-only Modbus collection of SIS state (no write path).
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["safety_plc"],
+             "source_zones": ["operations"], "target_zones": ["sis"],
+             "jitter_ms": 500, "jitter_type": "uniform"},
+
+            # ---------------------------------------------------------------------
+            # ENGINEERING WORKSTATION FLOWS (L3 operations → cells)
+            # Low-frequency engineering access: program checks / tag browsing.
+            # ---------------------------------------------------------------------
+            # Modbus engineering access (Control Expert station speaks modbus_tcp;
+            # every cell controller — Yokogawa/Emerson DCS, Schneider/ABB/Siemens/
+            # Rockwell PLCs — exposes a Modbus engineering server).
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["dcs_controller", "plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["train_a", "train_b", "train_c", "purification", "fill_finish", "utilities"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+
+            # ---------------------------------------------------------------------
+            # SNMP INFRASTRUCTURE MONITORING (L3 operations → cell switches)
+            # ---------------------------------------------------------------------
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["operations"], "target_zones": ["fill_finish"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+            # Intra-operations SNMP health poll of the core switch (so no L3 device
+            # is left without a flow for CV fingerprinting).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_zones": ["operations"], "target_zones": ["operations"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+        ],
     },
 }
