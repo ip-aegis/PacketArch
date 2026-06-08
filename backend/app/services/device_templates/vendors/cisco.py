@@ -208,16 +208,22 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.66,
             ),
             FirmwareVariant(
                 version="17.12.03",
                 release_date=date(2024, 3, 15),
                 cves=[],
             ),
+            # In-range vulnerable IOS XE 17.9 image (web UI enabled): NVD lists
+            # the 17.9 train as vulnerable from 17.9 up to (excluding) 17.9.4a.
+            # 17.9.3 is unambiguously pre-fix. The post-fix 17.9.05 release does
+            # NOT carry CVE-2023-20198.
             FirmwareVariant(
-                version="17.9.05",
-                release_date=date(2023, 9, 1),
+                version="17.9.3",
+                release_date=date(2023, 3, 28),
                 cves=["CVE-2023-20198"],
+                population_weight=0.34,
             ),
         ],
 
@@ -567,10 +573,14 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 3, 15),
                 cves=[],
             ),
+            # IE3500 Rugged Series is a newer platform whose earliest IOS XE
+            # train is ~17.15.x; it never shipped a 17.9.x image, so it is NOT
+            # in scope for CVE-2023-20198 (17.9 train, fixed at 17.9.4a). Use a
+            # real IE3500 train instead of a fabricated 17.9.x build.
             FirmwareVariant(
-                version="17.9.05",
-                release_date=date(2023, 9, 1),
-                cves=["CVE-2023-20198"],
+                version="17.17.01",
+                release_date=date(2025, 3, 26),
+                cves=[],
             ),
         ],
 

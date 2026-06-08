@@ -214,13 +214,20 @@ ROCKWELL_CVES: list[dict] = [
         "product_family": "ControlLogix",
         "affected_models": [
             "1756-L81E", "1756-L82E", "1756-L83E", "1756-L84E", "1756-L85E",
+            # ControlLogix 5570 and CompactLogix 5370 families are also in
+            # scope per CISA ICSA-22-090-05 (corrected family fix is V33.013).
+            "1756-L73", "1769-L24ER-QB1B",
         ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "32.016",
-        "fixed_firmware_version": "33.011",
+        # CISA ICSA-22-090-05: corrected firmware for the 5570/5370 family is
+        # V33.013, so every genuinely-vulnerable variant (incl. V33.011,
+        # V32.011) sits below 33.013. Prior 32.016 ceiling was a different
+        # family's fix and under-stated the range.
+        "affected_firmware_max": "33.012",
+        "fixed_firmware_version": "33.013",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-090-07",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-090-05",
         "references": [
             "https://rockwellautomation.custhelp.com/app/answers/answer_view/a_id/1134620",
         ],
@@ -362,17 +369,25 @@ ROCKWELL_CVES: list[dict] = [
             "proper authorization. This can lead to full device compromise."
         ),
         "severity": "critical",
-        "cvss_score": 9.8,
+        # CISA ICSA-21-056-03 scores this 10.0 (CISA KEV, actively exploited).
+        "cvss_score": 10.0,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
         "vendor": "Rockwell",
         "product_family": "CompactLogix",
         "affected_models": [
             "1769-L33ER", "1769-L33ERM", "1769-L36ERM",
             "1769-L30ER", "1769-L30ERM", "1769-L30ER-NSE",
+            # CISA ICSA-21-056-03 / NVD CPE list the ControlLogix 5570 and
+            # 5580 families as affected too (all firmware versions).
+            "1756-L73", "1769-L24ER-QB1B", "1756-L83E",
         ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "32.013",
-        "fixed_firmware_version": "33.011",
+        # CISA ICSA-21-056-03: NO firmware patch exists (mitigations only:
+        # mode-switch RUN, CIP Security, segmentation). ALL versions are
+        # vulnerable, so the ceiling covers every real Logix firmware
+        # (latest line is V36.x). Prior 32.013 cap was artificial.
+        "affected_firmware_max": "36.011",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-056-03",

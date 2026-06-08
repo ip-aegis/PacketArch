@@ -36,8 +36,8 @@ SCHNEIDER_CVES: list[dict] = [
             "BMEP584040", "BMEP585040", "BMEP586040",
         ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "3.10",
-        "fixed_firmware_version": "3.20",
+        "affected_firmware_max": "4.10",  # NVD: all versions affected; Schneider fix is SV4.20
+        "fixed_firmware_version": "4.20",  # SV4.20 per SEVD-2023-010-03
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-047-01",
@@ -50,7 +50,7 @@ SCHNEIDER_CVES: list[dict] = [
         "published_date": datetime(2023, 2, 16),
         "vulnerable_variants": [
             {
-                "firmware_version": "3.10",  # Auto-derived to all protocols
+                "firmware_version": "3.20",  # Real M580 SVxx firmware, pre-SV4.20 fix
                 "display_name": "Modicon M580 BMEP582040 (CVE-2022-45789)",
                 # SNMP sysDescr template for Cyber Vision detection
                 "snmp_sys_descr_template": "Schneider Electric Modicon M580 BMEP582040 Firmware V{firmware_version}",
@@ -71,7 +71,7 @@ SCHNEIDER_CVES: list[dict] = [
                 },
             },
             {
-                "firmware_version": "3.05",
+                "firmware_version": "3.20",  # Real M580 SVxx firmware, pre-SV4.20 fix
                 "display_name": "Modicon M580 BMEP584040 (CVE-2022-45789)",
                 "snmp_sys_descr_template": "Schneider Electric Modicon M580 BMEP584040 Firmware V{firmware_version}",
                 "modbus_identity_override": {
@@ -237,7 +237,7 @@ SCHNEIDER_CVES: list[dict] = [
         ),
         "severity": "critical",
         "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",  # NVD records v3.0, not v3.1
         "vendor": "Schneider",
         "product_family": "Modicon Premium",
         "affected_models": [
@@ -245,7 +245,7 @@ SCHNEIDER_CVES: list[dict] = [
             "TSXP57254M", "TSXP573634M", "TSXP574634M",
         ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "3.60",  # All versions affected
+        "affected_firmware_max": "5.6",  # NVD: all versions affected; Premium OS reaches V5.x
         "fixed_firmware_version": None,  # No fix - use Unity instead
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
@@ -257,7 +257,7 @@ SCHNEIDER_CVES: list[dict] = [
         "published_date": datetime(2018, 4, 17),
         "vulnerable_variants": [
             {
-                "firmware_version": "3.60",
+                "firmware_version": "5.0",  # Real Premium OS version (all versions affected)
                 "display_name": "Modicon Premium TSXP57204M (CVE-2018-7760)",
                 "snmp_sys_descr_template": "Schneider Electric Modicon Premium TSXP57204M Firmware V{firmware_version}",
                 "modbus_identity_override": {

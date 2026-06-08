@@ -24,91 +24,43 @@ Auto-Derivation:
 from datetime import datetime
 
 SIEMENS_CVES: list[dict] = [
-    # CVE-2019-13945 - S7-1500 CPU Cryptographic Vulnerability
+    # CVE-2019-13945 - S7-1200 / S7-200 SMART physical UART boot-mode flaw
+    # NVD-verified: affects ONLY SIMATIC S7-1200 (incl. SIPLUS, V4.x FS<11)
+    # and S7-200 SMART CPUs via PHYSICAL access to the UART during boot.
+    # Re-scoped off the S7-1500 family entirely (mis-scoped per NVD). This is a
+    # physical-access attack with no network/S7comm fingerprint, so it is NOT
+    # Cyber-Vision-detectable. CVSS corrected to 6.8 AV:P per NVD.
     {
         "cve_id": "CVE-2019-13945",
-        "title": "Siemens S7-1500 CPU Cryptographic Vulnerability",
+        "title": "Siemens S7-1200 / S7-200 SMART Physical Boot-Mode Vulnerability",
         "description": (
-            "A vulnerability has been identified in SIMATIC S7-1500 CPU family. "
-            "An attacker with network access to an affected device could use the "
-            "vulnerability to decrypt the S7 communication and spoof user data."
+            "A vulnerability has been identified in SIMATIC S7-1200 and "
+            "S7-200 SMART CPU families. An attacker with PHYSICAL access to the "
+            "UART interface during boot could use the vulnerability to extract "
+            "key material. This is a physical-access attack with no network/"
+            "S7comm fingerprint."
         ),
-        "severity": "high",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+        "severity": "medium",
+        "cvss_score": 6.8,
+        "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Siemens",
-        "product_family": "S7-1500",
-        "affected_models": [
-            "6ES7 510-1DJ01-0AB0", "6ES7 511-1AK02-0AB0",
-            "6ES7 512-1CK01-0AB0", "6ES7 513-1AL02-0AB0",
-            "6ES7 515-2AM02-0AB0", "6ES7 516-3AN01-0AB0",
-            "6ES7 517-3AP00-0AB0", "6ES7 518-4AP00-0AB0",
-        ],
+        "product_family": "S7-1200",
+        "affected_models": [],
         "affected_firmware_min": None,
-        "affected_firmware_max": "V2.8.0",
-        "fixed_firmware_version": "V2.8.1",
-        "cyber_vision_detectable": True,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": False,
         "detection_method": "protocol_identity",
         "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-232418.pdf",
         "references": [
             "https://www.cisa.gov/news-events/ics-advisories/icsa-19-344-04",
+            "https://nvd.nist.gov/vuln/detail/CVE-2019-13945",
         ],
         "mitre_techniques": ["T0882", "T0888"],
         "exploit_available": True,
         "exploit_complexity": "medium",
         "published_date": datetime(2019, 12, 10),
-        "vulnerable_variants": [
-            {
-                # firmware_version is the single source of truth
-                # Auto-derived to: s7_identity.firmware_version = "V2.8.0"
-                #                  profinet_identity.sw_release = "V2.8.0"
-                "firmware_version": "V2.8.0",
-                "display_name": "S7-1516 CPU (CVE-2019-13945)",
-                # SNMP sys_descr template - firmware auto-interpolated
-                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1516-3 PN/DP {firmware_version}",
-                # SNMP identity with Siemens enterprise OID for device identification
-                "snmp_identity_override": {
-                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1516",  # Siemens S7-1516
-                    "sys_name": "S7-1516-3-PN-DP",
-                },
-                # Non-firmware fields - must be explicit
-                "s7_identity_override": {
-                    "order_code": "6ES7 516-3AN01-0AB0",
-                    "module_type": "CPU 1516-3 PN/DP",
-
-                    "hardware_version": "1",
-                },
-                "profinet_identity_override": {
-                    "vendor_id": 0x002A,  # Siemens PROFINET vendor ID
-                    "device_id": 0x0500,
-                    "device_type": "CPU 1516-3 PN/DP",
-                    "device_role": 0x02,  # PROFINET DCP role byte: 0x02 = IO-Controller
-                    "order_id": "6ES7 516-3AN01-0AB0",
-                    "sw_release": "V2.8.0",
-                },
-            },
-            {
-                "firmware_version": "V2.6.1",
-                "display_name": "S7-1515 CPU (CVE-2019-13945)",
-                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1515-2 PN {firmware_version}",
-                "snmp_identity_override": {
-                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1515",  # Siemens S7-1515
-                    "sys_name": "S7-1515-2-PN",
-                },
-                "s7_identity_override": {
-                    "order_code": "6ES7 515-2AM02-0AB0",
-                    "module_type": "CPU 1515-2 PN",
-
-                },
-                "profinet_identity_override": {
-                    "vendor_id": 0x002A,
-                    "device_id": 0x0400,
-                    "device_type": "CPU 1515-2 PN",
-                    "order_id": "6ES7 515-2AM02-0AB0",
-                    "sw_release": "V2.6.1",
-                },
-            },
-        ],
+        "vulnerable_variants": [],
     },
 
     # CVE-2020-15782 - S7-1200/1500 Memory Protection Bypass (CRITICAL)
@@ -226,23 +178,24 @@ SIEMENS_CVES: list[dict] = [
     # CVE-2022-38465 - S7-1500 TM MFP Vulnerability
     {
         "cve_id": "CVE-2022-38465",
-        "title": "Siemens S7-1500 TM MFP Hardcoded Key Vulnerability",
+        "title": "Siemens S7-1200/1500 Global Private Key Extraction",
         "description": (
-            "Affected devices use a hardcoded key to obfuscate the PROFINET system "
-            "redundancy state. An attacker with physical access could extract the "
-            "key and decrypt the data."
+            "Affected SIMATIC S7-1200/S7-1500 CPUs use a global private key whose "
+            "value can be recovered via offline cryptanalysis with local access, "
+            "allowing an attacker to extract confidential configuration/"
+            "communication data. NVD vector AV:L/AC:L/PR:L, base 7.8."
         ),
-        "severity": "medium",
+        "severity": "high",
         "cvss_score": 7.8,
-        "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Siemens",
-        "product_family": "S7-1500",
+        "product_family": "S7-1200",
         "affected_models": [
-            "6ES7 516-3AN01-0AB0", "6ES7 517-3AP00-0AB0",
+            "6ES7 214-1AG40-0XB0", "6ES7 214-1HF40-0XB0", "CPU 1214FC DC/DC/DC",
         ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "V3.0.0",
-        "fixed_firmware_version": "V3.0.1",
+        "affected_firmware_max": "V4.5.0",
+        "fixed_firmware_version": "V4.5.0",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-568427.pdf",
@@ -253,23 +206,36 @@ SIEMENS_CVES: list[dict] = [
         "published_date": datetime(2022, 10, 11),
         "vulnerable_variants": [
             {
-                "firmware_version": "V3.0.0",
-                "display_name": "S7-1516 CPU (CVE-2022-38465)",
-                "snmp_sys_descr_template": "Siemens SIMATIC S7-1500 CPU 1516-3 PN/DP {firmware_version}",
+                "firmware_version": "V4.4.0",
+                "display_name": "S7-1200 CPU 1214C (CVE-2022-38465)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1200 CPU 1214C DC/DC/DC {firmware_version}",
                 "snmp_identity_override": {
-                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1516",  # Siemens S7-1516
-                    "sys_name": "S7-1516-3-PN-DP",
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1214",  # Siemens S7-1214
+                    "sys_name": "S7-1214C",
                 },
                 "s7_identity_override": {
-                    "order_code": "6ES7 516-3AN01-0AB0",
-                    "module_type": "CPU 1516-3 PN/DP",
+                    "order_code": "6ES7 214-1AG40-0XB0",
+                    "module_type": "CPU 1214C DC/DC/DC",
                 },
                 "profinet_identity_override": {
                     "vendor_id": 0x002A,
-                    "device_id": 0x0500,
-                    "device_type": "CPU 1516-3 PN/DP",
-                    "order_id": "6ES7 516-3AN01-0AB0",
-                    "sw_release": "V3.0.0",
+                    "device_id": 0x0301,
+                    "device_type": "CPU 1214C DC/DC/DC",
+                    "order_id": "6ES7 214-1AG40-0XB0",
+                    "sw_release": "V4.4.0",
+                },
+            },
+            {
+                "firmware_version": "V4.2.1",
+                "display_name": "S7-1200 CPU 1214C (CVE-2022-38465)",
+                "snmp_sys_descr_template": "Siemens SIMATIC S7-1200 CPU 1214C DC/DC/DC {firmware_version}",
+                "snmp_identity_override": {
+                    "sys_object_id": "1.3.6.1.4.1.4329.2.51.1214",  # Siemens S7-1214
+                    "sys_name": "S7-1214C",
+                },
+                "s7_identity_override": {
+                    "order_code": "6ES7 214-1AG40-0XB0",
+                    "module_type": "CPU 1214C DC/DC/DC",
                 },
             },
         ],

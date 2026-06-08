@@ -159,8 +159,8 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
             ),
             FirmwareVariant(
-                version="V4.0.6.41",
-                release_date=date(2020, 6, 20),
+                version="V4.0.3.20",
+                release_date=date(2017, 2, 15),
                 cves=["CVE-2017-6028", "CVE-2020-7487", "CVE-2021-22699", "CVE-2019-6820"],
             ),
         ],
@@ -498,8 +498,8 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2020-7487", "CVE-2020-7488", "CVE-2021-22699"],
             ),
             FirmwareVariant(
-                version="V4.0.7",
-                release_date=date(2020, 4, 15),
+                version="V4.0.3.20",
+                release_date=date(2017, 2, 15),
                 cves=["CVE-2017-6028", "CVE-2020-7487", "CVE-2020-7488", "CVE-2021-22699"],
             ),
         ],
@@ -1465,7 +1465,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V6.0",
+                version="V5.6",
                 release_date=date(2018, 6, 1),
                 is_latest=True,
                 is_default=True,
@@ -1482,7 +1482,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Schneider Electric Premium TSXP57154M V6.0",
+            "sys_descr": "Schneider Electric Premium TSXP57154M V5.6",
             "sys_object_id": "1.3.6.1.4.1.3833.254.86",
             "sys_name": "PREMIU-TSXP57-001",
             "sys_location": "Production Floor",

@@ -1280,7 +1280,7 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "product_family": "ControlLogix / CompactLogix",
         "affected_models": ["1756-L73", "1769-L33ER", "1769-L24ER-QB1B", "CompactLogix 5370", "ControlLogix 5570"],
         "affected_firmware_min": None,
-        "affected_firmware_max": "33",
+        "affected_firmware_max": "V33.013",
         "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
@@ -1292,8 +1292,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "published_date": datetime(2022, 7, 27),
         "vulnerable_variants": [
             {
-                "display_name": "ControlLogix / CompactLogix V33.013 (CVE-2020-6998)",
-                "firmware_version": "V33.013",
+                "display_name": "ControlLogix / CompactLogix V33.011 (CVE-2020-6998)",
+                "firmware_version": "V33.011",
+            },
+            {
+                "display_name": "ControlLogix / CompactLogix V32.011 (CVE-2020-6998)",
+                "firmware_version": "V32.011",
             },
         ],
     },
@@ -1908,7 +1912,25 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "published_date": datetime(2022, 2, 9),
         "vulnerable_variants": [
             {
-                "display_name": "SIMATIC S7-1200 V4.2.1 (CVE-2021-37185)",
+                "display_name": "SIMATIC S7-1500 V2.9.2 (CVE-2021-37185)",
+                "firmware_version": "V2.9.2",
+            },
+            {
+                "display_name": "SIMATIC S7-1500 V2.9.3 (CVE-2021-37185)",
+                "firmware_version": "V2.9.3",
+            },
+            {
+                "display_name": "SIMATIC S7-1200 V4.5.0 (CVE-2021-37185)",
+                "firmware_version": "V4.5.0",
+            },
+            {
+                "display_name": "SIMATIC S7-1200 V4.5.1 (CVE-2021-37185)",
+                "firmware_version": "V4.5.1",
+            },
+            {
+                # S7-1200 CPU 1214C (6ES7 214-1AG40-0XB0) firmware-override build
+                # emitted by the device template that carries this CVE.
+                "display_name": "SIMATIC S7-1200 CPU 1214C V4.2.1 (CVE-2021-37185)",
                 "firmware_version": "V4.2.1",
             },
         ],
@@ -2428,7 +2450,7 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "product_family": "ControlLogix / CompactLogix",
         "affected_models": ["1756-L73", "1769-L33ER", "1769-L24ER-QB1B", "CompactLogix 5370", "ControlLogix 5570"],
         "affected_firmware_min": "20",
-        "affected_firmware_max": "33",
+        "affected_firmware_max": "V33.013",
         "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
@@ -2440,8 +2462,12 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "published_date": datetime(2022, 12, 16),
         "vulnerable_variants": [
             {
-                "display_name": "ControlLogix / CompactLogix V33.013 (CVE-2022-3157)",
-                "firmware_version": "V33.013",
+                "display_name": "ControlLogix / CompactLogix V33.011 (CVE-2022-3157)",
+                "firmware_version": "V33.011",
+            },
+            {
+                "display_name": "ControlLogix / CompactLogix V32.011 (CVE-2022-3157)",
+                "firmware_version": "V32.011",
             },
         ],
     },

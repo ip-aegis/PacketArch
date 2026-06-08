@@ -253,37 +253,42 @@ BUILDING_AUTOMATION_CVES: list[dict] = [
         "cve_id": "CVE-2021-42534",
         "title": "Trane Tracer SC Cross-Site Scripting",
         "description": (
-            "Trane Tracer SC/SC+ building controllers contain stored XSS "
-            "vulnerabilities that allow attackers to inject malicious "
-            "scripts via the web interface."
+            "An Improper Neutralization of Input During Web Page Generation "
+            "(Cross-Site Scripting, CWE-79) vulnerability exists in the Trane "
+            "Tracer SC family web interface. A remote attacker can inject "
+            "script into input forms that executes in the victim's browser. "
+            "Per CISA ICSA-21-292-02, Tracer SC firmware v3.8 and prior is "
+            "affected; the fix is in firmware v4.4 SP7."
         ),
         "severity": "medium",
-        "cvss_score": 6.1,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+        "cvss_score": 6.3,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
         "vendor": "Trane",
         "product_family": "Tracer",
         "affected_models": ["Tracer SC", "Tracer SC+"],
         "affected_firmware_min": None,
-        "affected_firmware_max": "5.7.0",
-        "fixed_firmware_version": "5.8.0",
+        "affected_firmware_max": "V6.10",
+        "fixed_firmware_version": "V4.4 SP7",
         "cyber_vision_detectable": True,
         "detection_method": "bacnet_i_am",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-301-01",
-        "references": [],
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-292-02",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-42534",
+        ],
         "mitre_techniques": ["T0866"],
         "exploit_available": False,
         "exploit_complexity": "medium",
         "published_date": datetime(2021, 10, 28),
         "vulnerable_variants": [
             {
-                "firmware_version": "5.7.0",
+                "firmware_version": "V6.10",
                 "display_name": "Trane Tracer SC+ (CVE-2021-42534)",
                 "snmp_sys_descr_template": "Trane Tracer SC+ Controller v{firmware_version}",
                 "bacnet_identity_override": {
                     "vendor_id": 97,
                     "vendor_name": "Trane",
                     "model_name": "Tracer SC+ System Controller",
-                    "application_software_version": "5.7",
+                    "application_software_version": "6.10",
                 },
             },
         ],
@@ -296,32 +301,35 @@ BUILDING_AUTOMATION_CVES: list[dict] = [
     # CVE-2019-6853 - Schneider Electric Andover Continuum
     {
         "cve_id": "CVE-2019-6853",
-        "title": "Schneider Electric Andover Continuum Information Disclosure",
+        "title": "Schneider Electric Andover Continuum Cross-Site Scripting",
         "description": (
-            "Schneider Electric Andover Continuum controllers contain an "
-            "information disclosure vulnerability allowing unauthorized "
-            "access to sensitive configuration data via unauthenticated API."
+            "A Cross-Site Scripting (CWE-79) vulnerability exists in Schneider "
+            "Electric Andover Continuum controllers (all versions). A remote "
+            "attacker can inject malicious script into the web interface that "
+            "executes in the victim's browser when a crafted link is followed."
         ),
         "severity": "medium",
-        "cvss_score": 6.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N",
+        "cvss_score": 6.1,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
         "vendor": "Schneider Electric",
         "product_family": "Andover Continuum",
         "affected_models": ["CX9680", "CX9640", "CX9600"],
         "affected_firmware_min": None,
-        "affected_firmware_max": "1.86.0",
-        "fixed_firmware_version": "1.87.0",
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "bacnet_i_am",
-        "advisory_url": "https://www.se.com/ww/en/download/document/SEVD-2019-225-02/",
-        "references": [],
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2019-6853",
+        "references": [
+            "https://www.se.com/ww/en/download/document/SEVD-2019-225-02/",
+        ],
         "mitre_techniques": ["T0859"],
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2019, 8, 13),
         "vulnerable_variants": [
             {
-                "firmware_version": "1.86.0",
+                "firmware_version": "V2.6.0",
                 "display_name": "Andover Continuum CX9680 (CVE-2019-6853)",
                 "snmp_sys_descr_template": "Schneider Electric Andover Continuum CX9680 v{firmware_version}",
                 "bacnet_identity_override": {

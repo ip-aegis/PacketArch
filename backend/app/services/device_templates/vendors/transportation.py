@@ -656,11 +656,26 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.66,
             ),
             FirmwareVariant(
+                # AXIS OS 11.3.64 is a patched build (>= 10.7). CVE-2023-21412
+                # was an AXIS License Plate Verifier ACAP application flaw
+                # (LPV <= 2.8.3), NOT a camera-firmware vulnerability, so it is
+                # removed from this firmware variant. See verified_corrections.
                 version="V11.3.64",
                 release_date=date(2022, 7, 15),
-                cves=["CVE-2023-21412"],
+                cves=[],
+            ),
+            FirmwareVariant(
+                # Pre-fix AXIS OS active-track build (< 10.7). CVE-2021-31986 is
+                # an AXIS-OS-wide SMTP-notification heap buffer overflow
+                # (CWE-122, 6.8 MEDIUM) fixed on active track 10.7; this real
+                # shipped build for the P1455-LE is genuinely vulnerable.
+                version="10.6.0",
+                release_date=date(2021, 4, 13),
+                cves=["CVE-2021-31986"],
+                population_weight=0.34,
             ),
         ],
 
@@ -713,11 +728,22 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.66,
             ),
             FirmwareVariant(
                 version="V11.5.64",
                 release_date=date(2022, 8, 15),
                 cves=[],
+            ),
+            FirmwareVariant(
+                # Pre-fix AXIS OS 2020-LTS build (9.80.3.1, released 2021-03-02,
+                # below the LTS-2020 fix 9.80.3.5). CVE-2021-31986 is an
+                # AXIS-OS-wide SMTP-notification heap buffer overflow (CWE-122,
+                # 6.8 MEDIUM); this real shipped build is genuinely vulnerable.
+                version="9.80.3.1",
+                release_date=date(2021, 3, 2),
+                cves=["CVE-2021-31986"],
+                population_weight=0.34,
             ),
         ],
 

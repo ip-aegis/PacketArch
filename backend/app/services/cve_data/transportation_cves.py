@@ -122,29 +122,36 @@ TRANSPORTATION_CVES: list[dict] = [
     # SCHNEIDER ELECTRIC TRAFFIC SYSTEMS
     # ==========================================================================
 
-    # CVE-2020-7480 - Schneider SCADAPack RTU
+    # CVE-2020-7480 - Schneider Electric Andover Continuum Code Injection (CWE-94)
     {
         "cve_id": "CVE-2020-7480",
-        "title": "Schneider SCADAPack RTU Authentication Bypass",
+        "title": "Schneider Electric Andover Continuum Code Injection",
         "description": (
-            "SCADAPack RTUs used in traffic signal coordination contain "
-            "authentication bypass vulnerability allowing unauthorized "
-            "access to configuration and control functions."
+            "An Improper Control of Generation of Code (CWE-94) vulnerability "
+            "exists in Schneider Electric Andover Continuum building/access "
+            "controllers (all versions). A remote unauthenticated attacker can "
+            "inject and execute arbitrary code, leading to full compromise of "
+            "the controller."
         ),
         "severity": "critical",
         "cvss_score": 9.8,
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Schneider",
-        "product_family": "Traffic RTU",
-        "affected_models": ["SCADAPack 32", "SCADAPack 350", "SCADAPack 334"],
+        "product_family": "Andover Continuum",
+        # NVD CPE: Andover Continuum models 5720/5740/9200/9680/9702/9900/
+        # 9924/9940/9941/BCX4040/BCX9640 at all versions (CWE-94).
+        "affected_models": [
+            "CX9680", "9680", "9200", "9702", "9900", "9924", "9940", "9941",
+            "5720", "5740", "BCX4040", "BCX9640",
+        ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "V2.1.0",
-        "fixed_firmware_version": "V2.2.0",
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "snmp_sysdescr",
-        "advisory_url": "https://www.se.com/ww/en/download/document/SEVD-2020-042-02/",
+        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2020-7480",
         "references": [
-            "https://www.cisa.gov/news-events/ics-advisories/icsa-20-042-02",
+            "https://www.se.com/ww/en/download/document/SEVD-2020-042-02/",
         ],
         "mitre_techniques": ["T0812", "T0859"],
         "exploit_available": True,
@@ -152,22 +159,12 @@ TRANSPORTATION_CVES: list[dict] = [
         "published_date": datetime(2020, 2, 11),
         "vulnerable_variants": [
             {
-                "firmware_version": "V2.1.0",
-                "display_name": "SCADAPack 350 RTU (CVE-2020-7480)",
+                "firmware_version": "V2.6.0",
+                "display_name": "Andover Continuum CX9680 (CVE-2020-7480)",
                 "snmp_identity_override": {
-                    "sys_descr": "Schneider Electric SCADAPack 350 RTU Firmware V2.1.0",
-                    "sys_object_id": "1.3.6.1.4.1.3833.1.1.350",
-                    "sys_name": "RTU-CORRIDOR-001",
-                    "sys_location": "Highway Mile Marker 47",
-                },
-            },
-            {
-                "firmware_version": "V2.0.5",
-                "display_name": "SCADAPack 334 RTU (CVE-2020-7480)",
-                "snmp_identity_override": {
-                    "sys_descr": "Schneider Electric SCADAPack 334 RTU V2.0.5",
-                    "sys_object_id": "1.3.6.1.4.1.3833.1.1.334",
-                    "sys_name": "RTU-SIGNAL-002",
+                    "sys_descr": "Schneider Electric Andover Continuum CX9680 V2.6.0",
+                    "sys_object_id": "1.3.6.1.4.1.539.1.1.9680",
+                    "sys_name": "CONTINUUM-CX9680",
                 },
             },
         ],
@@ -177,20 +174,31 @@ TRANSPORTATION_CVES: list[dict] = [
     # AXIS - ITS CAMERAS
     # ==========================================================================
 
-    # CVE-2021-31986 - Axis Network Camera
+    # CVE-2021-31986 - AXIS OS SMTP-notification heap buffer overflow.
+    # Re-framed per verified_corrections.json (Axis): this is NOT an RTSP RCE.
+    # It is an AXIS-OS-wide heap buffer overflow (CWE-122) in the parsing of
+    # SMTP-notification parameters, causing a crash and possible data leakage.
+    # NVD scores it 6.8 MEDIUM (AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:H). Keyed to
+    # AXIS OS version (not model); fixed on the active track at 10.7 and on the
+    # LTS branches at 6.50.5.5 / 8.40.4.3 / 9.80.3.5. The template ships real
+    # pre-fix builds (P1455-LE 10.6.0 active, P1448-LE 9.80.3.1 LTS-2020), both
+    # numerically below the 10.6 active-track ceiling and thus in-range.
     {
         "cve_id": "CVE-2021-31986",
-        "title": "Axis Network Camera Heap Overflow Vulnerability",
+        "title": "AXIS OS SMTP-Notification Heap Buffer Overflow",
         "description": (
-            "Axis P-series and M-series IP cameras commonly deployed in "
-            "ITS applications contain a heap-based buffer overflow in "
-            "RTSP handling that could lead to remote code execution."
+            "AXIS OS on a wide range of Axis network cameras (e.g. P1455-LE, "
+            "P1448-LE, M3106-L) contains a heap-based buffer overflow (CWE-122) "
+            "in the handling of SMTP-notification parameters. A successful "
+            "exploit can crash the affected service and may lead to data "
+            "leakage. Fixed on the active track in AXIS OS 10.7 and on the LTS "
+            "branches in 6.50.5.5, 8.40.4.3, and 9.80.3.5."
         ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "severity": "medium",
+        "cvss_score": 6.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:H",
         "vendor": "Axis",
-        "product_family": "ITS Camera",
+        "product_family": "AXIS OS Camera",
         "affected_models": ["P1455-LE", "P1448-LE", "M3106-L"],
         "affected_firmware_min": None,
         "affected_firmware_max": "10.6",

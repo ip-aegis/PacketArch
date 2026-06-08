@@ -248,12 +248,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V12.00",
                 release_date=date(2022, 5, 15),
-                cves=["CVE-2023-2071", "CVE-2023-29464"],
+                cves=["CVE-2023-2071"],
             ),
             FirmwareVariant(
                 version="V10.00",
                 release_date=date(2020, 8, 10),
-                cves=["CVE-2023-2071", "CVE-2023-29464"],
+                cves=["CVE-2023-2071"],
             ),
         ],
 
@@ -1046,6 +1046,16 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.66,
+            ),
+            # Pre-V5.002 build kept so CVE-2018-19282 (PowerFlex 525 stack
+            # overflow, affected "V5.001 and earlier", fixed V5.002) is
+            # reachable. V5.001 is a real released PowerFlex 525 firmware.
+            FirmwareVariant(
+                version="V5.001",
+                release_date=date(2018, 3, 12),
+                cves=["CVE-2018-19282"],
+                population_weight=0.34,
             ),
         ],
 
@@ -1659,11 +1669,22 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.46,
             ),
             FirmwareVariant(
                 version="V6.003",
                 release_date=date(2022, 7, 10),
                 cves=[],
+                population_weight=0.20,
+            ),
+            # Pre-V5.002 build kept so CVE-2018-19282 (PowerFlex 525 stack
+            # overflow, affected "V5.001 and earlier", fixed V5.002) is
+            # reachable. V5.001 is a real released PowerFlex 525 firmware.
+            FirmwareVariant(
+                version="V5.001",
+                release_date=date(2018, 3, 12),
+                cves=["CVE-2018-19282"],
+                population_weight=0.34,
             ),
         ],
 

@@ -62,10 +62,12 @@ OIL_GAS_CVES: list[dict] = [
     # CVE-2021-38397 - Honeywell Experion PKS/LX
     {
         "cve_id": "CVE-2021-38397",
-        "title": "Honeywell Experion PKS Unrestricted File Upload",
+        "title": "Honeywell Experion PKS C200/C200E Unrestricted File Upload",
         "description": (
-            "Honeywell Experion PKS and Experion LX contain an unrestricted file upload "
-            "vulnerability that allows remote code execution. An attacker can upload "
+            "Honeywell Experion PKS controllers (C200, C200E, C300 and ACE) "
+            "contain an unrestricted file upload vulnerability that allows "
+            "remote code execution. Per CISA ICSA-21-278-04, ALL VERSIONS of "
+            "the affected controllers are vulnerable. An attacker can upload "
             "malicious files to execute arbitrary code on the system."
         ),
         "severity": "critical",
@@ -73,10 +75,14 @@ OIL_GAS_CVES: list[dict] = [
         "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
         "vendor": "Honeywell",
         "product_family": "Experion PKS",
-        "affected_models": ["Experion PKS", "Experion LX"],
+        # CISA ICSA-21-278-04: C200/C200E/C300/ACE all versions affected.
+        "affected_models": [
+            "C200", "C200E", "Experion PKS C200 Controller",
+            "Experion PKS", "Experion LX",
+        ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "R520.1",
-        "fixed_firmware_version": "R520.2",
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
         "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-278-04",
@@ -87,13 +93,24 @@ OIL_GAS_CVES: list[dict] = [
         "published_date": datetime(2021, 10, 5),
         "vulnerable_variants": [
             {
-                "firmware_version": "R520.1",
-                "display_name": "Experion PKS (CVE-2021-38397)",
+                "firmware_version": "R520.2",
+                "display_name": "Experion PKS C200 (CVE-2021-38397)",
                 "snmp_sys_descr_template": "Honeywell Experion Process Knowledge System v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Honeywell International Inc.",
                     "product_code": "Experion-PKS",
-                    "major_minor_revision": "R520.1",
+                    "major_minor_revision": "R520.2",
+                    "product_name": "Experion Process Knowledge System",
+                },
+            },
+            {
+                "firmware_version": "R501.1",
+                "display_name": "Experion PKS C200 (CVE-2021-38397)",
+                "snmp_sys_descr_template": "Honeywell Experion Process Knowledge System v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Honeywell International Inc.",
+                    "product_code": "Experion-PKS",
+                    "major_minor_revision": "R501.1",
                     "product_name": "Experion Process Knowledge System",
                 },
             },
@@ -155,16 +172,16 @@ OIL_GAS_CVES: list[dict] = [
         ),
         "severity": "critical",
         "cvss_score": 8.1,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:H",
         "vendor": "Yokogawa",
         "product_family": "CENTUM",
-        "affected_models": ["CENTUM VP", "CENTUM CS 3000"],
+        "affected_models": ["CENTUM VP", "CENTUM CS 3000", "HIS", "EWS"],
         "affected_firmware_min": None,
         "affected_firmware_max": "R6.08.00",
         "fixed_firmware_version": "R6.09.00",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-006-03",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-22-083-01",
         "references": [],
         "mitre_techniques": ["T0859", "T0821"],
         "exploit_available": True,
@@ -185,83 +202,96 @@ OIL_GAS_CVES: list[dict] = [
         ],
     },
 
-    # CVE-2019-6008 - Yokogawa CENTUM VP
+    # CVE-2019-6008 - Yokogawa Exaopc / Windows software packages (NOT CENTUM VP controller)
     {
         "cve_id": "CVE-2019-6008",
-        "title": "Yokogawa CENTUM VP Buffer Overflow",
+        "title": "Yokogawa Exaopc Uncontrolled Search Path Element",
         "description": (
-            "Yokogawa CENTUM VP contains a buffer overflow vulnerability in its "
-            "network communication module. A remote attacker can send specially "
-            "crafted packets to cause denial of service or execute arbitrary code."
+            "An uncontrolled search path element vulnerability affects multiple "
+            "Yokogawa Windows software packages (Exaopc, Exaplog, Exaquantum, "
+            "Exaquantum/Batch, Exasmoc, Exarqe, GA10, InsightSuiteAE). A local "
+            "attacker can place a malicious DLL/executable on the search path to "
+            "execute arbitrary code. The CENTUM VP controller line is NOT affected."
         ),
         "severity": "high",
         "cvss_score": 7.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:H",
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
         "vendor": "Yokogawa",
-        "product_family": "CENTUM",
-        "affected_models": ["CENTUM VP", "CENTUM VP Small"],
+        "product_family": "Exaopc",
+        # NVD CPE enumerates the Windows software packages only (Exaopc
+        # R1.01.00-R3.77.00, Exaplog, Exaquantum, Exaquantum/Batch, Exasmoc,
+        # Exarqe, GA10, InsightSuiteAE). The CENTUM VP / HIS / EWS controller
+        # line is explicitly NOT affected, and the only modeled Exaopc build
+        # (R3.80) is post-fix (fixed in R3.78.00), so no in-range template
+        # exists. Listed by full NVD product identifiers (none modeled).
+        "affected_models": [
+            "Yokogawa Exaopc", "Yokogawa Exaplog", "Yokogawa Exaquantum",
+            "Yokogawa Exaquantum/Batch", "Yokogawa Exasmoc", "Yokogawa Exarqe",
+            "Yokogawa GA10", "Yokogawa InsightSuiteAE",
+        ],
         "affected_firmware_min": None,
-        "affected_firmware_max": "R5.04.20",
-        "fixed_firmware_version": "R5.04.B1",
+        "affected_firmware_max": "R3.77.00",
+        "fixed_firmware_version": "R3.78.00",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-19-073-02",
-        "references": [],
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-19-274-02",
+        "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-6008"],
         "mitre_techniques": ["T0831", "T0883"],
         "exploit_available": False,
         "exploit_complexity": "medium",
         "published_date": datetime(2019, 3, 14),
         "vulnerable_variants": [
             {
-                "firmware_version": "R5.04.20",
-                "display_name": "CENTUM VP (CVE-2019-6008)",
-                "snmp_sys_descr_template": "Yokogawa CENTUM VP Field Control Station v{firmware_version}",
+                "firmware_version": "R3.77.00",
+                "display_name": "Exaopc (CVE-2019-6008)",
+                "snmp_sys_descr_template": "Yokogawa Exaopc OPC Server v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Yokogawa Electric Corporation",
-                    "product_code": "CENTUM-VP",
-                    "major_minor_revision": "R5.04.20",
-                    "product_name": "CENTUM VP Field Control Station",
+                    "product_code": "Exaopc",
+                    "major_minor_revision": "R3.77.00",
+                    "product_name": "Exaopc OPC Server",
                 },
             },
         ],
     },
 
-    # CVE-2023-26593 - Yokogawa ProSafe-RS
+    # CVE-2023-26593 - Yokogawa CENTUM VP (CENTUM Authentication Mode cleartext credential storage)
     {
         "cve_id": "CVE-2023-26593",
-        "title": "Yokogawa ProSafe-RS Authentication Bypass",
+        "title": "Yokogawa CENTUM Cleartext Storage of Credentials",
         "description": (
-            "Yokogawa ProSafe-RS Safety Instrumented System contains an authentication "
-            "bypass vulnerability. An attacker can exploit this to access safety system "
-            "configuration and potentially modify safety logic."
+            "Yokogawa CENTUM (CENTUM VP, CENTUM CS 1000/CS 3000, B/M9000, EXAOPC) "
+            "stores credentials in cleartext when running in CENTUM Authentication "
+            "Mode. A local attacker with access to the system can read stored "
+            "credentials and gain unauthorized access to the control system."
         ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "severity": "high",
+        "cvss_score": 7.8,
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Yokogawa",
-        "product_family": "ProSafe-RS",
-        "affected_models": ["ProSafe-RS R4", "ProSafe-RS R3"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "R4.05.00",
-        "fixed_firmware_version": "R4.06.00",
+        "product_family": "CENTUM",
+        "affected_models": ["CENTUM VP", "CENTUM CS 3000", "B/M9000", "EXAOPC"],
+        "affected_firmware_min": "R6.01.00",
+        "affected_firmware_max": "R6.11.99",
+        "fixed_firmware_version": None,
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-23-080-03",
-        "references": [],
+        "advisory_url": "https://jvn.jp/en/vu/JVNVU98775218/",
+        "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-26593"],
         "mitre_techniques": ["T0859", "T0800"],
         "exploit_available": False,
         "exploit_complexity": "low",
         "published_date": datetime(2023, 3, 21),
         "vulnerable_variants": [
             {
-                "firmware_version": "R4.05.00",
-                "display_name": "ProSafe-RS R4 (CVE-2023-26593)",
-                "snmp_sys_descr_template": "Yokogawa ProSafe-RS Safety Instrumented System v{firmware_version}",
+                "firmware_version": "R6.08.00",
+                "display_name": "CENTUM VP (CVE-2023-26593)",
+                "snmp_sys_descr_template": "Yokogawa CENTUM VP Distributed Control System v{firmware_version}",
                 "modbus_identity_override": {
                     "vendor_name": "Yokogawa Electric Corporation",
-                    "product_code": "ProSafe-RS",
-                    "major_minor_revision": "R4.05.00",
-                    "product_name": "ProSafe-RS Safety Instrumented System",
+                    "product_code": "CENTUM-VP",
+                    "major_minor_revision": "R6.08.00",
+                    "product_name": "CENTUM VP Distributed Control System",
                 },
             },
         ],

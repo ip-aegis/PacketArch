@@ -121,17 +121,17 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 2, 15),
                 is_latest=True,
                 is_default=True,
-                cves=["CVE-2023-24480", "CVE-2023-25948", "CVE-2023-25178", "CVE-2023-26597"],
+                cves=["CVE-2023-24480", "CVE-2023-25178", "CVE-2023-26597"],
             ),
             FirmwareVariant(
                 version="R510.1",
                 release_date=date(2022, 10, 20),
-                cves=["CVE-2023-24480", "CVE-2023-25948", "CVE-2023-25178", "CVE-2023-26597"],
+                cves=["CVE-2023-24480", "CVE-2023-25178", "CVE-2023-26597"],
             ),
             FirmwareVariant(
-                version="R501.0",
+                version="R501.1",
                 release_date=date(2021, 4, 10),
-                cves=["CVE-2023-24480", "CVE-2023-25948", "CVE-2023-25178", "CVE-2023-26597"],
+                cves=["CVE-2023-24480", "CVE-2023-25178", "CVE-2023-26597"],
             ),
         ],
 
@@ -199,7 +199,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2021-38395", "CVE-2021-38397", "CVE-2021-38399"],
             ),
             FirmwareVariant(
-                version="R501.0",
+                version="R501.1",
                 release_date=date(2021, 4, 10),
                 cves=["CVE-2021-38395", "CVE-2021-38397", "CVE-2021-38399"],
             ),
@@ -270,7 +270,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 cves=["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
             ),
             FirmwareVariant(
-                version="R501.0",
+                version="R501.1",
                 release_date=date(2021, 4, 10),
                 cves=["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
             ),
@@ -467,12 +467,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 release_date=date(2024, 2, 15),
                 is_latest=True,
                 is_default=True,
-                cves=["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
+                cves=["CVE-2023-23585", "CVE-2023-25078"],
             ),
             FirmwareVariant(
                 version="R510.1",
                 release_date=date(2022, 10, 20),
-                cves=["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
+                cves=["CVE-2023-23585", "CVE-2023-25078"],
             ),
         ],
 
@@ -602,20 +602,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V5.2",
-                release_date=date(2024, 1, 15),
+                version="XLWebExe-2-01-00",
+                release_date=date(2016, 11, 30),
                 is_latest=True,
                 is_default=True,
                 cves=["CVE-2017-5143", "CVE-2017-5141", "CVE-2017-5140", "CVE-2017-5139"],
             ),
             FirmwareVariant(
-                version="V4.8",
-                release_date=date(2022, 4, 20),
-                cves=["CVE-2017-5143", "CVE-2017-5141", "CVE-2017-5140", "CVE-2017-5139"],
-            ),
-            FirmwareVariant(
-                version="V4.5",
-                release_date=date(2020, 8, 10),
+                version="XLWebExe-1-02-08",
+                release_date=date(2015, 6, 15),
                 cves=["CVE-2017-5143", "CVE-2017-5141", "CVE-2017-5140", "CVE-2017-5139"],
             ),
         ],
@@ -633,7 +628,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Honeywell Excel Web Boiler Controller V5.2",
+            "sys_descr": "Honeywell Excel Web Boiler Controller XLWebExe-2-01-00",
             "sys_object_id": "1.3.6.1.4.1.2879.154.4",
             "sys_name": "EXCEL-WEB-001",
             "sys_location": "Industrial Network",

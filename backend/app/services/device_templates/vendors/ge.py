@@ -52,6 +52,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.66,
             ),
             FirmwareVariant(
                 version="V9.70",
@@ -62,6 +63,15 @@ TEMPLATES: list[DeviceTemplate] = [
                 version="V9.50",
                 release_date=date(2021, 3, 15),
                 cves=["CVE-2019-13524"],
+            ),
+            # In-range vulnerable build for CVE-2018-8867 (DoS, affects CPE400
+            # "version 9.30 and prior"). R9.30 is a real CPE400 firmware and
+            # <= 9.30 so the CVE mapping is reachable. NVD-verified.
+            FirmwareVariant(
+                version="V9.30",
+                release_date=date(2020, 5, 12),
+                cves=["CVE-2018-8867", "CVE-2019-13524"],
+                population_weight=0.34,
             ),
         ],
 
