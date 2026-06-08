@@ -613,7 +613,7 @@ const CyberVisionPage: React.FC = () => {
               <Button
                 type="primary"
                 icon={<SettingOutlined />}
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/admin/settings?tab=cyber_vision')}
               >
                 Configure Cyber Vision
               </Button>
@@ -1361,7 +1361,7 @@ const CyberVisionPage: React.FC = () => {
               )}
               <Button
                 icon={<SettingOutlined />}
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/admin/settings?tab=cyber_vision')}
               >
                 Settings
               </Button>

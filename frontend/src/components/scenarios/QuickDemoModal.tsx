@@ -256,8 +256,8 @@ const QuickDemoModal: React.FC<QuickDemoModalProps> = ({ open, onCancel }) => {
                 message={
                   <span>
                     No agents online.{' '}
-                    <Button type="link" size="small" style={{ padding: 0 }} onClick={() => { onCancel(); navigate('/admin/settings'); }}>
-                      Go to Settings
+                    <Button type="link" size="small" style={{ padding: 0 }} onClick={() => { onCancel(); navigate('/agents'); }}>
+                      View Agents
                     </Button>
                   </span>
                 }

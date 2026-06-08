@@ -94,7 +94,7 @@ const AgentVersionBanner: React.FC = () => {
               {outdatedAgents.length} agent{outdatedAgents.length !== 1 ? 's' : ''} running
               outdated version{outdatedAgents.length !== 1 ? 's' : ''}
             </span>
-            <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate('/admin/settings')}>
+            <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate('/agents')}>
               View Agents
             </Button>
           </Space>

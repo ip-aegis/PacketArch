@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import FeatureGate from './components/FeatureGate';
@@ -24,6 +24,12 @@ import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
 import AttackPlaybookDetailPage from './pages/AttackPlaybookDetailPage';
 import AgentsHubPage from './pages/AgentsHubPage';
 import LiveTrafficPage from './pages/LiveTrafficPage';
+
+// Preserve the playbook id when redirecting the old attack-library detail route.
+function LegacyAttackDetailRedirect() {
+  const { playbookId } = useParams();
+  return <Navigate to={`/libraries/attacks/${playbookId}`} replace />;
+}
 
 function App() {
   return (
@@ -85,6 +91,13 @@ function App() {
           path="libraries/attacks/:playbookId"
           element={<AttackPlaybookDetailPage />}
         />
+        {/* Legacy-route redirects (post-consolidation): keep old bookmarks/deep
+            links coherent instead of silently dumping them on the dashboard. */}
+        <Route path="settings" element={<Navigate to="/admin/settings" replace />} />
+        <Route path="cves" element={<Navigate to="/libraries?tab=cves" replace />} />
+        <Route path="fingerprints" element={<Navigate to="/libraries?tab=devices" replace />} />
+        <Route path="attack-library" element={<Navigate to="/libraries?tab=attacks" replace />} />
+        <Route path="attack-library/:playbookId" element={<LegacyAttackDetailRedirect />} />
 
         {/* Admin routes */}
         <Route
