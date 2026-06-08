@@ -63,6 +63,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "scada",
              "name": "WTP_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # OPC UA Gateway - Kepware KEPServerEX
@@ -75,6 +76,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
              "name": "SCADA_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "firmware_version": "15.2(7)E6",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
@@ -108,6 +110,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "control",
              "name_pattern": "WTP_Auxiliary_Controller_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "BMXP3420302",
+             "firmware_version": "V3.10",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
              },
@@ -140,6 +143,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "intake",
              "name": "Intake_Field_Controller", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1769-L33ER",
+             "firmware_version": "V34.014",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Intake Controller"},
 
@@ -228,6 +232,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "abb", "count": 3, "zone": "distribution",
              "name_pattern": "High_Service_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
              "role": "High Service Pump VFD"},
         ],
         "flows": [
@@ -405,6 +410,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "honeywell", "count": 1, "zone": "central",
              "name": "Central_Main_DCS_Controller", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "C300",
+             "firmware_version": "R520.2",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Main DCS Controller"},
 
@@ -419,6 +425,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "central",
              "name": "Central_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Central Historian"},
 
             # HMI Workstations - Honeywell Experion Station
@@ -431,6 +438,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "central",
              "name": "Central_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "firmware_version": "15.2(7)E6",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
@@ -455,6 +463,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "rtu", "vendor": "emerson", "count": 1, "zone": "station1",
              "name": "Station_1_Lift_RTU", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "ROC800",
+             "firmware_version": "V3.91",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Pump Station 1 RTU"},
 
@@ -462,6 +471,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "abb", "count": 4, "zone": "station1",
              "name_pattern": "Station_1_High_Cap_Pump_VFD_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
              "role": "High Capacity Pump VFD"},
 
             # Flow Meter - E+H Promag W 400
@@ -513,6 +523,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 2, "zone": "station_booster",
              "name_pattern": "Booster_Station_PLC_{n:02d}", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TM241CE40R",
+             "firmware_version": "V5.1.0.6",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Booster Station PLC"},
 
@@ -758,6 +769,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dmz",
              "name": "WWTP_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # OPC UA Gateway - Kepware KEPServerEX
@@ -776,6 +788,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "dmz",
              "name": "WWTP_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
              "role": "Core Network Switch"},
 
             # EWON Remote Access Gateway
@@ -808,6 +821,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 2, "zone": "control",
              "name_pattern": "WWTP_Area_Controller_{n:02d}", "protocols": ["ethernet_ip", "modbus_tcp"],
              "fingerprint_model": "1756-L73",
+             "firmware_version": "V33.011",
              "error_config": {"exception_rate": 0.0003, "timeout_rate": 0.0001},
              "role": "Area Controller",
              },
@@ -881,6 +895,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "abb", "count": 2, "zone": "primary",
              "name_pattern": "Primary_Clarifier_Drive_{n:02d}", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
              "role": "Clarifier Drive"},
 
             # Level/Sludge Blanket - E+H Levelflex
@@ -1169,6 +1184,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "control_room",
              "name": "Main_Legacy_System_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "TSXP57204M",
+             "firmware_version": "V5.0",
              "error_config": {"exception_rate": 0.0008, "timeout_rate": 0.0004},
              "role": "Main System Controller",
              },
@@ -1183,6 +1199,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "control_room",
              "name": "Control_Room_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "firmware_version": "15.2(7)E6",
              "role": "Control Room Switch"},
 
             # SCADA PC - Magelis GTO Advanced HMI (10.4" panel as SCADA workstation)

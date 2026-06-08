@@ -89,6 +89,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_S_Series_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "S-series",
+             "firmware_version": "V14.3",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Primary DCS Controller"},
 
@@ -109,6 +110,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -167,6 +169,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Export_Pump_VFD_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
              "role": "Export Pump Drive"},
 
             # ============================================================
@@ -185,6 +188,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "safety",
              "name": "Fire_Gas_Safety_Manager", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
+             "firmware_version": "V12.5",
              "role": "Fire & Gas Detection"},
 
             # Honeywell STT850 - Safety Temperature Transmitters
@@ -435,6 +439,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "scada",
              "name": "Pipeline_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # Kepware KEPServerEX OPC Gateway
@@ -465,6 +470,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_C300_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "C300",
+             "firmware_version": "R520.2",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Compressor Controller"},
 
@@ -493,6 +499,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_Network_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -504,6 +511,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "ROC800_Flow_Computer_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "ROC800",
+             "firmware_version": "V3.91",
              "role": "Fiscal Flow Computer"},
 
             # Emerson Micro Motion 5700 Coriolis Meters
@@ -758,6 +766,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "engineering",
              "name": "Refinery_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # Cisco IE-4000 - Core Switch
@@ -782,6 +791,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Atmospheric_Column_FCU_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "AFV10D",
+             "firmware_version": "R6.06",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Atmospheric Column Controller"},
 
@@ -803,6 +813,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -896,6 +907,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "safety",
              "name": "CDU_Fire_Gas_Safety_Manager", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
+             "firmware_version": "V12.5",
              "role": "Fire & Gas Detection"},
 
             # Yokogawa TDLS8000 H2S Detectors
@@ -913,6 +925,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "utility",
              "name": "CDU_Utility_PLC", "protocols": ["modbus_tcp"],
              "fingerprint_model": "PM590-ETH",
+             "firmware_version": "V2.9.0",
              "role": "Utility Controller"},
 
             # Honeywell UDA2182 Analyzer
@@ -1122,6 +1135,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
              "name": "LNG_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # Kepware KEPServerEX OPC Gateway
@@ -1152,6 +1166,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "LNG_C300_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "C300",
+             "firmware_version": "R520.2",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "DCS Controller"},
 
@@ -1180,6 +1195,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "LNG_Control_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -1224,6 +1240,7 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "BOG_Compressor_VFD_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ACS880-01",
+             "firmware_version": "V2.40",
              "role": "Boil-Off Gas Compressor"},
 
             # Emerson Micro Motion 5700 - Send-Out Metering

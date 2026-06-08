@@ -22,6 +22,7 @@ from app.services.device_templates._helpers import (
 )
 from app.services.device_templates._registry import DEVICE_TEMPLATES
 from app.services.device_templates._types import DeviceTemplate
+from app.core.vendor_normalize import vendors_match
 
 logger = logging.getLogger(__name__)
 
@@ -40,30 +41,43 @@ def get_template_by_vendor_model(vendor: str, model: str) -> DeviceTemplate | No
     Returns:
         DeviceTemplate or None if not found
     """
-    vendor_lower = vendor.lower()
     model_lower = model.lower()
 
+    def _vnorm(s: str) -> str:
+        return s.lower().replace("_", " ").strip()
+
+    query_vendor = _vnorm(vendor)
+
+    # Score candidates and return the most specific. A model token like
+    # "CP-8000" can be shared across vendors (Siemens vs Siemens ITS); ranking
+    # by model specificity AND exact-vendor preference resolves to the right
+    # template deterministically instead of by registry iteration order.
+    best: DeviceTemplate | None = None
+    best_score = -1
     for template in DEVICE_TEMPLATES.values():
-        if template.vendor.lower() != vendor_lower:
+        # Vendor match via the canonical normalizer so scenario vendor keys
+        # ("siemens_its", "automated_logic", "distech") resolve to the template
+        # vendor ("Siemens ITS", "Automated Logic", "Distech Controls").
+        if not vendors_match(vendor, template.vendor):
             continue
+        tm, tn = template.model.lower(), template.model_name.lower()
+        if tm == model_lower:
+            model_score = 4
+        elif tn == model_lower:
+            model_score = 3
+        elif model_lower in tm:
+            model_score = 2
+        elif model_lower in tn:
+            model_score = 1
+        else:
+            continue
+        # Prefer an exact (normalized) vendor match over a looser fuzzy one.
+        vendor_bonus = 1 if _vnorm(template.vendor) == query_vendor else 0
+        score = model_score * 2 + vendor_bonus
+        if score > best_score:
+            best_score, best = score, template
 
-        # Check model field (exact)
-        if template.model.lower() == model_lower:
-            return template
-
-        # Check model_name field
-        if template.model_name.lower() == model_lower:
-            return template
-
-        # Check partial match on model
-        if model_lower in template.model.lower():
-            return template
-
-        # Check partial match on model_name
-        if model_lower in template.model_name.lower():
-            return template
-
-    return None
+    return best
 
 
 def get_fingerprint_from_template(

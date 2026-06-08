@@ -88,6 +88,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "control",
              "name": "CNC_Cell_Operator_HMI", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "firmware_version": "V17.0.0.0",
              "role": "Operator Interface"},
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "control",
              "name": "Assembly_Station_HMI", "protocols": ["profinet", "s7comm_plus"],
@@ -450,9 +451,10 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Operator Interface"},
 
             # Industrial Switches - Cisco IE-9320
-            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "control",
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "control",
              "name": "Body_Shop_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
-             "fingerprint_id": "cisco/ie9320/24p4x",
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
              "role": "Industrial Switch"},
             {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "control",
              "name": "Weld_Cell_Network_Switch", "protocols": ["ethernet_ip", "snmp"],
@@ -511,6 +513,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
              "name": "Transfer_Conveyor_VFD", "protocols": ["ethernet_ip"],
              "fingerprint_model": "25B-D030N104",
+             "firmware_version": "V5.001",
              "role": "Variable Frequency Drive"},
             {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell",
              "name": "Infeed_Conveyor_VFD", "protocols": ["ethernet_ip"],
@@ -732,6 +735,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "dmz",
              "name": "Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "dmz",
@@ -762,6 +766,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dmz",
              "name": "DMZ_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
+             "firmware_version": "15.2(7)E6",
              "role": "Core Network Switch"},
 
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "dmz",
@@ -823,6 +828,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
              "name": "Siemens_Line_1_HMI", "protocols": ["profinet"],
              "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "firmware_version": "V17.0.0.0",
              "role": "Operator Interface"},
 
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "siemens_zone",
@@ -940,6 +946,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "rockwell_zone",
              "name": "Rockwell_Material_PLC", "protocols": ["ethernet_ip", "modbus_tcp", "opc_ua"],
              "fingerprint_model": "1756-L73",
+             "firmware_version": "V33.011",
              "error_config": {"exception_rate": 0.0005, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
              },
@@ -1078,6 +1085,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "schneider", "count": 1, "zone": "schneider_zone",
              "name": "Schneider_Utility_PLC", "protocols": ["modbus_tcp", "opc_ua"],
              "fingerprint_model": "BMXP3420302",
+             "firmware_version": "V3.10",
              "error_config": {"exception_rate": 0.0006, "timeout_rate": 0.0002},
              "role": "Auxiliary Controller",
              },
@@ -1187,6 +1195,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "abb_zone",
              "name": "ABB_Process_1_PLC", "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
              "fingerprint_model": "PM590-ETH",
+             "firmware_version": "V2.9.0",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0002},
              "role": "Main Process Controller",
              },
@@ -1794,6 +1803,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
              "name": "Ops_Process_Historian", "protocols": ["opc_ua", "modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian",
              },
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "operations",
@@ -1829,6 +1839,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
              "name": "IDMZ_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "17.9.3",
              "role": "Core Network Switch"},
 
             # ============================================================
@@ -1851,6 +1862,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
              "name": "CNC_Operator_HMI", "protocols": ["profinet", "s7comm_plus"],
              "fingerprint_model": "6AV2 124-0MC01-0AX0",
+             "firmware_version": "V17.0.0.0",
              "role": "Operator Interface"},
             # Spindle servo represents the motion-axis class.
             {"type": "servo", "vendor": "siemens", "count": 1, "zone": "cell1_cnc",
@@ -1899,12 +1911,14 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Weld_Robot_Controller",
              "protocols": ["ethernet_ip", "profinet"],
              "fingerprint_model": "KR C4",
+             "firmware_version": "V8.3.5",
              "role": "Robot Controller"},
             # PowerFlex 525 conveyor VFD represents the auxiliary-drive class.
             {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
              "name": "Weld_Conveyor_VFD",
              "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "25B-D030N104",
+             "firmware_version": "V5.001",
              "role": "Variable Frequency Drive"},
             # FLEX 5000 remote I/O — also the cip_safety target for the safety controller.
             {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell2_weld",
@@ -1945,6 +1959,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "ECoat_Rectifier_VFD",
              "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "ATV930D15N4",
+             "firmware_version": "V3.6IE50",
              "role": "Rectifier Drive"},
             # E+H pH/conductivity analyzer — process measurement.
             {"type": "sensor", "vendor": "endress+hauser", "count": 1, "zone": "cell3_ecoat",
@@ -1974,6 +1989,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Assembly_Line_PLC",
              "protocols": ["modbus_tcp", "ethernet_ip", "opc_ua"],
              "fingerprint_model": "PM590-ETH",
+             "firmware_version": "V2.9.0",
              "error_config": {"exception_rate": 0.0004, "timeout_rate": 0.0001},
              "role": "Line Controller",
              },
@@ -1995,6 +2011,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "Assembly_Robot_Controller",
              "protocols": ["ethernet_ip"],
              "fingerprint_model": "R-30iB Plus",
+             "firmware_version": "V9.30",
              "role": "Robot Controller"},
             # ABB ACS880 conveyor VFD — production drive class.
             {"type": "drive", "vendor": "abb", "count": 1, "zone": "cell4_assembly",

@@ -68,6 +68,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "substation_lan",
              "name": "Substation_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "Process Historian"},
 
             # ABB CP620 HMI - Local Operator Panel
@@ -110,18 +111,21 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "protection_relay", "vendor": "abb", "count": 1, "zone": "bay_control",
              "name": "Bus_Tie_Protection_IED", "protocols": ["modbus_tcp", "iec61850", "snmp"],
              "fingerprint_model": "REX640",
+             "firmware_version": "V2.1.0",
              "role": "Bus Protection"},
 
             # Siemens 7SJ85 - Bus Overcurrent (IEC 61850 + Modbus)
             {"type": "protection_relay", "vendor": "siemens", "count": 1, "zone": "bay_control",
              "name": "Bus_Overcurrent_Protection", "protocols": ["modbus_tcp", "iec61850", "snmp"],
              "fingerprint_model": "7SJ85",
+             "firmware_version": "V9.20",
              "role": "Overcurrent Protection"},
 
             # Cisco IE-3300 - Bay Network Switches
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bay_control",
              "name_pattern": "Bay_Network_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Bay Network Switch"},
 
             # ============================================================
@@ -133,6 +137,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Feeder_{n:02d}_Protection_Relay",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SEL-751",
+             "firmware_version": "R151-V2",
              "role": "Feeder Protection"},
 
             # GE Multilin 850 - Feeder Backup Relays
@@ -183,6 +188,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Feeder_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "firmware_version": "V4.005",
              "role": "Revenue Meter"},
 
             # Schneider PM8000 Power Quality Meters
@@ -517,6 +523,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "plant_scada",
              "name": "Plant_DCS_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
+             "firmware_version": "R520.2",
              "role": "Plant DCS Server"},
 
             # GE Proficy Historian
@@ -560,6 +567,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Gas_Turbine_Mark_VIe_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "IS420UCSBH1A",
+             "firmware_version": "06.03.09",
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Gas Turbine Controller"},
 
@@ -589,6 +597,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Turbine_Network_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Turbine Network Switch"},
 
             # ============================================================
@@ -651,6 +660,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Excitation_Protection",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "REX640",
+             "firmware_version": "V2.1.0",
              "role": "Excitation Protection"},
 
             # GE Multilin T60 - GSU Transformer Protection
@@ -675,6 +685,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Overcurrent_Relay",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "7SJ85",
+             "firmware_version": "V9.20",
              "role": "Generator Overcurrent"},
 
             # ============================================================
@@ -686,6 +697,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Generator_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "firmware_version": "V4.005",
              "role": "Revenue Meter"},
 
             # Schneider PM8000 Power Quality Meters
@@ -956,6 +968,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "ems_core",
              "name": "EMS_Primary_SCADA_Server", "protocols": ["modbus_tcp", "opc_ua", "snmp", "ethernet_ip", "iec104"],
              "fingerprint_model": "Experion Server",
+             "firmware_version": "R520.2",
              "role": "Primary SCADA Server"},
 
             # Honeywell Experion Server - Backup SCADA
@@ -1011,6 +1024,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "engineering",
              "name": "Engineering_Network_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Engineering Network Switch"},
 
             # ============================================================
@@ -1054,6 +1068,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Feeder_Relay",
              "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "SEL-751",
+             "firmware_version": "R151-V2",
              "role": "Feeder Protection"},
 
             # SEL-487E Transformer Relays (substations 1-2)
@@ -1068,6 +1083,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Revenue_Meter",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ION8650",
+             "firmware_version": "V4.005",
              "role": "Revenue Meter"},
 
             # ============================================================
@@ -1086,6 +1102,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Feeder_Relay",
              "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "REF615",
+             "firmware_version": "V5.0 FP3",
              "role": "Feeder Protection"},
 
             # GE Multilin T60 Transformer Relays (substations 5-6)
@@ -1093,6 +1110,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Substation_{n:02d}_Transformer_Relay",
              "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "T60",
+             "firmware_version": "V8.0",
              "role": "Transformer Protection"},
 
             # Schneider PM8000 Power Meters
@@ -1423,6 +1441,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "honeywell", "count": 1, "zone": "microgrid_control",
              "name": "Plant_Operator_Workstation", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
+             "firmware_version": "R520.2",
              "role": "Operator Workstation"},
 
             # Cisco IE-4000 - Core Switch
@@ -1469,6 +1488,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Inverter_Field_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Inverter Field Switch"},
 
             # ============================================================
@@ -1480,6 +1500,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "BESS_Rack_{n:02d}_Controller",
              "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "IC695CPE400",
+             "firmware_version": "V9.70",
              "role": "Battery Rack Controller"},
 
             # GE PACSystems RX3i - BESS Master Controller
@@ -1517,6 +1538,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "zone": "poi_protection",
              "name": "POI_Main_Protection_IED", "protocols": ["modbus_tcp"],
              "fingerprint_model": "REX640",
+             "firmware_version": "V2.1.0",
              "role": "POI Main Protection"},
 
             # ABB REF615 - POI Feeder Protection
@@ -1532,6 +1554,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "POI_Anti_Islanding_Relay",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "SEL-751",
+             "firmware_version": "R151-V2",
              "role": "Anti-Islanding Protection"},
 
             # Siemens 7UT87 - POI Transformer Protection
@@ -1539,6 +1562,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "zone": "poi_protection",
              "name": "POI_Transformer_Protection", "protocols": ["modbus_tcp"],
              "fingerprint_model": "7UT87",
+             "firmware_version": "V9.20",
              "role": "POI Transformer Protection"},
 
             # Schneider ION8650 - Net Revenue Meters
@@ -1595,6 +1619,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Inverter_Array_{n:02d}_Feeder_Protection_P3",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "P3U30",
+             "firmware_version": "V30.20",
              "role": "Feeder Protection Relay"},
 
             # Schneider Easergy T300 - POI RTU
@@ -1870,6 +1895,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "SubA_PMU_SEL411L_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3", "iec61850", "c37118"],
              "fingerprint_model": "SEL-411L",
+             "firmware_version": "R123-V2",
              "role": "Line Differential PMU"},
             {"type": "protection_relay", "vendor": "sel", "count": 1, "zone": "substation_a",
              "name": "SubA_Xfmr_PMU_SEL787",
@@ -1885,11 +1911,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "SubA_LineDistance_Backup_REL670",
              "protocols": ["modbus_tcp", "dnp3", "iec61850"],
              "fingerprint_model": "REL670",
+             "firmware_version": "V2.2.5",
              "role": "Line Distance Backup Protection"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "substation_a",
              "name": "SubA_Network_Switch",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
+             "firmware_version": "17.9.04",
              "role": "Substation Network Switch"},
 
             # --- SUBSTATION B (Level 2) - 6 devices ---
@@ -1988,6 +2016,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "EMS_WAMS_Historian",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
+             "firmware_version": "8.0",
              "role": "WAMS Historian"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "ems_control_center",
              "name": "EMS_Core_Switch_IE4000",

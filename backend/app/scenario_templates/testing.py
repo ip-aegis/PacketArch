@@ -38,6 +38,7 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "test_net",
              "name": "Test-SCADA-Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "HMISTM6",
+             "firmware_version": "V3.3.0",
              "role": "SCADA Server"},
 
             # ============================================================
@@ -47,11 +48,13 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "test_net",
              "name": "CRIT-Siemens-PLC", "protocols": ["modbus_tcp", "s7comm", "snmp"],
              "fingerprint_model": "6ES7 516-3AN02-0AB0",
+             "firmware_version": "V2.9.2",
              "role": "Demo PLC",
              "mac_address": "DE:AD:BE:EF:00:01"},
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "test_net",
              "name": "CRIT-Rockwell-PLC", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "1769-L33ER",
+             "firmware_version": "V33.013",
              "role": "Demo PLC",
              "mac_address": "DE:AD:BE:EF:00:01"},
 
