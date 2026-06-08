@@ -130,7 +130,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Operator Interface"},
 
             # Industrial Switches - Cisco IE-4000
-            {"type": "switch", "vendor": "Cisco", "count": 2, "zone": "control",
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Control Zone Switch"},
@@ -793,7 +793,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Central HMI"},
 
             # Core Switch - Cisco IE-9320
-            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "dmz",
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dmz",
              "name": "WWTP_Core_Switch", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
              "firmware_version": "17.9.3",
@@ -849,7 +849,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Local Operator Interface"},
 
             # Industrial Switches - Cisco IE-9320
-            {"type": "switch", "vendor": "Cisco", "count": 2, "zone": "control",
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "WWTP_Control_Zone_Switch_{n:02d}", "protocols": ["ethernet_ip", "snmp"],
              "fingerprint_model": "IE-9320-24P4X-E",
              "role": "Control Zone Switch"},
@@ -1234,7 +1234,7 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Operator Interface"},
 
             # Industrial Switch - Cisco IE-4000
-            {"type": "switch", "vendor": "Cisco", "count": 1, "zone": "control_room",
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "control_room",
              "name": "Control_Room_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
              "firmware_version": "15.2(7)E6",
