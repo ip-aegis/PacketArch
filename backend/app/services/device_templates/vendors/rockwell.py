@@ -1040,17 +1040,18 @@ TEMPLATES: list[DeviceTemplate] = [
         ),
 
         firmware_variants=[
+            # V5.002 is the real patched/latest PowerFlex 525 firmware (fixes
+            # CVE-2018-19282). The line tops out in the 5.0xx range — no V6/V7.
             FirmwareVariant(
-                version="V6.003",
-                release_date=date(2023, 4, 1),
+                version="V5.002",
+                release_date=date(2019, 4, 1),
                 is_latest=True,
                 is_default=True,
                 cves=[],
                 population_weight=0.66,
             ),
-            # Pre-V5.002 build kept so CVE-2018-19282 (PowerFlex 525 stack
-            # overflow, affected "V5.001 and earlier", fixed V5.002) is
-            # reachable. V5.001 is a real released PowerFlex 525 firmware.
+            # V5.001 ("V5.001 and earlier" affected; fixed V5.002) is a real
+            # released PowerFlex 525 firmware carrying CVE-2018-19282.
             FirmwareVariant(
                 version="V5.001",
                 release_date=date(2018, 3, 12),
@@ -1075,7 +1076,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation PowerFlex 525 V6.003",
+            "sys_descr": "Rockwell Automation PowerFlex 525 V5.002",
             "sys_object_id": "1.3.6.1.4.1.53148.927.37",
             "sys_name": "POWERF-525-001",
             "sys_location": "Motor Control Center",
@@ -1663,23 +1664,18 @@ TEMPLATES: list[DeviceTemplate] = [
         ),
 
         firmware_variants=[
+            # Real PowerFlex 525 firmware line tops in the 5.0xx range (no V6/V7).
+            # V5.002 = patched/latest (fixes CVE-2018-19282).
             FirmwareVariant(
-                version="V7.001",
-                release_date=date(2024, 1, 25),
+                version="V5.002",
+                release_date=date(2019, 4, 1),
                 is_latest=True,
                 is_default=True,
                 cves=[],
-                population_weight=0.46,
+                population_weight=0.66,
             ),
-            FirmwareVariant(
-                version="V6.003",
-                release_date=date(2022, 7, 10),
-                cves=[],
-                population_weight=0.20,
-            ),
-            # Pre-V5.002 build kept so CVE-2018-19282 (PowerFlex 525 stack
-            # overflow, affected "V5.001 and earlier", fixed V5.002) is
-            # reachable. V5.001 is a real released PowerFlex 525 firmware.
+            # V5.001 ("V5.001 and earlier" affected; fixed V5.002) — real
+            # released firmware carrying CVE-2018-19282.
             FirmwareVariant(
                 version="V5.001",
                 release_date=date(2018, 3, 12),
@@ -1705,7 +1701,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         snmp_identity={
-            "sys_descr": "Rockwell Automation PowerFlex 525 AC Drive V7.001",
+            "sys_descr": "Rockwell Automation PowerFlex 525 AC Drive V5.002",
             "sys_object_id": "1.3.6.1.4.1.53148.112.96",
             "sys_name": "POWERF-525-001",
             "sys_location": "Motor Control Center",
