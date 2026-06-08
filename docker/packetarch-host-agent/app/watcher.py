@@ -65,6 +65,19 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
 
         if not fast:
             status("provisioning", "sensor", 70, "starting CV sensor")
+        # Self-heal a stale capture network. A dockerd/host restart can orphan
+        # the per-lab macvlan: its metadata row survives (so `compose up` and
+        # `restart: always` keep matching it by name) but its datapath is dead,
+        # and endpoint creation fails forever with `network id <id> not found`,
+        # leaving the sensor crash-looping in Exited(255). When the sensor isn't
+        # already running, tear the stale container + orphaned macvlan down so
+        # the compose below recreates the network fresh. A *running* sensor
+        # holds the network in-use, so we skip this then and never churn a
+        # healthy lab.
+        if not hostops.container_running(spec["sensor_container"]):
+            hostops.compose_down(hostops.sensor_compose_path(work),
+                                 hostops._project(slug, "sensor"))
+            hostops.remove_macvlan_networks_on(spec["mon_if"])
         hostops.compose_up(hostops.sensor_compose_path(work),
                            hostops._project(slug, "sensor"))
 
