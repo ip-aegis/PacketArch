@@ -724,12 +724,12 @@ async def create_scenario_from_template(
             f"Set cell_isolation.mode={cell_isolation.get('mode')} from template"
         )
 
-    # Archetype rail (Phase 5): for legacy templates that have been
-    # mapped to an archetype, replace the freeform-built devices /
-    # flows / conduits / zones with the generator's output. Cloud
-    # service links, external comms, cell isolation, and phases come
-    # from the legacy template (which still ships the metadata).
-    if archetype_cfg is not None:
+    # Archetype rail: ONLY for curated templates that ship NO explicit device
+    # list (they delegate device/flow generation to the archetype generator).
+    # When a template defines its own devices, those are the deterministic,
+    # curated source of truth (with per-device firmware_version pins driving
+    # CVE coverage) and MUST NOT be overwritten by algorithmic generation.
+    if archetype_cfg is not None and not template.get("devices"):
         from app.services.architecture.scenario_generator import (
             generate_from_archetype,
         )
