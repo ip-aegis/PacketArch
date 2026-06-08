@@ -1439,8 +1439,19 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
         "snmp_sys_descr_template",
     )
 
+    # Full per-row sync (not just null-backfill): a curated edit to an override
+    # or firmware in cve_data must reach the DB. Plus identity/targeting columns.
+    SYNC_COLUMNS = BACKFILL_COLUMNS + (
+        "firmware_version",
+        "modbus_identity_override",
+        "ethernet_ip_identity_override",
+        "profinet_identity_override",
+        "s7_identity_override",
+    )
+
     new_variants = []
     patched = 0
+    source_keys: set[tuple] = set()
 
     for cve_data in ALL_CVES:
         cve_db_id = cve_id_to_db_id.get(cve_data["cve_id"])
@@ -1449,12 +1460,19 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
 
         for variant_data in cve_data.get("vulnerable_variants", []):
             variant_key = (cve_db_id, variant_data["display_name"])
+            source_keys.add(variant_key)
             existing = existing_by_key.get(variant_key)
             if existing is not None:
+                # Never touch user-created variants.
+                if not existing.is_builtin:
+                    continue
                 changed = False
-                for col in BACKFILL_COLUMNS:
-                    src = variant_data.get(col)
-                    if src and getattr(existing, col, None) in (None, {}):
+                src_cols = {col: variant_data.get(col) for col in SYNC_COLUMNS}
+                src_cols["target_vendor"] = cve_data["vendor"]
+                src_cols["target_product_family"] = cve_data.get("product_family")
+                src_cols["target_models"] = cve_data.get("affected_models")
+                for col, src in src_cols.items():
+                    if getattr(existing, col, None) != src:
                         setattr(existing, col, src)
                         changed = True
                 if changed:
@@ -1488,12 +1506,24 @@ async def seed_vulnerable_variants(db: AsyncSession) -> int:
                 is_active=True,
             ))
 
+    # Prune builtin variants that no longer exist in source (e.g. a curated edit
+    # changed a variant's display_name/firmware, or removed it). Without this the
+    # stale row — and its old identity overrides — keeps getting resolved onto
+    # devices. User-created variants (is_builtin=False) are never pruned.
+    pruned = 0
+    for key, row in existing_by_key.items():
+        if row.is_builtin and key not in source_keys:
+            await db.delete(row)
+            pruned += 1
+
     if new_variants:
         db.add_all(new_variants)
-    if new_variants or patched:
+    if new_variants or patched or pruned:
         await db.commit()
-        if patched:
-            logger.info(f"Backfilled override columns on {patched} existing variants")
+        if patched or pruned:
+            logger.info(
+                f"Vulnerable variants reconciled: {patched} updated, {pruned} pruned"
+            )
 
     return len(new_variants)
 
