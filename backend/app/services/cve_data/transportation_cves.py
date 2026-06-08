@@ -106,14 +106,13 @@ TRANSPORTATION_CVES: list[dict] = [
         "published_date": datetime(2023, 10, 16),
         "vulnerable_variants": [
             {
-                "firmware_version": "17.9.04",
-                "display_name": "Cisco IE-3300 Switch (CVE-2023-20198)",
-                "snmp_identity_override": {
-                    "sys_descr": "Cisco IOS Software [Cupertino], Catalyst IE3300 Software (IE3300-UNIVERSALK9-M), Version 17.9.04",
-                    "sys_object_id": "1.3.6.1.4.1.9.1.2824",
-                    "sys_name": "ITS-SW-001",
-                    "sys_location": "Cabinet #12",
-                },
+                # No model-specific sys_descr override: CVE-2023-20198 covers many
+                # IOS XE switches (IE-3300/IE-4000/IE-9320/…). The device's own
+                # firmware-pinned sys_descr carries the correct model + version, so
+                # a hardcoded IE3300 string here would wrongly clobber e.g. an
+                # IE-9320. Just declare the vulnerable firmware.
+                "firmware_version": "17.9.3",
+                "display_name": "Cisco IOS XE switch (CVE-2023-20198)",
             },
         ],
     },
