@@ -395,18 +395,26 @@ async def create_scenario_from_template(
             fingerprint_id = device_spec.get("fingerprint_id")
             full_fingerprint = None
 
-            # Template-defined mix: resolve the device template, pick the
-            # firmware variant for THIS instance (i of count), and source BOTH
-            # the emitted firmware and the CVEs from that single variant so they
-            # agree on the wire. The device template's firmware_variants are the
-            # single source of truth — any legacy per-device `cve_ids` in the
-            # scenario template is ignored.
+            # Deterministic fingerprint: a curated vertical scenario pins
+            # `firmware_version` per device, and the CVEs flow from the device-
+            # template variant at that firmware (device template = flexible CVE
+            # menu; scenario = deterministic selection). Only when firmware is
+            # left unpinned (AI / quick-demo) do we fall back to the per-instance
+            # selector. Either way, the emitted firmware and the CVEs come from
+            # the ONE chosen variant so they agree on the wire. Any legacy
+            # per-device `cve_ids` in the scenario template is ignored.
             tpl = None
             if fingerprint_id:
                 tpl = get_template_by_id(fingerprint_id)
             elif vendor and fingerprint_model:
                 tpl = get_template_by_vendor_model(vendor, fingerprint_model)
-            variant = select_firmware_variant(tpl, i, count) if tpl else None
+            pinned_fw = device_spec.get("firmware_version")
+            variant = None
+            if tpl:
+                variant = (
+                    tpl.get_firmware_by_version(pinned_fw) if pinned_fw
+                    else select_firmware_variant(tpl, i, count)
+                )
             cve_ids: list[str] = list(variant.cves) if variant else []
 
             if tpl and variant:
