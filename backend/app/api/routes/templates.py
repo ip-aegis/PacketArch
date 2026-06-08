@@ -19,7 +19,13 @@ from app.models.scenario import Scenario
 from app.protocol_engines.vendor_oui import generate_mac_address
 from app.services.ip_management import IPManagementService
 from app.services.cve_fingerprint_service import CVEFingerprintService
-from app.services.device_templates import get_fingerprint_by_vendor_model, get_fingerprint_from_template
+from app.services.device_templates import (
+    get_fingerprint_by_vendor_model,
+    get_fingerprint_from_template,
+    get_template_by_id,
+    get_template_by_vendor_model,
+    select_firmware_variant,
+)
 from app.traffic_generator.flow_generator import (
     generate_flows_for_scenario,
 )
@@ -388,13 +394,32 @@ async def create_scenario_from_template(
             fingerprint_model = device_spec.get("fingerprint_model")
             fingerprint_id = device_spec.get("fingerprint_id")
             full_fingerprint = None
+
+            # Template-defined mix: resolve the device template, pick the
+            # firmware variant for THIS instance (i of count), and source BOTH
+            # the emitted firmware and the CVEs from that single variant so they
+            # agree on the wire. The device template's firmware_variants are the
+            # single source of truth — any legacy per-device `cve_ids` in the
+            # scenario template is ignored.
+            tpl = None
             if fingerprint_id:
+                tpl = get_template_by_id(fingerprint_id)
+            elif vendor and fingerprint_model:
+                tpl = get_template_by_vendor_model(vendor, fingerprint_model)
+            variant = select_firmware_variant(tpl, i, count) if tpl else None
+            cve_ids: list[str] = list(variant.cves) if variant else []
+
+            if tpl and variant:
+                full_fingerprint = get_fingerprint_from_template(
+                    tpl.id, firmware_version=variant.version
+                )
+            elif fingerprint_id:
                 full_fingerprint = get_fingerprint_from_template(fingerprint_id)
-                if full_fingerprint and not fingerprint_model:
-                    device["fingerprintModel"] = full_fingerprint.get("model")
             elif vendor and fingerprint_model:
                 full_fingerprint = get_fingerprint_by_vendor_model(vendor, fingerprint_model)
             if full_fingerprint:
+                if not fingerprint_model and full_fingerprint.get("model"):
+                    device["fingerprintModel"] = full_fingerprint.get("model")
                 device["vendorFingerprint"] = full_fingerprint
                 logger.debug(f"Added vendorFingerprint for device {device_id}: {fingerprint_id or fingerprint_model}")
 
@@ -406,8 +431,8 @@ async def create_scenario_from_template(
             if device_spec.get("error_config"):
                 device["errorConfig"] = device_spec.get("error_config")
 
-            # Add CVE IDs if specified
-            cve_ids = device_spec.get("cve_ids", [])
+            # CVEs come from the chosen firmware variant (above), not the
+            # scenario-template spec — the device template is authoritative.
             if cve_ids:
                 device["cveIds"] = cve_ids
 
@@ -734,9 +759,12 @@ async def create_scenario_from_template(
         devices = definition["devices"]
         flows = definition["flows"]
 
-        # The archetype generator assigns realistic cveIds but cannot resolve
-        # them (no DB session). Resolve here so archetype scenarios emit
-        # vulnerable firmware identities, same as the freeform path above.
+        # _materialize_device() assigned each instance's cveIds from its chosen
+        # firmware variant (template-defined mix) but couldn't resolve them to
+        # emittable identity overrides (no DB session). Resolve here so archetype
+        # scenarios emit vulnerable firmware identities, same as the freeform
+        # path above. The DB variant firmware must match the template variant
+        # version (enforced by the firmware-agreement CI guard).
         cve_resolved = 0
         for device_id, device in definition["devices"].items():
             cve_ids = device.get("cveIds")

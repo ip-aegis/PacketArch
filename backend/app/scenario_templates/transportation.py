@@ -50,7 +50,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "master_station", "vendor": "siemens_its", "count": 2, "zone": "tmc_core",
              "name_pattern": "TMC_Master_Station_{n}", "protocols": ["snmp", "modbus_tcp"],
              "fingerprint_model": "CP-8000",
-             "cve_ids": ["CVE-2018-13798", "CVE-2022-29884"],
              "role": "Traffic Management Center Master Station"},
 
             # Core Switches - Cisco IE-9320-24T4X-E
@@ -109,7 +108,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "camera_fixed", "vendor": "axis", "count": 6, "zone": "camera_zone",
              "name_pattern": "Highway_Fixed_CCTV_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "P1455-LE",
-             "cve_ids": ["CVE-2023-21412"],
              "role": "Fixed ITS Camera"},
 
             # PTZ Cameras - Pelco Spectra Enhanced
@@ -282,14 +280,12 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
              "name": "ATMS_Coordination_Master_Station", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
-             "cve_ids": ["CVE-2018-13798", "CVE-2022-29884"],
              "role": "ATMS Coordination Master"},
 
             # Distribution Switches - Cisco IE-3500-8P3S-E
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "atms_core",
              "name_pattern": "ATMS_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3500-8P3S-E",
-             "cve_ids": ["CVE-2023-20198"],
              "role": "ATMS Distribution Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
@@ -307,7 +303,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "intersection_main",
              "name_pattern": "Main_Arterial_Signal_Controller_Econolite_{n}", "protocols": ["snmp"],
              "fingerprint_model": "Cobalt ATC",
-             "cve_ids": ["CVE-2023-0452", "CVE-2023-0451"],
              "role": "Traffic Signal Controller (Main)"},
 
             # McCain 2070 ATC Controllers
@@ -356,7 +351,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "camera_anpr", "vendor": "hikvision", "count": 2, "zone": "camera_zone",
              "name_pattern": "Intersection_ANPR_Enforcement_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "DS-2CD7A26G0/P",
-             "cve_ids": ["CVE-2021-36260"],
              "role": "ANPR Camera"},
 
             # Bosch PTZ Camera
@@ -515,7 +509,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
              "name": "Tunnel_Master_Control_Station", "protocols": ["snmp", "modbus_tcp", "bacnet"],
              "fingerprint_model": "CP-8000",
-             "cve_ids": ["CVE-2018-13798", "CVE-2022-29884"],
              "role": "Tunnel Master Control Station"},
 
             # Core Switches - Cisco IE-9320-24T4X-E
@@ -528,7 +521,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "tunnel_master",
              "name_pattern": "Tunnel_Distribution_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3500-8P3S-E",
-             "cve_ids": ["CVE-2023-20198"],
              "role": "Tunnel Distribution Switch"},
 
             # ============================================================
@@ -816,14 +808,12 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "toll_center",
              "name": "Toll_Plaza_Master_Station", "protocols": ["snmp"],
              "fingerprint_model": "CP-8000",
-             "cve_ids": ["CVE-2018-13798", "CVE-2022-29884"],
              "role": "Toll Plaza Master Station"},
 
             # Distribution Switches - Cisco IE-3500-8P3S-E
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "toll_center",
              "name_pattern": "Toll_Center_Network_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3500-8P3S-E",
-             "cve_ids": ["CVE-2023-20198"],
              "role": "Toll Center Switch"},
 
             # Remote Access Gateway - HMS EWON Flexy
@@ -867,7 +857,6 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "camera_anpr", "vendor": "hikvision", "count": 6, "zone": "anpr_zone",
              "name_pattern": "Toll_Plaza_ANPR_Camera_{n}", "protocols": ["snmp"],
              "fingerprint_model": "DS-2CD7A26G0/P",
-             "cve_ids": ["CVE-2021-36260"],
              "role": "ANPR Camera"},
 
             # ============================================================

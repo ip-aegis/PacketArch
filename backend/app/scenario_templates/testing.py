@@ -38,7 +38,6 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "schneider", "count": 1, "zone": "test_net",
              "name": "Test-SCADA-Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "HMISTM6",
-             "cve_ids": ["CVE-2024-11999"],
              "role": "SCADA Server"},
 
             # ============================================================
@@ -48,13 +47,11 @@ TESTING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "siemens", "count": 1, "zone": "test_net",
              "name": "CRIT-Siemens-PLC", "protocols": ["modbus_tcp", "s7comm", "snmp"],
              "fingerprint_model": "6ES7 516-3AN02-0AB0",
-             "cve_ids": ["CVE-2020-15782", "CVE-2022-38465", "CVE-2021-37205", "CVE-2021-37185"],
              "role": "Demo PLC",
              "mac_address": "DE:AD:BE:EF:00:01"},
             {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "test_net",
              "name": "CRIT-Rockwell-PLC", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "1769-L33ER",
-             "cve_ids": ["CVE-2021-22681"],
              "role": "Demo PLC",
              "mac_address": "DE:AD:BE:EF:00:01"},
 

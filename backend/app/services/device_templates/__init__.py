@@ -60,6 +60,10 @@ from app.services.device_templates._fingerprints import (
     get_template_by_vendor_model,
     template_db_to_fingerprint_dict,
 )
+from app.services.device_templates.firmware_distribution import (
+    build_distribution,
+    select_firmware_variant,
+)
 
 __all__ = [
     # Types
@@ -85,6 +89,9 @@ __all__ = [
     "get_total_firmware_variants",
     "get_total_cves",
     "generate_device_instance",
+    # Firmware distribution ("template-defined mix")
+    "select_firmware_variant",
+    "build_distribution",
     # Fingerprint compat
     "get_fingerprint_from_template",
     "get_fingerprint_by_vendor_model",

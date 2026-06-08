@@ -51,6 +51,11 @@ from app.services.device_identity_enricher import (
 )
 from app.services.device_templates._fingerprints import (
     get_fingerprint_by_vendor_model,
+    get_fingerprint_from_template,
+    get_template_by_vendor_model,
+)
+from app.services.device_templates.firmware_distribution import (
+    select_firmware_variant,
 )
 
 
@@ -224,6 +229,7 @@ def _materialize_device(
         candidates = get_pin_candidates(vendor_profile, role_id)
         pin = round_robin_pick(candidates, instance_index)
 
+    cve_ids: list[str] = []
     if pin is None:
         # No pin — emit a minimal device with the role's primary type and
         # no fingerprint. Auto-repair will populate something later.
@@ -232,9 +238,25 @@ def _materialize_device(
         full_fingerprint: dict[str, Any] = {}
     else:
         vendor, fingerprint_model = pin
-        full_fingerprint = (
-            get_fingerprint_by_vendor_model(vendor, fingerprint_model) or {}
+        # Template-defined mix: resolve the device template, pick the firmware
+        # variant for THIS instance, and source BOTH the emitted firmware and
+        # the CVEs from that single variant so they always agree on the wire.
+        template = _resolve_cve_template(vendor, fingerprint_model)
+        variant = (
+            select_firmware_variant(template, instance_index, total_count)
+            if template else None
         )
+        if template and variant:
+            full_fingerprint = (
+                get_fingerprint_from_template(
+                    template.id, firmware_version=variant.version
+                ) or {}
+            )
+            cve_ids = list(variant.cves)
+        else:
+            full_fingerprint = (
+                get_fingerprint_by_vendor_model(vendor, fingerprint_model) or {}
+            )
         if not full_fingerprint:
             logger.warning(
                 "Generator: catalog missing %s/%s for role %s — "
@@ -287,6 +309,8 @@ def _materialize_device(
         "role": role.name,
         "architectural_role": role_id,
     }
+    if cve_ids:
+        device["cveIds"] = cve_ids
     return device
 
 
@@ -425,67 +449,20 @@ _CVE_MODEL_ALIAS = {
 }
 
 
-def _assign_realistic_cves(devices: dict[str, dict[str, Any]]) -> None:
-    """Assign realistic-fleet CVEs to generated devices, in place.
+def _resolve_cve_template(vendor: str, fingerprint_model: str | None):
+    """Resolve the device template backing a pin, applying cross-family model
+    aliases. Returns a ``DeviceTemplate`` or None.
 
-    ~1/3 of each model's instances land on the oldest/most-vulnerable
-    firmware variant, ~1/3 mid, ~1/3 latest/patched (no CVEs) — a realistic
-    patch spread. Every CVE-capable model surfaces >=1 CVE (critical-bearing
-    variant preferred) so each scenario actually shows vulnerabilities. CVEs
-    come from the corrected device-template firmware variants. Sets
-    ``device["cveIds"]`` (only when non-empty); resolution to vulnerable
-    firmware happens later, in the create route, where a DB session exists.
+    The alias map handles scenario models that share a product family (and CVE
+    applicability) with a differently-named template model, e.g. a GuardLogix
+    catalog number mapped to its ControlLogix template. ``firmware_variants`` on
+    the resolved template are the single source of truth for the instance's
+    firmware + CVEs (see ``select_firmware_variant``).
     """
-    from collections import defaultdict
-
-    from app.services.cve_data import ALL_CVES
-    from app.services.device_templates import get_all_templates
-
-    critical = {c["cve_id"] for c in ALL_CVES if (c.get("cvss_score") or 0) >= 9.0}
-
-    def _cvecount(vs):
-        return sum(len(c) for _v, c in vs)
-
-    mv: dict[Any, list] = {}
-    for t in get_all_templates():
-        vs = [(fv.version, list(fv.cves or [])) for fv in t.firmware_variants]
-        for key in ((t.vendor.lower(), t.model), t.model):
-            if key not in mv or _cvecount(vs) > _cvecount(mv[key]):
-                mv[key] = vs
-
-    def variants_for(vendor, fm):
-        if not fm:
-            return None
-        fm = _CVE_MODEL_ALIAS.get((vendor.lower(), fm), fm)
-        return mv.get((vendor.lower(), fm)) or mv.get(fm)
-
-    def bucket_idx(i, n):
-        return {0: n - 1, 1: n // 2, 2: 0}[i % 3]  # oldest / middle / latest
-
-    def show_idx(vs):
-        for i, (_v, cves) in enumerate(vs):
-            if any(c in critical for c in cves):
-                return i
-        for i, (_v, cves) in enumerate(vs):
-            if cves:
-                return i
+    if not fingerprint_model:
         return None
-
-    bymodel: dict[Any, list] = defaultdict(list)
-    for dev in devices.values():
-        vs = variants_for(dev.get("vendor") or "", dev.get("fingerprintModel"))
-        if vs is not None:
-            bymodel[((dev.get("vendor") or "").lower(), dev.get("fingerprintModel"))].append((dev, vs))
-
-    for grp in bymodel.values():
-        for i, (dev, vs) in enumerate(grp):
-            cves = list(vs[bucket_idx(i, len(vs))][1])
-            if cves:
-                dev["cveIds"] = cves
-        vs0 = grp[0][1]
-        si = show_idx(vs0)
-        if si is not None and not any(d.get("cveIds") for d, _ in grp):
-            grp[0][0]["cveIds"] = list(vs0[si][1])
+    model = _CVE_MODEL_ALIAS.get((vendor.lower(), fingerprint_model), fingerprint_model)
+    return get_template_by_vendor_model(vendor, model)
 
 
 def generate_from_archetype(
@@ -675,10 +652,9 @@ def generate_from_archetype(
         vertical=archetype.vertical,
     )
 
-    # Assign realistic-fleet CVEs to the generated devices (the archetype
-    # rail builds devices independently of the legacy template's per-device
-    # cve_ids, so CVEs must be assigned here or scenarios show none).
-    _assign_realistic_cves(devices)
+    # CVEs are assigned per-instance in _materialize_device() from the chosen
+    # firmware variant (template-defined mix), so firmware + CVEs always agree
+    # on the wire. No separate post-pass projection.
 
     # ----- 7. Definition assembly -------------------------------------
     definition: dict[str, Any] = {

@@ -71,7 +71,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
              "name": "Platform_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
-             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -90,7 +89,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_S_Series_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "S-series",
-             "cve_ids": ["CVE-2022-29965", "CVE-2022-29957"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Primary DCS Controller"},
 
@@ -99,21 +97,18 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "DeltaV_MD_Plus_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "MD Plus",
-             "cve_ids": ["CVE-2022-29965", "CVE-2022-29957"],
              "role": "Secondary DCS Controller"},
 
             # Honeywell Experion Station - ESD Override Panel
             {"type": "hmi", "vendor": "honeywell", "count": 1, "zone": "control",
              "name": "ESD_Override_Panel", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Station",
-             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "ESD Override Panel"},
 
             # Cisco IE-3300 - Control Zone Switches
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
-             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -172,7 +167,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Export_Pump_VFD_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ACS880-01",
-             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Export Pump Drive"},
 
             # ============================================================
@@ -191,7 +185,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "safety",
              "name": "Fire_Gas_Safety_Manager", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
-             "cve_ids": ["CVE-2022-30315"],
              "role": "Fire & Gas Detection"},
 
             # Honeywell STT850 - Safety Temperature Transmitters
@@ -210,7 +203,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "ROC800L_Flow_Computer_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ROC800L",
-             "cve_ids": ["CVE-2022-30264"],
              "role": "Fiscal Flow Computer"},
 
             # Endress+Hauser FMP50 Level Sensors (separator levels)
@@ -437,14 +429,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "scada",
              "name": "Pipeline_SCADA_Server", "protocols": ["modbus_tcp", "dnp3", "snmp"],
              "fingerprint_model": "Experion Server",
-             "cve_ids": ["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
              "role": "SCADA Server"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "scada",
              "name": "Pipeline_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # Kepware KEPServerEX OPC Gateway
@@ -457,7 +447,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
              "name": "SCADA_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
-             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -476,7 +465,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_C300_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "C300",
-             "cve_ids": ["CVE-2023-24480", "CVE-2023-25948", "CVE-2023-25178", "CVE-2023-26597"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Compressor Controller"},
 
@@ -484,7 +472,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "compressor",
              "name": "Compressor_Safety_Manager", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
-             "cve_ids": ["CVE-2022-30315"],
              "role": "Compressor Safety System"},
 
             # Honeywell Experion Station - Operator Stations
@@ -492,7 +479,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_Operator_Station_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
-             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "Operator Station"},
 
             # Honeywell Series C I/O Modules
@@ -507,7 +493,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Compressor_Network_Switch_{n:02d}",
              "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
-             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -519,7 +504,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "ROC800_Flow_Computer_{n:02d}",
              "protocols": ["modbus_tcp", "dnp3"],
              "fingerprint_model": "ROC800",
-             "cve_ids": ["CVE-2022-30264"],
              "role": "Fiscal Flow Computer"},
 
             # Emerson Micro Motion 5700 Coriolis Meters
@@ -762,7 +746,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "hmi", "vendor": "yokogawa", "count": 1, "zone": "engineering",
              "name": "CDU_Engineering_Workstation", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "EWS",
-             "cve_ids": ["CVE-2022-21177", "CVE-2024-5650", "CVE-2023-26593"],
              "role": "Engineering Workstation"},
 
             # Yokogawa Exaopc - OPC Server
@@ -775,14 +758,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "engineering",
              "name": "Refinery_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # Cisco IE-4000 - Core Switch
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "engineering",
              "name": "Engineering_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
-             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -801,7 +782,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Atmospheric_Column_FCU_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "AFV10D",
-             "cve_ids": ["CVE-2024-5650"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "Atmospheric Column Controller"},
 
@@ -810,7 +790,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "Vacuum_Column_FCU_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "AFV10D",
-             "cve_ids": ["CVE-2024-5650"],
              "role": "Vacuum Column Controller"},
 
             # Yokogawa HIS - Operator Stations
@@ -818,14 +797,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "CDU_Operator_Station_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "HIS",
-             "cve_ids": ["CVE-2022-21177", "CVE-2024-5650", "CVE-2023-26593"],
              "role": "Operator Station"},
 
             # Cisco IE-3300 - Control Switches
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "Control_Zone_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
-             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -894,7 +871,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "CDU_Charge_Pump_VFD_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ACS880-01",
-             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Charge Pump Drive"},
 
             # ABB ACS580 VFDs - Reflux Pumps
@@ -920,7 +896,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "safety_plc", "vendor": "honeywell", "count": 1, "zone": "safety",
              "name": "CDU_Fire_Gas_Safety_Manager", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
-             "cve_ids": ["CVE-2022-30315"],
              "role": "Fire & Gas Detection"},
 
             # Yokogawa TDLS8000 H2S Detectors
@@ -938,7 +913,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "plc", "vendor": "abb", "count": 1, "zone": "utility",
              "name": "CDU_Utility_PLC", "protocols": ["modbus_tcp"],
              "fingerprint_model": "PM590-ETH",
-             "cve_ids": ["CVE-2025-7745"],
              "role": "Utility Controller"},
 
             # Honeywell UDA2182 Analyzer
@@ -1142,14 +1116,12 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "operations",
              "name": "LNG_Experion_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
-             "cve_ids": ["CVE-2023-24474", "CVE-2023-23585", "CVE-2023-25078"],
              "role": "SCADA/DCS Server"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
              "name": "LNG_Process_Historian", "protocols": ["modbus_tcp"],
              "fingerprint_model": "Proficy Historian",
-             "cve_ids": ["CVE-2022-46732", "CVE-2022-46660", "CVE-2022-43494"],
              "role": "Process Historian"},
 
             # Kepware KEPServerEX OPC Gateway
@@ -1162,7 +1134,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
              "name": "LNG_Core_Switch", "protocols": ["snmp"],
              "fingerprint_model": "IE-4000-8GT4G-E",
-             "cve_ids": ["CVE-2022-20919"],
              "role": "Core Network Switch"},
 
             # HMS Flexy 205 - Remote Access Gateway
@@ -1181,7 +1152,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "LNG_C300_Controller_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "C300",
-             "cve_ids": ["CVE-2023-24480", "CVE-2023-25948", "CVE-2023-25178", "CVE-2023-26597"],
              "error_config": {"exception_rate": 0.0002, "timeout_rate": 0.0001},
              "role": "DCS Controller"},
 
@@ -1190,7 +1160,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "LNG_C200_Tank_Controller",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "C200",
-             "cve_ids": ["CVE-2021-38395", "CVE-2021-38397", "CVE-2021-38399"],
              "role": "Tank Farm Controller"},
 
             # Honeywell Experion Station - Operator Stations
@@ -1198,7 +1167,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "LNG_Operator_Station_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Experion Station",
-             "cve_ids": ["CVE-2023-23585", "CVE-2023-25078", "CVE-2023-25178"],
              "role": "Operator Station"},
 
             # Honeywell Series C I/O Modules
@@ -1212,7 +1180,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "switch", "vendor": "cisco", "count": 2, "zone": "control",
              "name_pattern": "LNG_Control_Switch_{n:02d}", "protocols": ["snmp"],
              "fingerprint_model": "IE-3300-8T2S",
-             "cve_ids": ["CVE-2023-20198", "CVE-2022-20919"],
              "role": "Control Network Switch"},
 
             # ============================================================
@@ -1257,7 +1224,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "BOG_Compressor_VFD_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "ACS880-01",
-             "cve_ids": ["CVE-2022-4046", "CVE-2023-37559"],
              "role": "Boil-Off Gas Compressor"},
 
             # Emerson Micro Motion 5700 - Send-Out Metering
@@ -1276,7 +1242,6 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name_pattern": "LNG_Safety_Manager_{n:02d}",
              "protocols": ["modbus_tcp"],
              "fingerprint_model": "Safety Manager",
-             "cve_ids": ["CVE-2022-30315"],
              "error_config": {"exception_rate": 0.0001, "timeout_rate": 0.00005},
              "role": "Cryogenic Safety System"},
 

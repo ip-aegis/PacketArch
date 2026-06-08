@@ -23,6 +23,14 @@ class FirmwareVariant:
     cves: list[str] = field(default_factory=list)
     notes: str | None = None
 
+    # Relative share of instances that should run this firmware when a scenario
+    # places multiple copies of the device ("template-defined mix"). 0.0 = not
+    # normally deployed (e.g. a historical vulnerable build kept only so a
+    # curated CVE can be demonstrated). Weights are relative, not percentages —
+    # select_firmware_variant() normalises them across the variant list. When no
+    # variant sets a weight, selection falls back to the default variant.
+    population_weight: float = 0.0
+
     # Protocol identity overrides for this firmware version
     # These get merged with the template's base identities
     identity_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
