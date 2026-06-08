@@ -43,23 +43,37 @@ async def main():
                           f"model={c.get('model')} fw={c.get('firmwareVersion') or c.get('firmware')} "
                           f"ip={c.get('ip')} mac={c.get('mac')}")
 
-            if what in ("devices", "all"):
-                devs = await svc.get_devices(size=500)
-                print(f"\n=== DEVICES (aggregated): {len(devs)} ===")
-                vc = Counter((d.vendor or "?").split(",")[0] for d in devs)
-                print("vendor tally:", dict(vc.most_common(20)))
-                for d in devs[:40]:
-                    print(f"  {str(d.name or '')[:34]:34} v={str(d.vendor or '')[:18]:18} "
-                          f"model={d.model} fw={d.firmware} ip={d.ip} risk={d.risk_score}")
+            if what in ("devices", "matched", "all"):
+                # Raw devices so we can read vulnerabilitiesCount (CVDevice drops it).
+                raw = await svc._request("GET", "/devices", params={"page": 1, "size": 500})
+                items = [d for d in (raw if isinstance(raw, list) else raw.get("items", [])) if d]
+
+                def fw_of(d):
+                    for p in (d.get("normalizedProperties") or []):
+                        if "fw" in p.get("key", "").lower():
+                            return p.get("value")
+                    return None
+
+                matched = [d for d in items if (d.get("vulnerabilitiesCount") or 0) > 0]
+                print(f"\n=== DEVICES (aggregated): {len(items)} | with vulnerabilitiesCount>0: {len(matched)} ===")
+                show = matched if what == "matched" else items
+                for d in show[:60]:
+                    vn = d.get("vulnerabilitiesCount") or 0
+                    flag = f"  <-- {vn} CVE" if vn else ""
+                    print(f"  {str(d.get('label') or '')[:32]:32} model={str(d.get('model') or d.get('deviceTypeDescription') or '')[:24]:24} "
+                          f"fw={fw_of(d)} risk={d.get('riskScore')} vulnCount={vn}{flag}")
 
             if what in ("vulns", "all"):
-                vulns = await svc.get_vulnerabilities(limit=500)
-                # CVVulnerability dataclass objects (not dicts)
-                hits = [v for v in vulns if (getattr(v, "affected_device_count", 0) or 0) > 0]
-                print(f"\n=== VULNERABILITIES: {len(vulns)} in KB | {len(hits)} matched to >=1 device ===")
-                for v in sorted(hits, key=lambda x: -(x.affected_device_count or 0)):
-                    print(f"  {getattr(v, 'cve_id', '?'):20} n={v.affected_device_count} "
-                          f"sev={getattr(v, 'severity', '?')!s:9} {str(getattr(v, 'title', ''))[:55]}")
+                # NOTE: CV KB vuln records carry NO CPE/affected-version fields — matching is
+                # internal to the CV Center and surfaced per-device as vulnerabilitiesCount
+                # (see devices/matched). This just confirms a CVE exists in the KB.
+                raw = await svc._request("GET", "/vulnerabilities", params={"limit": 5000, "offset": 0})
+                kb = raw if isinstance(raw, list) else raw.get("items", [])
+                print(f"\n=== VULNERABILITY KB: {len(kb)} CVEs (metadata only; no CPE in API) ===")
+                want = ["CVE-2018-19282", "CVE-2021-22681", "CVE-2023-20198", "CVE-2020-15782"]
+                ids = {(v.get("cve") or v.get("id")) for v in kb}
+                for c in want:
+                    print(f"  {c}: {'in KB' if c in ids else 'NOT in KB'}")
 
             if what in ("presets", "all"):
                 presets = await svc.get_presets()
