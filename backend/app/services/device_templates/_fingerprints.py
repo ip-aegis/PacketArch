@@ -185,8 +185,28 @@ def get_fingerprint_from_template(
                 merged["firmware_revision"] = firmware.version
             elif key == "s7_identity" and "firmware_version" not in merged:
                 merged["firmware_version"] = firmware.version
-            elif key == "snmp_identity" and "firmware_version" not in merged:
-                merged["firmware_version"] = firmware.version
+            elif key == "snmp_identity":
+                if "firmware_version" not in merged:
+                    merged["firmware_version"] = firmware.version
+                # CV reads the device's firmware/IOS version from sys_descr, NOT
+                # from a separate firmware_version field. A template with a
+                # hardcoded versioned sys_descr (e.g. "...Version 17.15.01...")
+                # otherwise masks the pinned firmware and CV sees a patched
+                # device. Rewrite the version token in sys_descr to match — but
+                # ONLY when the firmware parses cleanly as a numeric version;
+                # non-standard formats (e.g. "R520.2") must be left untouched or
+                # the replacement corrupts the string.
+                if merged.get("sys_descr"):
+                    from app.protocol_engines.firmware_version_deriver import (
+                        FirmwareVersionDeriver,
+                        FirmwareVersionParser,
+                    )
+                    parsed = FirmwareVersionParser.parse(firmware.version)
+                    if parsed.major or parsed.minor:
+                        merged["sys_descr"] = FirmwareVersionDeriver(
+                            firmware.version,
+                            {"snmp_identity": {"sys_descr": merged["sys_descr"]}},
+                        ).derive_snmp()["sys_descr"]
             elif key == "dnp3_identity" and "software_version" not in merged:
                 merged["software_version"] = firmware.version
             elif key == "iec104_identity" and "software_version" not in merged:
