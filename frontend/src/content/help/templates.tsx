@@ -15,11 +15,38 @@ import {
   ExperimentOutlined,
   ThunderboltOutlined,
   FireOutlined,
+  CarOutlined,
+  HomeOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import type { HelpArticle } from './index';
 import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
+
+const VERTICAL_COLORS: Record<string, string> = {
+  'Manufacturing': 'blue',
+  'Water/Wastewater': 'cyan',
+  'Energy/Power': 'orange',
+  'Oil & Gas': 'purple',
+  'Transportation': 'magenta',
+  'Building Automation': 'geekblue',
+  'Distribution & Logistics': 'gold',
+};
+
+const EXAMPLE_TEMPLATES = [
+  { vertical: 'Manufacturing', template: 'Siemens Discrete Manufacturing', protocols: 'PROFINET, S7comm' },
+  { vertical: 'Manufacturing', template: 'Rockwell Automotive Assembly', protocols: 'EtherNet/IP' },
+  { vertical: 'Water/Wastewater', template: 'Municipal Water Treatment Plant', protocols: 'Modbus TCP, SNMP' },
+  { vertical: 'Water/Wastewater', template: 'Regional Pump Station Network', protocols: 'Modbus TCP, DNP3' },
+  { vertical: 'Energy/Power', template: 'Electrical Substation IED Network', protocols: 'IEC 61850, IEC 104' },
+  { vertical: 'Energy/Power', template: 'WAMS / PDC Phasor Network', protocols: 'C37.118' },
+  { vertical: 'Oil & Gas', template: 'Pipeline SCADA Compressor Station Network', protocols: 'Modbus TCP' },
+  { vertical: 'Oil & Gas', template: 'Yokogawa CENTUM VP Refinery Process Unit', protocols: 'Modbus TCP, OPC UA' },
+  { vertical: 'Transportation', template: 'Urban Intersection Network', protocols: 'SNMP/NTCIP' },
+  { vertical: 'Building Automation', template: 'Commercial Office Building BMS', protocols: 'BACnet/IP' },
+  { vertical: 'Distribution & Logistics', template: 'Fulfillment Center', protocols: 'EtherNet/IP, Modbus TCP' },
+];
 
 const TemplatesContent: React.FC = () => {
   return (
@@ -31,8 +58,8 @@ const TemplatesContent: React.FC = () => {
         </Title>
         <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
           Pre-built scenario templates provide realistic starting points for different
-          industrial environments. Each template includes devices, protocols, and traffic
-          patterns specific to the industry vertical.
+          industrial environments. Each template includes devices, protocols, zones, and
+          traffic patterns specific to the industry vertical.
         </Paragraph>
       </div>
 
@@ -46,9 +73,10 @@ const TemplatesContent: React.FC = () => {
               Manufacturing
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              High-speed automation with PLCs, HMIs, and variable frequency drives.
-              Protocols: PROFINET, EtherNet/IP, Modbus TCP. Typical devices include
-              Siemens S7-1500, Rockwell CompactLogix, and Allen-Bradley drives.
+              High-speed automation with PLCs, HMIs, and drives. Templates range from
+              Siemens discrete manufacturing (PROFINET/S7comm) and Rockwell automotive
+              assembly (EtherNet/IP) to a strict Purdue-segmented plant and a
+              semiconductor fab wafer line.
             </Paragraph>
           </div>
 
@@ -57,9 +85,9 @@ const TemplatesContent: React.FC = () => {
               Water/Wastewater
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              SCADA systems with RTUs for remote pump stations and treatment facilities.
-              Protocols: Modbus TCP, DNP3. Includes master/outstation configurations
-              with realistic polling patterns.
+              SCADA systems with RTUs for treatment plants and remote pump stations.
+              Protocols: Modbus TCP, DNP3, SNMP. Master/outstation configurations with
+              realistic polling patterns.
             </Paragraph>
           </div>
 
@@ -68,18 +96,53 @@ const TemplatesContent: React.FC = () => {
               Energy/Power
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              Substation automation and power distribution. Protocols: IEC 104, Modbus TCP.
-              Includes protective relays, meters, and substation RTUs with event-driven traffic.
+              Substation automation, generation, and grid control. Protocols: IEC 61850,
+              IEC 104, C37.118 synchrophasor, Modbus TCP. Templates include a substation
+              IED network, gas turbine plant, grid control center, solar + battery
+              storage, and a WAMS/PDC phasor network.
             </Paragraph>
           </div>
 
           <div>
             <Tag color="purple" icon={<FireOutlined />} style={{ marginBottom: 4 }}>
-              Oil & Gas
+              Oil &amp; Gas
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              Pipeline SCADA and refinery automation. Protocols: Modbus TCP, OPC UA.
-              Sparse polling patterns typical of geographically distributed systems.
+              DCS-centric production and pipeline SCADA: Emerson DeltaV offshore platform,
+              pipeline compressor stations, Yokogawa CENTUM VP refinery unit, and a
+              Honeywell Experion LNG terminal. Protocols: Modbus TCP, OPC UA.
+            </Paragraph>
+          </div>
+
+          <div>
+            <Tag color="magenta" icon={<CarOutlined />} style={{ marginBottom: 4 }}>
+              Transportation
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Intelligent transportation systems: highway corridor ITS, urban
+              intersections, tunnel control, and toll plaza operations. Protocols:
+              SNMP/NTCIP, Modbus TCP.
+            </Paragraph>
+          </div>
+
+          <div>
+            <Tag color="geekblue" icon={<HomeOutlined />} style={{ marginBottom: 4 }}>
+              Building Automation
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              BACnet/IP building management: commercial office BMS, data center
+              infrastructure, and a university campus BMS.
+            </Paragraph>
+          </div>
+
+          <div>
+            <Tag color="gold" icon={<InboxOutlined />} style={{ marginBottom: 4 }}>
+              Distribution &amp; Logistics
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Warehouse automation: fulfillment center, distribution center, cold chain
+              warehouse, and parcel sorting hub. Conveyor and sortation control over
+              EtherNet/IP and Modbus TCP.
             </Paragraph>
           </div>
         </Space>
@@ -95,23 +158,23 @@ const TemplatesContent: React.FC = () => {
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Text strong style={{ color: '#fff' }}>Pre-configured Devices</Text>
-            <Text style={{ color: '#6b6b8a' }}> - PLCs, RTUs, HMIs, drives with realistic fingerprints</Text>
+            <Text style={{ color: '#6b6b8a' }}> - PLCs, RTUs, HMIs, drives with realistic vendor fingerprints</Text>
           </div>
           <div>
             <Text strong style={{ color: '#fff' }}>Communication Flows</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Master-slave relationships with proper protocols</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Master/slave relationships using protocols each vendor actually supports</Text>
           </div>
           <div>
             <Text strong style={{ color: '#fff' }}>Network Zones</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Logical groupings (Control, Field, DMZ)</Text>
+            <Text style={{ color: '#6b6b8a' }}> - IEC 62443 zone groupings aligned to Purdue levels</Text>
           </div>
           <div>
             <Text strong style={{ color: '#fff' }}>Traffic Phases</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Time-based traffic variations</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Time-based intensity variation across the run</Text>
           </div>
           <div>
-            <Text strong style={{ color: '#fff' }}>Vendor Fingerprints</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Real device identities (Siemens, Rockwell, etc.)</Text>
+            <Text strong style={{ color: '#fff' }}>Realistic Naming &amp; Addressing</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Industrial device names, vendor-correct MAC OUIs, auto-assigned IP ranges</Text>
           </div>
         </Space>
       </Card>
@@ -122,7 +185,7 @@ const TemplatesContent: React.FC = () => {
         </Title>
         <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
           <li>Go to <Text code>Scenarios</Text> page</li>
-          <li>Click <Text code>Create from Template</Text></li>
+          <li>Click <Text code>From Template</Text></li>
           <li>Select an industry vertical</li>
           <li>Browse available templates and select one</li>
           <li>Enter a name for your scenario</li>
@@ -133,6 +196,10 @@ const TemplatesContent: React.FC = () => {
           </li>
           <li>Click <Text code>Create Scenario</Text></li>
         </ol>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+          Prefer a step-by-step walkthrough? The <Text strong style={{ color: '#fff' }}>Guided
+          Builder</Text> wraps template selection with device and flow customization.
+        </Paragraph>
       </Card>
 
       <Divider style={{ borderColor: BORDER_DEFAULT }} />
@@ -144,40 +211,23 @@ const TemplatesContent: React.FC = () => {
         <Table
           size="small"
           pagination={false}
-          dataSource={[
-            { vertical: 'Manufacturing', template: 'Assembly Line', devices: '8-12', protocols: 'PROFINET, EtherNet/IP' },
-            { vertical: 'Manufacturing', template: 'Packaging Cell', devices: '6-8', protocols: 'EtherNet/IP, Modbus' },
-            { vertical: 'Water', template: 'Water Treatment', devices: '10-15', protocols: 'Modbus TCP' },
-            { vertical: 'Water', template: 'Pump Station', devices: '4-6', protocols: 'Modbus TCP, DNP3' },
-            { vertical: 'Energy', template: 'Substation', devices: '8-10', protocols: 'IEC 104, Modbus' },
-            { vertical: 'Oil & Gas', template: 'Pipeline SCADA', devices: '6-8', protocols: 'Modbus TCP, OPC UA' },
-          ]}
+          dataSource={EXAMPLE_TEMPLATES}
           columns={[
             {
               title: 'Vertical',
               dataIndex: 'vertical',
-              render: (text) => <Tag color={
-                text === 'Manufacturing' ? 'blue' :
-                text === 'Water' ? 'cyan' :
-                text === 'Energy' ? 'orange' : 'purple'
-              }>{text}</Tag>,
-              width: 120,
+              render: (text: string) => <Tag color={VERTICAL_COLORS[text] || 'default'}>{text}</Tag>,
+              width: 170,
             },
             {
               title: 'Template',
               dataIndex: 'template',
-              render: (text) => <Text strong style={{ color: '#fff' }}>{text}</Text>,
-            },
-            {
-              title: 'Devices',
-              dataIndex: 'devices',
-              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
-              width: 80,
+              render: (text: string) => <Text strong style={{ color: '#fff' }}>{text}</Text>,
             },
             {
               title: 'Protocols',
               dataIndex: 'protocols',
-              render: (text) => <Text style={{ color: '#6b6b8a' }}>{text}</Text>,
+              render: (text: string) => <Text style={{ color: '#6b6b8a' }}>{text}</Text>,
             },
           ]}
           style={{ background: 'transparent' }}
@@ -192,31 +242,38 @@ const TemplatesContent: React.FC = () => {
           Traffic Phases
         </Title>
         <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Templates can include time-based phases that vary traffic intensity:
+          Templates include time-based phases that vary traffic intensity. You can edit
+          them in the Studio timeline editor:
         </Paragraph>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div>
             <Tag color="green">Startup</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Initial device discovery and registration
+              Device discovery, identification, and connection establishment
             </Text>
           </div>
           <div>
-            <Tag color="blue">Normal Operation</Tag>
+            <Tag color="blue">Steady State</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
               Standard polling and monitoring
             </Text>
           </div>
           <div>
-            <Tag color="orange">Peak Load</Tag>
+            <Tag color="orange">Maintenance</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Increased traffic during production
+              Configuration changes and diagnostics
             </Text>
           </div>
           <div>
-            <Tag color="purple">Maintenance</Tag>
+            <Tag color="volcano">Shutdown</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Configuration changes and diagnostics
+              Orderly session teardown
+            </Text>
+          </div>
+          <div>
+            <Tag color="purple">Custom</Tag>
+            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
+              Your own phases with custom rate multipliers
             </Text>
           </div>
         </Space>
@@ -231,11 +288,12 @@ export const templatesArticle: HelpArticle = {
   category: 'scenarios',
   keywords: [
     'template', 'vertical', 'industry', 'manufacturing', 'water', 'energy',
-    'oil', 'gas', 'preset', 'pre-built', 'quick start'
+    'oil', 'gas', 'transportation', 'building automation', 'logistics',
+    'warehouse', 'preset', 'pre-built', 'quick start'
   ],
-  summary: 'Use pre-built templates for Manufacturing, Water, Energy, and Oil & Gas scenarios.',
+  summary: 'Pre-built templates across 7 industry verticals: Manufacturing, Water, Energy, Oil & Gas, Transportation, Building Automation, and Distribution & Logistics.',
   content: TemplatesContent,
-  relatedArticles: ['scenarios', 'scenario-studio'],
-  relatedPages: ['/scenarios'],
+  relatedArticles: ['scenarios', 'guided-builder', 'scenario-studio'],
+  relatedPages: [],
   order: 3,
 };

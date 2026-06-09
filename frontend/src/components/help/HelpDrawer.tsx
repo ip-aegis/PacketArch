@@ -14,6 +14,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import HelpSearch from './HelpSearch';
 import HelpTOC from './HelpTOC';
 import HelpArticle from './HelpArticle';
+import HelpAiAssistant from './HelpAiAssistant';
 import { getArticleForRoute } from '../../content/help';
 
 const { Title, Paragraph } = Typography;
@@ -105,6 +106,8 @@ const HelpDrawer: React.FC<HelpDrawerProps> = ({ open, onClose }) => {
             showRelated={false}
             onNavigate={handleSelectArticle}
           />
+          <Divider style={{ borderColor: '#2d2d52', margin: '12px 0' }} />
+          <HelpAiAssistant routePath={location.pathname} />
         </div>
       ) : (
         // Browse View
@@ -127,6 +130,10 @@ const HelpDrawer: React.FC<HelpDrawerProps> = ({ open, onClose }) => {
               collapsed
             />
           </div>
+
+          <Divider style={{ borderColor: '#2d2d52', margin: '12px 0' }} />
+
+          <HelpAiAssistant routePath={location.pathname} />
 
           <Divider style={{ borderColor: '#2d2d52', margin: '12px 0' }} />
 

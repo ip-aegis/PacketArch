@@ -194,15 +194,28 @@ export function getRelatedArticles(articleId: string): HelpArticle[] {
 }
 
 /**
- * Find article relevant to a given route path
+ * Find article relevant to a given route path.
+ *
+ * Exact relatedPages match wins; otherwise fall back to the longest
+ * relatedPages entry that prefixes the route (so `/libraries/attacks/xyz`
+ * resolves to the article claiming `/libraries/attacks`).
  */
 export function getArticleForRoute(route: string): HelpArticle | undefined {
+  let prefixMatch: HelpArticle | undefined;
+  let prefixLen = 0;
+
   for (const article of getAllArticles()) {
-    if (article.relatedPages?.includes(route)) {
-      return article;
+    for (const page of article.relatedPages ?? []) {
+      if (page === route) {
+        return article;
+      }
+      if (page !== '/' && route.startsWith(`${page}/`) && page.length > prefixLen) {
+        prefixMatch = article;
+        prefixLen = page.length;
+      }
     }
   }
-  return undefined;
+  return prefixMatch;
 }
 
 // Import and register all articles
@@ -213,7 +226,10 @@ import { scenariosArticle } from './scenarios';
 import { scenarioStudioArticle } from './scenario-studio';
 import { aiScenarioWizardArticle } from './ai-scenario-wizard';
 import { guidedBuilderArticle } from './guided-builder';
+import { scenarioVersionsArticle } from './scenario-versions';
 import { deviceLibraryArticle } from './device-library';
+import { agentsHubArticle } from './agents-hub';
+import { attackSimulationArticle } from './attack-simulation';
 
 import { deploymentsArticle } from './deployments';
 import { liveTrafficArticle } from './live-traffic';
@@ -233,7 +249,10 @@ registerHelpArticle(scenariosArticle);
 registerHelpArticle(scenarioStudioArticle);
 registerHelpArticle(aiScenarioWizardArticle);
 registerHelpArticle(guidedBuilderArticle);
+registerHelpArticle(scenarioVersionsArticle);
 registerHelpArticle(deviceLibraryArticle);
+registerHelpArticle(agentsHubArticle);
+registerHelpArticle(attackSimulationArticle);
 
 registerHelpArticle(deploymentsArticle);
 registerHelpArticle(liveTrafficArticle);

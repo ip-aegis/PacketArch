@@ -1,67 +1,40 @@
-# UI Cleanup — Consolidation Pass (2026-05-31)
+# Help System Overhaul (2026-06-09)
 
-## Decisions (from user)
-- Libraries: **Nested + Overview** → `Overview | CVEs | Attacks | Device Library` (Device Library keeps Protocols/Vendors/Templates sub-tabs)
-- Live Traffic: its own page holding **Live Dashboard + Deployments**; Agents hub keeps infrastructure only
-- Old routes: **hard removal** (grep + fix in-app links)
+Review found help content badly drifted from the app. Plan approved by user.
 
-## Audit findings
-- **Network Defaults**: all 6 keys (`default_subnet_*`, `default_vlan_range_*`) are dead — defined in `models/settings.py` DEFAULT_SETTINGS, never read anywhere. → REMOVE tab + the 6 defaults.
-- **Seed Data**: endpoint is idempotent and already runs automatically at every backend boot (`startup.py:294`). Tab is redundant. → REMOVE tab (leave backend endpoint as harmless recovery tool).
-- **Traffic Agents** + **Modeling Labs** settings tabs: already just "moved to /agents" pointer stubs. → REMOVE both stubs. CML deploy/connect + local labs already live in Agents hub.
-- **Downloads presentations**: 11 files in `backend/app/static/downloads/` (exec-briefing, tech-deep-dive, cisco-briefing) + dict entries in `downloads.py` AVAILABLE_DOWNLOADS. Authoring kit (4 files) + OVA (scanned dir) stay.
+## Phase 1 — Fix wrong content
+- [x] `admin-settings.tsx` — actual tabs (Overview, AI Integrations [Provider/Usage/Costs], System, Cyber Vision, LDAP/AD, User Management, Downloads, Generated PCAPs, Updates), 3 AI providers incl. CIRCUIT, model routing, agents moved to /agents
+- [x] `getting-started.tsx` — 9 UI protocols, 7 verticals, workflow incl. AI create / attacks / Cyber Vision
+- [x] `templates.tsx` — 7 verticals + real template names from backend catalog, correct phase names
+- [x] `scenario-studio.tsx` — 4 right-panel tabs, toolbar groups, shortcuts (Ctrl+K/Ctrl+S/G), readiness checklist
 
-## Tasks
-- [ ] 1. Library Hub: new `/libraries` page (Overview + CVEs + Attacks + Device Library), nav consolidation, remove old library routes, fix links
-- [ ] 2. Live Traffic page: new `/live-traffic` (Live Dashboard + Deployments), remove those tabs from Agents hub, nav entry, route cleanup
-- [ ] 3. Settings → AI Integrations: fold AI Provider/Usage/Costs into one tab with Provider/Usage/Costs sub-tabs
-- [ ] 4. Settings: remove Network Defaults tab + drop 6 dead defaults from backend
-- [ ] 5. Settings: remove Traffic Agents pointer stub tab
-- [ ] 6. Settings: remove Modeling Labs pointer stub tab
-- [ ] 7. Downloads: delete presentation files + AVAILABLE_DOWNLOADS entries; keep authoring kit + OVA
-- [ ] 8. Settings: remove Seed Data tab (keep backend endpoint)
-- [ ] 9. Build + deploy (docker compose up -d --build frontend backend), verify
+## Phase 2 — New articles
+- [x] `agents-hub.tsx` — Agents / Topology / Local Labs / Modeling Labs (route /agents)
+- [x] `attack-simulation.tsx` — 11 playbooks, library, studio Attack tab states, after-action reports, PCAP injection
+- [x] `scenario-versions.tsx` — Ctrl+S, auto-versions, labels, diff (+AI summary), rollback safety snapshot
+- [x] Register all three in index.ts
 
-## Tasks (status)
-- [x] 1. Library Hub `/libraries` (Overview + CVEs + Attacks + Device Library)
-- [x] 2. Live Traffic page `/live-traffic` (Live Dashboard + Deployments)
-- [x] 3. Settings → AI Integrations (Provider/Usage/Costs sub-tabs)
-- [x] 4. Removed Network Defaults tab + 6 dead defaults (DEFAULT_SETTINGS + live DB rows)
-- [x] 5. Removed Traffic Agents + Modeling Labs stub tabs
-- [x] 6. Downloads: deleted 10 presentation files + manifest entries + dead UI code
-- [x] 7. Removed Seed Data tab (backend endpoint left intact)
-- [x] 8. Built + deployed (frontend+backend) + verified
+## Phase 3 — Expose AI help
+- [x] HelpAiAssistant component (aiApi.helpChat, route-derived context, AI_ENABLED gated) in HelpDrawer + HelpPage
+
+## Phase 4 — Guardrails
+- [x] index.ts: prefix-match fallback in getArticleForRoute
+- [x] Dedupe relatedPages (also found pre-existing /scenarios dual claim by templates) and drop dead /setup mapping
+- [x] Vitest: routes covered, unique relatedPages, no dead-route claims, prefix matching, valid cross-links
+
+## Phase 5 — Ship
+- [x] tsc clean, 119/119 frontend tests pass
+- [x] docker compose up -d --build frontend — container healthy, HTTP 200
+- [x] Commit to master
 
 ## Review
-Shipped + deployed (`docker compose up -d --build frontend backend`), backend healthy, v1.7.0.
-
-**Frontend nav** went from 11 entries to a tighter set: `Dashboard · Scenarios ·
-Libraries · Agents · Live Traffic · IP Management · Cyber Vision · Architecture ·
-Help · Settings`. The three library nav items collapsed into one **Libraries**
-entry; **Live Traffic** is now its own top-level entry (gated by LIVE_TRAFFIC).
-
-**Pattern used:** each consolidated page (LibraryHubPage, LiveTrafficPage) embeds
-the existing prop-less page components as deep-linkable `?tab=` tabs — same
-pattern AgentsHubPage already used. The three library pages got an `embedded`
-prop that drops their own padding/title so the hub owns the chrome.
-
-**Routes:** old `/cves`, `/fingerprints`, `/attack-library` removed (hard move);
-`/libraries?tab=…` is canonical. `/devices` and `/deployments` kept as
-convenience redirects into the new homes. Attack detail moved to
-`/libraries/attacks/:id`. Fixed all in-app links (sidebar, command palette,
-EmptyDashboard, help relatedPages, attack-detail back buttons).
-
-**Settings** went from 15 tabs to 9: `Overview · AI Integrations · Cyber Vision ·
-LDAP/AD · User Management · Downloads · Generated PCAPs · Updates · System`.
-AI Provider/Usage/Costs nested under one AI Integrations tab. Network Defaults,
-Traffic Agents (stub), Modeling Labs (stub), Seed Data all removed. Overview
-deep-links remapped (`ai_provider`→`ai`, `agents`→/agents page).
-
-**Verified live:** downloads endpoint now returns only authoring(4)+appliance(1),
-no presentations. settings + site-config endpoints 200. SPA + assets serve.
-
-**Follow-up (optional):** the 6 dead network settings were purged from THIS
-install's DB and removed from DEFAULT_SETTINGS (so fresh installs are clean), but
-other already-upgraded installs would keep the orphan rows. A tiny alembic
-migration deleting those keys would clean every install — not done (rows are
-provably inert; flagged for sign-off). Not committed to git yet — awaiting review.
+- 4 articles rewritten against code-verified facts; 3 new articles (agents-hub,
+  attack-simulation, scenario-versions) bring registry to 20 articles + glossary.
+- AI help endpoint's 9 contexts now reachable: HelpAiAssistant in drawer + /help,
+  context derived from route (helpContextForRoute).
+- getArticleForRoute gained longest-prefix fallback so /libraries/attacks/:id maps.
+- Guardrail test (help.test.ts) parses App.tsx routes; will fail CI if a new page
+  ships without help coverage or an article claims a dead/duplicate route.
+- Known remaining gaps (deliberate, smaller): no articles yet for process sim,
+  adaptive traffic/phases detail, portable scenario format; deployments article
+  text could mention phase scheduling. Candidates for a follow-up pass.

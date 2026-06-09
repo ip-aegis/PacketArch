@@ -8,31 +8,41 @@
  */
 
 import React from 'react';
-import { Typography, Space, Card, Divider, Alert, Table, Tag } from 'antd';
+import { Typography, Space, Card, Tag, Divider, Table, Alert } from 'antd';
 import {
-  AppstoreOutlined,
-  DragOutlined,
-  NodeIndexOutlined,
-  SettingOutlined,
-  SaveOutlined,
+  EditOutlined,
+  RobotOutlined,
+  ControlOutlined,
+  CloudUploadOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, BG_INSET, CARD_STYLE } from '../../constants/theme';
 import type { HelpArticle } from './index';
+import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, CARD_STYLE } from '../../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
+
+const SHORTCUTS = [
+  { keys: 'Ctrl+K', action: 'Open command palette (navigation, canvas actions, @device search)' },
+  { keys: 'Ctrl+S', action: 'Save an explicit version snapshot' },
+  { keys: 'Ctrl+D', action: 'Duplicate selected device' },
+  { keys: 'Ctrl+A', action: 'Select all devices' },
+  { keys: 'G', action: 'Cycle canvas grouping mode' },
+  { keys: 'Esc', action: 'Clear selection / close context menu' },
+  { keys: '?', action: 'Show all keyboard shortcuts' },
+];
 
 const ScenarioStudioContent: React.FC = () => {
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
         <Title level={4} style={{ color: '#fff', marginBottom: 8 }}>
-          <AppstoreOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
+          <EditOutlined style={{ marginRight: 8, color: ACCENT_BLUE }} />
           Scenario Studio
         </Title>
         <Paragraph style={{ color: TEXT_PARAGRAPH, fontSize: 15 }}>
-          The Scenario Studio is a visual canvas editor for designing OT network scenarios.
-          Drag devices from the palette, connect them with communication flows, and configure
-          protocol settings.
+          The Studio is the visual editor for scenarios: build the device topology on
+          the canvas, configure properties, chat with the AI assistant, deploy to
+          agents, and layer attack playbooks — all from one screen.
         </Paragraph>
       </div>
 
@@ -40,29 +50,29 @@ const ScenarioStudioContent: React.FC = () => {
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
           Interface Layout
         </Title>
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <Tag color="blue">Left Sidebar</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Device Palette - Drag devices onto the canvas
+              Device Palette - Drag devices from the template library onto the canvas
             </Text>
           </div>
           <div>
             <Tag color="green">Center</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Canvas - Visual workspace for building scenarios
+              Canvas - Devices, zones, flows, and conduits with a toolbar above
             </Text>
           </div>
           <div>
-            <Tag color="orange">Right Sidebar</Tag>
+            <Tag color="orange">Right Panel</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Properties Panel - Configure selected device or flow
+              Four tabs: AI Assistant, Properties, Deploy, and Attack
             </Text>
           </div>
           <div>
             <Tag color="purple">Bottom</Tag>
             <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Timeline Editor - Define execution phases
+              Timeline Editor - Drag/resize execution phases (startup, steady state, maintenance, shutdown, custom)
             </Text>
           </div>
         </Space>
@@ -70,148 +80,145 @@ const ScenarioStudioContent: React.FC = () => {
 
       <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
-          <DragOutlined style={{ marginRight: 8 }} />
-          Adding Devices
+          Right Panel Tabs
         </Title>
-        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          To add a device to your scenario:
-        </Paragraph>
-        <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
-          <li>Find the device type in the left palette (PLC, RTU, HMI, Drive, etc.)</li>
-          <li>Drag the device icon onto the canvas</li>
-          <li>Drop it in the desired location</li>
-          <li>Click on the device to select it and configure properties</li>
-        </ol>
-        <Alert
-          type="info"
-          showIcon
-          message="Tip"
-          description="Devices are automatically assigned IP addresses from your scenario's allocated range."
-          style={{ ...CARD_STYLE, background: BG_INSET, marginTop: 12 }}
-        />
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <div>
+            <Tag color="purple" icon={<RobotOutlined />} style={{ marginBottom: 4 }}>
+              AI Assistant
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Chat about the open scenario: ask it to add devices, fix flows, rename
+              things, or explain design choices. Ctrl+Enter sends a message. Requires
+              an AI provider configured in Settings.
+            </Paragraph>
+          </div>
+          <div>
+            <Tag color="blue" icon={<ControlOutlined />} style={{ marginBottom: 4 }}>
+              Properties
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Context-aware editor for whatever is selected: device (name, type, vendor
+              fingerprint, firmware, IP, MAC, protocols), flow (protocol, poll interval),
+              zone, or conduit.
+            </Paragraph>
+          </div>
+          <div>
+            <Tag color="green" icon={<CloudUploadOutlined />} style={{ marginBottom: 4 }}>
+              Deploy
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Pick a traffic agent, review the readiness checklist (devices present,
+              flows complete, unique names and MACs), and launch a timed or perpetual
+              deployment. A green dot on the tab means a deployment is running.
+            </Paragraph>
+          </div>
+          <div>
+            <Tag color="red" icon={<ThunderboltOutlined />} style={{ marginBottom: 4 }}>
+              Attack
+            </Tag>
+            <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+              Select and configure an ICS attack playbook, inject it into a running
+              deployment, follow the kill chain live, and open the after-action report.
+              See the Attack Simulation article for the full workflow.
+            </Paragraph>
+          </div>
+        </Space>
       </Card>
 
       <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
-          <NodeIndexOutlined style={{ marginRight: 8 }} />
-          Creating Flows
+          Building the Topology
         </Title>
-        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Flows define communication between devices. To create a flow:
-        </Paragraph>
-        <ol style={{ color: TEXT_PARAGRAPH, paddingLeft: 20 }}>
-          <li>Click on a device's output handle (right side)</li>
-          <li>Drag to the target device's input handle (left side)</li>
-          <li>Release to create the connection</li>
-          <li>Click on the flow line to configure protocol settings</li>
-        </ol>
-        <Divider style={{ borderColor: BORDER_DEFAULT }} />
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Add Devices</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Drag from the palette; each device gets a vendor fingerprint, IP, and vendor-correct MAC</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Create Flows</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Connect two devices to define protocol traffic between them</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Zones &amp; Conduits</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Group devices into IEC 62443 zones; draw conduits (or auto-generate them from Purdue adjacency) to justify cross-zone traffic</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Customize Names</Text>
+            <Text style={{ color: '#6b6b8a' }}> - AI renaming with optional process context (e.g. "brewery bottling line")</Text>
+          </div>
+        </Space>
+      </Card>
+
+      <Card style={CARD_STYLE}>
+        <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
+          Canvas Toolbar
+        </Title>
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <div>
+            <Text strong style={{ color: '#fff' }}>View &amp; Edit</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Zoom, fit view, undo/redo, delete selected, minimap toggle</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Layout &amp; Grouping</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Auto-layouts (Purdue Model, Data Flow, Grid, Circular) and cluster grouping (by zone, protocol, vendor, Purdue level, device type)</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Edges</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Show/hide flows and conduits; aggregate flows into one edge per zone pair</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Ambient Traffic</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Broadcast on/off (ARP, NTP, LLDP, CDP, DHCP, …) and Clean Demo Mode (suppresses PROFINET cyclic flood)</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Cell Isolation</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Enforce that cell traffic stays inside its zone except via defined conduits</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Review</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Rationality badge (architecture warnings) and AI Scenario Review drawer with remediation actions</Text>
+          </div>
+          <div>
+            <Text strong style={{ color: '#fff' }}>Versions</Text>
+            <Text style={{ color: '#6b6b8a' }}> - Save Version (Ctrl+S) and Version History with diff and rollback</Text>
+          </div>
+        </Space>
+      </Card>
+
+      <Divider style={{ borderColor: BORDER_DEFAULT }} />
+
+      <div>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
-          Flow Properties
+          Keyboard Shortcuts
         </Title>
         <Table
           size="small"
           pagination={false}
-          dataSource={[
-            { prop: 'Protocol', desc: 'Modbus TCP, EtherNet/IP, or PROFINET' },
-            { prop: 'Polling Interval', desc: 'How often the master polls the slave (ms)' },
-            { prop: 'Function Codes', desc: 'Modbus functions to use (read/write registers, coils)' },
-            { prop: 'Address Range', desc: 'Register or coil addresses to access' },
-            { prop: 'Data Points', desc: 'Number of data points per poll cycle' },
-          ]}
+          dataSource={SHORTCUTS}
           columns={[
             {
-              title: 'Property',
-              dataIndex: 'prop',
-              render: (text) => <Text strong style={{ color: '#fff' }}>{text}</Text>,
+              title: 'Keys',
+              dataIndex: 'keys',
+              render: (text: string) => <Text code>{text}</Text>,
+              width: 110,
             },
             {
-              title: 'Description',
-              dataIndex: 'desc',
-              render: (text) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
+              title: 'Action',
+              dataIndex: 'action',
+              render: (text: string) => <Text style={{ color: TEXT_PARAGRAPH }}>{text}</Text>,
             },
           ]}
           style={{ background: 'transparent' }}
-          rowKey="prop"
+          rowKey="keys"
         />
-      </Card>
-
-      <Card style={CARD_STYLE}>
-        <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
-          <SettingOutlined style={{ marginRight: 8 }} />
-          Device Configuration
-        </Title>
-        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Select a device to view and edit its properties in the right panel:
-        </Paragraph>
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Name & Type</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Device identification</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>IP Address</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Network address (auto-assigned or custom)</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>MAC Address</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Physical address (auto-generated from vendor OUI)</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Vendor Fingerprint</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Real device identity (Siemens, Rockwell, etc.)</Text>
-          </div>
-          <div>
-            <Text strong style={{ color: '#fff' }}>Protocols</Text>
-            <Text style={{ color: '#6b6b8a' }}> - Enabled communication protocols</Text>
-          </div>
-        </Space>
-      </Card>
-
-      <Card style={CARD_STYLE}>
-        <Title level={5} style={{ color: '#fff', marginBottom: 16 }}>
-          Canvas Controls
-        </Title>
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <div>
-            <Tag color="blue">Scroll/Drag</Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Pan the canvas view
-            </Text>
-          </div>
-          <div>
-            <Tag color="blue">Scroll Wheel</Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Zoom in/out
-            </Text>
-          </div>
-          <div>
-            <Tag color="blue">Click Device</Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Select and view properties
-            </Text>
-          </div>
-          <div>
-            <Tag color="blue">Delete Key</Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Remove selected device or flow
-            </Text>
-          </div>
-          <div>
-            <Tag color="blue">Minimap</Tag>
-            <Text style={{ color: TEXT_PARAGRAPH, marginLeft: 8 }}>
-              Navigate large scenarios (bottom-right corner)
-            </Text>
-          </div>
-        </Space>
-      </Card>
+      </div>
 
       <Alert
-        type="success"
+        type="info"
         showIcon
-        icon={<SaveOutlined />}
-        message="Auto-Save"
-        description="Changes are automatically saved as you work. You'll see a brief indicator when saves occur."
+        message="Readiness before you run"
+        description="The Deploy tab's readiness checklist validates the scenario (devices, complete flows, unique names and MAC addresses) before deployment or PCAP generation. Fix errors it reports — warnings are advisory."
         style={CARD_STYLE}
       />
     </Space>
@@ -223,12 +230,13 @@ export const scenarioStudioArticle: HelpArticle = {
   title: 'Scenario Studio',
   category: 'scenarios',
   keywords: [
-    'studio', 'canvas', 'editor', 'visual', 'drag', 'drop', 'device', 'flow',
-    'connection', 'configure', 'design', 'build', 'create', 'node', 'edge'
+    'studio', 'canvas', 'editor', 'device', 'flow', 'zone', 'conduit',
+    'drag', 'drop', 'palette', 'properties', 'ai assistant', 'deploy',
+    'attack', 'timeline', 'phases', 'shortcuts', 'command palette', 'layout'
   ],
-  summary: 'Visual canvas editor for designing OT network scenarios with drag-and-drop devices and flows.',
+  summary: 'The visual scenario editor: canvas, device palette, AI assistant, deploy, attack, timeline phases, and keyboard shortcuts.',
   content: ScenarioStudioContent,
-  relatedArticles: ['scenarios', 'device-library', 'deployments'],
+  relatedArticles: ['scenarios', 'scenario-versions', 'attack-simulation', 'deployments'],
   relatedPages: ['/studio'],
   order: 2,
 };

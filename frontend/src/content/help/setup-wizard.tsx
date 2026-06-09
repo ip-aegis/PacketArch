@@ -113,6 +113,6 @@ export const setupWizardArticle: HelpArticle = {
   summary: 'The 4-step onboarding flow that runs once per install to create the admin account and configure site identity.',
   content: SetupWizardContent,
   relatedArticles: ['getting-started', 'admin-settings'],
-  relatedPages: ['/setup'],
+  relatedPages: [],
   order: 2,
 };

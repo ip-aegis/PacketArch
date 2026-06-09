@@ -23,6 +23,7 @@ import {
 import HelpSearch from '../components/help/HelpSearch';
 import HelpTOC from '../components/help/HelpTOC';
 import HelpArticle from '../components/help/HelpArticle';
+import HelpAiAssistant from '../components/help/HelpAiAssistant';
 import {
   getAllArticles,
   categoryInfo,
@@ -202,6 +203,11 @@ const HelpPage: React.FC = () => {
               </Col>
             ))}
           </Row>
+
+          {/* Ask AI */}
+          <div style={{ marginTop: 24 }}>
+            <HelpAiAssistant routePath="/help" />
+          </div>
 
           {/* All Articles */}
           <Card
