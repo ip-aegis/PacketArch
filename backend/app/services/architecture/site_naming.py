@@ -18,6 +18,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
+from app.core.name_normalize import normalize_acronyms
 from app.services.architecture.site_identity import (
     DEFAULT_ROLE_PATTERNS,
     SiteIdentity,
@@ -268,6 +269,7 @@ def apply_site_identity(
                 new_zone_name = zone_names.get(zid)
                 if not new_zone_name:
                     continue
+                new_zone_name = normalize_acronyms(new_zone_name)
                 old_zone_name = zdata.get("name")
                 if old_zone_name and old_zone_name != new_zone_name:
                     zdata.setdefault("_archetype_name", old_zone_name)

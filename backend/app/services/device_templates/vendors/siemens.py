@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -173,7 +173,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact S7-1200 CPU for small to medium automation tasks",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -278,7 +278,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="7-inch Basic Panel with touch and key operation",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -355,7 +355,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance S7-1500 CPU with PROFINET and PROFIBUS interfaces",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -476,7 +476,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="S7-1500 CPU with PROFINET and PROFIBUS interfaces (earlier version)",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -575,7 +575,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact S7-1500 CPU for small automation tasks",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -662,7 +662,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Failsafe S7-1500 CPU for safety applications up to SIL3/PLe",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -755,7 +755,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="12-inch Comfort Panel with touch operation",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -843,7 +843,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="9-inch Basic Panel with touch and key operation",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -910,7 +910,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Compact frequency converter for simple drive tasks",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -977,7 +977,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="servo",
         description="High-performance servo drive system for motion control",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1039,7 +1039,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Distributed frequency converter for conveyor applications",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1099,7 +1099,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="PROFINET interface module for ET 200SP distributed I/O",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1159,7 +1159,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Central traffic management controller for ITS applications",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1216,7 +1216,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Field traffic signal controller with NTCIP support",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1273,7 +1273,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="master_station",
         description="Master traffic signal controller for intersection coordination",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1330,7 +1330,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Building management system for HVAC, lighting, and access control",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 128,
@@ -1394,7 +1394,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="S7-300 CPU with integrated PROFINET and PROFIBUS interfaces (legacy)",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1469,7 +1469,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-end S7-400 CPU for complex automation tasks (legacy)",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1544,7 +1544,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="ET 200MP distributed I/O interface module for PROFINET",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1604,7 +1604,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="S7-1200 Fail-safe CPU with integrated safety I/O",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1695,7 +1695,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="scada",
         description="SCADA system for visualization and process control",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 128,
@@ -1780,7 +1780,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Overcurrent and motor protection relay",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1848,7 +1848,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Line differential protection relay",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1911,7 +1911,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Line differential protection relay for transmission lines",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -1979,7 +1979,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Transformer differential protection relay",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B", "00:1C:06"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2047,7 +2047,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Modular drive system for a wide range of applications",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2123,7 +2123,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="15-inch Comfort Panel with widescreen display",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2205,7 +2205,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_server",
         description="Integrated building management platform",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 128,  # Windows based
@@ -2270,7 +2270,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="room_controller",
         description="Compact room automation controller for HVAC",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2345,7 +2345,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced Transportation Controller with NTCIP support",
 
-        oui_prefixes=["00:0E:8C", "00:30:5C"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2400,7 +2400,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Central traffic management controller for arterial coordination",
 
-        oui_prefixes=["00:0E:8C", "00:30:5C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 128,
@@ -2468,7 +2468,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="engineering_station",
         description="Engineering and programming station for Siemens PLCs",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 128,
@@ -2540,7 +2540,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="New generation HMI with OPC UA support",
 
-        oui_prefixes=["00:0E:8C", "00:1B:1B"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -2610,7 +2610,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 155-5AA01-0AB0",
         device_type="io_module",
         description="Siemens 6ES7 155-5AA01-0AB0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -2666,7 +2666,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 155-6AU01-0BN0",
         device_type="io_module",
         description="Siemens 6ES7 155-6AU01-0BN0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2725,7 +2725,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 214-1HF40-0XB0",
         device_type="plc",
         description="Siemens 6ES7 214-1HF40-0XB0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -2808,7 +2808,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 315-2EH14-0AB0",
         device_type="plc",
         description="Siemens 6ES7 315-2EH14-0AB0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2880,7 +2880,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 416-3ES07-0AB0",
         device_type="plc",
         description="Siemens 6ES7 416-3ES07-0AB0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -2952,7 +2952,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6ES7 516-3FN02-0AB0",
         device_type="plc",
         description="Siemens 6ES7 516-3FN02-0AB0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -3040,7 +3040,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6SL3130-7TE25-5AA3",
         device_type="drive",
         description="Siemens 6SL3130-7TE25-5AA3",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -3103,7 +3103,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6SL3210-1KE21-7UF1",
         device_type="drive",
         description="Siemens 6SL3210-1KE21-7UF1",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -3166,7 +3166,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="6SL3544-0FB21-1FA0",
         device_type="drive",
         description="Siemens 6SL3544-0FB21-1FA0",
-        oui_prefixes=['00:0E:8C', '00:1B:1B', '00:1C:06'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -3222,7 +3222,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="CP-8000",
         device_type="traffic_controller",
         description="Siemens CP-8000",
-        oui_prefixes=['00:1F:F8', '00:0E:8C', '64:00:6A'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3265,7 +3265,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-LIGHT",
         device_type="tunnel_controller",
         description="Siemens TCS-LIGHT",
-        oui_prefixes=['00:1F:F8', '00:0E:8C', '64:00:6A'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3308,7 +3308,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-VENT",
         device_type="tunnel_controller",
         description="Siemens TCS-VENT",
-        oui_prefixes=['00:1F:F8', '00:0E:8C', '64:00:6A'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3351,7 +3351,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="XM-400",
         device_type="traffic_controller",
         description="Siemens XM-400",
-        oui_prefixes=['00:1F:F8', '00:0E:8C', '64:00:6A'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 65535,
@@ -3400,7 +3400,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Generator protection relay with comprehensive machine protection functions",
 
-        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -3494,7 +3494,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Distributed busbar differential protection relay",
 
-        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,
@@ -3588,7 +3588,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Autoreclose and synchrocheck relay for line bay applications",
 
-        oui_prefixes=["00:0E:8C", "00:1C:06", "74:DA:EA"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
             "ttl": 64,

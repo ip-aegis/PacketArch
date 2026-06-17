@@ -28,6 +28,7 @@ import logging
 import re
 from typing import Any
 
+from app.core.name_normalize import normalize_acronyms
 from app.protocol_engines.vendor_oui import generate_mac_address
 from app.scenario_templates.phases import get_default_phases
 from app.services.architecture.archetypes import (
@@ -525,9 +526,8 @@ def generate_from_archetype(
 
     def _themed_zone_name(z: ZoneDef) -> str:
         theme = zone_themes.get(z.id)
-        if theme:
-            return theme.strip().replace("_", " ")
-        return z.name
+        name = theme.strip().replace("_", " ") if theme else z.name
+        return normalize_acronyms(name)
 
     # ----- 1. Zone materialization ------------------------------------
     selected_zones = _select_zones(archetype, scale)

@@ -761,3 +761,86 @@ def _build_cloud_flow_context(
         },
         timing_model={"poll_interval_ms": interval_ms},
     )
+
+
+@celery_app.task(bind=True, name="packetarch.provision_cyber_vision")
+def provision_cyber_vision(
+    self,
+    scenario_id: str,
+    poll: bool = True,
+    max_polls: int = 15,
+    interval_seconds: int = 60,
+    attempt: int = 1,
+    max_attempts: int = 8,
+    retry_countdown: int = 300,
+):
+    """Poll Cyber Vision and create one group per scenario zone.
+
+    Enqueued (typically with a countdown) after a CV preset has been created
+    for the scenario. Polls the preset until the discovered-device count
+    stabilises, then creates/assigns CV groups from the scenario's zones.
+
+    Because Cyber Vision's device aggregation can lag a fresh deployment by
+    well over the active poll window, the task RE-ARMS itself (up to
+    ``max_attempts``) whenever CV hasn't surfaced any of the scenario's devices
+    yet — so groups eventually populate without an operator re-click.
+
+    Args:
+        scenario_id: Scenario UUID string.
+        poll: Whether to poll-until-stable before creating groups.
+        max_polls: Max poll iterations per attempt.
+        interval_seconds: Seconds between polls.
+        attempt: 1-based attempt counter (for self re-arm).
+        max_attempts: Max total attempts before giving up.
+        retry_countdown: Seconds to wait before re-arming when CV is still empty.
+    """
+    import asyncio
+
+    from app.services.cv_provisioning_service import provision_groups
+
+    async def _run() -> dict:
+        session_maker = _get_celery_session_maker()
+        async with session_maker() as session:
+            return await provision_groups(
+                session,
+                uuid.UUID(scenario_id),
+                poll=poll,
+                max_polls=max_polls,
+                interval_seconds=interval_seconds,
+            )
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        result = loop.run_until_complete(_run())
+        # Re-arm if CV hasn't discovered any devices yet (status stayed "polling").
+        if (
+            isinstance(result, dict)
+            and result.get("status") == "polling"
+            and int(result.get("device_count") or 0) == 0
+            and attempt < max_attempts
+        ):
+            logger.info(
+                f"CV provisioning scenario {scenario_id}: no devices yet "
+                f"(attempt {attempt}/{max_attempts}) — re-arming in {retry_countdown}s"
+            )
+            provision_cyber_vision.apply_async(
+                kwargs={
+                    "scenario_id": scenario_id,
+                    "poll": poll,
+                    "max_polls": max_polls,
+                    "interval_seconds": interval_seconds,
+                    "attempt": attempt + 1,
+                    "max_attempts": max_attempts,
+                    "retry_countdown": retry_countdown,
+                },
+                countdown=retry_countdown,
+            )
+        else:
+            logger.info(f"CV provisioning task complete for scenario {scenario_id}")
+        return result
+    except Exception:
+        logger.exception(f"CV provisioning task failed for scenario {scenario_id}")
+        raise
+    finally:
+        loop.close()

@@ -103,6 +103,8 @@ export interface DeploymentCreate {
   attack_playbook?: Record<string, unknown>;
   /** Optional per-run override of Purdue cell isolation: {mode, applies_to_levels?}. */
   cell_isolation_override?: Record<string, unknown>;
+  /** Create a Cyber Vision preset + zone groups for this scenario at deploy time. */
+  provision_cyber_vision?: boolean;
 }
 
 /**

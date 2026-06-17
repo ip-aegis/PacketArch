@@ -17,7 +17,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MIC IP 7100i",
         device_type="camera",
         description="Bosch MIC IP 7100i",
-        oui_prefixes=['00:04:13', '00:07:5F'],
+        oui_prefixes=["00:01:31", "00:04:63", "00:0B:0F", "00:0D:5C"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -59,7 +59,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Jump Server 2008 R2 (Vulnerable)",
         device_type="server",
         description="Microsoft Jump Server 2008 R2 (Vulnerable)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -109,7 +109,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Jump Server 2016 (Vulnerable)",
         device_type="server",
         description="Microsoft Jump Server 2016 (Vulnerable)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -163,7 +163,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Jump Server 2019",
         device_type="server",
         description="Microsoft Jump Server 2019",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -210,7 +210,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="WSUS Server 2019",
         device_type="server",
         description="Microsoft Windows Server Update Services 2019 (WSUS)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -264,7 +264,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="WSUS Server 2022",
         device_type="server",
         description="Microsoft Windows Server Update Services 2022 (WSUS)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -318,7 +318,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MECM Server 2022",
         device_type="server",
         description="Microsoft Endpoint Configuration Manager (SCCM / MECM)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -372,7 +372,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Defender for Endpoint 2022",
         device_type="server",
         description="Microsoft Defender for Endpoint management server",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -426,7 +426,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Symantec Endpoint Protection Manager 14",
         device_type="server",
         description="Broadcom Symantec Endpoint Protection Manager (SEPM)",
-        oui_prefixes=['00:1B:21', '00:50:56', '00:0C:29'],
+        oui_prefixes=["00:05:B5", "00:0A:F7", "00:0D:B6", "00:10:18"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -479,7 +479,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="PRTG Network Monitor 24",
         device_type="server",
         description="Paessler PRTG Network Monitor — NMS appliance",
-        oui_prefixes=['00:15:5D', '00:50:56', '00:0C:29'],
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -532,7 +532,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="OSIsoft PI Server 2018",
         device_type="server",
         description="Aveva / OSIsoft PI Server (data archive + AF)",
-        oui_prefixes=['00:15:5D', '00:50:56', '00:0C:29'],
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -594,7 +594,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Opcenter Execution Discrete 2406",
         device_type="server",
         description="Siemens Opcenter Execution Discrete (MES)",
-        oui_prefixes=['00:1B:1B', '00:0E:8C', '00:1F:F8', '00:15:5D', '00:50:56'],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -656,7 +656,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Lansweeper 11",
         device_type="server",
         description="Lansweeper IT asset discovery + inventory server",
-        oui_prefixes=['00:15:5D', '00:50:56', '00:0C:29'],
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -709,7 +709,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="InTouch Alarm Server 2023",
         device_type="server",
         description="Aveva InTouch Alarm + Event Server",
-        oui_prefixes=['00:15:5D', '00:50:56', '00:0C:29'],
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -767,7 +767,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="BIG-IP i2800",
         device_type="appliance",
         description="F5 BIG-IP LTM reverse proxy / load balancer",
-        oui_prefixes=['00:01:D7', '00:94:A1', 'F4:0F:24'],
+        oui_prefixes=["00:01:D7", "00:0A:49", "00:23:E9", "00:94:A1"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -820,7 +820,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="FactoryTalk View SE Station 14",
         device_type="server",
         description="Rockwell FactoryTalk View SE Station (HMI/SCADA on Windows)",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '00:50:56'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -888,7 +888,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Studio 5000 Logix Designer 36",
         device_type="server",
         description="Rockwell Studio 5000 Logix Designer (engineering workstation)",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '00:50:56'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -944,7 +944,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="EcoStruxure Control Expert 16",
         device_type="server",
         description="Schneider EcoStruxure Control Expert (PLC engineering on Windows)",
-        oui_prefixes=['00:80:F4', '00:80:6F', '00:50:56'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -1008,7 +1008,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Geo SCADA Expert 2022",
         device_type="server",
         description="Schneider Geo SCADA Expert (SCADA on Windows)",
-        oui_prefixes=['00:80:F4', '00:80:6F', '00:50:56'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -1072,7 +1072,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="800xA Operator Workplace 6.1.1",
         device_type="server",
         description="ABB 800xA Operator Workplace (DCS HMI on Windows)",
-        oui_prefixes=['00:1B:1B', '00:1F:F8', '00:50:56'],
+        oui_prefixes=["00:00:23", "00:02:2C", "00:03:2C", "00:0C:02"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -1130,7 +1130,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Jump Server 2019 (PrintNightmare)",
         device_type="server",
         description="Microsoft Jump Server 2019 (PrintNightmare)",
-        oui_prefixes=['00:15:5D', '00:1D:D8', '00:50:F2', '00:03:FF', '7C:1E:52'],
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,

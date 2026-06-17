@@ -174,7 +174,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="flow_sensor",
         description="Electromagnetic flow meter for process applications",
 
-        oui_prefixes=["00:04:F3", "00:80:A3"],
+        oui_prefixes=["00:07:05"],
 
         tcp_stack={
             "ttl": 64,
@@ -234,7 +234,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="level_sensor",
         description="Guided wave radar level transmitter for liquids and solids",
 
-        oui_prefixes=["00:04:F3", "00:80:A3"],
+        oui_prefixes=["00:07:05"],
 
         tcp_stack={
             "ttl": 64,
@@ -294,7 +294,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="pressure_sensor",
         description="Digital pressure transmitter for process measurement",
 
-        oui_prefixes=["00:04:F3", "00:80:A3"],
+        oui_prefixes=["00:07:05"],
 
         tcp_stack={
             "ttl": 64,
@@ -354,7 +354,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="flow_meter",
         description="Electromagnetic flowmeter for process measurement applications",
 
-        oui_prefixes=["00:0E:B3", "00:50:C2"],
+        oui_prefixes=["00:07:05"],
 
         tcp_stack={
             "ttl": 64,
@@ -417,7 +417,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="analyzer",
         description="Multi-parameter transmitter for liquid analysis",
 
-        oui_prefixes=["00:0E:B3", "00:50:C2"],
+        oui_prefixes=["00:07:05"],
 
         tcp_stack={
             "ttl": 64,
@@ -480,7 +480,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="weather_station",
         description="Road weather station for transportation applications",
 
-        oui_prefixes=["00:0E:C3"],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
 
         tcp_stack={
             "ttl": 64,
@@ -534,7 +534,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="FMU90",
         device_type="field_instrument",
         description="Endress+Hauser FMU90",
-        oui_prefixes=['00:0B:CD', '00:80:A3'],
+        oui_prefixes=["00:07:05"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -587,7 +587,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Promag W 400",
         device_type="field_instrument",
         description="Endress+Hauser Promag W 400",
-        oui_prefixes=['00:0B:CD', '00:80:A3'],
+        oui_prefixes=["00:07:05"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,

@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8-port rugged industrial Ethernet switch with 2 SFP",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "00:17:0E", "F8:C2:88", "3C:08:F6"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,  # IOS XE
@@ -98,7 +98,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8x 10/100/1000 + 4x combo GE industrial managed switch",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "00:17:0E", "F8:C2:88"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -173,7 +173,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="24x GE PoE+ RJ45 + 4x 10G SFP+ industrial switch with Network Essentials",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,  # IOS XE
@@ -275,7 +275,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="22x GE SFP + 2x dual-media + 4x GE SFP industrial switch",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -366,7 +366,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="22x GE SFP + 2x dual-media + 4x GE SFP base model industrial switch",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -441,7 +441,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="24x GE copper RJ45 + 4x 10G SFP+ industrial switch",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -532,7 +532,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8x GE PoE/PoE+ + 3x GE SFP compact industrial switch with 240W PoE budget",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,  # IOS XE
@@ -632,7 +632,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8x GE copper + 3x GE SFP compact industrial switch (non-PoE)",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -723,7 +723,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8x GE PoE/PoE+/4PPoE + 3x 10G SFP+ high-power industrial switch with 480W PoE budget",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -814,7 +814,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="network_switch",
         description="8x GE PoE+ + 3x GE SFP industrial switch with HSR/PRP/DLR redundancy",
 
-        oui_prefixes=["00:26:98", "00:1A:A1", "F8:C2:88", "3C:08:F6", "70:7D:B9"],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -904,7 +904,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Stratix 5700",
         device_type="network_switch",
         description="Cisco Stratix 5700",
-        oui_prefixes=['00:1B:0D', '00:1E:BD'],
+        oui_prefixes=["00:00:0C", "00:01:42", "00:01:43", "00:01:63"],
         tcp_stack={
                 "ttl": 255,
                 "window_size": 16384,

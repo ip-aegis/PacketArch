@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass
 
 import httpx
@@ -13,6 +14,37 @@ import httpx
 from app.protocol_engines.vendor_oui import get_vendor_for_oui
 
 logger = logging.getLogger(__name__)
+
+
+# Tag IDs/categories cloned verbatim from the live "Segmented Manufacturing"
+# preset (CV center, API 3.0). Excluding this background noise keeps a
+# per-scenario preset focused on the OT devices and flows that matter, exactly
+# like the operator-built reference preset.
+_TAG_CATEGORY_PROTOCOL = {
+    "id": "b6d3d12d-9e34-5afc-89e2-3fc32fdaf1a2",
+    "label": "Protocol",
+    "priority_order": 0,
+}
+_TAG_CATEGORY_NETWORK = {
+    "id": "5cb3eeb7-b0eb-5553-8575-8f11d25de770",
+    "label": "Network analysis",
+    "priority_order": 0,
+}
+_TAG_CATEGORY_IT = {
+    "id": "234be9bd-28d8-5931-a787-5685d9616550",
+    "label": "IT behavior",
+    "priority_order": 0,
+}
+
+NOISE_EXCLUDE_TAGS: list[dict] = [
+    {"operator": "exclude", "value": {"id": "ARP", "label": "ARP", "type": "flow", "category": _TAG_CATEGORY_PROTOCOL}},
+    {"operator": "exclude", "value": {"id": "ICMP", "label": "ICMP", "type": "flow", "category": _TAG_CATEGORY_PROTOCOL}},
+    {"operator": "exclude", "value": {"id": "IPV6", "label": "IPv6", "type": "flow", "category": _TAG_CATEGORY_PROTOCOL}},
+    {"operator": "exclude", "value": {"id": "PING", "label": "Ping", "type": "flow", "category": _TAG_CATEGORY_IT}},
+    {"operator": "exclude", "value": {"id": "BROADCAST", "label": "Broadcast", "type": "flow", "category": _TAG_CATEGORY_NETWORK}},
+    {"operator": "exclude", "value": {"id": "NETBIOS", "label": "Netbios", "type": "flow", "category": _TAG_CATEGORY_PROTOCOL}},
+    {"operator": "exclude", "value": {"id": "MULTICAST", "label": "Multicast", "type": "flow", "category": _TAG_CATEGORY_NETWORK}},
+]
 
 
 @dataclass
@@ -142,6 +174,40 @@ def normalize_mac(mac: str | None) -> str | None:
     if len(clean) == 12:
         return ":".join(clean[i : i + 2] for i in range(0, 12, 2))
     return mac.lower()
+
+
+def is_broadcast_multicast(mac: str | None, ip=None) -> bool:
+    """True if a MAC/IP looks like a broadcast or multicast endpoint.
+
+    - MAC: the multicast/broadcast bit (LSB of the first octet) covers
+      ff:ff:ff:ff:ff:ff, 01:00:5e:* (IPv4 mcast), 33:33:* (IPv6 mcast),
+      01:80:c2:* (STP/LLDP), etc.
+    - IP: 255.255.255.255, 224.0.0.0/4 (IPv4 mcast), ff00::/8 (IPv6 mcast).
+    """
+    m = normalize_mac(mac) if mac else None
+    if m:
+        try:
+            if int(m.split(":")[0], 16) & 1:
+                return True
+        except ValueError:
+            pass
+
+    ips = ip if isinstance(ip, list) else [ip]
+    for one in ips:
+        s = str(one or "").strip().lower()
+        if not s:
+            continue
+        if s == "255.255.255.255":
+            return True
+        if s.startswith("ff"):  # IPv6 multicast ff00::/8
+            return True
+        try:
+            first = int(s.split(".")[0])
+            if 224 <= first <= 239:  # IPv4 multicast 224-239
+                return True
+        except (ValueError, IndexError):
+            pass
+    return False
 
 
 def _normalize_cv_vendor(vendor: str) -> str:
@@ -389,7 +455,12 @@ class CyberVisionService:
             self._client = None
 
     async def _request(
-        self, method: str, endpoint: str, params: dict | None = None, json: dict | None = None
+        self,
+        method: str,
+        endpoint: str,
+        params: dict | None = None,
+        json: dict | None = None,
+        api_version: str = "3.0",
     ) -> dict | list:
         """Make an API request.
 
@@ -398,6 +469,8 @@ class CyberVisionService:
             endpoint: API endpoint (e.g., /devices)
             params: Query parameters
             json: JSON body for POST/PUT
+            api_version: CV API version path segment. Almost everything is
+                "3.0"; group deletion is only exposed under the legacy "1.0".
 
         Returns:
             Response data
@@ -406,13 +479,16 @@ class CyberVisionService:
             httpx.HTTPStatusError: On API errors
         """
         client = await self._get_client()
-        url = f"{self.base_url}/api/3.0{endpoint}"
+        url = f"{self.base_url}/api/{api_version}{endpoint}"
 
         logger.debug(f"CV API request: {method} {url}")
 
         response = await client.request(method, url, params=params, json=json)
         response.raise_for_status()
 
+        # DELETE / some POSTs return empty bodies
+        if not response.content:
+            return {}
         return response.json()
 
     async def test_connection(self) -> CVConnectionResult:
@@ -997,6 +1073,214 @@ class CyberVisionService:
 
         return results
 
+    # ==================== Preset / Group provisioning ====================
+
+    async def get_devices_raw(self, preset_id: str | None = None, size: int = 500) -> list[dict]:
+        """Fetch raw device dicts (not coerced to CVDevice).
+
+        Group membership PATCH needs the raw ``id``/``isDevice``/``mac`` fields,
+        which the CVDevice dataclass drops. Auto-paginates.
+
+        Args:
+            preset_id: If set, query the preset's networknode-list view;
+                otherwise the main /devices endpoint (which returns the
+                aggregated device IDs valid for group PATCH).
+            size: Page size.
+
+        Returns:
+            List of raw device dicts.
+        """
+        out: list[dict] = []
+        page = 1
+        while True:
+            if preset_id:
+                endpoint = f"/presets/{preset_id}/visualisations/networknode-list"
+            else:
+                endpoint = "/devices"
+            data = await self._request("GET", endpoint, params={"page": page, "size": size})
+            items = data if isinstance(data, list) else data.get("items", [])
+            items = [d for d in items if d]
+            out.extend(items)
+            if len(items) < size or page > 100:
+                break
+            page += 1
+        return out
+
+    async def get_components_raw(self, size: int = 500) -> list[dict]:
+        """Fetch raw component dicts from /components (auto-paginating).
+
+        Cyber Vision ingests raw entities as *components* (per MAC/IP) before
+        aggregating them into *devices*, so freshly-observed traffic shows up
+        here first. Group PATCH accepts component IDs on the /components path.
+        """
+        out: list[dict] = []
+        page = 1
+        while True:
+            data = await self._request("GET", "/components", params={"page": page, "size": size})
+            items = data if isinstance(data, list) else data.get("items", [])
+            items = [d for d in items if d]
+            out.extend(items)
+            if len(items) < size or page > 100:
+                break
+            page += 1
+        return out
+
+    async def create_preset(
+        self,
+        label: str,
+        description: str,
+        subnet: str | None = None,
+        exclude_groups: list[dict] | None = None,
+        subnets: list[str] | None = None,
+    ) -> dict:
+        """Create a CV preset, optionally scoped to one or more subnets.
+
+        Mirrors the operator-built "Segmented Manufacturing" preset: a subnet
+        include filter plus the standard background-noise tag excludes and the
+        Broadcast group exclude. CV accepts an arbitrary subnet and mints its
+        own network id, so no pre-registered custom network is required.
+
+        Args:
+            label: Preset name (shown in CV).
+            description: Preset description.
+            subnet: Optional single CIDR (e.g. "10.42.0.0/16") to scope the preset.
+            exclude_groups: Groups to exclude, each ``{"id", "label"}`` (e.g.
+                the Broadcast group).
+            subnets: Optional list of CIDRs — for vertical roll-up presets that
+                aggregate several scenarios. Combined with ``subnet`` if both given.
+
+        Returns:
+            The created preset object (includes ``id``).
+        """
+        cidrs = list(subnets or [])
+        if subnet:
+            cidrs.append(subnet)
+        networks: list[dict] = [
+            {"operator": "include", "value": {"id": str(uuid.uuid4()), "subnet": c}}
+            for c in dict.fromkeys(cidrs)  # de-dup, preserve order
+        ]
+
+        groups = [
+            {
+                "operator": "exclude",
+                "value": {"id": g["id"], "label": g.get("label", ""), "color": 0},
+            }
+            for g in (exclude_groups or [])
+            if g.get("id")
+        ]
+
+        body = {
+            "label": label,
+            # CV caps preset descriptions at 180 chars — hard guard.
+            "description": (description or "")[:180],
+            "filters": {
+                "tags": list(NOISE_EXCLUDE_TAGS),
+                "groups": groups,
+                "sensors": [],
+                "centers": [],
+                "networks": networks,
+                "riskScores": [],
+            },
+            "groupless": "exclude",
+            "search": "",
+        }
+        result = await self._request("POST", "/presets", json=body)
+        logger.info(f"Created CV preset '{label}' (subnet={subnet}) -> {result.get('id') if isinstance(result, dict) else result}")
+        return result if isinstance(result, dict) else {}
+
+    async def delete_preset(self, preset_id: str) -> bool:
+        """Delete a CV preset."""
+        try:
+            await self._request("DELETE", f"/presets/{preset_id}")
+            logger.info(f"Deleted CV preset {preset_id}")
+            return True
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to delete preset {preset_id}: {e.response.status_code}")
+            raise
+
+    async def create_group(
+        self, label: str, description: str = "", color: str = "#06a2c9", criticalness: int = 2
+    ) -> dict:
+        """Create a CV device group.
+
+        Args:
+            label: Group name (unique; CV returns 409 on duplicate).
+            description: Group description.
+            color: Hex color (defaults to the reference preset's cell color).
+            criticalness: Industrial-impact level 0-4.
+
+        Returns:
+            The created group object (includes ``id``).
+        """
+        body = {
+            "label": label,
+            "description": description,
+            "color": color,
+            "criticalness": max(0, min(4, int(criticalness))),
+        }
+        result = await self._request("POST", "/groups", json=body)
+        logger.info(f"Created CV group '{label}' -> {result.get('id') if isinstance(result, dict) else result}")
+        return result if isinstance(result, dict) else {}
+
+    async def update_group(
+        self, group_id: str, label: str, description: str = "",
+        color: str = "#06a2c9", criticalness: int = 2,
+    ) -> dict:
+        """Update a CV group via PUT (full object — PATCH is rejected with 400)."""
+        body = {
+            "label": label,
+            "description": description,
+            "color": color,
+            "criticalness": max(0, min(4, int(criticalness))),
+        }
+        result = await self._request("PUT", f"/groups/{group_id}", json=body)
+        logger.info(f"Updated CV group {group_id} (color={color}, crit={criticalness})")
+        return result if isinstance(result, dict) else {}
+
+    async def delete_group(self, group_id: str) -> bool:
+        """Delete a CV group (legacy /api/1.0 endpoint — the only one that works)."""
+        try:
+            await self._request("DELETE", f"/group/{group_id}", api_version="1.0")
+            logger.info(f"Deleted CV group {group_id}")
+            return True
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to delete group {group_id}: {e.response.status_code}")
+            raise
+
+    async def patch_group_members(
+        self,
+        group_id: str,
+        device_ids: list[str] | None = None,
+        component_ids: list[str] | None = None,
+        op: str = "add",
+    ) -> bool:
+        """Add or remove devices/components from a group.
+
+        CV uses a JSON-Patch-style body. Entities flagged ``isDevice`` go to
+        ``/devices``; everything else is a component on ``/components``.
+
+        Args:
+            group_id: CV group ID.
+            device_ids: Device IDs to add/remove.
+            component_ids: Component IDs to add/remove.
+            op: "add" or "remove".
+
+        Returns:
+            True if any patch was sent.
+        """
+        sent = False
+        for path, ids in (("/devices", device_ids or []), ("/components", component_ids or [])):
+            if not ids:
+                continue
+            await self._request(
+                "PATCH",
+                f"/groups/{group_id}",
+                json={"op": op, "path": path, "value": list(ids)},
+            )
+            sent = True
+            logger.info(f"Group {group_id}: {op} {len(ids)} entities on {path}")
+        return sent
+
     async def enrich_device_direct(
         self, device_id: str, properties: dict[str, str]
     ) -> dict[str, str]:
@@ -1043,3 +1327,39 @@ async def get_cyber_vision_service(
         Configured CyberVisionService instance
     """
     return CyberVisionService(base_url, api_token, verify_ssl)
+
+
+async def cv_service_from_settings(db) -> CyberVisionService | None:
+    """Build a CyberVisionService from stored system settings.
+
+    Returns None when CV is not configured. Usable from both request handlers
+    and Celery tasks (anywhere with a DB session) without importing the routes
+    module.
+    """
+    from sqlalchemy import select
+
+    from app.core.encryption import decrypt_value
+    from app.models.settings import SystemSetting
+
+    settings: dict[str, str] = {}
+    result = await db.execute(
+        select(SystemSetting).where(
+            SystemSetting.key.in_([
+                "cyber_vision_url",
+                "cyber_vision_api_token",
+                "cyber_vision_verify_ssl",
+            ])
+        )
+    )
+    for setting in result.scalars().all():
+        if setting.key == "cyber_vision_api_token" and setting.value:
+            settings[setting.key] = decrypt_value(setting.value)
+        else:
+            settings[setting.key] = setting.value
+
+    url = settings.get("cyber_vision_url")
+    token = settings.get("cyber_vision_api_token")
+    if not url or not token:
+        return None
+    verify_ssl = (settings.get("cyber_vision_verify_ssl") or "false").lower() == "true"
+    return CyberVisionService(url, token, verify_ssl)

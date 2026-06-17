@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Feeder protection relay with comprehensive protection functions",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -92,7 +92,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Real-Time Automation Controller for substation automation",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -168,7 +168,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Bay controller with protection and control functions",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -242,7 +242,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="substation_controller",
         description="Programmable logic controller for substation automation",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -312,7 +312,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Distance relay for transmission line protection",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -386,7 +386,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Transformer differential protection relay",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -471,7 +471,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "engineering pivot."
         ),
 
-        oui_prefixes=["00:15:5D", "00:50:56", "00:0C:29"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 128,
@@ -556,7 +556,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Line current differential and distance protection with integrated synchrophasor PMU",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -661,7 +661,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Two-winding transformer differential protection with synchrophasor PMU",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -766,7 +766,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Next-generation Real-Time Automation Controller with expanded protocol support",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,
@@ -861,7 +861,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="meter",
         description="Class 0.2 revenue meter with IEEE 1159 power-quality recording",
 
-        oui_prefixes=["00:30:A7", "00:1C:73"],
+        oui_prefixes=["00:30:A7"],
 
         tcp_stack={
             "ttl": 64,

@@ -852,6 +852,19 @@ async def deploy_scenario_to_agent(
         f"Deployed scenario {scenario.id} to agent {agent.name} on interface {interface}"
     )
 
+    # Optionally provision Cyber Vision: create the preset now, schedule groups.
+    if deployment.provision_cyber_vision:
+        try:
+            from app.services.cv_provisioning_service import provision_preset
+            from app.traffic_generator.tasks import provision_cyber_vision as provision_cv_task
+
+            await provision_preset(db, scenario)
+            provision_cv_task.apply_async(kwargs={"scenario_id": str(scenario.id)})
+            logger.info(f"Scheduled CV provisioning for scenario {scenario.id}")
+        except Exception:
+            # Never fail a deployment because CV provisioning hiccuped.
+            logger.exception("CV provisioning at deploy time failed (deployment unaffected)")
+
     return DeploymentResponse.model_validate(agent_deployment)
 
 

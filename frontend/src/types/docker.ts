@@ -67,6 +67,14 @@ export interface UnifiedDeployment {
     broadcast_traffic_enabled: boolean;
     cell_isolation_mode: string;
   };
+  // Cyber Vision provisioning summary (null when not provisioned).
+  cyber_vision?: {
+    status: 'not_started' | 'preset_created' | 'polling' | 'groups_created' | 'error';
+    preset_label: string | null;
+    subnet: string | null;
+    group_count: number;
+    device_count: number;
+  } | null;
 }
 
 export interface DeploymentListResponse {

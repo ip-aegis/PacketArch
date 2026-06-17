@@ -18,3 +18,6 @@ export type { EmptyStateProps } from './EmptyState';
 export { default as ScenarioModeBadges } from './ScenarioModeBadges';
 export type { Modes as ScenarioModes } from './ScenarioModeBadges';
 export { modesFromSummary, modesFromDefinition } from './scenarioModes';
+
+export { default as CyberVisionBadge } from './CyberVisionBadge';
+export type { CyberVisionSummary } from './CyberVisionBadge';

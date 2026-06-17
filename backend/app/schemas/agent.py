@@ -106,6 +106,14 @@ class DeploymentCreate(BaseModel):
             "scenario definition before it is sent to the agent."
         ),
     )
+    provision_cyber_vision: bool = Field(
+        False,
+        description=(
+            "If true and Cyber Vision is configured, create a CV preset for "
+            "this scenario at deploy time and schedule zone-group creation once "
+            "CV has discovered the simulated devices."
+        ),
+    )
 
 
 class DeploymentResponse(BaseModel):

@@ -20,355 +20,12 @@ To verify an OUI: https://maclookup.app/ or https://macaddress.io/
 import random
 from typing import Optional
 
+# VENDOR_OUIS is AUTO-GENERATED from the bundled IEEE OUI registry — see
+# scripts/generate_vendor_ouis.py. Pure data + in protocol_engines/, so it is
+# safely staged into the agent image. Do NOT hand-edit OUI lists here.
+from app.protocol_engines._vendor_ouis_generated import VENDOR_OUIS
 
-# OUI database: Vendor name -> list of OUI prefixes (first 3 bytes of MAC)
-# Based on IEEE OUI registry for major OT/industrial automation vendors
-#
-# NOTE: Empty lists indicate vendors that typically use generic NICs.
-# These are kept for device_type mapping but generate default OUIs.
-VENDOR_OUIS: dict[str, list[str]] = {
-    # Major PLC/Industrial Automation Vendors
-    "siemens": [
-        "00:0E:8C",  # Siemens AG
-        "00:1B:1B",  # Siemens Building Technologies
-        "00:1C:06",  # Siemens AG A&D
-        "00:0D:6B",  # Siemens AG Industrial Comm
-        "00:1F:F8",  # Siemens AG Automation
-        "74:DA:EA",  # Siemens Industrial
-        "64:6E:97",  # Siemens AG
-        "AC:64:17",  # Siemens AG (Amberg, IEEE 2017)
-    ],
-    "rockwell": [
-        "00:00:BC",  # Allen-Bradley (legacy)
-        "00:1D:9C",  # Rockwell Automation
-        "08:61:95",  # Rockwell Automation
-        "5C:88:16",  # Rockwell Automation
-        "E4:90:69",  # Rockwell Automation
-        "F4:54:33",  # Rockwell Automation
-    ],
-    "schneider": [
-        "00:00:54",  # Schneider Electric (legacy Modicon)
-        "00:80:F4",  # Schneider Electric
-        # "00:04:A3" REMOVED - Actually Microchip Technology per IEEE registry
-        # "00:1C:C4" REMOVED - Actually Hewlett Packard per IEEE registry
-        "00:04:74",  # Schneider Electric
-        "64:3A:EA",  # Schneider Electric
-    ],
-    "abb": [
-        # Audit 2026-05-31: prior five OUIs were all misattributed per IEEE —
-        # 00:21:99 (Vacon), 00:24:2B (Foxconn), 00:1F:ED / 00:C0:53 / C4:93:00.
-        "94:F6:65",  # ABB Switzerland (IEEE MA-L, audit-verified)
-        "00:03:2C",  # ABB
-        "00:12:93",  # ABB
-    ],
-    "emerson": [
-        # NOTE: Emerson/Fisher-Rosemount often uses embedded NICs from other vendors.
-        # Protocol-based identification (Modbus FC43, EtherNet/IP identity) is more reliable.
-        # "00:0D:3A" REMOVED 2026-05-31 — actually Microsoft per IEEE. No confirmed
-        # Emerson Electric MA-L replacement (00:E0:86 is Emerson Network Power/Avocent).
-        # "00:A0:F8" REMOVED - Actually Zebra/Symbol Technologies per IEEE
-        # "00:50:43" REMOVED - Actually Marvell Semiconductor per IEEE
-        # "00:60:35" REMOVED - Actually Dallas Semiconductor per IEEE
-    ],
-    "honeywell": [
-        "00:40:84",  # Honeywell Inc (IEEE MA-L, 2000)
-        "00:22:6A",  # Honeywell (IEEE MA-L, 2008)
-        "C4:EF:DA",  # Honeywell (IEEE MA-L, 2022)
-        "58:FC:C8",  # Honeywell (IEEE MA-L, 2023)
-    ],
-    "ge": [
-        "00:09:45",  # GE Fanuc Automation
-        "00:30:C1",  # GE Healthcare
-        "00:50:99",  # GE Industrial Systems
-        "00:22:52",  # GE Digital Energy
-    ],
-    # Protection Relay / Power Grid Vendors
-    "sel": [
-        "00:30:A7",  # Schweitzer Engineering Laboratories
-        "00:1C:73",  # SEL Inc
-    ],
-    "basler": [
-        # "00:1E:C9" REMOVED 2026-05-31 — actually Dell per IEEE
-        "4C:06:8A",  # Basler Electric (IEEE MA-L, audit-verified)
-    ],
-    "beckwith": [
-        # "00:1A:F0" REMOVED 2026-05-31 — actually Alcatel-Lucent per IEEE.
-        # No Beckwith Electric MA-L block found in IEEE — UNRESOLVED.
-    ],
-    "phoenix_contact": [
-        "00:A0:45",  # Phoenix Contact
-        "00:16:9D",  # Phoenix Contact
-        "A8:74:1D",  # Phoenix Contact
-    ],
-    "beckhoff": [
-        "00:01:05",  # Beckhoff Automation
-    ],
-    "wago": [
-        "00:30:DE",  # WAGO Kontakttechnik
-        "00:03:C6",  # WAGO I/O-SYSTEM
-    ],
-    "omron": [
-        "00:00:74",  # Omron Tateisi Electronics
-        "00:04:C7",  # Omron Corporation
-        "00:0C:DB",  # Omron Advanced Systems
-    ],
-    "mitsubishi": [
-        "00:00:7E",  # Mitsubishi Electric
-        "00:04:0F",  # Mitsubishi Electric
-        "00:50:13",  # Meidensha Corporation (Mitsubishi group)
-    ],
-    "b_and_r": [
-        "00:60:65",  # B&R Industrial Automation
-        "00:0A:49",  # B&R Industrie-Elektronik
-    ],
-    # Alias keys for template authors who write the vendor with `&` —
-    # the normalize step in get_oui_for_vendor doesn't currently expand
-    # `&` to `_and_`, so we register the literal forms.
-    "b&r": [
-        "00:60:65",
-        "00:0A:49",
-    ],
-    "pilz": [
-        "00:05:7C",  # Pilz GmbH & Co
-    ],
-    "sick": [
-        "00:06:77",  # SICK AG (IEEE MA-L, verified)
-    ],
-    "turck": [
-        "00:12:4D",  # Turck Inc
-    ],
-    "ifm": [
-        "00:50:18",  # IFM Electronic
-    ],
-    "endress_hauser": [
-        "00:06:69",  # Endress+Hauser
-    ],
-    "yokogawa": [
-        "00:02:48",  # Yokogawa Electric
-        "00:A0:78",  # Yokogawa Electric
-    ],
-    "moxa": [
-        "00:90:E8",  # MOXA Technologies
-        "00:10:35",  # MOXA Inc
-    ],
-    "advantech": [
-        "00:D0:C9",  # Advantech Co
-        "00:20:18",  # Advantech
-    ],
-    "hms": [
-        "00:03:27",  # HMS Industrial Networks
-        "00:05:94",  # HMS Industrial Networks
-        "00:30:11",  # HMS Industrial Networks
-        "00:30:56",  # HMS Industrial Networks
-        "9C:B2:06",  # HMS Industrial Networks (newer)
-    ],
-    "cisco": [
-        "00:00:0C",  # Cisco Systems
-        "00:1A:A1",  # Cisco Systems
-        "00:1B:90",  # Cisco Systems
-        "00:24:51",  # Cisco
-        "00:25:84",  # Cisco
-    ],
-    "hirschmann": [
-        "00:80:63",  # Hirschmann Automation
-        "00:0A:DB",  # Hirschmann
-    ],
 
-    # SCADA/HMI Vendors
-    "wonderware": [
-        "00:0F:34",  # Wonderware (Schneider)
-    ],
-    "copadata": [
-        "00:0C:46",  # Copa-Data
-    ],
-    # NOTE: Kepware KEPServerEX is software running on host machine, uses host NIC
-    "kepware": [],
-
-    # Building Automation / BMS Vendors
-    # NOTE: Many building automation devices use embedded NICs from other vendors
-    # (Cisco, Intel, Microchip). Protocol-based detection (SNMP, BACnet) is more reliable.
-    "johnson_controls": [
-        # "00:1A:17" REMOVED 2026-05-31 — actually Teak Technologies per IEEE
-        # "00:16:C7" REMOVED - Actually Cisco Systems per IEEE registry
-        "00:10:8D",  # Johnson Controls Inc (IEEE MA-L, audit-verified)
-        "00:23:BE",  # Johnson Controls Systems
-    ],
-    "tridium": [
-        "00:50:62",  # Tridium (Niagara Framework)
-    ],
-    "trane": [
-        "00:0D:AD",  # Trane Technologies
-        "00:1C:C0",  # Trane
-    ],
-    "carrier": [
-        "00:0D:AD",  # Carrier Corporation (shared with Trane parent)
-        "00:1E:8E",  # Carrier
-    ],
-    "delta_controls": [
-        "00:0B:AB",  # Delta Controls
-        "00:0D:9F",  # Delta Controls Inc
-    ],
-    "distech": [
-        "00:1E:C0",  # Distech Controls
-        "D0:77:14",  # Distech Controls Inc
-    ],
-    "distech_controls": [
-        "00:1E:C0",
-        "D0:77:14",
-    ],
-    "carel": [
-        "00:0D:5D",  # Carel Industries
-        "00:15:F9",  # Carel SpA
-    ],
-    "automated_logic": [
-        "00:14:C1",  # Automated Logic Corporation
-        "00:1C:12",  # Automated Logic
-    ],
-    "kmc_controls": [
-        "00:10:E3",  # KMC Controls
-    ],
-    "alerton": [
-        "00:0B:39",  # Alerton Technologies
-    ],
-    "reliable_controls": [
-        "00:19:F5",  # Reliable Controls Corporation
-    ],
-    "lennox": [
-        "00:11:2F",  # Lennox Industries
-    ],
-    "york": [
-        # York is now part of Johnson Controls; chillers ship with JCI NICs
-        "00:1A:17",  # Johnson Controls
-        "00:23:BE",  # Johnson Controls Systems
-    ],
-    "notifier": [
-        # Notifier is a Honeywell fire safety brand; controllers use Honeywell NICs
-        "00:40:84",  # Honeywell Inc
-        "00:22:6A",  # Honeywell
-    ],
-    "lutron": [
-        "00:90:33",  # Lutron Electronics
-        "C4:24:36",  # Lutron Electronics
-    ],
-
-    # IT/OT Boundary — software platforms and network appliances
-    # NOTE: Software vendors (Aveva, Lansweeper, Paessler) ship as installable
-    # packages and inherit the host NIC's OUI. Empty list → host NIC fallback.
-    "aveva": [],
-    "lansweeper": [],
-    "paessler": [],
-    "broadcom": [
-        "00:10:18",  # Broadcom Corporation
-        "00:1B:E9",  # Broadcom
-        "D4:01:29",  # Broadcom Limited
-    ],
-    "f5_networks": [
-        "00:01:D7",  # F5 Networks
-        "00:94:A1",  # F5 Networks
-    ],
-    "f5-networks": [
-        "00:01:D7",  # F5 Networks (alias with hyphen)
-        "00:94:A1",
-    ],
-
-    # Network Infrastructure for OT
-    "belden": [
-        "00:80:63",  # Hirschmann (Belden)
-    ],
-    "harting": [
-        "00:0D:C5",  # HARTING
-    ],
-
-    # Transportation/ITS Vendors
-    "siemens_its": [
-        "00:1F:F8",  # Siemens AG (ITS division)
-        "00:0E:8C",  # Siemens AG
-        "64:00:6A",  # Siemens AG
-    ],
-    "econolite": [
-        # "00:19:FA" REMOVED - Actually Cable Vision Electronics per IEEE registry
-        # NOTE: Econolite may use embedded NICs from other vendors.
-        # Traffic controllers are better identified via SNMP sysDescr/sysObjectID.
-    ],
-    "mccain": [
-        "00:0D:56",  # McCain Traffic Supply
-    ],
-    "wavetronix": [
-        "00:18:3E",  # Wavetronix LLC
-    ],
-    "flir": [
-        "00:40:7F",  # FLIR Systems (Sweden)
-        "00:1B:D8",  # FLIR Systems Inc
-    ],
-    "daktronics": [
-        "00:06:D3",  # Daktronics Inc
-    ],
-    "kapsch": [
-        "00:0B:6B",  # Kapsch TrafficCom
-    ],
-    "qfree": [
-        "00:17:B0",  # Q-Free ASA
-    ],
-    "q_free": [
-        "00:17:B0",  # Q-Free ASA (alias with underscore)
-    ],
-    "q-free": [
-        "00:17:B0",  # Q-Free ASA (alias with hyphen)
-    ],
-    "axis": [
-        "00:40:8C",  # Axis Communications
-        "AC:CC:8E",  # Axis Communications
-        "B8:A4:4F",  # Axis Communications
-    ],
-    "pelco": [
-        "00:80:F4",  # Schneider Electric (Pelco parent company)
-        "64:3A:EA",  # Schneider Electric
-    ],
-    "bosch": [
-        "00:04:13",  # Bosch Security Systems
-        "00:07:5F",  # Bosch
-    ],
-    "hikvision": [
-        "C0:56:E3",  # Hikvision
-        "44:19:B6",  # Hikvision
-        "BC:AD:28",  # Hikvision
-    ],
-    "vaisala": [
-        "00:0C:D6",  # Vaisala
-    ],
-
-    # Logistics / AGV / Warehouse Automation Vendors
-    "kuka": [
-        "00:60:C8",  # KUKA Welding Systems & Robots (IEEE MA-L, verified)
-    ],
-    "mir": [
-        "00:1E:06",  # Mobile Industrial Robots A/S
-    ],
-    "fanuc": [
-        "00:E0:E4",  # Fanuc Robotics North America (IEEE MA-L, verified)
-    ],
-    "cognex": [
-        "00:04:3E",  # Cognex Corporation
-        "00:0D:88",  # Cognex Corporation
-    ],
-    "impinj": [
-        "00:16:25",  # Impinj Inc
-    ],
-    "zebra": [
-        "00:A0:F8",  # Zebra Technologies (Symbol legacy)
-        "00:23:68",  # Zebra Technologies
-        "AC:3F:A4",  # Zebra Technologies
-    ],
-    "dematic": [
-        "00:1C:34",  # Dematic (Kion Group)
-    ],
-    "swisslog": [
-        # Uses embedded NICs (Siemens, Intel) - identified via protocol
-    ],
-    "daifuku": [
-        "00:0E:C4",  # Daifuku Co Ltd
-    ],
-}
 
 # Device type to typical vendor mapping
 DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
@@ -619,14 +276,9 @@ BACNET_VENDOR_IDS: dict[int, str] = {
 
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to
 # subdivision-specific OUI prefixes used by fingerprinting.
-_VENDOR_DIVISION_OUIS: dict[str, list[str]] = {
-    "endress+hauser": ["00:0B:CD", "00:80:A3"],  # Endress+Hauser (alt spelling)
-    "ge_multilin": ["00:22:52", "00:04:A5"],  # GE Digital Energy / Multilin
-    "siemens_building": ["00:1B:1B", "00:0E:8C"],  # Siemens Building Technologies
-    "schneider_bms": ["00:80:F4", "00:04:A3"],  # Schneider Electric BMS
-    "siemens_protection": ["00:0E:8C", "00:1C:06", "74:DA:EA"],  # Siemens SIPROTEC
-    "microsoft": ["00:15:5D", "00:1D:D8", "00:50:F2"],  # Microsoft Corporation
-}
+# Division/alias spellings are now emitted directly into VENDOR_OUIS by the
+# generator, so this overlay is empty (kept for import back-compat).
+_VENDOR_DIVISION_OUIS: dict[str, list[str]] = {}
 
 # Aggregated OUI prefixes: canonical VENDOR_OUIS + vendor division aliases.
 # Use this when you need ALL known OUI mappings for MAC-based vendor lookup.
@@ -762,19 +414,62 @@ def generate_mac_address(
     return f"{oui}:{last_part}"
 
 
+_IEEE_REGISTRY: dict[str, str] | None = None
+
+
+def _ieee_registry() -> dict[str, str]:
+    """Lazily load the bundled IEEE OUI registry (prefix6 -> registrant name).
+
+    Lazy so the agent (which never calls get_vendor_for_oui) never pays the cost.
+    Returns {} if the data file is absent — callers fall back to local OUIS.
+    """
+    global _IEEE_REGISTRY
+    if _IEEE_REGISTRY is None:
+        import csv
+        import os
+
+        path = os.path.join(os.path.dirname(__file__), "data", "ieee_oui.csv")
+        reg: dict[str, str] = {}
+        try:
+            with open(path, newline="") as f:
+                reader = csv.reader(f)
+                next(reader, None)
+                for row in reader:
+                    if len(row) >= 2 and len(row[0]) == 6:
+                        reg[row[0].upper()] = row[1]
+        except OSError:
+            pass
+        _IEEE_REGISTRY = reg
+    return _IEEE_REGISTRY
+
+
 def get_vendor_for_oui(oui: str, human_readable: bool = True) -> Optional[str]:
-    """Look up vendor for a given OUI.
+    """Look up the vendor that owns a given OUI.
+
+    Authoritative source is the bundled IEEE OUI registry (the same data Cyber
+    Vision uses), so labels match what CV reports. Falls back to the local
+    VENDOR_OUIS map if the registry is unavailable.
 
     Args:
         oui: OUI prefix (e.g., "00:0E:8C" or "00-0E-8C")
-        human_readable: If True, return display name (e.g., "Johnson Controls").
-                       If False, return internal key (e.g., "johnson_controls").
+        human_readable: If True, return the registrant/display name. If False,
+                       return our internal vendor key when the OUI is one of ours.
 
     Returns:
-        Vendor name or None if not found
+        Vendor name or None if not found.
     """
     oui_normalized = oui.upper().replace("-", ":")
 
+    # For display, the IEEE registrant is authoritative and matches what CV shows.
+    # (It also avoids alias ambiguity: parent-mapped vendors like Pelco/York share
+    # their parent's OUI list, so a VENDOR_OUIS scan could return the alias name.)
+    if human_readable:
+        company = _ieee_registry().get(oui_normalized.replace(":", ""))
+        if company:
+            return company
+
+    # Internal-key lookups stay scoped to our vendors (used for keyed routing);
+    # also the display fallback when the registry file is unavailable.
     for vendor_key, ouis in VENDOR_OUIS.items():
         for vendor_oui in ouis:
             if vendor_oui.upper() == oui_normalized:

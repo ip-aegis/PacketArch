@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="Process automation controller for DeltaV DCS",
 
-        oui_prefixes=["00:A0:F8", "00:50:43", "00:60:35"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 128,  # Windows-based
@@ -88,7 +88,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Flow computer and RTU for oil & gas",
 
-        oui_prefixes=["00:A0:F8", "00:90:E8"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -154,7 +154,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="Mid-range DeltaV controller for small to medium applications",
 
-        oui_prefixes=["00:A0:F8", "00:50:43", "00:60:35"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 128,
@@ -219,7 +219,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Standard ROC800 flow computer and RTU",
 
-        oui_prefixes=["00:A0:F8", "00:90:E8"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -280,7 +280,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="transmitter",
         description="SuperModule pressure transmitter with advanced diagnostics",
 
-        oui_prefixes=["00:A0:F8", "00:50:43"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -343,7 +343,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="flow_meter",
         description="Coriolis flow transmitter for custody transfer",
 
-        oui_prefixes=["00:A0:F8", "00:50:43"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -406,7 +406,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="valve_positioner",
         description="Digital valve controller with advanced diagnostics",
 
-        oui_prefixes=["00:A0:F8", "00:50:43"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -469,7 +469,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="historian",
         description="Process historian for DeltaV DCS",
 
-        oui_prefixes=["00:A0:F8", "00:50:43", "00:12:A9"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 128,
@@ -528,7 +528,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="DeltaV operator workstation for process monitoring",
 
-        oui_prefixes=["00:A0:F8", "00:50:43", "00:12:A9"],
+        oui_prefixes=["00:00:68", "00:03:AD", "00:09:F5", "00:0A:AE"],
 
         tcp_stack={
             "ttl": 128,

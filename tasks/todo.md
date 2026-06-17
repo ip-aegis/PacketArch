@@ -1,40 +1,50 @@
-# Help System Overhaul (2026-06-09)
+# Push to Cyber Vision — auto preset + zone groups
 
-Review found help content badly drifted from the app. Plan approved by user.
+Goal: one button (and a deploy-time "Provision CV" checkbox) → PacketArch creates a CV
+preset scoped to the scenario's /16 (mirroring "Segmented Manufacturing"), then ~10 min
+later polls CV and creates one group per scenario zone with the right devices.
 
-## Phase 1 — Fix wrong content
-- [x] `admin-settings.tsx` — actual tabs (Overview, AI Integrations [Provider/Usage/Costs], System, Cyber Vision, LDAP/AD, User Management, Downloads, Generated PCAPs, Updates), 3 AI providers incl. CIRCUIT, model routing, agents moved to /agents
-- [x] `getting-started.tsx` — 9 UI protocols, 7 verticals, workflow incl. AI create / attacks / Cyber Vision
-- [x] `templates.tsx` — 7 verticals + real template names from backend catalog, correct phase names
-- [x] `scenario-studio.tsx` — 4 right-panel tabs, toolbar groups, shortcuts (Ctrl+K/Ctrl+S/G), readiness checklist
+Verified CV write contract (live 2026-06-16): see memory cv_groups_presets_write_api.
 
-## Phase 2 — New articles
-- [x] `agents-hub.tsx` — Agents / Topology / Local Labs / Modeling Labs (route /agents)
-- [x] `attack-simulation.tsx` — 11 playbooks, library, studio Attack tab states, after-action reports, PCAP injection
-- [x] `scenario-versions.tsx` — Ctrl+S, auto-versions, labels, diff (+AI summary), rollback safety snapshot
-- [x] Register all three in index.ts
+## Backend
+- [ ] cyber_vision_service.py: `_request` gains `api_version` param (group delete is /api/1.0)
+- [ ] cyber_vision_service.py: NOISE_EXCLUDE_TAGS constant (7 tags from Segmented MFG)
+- [ ] cyber_vision_service.py: create_preset / delete_preset / create_group / delete_group /
+      patch_group_members / get_devices_raw / cv_service_from_settings factory
+- [ ] services/cv_provisioning_service.py: subnet lookup, preset meta builder,
+      criticalness mapping, provision_preset(), provision_groups() (poll-until-stable)
+- [ ] traffic_generator/tasks.py: `provision_cyber_vision` Celery task (poll + create groups)
+- [ ] routes/cyber_vision.py: POST /provision/{scenario_id} (preset now + enqueue groups),
+      GET /provision/{scenario_id}/status
+- [ ] schemas/agent.py: DeploymentCreate.provision_cyber_vision: bool
+- [ ] routes/agents.py deploy: if provision flag + CV configured → preset + enqueue groups
 
-## Phase 3 — Expose AI help
-- [x] HelpAiAssistant component (aiApi.helpChat, route-derived context, AI_ENABLED gated) in HelpDrawer + HelpPage
+## Frontend
+- [ ] api/cyberVision.ts: provisionScenario(), getProvisionStatus()
+- [ ] DeploymentForm.tsx: "Provision to Cyber Vision" checkbox (gated on CV configured)
+- [ ] DeploymentPanel.tsx: pass provision flag through deploy
+- [ ] Manual "Push to Cyber Vision" button + status surface (CyberVisionPage)
 
-## Phase 4 — Guardrails
-- [x] index.ts: prefix-match fallback in getArticleForRoute
-- [x] Dedupe relatedPages (also found pre-existing /scenarios dual claim by templates) and drop dead /setup mapping
-- [x] Vitest: routes covered, unique relatedPages, no dead-route claims, prefix matching, valid cross-links
+## State
+Stored in scenario.definition["cyber_vision"] = {preset_id, preset_label, status,
+groups:{zone_id:cv_group_id}, device_count, error, updated_at}.
 
-## Phase 5 — Ship
-- [x] tsc clean, 119/119 frontend tests pass
-- [x] docker compose up -d --build frontend — container healthy, HTTP 200
-- [x] Commit to master
+## Status: DONE (2026-06-16) — deployed (backend+frontend+celery_worker rebuilt)
+All backend + frontend tasks complete. py_compile + tsc clean.
+
+## Verify — DONE
+- [x] Lint/typecheck backend + frontend (tsc clean, py_compile clean)
+- [x] Backend modules import in container; celery worker registered packetarch.provision_cyber_vision
+- [x] E2E preset: scenario "Strict Purdue Segmented Manufacturing" (10.2.0.0/16) →
+      preset created in CV, subnet filter + 7 noise tags applied, 577-char desc
+      LLM-summarized to exactly 180 chars, state persisted; preset deleted on cleanup.
+- [ ] Live group phase (needs a running agent so CV discovers devices) — write
+      methods themselves verified via contract round-trip (create/patch/delete all 200).
 
 ## Review
-- 4 articles rewritten against code-verified facts; 3 new articles (agents-hub,
-  attack-simulation, scenario-versions) bring registry to 20 articles + glossary.
-- AI help endpoint's 9 contexts now reachable: HelpAiAssistant in drawer + /help,
-  context derived from route (helpContextForRoute).
-- getArticleForRoute gained longest-prefix fallback so /libraries/attacks/:id maps.
-- Guardrail test (help.test.ts) parses App.tsx routes; will fail CI if a new page
-  ships without help coverage or an article claims a dead/duplicate route.
-- Known remaining gaps (deliberate, smaller): no articles yet for process sim,
-  adaptive traffic/phases detail, portable scenario format; deployments article
-  text could mention phase scheduling. Candidates for a follow-up pass.
+- 180-char description cap added per user: LLM summarization (AITask.DESCRIPTION_GENERATION)
+  with word-boundary truncation fallback; hard [:180] guard in create_preset.
+- CV-integration + phase status surfaced via shared CyberVisionBadge in BOTH the
+  deployment area (studio DeploymentCard + Deployments table) and live-traffic
+  dashboard card; backend adds `cyber_vision` summary to deployment + dashboard payloads.
+- Phase already shown by existing PhaseTimeline/KillChainTimeline on the cards.

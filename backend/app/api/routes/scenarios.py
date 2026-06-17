@@ -887,9 +887,28 @@ async def delete_scenario(
             sql_delete(AgentDeployment).where(AgentDeployment.scenario_id == scenario_id)
         )
 
+    # Best-effort Cyber Vision teardown (delete the preset + zone groups we
+    # created). Never block scenario deletion on CV being reachable.
+    deleted_vertical = getattr(scenario, "vertical", None)
+    cv_synced = bool((scenario.definition or {}).get("cyber_vision"))
+    if cv_synced:
+        try:
+            from app.services.cv_provisioning_service import teardown_cv_provisioning
+            await teardown_cv_provisioning(db, scenario)
+        except Exception:
+            _logger.exception("CV teardown failed during scenario delete (continuing)")
+
     # Now delete the scenario
     await db.delete(scenario)
     await db.commit()
+
+    # Re-sync this vertical's roll-up preset now that the scenario is gone.
+    if cv_synced and deleted_vertical:
+        try:
+            from app.services.cv_provisioning_service import provision_vertical_preset
+            await provision_vertical_preset(db, deleted_vertical)
+        except Exception:
+            _logger.exception("vertical roll-up reconcile failed after delete (continuing)")
 
     cleanup_msg = ""
     if force and (active_agent_count > 0 or generation_job_count > 0):
@@ -923,6 +942,23 @@ async def bulk_delete_scenarios(
     if not request.scenario_ids:
         return BulkDeleteResponse(deleted=0, message="No scenarios specified")
 
+    # Best-effort Cyber Vision teardown for any synced scenarios in the batch.
+    synced = await db.execute(
+        select(Scenario).where(
+            Scenario.id.in_(request.scenario_ids),
+            Scenario.user_id == current_user.id,
+            Scenario.definition.has_key("cyber_vision"),  # noqa: W601 — SQLAlchemy JSONB op
+        )
+    )
+    synced_scenarios = synced.scalars().all()
+    if synced_scenarios:
+        try:
+            from app.services.cv_provisioning_service import teardown_cv_provisioning
+            for sc in synced_scenarios:
+                await teardown_cv_provisioning(db, sc)
+        except Exception:
+            _logger.exception("CV teardown failed during bulk delete (continuing)")
+
     # Delete scenarios that belong to the current user
     result = await db.execute(
         sql_delete(Scenario).where(
@@ -930,9 +966,17 @@ async def bulk_delete_scenarios(
             Scenario.user_id == current_user.id,
         )
     )
-    # Note: commit handled by get_db dependency
-
     deleted_count = result.rowcount
+
+    # Re-sync the vertical roll-up presets now that the batch is gone.
+    if synced_scenarios:
+        try:
+            await db.commit()
+            from app.services.cv_provisioning_service import reconcile_vertical_presets
+            await reconcile_vertical_presets(db)
+        except Exception:
+            _logger.exception("vertical roll-up reconcile failed after bulk delete (continuing)")
+    # Note: commit handled by get_db dependency
     return BulkDeleteResponse(
         deleted=deleted_count,
         message=f"Successfully deleted {deleted_count} scenario(s)",

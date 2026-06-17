@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced traffic signal controller with NTCIP support",
 
-        oui_prefixes=["00:19:FA"],
+        oui_prefixes=["00:04:81"],
 
         tcp_stack={
             "ttl": 64,
@@ -79,7 +79,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced traffic signal controller with NTCIP support",
 
-        oui_prefixes=["00:19:FA"],
+        oui_prefixes=["00:04:81"],
 
         tcp_stack={
             "ttl": 64,
@@ -129,7 +129,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Type 2070 Advanced Transportation Controller",
 
-        oui_prefixes=["00:0E:2E"],
+        oui_prefixes=["10:10:B6"],
 
         tcp_stack={
             "ttl": 64,
@@ -184,7 +184,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="detector_rack",
         description="170E cabinet detector rack for vehicle detection",
 
-        oui_prefixes=["00:50:C2", "00:17:61"],
+        oui_prefixes=["10:10:B6"],
 
         tcp_stack={
             "ttl": 64,
@@ -234,7 +234,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dms",
         description="Dynamic Message Sign controller for transportation",
 
-        oui_prefixes=["00:0E:63"],
+        oui_prefixes=["00:09:EC"],
 
         tcp_stack={
             "ttl": 64,
@@ -289,7 +289,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dms",
         description="Large format dynamic message sign controller",
 
-        oui_prefixes=["00:0E:63"],
+        oui_prefixes=["00:09:EC"],
 
         tcp_stack={
             "ttl": 64,
@@ -344,7 +344,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="radar_detector",
         description="High-definition radar vehicle detection sensor",
 
-        oui_prefixes=["00:0F:B5"],
+        oui_prefixes=["1C:C1:1A"],
 
         tcp_stack={
             "ttl": 64,
@@ -399,7 +399,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="radar_detector",
         description="Advanced radar sensor with vehicle classification capability",
 
-        oui_prefixes=["00:15:2D"],
+        oui_prefixes=["1C:C1:1A"],
 
         tcp_stack={
             "ttl": 64,
@@ -454,7 +454,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="thermal_sensor",
         description="Thermal imaging sensor for traffic detection",
 
-        oui_prefixes=["00:40:7F"],
+        oui_prefixes=["00:13:56", "00:1B:D8", "00:40:7F"],
 
         tcp_stack={
             "ttl": 64,
@@ -510,7 +510,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="toll_rsu",
         description="DSRC roadside unit for tolling and V2X",
 
-        oui_prefixes=["00:1E:A5"],
+        oui_prefixes=["00:12:8E", "64:55:63"],
 
         tcp_stack={
             "ttl": 64,
@@ -565,7 +565,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="toll_controller",
         description="Central toll collection system controller",
 
-        oui_prefixes=["00:1B:21"],
+        oui_prefixes=["00:E0:6A"],
 
         tcp_stack={
             "ttl": 64,
@@ -621,7 +621,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="camera",
         description="Outdoor bullet camera for traffic monitoring",
 
-        oui_prefixes=["00:40:8C", "AC:CC:8E", "B8:A4:4F"],
+        oui_prefixes=["00:40:8C", "AC:CC:8E", "B8:A4:4F", "E8:27:25"],
 
         tcp_stack={
             "ttl": 64,
@@ -693,7 +693,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ip_camera",
         description="4K outdoor network camera with IR illumination",
 
-        oui_prefixes=["00:40:8C", "AC:CC:8E", "B8:A4:4F"],
+        oui_prefixes=["00:40:8C", "AC:CC:8E", "B8:A4:4F", "E8:27:25"],
 
         tcp_stack={
             "ttl": 64,
@@ -761,7 +761,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="anpr_camera",
         description="2MP ANPR camera with deep learning license plate recognition",
 
-        oui_prefixes=["54:C4:15", "C0:56:E3", "44:19:B6", "BC:AD:28"],
+        oui_prefixes=["00:BC:99", "04:03:12", "04:EE:CD", "08:3B:C1"],
 
         tcp_stack={
             "ttl": 64,
@@ -822,7 +822,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ptz_camera",
         description="High-speed PTZ dome camera for surveillance",
 
-        oui_prefixes=["00:80:F4", "64:3A:EA"],  # Schneider Electric (Pelco parent)
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # Schneider Electric (Pelco parent)
 
         tcp_stack={
             "ttl": 64,
@@ -876,7 +876,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ASC/3-2100",
         device_type="traffic_controller",
         description="Econolite ASC/3-2100",
-        oui_prefixes=['00:19:FA'],
+        oui_prefixes=["00:04:81"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -920,7 +920,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TrafiSense",
         device_type="thermal_sensor",
         description="FLIR TrafiSense",
-        oui_prefixes=['00:40:7F', '00:80:F4'],
+        oui_prefixes=["00:13:56", "00:1B:D8", "00:40:7F"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -962,7 +962,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Spectra Enhanced",
         device_type="camera",
         description="Pelco Spectra Enhanced",
-        oui_prefixes=['00:80:F4', '64:3A:EA'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,

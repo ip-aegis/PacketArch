@@ -16,7 +16,7 @@ import { formatPacketRate, formatBandwidth, formatBytes, formatUptime, formatNum
 import ProtocolBreakdownChart from './ProtocolBreakdownChart';
 import PacketRateSparkline from './PacketRateSparkline';
 import KillChainTimeline from '../attack/KillChainTimeline';
-import { ScenarioModeBadges } from '../common';
+import { ScenarioModeBadges, CyberVisionBadge } from '../common';
 
 const { Text } = Typography;
 
@@ -55,6 +55,7 @@ const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment }) => (
             cellIsolationMode: deployment.scenario_modes?.cell_isolation_mode,
           }}
         />
+        <CyberVisionBadge cv={deployment.cyber_vision} />
         <Space style={{ marginLeft: 'auto' }}>
           <ClockCircleOutlined style={{ color: '#6b6b8a' }} />
           <Text type="secondary">{formatUptime(deployment.uptime_seconds)}</Text>

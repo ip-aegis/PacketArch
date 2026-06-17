@@ -37,7 +37,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useDeploymentsStore } from '../stores/deploymentsStore';
 import { useAgentsStore } from '../stores/agentsStore';
 import type { UnifiedDeployment, DeploymentStatus } from '../types/docker';
-import { ScenarioModeBadges } from '../components/common';
+import { ScenarioModeBadges, CyberVisionBadge } from '../components/common';
 import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
 import { EmptyState } from '../components/common';
 
@@ -225,13 +225,16 @@ const DeploymentsPage: React.FC = () => {
       key: 'modes',
       width: 220,
       render: (_: unknown, record: UnifiedDeployment) => (
-        <ScenarioModeBadges
-          modes={{
-            cleanDemoMode: record.scenario_modes?.clean_demo_mode,
-            broadcastTrafficEnabled: record.scenario_modes?.broadcast_traffic_enabled,
-            cellIsolationMode: record.scenario_modes?.cell_isolation_mode,
-          }}
-        />
+        <Space size={4} wrap>
+          <ScenarioModeBadges
+            modes={{
+              cleanDemoMode: record.scenario_modes?.clean_demo_mode,
+              broadcastTrafficEnabled: record.scenario_modes?.broadcast_traffic_enabled,
+              cellIsolationMode: record.scenario_modes?.cell_isolation_mode,
+            }}
+          />
+          <CyberVisionBadge cv={record.cyber_vision} />
+        </Space>
       ),
     },
     {

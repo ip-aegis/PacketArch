@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Machine automation controller with EtherCAT and EtherNet/IP",
 
-        oui_prefixes=["00:00:74", "00:04:C7", "00:0C:DB"],
+        oui_prefixes=["00:00:0A", "3C:F7:D1", "80:B5:C6"],
 
         tcp_stack={
             "ttl": 64,
@@ -89,7 +89,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-speed compact PLC for machine control",
 
-        oui_prefixes=["00:00:74", "00:04:C7"],
+        oui_prefixes=["00:00:0A", "3C:F7:D1", "80:B5:C6"],
 
         tcp_stack={
             "ttl": 64,
@@ -146,7 +146,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-speed universal CPU module for iQ-R platform",
 
-        oui_prefixes=["00:00:7E", "00:04:0F", "00:50:13"],
+        oui_prefixes=["00:26:92", "10:4B:46", "28:E9:8E", "30:BE:3B"],
 
         tcp_stack={
             "ttl": 64,
@@ -210,7 +210,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact PLC with built-in Ethernet",
 
-        oui_prefixes=["00:00:7E", "00:04:0F"],
+        oui_prefixes=["00:26:92", "10:4B:46", "28:E9:8E", "30:BE:3B"],
 
         tcp_stack={
             "ttl": 64,

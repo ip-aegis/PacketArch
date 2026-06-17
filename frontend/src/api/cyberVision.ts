@@ -202,6 +202,26 @@ export interface DuplicateMacAnalysisResponse {
   no_mac_devices: NoMacDeviceInfo[];
 }
 
+// CV provisioning state (preset + zone groups)
+export interface CVProvisionGroup {
+  group_id: string;
+  label: string;
+  criticalness?: number;
+  device_count: number;
+  unmatched?: number;
+}
+
+export interface CVProvisionStatus {
+  preset_id: string | null;
+  preset_label: string | null;
+  subnet: string | null;
+  status: 'not_started' | 'preset_created' | 'polling' | 'groups_created' | 'error' | null;
+  groups: Record<string, CVProvisionGroup>;
+  device_count: number;
+  error: string | null;
+  updated_at: string | null;
+}
+
 // Cyber Vision API
 export const cyberVisionApi = {
   // Get CV settings
@@ -289,6 +309,22 @@ export const cyberVisionApi = {
     const response = await apiClient.post<CVEnrichmentResult>(
       '/api/v1/cyber-vision/enrich',
       request
+    );
+    return response.data;
+  },
+
+  // Provision a CV preset for a scenario and schedule zone-group creation
+  provisionScenario: async (scenarioId: string): Promise<CVProvisionStatus> => {
+    const response = await apiClient.post<CVProvisionStatus>(
+      `/api/v1/cyber-vision/provision/${scenarioId}`
+    );
+    return response.data;
+  },
+
+  // Get current CV provisioning state for a scenario
+  getProvisionStatus: async (scenarioId: string): Promise<CVProvisionStatus> => {
+    const response = await apiClient.get<CVProvisionStatus>(
+      `/api/v1/cyber-vision/provision/${scenarioId}`
     );
     return response.data;
   },

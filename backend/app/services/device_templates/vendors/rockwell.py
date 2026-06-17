@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance ControlLogix controller for complex applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16", "E4:90:69"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,  # Windows-based
@@ -129,7 +129,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Mid-range CompactLogix controller with embedded EtherNet/IP",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -210,7 +210,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="15-inch graphic terminal with touchscreen",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,  # VxWorks/Linux based
@@ -281,7 +281,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-end ControlLogix controller with 80MB memory",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16", "E4:90:69"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -378,7 +378,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety controller with integrated SIL 3/PLe safety",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -451,7 +451,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="EtherNet/IP adapter for Point I/O modules",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -522,7 +522,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="Dual-port EtherNet/IP adapter for FLEX 5000 I/O",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16", "E4:90:69"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -588,7 +588,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="High-performance AC drive for industrial applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -665,7 +665,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="Compact 7-inch graphic terminal",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -736,7 +736,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Mid-range ControlLogix controller for complex applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16", "E4:90:69"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -822,7 +822,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety-rated CompactLogix controller for SIL2/PLd applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -892,7 +892,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="10-inch color touchscreen operator interface",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -953,7 +953,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="7-inch color touchscreen HMI for Micro800 systems",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1013,7 +1013,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Compact AC drive for simple stand-alone applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1091,7 +1091,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="High-performance AC drive for demanding applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1152,7 +1152,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="servo",
         description="Integrated servo drive for motion control applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1214,7 +1214,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="Dual-port EtherNet/IP adapter for FLEX 5000 I/O",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1274,7 +1274,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="EtherNet/IP adapter for POINT I/O distributed I/O",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 64,
@@ -1334,7 +1334,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance ControlLogix controller with 80MB memory",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16", "E4:90:69"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -1419,7 +1419,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety-rated ControlLogix controller for SIL3/PLe applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "5C:88:16"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -1482,7 +1482,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Legacy MicroLogix 1400 PLC with built-in Ethernet",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -1557,7 +1557,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact controller for small to medium applications",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -1633,7 +1633,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Compact AC drive with embedded Ethernet/IP",
 
-        oui_prefixes=["00:00:BC", "00:1D:9C"],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
 
         tcp_stack={
             "ttl": 128,
@@ -1715,7 +1715,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1756-EN2T",
         device_type="communication_module",
         description="Rockwell 1756-EN2T",
-        oui_prefixes=['00:00:BC', '00:1D:9C'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -1760,7 +1760,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1756-L73S",
         device_type="plc",
         description="Rockwell 1756-L73S",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -1828,7 +1828,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1756-L81E",
         device_type="plc",
         description="Rockwell 1756-L81E",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -1891,7 +1891,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1756-L82E",
         device_type="plc",
         description="Rockwell 1756-L82E",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -1954,7 +1954,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1756-L84E",
         device_type="plc",
         description="Rockwell 1756-L84E",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -2017,7 +2017,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1763-L16BWA",
         device_type="plc",
         description="Rockwell 1763-L16BWA",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2079,7 +2079,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1766-L32AWAA",
         device_type="plc",
         description="Rockwell 1766-L32AWAA",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2144,7 +2144,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1766-L32BWAA",
         device_type="plc",
         description="Rockwell 1766-L32BWAA",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2209,7 +2209,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1766-L32BXB",
         device_type="plc",
         description="Rockwell 1766-L32BXB",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2274,7 +2274,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1766-L32BXBA",
         device_type="plc",
         description="Rockwell 1766-L32BXBA",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2339,7 +2339,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1769-L30ERM",
         device_type="plc",
         description="Rockwell 1769-L30ERM",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -2402,7 +2402,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1769-L31ES",
         device_type="plc",
         description="Rockwell 1769-L31ES",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -2468,7 +2468,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="1769-L32ES",
         device_type="plc",
         description="Rockwell 1769-L32ES",
-        oui_prefixes=['00:00:BC', '00:1D:9C', '5C:88:16'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 64240,
@@ -2534,7 +2534,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="PowerFlex 755",
         device_type="drive",
         description="Rockwell PowerFlex 755",
-        oui_prefixes=['00:00:BC', '00:1D:9C'],
+        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,

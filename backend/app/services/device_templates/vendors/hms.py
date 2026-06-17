@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="gateway",
         description="Multi-protocol industrial gateway",
 
-        oui_prefixes=["00:30:11"],
+        oui_prefixes=["00:03:27", "00:05:94", "00:30:11", "00:30:56"],
 
         tcp_stack={
             "ttl": 64,
@@ -102,7 +102,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Anybus Communicator",
         device_type="gateway",
         description="HMS Anybus Communicator",
-        oui_prefixes=['00:30:11'],
+        oui_prefixes=["00:03:27", "00:05:94", "00:30:11", "00:30:56"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -165,7 +165,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Cosy 131",
         device_type="remote_access",
         description="HMS Cosy 131",
-        oui_prefixes=['00:30:11'],
+        oui_prefixes=["00:03:27", "00:05:94", "00:30:11", "00:30:56"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -227,7 +227,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Flexy 205",
         device_type="remote_access",
         description="HMS Flexy 205",
-        oui_prefixes=['00:30:11'],
+        oui_prefixes=["00:03:27", "00:05:94", "00:30:11", "00:30:56"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -289,7 +289,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Flexy 205",
         device_type="remote_access",
         description="HMS Flexy 205",
-        oui_prefixes=["00:30:11"],
+        oui_prefixes=["00:03:27", "00:05:94", "00:30:11", "00:30:56"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,

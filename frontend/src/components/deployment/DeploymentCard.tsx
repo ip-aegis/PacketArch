@@ -35,7 +35,7 @@ import { extractErrorMessage } from '../../utils/errorUtils';
 import aiApi from '../../api/ai';
 import { useFeatures } from '../../hooks/useFeatures';
 import PhaseTimeline from './PhaseTimeline';
-import { ScenarioModeBadges } from '../common';
+import { ScenarioModeBadges, CyberVisionBadge } from '../common';
 
 const { Text } = Typography;
 
@@ -178,6 +178,7 @@ const DeploymentCard: React.FC<{
                   cellIsolationMode: deployment.scenario_modes?.cell_isolation_mode,
                 }}
               />
+              <CyberVisionBadge cv={deployment.cyber_vision} />
             </div>
 
             <div style={{ marginTop: 4 }}>

@@ -26,6 +26,7 @@ from app.schemas.cyber_vision import (
     CVEnrichmentResult,
     CVPresetListResponse,
     CVPresetResponse,
+    CVProvisionResponse,
     CVSettingsResponse,
     CVSettingsUpdate,
     CVTestConnectionRequest,
@@ -826,6 +827,105 @@ async def enrich_devices(
     except Exception as e:
         logger.exception("Error during CV enrichment")
         raise ExternalServiceError(service="cyber_vision", message=f"Failed to enrich CV devices: {str(e)}", original_error=e)
+
+
+@router.post("/provision/{scenario_id}", response_model=CVProvisionResponse)
+async def provision_scenario(
+    scenario_id: UUID,
+    db: DBSession,
+    _admin: AdminUser,
+) -> CVProvisionResponse:
+    """Create a Cyber Vision preset for a scenario, then schedule zone groups.
+
+    Phase 1 (synchronous): create a CV preset scoped to the scenario's /16,
+    mirroring the operator-built reference preset. Phase 2 (background Celery
+    task): poll the preset until the discovered-device count stabilises, then
+    create one CV group per scenario zone and assign the matched devices.
+
+    Requires admin privileges (writes to Cyber Vision).
+    """
+    from app.services.cv_provisioning_service import provision_preset
+    from app.traffic_generator.tasks import provision_cyber_vision
+
+    scenario = await db.execute(select(Scenario).where(Scenario.id == scenario_id))
+    scenario = scenario.scalar_one_or_none()
+    if scenario is None:
+        raise NotFoundError("Scenario", str(scenario_id))
+
+    try:
+        state = await provision_preset(db, scenario)
+    except RuntimeError as e:
+        raise ValidationError(str(e))
+    except Exception as e:
+        logger.exception("Error creating CV preset")
+        raise ExternalServiceError(
+            service="cyber_vision",
+            message=f"Failed to create preset: {str(e)}",
+            original_error=e,
+        )
+
+    # Kick off the group-creation step in the background (polls until stable).
+    try:
+        provision_cyber_vision.apply_async(kwargs={"scenario_id": str(scenario_id)})
+    except Exception:
+        logger.exception("Failed to enqueue CV group provisioning task")
+
+    return CVProvisionResponse(**state)
+
+
+@router.post("/reconcile")
+async def reconcile_cv(
+    db: DBSession,
+    _admin: AdminUser,
+) -> dict:
+    """Re-derive CV group names + vertical roll-up presets from the current scenarios.
+
+    One-shot cleanup lever: rewrites every zone group's label to the readable
+    convention (bare zone name, scenario-suffixed only on cross-scenario
+    collisions, acronym casing) and rebuilds each vertical's roll-up preset.
+    Idempotent — safe to run anytime CV drifts from the scenario set.
+    Requires admin (writes to Cyber Vision).
+    """
+    from app.services.cv_provisioning_service import (
+        reconcile_cv_group_names,
+        reconcile_vertical_presets,
+    )
+
+    try:
+        groups = await reconcile_cv_group_names(db)
+        verticals = await reconcile_vertical_presets(db)
+    except RuntimeError as e:
+        raise ValidationError(str(e))
+    except Exception as e:
+        logger.exception("Error during CV reconcile")
+        raise ExternalServiceError(
+            service="cyber_vision",
+            message=f"CV reconcile failed: {str(e)}",
+            original_error=e,
+        )
+    return {
+        "group_names": groups,
+        "vertical_presets": [
+            {"vertical": v["vertical"], "label": v["label"], "subnets": len(v["subnets"])}
+            for v in verticals
+        ],
+    }
+
+
+@router.get("/provision/{scenario_id}", response_model=CVProvisionResponse)
+async def get_provision_status(
+    scenario_id: UUID,
+    db: DBSession,
+    _user: CurrentUser,
+) -> CVProvisionResponse:
+    """Return the current Cyber Vision provisioning state for a scenario."""
+    scenario = await db.execute(select(Scenario).where(Scenario.id == scenario_id))
+    scenario = scenario.scalar_one_or_none()
+    if scenario is None:
+        raise NotFoundError("Scenario", str(scenario_id))
+
+    state = (scenario.definition or {}).get("cyber_vision") or {}
+    return CVProvisionResponse(**state) if state else CVProvisionResponse(status="not_started")
 
 
 @router.get("/flows")

@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="ControlEdge 900 platform process controller (Modbus TCP)",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -87,7 +87,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="High-performance process controller for Experion PKS DCS",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 128,
@@ -157,7 +157,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="Mid-range process controller for Experion PKS DCS",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 128,
@@ -227,7 +227,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="scada_server",
         description="Experion PKS application server for DCS operation",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 128,
@@ -298,7 +298,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="SIL 3 safety controller for Experion PKS",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 128,
@@ -368,7 +368,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="Series C distributed I/O for Experion PKS",
 
-        oui_prefixes=["00:60:35", "00:D0:36"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -432,7 +432,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="operator_station",
         description="Operator workstation for Experion PKS HMI",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "64:31:7E", "F4:4E:05"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 128,
@@ -498,7 +498,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Niagara Framework-based building automation controller",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "00:0D:6B"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -573,7 +573,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hvac_controller",
         description="Excel Web controller for boiler and HVAC applications",
 
-        oui_prefixes=["00:60:35", "00:D0:36"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -643,7 +643,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="level_gauge",
         description="Servo tank gauge for custody transfer applications",
 
-        oui_prefixes=["00:60:35", "00:D0:36"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -712,7 +712,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Remote terminal unit for tank gauging and control",
 
-        oui_prefixes=["00:60:35", "00:D0:36"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -775,7 +775,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="vav_controller",
         description="Programmable VAV controller with BACnet",
 
-        oui_prefixes=["00:60:35", "00:D0:36", "F4:4E:05"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -843,7 +843,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="HC900 Controller",
         device_type="instrument",
         description="Honeywell HC900 Controller",
-        oui_prefixes=['00:40:84', '00:22:6A'],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -886,7 +886,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Pipeline LDS",
         device_type="leak_detection",
         description="Honeywell Pipeline LDS",
-        oui_prefixes=['00:40:84', '00:22:6A', 'C4:EF:DA', '58:FC:C8'],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -938,7 +938,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="STT850",
         device_type="instrument",
         description="Honeywell STT850",
-        oui_prefixes=['00:40:84', '00:22:6A'],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 4096,
@@ -981,7 +981,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="UDA2182",
         device_type="instrument",
         description="Honeywell UDA2182",
-        oui_prefixes=['00:40:84', '00:22:6A', 'C4:EF:DA', '58:FC:C8'],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -1033,7 +1033,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="UDC3500",
         device_type="instrument",
         description="Honeywell UDC3500",
-        oui_prefixes=['00:40:84', '00:22:6A'],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,

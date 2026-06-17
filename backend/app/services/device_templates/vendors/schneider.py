@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance Ethernet programmable automation controller",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,  # VxWorks
@@ -118,7 +118,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact logic controller with Ethernet and CANopen",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -188,7 +188,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Variable frequency drive for process applications with advanced connectivity",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "EC:FA:AA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -285,7 +285,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Entry-level M580 ePAC with 2MB program memory",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -366,7 +366,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Mid-range Modicon M340 processor with Ethernet",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -457,7 +457,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact logic controller with Ethernet and serial ports",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -527,7 +527,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="motion_controller",
         description="Motion controller with 8 axis support and EtherNet/IP",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -607,7 +607,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="High-performance variable frequency drive with advanced process functions",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "EC:FA:AA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -695,7 +695,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="drive",
         description="Compact variable frequency drive for OEM machine builders",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "EC:FA:AA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -766,7 +766,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="Advantys STB distributed I/O network interface module",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -839,7 +839,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="32-point digital input expansion module",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -903,7 +903,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="Compact 3.4-inch color touchscreen HMI panel",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -973,7 +973,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Legacy Modicon Premium processor - still widely deployed",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1046,7 +1046,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety logic controller for machine safety applications (SIL 3/PLe)",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1129,7 +1129,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="power_meter",
         description="Advanced power quality and energy meter with communications",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1193,7 +1193,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance Ethernet programmable automation controller with redundancy",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1260,7 +1260,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Mid-range automation processor with embedded Ethernet",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1319,7 +1319,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety-rated Ethernet programmable automation controller for SIL3 applications",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1378,7 +1378,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="servo",
         description="Motion servo drive for automation applications",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:A3"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1437,7 +1437,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Legacy Premium PLC with Ethernet communication",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1497,7 +1497,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="io_module",
         description="Advantys STB distributed I/O network interface module",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1556,7 +1556,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="crac_unit",
         description="InRow precision cooling for data centers",
 
-        oui_prefixes=["00:00:54", "00:C0:B7", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1620,7 +1620,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ups",
         description="Three-phase modular UPS for data centers",
 
-        oui_prefixes=["00:00:54", "00:C0:B7", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1682,7 +1682,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="pdu",
         description="Switched metered rack power distribution unit",
 
-        oui_prefixes=["00:00:54", "00:C0:B7", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1744,7 +1744,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Advanced BMS controller for building automation",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1819,7 +1819,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="15-inch touchscreen HMI for demanding applications",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1882,7 +1882,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="High-performance RTU for SCADA applications",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -1951,7 +1951,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="power_meter",
         description="High-accuracy power quality meter for utility revenue metering",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2020,7 +2020,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Compact RTU for remote monitoring and control",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2089,7 +2089,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Compact RTU for small-scale remote monitoring",
 
-        oui_prefixes=["00:00:54", "00:80:F4"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2157,7 +2157,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ATV320",
         device_type="drive",
         description="Schneider ATV320",
-        oui_prefixes=['00:00:54', '00:80:F4', 'EC:FA:AA'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 4096,
@@ -2207,7 +2207,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ATV930",
         device_type="drive",
         description="Schneider ATV930",
-        oui_prefixes=['00:00:54', '00:80:F4', 'EC:FA:AA'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2265,7 +2265,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="BMEP586040",
         device_type="plc",
         description="Schneider BMEP586040",
-        oui_prefixes=['00:00:54', '00:80:F4', 'EC:FA:AA'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -2345,7 +2345,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="HMIGTO5310",
         device_type="hmi",
         description="Schneider HMIGTO5310",
-        oui_prefixes=['00:80:F4', '00:60:E5'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -2388,7 +2388,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="LT2",
         device_type="controller",
         description="Schneider LT2",
-        oui_prefixes=['00:00:54', '00:80:F4'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2435,7 +2435,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="LXM32MD18M2",
         device_type="drive",
         description="Schneider LXM32MD18M2",
-        oui_prefixes=['00:00:54', '00:80:F4', 'EC:FA:AA'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -2497,7 +2497,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MS-CPU32",
         device_type="traffic_controller",
         description="Schneider MS-CPU32",
-        oui_prefixes=['00:00:54', '00:80:F4'],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -2547,7 +2547,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Overcurrent and feeder management protection relay for MV distribution feeders (GE Vernova Grid Solutions, formerly Alstom/Areva MiCOM)",
 
-        oui_prefixes=["00:22:52", "00:09:45", "00:50:99"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -2631,7 +2631,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Two-ended line differential protection relay for transmission line protection",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2715,7 +2715,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Numerical busbar differential protection relay for distributed substation architectures",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2799,7 +2799,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bay_controller",
         description="Substation bay computer providing control, monitoring and protocol gateway functions",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2877,7 +2877,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Entry-level feeder protection relay for MV distribution networks",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -2955,7 +2955,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Universal feeder, motor and transformer protection relay for utility and industrial MV",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -3039,7 +3039,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="rtu",
         description="Modular feeder remote terminal unit for MV smart grid monitoring and FLISR automation",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,
@@ -3115,7 +3115,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="power_meter",
         description="Revenue-class power quality meter for utility and critical-facility metering",
 
-        oui_prefixes=["00:00:54", "00:80:F4", "00:04:74", "64:3A:EA"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
 
         tcp_stack={
             "ttl": 64,

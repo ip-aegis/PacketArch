@@ -252,3 +252,19 @@ class DuplicateMacAnalysisResponse(BaseModel):
     no_mac_devices: list[NoMacDeviceInfo] = Field(
         default_factory=list, description="Devices without any MAC address"
     )
+
+
+class CVProvisionResponse(BaseModel):
+    """State of Cyber Vision preset/group provisioning for a scenario."""
+
+    preset_id: str | None = Field(None, description="Created CV preset ID")
+    preset_label: str | None = Field(None, description="CV preset label")
+    subnet: str | None = Field(None, description="Scenario /16 the preset is scoped to")
+    status: str | None = Field(
+        None,
+        description="not_started | preset_created | polling | groups_created | error",
+    )
+    groups: dict = Field(default_factory=dict, description="zone_id -> {group_id, label, device_count}")
+    device_count: int = Field(0, description="Devices assigned to groups")
+    error: str | None = Field(None, description="Error message if provisioning failed")
+    updated_at: str | None = Field(None, description="Last state update timestamp")

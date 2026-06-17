@@ -231,7 +231,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="DataMan 280",
         device_type="barcode_scanner",
         description="Cognex DataMan 280",
-        oui_prefixes=['00:04:3E', '00:0D:88'],
+        oui_prefixes=["00:D0:24"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -295,7 +295,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="DataMan 370",
         device_type="barcode_scanner",
         description="Cognex DataMan 370",
-        oui_prefixes=['00:04:3E', '00:0D:88'],
+        oui_prefixes=["00:D0:24"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -348,7 +348,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="In-Sight 7802",
         device_type="vision_system",
         description="Cognex In-Sight 7802",
-        oui_prefixes=['00:04:3E', '00:0D:88'],
+        oui_prefixes=["00:D0:24"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -414,7 +414,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="iQ WCS Controller",
         device_type="server",
         description="Dematic iQ WCS Controller",
-        oui_prefixes=['00:1C:34'],
+        oui_prefixes=["00:02:4D", "28:05:2E"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -468,7 +468,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Speedway R420",
         device_type="rfid_reader",
         description="Impinj Speedway R420",
-        oui_prefixes=['00:16:25'],
+        oui_prefixes=["00:16:25"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -509,7 +509,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Speedway R700",
         device_type="rfid_reader",
         description="Impinj Speedway R700",
-        oui_prefixes=['00:16:25'],
+        oui_prefixes=["00:16:25"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -745,7 +745,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MiR Fleet",
         device_type="agv",
         description="MiR MiR Fleet",
-        oui_prefixes=['00:1E:06'],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 65535,
@@ -800,7 +800,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MiR100",
         device_type="agv",
         description="MiR MiR100",
-        oui_prefixes=['00:1E:06'],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -862,7 +862,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MiR250",
         device_type="agv",
         description="MiR MiR250",
-        oui_prefixes=['00:1E:06'],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -917,7 +917,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MiR500",
         device_type="agv",
         description="MiR MiR500",
-        oui_prefixes=['00:1E:06'],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -972,7 +972,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="FX7500",
         device_type="rfid_reader",
         description="Zebra FX7500",
-        oui_prefixes=['00:A0:F8', '00:23:68', 'AC:3F:A4'],
+        oui_prefixes=["00:05:12", "00:07:4D", "00:15:70", "00:23:68"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,
@@ -1013,7 +1013,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="FX9600",
         device_type="rfid_reader",
         description="Zebra FX9600",
-        oui_prefixes=['00:A0:F8', '00:23:68', 'AC:3F:A4'],
+        oui_prefixes=["00:05:12", "00:07:4D", "00:15:70", "00:23:68"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 29200,

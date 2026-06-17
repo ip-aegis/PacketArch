@@ -11,6 +11,16 @@ from pydantic import BaseModel, Field
 from app.schemas.scenario import ScenarioModes
 
 
+class CyberVisionSummary(BaseModel):
+    """Compact Cyber Vision provisioning summary for deployment badges."""
+
+    status: str = "not_started"
+    preset_label: str | None = None
+    subnet: str | None = None
+    group_count: int = 0
+    device_count: int = 0
+
+
 class UnifiedDeploymentResponse(BaseModel):
     """Schema for agent deployment responses."""
 
@@ -33,6 +43,8 @@ class UnifiedDeploymentResponse(BaseModel):
     # Mode flags from the scenario definition so the UI can render badges
     # without making a second fetch per row.
     scenario_modes: ScenarioModes = Field(default_factory=ScenarioModes)
+    # Cyber Vision provisioning summary (None when not provisioned).
+    cyber_vision: CyberVisionSummary | None = None
 
     class Config:
         from_attributes = True
@@ -54,6 +66,7 @@ class UnifiedDeploymentResponse(BaseModel):
             attack: Optional attack state dict from traffic_dashboard
         """
         modes = ScenarioModes()
+        cyber_vision = None
         if scenario is not None and scenario.definition:
             d = scenario.definition
             modes = ScenarioModes(
@@ -65,6 +78,15 @@ class UnifiedDeploymentResponse(BaseModel):
                     (d.get("cell_isolation") or {}).get("mode", "off")
                 ),
             )
+            cv = d.get("cyber_vision")
+            if cv and cv.get("status"):
+                cyber_vision = CyberVisionSummary(
+                    status=cv.get("status", "not_started"),
+                    preset_label=cv.get("preset_label"),
+                    subnet=cv.get("subnet"),
+                    group_count=len(cv.get("groups") or {}),
+                    device_count=int(cv.get("device_count") or 0),
+                )
         return cls(
             id=deployment.id,
             scenario_id=deployment.scenario_id,
@@ -82,6 +104,7 @@ class UnifiedDeploymentResponse(BaseModel):
             created_at=deployment.started_at,  # AgentDeployment uses started_at as creation time
             attack=attack,
             scenario_modes=modes,
+            cyber_vision=cyber_vision,
         )
 
 

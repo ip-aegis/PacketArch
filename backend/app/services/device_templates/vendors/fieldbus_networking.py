@@ -83,7 +83,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Linux-based open automation controller",
 
-        oui_prefixes=["00:A0:45", "00:16:9D", "A8:74:1D"],
+        oui_prefixes=["00:A0:45", "A8:74:1D", "CC:CC:EA"],
 
         tcp_stack={
             "ttl": 64,  # Linux
@@ -155,7 +155,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="Compact Linux-based controller with CODESYS runtime",
 
-        oui_prefixes=["00:30:DE", "00:03:C6"],
+        oui_prefixes=["00:30:DE"],
 
         tcp_stack={
             "ttl": 64,
@@ -227,7 +227,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="16-channel digital input remote I/O with Modbus/TCP",
 
-        oui_prefixes=["00:90:E8"],
+        oui_prefixes=["00:90:E8", "50:0B:88"],
 
         tcp_stack={
             "ttl": 64,
@@ -296,7 +296,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance compact PLC with integrated I/O",
 
-        oui_prefixes=["00:60:65"],
+        oui_prefixes=["00:11:1E", "00:15:1E", "00:60:65"],
 
         tcp_stack={
             "ttl": 64,
@@ -365,7 +365,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="remote_io",
         description="16-channel digital I/O module with Modbus/TCP",
 
-        oui_prefixes=["00:D0:C9"],
+        oui_prefixes=["00:0B:AB", "00:0E:02", "00:14:53", "00:D0:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -428,7 +428,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="gateway",
         description="OPC UA gateway for multi-protocol industrial connectivity",
 
-        oui_prefixes=[],  # Software runs on standard PCs
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],  # Software runs on standard PCs
 
         tcp_stack={
             "ttl": 128,

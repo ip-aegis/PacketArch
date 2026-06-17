@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="Field control unit for CENTUM VP distributed control system",
 
-        oui_prefixes=["00:A0:64", "00:1E:62", "00:20:4A"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -88,7 +88,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="safety_plc",
         description="Safety instrumented system controller for SIL3 applications",
 
-        oui_prefixes=["00:A0:64", "00:1E:62"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -152,7 +152,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="analyzer",
         description="Process gas chromatograph for natural gas and refinery applications",
 
-        oui_prefixes=["00:A0:64", "00:1E:62", "00:20:4A"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -216,7 +216,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="analyzer",
         description="Tunable diode laser spectrometer for gas analysis",
 
-        oui_prefixes=["00:A0:64", "00:1E:62"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -280,7 +280,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="transmitter",
         description="Digital differential pressure transmitter for process measurement",
 
-        oui_prefixes=["00:A0:64", "00:1E:62"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -343,7 +343,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="analyzer",
         description="Four-wire pH/ORP analyzer for water quality monitoring",
 
-        oui_prefixes=["00:A0:64", "00:1E:62"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 64,
@@ -406,7 +406,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hmi",
         description="Operator interface station for CENTUM VP DCS",
 
-        oui_prefixes=["00:A0:64", "00:1E:62", "00:20:4A"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 128,
@@ -465,7 +465,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="engineering_station",
         description="Engineering workstation for CENTUM VP configuration",
 
-        oui_prefixes=["00:A0:64", "00:1E:62", "00:20:4A"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 128,
@@ -524,7 +524,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="historian",
         description="OPC server and historian for CENTUM VP and ProSafe-RS",
 
-        oui_prefixes=["00:A0:64", "00:1E:62", "00:20:4A"],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
 
         tcp_stack={
             "ttl": 128,
@@ -582,7 +582,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="CENTUM VP",
         device_type="dcs_controller",
         description="Yokogawa CENTUM VP",
-        oui_prefixes=['00:00:C1', '00:02:E0'],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -636,7 +636,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ProSafe-RS",
         device_type="dcs_controller",
         description="Yokogawa ProSafe-RS",
-        oui_prefixes=['00:00:C1', '00:02:E0'],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -689,7 +689,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="RC400G",
         device_type="rtu",
         description="Yokogawa RC400G",
-        oui_prefixes=['00:00:C1', '00:02:E0'],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -742,7 +742,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="SC450G",
         device_type="rtu",
         description="Yokogawa SC450G",
-        oui_prefixes=['00:00:C1', '00:02:E0'],
+        oui_prefixes=["00:00:64", "00:60:41", "D0:0A:AB"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,

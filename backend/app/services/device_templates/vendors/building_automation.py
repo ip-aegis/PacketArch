@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bac",
         description="Building automation network controller",
 
-        oui_prefixes=["00:23:BE"],
+        oui_prefixes=["00:10:8D"],
 
         tcp_stack={
             "ttl": 128,
@@ -85,7 +85,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="field_controller",
         description="BACnet field controller for HVAC equipment",
 
-        oui_prefixes=["00:23:BE"],
+        oui_prefixes=["00:10:8D"],
 
         tcp_stack={
             "ttl": 64,
@@ -160,7 +160,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Building automation network engine for Metasys",
 
-        oui_prefixes=["00:04:5A", "00:A0:AF"],
+        oui_prefixes=["00:10:8D"],
 
         tcp_stack={
             "ttl": 64,
@@ -221,7 +221,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="lighting_controller",
         description="Field equipment controller for lighting and HVAC",
 
-        oui_prefixes=["00:04:5A", "00:A0:AF"],
+        oui_prefixes=["00:10:8D"],
 
         tcp_stack={
             "ttl": 64,
@@ -279,7 +279,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_server",
         description="WebCTRL building automation server",
 
-        oui_prefixes=["00:50:C2", "00:17:61"],
+        oui_prefixes=["00:E0:C9"],
 
         tcp_stack={
             "ttl": 128,
@@ -344,7 +344,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ahu_controller",
         description="Building automation controller for HVAC applications",
 
-        oui_prefixes=["00:60:35", "00:50:C2"],
+        oui_prefixes=["00:40:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -413,7 +413,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Building automation system controller",
 
-        oui_prefixes=["00:10:91", "00:1E:C0"],
+        oui_prefixes=["00:12:EA", "FC:71:FA"],
 
         tcp_stack={
             "ttl": 64,
@@ -483,7 +483,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="thermostat",
         description="Wi-Fi enabled smart thermostat with touchscreen",
 
-        oui_prefixes=["00:10:91", "00:1E:C0"],
+        oui_prefixes=["00:12:EA", "FC:71:FA"],
 
         tcp_stack={
             "ttl": 64,
@@ -546,7 +546,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_server",
         description="Web-based building automation system",
 
-        oui_prefixes=["00:E0:C9", "00:25:B0"],
+        oui_prefixes=["00:02:52", "34:6D:9C", "9C:F6:1A"],
 
         tcp_stack={
             "ttl": 64,
@@ -610,7 +610,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="thermostat",
         description="Commercial programmable thermostat with BACnet",
 
-        oui_prefixes=["00:E0:C9", "00:25:B0"],
+        oui_prefixes=["00:02:52", "34:6D:9C", "9C:F6:1A"],
 
         tcp_stack={
             "ttl": 64,
@@ -673,7 +673,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="vav_controller",
         description="Connected controller for VAV box and equipment control",
 
-        oui_prefixes=["00:0F:A3"],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
 
         tcp_stack={
             "ttl": 64,
@@ -737,7 +737,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_controller",
         description="Modular building automation controller",
 
-        oui_prefixes=["00:08:B6"],
+        oui_prefixes=["00:40:AE"],
 
         tcp_stack={
             "ttl": 64,
@@ -800,7 +800,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="bms_server",
         description="Enterprise building automation software platform",
 
-        oui_prefixes=["00:E0:C9", "00:0E:70"],
+        oui_prefixes=["00:E0:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -864,7 +864,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="hvac_controller",
         description="Programmable controller for HVAC applications",
 
-        oui_prefixes=["00:1C:7E"],
+        oui_prefixes=["00:0A:5C"],
 
         tcp_stack={
             "ttl": 64,
@@ -934,7 +934,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="fire_panel",
         description="Intelligent fire alarm control panel",
 
-        oui_prefixes=["00:60:35", "00:D0:36"],
+        oui_prefixes=["00:06:4A", "00:0A:13", "00:11:12", "00:1E:1E"],
 
         tcp_stack={
             "ttl": 64,
@@ -997,7 +997,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="lighting_controller",
         description="Enterprise lighting control processor",
 
-        oui_prefixes=["00:09:23", "00:15:B2"],
+        oui_prefixes=["00:0F:E7"],
 
         tcp_stack={
             "ttl": 64,
@@ -1060,7 +1060,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ME812U",
         device_type="building_controller",
         description="Automated Logic ME812U",
-        oui_prefixes=["00:14:C1", "00:1C:12"],
+        oui_prefixes=["00:E0:C9"],
         tcp_stack={},
         response_timing={
                 "min_ms": 8.0,
@@ -1112,7 +1112,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Pro Open",
         device_type="bms_server",
         description="Carrier Pro Open",
-        oui_prefixes=["00:0D:AD", "00:1E:8E"],
+        oui_prefixes=["00:02:52", "34:6D:9C", "9C:F6:1A"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 65535,
@@ -1168,7 +1168,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Manager",
         device_type="building_controller",
         description="Delta Controls Manager",
-        oui_prefixes=["00:0B:AB", "00:0D:9F"],
+        oui_prefixes=["00:40:AE"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -1225,7 +1225,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="eBCON",
         device_type="zone_controller",
         description="Delta Controls eBCON",
-        oui_prefixes=["00:0B:AB", "00:0D:9F"],
+        oui_prefixes=["00:40:AE"],
         tcp_stack={},
         response_timing={
                 "min_ms": 10.0,
@@ -1277,7 +1277,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="ECY-VAV",
         device_type="vav_controller",
         description="Distech Controls ECY-VAV",
-        oui_prefixes=["00:1E:C0", "D0:77:14"],
+        oui_prefixes=["00:0D:2C", "00:0F:2C", "00:80:A3", "00:C0:F2"],
         tcp_stack={},
         response_timing={
                 "min_ms": 8.0,
@@ -1329,7 +1329,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="SNC",
         device_type="building_controller",
         description="Johnson Controls SNC",
-        oui_prefixes=["00:23:BE"],
+        oui_prefixes=["00:10:8D"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -1386,7 +1386,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="UC600",
         device_type="building_controller",
         description="Trane UC600",
-        oui_prefixes=["00:0D:AD", "00:1C:C0"],
+        oui_prefixes=["00:12:EA", "FC:71:FA"],
         tcp_stack={},
         response_timing={
                 "min_ms": 12.0,

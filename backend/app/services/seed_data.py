@@ -1167,6 +1167,28 @@ async def seed_device_templates_db(db: AsyncSession) -> int:
         (row[0].lower(), row[1]) for row in result.all() if row[0] is not None
     }
 
+    # Reconcile oui_patterns on existing builtin rows: the OUI lists are now
+    # IEEE-grounded (scripts/generate_vendor_ouis.py) and were corrected in bulk,
+    # so rows seeded before the fix carry stale/foreign OUIs. Refresh in place so
+    # the template-library DB matches the on-wire identity the engine emits.
+    pkg_ouis_by_combo = {
+        (t.vendor.lower(), t.model): list(t.oui_prefixes or [])
+        for t in DEVICE_TEMPLATES.values()
+    }
+    existing_rows = (
+        await db.execute(
+            select(DeviceTemplateDB).where(
+                DeviceTemplateDB.source == TemplateSource.VENDOR_BUILTIN.value,
+            )
+        )
+    ).scalars().all()
+    for row in existing_rows:
+        if row.vendor is None:
+            continue
+        want = pkg_ouis_by_combo.get((row.vendor.lower(), row.model))
+        if want is not None and list(row.oui_patterns or []) != want:
+            row.oui_patterns = want
+
     # Track combos from the Python library to avoid duplicates
     seen_combos = set()
     new_templates = []

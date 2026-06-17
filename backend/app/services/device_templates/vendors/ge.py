@@ -18,7 +18,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="plc",
         description="High-performance PACSystems controller",
 
-        oui_prefixes=["00:14:49", "00:60:B0", "1C:39:47"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -105,7 +105,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="dcs_controller",
         description="Turbine control system controller with redundancy support",
 
-        oui_prefixes=["00:14:49", "00:60:B0", "1C:39:47", "00:C0:4F"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 128,  # Windows-based
@@ -200,7 +200,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="historian",
         description="Industrial data historian for process and manufacturing data",
 
-        oui_prefixes=["00:50:C2", "00:12:A9"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 128,
@@ -279,7 +279,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Advanced feeder protection and bay control relay",
 
-        oui_prefixes=["00:14:49", "00:60:B0"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -353,7 +353,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Digital bay controller with comprehensive protection",
 
-        oui_prefixes=["00:14:49", "00:60:B0"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -422,7 +422,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="Transformer protection relay with comprehensive protection functions",
 
-        oui_prefixes=["00:14:49", "00:60:B0", "1C:39:47"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -495,7 +495,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="IC200UDD104",
         device_type="plc",
         description="GE IC200UDD104",
-        oui_prefixes=['00:09:45', '00:30:C1', '00:50:99', '00:22:52'],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 8192,
@@ -545,7 +545,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="IC695CPE310",
         device_type="plc",
         description="GE IC695CPE310",
-        oui_prefixes=['00:09:45', '00:30:C1', '00:50:99', '00:22:52'],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -606,7 +606,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Proficy Historian 7.2",
         device_type="server",
         description="GE Proficy Historian 7.2",
-        oui_prefixes=['00:09:45', '00:30:C1', '00:50:99', '00:22:52'],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -681,7 +681,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="UR-series feeder management relay with comprehensive protection and control",
 
-        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -773,7 +773,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="UR-series bus differential protection relay with low-impedance algorithm",
 
-        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,
@@ -865,7 +865,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="protection_relay",
         description="UR-series line distance protection relay for transmission lines",
 
-        oui_prefixes=["00:09:45", "00:50:99", "00:22:52"],
+        oui_prefixes=["08:00:19", "90:83:7A", "C4:B5:12", "D8:28:C9"],
 
         tcp_stack={
             "ttl": 64,

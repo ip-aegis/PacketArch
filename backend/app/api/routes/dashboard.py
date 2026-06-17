@@ -105,6 +105,15 @@ async def get_live_dashboard() -> dict[str, Any]:
                         (definition.get("cell_isolation") or {}).get("mode", "off")
                     ),
                 }
+                cv = definition.get("cyber_vision")
+                if cv and cv.get("status"):
+                    d["cyber_vision"] = {
+                        "status": cv.get("status", "not_started"),
+                        "preset_label": cv.get("preset_label"),
+                        "subnet": cv.get("subnet"),
+                        "group_count": len(cv.get("groups") or {}),
+                        "device_count": int(cv.get("device_count") or 0),
+                    }
                 # Static protocol mix from the scenario definition. The
                 # live `protocol_breakdown` field still wins for runtime
                 # rates; this is a cheap fallback when an agent hasn't

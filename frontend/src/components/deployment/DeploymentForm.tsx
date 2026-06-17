@@ -59,6 +59,9 @@ export interface DeploymentFormProps {
   // Scenario phases
   phases?: Phase[];
 
+  // Whether Cyber Vision is configured (enables the provisioning checkbox)
+  cvConfigured?: boolean;
+
   // Shared
   loadingInterfaces: boolean;
   validating: boolean;
@@ -70,6 +73,7 @@ export interface DeploymentFormProps {
     run_mode: RunMode;
     duration_minutes?: number;
     phase_schedule?: PhaseScheduleConfig;
+    provision_cyber_vision?: boolean;
   }) => void;
 }
 
@@ -80,6 +84,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   agentInterfaces,
   onAgentChange,
   phases,
+  cvConfigured,
   loadingInterfaces,
   validating,
   deploymentsLoading,
@@ -311,6 +316,22 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
               ]}
             />
           </Form.Item>
+
+          {/* Cyber Vision provisioning */}
+          {cvConfigured && (
+            <Form.Item
+              name="provision_cyber_vision"
+              valuePropName="checked"
+              initialValue={false}
+              style={{ marginBottom: 12 }}
+            >
+              <Checkbox style={{ fontSize: 12, color: '#8aa4bc' }}>
+                <Tooltip title="Creates a Cyber Vision preset scoped to this scenario's subnet now, then auto-creates one CV group per zone once CV has discovered the simulated devices.">
+                  Provision to Cyber Vision
+                </Tooltip>
+              </Checkbox>
+            </Form.Item>
+          )}
 
           {/* Phase Schedule */}
           {phases && phases.length > 0 && (
