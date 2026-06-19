@@ -146,11 +146,6 @@ log "[3/7] Customizing image (Docker CE + clone + first-boot unit)"
 # repo is added + the engine installed entirely via ordered --run-commands so
 # this does not depend on whether virt-customize hoists --install.
 virt-customize -a "${QCOW}" --network \
-    `# Build-time DNS: a loopback host resolver (e.g. CI systemd-resolved at` \
-    `# 127.0.0.53) is unreachable from the NAT-ed libguestfs guest and breaks` \
-    `# apt. Use a public resolver for the build; the systemd-resolved symlink is` \
-    `# restored at the end so the appliance has normal DNS at runtime.` \
-    --run-command 'rm -f /etc/resolv.conf && printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > /etc/resolv.conf' \
     --install git,curl,ca-certificates,gnupg,qemu-guest-agent \
     --run-command 'install -m 0755 -d /etc/apt/keyrings' \
     --run-command 'curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg' \
@@ -193,8 +188,6 @@ virt-customize -a "${QCOW}" --network \
     --run-command "echo 'ubuntu:${CONSOLE_PASS}' | chpasswd" \
     --run-command 'chage -M -1 ubuntu' \
     --run-command "printf 'ubuntu ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-ubuntu && chmod 440 /etc/sudoers.d/90-ubuntu" \
-    `# Restore the systemd-resolved symlink so runtime DNS is managed normally.` \
-    --run-command 'ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf' \
     --run-command 'cloud-init clean --logs || true' \
     --run-command 'truncate -s0 /etc/machine-id; rm -f /var/lib/dbus/machine-id; ln -sf /etc/machine-id /var/lib/dbus/machine-id' \
     --run-command 'rm -f /etc/ssh/ssh_host_*' \

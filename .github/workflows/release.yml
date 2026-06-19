@@ -5,15 +5,9 @@ name: Release
 # Produces:
 #   - THIRD_PARTY_LICENSES.md (best-effort; regenerated from pyproject + package.json)
 #   - packetarch-<version>-offline.tar.gz (via scripts/build-release.sh)
-#   - packetarch-<version>-appliance.ova  (via scripts/ova/build-ova.sh)
-# These artifacts are attached to a GitHub Release for the pushed tag, and
+# Both artifacts are attached to a GitHub Release for the pushed tag, and
 # uploaded as workflow artifacts regardless of whether the release step
 # succeeds (so failed-release builds are still recoverable).
-#
-# The OVA is built by the `build-ova` job below using libguestfs in software
-# (TCG) mode — no KVM required on the runner — so a plain ubuntu-latest runner
-# emits a ready-to-import appliance with the firmware-agnostic boot + baked
-# console-user fixes.
 #
 # Optional GHCR image push is stubbed below — uncomment once the
 # ip-aegis/packetarch repo has `packages: write` enabled and the desired
@@ -165,89 +159,3 @@ jobs:
       #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:${VERSION}"
       #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:latest"
       #     done
-
-  build-ova:
-    name: Build OVA appliance
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0      # full history + tags, so the file:// clone can check out the tag
-          fetch-tags: true
-
-      - name: Resolve OVA git ref
-        id: ovaref
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-              REF="${GITHUB_REF_NAME}"                       # the pushed tag, e.g. v1.10.1
-          elif [[ -n "${{ inputs.version_override }}" ]]; then
-              REF="v${{ inputs.version_override }}"           # manual run: build a specific tag
-          else
-              REF="$(git tag -l 'v*' --sort=-v:refname | head -1)"
-          fi
-          if [[ -z "${REF}" ]]; then
-              echo "::error::no v* tag available to build an OVA from"; exit 1
-          fi
-          echo "REF=${REF}" >> "$GITHUB_OUTPUT"
-          echo "Building OVA from ref ${REF}"
-
-      - name: Install libguestfs + qemu
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libguestfs-tools qemu-utils
-
-      - name: Make host kernel readable for libguestfs
-        # GitHub runners ship /boot/vmlinuz-* mode 600; libguestfs must read the
-        # host kernel to build its appliance, otherwise: "supermin: ... cannot
-        # read kernel". Harmless on runners where it's already readable.
-        run: sudo chmod 0644 /boot/vmlinuz-* || true
-
-      - name: Prepare work area on the large /mnt disk
-        run: |
-          sudo mkdir -p /mnt/ova-out
-          sudo chown "$(id -u):$(id -g)" /mnt/ova-out
-          df -h / /mnt | sed 's/^/  /'
-
-      - name: Force libguestfs to use slirp networking
-        # virt-customize --network defaults to passt on libguestfs 1.52, and
-        # passt exits 1 in the hosted-runner sandbox ("passt exited with status
-        # 1"). Moving the passt binary aside makes libguestfs fall back to
-        # qemu's built-in slirp user-net, which works on the runner.
-        run: |
-          P="$(command -v passt || echo /usr/bin/passt)"
-          if [ -e "$P" ]; then sudo mv "$P" "${P}.disabled" && echo "moved $P -> ${P}.disabled (slirp fallback)"; else echo "passt absent; slirp already in use"; fi
-
-      - name: Build OVA appliance
-        # build-ova.sh self-exports LIBGUESTFS_BACKEND=direct, which uses TCG
-        # automatically when /dev/kvm is absent (the case on hosted runners).
-        run: |
-          sudo env \
-            OVA_GIT_REF="${{ steps.ovaref.outputs.REF }}" \
-            OUT_DIR=/mnt/ova-out \
-            ./scripts/ova/build-ova.sh
-
-      - name: Locate OVA
-        id: ova
-        run: |
-          OVA="$(ls /mnt/ova-out/packetarch-*-appliance.ova 2>/dev/null | head -1)"
-          if [[ ! -f "${OVA}" ]]; then echo "::error::OVA was not produced"; exit 1; fi
-          echo "OVA=${OVA}" >> "$GITHUB_OUTPUT"
-          echo "OVA: ${OVA} ($(du -h "${OVA}" | awk '{print $1}'))"
-
-      - name: Upload OVA as workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: packetarch-ova-appliance
-          path: ${{ steps.ova.outputs.OVA }}
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Attach OVA to the GitHub Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
-        with:
-          name: PacketArch ${{ github.ref_name }}
-          draft: true
-          files: /mnt/ova-out/packetarch-*-appliance.ova
