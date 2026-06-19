@@ -210,6 +210,15 @@ jobs:
           sudo chown "$(id -u):$(id -g)" /mnt/ova-out
           df -h / /mnt | sed 's/^/  /'
 
+      - name: Force libguestfs to use slirp networking
+        # virt-customize --network defaults to passt on libguestfs 1.52, and
+        # passt exits 1 in the hosted-runner sandbox ("passt exited with status
+        # 1"). Moving the passt binary aside makes libguestfs fall back to
+        # qemu's built-in slirp user-net, which works on the runner.
+        run: |
+          P="$(command -v passt || echo /usr/bin/passt)"
+          if [ -e "$P" ]; then sudo mv "$P" "${P}.disabled" && echo "moved $P -> ${P}.disabled (slirp fallback)"; else echo "passt absent; slirp already in use"; fi
+
       - name: Build OVA appliance
         # build-ova.sh self-exports LIBGUESTFS_BACKEND=direct, which uses TCG
         # automatically when /dev/kvm is absent (the case on hosted runners).
