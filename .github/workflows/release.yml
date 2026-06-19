@@ -5,9 +5,16 @@ name: Release
 # Produces:
 #   - THIRD_PARTY_LICENSES.md (best-effort; regenerated from pyproject + package.json)
 #   - packetarch-<version>-offline.tar.gz (via scripts/build-release.sh)
-# Both artifacts are attached to a GitHub Release for the pushed tag, and
+#   - packetarch-<version>-appliance.ova  (via scripts/ova/build-ova.sh)
+# These artifacts are attached to a GitHub Release for the pushed tag, and
 # uploaded as workflow artifacts regardless of whether the release step
 # succeeds (so failed-release builds are still recoverable).
+#
+# The OVA is built by the `build-ova` job on a SELF-HOSTED runner labeled
+# `ova-builder` (a KVM host) — GitHub-hosted runners can't run libguestfs/
+# virt-customize reliably (passt fails in the sandbox; slirp DNS is flaky). If
+# that runner is offline the build-ova job queues, but the bundle jobs still
+# publish their assets to the release.
 #
 # Optional GHCR image push is stubbed below — uncomment once the
 # ip-aegis/packetarch repo has `packages: write` enabled and the desired
@@ -159,3 +166,62 @@ jobs:
       #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:${VERSION}"
       #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:latest"
       #     done
+
+  build-ova:
+    name: Build OVA appliance
+    # Self-hosted KVM host (see header). guestfs-tools + qemu + passwordless
+    # sudo are expected to be present on the runner.
+    runs-on: [self-hosted, ova-builder]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0      # full history + tags, so the file:// clone can check out the tag
+          fetch-tags: true
+
+      - name: Resolve OVA git ref
+        id: ovaref
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+              REF="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ inputs.version_override }}" ]]; then
+              REF="v${{ inputs.version_override }}"
+          else
+              REF="$(git tag -l 'v*' --sort=-v:refname | head -1)"
+          fi
+          if [[ -z "${REF}" ]]; then echo "::error::no v* tag to build an OVA from"; exit 1; fi
+          echo "REF=${REF}" >> "$GITHUB_OUTPUT"
+          echo "Building OVA from ref ${REF}"
+
+      - name: Build OVA appliance
+        run: |
+          sudo env \
+            OVA_GIT_REF="${{ steps.ovaref.outputs.REF }}" \
+            OUT_DIR="${RUNNER_TEMP}/ova-out" \
+            ./scripts/ova/build-ova.sh
+
+      - name: Locate OVA
+        id: ova
+        run: |
+          OVA="$(ls "${RUNNER_TEMP}"/ova-out/packetarch-*-appliance.ova 2>/dev/null | head -1)"
+          if [[ ! -f "${OVA}" ]]; then echo "::error::OVA was not produced"; exit 1; fi
+          sudo chown "$(id -u):$(id -g)" "${OVA}"   # build-ova.sh runs as root
+          echo "OVA=${OVA}" >> "$GITHUB_OUTPUT"
+          echo "OVA: ${OVA} ($(du -h "${OVA}" | awk '{print $1}'))"
+
+      - name: Upload OVA as workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: packetarch-ova-appliance
+          path: ${{ steps.ova.outputs.OVA }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach OVA to the GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          name: PacketArch ${{ github.ref_name }}
+          draft: true
+          files: ${{ steps.ova.outputs.OVA }}
