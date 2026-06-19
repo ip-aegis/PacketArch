@@ -2862,13 +2862,13 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # OPC UA - SCADA server subscriptions to all bay/zone PLCs (1s)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
-             "source_types": ["scada_server"], "target_types": ["plc", "safety_plc", "fleet_manager"],
+             "source_types": ["scada_server"], "target_types": ["plc", "safety_plc"],
              "source_zones": ["operations"],
              "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_cmp",
                               "bay_metro", "bay_diff", "amhs", "cleanroom"]},
             # OPC UA - Historian data collection from all bay/zone PLCs (5s)
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
-             "source_types": ["historian"], "target_types": ["plc", "fleet_manager"],
+             "source_types": ["historian"], "target_types": ["plc"],
              "source_zones": ["operations"],
              "target_zones": ["bay_litho", "bay_etch", "bay_depo", "bay_cmp",
                               "bay_metro", "bay_diff", "amhs", "cleanroom"]},
@@ -3286,7 +3286,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["dcs_controller"], "target_types": ["sensor"],
              "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 50,
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 50,
              "source_types": ["dcs_controller"], "target_types": ["vision_system"],
              "source_zones": ["stage1_coating"], "target_zones": ["stage1_coating"],
              "jitter_ms": 5, "jitter_type": "gaussian"},
@@ -3298,7 +3298,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # STAGE 2 INTRA-CELL — Rockwell EtherNet/IP + CIP Motion
             # ============================================================
-            {"protocol": "cip_motion", "pattern": "cyclic_io", "interval_ms": 2,
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
              "source_types": ["plc"], "target_types": ["servo"],
              "source_zones": ["stage2_calender"], "target_zones": ["stage2_calender"],
              "jitter_ms": 0.2, "jitter_type": "gaussian"},
@@ -3389,7 +3389,7 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             # collected via the dedicated Modbus TCP flow below.
             {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 1000,
              "source_types": ["scada_server"],
-             "target_types": ["plc", "safety_plc"],
+             "target_types": ["plc"],
              "source_zones": ["operations"],
              "target_zones": ["stage2_calender", "stage3_formation",
                               "stage4_quality", "stage5_pack"]},

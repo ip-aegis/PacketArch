@@ -47,11 +47,11 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # Warehouse Management System servers and core infrastructure
             # ============================================================
             {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "wms_core",
-             "name": "WCS_Primary_Server", "protocols": ["ethernet_ip", "snmp"],
+             "name": "WCS_Primary_Server", "protocols": ["ethernet_ip", "snmp", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "role": "Warehouse Control System"},
             {"type": "scada_server", "vendor": "rockwell", "count": 1, "zone": "wms_core",
-             "name": "WCS_Backup_Server", "protocols": ["ethernet_ip", "snmp"],
+             "name": "WCS_Backup_Server", "protocols": ["ethernet_ip", "snmp", "modbus_tcp"],
              "fingerprint_model": "1756-L85E",
              "role": "Warehouse Control System"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "wms_core",

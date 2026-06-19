@@ -22,7 +22,7 @@ import { TEXT_PARAGRAPH, ACCENT_BLUE, BORDER_DEFAULT, BG_INSET, CARD_STYLE } fro
 const { Text, Paragraph } = Typography;
 
 /** Map the route help was opened from to a backend AI help context. */
-export function helpContextForRoute(pathname: string): string {
+function helpContextForRoute(pathname: string): string {
   if (pathname.startsWith('/studio')) return 'scenario_studio';
   if (pathname.startsWith('/cyber-vision')) return 'cyber_vision';
   if (pathname.startsWith('/libraries/attacks')) return 'attack_config';
