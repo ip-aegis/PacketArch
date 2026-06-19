@@ -3271,6 +3271,15 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
         ],
 
         "flows": [
+            # --- L3 Operations: engineering workstation network management ---
+            # The Windows engineering workstation has no OT-protocol peer in the
+            # operations zone, so it manages the plant switches over SNMP.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["engineering_workstation"], "target_types": ["switch"],
+             "source_zones": ["operations"],
+             "target_zones": ["operations", "stage1_coating", "stage2_calender",
+                              "stage3_formation", "stage4_quality", "stage5_pack"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
             # ============================================================
             # STAGE 1 INTRA-CELL — Yokogawa DCS Modbus TCP + Cognex EtherNet/IP
             # ============================================================

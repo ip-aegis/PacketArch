@@ -2029,7 +2029,7 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Super Phasor Data Concentrator"},
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "ems_control_center",
              "name": "EMS_State_Estimator_Workstation",
-             "protocols": ["snmp"],
+             "protocols": ["snmp", "rdp"],
              "fingerprint_model": "Jump Server 2019",
              "role": "State Estimator Workstation"},
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "ems_control_center",
@@ -2047,22 +2047,34 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             # --- CORPORATE IT (Level 5) - 3 devices: Jump + WSUS + AD (AD modeled as Jump Server 2019) ---
             {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
              "name": "Corp_Jump_Server",
-             "protocols": ["snmp"],
+             "protocols": ["snmp", "rdp"],
              "fingerprint_model": "Jump Server 2019",
              "role": "Corporate Jump Server",
              "external_comms": True},
             {"type": "server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
              "name": "Corp_WSUS_Server",
-             "protocols": ["snmp"],
+             "protocols": ["snmp", "https"],
              "fingerprint_model": "WSUS Server 2022",
              "role": "WSUS Patch Server"},
             {"type": "server", "vendor": "microsoft", "count": 1, "zone": "corporate_it",
              "name": "Corp_AD_Domain_Controller",
-             "protocols": ["snmp"],
+             "protocols": ["snmp", "https"],
              "fingerprint_model": "Jump Server 2019",
              "role": "Active Directory Domain Controller"},
         ],
         "flows": [
+            # --- Corporate IT + EMS remote access (Windows hosts) ---
+            # WSUS patch distribution + AD auth between the corporate Windows servers.
+            {"protocol": "https", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["server"], "target_types": ["server"],
+             "source_zones": ["corporate_it"], "target_zones": ["corporate_it"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+            # Corporate jump server -> EMS state-estimator workstation over RDP
+            # (the IT->OT remote-access conduit into the control center).
+            {"protocol": "rdp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["jump_server"], "target_types": ["jump_server"],
+             "source_zones": ["corporate_it"], "target_zones": ["ems_control_center"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
             # Per-substation: PMUs \u2192 local SEL-3555 PDC via C37.118 (16 ms = 60 fps)
             {"protocol": "c37118", "pattern": "cyclic_data", "interval_ms": 16,
              "source_types": ["protection_relay"], "target_types": ["rtu"],
