@@ -154,6 +154,16 @@ virt-customize -a "${QCOW}" --network \
     --run-command 'apt-get update' \
     --run-command 'apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin' \
     --run-command 'systemctl enable docker' \
+    `# --- Fix 1: make the image firmware-agnostic (boot under BIOS *or* UEFI). ---` \
+    `# The noble cloud image boots clean under UEFI, but after virt-resize its` \
+    `# BIOS GRUB is left dangling, so a hypervisor that defaults to legacy BIOS` \
+    `# (VirtualBox; VMware/ESXi for an OVF with no firmware hint) drops to` \
+    `# "grub rescue> error: no such partition". grub-pc-bin + a BIOS grub-install` \
+    `# restores the legacy boot path; grub-efi (ESP) is untouched, so UEFI still` \
+    `# works. Result: import + power on works regardless of the firmware default.` \
+    --run-command 'DEBIAN_FRONTEND=noninteractive apt-get install -y grub-pc-bin' \
+    --run-command 'grub-install --target=i386-pc --boot-directory=/boot /dev/sda' \
+    --run-command 'update-grub' \
     --run-command 'systemctl enable qemu-guest-agent || true' \
     --upload "${OVA_DIR}/netplan-appliance.yaml:/etc/netplan/99-appliance.yaml" \
     --run-command 'chmod 600 /etc/netplan/99-appliance.yaml' \
@@ -166,7 +176,18 @@ virt-customize -a "${QCOW}" --network \
     --copy-in "${OVA_DIR}/packetarch-firstboot.service:/etc/systemd/system" \
     --mkdir /etc/systemd/system/multi-user.target.wants \
     --link /etc/systemd/system/packetarch-firstboot.service:/etc/systemd/system/multi-user.target.wants/packetarch-firstboot.service \
-    --password "ubuntu:password:${CONSOLE_PASS}" \
+    `# --- Fix 2: bake a real console user (do NOT rely on cloud-init). ---` \
+    `# The cloud image's 'ubuntu' user is created by cloud-init at first boot` \
+    `# from a datasource — not baked in. This appliance ships with no seed, so` \
+    `# cloud-init self-disables and the user is never created, leaving the box` \
+    `# with NO console/SSH login (the old lone '--password ubuntu:...' was a` \
+    `# no-op against a non-existent user). Create the user explicitly here so` \
+    `# 'ubuntu' / CONSOLE_PASS works at the console with passwordless sudo.` \
+    --run-command 'id -u ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu' \
+    --run-command 'usermod -aG sudo ubuntu' \
+    --run-command "echo 'ubuntu:${CONSOLE_PASS}' | chpasswd" \
+    --run-command 'chage -M -1 ubuntu' \
+    --run-command "printf 'ubuntu ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-ubuntu && chmod 440 /etc/sudoers.d/90-ubuntu" \
     --run-command 'cloud-init clean --logs || true' \
     --run-command 'truncate -s0 /etc/machine-id; rm -f /var/lib/dbus/machine-id; ln -sf /etc/machine-id /var/lib/dbus/machine-id' \
     --run-command 'rm -f /etc/ssh/ssh_host_*' \

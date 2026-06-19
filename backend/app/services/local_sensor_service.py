@@ -33,14 +33,29 @@ logger = logging.getLogger(__name__)
 
 
 async def _resolve_server_url(db) -> str:
-    """The URL the on-box agent phones home to. Site FQDN if set, else the local
-    nginx (the agent runs host-networked, so localhost:443 reaches it)."""
-    result = await db.execute(select(SystemSetting).where(SystemSetting.key == "site.fqdn"))
+    """The URL the on-box local-sensor agent phones home to: loopback by default.
+
+    The agent runs host-networked on the SAME host as the backend, so
+    https://127.0.0.1:443 reaches nginx directly. We must NOT default to
+    site.fqdn here: that is the operator/browser-facing name and is frequently
+    unresolvable or unreachable from INSIDE the appliance (no internal DNS
+    record for it, or a public name that NAT-hairpins). Using it silently breaks
+    agent registration — the agent dials wss://<fqdn>/ws/agent, the name doesn't
+    resolve, and it never connects. Loopback is DNS-free and always works; SSL
+    verification is disabled for the on-box agent (insecure=True), so the cert
+    CN mismatch on 127.0.0.1 is irrelevant.
+
+    Escape hatch: an operator with an unusual topology can pin an explicit URL
+    via the `local_sensor.server_url` setting; otherwise loopback is used.
+    """
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == "local_sensor.server_url")
+    )
     row = result.scalar_one_or_none()
-    fqdn = (row.value if row else "") or ""
-    if fqdn:
-        return fqdn if fqdn.startswith("http") else f"https://{fqdn}"
-    return "https://localhost"
+    override = (row.value if row else "") or ""
+    if override:
+        return override if override.startswith("http") else f"https://{override}"
+    return "https://127.0.0.1"
 
 
 def _spec_from_lab(lab: LocalLab, *, agent_token: str, agent_name: str,
