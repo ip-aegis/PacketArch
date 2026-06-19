@@ -203,6 +203,56 @@ TEMPLATES: list[DeviceTemplate] = [
             },
     ),
     DeviceTemplate(
+        id="microsoft/windows-workstation/ot-engineering-workstation",
+        vendor="Microsoft",
+        vendor_family="Windows Workstation",
+        model="OT Engineering Workstation",
+        model_name="OT Engineering Workstation",
+        device_type="engineering_workstation",
+        description="Windows OT engineering workstation — runs vendor PLC "
+                    "programming software (Studio 5000 / TIA Portal), so it "
+                    "originates CIP/S7comm/OPC-UA engineering traffic in addition "
+                    "to Windows remote access (RDP/HTTPS) and SNMP management.",
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
+        tcp_stack={
+                "ttl": 128,
+                "window_size": 65535,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+                "df_flag": True,
+            },
+        response_timing={
+                "min_ms": 2.0,
+                "max_ms": 25.0,
+                "mean_ms": 8.0,
+                "std_dev_ms": 2.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['snmp', 'rdp', 'https', 'ethernet_ip', 's7comm', 'opc_ua'],
+        protocol_quirks={
+                "snmp": {
+                    "community_string": "public",
+                    "version": "2c",
+                    "additional_oids": [('1.3.6.1.4.1.311.1.1.3.1.1', 'Windows NT'), ('1.3.6.1.4.1.311.1.1.3.1.2', 'Microsoft Corporation')],
+                },
+            },
+        firmware_variants=[FirmwareVariant(
+            version="10.0.19045.4291",
+            release_date=date(2024, 1, 1),
+            is_default=True,
+            is_latest=True,
+        )],
+        snmp_identity={
+                "sys_descr": "Hardware: Intel64 Family 6 Model 158 Stepping 10 AT/AT COMPATIBLE - Software: Windows Version 10.0 (Build 19045 Multiprocessor Free)",
+                "sys_object_id": "1.3.6.1.4.1.311.1.1.3.1.1",
+                "sys_name": "{device_name}",
+                "sys_contact": "engineering@example.com",
+                "sys_location": "OT Engineering Office",
+                "sys_services": 76,
+            },
+    ),
+    DeviceTemplate(
         id="microsoft/windows-server/wsus-server-2019",
         vendor="Microsoft",
         vendor_family="Windows Server",

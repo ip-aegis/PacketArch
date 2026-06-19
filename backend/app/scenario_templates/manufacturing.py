@@ -3042,8 +3042,8 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Central Overview HMI"},
             {"type": "engineering_workstation", "vendor": "microsoft", "count": 1, "zone": "operations",
              "name": "Ops_Engineering_Workstation",
-             "protocols": ["rdp", "https", "snmp"],
-             "fingerprint_model": "Jump Server 2019",
+             "protocols": ["ethernet_ip", "s7comm", "opc_ua", "rdp", "https", "snmp"],
+             "fingerprint_model": "OT Engineering Workstation",
              "role": "OT Engineering Workstation"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
              "name": "Ops_Core_Switch",
@@ -3271,9 +3271,20 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
         ],
 
         "flows": [
-            # --- L3 Operations: engineering workstation network management ---
-            # The Windows engineering workstation has no OT-protocol peer in the
-            # operations zone, so it manages the plant switches over SNMP.
+            # --- L3 Operations engineering workstation (Windows EWS) ---
+            # Programs the cross-vendor cell PLCs from operations: EtherNet/IP
+            # (Rockwell/Schneider/ABB) + S7comm (Siemens). Also SNMP-monitors
+            # the plant switches.
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["stage2_calender", "stage3_formation", "stage5_pack"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            {"protocol": "s7comm", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["stage4_quality"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
              "source_types": ["engineering_workstation"], "target_types": ["switch"],
              "source_zones": ["operations"],
