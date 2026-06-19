@@ -4,8 +4,12 @@
 
 - **GitHub**: https://github.com/ip-aegis/PacketArch
 - **Branch**: `master` (primary branch)
-- **Clone**: `git clone git@github.com:ip-aegis/PacketArch.git`
-- **SSH Key**: `~/.ssh/id_ed25519` (add public key to GitHub if setting up new machine)
+- **Clone**: `git clone https://github.com/ip-aegis/PacketArch.git`
+- **Auth**: `gh` CLI over HTTPS (`gh auth login` → HTTPS → `gh auth setup-git`).
+  The current dev box authenticates as the `ip-aegis` account this way;
+  `git push` uses the gh credential helper. (An SSH key at
+  `~/.ssh/id_ed25519` is an alternative if you prefer SSH, but the box is
+  set up for HTTPS+gh.)
 
 ### Git Workflow
 
@@ -351,6 +355,13 @@ All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_po
 | S7comm | 102 (TCP) | Production |
 | BACnet/IP | 47808 (UDP) | Production |
 | SNMP/NTCIP | 161, 162 (UDP) | Production |
+| DNP3 | 20000 (TCP) | Production |
+| IEC 60870-5-104 | 2404 (TCP) | Production |
+| IEC 61850 (MMS/GOOSE/SV) | 102 (TCP) / L2 | Production |
+| C37.118 (synchrophasor) | 4712 (TCP), 4713 (UDP) | Production |
+| OPC UA | 4840 (TCP) | Production |
+
+Additional engines exist for FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
 
 Frontend protocol types: `frontend/src/types/protocols/` (discriminated union with type guards).
 
@@ -370,7 +381,7 @@ Each scenario gets a unique `/16` range: `10.{n}.0.0/16` (n = 1-254). Hosts star
 
 ## Device Templates
 
-Unified fingerprint/signature data in `backend/app/services/device_templates/` package (295 templates across 18 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns.
+Unified fingerprint/signature data in `backend/app/services/device_templates/` package (332 templates across 20 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
 
 ---
 
@@ -410,6 +421,7 @@ Shipped skills:
 - `packetarch-ics-attack-playbooks` — 9 playbooks, kill-chain vocabulary, action generator catalog
 - `packetarch-device-naming` — process-aware naming rules + vertical vocabulary
 - `packetarch-scenario-review` — scoring guide, categories, remediation action schemas
+- `packetarch-vuln-data-curation` — how to curate/verify CVEs, firmware versions, attack-playbook MITRE mappings, and device-fingerprint identifiers (OUI/ODVA/PROFINET/BACnet/SNMP) so they stay realistic and internally consistent
 
 Skills attach via `provider.chat(..., skills=["name1", "name2"])`.
 `AnthropicProvider._build_system_blocks()` emits each skill as its own
