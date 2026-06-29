@@ -52,6 +52,9 @@ export interface ScenarioDetail extends ScenarioSummary {
   definition: Record<string, unknown>;
   addressing_config: Record<string, unknown> | null;
   user_id?: string;
+  // Background AI device-naming status: null = none requested,
+  // 'pending'/'running' = in progress, 'done'/'failed' = settled.
+  naming_status?: string | null;
 }
 
 export interface ScenarioCreate {
@@ -141,6 +144,36 @@ export const scenariosApi = {
     const params = newName ? `?new_name=${encodeURIComponent(newName)}` : '';
     const response = await apiClient.post<ScenarioDetail>(`${PREFIX}/${id}/duplicate${params}`);
     return response.data;
+  },
+
+  /** Re-run background AI device-naming after a 'failed' run. */
+  async retryNaming(id: string): Promise<ScenarioDetail> {
+    const response = await apiClient.post<ScenarioDetail>(`${PREFIX}/${id}/naming/retry`);
+    return response.data;
+  },
+
+  /**
+   * Poll a scenario until its background device-naming settles (status no
+   * longer 'pending'/'running'), then resolve with the final detail.
+   * Resolves regardless of 'done' vs 'failed' — callers decide what to do.
+   * Gives up after timeoutMs and resolves with the latest known state.
+   */
+  async waitForNaming(
+    id: string,
+    opts: { intervalMs?: number; timeoutMs?: number; onPoll?: (s: ScenarioDetail) => void } = {},
+  ): Promise<ScenarioDetail> {
+    const interval = opts.intervalMs ?? 2000;
+    const timeout = opts.timeoutMs ?? 210000; // ~3.5 min
+    const start = Date.now();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const detail = await this.get(id);
+      opts.onPoll?.(detail);
+      const status = detail.naming_status;
+      if (status !== 'pending' && status !== 'running') return detail;
+      if (Date.now() - start > timeout) return detail;
+      await new Promise((r) => setTimeout(r, interval));
+    }
   },
 
   async export(id: string): Promise<Record<string, unknown>> {

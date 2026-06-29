@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin_user
-from app.api.helpers import get_or_404, paginate as paginate_query
+from app.api.helpers import ensure_naming_complete, get_or_404, paginate as paginate_query
 from app.core.database import get_db
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
@@ -774,6 +774,10 @@ async def deploy_scenario_to_agent(
 
     # Get scenario
     scenario = await get_or_404(db, Scenario, deployment.scenario_id, "Scenario")
+
+    # Refuse to deploy a scenario whose background device-naming hasn't
+    # finished — its device identities are still being rewritten.
+    ensure_naming_complete(scenario)
 
     # Check for existing active deployment - prevent duplicates
     existing_result = await db.execute(

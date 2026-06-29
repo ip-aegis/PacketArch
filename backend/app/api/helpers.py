@@ -9,9 +9,30 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 
 T = TypeVar("T")
+
+# naming_status values that mean the scenario is not yet fully built and
+# must not be deployed / generated / acted on. See Scenario.naming_status.
+NAMING_IN_PROGRESS_STATES = ("pending", "running")
+
+
+def ensure_naming_complete(scenario: Any) -> None:
+    """Raise ConflictError (409) if a scenario's background device-naming
+    is still in progress.
+
+    Guards every "consume" path (deploy, PCAP generation, attacks) so a
+    scenario is never acted on while the async LLM naming task is still
+    rewriting its device identities — which would otherwise let live
+    traffic / CV matching run against names that change underneath them.
+    """
+    status = getattr(scenario, "naming_status", None)
+    if status in NAMING_IN_PROGRESS_STATES:
+        raise ConflictError(
+            "Scenario is still finalizing device names. This usually takes "
+            "a minute or two — try again once naming completes."
+        )
 
 
 async def get_or_404(

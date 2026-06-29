@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
+from app.api.helpers import ensure_naming_complete
 from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -129,6 +130,10 @@ async def start_generation(
 
     if not scenario:
         raise NotFoundError("Scenario", str(request.scenario_id))
+
+    # Refuse to generate while background device-naming is still running —
+    # the device identities baked into the PCAP would be the in-flux ones.
+    ensure_naming_complete(scenario)
 
     # Check user access (if scenario has user_id, must match current user or be admin)
     if scenario.user_id and scenario.user_id != current_user.id and not current_user.is_admin:
