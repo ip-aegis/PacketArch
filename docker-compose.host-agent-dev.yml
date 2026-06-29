@@ -1,0 +1,31 @@
+# Opt-in development override for live-editing the host-agent watcher
+# WITHOUT rebuilding its image.
+#
+# This is intentionally a SEPARATE, non-auto-loaded file (NOT
+# docker-compose.override.yml, which Compose loads automatically). The
+# host-agent's watcher code is baked into its image at build time, so the
+# default stack needs no source bind mount. Mounting source over /app is a
+# dev convenience only — and a relative bind mount that goes stale (stack
+# recreated from a different/missing project dir) silently shadows the baked
+# code and crash-loops the container with
+# `ModuleNotFoundError: No module named 'app'`. Keeping it opt-in means the
+# default deploy can never hit that failure mode.
+#
+# Usage (only while actively editing app/watcher.py etc.):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.host-agent-dev.yml \
+#     up -d host-agent
+#
+# Edit the files under ./docker/packetarch-host-agent/app/ and restart the
+# container to pick up changes:
+#
+#   docker compose restart host-agent
+#
+# To return to the baked image, recreate without this override file:
+#
+#   docker compose up -d --force-recreate host-agent
+
+services:
+  host-agent:
+    volumes:
+      - ./docker/packetarch-host-agent:/app:ro
