@@ -279,6 +279,64 @@ async def reconcile_local_labs(db: AsyncSession) -> str:
     return f"requested reconcile of {len(pending)} local lab(s)"
 
 
+async def reconcile_pending_naming(db: AsyncSession) -> str:
+    """Re-enqueue background device-naming for scenarios caught mid-naming.
+
+    A full `docker compose up` (or a worker crash) loses any in-flight
+    naming task, which would otherwise leave the scenario stuck in
+    'pending'/'running' forever — and therefore un-deployable, since the
+    deploy/generate guard blocks those states. On boot we find such
+    scenarios and re-enqueue the task using the request params persisted
+    in ``definition["_naming_request"]`` at create time. Never raises.
+    """
+    from app.models.scenario import Scenario
+
+    stuck = (
+        await db.execute(
+            select(Scenario).where(
+                Scenario.naming_status.in_(("pending", "running"))
+            )
+        )
+    ).scalars().all()
+
+    if not stuck:
+        return "no scenarios awaiting naming"
+
+    try:
+        from app.traffic_generator.tasks import apply_template_naming
+    except Exception as e:  # noqa: BLE001
+        logger.warning("reconcile_pending_naming: cannot import task: %s", e)
+        return f"{len(stuck)} scenario(s) NOT reconciled (task import failed)"
+
+    requeued = 0
+    failed = 0
+    for scenario in stuck:
+        req = (scenario.definition or {}).get("_naming_request")
+        if not req:
+            # No stored request to replay — don't leave it stuck.
+            scenario.naming_status = "failed"
+            failed += 1
+            continue
+        try:
+            scenario.naming_status = "pending"
+            apply_template_naming.apply_async(
+                kwargs={"scenario_id": str(scenario.id), **req}
+            )
+            requeued += 1
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "reconcile_pending_naming: re-enqueue failed for %s: %s",
+                scenario.id, e,
+            )
+            scenario.naming_status = "failed"
+            failed += 1
+    await db.commit()
+    logger.info(
+        "reconcile_pending_naming: re-enqueued %d, marked %d failed", requeued, failed
+    )
+    return f"re-enqueued {requeued} naming task(s), {failed} marked failed"
+
+
 async def run_startup_tasks(db: AsyncSession) -> dict:
     """Run all startup tasks."""
     results = {}
@@ -368,6 +426,15 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
         )
     else:
         results["protocol_narrow"] = "No vendor-narrowing needed"
+
+    # Re-enqueue any background device-naming lost to a restart/crash so
+    # scenarios don't stay stuck (and therefore un-deployable) in
+    # pending/running. Not gated on live_traffic — naming feeds PCAP too.
+    try:
+        results["pending_naming"] = await reconcile_pending_naming(db)
+    except Exception as e:  # never let naming reconcile block startup
+        logger.warning("reconcile_pending_naming failed: %s", e)
+        results["pending_naming"] = f"reconcile failed: {e}"
 
     return results
 

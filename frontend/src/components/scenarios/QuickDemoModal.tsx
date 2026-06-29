@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAgentsStore } from '../../stores/agentsStore';
 import { agentsApi } from '../../api/agents';
 import { templatesApi } from '../../api/templates';
+import { scenariosApi } from '../../api/scenarios';
 import { verticalConfig } from './scenarioConstants';
 
 const { Text, Title } = Typography;
@@ -101,12 +102,24 @@ const QuickDemoModal: React.FC<QuickDemoModalProps> = ({ open, onCancel }) => {
 
       setDeployStep(1);
 
-      // Step 2: Deploy to agent
+      // Step 2: Wait for background device-naming to settle before deploy.
+      // Deploying mid-naming is rejected by the backend (the identities are
+      // still being rewritten), so we hold here until it's done/failed.
+      if (
+        result.naming_status === 'pending' ||
+        result.naming_status === 'running'
+      ) {
+        await scenariosApi.waitForNaming(result.scenario_id);
+      }
+
+      setDeployStep(2);
+
+      // Step 3: Deploy to agent
       await agentsApi.deploy(effectiveAgentId, {
         scenario_id: result.scenario_id,
       });
 
-      setDeployStep(2);
+      setDeployStep(3);
       setStep('done');
 
       // Invalidate scenarios query so the new scenario appears
@@ -128,6 +141,7 @@ const QuickDemoModal: React.FC<QuickDemoModalProps> = ({ open, onCancel }) => {
 
   const stepItems = [
     { title: 'Creating scenario' },
+    { title: 'Finalizing names' },
     { title: 'Deploying to agent' },
     { title: 'Done!' },
   ];

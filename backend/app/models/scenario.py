@@ -64,6 +64,16 @@ class Scenario(Base):
         JSONB,
         nullable=True,
     )
+    # Background AI device-naming lifecycle. NULL = no AI naming was
+    # requested (legacy rows + non-AI creates). Otherwise: "pending" ->
+    # "running" -> "done" / "failed". The slow LLM site-identity +
+    # descriptive overlay run in a Celery task after the scenario is
+    # committed, so creation returns fast and isn't cut off by upstream
+    # proxy timeouts. See traffic_generator.tasks.apply_template_naming.
+    naming_status: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
     version: Mapped[int] = mapped_column(
         Integer,
         default=1,

@@ -103,6 +103,8 @@ export interface CreateFromTemplateResponse {
   zone_count: number;
   phase_count: number;
   ai_naming_applied?: boolean;  // True if AI naming was used
+  // 'pending' while background LLM naming runs, else 'done'/'failed'/null.
+  naming_status?: string | null;
 }
 
 export const templatesApi = {

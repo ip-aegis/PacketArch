@@ -76,6 +76,13 @@ const INITIAL_FORCE_DELETE: ForceDeleteModalState = {
 export interface UseScenarioMutationsOptions {
   /** Called after template-create modal should close */
   onTemplateCreated?: () => void;
+  /**
+   * Called when a template scenario was created but its AI device-naming
+   * is still running in the background. The caller should show a
+   * provisioning screen and navigate to Studio only once naming finishes
+   * (the hook does NOT auto-navigate in this case).
+   */
+  onNamingPending?: (scenarioId: string) => void;
   /** Called after create modal should close */
   onCreated?: () => void;
   /** Called after import modal should close */
@@ -200,7 +207,13 @@ export function useScenarioMutations(options: UseScenarioMutationsOptions = {}) 
         `Scenario created with ${result.device_count} devices and ${result.flow_count} flows${enhancementInfo}`,
       );
       options.onTemplateCreated?.();
-      navigate(`/studio?scenario=${result.scenario_id}`);
+      // If background device-naming is still running, hand off to a
+      // provisioning screen instead of opening a half-built Studio.
+      if (result.naming_status === 'pending' || result.naming_status === 'running') {
+        options.onNamingPending?.(result.scenario_id);
+      } else {
+        navigate(`/studio?scenario=${result.scenario_id}`);
+      }
     },
     onError: (error: unknown) => {
       message.error(

@@ -666,6 +666,43 @@ async def get_scenario(
     return ScenarioResponse.model_validate(scenario)
 
 
+@router.post("/{scenario_id}/naming/retry", response_model=ScenarioResponse)
+async def retry_scenario_naming(
+    scenario_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> ScenarioResponse:
+    """Re-run background device-naming for a scenario.
+
+    Used after a 'failed' naming run. Replays the original request stored
+    in definition["_naming_request"] at create time.
+    """
+    scenario = await get_or_404_where(
+        db, Scenario,
+        Scenario.id == scenario_id,
+        Scenario.user_id == current_user.id,
+        resource_name="Scenario",
+        identifier=str(scenario_id),
+    )
+    if scenario.naming_status in ("pending", "running"):
+        raise ConflictError("Device naming is already in progress.")
+    req = (scenario.definition or {}).get("_naming_request")
+    if not req:
+        raise ValidationError(
+            "This scenario has no stored naming request to retry."
+        )
+
+    scenario.naming_status = "pending"
+    await db.commit()
+    await db.refresh(scenario)
+
+    from app.traffic_generator.tasks import apply_template_naming
+    apply_template_naming.apply_async(
+        kwargs={"scenario_id": str(scenario.id), **req}
+    )
+    return ScenarioResponse.model_validate(scenario)
+
+
 @router.post("", response_model=ScenarioResponse, status_code=status.HTTP_201_CREATED)
 async def create_scenario(
     scenario_data: ScenarioCreate,

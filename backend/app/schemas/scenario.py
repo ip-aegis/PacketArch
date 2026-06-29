@@ -51,6 +51,7 @@ class ScenarioResponse(ScenarioBase):
     user_id: UUID | None
     definition: dict[str, Any]
     addressing_config: dict[str, Any] | None
+    naming_status: str | None = None
     version: int
     created_at: datetime
     updated_at: datetime

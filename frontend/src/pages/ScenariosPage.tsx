@@ -64,6 +64,7 @@ import ScenarioCard from '../components/scenarios/ScenarioCard';
 import { verticalConfig } from '../components/scenarios/scenarioConstants';
 import CreateScenarioModal from '../components/scenarios/CreateScenarioModal';
 import TemplateWizardModal from '../components/scenarios/TemplateWizardModal';
+import NamingProgressModal from '../components/scenarios/NamingProgressModal';
 import ImportScenarioModal from '../components/scenarios/ImportScenarioModal';
 import { downloadsApi } from '../api/downloads';
 import QuickDemoModal from '../components/scenarios/QuickDemoModal';
@@ -93,6 +94,7 @@ const ScenariosPage: React.FC = () => {
   const [selectedScenarioForDesc, setSelectedScenarioForDesc] =
     useState<ScenarioSummary | null>(null);
   const [quickDemoOpen, setQuickDemoOpen] = useState(false);
+  const [provisioningId, setProvisioningId] = useState<string | null>(null);
   const [generatePcapModalOpen, setGeneratePcapModalOpen] = useState(false);
   const [selectedScenarioForPcap, setSelectedScenarioForPcap] =
     useState<ScenarioSummary | null>(null);
@@ -141,6 +143,12 @@ const ScenariosPage: React.FC = () => {
     },
     onTemplateCreated: () => {
       setTemplateModalOpen(false);
+    },
+    onNamingPending: (scenarioId: string) => {
+      // Don't open Studio yet — show the provisioning screen until the
+      // background AI naming finishes.
+      setTemplateModalOpen(false);
+      setProvisioningId(scenarioId);
     },
     onImported: () => {
       setImportModalOpen(false);
@@ -610,6 +618,15 @@ const ScenariosPage: React.FC = () => {
         loading={createFromTemplateMutation.isPending}
         onCancel={() => setTemplateModalOpen(false)}
         onSubmit={handleCreateFromTemplate}
+      />
+
+      <NamingProgressModal
+        scenarioId={provisioningId}
+        onReady={(id) => {
+          setProvisioningId(null);
+          navigate(`/studio?scenario=${id}`);
+        }}
+        onClose={() => setProvisioningId(null)}
       />
 
       <ImportScenarioModal

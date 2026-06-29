@@ -844,3 +844,178 @@ def provision_cyber_vision(
         raise
     finally:
         loop.close()
+
+
+async def _set_naming_status(scenario_id: str, status: str) -> None:
+    """Best-effort update of a scenario's naming_status from a task callback."""
+    session_maker = _get_celery_session_maker()
+    async with session_maker() as session:
+        await session.execute(
+            update(Scenario)
+            .where(Scenario.id == uuid.UUID(scenario_id))
+            .values(naming_status=status)
+        )
+        await session.commit()
+
+
+class NamingCallbackTask(Task):
+    """Marks naming_status='failed' if the task dies hard.
+
+    The task body already catches normal exceptions and sets 'failed',
+    but a Celery hard time-limit / SIGKILL bypasses Python except blocks.
+    This callback guarantees the scenario never hangs in 'running'."""
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        import asyncio
+
+        scenario_id = kwargs.get("scenario_id")
+        if not scenario_id:
+            return
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_set_naming_status(scenario_id, "failed"))
+            logger.error("Naming task for scenario %s failed: %s", scenario_id, exc)
+        finally:
+            loop.close()
+
+
+@celery_app.task(bind=True, base=NamingCallbackTask, name="packetarch.apply_template_naming")
+def apply_template_naming(
+    self,
+    scenario_id: str,
+    vertical: str,
+    template_name: str,
+    template_description: str,
+    scenario_name: str,
+    scenario_description: str,
+    archetype_id: str | None = None,
+    process_context: str | None = None,
+    descriptive_names: bool = True,
+    user_id: str | None = None,
+    feature_tag: str = "device_naming_descriptive_overlay_template",
+):
+    """Apply the slow LLM-based naming to an already-created scenario.
+
+    Template scenario creation commits the scenario with fast,
+    deterministic site-rail names and returns immediately. The
+    LLM-driven site identity and demo-friendly descriptive overlay
+    (tens of seconds each on CIRCUIT) run here, off the request path,
+    so a slow model can't push creation past an upstream proxy timeout.
+    """
+    import asyncio
+
+    logger.info("Starting background naming for scenario %s", scenario_id)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(
+            _apply_template_naming_async(
+                scenario_id=scenario_id,
+                vertical=vertical,
+                template_name=template_name,
+                template_description=template_description,
+                scenario_name=scenario_name,
+                scenario_description=scenario_description,
+                archetype_id=archetype_id,
+                process_context=process_context,
+                descriptive_names=descriptive_names,
+                user_id=user_id,
+                feature_tag=feature_tag,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _apply_template_naming_async(
+    *,
+    scenario_id: str,
+    vertical: str,
+    template_name: str,
+    template_description: str,
+    scenario_name: str,
+    scenario_description: str,
+    archetype_id: str | None,
+    process_context: str | None,
+    descriptive_names: bool,
+    user_id: str | None,
+    feature_tag: str,
+) -> dict[str, Any]:
+    from app.services.architecture.descriptive_overlay import apply_descriptive_overlay
+    from app.services.architecture.site_naming_pipeline import apply_site_naming_pipeline
+
+    session_maker = _get_celery_session_maker()
+    async with session_maker() as session:
+        result = await session.execute(
+            select(Scenario).where(Scenario.id == uuid.UUID(scenario_id))
+        )
+        scenario = result.scalar_one_or_none()
+        if scenario is None:
+            logger.warning("Naming task: scenario %s not found", scenario_id)
+            return {"scenario_id": scenario_id, "status": "missing"}
+
+        # Mark running so the UI can show progress.
+        scenario.naming_status = "running"
+        await session.commit()
+
+        # Work on a copy; only persist if it succeeds.
+        definition = dict(scenario.definition or {})
+        try:
+            site_identity = await apply_site_naming_pipeline(
+                db=session,
+                definition=definition,
+                scenario_id=scenario_id,
+                vertical=vertical,
+                template_name=template_name,
+                template_description=template_description,
+                archetype_id=archetype_id,
+                use_llm=True,
+                exclude_scenario_id=scenario_id,
+                process_context=process_context,
+            )
+            logger.info(
+                "Background site naming: %s (%s) source=%s",
+                site_identity.site_code, site_identity.plant_name,
+                site_identity.source,
+            )
+
+            if descriptive_names:
+                await apply_descriptive_overlay(
+                    db=session,
+                    definition=definition,
+                    vertical=vertical,
+                    scenario_name=scenario_name,
+                    scenario_description=scenario_description,
+                    process_context=process_context,
+                    user_id=uuid.UUID(user_id) if user_id else None,
+                    scenario_id=uuid.UUID(scenario_id),
+                    feature_tag=feature_tag,
+                )
+
+            scenario.definition = definition
+            scenario.naming_status = "done"
+            await session.commit()
+            logger.info("Background naming done for scenario %s", scenario_id)
+            return {"scenario_id": scenario_id, "status": "done"}
+        except Exception:  # noqa: BLE001
+            # Roll back the poisoned transaction before any further DB use.
+            await session.rollback()
+            # If the scenario was deleted mid-naming, the row is simply gone
+            # — that's a normal user action, not an error worth shouting about.
+            still_exists = (
+                await session.execute(
+                    select(Scenario.id).where(Scenario.id == uuid.UUID(scenario_id))
+                )
+            ).scalar_one_or_none()
+            if still_exists is None:
+                logger.info(
+                    "Background naming aborted: scenario %s was deleted mid-run",
+                    scenario_id,
+                )
+                return {"scenario_id": scenario_id, "status": "deleted"}
+            logger.exception("Background naming failed for scenario %s", scenario_id)
+            # Don't discard the scenario — keep its deterministic names.
+            # Best-effort status update via Core (won't raise on 0 rows).
+            await _set_naming_status(scenario_id, "failed")
+            return {"scenario_id": scenario_id, "status": "failed"}

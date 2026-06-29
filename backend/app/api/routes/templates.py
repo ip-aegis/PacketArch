@@ -143,6 +143,8 @@ class CreateFromTemplateResponse(BaseModel):
     zone_count: int
     phase_count: int
     ai_naming_applied: bool = False
+    # "pending" while background LLM naming runs, else "done"/"failed"/None.
+    naming_status: str | None = None
 
 
 @router.get("/verticals", response_model=list[VerticalResponse])
@@ -822,6 +824,12 @@ async def create_scenario_from_template(
     from app.services.architecture.site_naming_pipeline import (
         apply_site_naming_pipeline,
     )
+    # Fast, DETERMINISTIC site-identity rail so the scenario is usable
+    # immediately with site-coherent, CV-dedup-safe names. The slow
+    # LLM-based site identity and demo-friendly descriptive overlay
+    # (tens of seconds each on CIRCUIT — enough to blow past upstream
+    # proxy timeouts) are deferred to a background task below, after the
+    # scenario is committed.
     try:
         site_identity = await apply_site_naming_pipeline(
             db=db,
@@ -833,49 +841,73 @@ async def create_scenario_from_template(
             archetype_id=(
                 archetype_cfg.archetype_id if archetype_cfg is not None else None
             ),
-            use_llm=True,
+            use_llm=False,
             process_context=request.process_context,
         )
-        ai_naming_applied = (site_identity.source == "llm")
         logger.info(
-            "Site naming applied: %s (%s) — source=%s",
+            "Site naming applied (deterministic): %s (%s)",
             site_identity.site_code,
             site_identity.plant_name,
-            site_identity.source,
         )
     except Exception as e:  # noqa: BLE001
         logger.exception(
-            "Site naming pipeline failed for scenario %s: %s — "
+            "Deterministic site naming failed for scenario %s: %s — "
             "keeping archetype/template names",
             scenario.id, e,
         )
 
-    # Overlay demo-friendly device.name labels on top of the structured
-    # site rail when the caller asked for them. The site_naming rail
-    # has already set canonical sys_name etc. — this only touches the
-    # display name, so Cyber Vision matching is unaffected.
-    if request.descriptive_names:
-        from app.services.architecture.descriptive_overlay import (
-            apply_descriptive_overlay,
-        )
+    # Decide whether to enrich names with the LLM after creation. We
+    # background it whenever the caller wants AI naming or the demo
+    # descriptive overlay.
+    wants_ai_naming = request.use_ai_naming or request.descriptive_names
 
-        await apply_descriptive_overlay(
-            db=db,
-            definition=definition,
-            vertical=request.vertical,
-            scenario_name=request.scenario_name,
-            scenario_description=request.description or template.get("description", ""),
-            process_context=request.process_context,
-            user_id=current_user.id,
-            scenario_id=scenario.id,
-            feature_tag="device_naming_descriptive_overlay_template",
-        )
+    # Persist the exact naming request on the scenario so retry and
+    # boot-time reconcile can reproduce it faithfully (durable across
+    # restarts). Stored under a private key the canvas ignores.
+    naming_request = {
+        "vertical": request.vertical,
+        "template_name": request.template_name,
+        "template_description": template.get("description", ""),
+        "scenario_name": request.scenario_name,
+        "scenario_description": (
+            request.description or template.get("description", "")
+        ),
+        "archetype_id": (
+            archetype_cfg.archetype_id if archetype_cfg is not None else None
+        ),
+        "process_context": request.process_context,
+        "descriptive_names": request.descriptive_names,
+        "user_id": str(current_user.id) if current_user.id else None,
+        "feature_tag": "device_naming_descriptive_overlay_template",
+    }
+    if wants_ai_naming:
+        definition["_naming_request"] = naming_request
 
-    # Update scenario with final definition
+    # Update scenario with final definition + naming status.
     scenario.definition = definition
+    scenario.naming_status = "pending" if wants_ai_naming else None
 
     await db.commit()
     await db.refresh(scenario)
+
+    # Kick off the slow LLM naming off the request path. The scenario is
+    # already committed, so this returns fast and any AI usage-audit rows
+    # have a real scenario_id to reference (no FK violation).
+    if wants_ai_naming:
+        try:
+            from app.traffic_generator.tasks import apply_template_naming
+
+            apply_template_naming.apply_async(
+                kwargs={"scenario_id": str(scenario.id), **naming_request}
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(
+                "Failed to enqueue naming task for scenario %s: %s — "
+                "keeping deterministic names",
+                scenario.id, e,
+            )
+            scenario.naming_status = "failed"
+            await db.commit()
 
     return CreateFromTemplateResponse(
         scenario_id=str(scenario.id),
@@ -885,6 +917,7 @@ async def create_scenario_from_template(
         zone_count=len(zones),
         phase_count=len(phases),
         ai_naming_applied=ai_naming_applied,
+        naming_status=scenario.naming_status,
     )
 
 

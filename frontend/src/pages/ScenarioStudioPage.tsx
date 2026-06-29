@@ -8,11 +8,11 @@
  * Main page integrating canvas, palette, property panel, and timeline
  */
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { message, Spin, Button, Tooltip } from 'antd';
+import { message, Spin, Button, Tooltip, Alert, Progress } from 'antd';
 import { DoubleLeftOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useShallow } from 'zustand/react/shallow';
 
 import ScenarioCanvas from '../components/canvas/ScenarioCanvas';
@@ -101,12 +101,70 @@ const ScenarioStudioPage: React.FC = () => {
     };
   }, [scenarioId, lifecycle]);
 
+  // While background AI device-naming is in progress, poll the scenario
+  // so the canvas swaps in the LLM-generated names when they land. Capped
+  // at 3 min so a stuck/disabled worker doesn't poll forever — the
+  // deterministic names already in place remain the fallback.
+  const namingPollStartRef = useRef<number | null>(null);
+
   // Load scenario if editing existing one
   const { data: scenarioData, isLoading, error } = useQuery({
     queryKey: ['scenario', scenarioId],
     queryFn: () => scenariosApi.get(scenarioId!),
     enabled: !!scenarioId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.naming_status;
+      const active = status === 'pending' || status === 'running';
+      if (!active) {
+        namingPollStartRef.current = null;
+        return false;
+      }
+      const now = Date.now();
+      if (namingPollStartRef.current === null) {
+        namingPollStartRef.current = now;
+      }
+      if (now - namingPollStartRef.current > 180_000) {
+        return false;
+      }
+      return 2000;
+    },
   });
+  const namingInProgress =
+    scenarioData?.naming_status === 'pending' ||
+    scenarioData?.naming_status === 'running';
+  const namingFailed = scenarioData?.naming_status === 'failed';
+
+  // Client-side progress estimate: the LLM calls are opaque, so we creep
+  // toward 95% over the typical ~150s and let the 'done' transition snap
+  // it to 100%. Purely cosmetic — the real gate is naming_status.
+  const queryClient = useQueryClient();
+  const [namingPct, setNamingPct] = useState(0);
+  const [retryingNaming, setRetryingNaming] = useState(false);
+
+  useEffect(() => {
+    if (!namingInProgress) {
+      setNamingPct(0);
+      return;
+    }
+    setNamingPct((p) => (p > 0 ? p : 8));
+    const t = setInterval(() => {
+      setNamingPct((p) => (p < 95 ? Math.min(95, p + 3) : p));
+    }, 5000);
+    return () => clearInterval(t);
+  }, [namingInProgress]);
+
+  const handleRetryNaming = useCallback(async () => {
+    if (!scenarioId) return;
+    setRetryingNaming(true);
+    try {
+      await scenariosApi.retryNaming(scenarioId);
+      await queryClient.invalidateQueries({ queryKey: ['scenario', scenarioId] });
+    } catch {
+      message.error('Failed to restart device naming');
+    } finally {
+      setRetryingNaming(false);
+    }
+  }, [scenarioId, queryClient]);
 
   // Load scenario data when query succeeds - with race condition protection
   useEffect(() => {
@@ -322,6 +380,48 @@ const ScenarioStudioPage: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Background AI-naming progress banner */}
+      {namingInProgress && (
+        <Alert
+          type="info"
+          showIcon
+          banner
+          message={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ whiteSpace: 'nowrap' }}>
+                Generating descriptive device names… deploy is disabled until
+                this finishes (usually 1–2 min).
+              </span>
+              <Progress
+                percent={namingPct}
+                status="active"
+                showInfo={false}
+                style={{ flex: 1, marginBottom: 0 }}
+              />
+            </div>
+          }
+        />
+      )}
+
+      {/* Naming failed — offer a retry */}
+      {namingFailed && (
+        <Alert
+          type="warning"
+          showIcon
+          banner
+          message="Device naming didn't finish. The scenario is usable with basic names; you can retry the descriptive naming."
+          action={
+            <Button
+              size="small"
+              loading={retryingNaming}
+              onClick={handleRetryNaming}
+            >
+              Retry naming
+            </Button>
+          }
+        />
+      )}
+
       {/* Main content area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Left sidebar - Device Palette */}
