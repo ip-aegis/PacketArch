@@ -195,8 +195,19 @@ class UnifiedOrchestrator:
             warmup_ms = 10_000.0
             if self.duration_ms is not None:
                 warmup_ms = min(warmup_ms, max(500.0, self.duration_ms * 0.2))
+        # Timed mode (PCAP) drains the heap far faster than wall time, so the
+        # kill chain must advance on the VIRTUAL clock (and be compressed to
+        # fit the capture window). Perpetual mode (live agent) keeps wall-clock
+        # stage timing, matching the paced injection cadence.
+        attack_orch.set_virtual_time_mode(
+            self.duration_ms is not None,
+            total_duration_ms=self.duration_ms,
+        )
         attack_orch.schedule_initial_events(self.scheduler, warmup_ms)
-        logger.info(f"Attack orchestrator registered (warmup={warmup_ms:.0f}ms)")
+        logger.info(
+            f"Attack orchestrator registered (warmup={warmup_ms:.0f}ms, "
+            f"clock={'virtual' if self.duration_ms is not None else 'wall'})"
+        )
 
     def set_pending_attack_injection(self, config: dict[str, Any]) -> None:
         """Queue an attack playbook injection for the scenario thread.
@@ -347,7 +358,11 @@ class UnifiedOrchestrator:
                 # Dispatch event
                 if isinstance(event, PacketEvent):
                     try:
-                        self.output.write_packet(event.packet_bytes, timestamp_ms)
+                        self.output.write_packet(
+                            event.packet_bytes,
+                            timestamp_ms,
+                            is_attack=event.flow_id.startswith("__attack__"),
+                        )
                     except Exception as e:
                         # A single packet failing to inject (e.g. kernel
                         # refuses a frame with synthetic dst MAC, or scapy
@@ -386,7 +401,11 @@ class UnifiedOrchestrator:
                 timestamp_ms, event = event_data
                 self.current_time_ms = timestamp_ms
                 if isinstance(event, PacketEvent):
-                    self.output.write_packet(event.packet_bytes, timestamp_ms)
+                    self.output.write_packet(
+                        event.packet_bytes,
+                        timestamp_ms,
+                        is_attack=event.flow_id.startswith("__attack__"),
+                    )
                     packets += 1
                     if not event.flow_id.startswith(("ambient_", "__attack__")):
                         fs = self._flow_map.get(event.flow_id)

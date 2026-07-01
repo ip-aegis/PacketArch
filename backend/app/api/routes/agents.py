@@ -338,6 +338,20 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
                 "completed_at": datetime.utcnow().isoformat(),
             })
 
+            # Nudge the host-agent to reconcile immediately so any local-sensor
+            # lab agents pick up this freshly built image within seconds instead
+            # of waiting for the next periodic reconcile — no operator CLI. The
+            # host-agent's ensure_agent_image compares the served tarball's
+            # X-Checksum-SHA256 and reloads only when it changed. Best-effort:
+            # a missing host-agent (no local labs) must never fail the build.
+            try:
+                from app.services import host_agent_client
+                if host_agent_client.is_available():
+                    rid = host_agent_client.submit_reconcile()
+                    logger.info(f"Queued host-agent reconcile {rid} after image build")
+            except Exception as e:  # noqa: BLE001 — nudge is best-effort
+                logger.warning(f"Could not nudge host-agent reconcile after build: {e}")
+
         except docker.errors.BuildError as e:
             logger.error(f"Failed to build agent image: {e}")
             _write_build_status({
@@ -415,7 +429,7 @@ async def get_agent_image_status() -> dict:
     }
 
 
-@image_router.get("/image")
+@image_router.api_route("/image", methods=["GET", "HEAD"])
 async def download_agent_image():
     """Download the agent Docker image tarball.
 

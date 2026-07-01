@@ -63,6 +63,7 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
             status("provisioning", "image", 45, "ensuring agent image")
         hostops.ensure_agent_image(spec)
 
+        sensor_err: str | None = None
         if not fast:
             status("provisioning", "sensor", 70, "starting CV sensor")
         # Self-heal a stale capture network. A dockerd/host restart can orphan
@@ -74,13 +75,37 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
         # the compose below recreates the network fresh. A *running* sensor
         # holds the network in-use, so we skip this then and never churn a
         # healthy lab.
-        if not hostops.container_running(spec["sensor_container"]):
-            hostops.compose_down(hostops.sensor_compose_path(work),
-                                 hostops._project(slug, "sensor"))
-            hostops.remove_macvlan_networks_on(spec["mon_if"])
-        hostops.compose_up(hostops.sensor_compose_path(work),
-                           hostops._project(slug, "sensor"))
+        #
+        # CRITICAL: a CV-sensor failure (e.g. CV Center registry unreachable /
+        # 502, or a stale sensor tag) must NOT abort the whole reconcile. The
+        # traffic agent is independent of the sensor; blocking here means a
+        # freshly built agent image is never recreated, so agents can only be
+        # updated by hand on the CLI. Record the sensor error and press on to
+        # the agent stage — the lab just ends up "degraded" until CV is back.
+        try:
+            # Make the sensor image available BEFORE compose runs, reusing a
+            # cached image when CV's registry can't serve a pull — so a brand-new
+            # lab still provisions offline (compose itself uses pull_policy:
+            # missing, so it won't reach out to the registry once the image is
+            # local). See hostops.ensure_sensor_image.
+            img_ref = hostops.sensor_image_ref(sensor_yaml)
+            if img_ref:
+                hostops.ensure_sensor_image(img_ref)
+            if not hostops.container_running(spec["sensor_container"]):
+                hostops.compose_down(hostops.sensor_compose_path(work),
+                                     hostops._project(slug, "sensor"))
+                hostops.remove_macvlan_networks_on(spec["mon_if"])
+            hostops.compose_up(hostops.sensor_compose_path(work),
+                               hostops._project(slug, "sensor"))
+        except Exception as e:  # noqa: BLE001 — sensor failure must not block agent
+            sensor_err = str(e)
+            log.warning("sensor provisioning failed for %s (continuing to agent): %s",
+                        slug, sensor_err)
 
+        # Agent stage — ALWAYS attempted, even when the sensor failed above, so
+        # `Build Image` + the reconcile loop lands a new agent image with no
+        # operator CLI. compose recreates the container whenever :latest's image
+        # id changed; it's a no-op when nothing changed.
         if not fast:
             status("provisioning", "agent", 90, "starting traffic agent")
         hostops.compose_up(agent_compose, hostops._project(slug, "agent"))
@@ -89,10 +114,16 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
         agent_ok = hostops.container_running(spec["agent_container"])
         veth_ok = hostops.veth_ok(spec["gen_if"], spec["mon_if"])
         all_ok = sensor_ok and agent_ok and veth_ok
+        if all_ok:
+            msg = "lab running"
+        elif agent_ok and sensor_err:
+            msg = f"agent running; CV sensor down: {sensor_err}"
+        else:
+            msg = "lab partially up — see resources"
         status(
             "running" if all_ok else "degraded",
             "done", 100 if all_ok else 95,
-            "lab running" if all_ok else "lab partially up — see resources",
+            msg,
             veth=veth_ok, sensor_running=sensor_ok, agent_running=agent_ok,
         )
         log.info("provisioned %s: state=%s", slug, "running" if all_ok else "degraded")

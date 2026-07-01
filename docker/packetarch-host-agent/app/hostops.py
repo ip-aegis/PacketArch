@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -28,6 +29,13 @@ import yaml
 log = logging.getLogger("hostagent.hostops")
 
 DAEMON_JSON = Path("/etc/docker/daemon.json")
+
+# Records the X-Checksum-SHA256 of the agent tarball we last `docker load`ed, so
+# a version bump is detected without re-downloading the whole image every cycle.
+# Lives on the shared state volume (same root state.py uses).
+_AGENT_IMAGE_MARKER = Path(
+    os.environ.get("HOST_AGENT_STATE", "/state/local-labs")
+) / "agent-image.sha256"
 
 
 class HostOpError(RuntimeError):
@@ -153,11 +161,22 @@ def rewrite_sensor_compose(compose_text: str, *, slug: str, mon_if: str, sensor_
     if not isinstance(doc, dict):
         raise HostOpError("sensor compose is not a valid YAML mapping")
 
-    # 1) container_name on the (single) sensor service
+    # 1) container_name + pull policy on the (single) sensor service
     services = doc.get("services") or {}
     for svc in services.values():
         if isinstance(svc, dict):
             svc["container_name"] = sensor_container
+            # CV's compose ships `pull_policy: always`, which force-pulls the
+            # sensor image from the CV Center registry on EVERY reconcile. Once
+            # the image is local that pull is pure downside: a transient CV
+            # *registry* hiccup (its /v2/ endpoint redirects to the UI / 502s —
+            # independent of the telemetry channel other sensors use) then leaves
+            # a perfectly good local image unused and the lab stuck "degraded",
+            # and our not-running self-heal tears the sensor down. Force
+            # `missing`: still pulls on first provision (image absent), but
+            # reuses the local image forever after. Sensor updates are a
+            # re-provision anyway (CV provisioning tokens are single-use).
+            svc["pull_policy"] = "missing"
 
     # 2) macvlan capture parent + per-lab network uniqueness.
     #
@@ -223,17 +242,125 @@ def _project(slug: str, suffix: str) -> str:
     return f"palab-{slug}-{suffix}"
 
 
+def _remote_agent_checksum(url: str, insecure: bool) -> str | None:
+    """HEAD the served agent tarball and return its X-Checksum-SHA256, or None.
+
+    Cheap (headers only, no body) — used to decide whether a newer image has
+    been published. Returns None on any failure so callers fall back to
+    'keep the current image' rather than churn.
+    """
+    cmd = ["curl", "-fsSI"] + (["-k"] if insecure else []) + [url]
+    p = _run(cmd, check=False, timeout=30)
+    if p.returncode != 0:
+        return None
+    for line in p.stdout.splitlines():
+        if line.lower().startswith("x-checksum-sha256:"):
+            return line.split(":", 1)[1].strip() or None
+    return None
+
+
 def ensure_agent_image(spec: dict) -> None:
-    """Ensure packetarch-agent:latest exists on the host; if missing, pull the
-    tarball the backend serves and `docker load` it (mirrors install.sh)."""
-    if _run(["docker", "image", "inspect", "packetarch-agent:latest"], check=False).returncode == 0:
-        return
+    """Ensure packetarch-agent:latest is present AND current.
+
+    Loads the tarball the backend serves (mirrors install.sh) when the image is
+    missing OR when a newer one has been published (its X-Checksum-SHA256
+    differs from the one we last loaded). This is what makes a version bump land
+    on local-sensor agents with no operator CLI: `Build Image` republishes the
+    tarball with a new checksum, and the next reconcile reloads it here, after
+    which compose recreates the agent on the new image.
+    """
+    have = _run(["docker", "image", "inspect", "packetarch-agent:latest"],
+                check=False).returncode == 0
     url = f"{spec['server_url'].rstrip('/')}/agent/image.tar.gz"
-    log.info("agent image missing — downloading %s", url)
-    curl = ["curl", "-fsSL"] + (["-k"] if spec.get("insecure") else []) + ["-o", "/tmp/pa-agent.tar.gz", url]
+    insecure = bool(spec.get("insecure"))
+    remote_sum = _remote_agent_checksum(url, insecure)
+    local_sum = (_AGENT_IMAGE_MARKER.read_text().strip()
+                 if _AGENT_IMAGE_MARKER.exists() else None)
+
+    # Present and either verified current, or we couldn't reach the checksum —
+    # don't churn a working image on a transient HEAD failure.
+    if have and (remote_sum is None or remote_sum == local_sum):
+        return
+
+    reason = "missing" if not have else f"stale (local={local_sum}, remote={remote_sum})"
+    log.info("agent image %s — downloading %s", reason, url)
+    curl = ["curl", "-fsSL"] + (["-k"] if insecure else []) + ["-o", "/tmp/pa-agent.tar.gz", url]
     _run(curl, timeout=300)
     _run(["sh", "-c", "gunzip -c /tmp/pa-agent.tar.gz | docker load"], timeout=300)
     _run(["docker", "tag", "ghcr.io/ip-aegis/packetarch-agent:latest", "packetarch-agent:latest"], check=False)
+    if remote_sum:
+        _AGENT_IMAGE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        _AGENT_IMAGE_MARKER.write_text(remote_sum)
+
+
+def sensor_image_ref(compose_text: str) -> str | None:
+    """Extract the (tag-normalised) sensor image ref from a compose doc."""
+    doc = yaml.safe_load(compose_text)
+    if not isinstance(doc, dict):
+        return None
+    for svc in (doc.get("services") or {}).values():
+        if isinstance(svc, dict) and svc.get("image"):
+            img = str(svc["image"])
+            # A tag lives in the LAST path segment (host:port may contain ':').
+            return img if ":" in img.rsplit("/", 1)[-1] else f"{img}:latest"
+    return None
+
+
+def _newest_cached_sensor_image(exclude: str | None = None) -> str | None:
+    """Newest local image whose repo path ends in '/sensor' (a CV sensor image).
+
+    Used as an offline fallback when the CV Center registry can't serve a pull.
+    `docker images` lists newest-first, so the first match is the freshest.
+    """
+    p = _run(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"], check=False)
+    for repo_tag in p.stdout.splitlines():
+        repo_tag = repo_tag.strip()
+        if not repo_tag or "<none>" in repo_tag or repo_tag == exclude:
+            continue
+        repo = repo_tag.rsplit(":", 1)[0]
+        if repo.rsplit("/", 1)[-1] == "sensor":
+            return repo_tag
+    return None
+
+
+def ensure_sensor_image(image_ref: str) -> None:
+    """Make the CV sensor image available locally for `image_ref`.
+
+    Order of preference (a lab only needs the image bytes — SERIAL_NUMBER +
+    PROVISIONING_TOKEN + capture net are what make it lab-specific):
+      1. Already present locally  → use it (works even when CV's registry is
+         down; this is the common 'new lab on a Center we've pulled before' case).
+      2. Pull it from the CV registry (trusted via ensure_registry_trusted).
+      3. Registry unreachable (CV serves /v2/ as its UI, or is 502'ing) but we
+         have a cached sensor image from a prior lab → retag it to image_ref so
+         provisioning still succeeds offline. Logged loudly; if the cached image
+         is a different CV version it simply won't enroll (soft 'degraded'), it
+         can't harm anything.
+      4. No image and no cache → raise a clear, actionable error.
+    """
+    if _run(["docker", "image", "inspect", image_ref], check=False).returncode == 0:
+        return
+    log.info("sensor image %s not local — attempting registry pull", image_ref)
+    if _run(["docker", "pull", image_ref], check=False, timeout=600).returncode == 0:
+        return
+    cached = _newest_cached_sensor_image(exclude=image_ref)
+    if cached:
+        log.warning(
+            "CV registry could not serve %s — reusing cached sensor image %s "
+            "(registry /v2/ unreachable; existing sensor bytes are generic). "
+            "If the sensor fails to enroll, the cached version differs from this "
+            "Center's — pull a fresh image while the CV registry is reachable.",
+            image_ref, cached,
+        )
+        _run(["docker", "tag", cached, image_ref], check=False)
+        return
+    raise HostOpError(
+        f"sensor image '{image_ref}' is not present locally and the CV Center "
+        f"registry could not be reached to pull it (its /v2/ endpoint is not "
+        f"serving the Docker registry API). Provision a sensor once while the "
+        f"Center's registry is reachable, or `docker load` the image manually; "
+        f"after that, new labs reuse the cached image automatically."
+    )
 
 
 def compose_up(compose_file: Path, project: str) -> None:

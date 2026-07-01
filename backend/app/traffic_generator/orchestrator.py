@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from app.protocol_engines.output import PcapOutput
+from app.protocol_engines.output import PcapOutput, SplitPcapOutput
 from app.protocol_engines.types import FlowContext
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
 from app.traffic_generator.models import GenerationResult, JobStatus
@@ -53,6 +53,10 @@ class GenerationConfig:
     # (gated in profinet/engine.py). v2: ambient PROFINET DCP IdentifyRequest
     # multicasts (gated in BackgroundNoiseGenerator).
     clean_demo_mode: bool = False
+    # When True (and an attack_playbook_id is set), the run produces three
+    # PCAPs — the regular combined file plus a baseline-only and an
+    # attack-only file — via SplitPcapOutput, instead of a single file.
+    export_attack_pcap: bool = False
 
 
 class TrafficOrchestrator:
@@ -95,7 +99,25 @@ class TrafficOrchestrator:
         start_time = datetime.utcnow()
 
         try:
-            output = PcapOutput(str(self.config.output_path))
+            # Attack export: one run → three files (combined / baseline /
+            # attack-only), routed by the __attack__ flow tag. Only meaningful
+            # when a playbook is actually baked in.
+            split_export = bool(
+                self.config.export_attack_pcap and self.config.attack_playbook_id
+            )
+            combined_path = Path(self.config.output_path)
+            attack_path = baseline_path = None
+            if split_export:
+                stem = str(combined_path.with_suffix(""))
+                attack_path = f"{stem}_attack.pcap"
+                baseline_path = f"{stem}_baseline.pcap"
+                output = SplitPcapOutput(
+                    combined_path=str(combined_path),
+                    baseline_path=baseline_path,
+                    attack_path=attack_path,
+                )
+            else:
+                output = PcapOutput(str(combined_path))
             unified = UnifiedOrchestrator(
                 output=output,
                 duration_ms=self.config.total_duration_ms,
@@ -273,8 +295,38 @@ class TrafficOrchestrator:
                     completed_at=end_time,
                 )
 
+            # Assemble the artifact list + combined file size. SplitPcapOutput
+            # and PcapOutput expose file_size differently (method vs property).
+            if split_export:
+                combined_size = output.file_size("combined")
+                artifacts = [
+                    {
+                        "kind": kind,
+                        "filename": Path(path).name,
+                        "packets": output.packet_count_for(kind),
+                        "size_bytes": output.file_size(kind),
+                    }
+                    for kind, path in (
+                        ("combined", str(combined_path)),
+                        ("baseline", baseline_path),
+                        ("attack", attack_path),
+                    )
+                ]
+            else:
+                combined_size = output.file_size
+                artifacts = [
+                    {
+                        "kind": "combined",
+                        "filename": combined_path.name,
+                        "packets": result.packets_generated,
+                        "size_bytes": combined_size,
+                    }
+                ]
+
             logger.info(f"Generation complete: {result.packets_generated} packets")
-            logger.info(f"File size: {output.file_size} bytes")
+            logger.info(f"File size: {combined_size} bytes")
+            if split_export:
+                logger.info(f"Attack-export artifacts: {artifacts}")
 
             return GenerationResult(
                 job_id=self.config.job_id,
@@ -283,7 +335,8 @@ class TrafficOrchestrator:
                 pcap_path=str(self.config.output_path),
                 packets_generated=result.packets_generated,
                 duration_ms=duration_ms,
-                file_size_bytes=output.file_size,
+                file_size_bytes=combined_size,
+                artifacts=artifacts,
                 started_at=start_time,
                 completed_at=end_time,
             )

@@ -43,6 +43,14 @@ class GenerationRequest(BaseModel):
             "warmup_ms, start_mode."
         ),
     )
+    export_attack_pcap: bool = Field(
+        False,
+        description=(
+            "When True (and attack_playbook_id is set), the run also produces "
+            "a baseline-only and an attack-only PCAP alongside the regular "
+            "combined file. Ignored without a playbook."
+        ),
+    )
     adaptive_config: dict[str, Any] | None = Field(
         None,
         description=(
@@ -74,6 +82,14 @@ class GenerationJobResponse(BaseModel):
     output_path: str | None = Field(None, description="Path to output PCAP file")
     packets_generated: int = Field(0, description="Number of packets generated")
     file_size_bytes: int = Field(0, description="Output file size in bytes")
+    artifacts: list[dict[str, Any]] | None = Field(
+        None,
+        description=(
+            "PCAP files produced by the run: [{kind, filename, packets, "
+            "size_bytes}]. Present for attack-export runs (combined + "
+            "baseline + attack); None for single-file runs."
+        ),
+    )
     error_message: str | None = Field(None, description="Error message if failed")
     created_at: datetime | None = Field(None, description="Job creation timestamp")
     started_at: datetime | None = Field(None, description="Job start timestamp")

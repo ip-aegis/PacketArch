@@ -11,6 +11,14 @@ import { apiClient } from './client';
 
 const GENERATION_PREFIX = '/api/v1/generation';
 
+export interface GenerationArtifact {
+  /** 'combined' (the regular PCAP), 'baseline' (attack removed), or 'attack' (attack only). */
+  kind: 'combined' | 'baseline' | 'attack';
+  filename: string;
+  packets: number;
+  size_bytes: number;
+}
+
 export interface GenerationJob {
   job_id: string;
   scenario_id: string;
@@ -21,6 +29,8 @@ export interface GenerationJob {
   packets_generated: number;
   file_size_bytes: number;
   output_path?: string;
+  /** Present for attack-export runs: one entry per PCAP file produced. */
+  artifacts?: GenerationArtifact[] | null;
   error_message?: string;
   created_at?: string;
   started_at?: string;
@@ -45,6 +55,8 @@ export interface StartGenerationRequest {
   adaptive_config?: Record<string, unknown> | null;
   /** Optional per-run override for Purdue cell isolation: {mode, applies_to_levels?}. */
   cell_isolation_override?: Record<string, unknown> | null;
+  /** When true (with a playbook set), also emit baseline-only + attack-only PCAPs. */
+  export_attack_pcap?: boolean;
 }
 
 export const generationApi = {
@@ -98,11 +110,19 @@ export const generationApi = {
   },
 
   /**
-   * Download a PCAP file (triggers browser download)
+   * Download a PCAP file (triggers browser download).
+   *
+   * @param artifact Which file to fetch for attack-export runs:
+   *   'combined' (default), 'baseline', or 'attack'.
    */
-  async downloadPcap(jobId: string, filename?: string): Promise<void> {
+  async downloadPcap(
+    jobId: string,
+    filename?: string,
+    artifact?: 'combined' | 'baseline' | 'attack',
+  ): Promise<void> {
     const response = await apiClient.get(`${GENERATION_PREFIX}/${jobId}/download`, {
       responseType: 'blob',
+      params: artifact ? { artifact } : undefined,
     });
 
     // Create download link

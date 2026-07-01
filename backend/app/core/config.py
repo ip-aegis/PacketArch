@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "PacketArch"
-    app_version: str = "1.11.0"
+    app_version: str = "1.12.0"
     debug: bool = False
     environment: str = "development"
 

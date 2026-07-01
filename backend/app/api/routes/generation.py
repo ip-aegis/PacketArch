@@ -47,6 +47,7 @@ def _job_model_to_response(job: GenerationJobModel) -> GenerationJobResponse:
         output_path=job.output_path,
         packets_generated=job.packets_generated,
         file_size_bytes=job.file_size_bytes,
+        artifacts=job.artifacts,
         error_message=job.error_message,
         created_at=job.created_at,
         started_at=job.started_at,
@@ -167,6 +168,7 @@ async def start_generation(
                 "attack_config": request.attack_config,
                 "adaptive_config": request.adaptive_config,
                 "cell_isolation_override": request.cell_isolation_override,
+                "export_attack_pcap": request.export_attack_pcap,
             }
         )
         logger.info(f"Started generation task {task.id} for job {job.id}")
@@ -261,13 +263,20 @@ async def get_generation_status(
 @router.get("/{job_id}/download")
 async def download_pcap(
     job_id: str,
+    artifact: str = Query(
+        "combined",
+        description="Which PCAP to download: combined | baseline | attack",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
-    """Download the generated PCAP file.
+    """Download a generated PCAP file.
 
     Args:
         job_id: Job identifier
+        artifact: Which file to download for attack-export runs. ``combined``
+            (default) is the regular PCAP; ``baseline`` / ``attack`` are the
+            split files.
         current_user: Current authenticated user
         db: Database session
 
@@ -277,6 +286,8 @@ async def download_pcap(
     Raises:
         HTTPException: If job not found, not completed, or file missing
     """
+    if artifact not in ("combined", "baseline", "attack"):
+        raise ValidationError("artifact must be one of: combined, baseline, attack")
     try:
         job_uuid = UUID(job_id)
     except ValueError:
@@ -302,9 +313,9 @@ async def download_pcap(
         raise ValidationError(f"Job is not completed (status: {job.status})")
 
     # Check output file exists
-    output_path = job.output_path
+    output_path = job.artifact_path(artifact)
     if not output_path:
-        raise NotFoundError("Output file path")
+        raise NotFoundError(f"Output file path ({artifact})")
 
     output_path_obj = Path(output_path)
     if not output_path_obj.exists():

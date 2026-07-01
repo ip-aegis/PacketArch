@@ -15,6 +15,10 @@ STATIC_DIR = Path(__file__).parent.parent.parent / "static" / "agent"
 INSTALL_SCRIPT_PATH = STATIC_DIR / "install.sh"
 # Built image lives in the volume-backed dist/ subdir (see agents.py).
 AGENT_IMAGE_PATH = STATIC_DIR / "dist" / "packetarch-agent.tar.gz"
+# Content checksum written alongside the tarball by the image builder. Served as
+# the X-Checksum-SHA256 header so clients (install.sh, the host-agent reconcile
+# loop) can detect a new build without downloading the whole image.
+AGENT_CHECKSUM_PATH = STATIC_DIR / "dist" / "checksum.txt"
 
 
 @router.get("/install.sh", response_class=PlainTextResponse)
@@ -58,18 +62,30 @@ async def get_docker_compose():
         )
 
 
-@router.get("/image.tar.gz")
+@router.api_route("/image.tar.gz", methods=["GET", "HEAD"])
 async def get_agent_image():
     """Serve the agent Docker image as a tar.gz file.
 
     This allows the install script to download and load the image
     directly from the PacketArch server without needing a registry.
+
+    Exposes the build's content checksum as ``X-Checksum-SHA256`` and accepts
+    HEAD so the host-agent reconcile loop can cheaply detect a new build (via
+    the header) and reload the image only when it changed — the no-CLI
+    version-bump path for local-sensor agents. FileResponse omits the body on
+    HEAD, so the check stays lightweight.
     """
     if AGENT_IMAGE_PATH.exists():
+        headers = {}
+        if AGENT_CHECKSUM_PATH.exists():
+            checksum = AGENT_CHECKSUM_PATH.read_text().strip()
+            if checksum:
+                headers["X-Checksum-SHA256"] = checksum
         return FileResponse(
             path=AGENT_IMAGE_PATH,
             media_type="application/gzip",
             filename="packetarch-agent.tar.gz",
+            headers=headers,
         )
     else:
         return PlainTextResponse(

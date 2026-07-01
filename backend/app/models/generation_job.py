@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,6 +80,14 @@ class GenerationJob(Base):
         String(255),
         nullable=True,
     )
+    # One entry per PCAP file produced by the run: {kind, filename, packets,
+    # size_bytes}. Always includes the ``combined`` file (== output_filename);
+    # attack-export runs also carry ``baseline`` and ``attack``. Nullable for
+    # rows written before attack export existed.
+    artifacts: Mapped[list | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
     error_message: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
@@ -121,6 +129,22 @@ class GenerationJob(Base):
             from app.core.config import settings
             from pathlib import Path
             return str(Path(settings.pcap_output_dir) / self.output_filename)
+        return None
+
+    def artifact_path(self, kind: str = "combined") -> str | None:
+        """Resolve the full path of a produced PCAP by kind.
+
+        ``combined`` maps to the regular output file. ``baseline`` / ``attack``
+        resolve from the ``artifacts`` list (attack-export runs only).
+        """
+        if kind == "combined" or not self.artifacts:
+            return self.output_path
+        from pathlib import Path
+
+        from app.core.config import settings
+        for art in self.artifacts:
+            if art.get("kind") == kind and art.get("filename"):
+                return str(Path(settings.pcap_output_dir) / art["filename"])
         return None
 
     def __repr__(self) -> str:

@@ -34,6 +34,10 @@ class GenerationResult:
     error_message: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    # One entry per PCAP file produced by the run. Always contains at least
+    # the ``combined`` file; when attack export is on it also carries
+    # ``baseline`` and ``attack``. Shape: {kind, filename, packets, size_bytes}.
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

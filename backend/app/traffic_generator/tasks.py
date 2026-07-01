@@ -262,6 +262,8 @@ class CallbackTask(Task):
                     update_data["file_size_bytes"] = retval.get("file_size_bytes", 0)
                     if retval.get("pcap_path"):
                         update_data["output_filename"] = Path(retval["pcap_path"]).name
+                    if retval.get("artifacts"):
+                        update_data["artifacts"] = retval["artifacts"]
 
                 loop.run_until_complete(update_job_in_db(job_id, **update_data))
                 logger.info(f"Job {job_id} completed successfully")
@@ -300,6 +302,7 @@ def generate_traffic(
     attack_config: dict[str, Any] | None = None,
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
+    export_attack_pcap: bool = False,
 ):
     """Generate traffic for a scenario.
 
@@ -341,6 +344,7 @@ def generate_traffic(
                 attack_config=attack_config,
                 adaptive_config=adaptive_config,
                 cell_isolation_override=cell_isolation_override,
+                export_attack_pcap=export_attack_pcap,
             )
         )
         return result
@@ -356,6 +360,7 @@ async def _generate_traffic_async(
     attack_config: dict[str, Any] | None = None,
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
+    export_attack_pcap: bool = False,
 ) -> dict[str, Any]:
     """Async function to generate traffic.
 
@@ -403,6 +408,7 @@ async def _generate_traffic_async(
                 clean_demo_mode=bool(
                     scenario.definition.get("clean_demo_mode", False)
                 ),
+                export_attack_pcap=bool(export_attack_pcap and attack_playbook_id),
             )
 
             # Create orchestrator
@@ -481,6 +487,7 @@ async def _generate_traffic_async(
                 output_filename=Path(generation_result.pcap_path).name if generation_result.pcap_path else None,
                 packets_generated=generation_result.packets_generated,
                 file_size_bytes=generation_result.file_size_bytes,
+                artifacts=generation_result.artifacts or None,
                 progress=100.0,
             )
 
@@ -491,6 +498,7 @@ async def _generate_traffic_async(
                 "pcap_path": generation_result.pcap_path,
                 "packets_generated": generation_result.packets_generated,
                 "file_size_bytes": generation_result.file_size_bytes,
+                "artifacts": generation_result.artifacts or None,
             }
 
     except Exception as e:

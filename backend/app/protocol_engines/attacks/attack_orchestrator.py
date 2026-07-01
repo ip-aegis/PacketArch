@@ -95,6 +95,26 @@ class AttackOrchestrator:
         self._is_paused = False
         self._is_completed = False
 
+        # ── Clock mode ────────────────────────────────────────────────
+        # Live/perpetual mode paces packets to real time, so stage timing
+        # tracks the wall clock (``time.monotonic()``) — virtual event time
+        # lags wall time badly there (heap floods, scapy throughput cap;
+        # see agent v1.23.2 / v1.41.0). Timed/PCAP mode has NO wall pacing:
+        # the whole run drains in a fraction of a second, so stage timing
+        # must track the orchestrator's VIRTUAL clock (``current_time_ms``)
+        # or stages never advance and only stage 0's first action renders.
+        self._virtual_time = False
+        self._total_duration_ms: float | None = None
+        # Virtual-clock anchor for the current stage (ms).
+        self._stage_start_ms = 0.0
+        # Last virtual time seen (fed from handle_tick / advancement check),
+        # used by get_state_snapshot() in virtual mode.
+        self._current_time_ms = 0.0
+        # Effective per-stage durations (seconds) after time-compression so
+        # the full kill chain fits the PCAP window. None → use the playbook's
+        # planned durations verbatim (live mode / no compression).
+        self._effective_stage_s: list[float] | None = None
+
         # Counters
         self._actions_completed = 0
         self._packets_generated = 0
@@ -156,6 +176,78 @@ class AttackOrchestrator:
     # Orchestrator integration
     # ------------------------------------------------------------------
 
+    def set_virtual_time_mode(
+        self,
+        enabled: bool,
+        total_duration_ms: float | None = None,
+    ) -> None:
+        """Select the clock the kill chain advances on.
+
+        Called by ``UnifiedOrchestrator.register_attack_orchestrator()``.
+
+        Args:
+            enabled: ``True`` for timed/PCAP generation (advance stages on the
+                virtual event clock); ``False`` for live agents (wall clock).
+            total_duration_ms: The PCAP's total virtual duration. When set in
+                virtual mode, the kill chain is time-compressed to fit inside
+                the capture window so every stage renders.
+        """
+        self._virtual_time = enabled
+        self._total_duration_ms = total_duration_ms
+
+    def _elapsed_s(self) -> float:
+        """Seconds elapsed in the current stage, on the active clock."""
+        if self._virtual_time:
+            return max(0.0, (self._current_time_ms - self._stage_start_ms) / 1000.0)
+        return time.monotonic() - self._stage_start_monotonic
+
+    def _stage_duration_s(self, idx: int) -> float:
+        """Effective duration (s) of stage ``idx`` — compressed if applicable."""
+        if self._effective_stage_s is not None and 0 <= idx < len(self._effective_stage_s):
+            return self._effective_stage_s[idx]
+        if 0 <= idx < len(self._stages):
+            return float(self._stages[idx].duration_seconds)
+        return 0.0
+
+    def _mark_stage_clock_start(self) -> None:
+        """Anchor both clocks to the start of the current stage."""
+        self._stage_start_monotonic = time.monotonic()
+        self._stage_start_ms = self._current_time_ms
+
+    def _apply_time_compression(self, available_ms: float) -> None:
+        """Scale per-stage durations so the whole kill chain fits ``available_ms``.
+
+        Only used in virtual/PCAP mode. Without this, a 30-minute playbook
+        rendered into a 5-minute PCAP would only show its first stage or two.
+        Stages keep their PLANNED durations in the after-action report; this
+        only affects the timing the packets are rendered at.
+        """
+        n = len(self._stages)
+        if n == 0:
+            return
+        available_s = max(1.0, available_ms / 1000.0)
+        planned = [max(1.0, float(s.duration_seconds)) for s in self._stages]
+        total = sum(planned)
+        if total <= available_s:
+            # Playbook already fits — render at its natural cadence.
+            self._effective_stage_s = planned
+            return
+        # Reserve a margin so the LAST stage finishes before the capture window
+        # closes — otherwise its completing tick fires after the run loop has
+        # already broken at ``timestamp > duration`` and the stage is left
+        # in_progress. Reserve ~15% (at least a few ticks).
+        tick_s = TICK_INTERVAL_MS / 1000.0
+        margin_s = max(available_s * 0.15, tick_s * 3)
+        usable_s = max(tick_s * 2, available_s - margin_s)
+        scale = usable_s / total
+        # Floor at a few ticks so every action in a stage has enough virtual
+        # time to reach its trigger point (actions fire spread across [0,1)).
+        self._effective_stage_s = [max(3.0, p * scale) for p in planned]
+        logger.info(
+            f"Attack '{self._playbook.name}' time-compressed to fit "
+            f"{available_s:.0f}s window (planned {total:.0f}s, scale {scale:.2f})"
+        )
+
     def schedule_initial_events(
         self,
         scheduler: Any,
@@ -172,17 +264,29 @@ class AttackOrchestrator:
             )
             return
 
-        warmup = DEFAULT_WARMUP_MS
+        # ``start_time_ms`` IS the warm-up delay the caller already computed
+        # (register_attack_orchestrator caps it to ~20% of a short PCAP). Use
+        # it directly as the first-tick offset — do NOT add another warm-up on
+        # top, which previously double-counted the delay and ate the capture
+        # window on short PCAPs.
+        first_tick_ms = start_time_ms
         scheduler.schedule(
-            start_time_ms + warmup,
+            first_tick_ms,
             {"type": "attack_stage_tick"},
         )
         self._is_active = True
+        self._current_time_ms = first_tick_ms
+        self._stage_start_ms = first_tick_ms
         self._stage_start_monotonic = time.monotonic()
+        # Time-compress the kill chain into whatever virtual window remains
+        # after the warm-up, so a long playbook renders fully in a short PCAP.
+        if self._virtual_time and self._total_duration_ms:
+            available = max(1000.0, self._total_duration_ms - first_tick_ms)
+            self._apply_time_compression(available)
         self._mark_report_started()
         logger.info(
             f"Attack playbook '{self._playbook.name}' scheduled, "
-            f"first tick at {start_time_ms + warmup:.0f}ms"
+            f"first tick at {first_tick_ms:.0f}ms"
         )
 
     def handle_tick(
@@ -195,6 +299,10 @@ class AttackOrchestrator:
         Returns attack packets to schedule, and schedules the next tick.
         Called from ``UnifiedOrchestrator._handle_control_event()``.
         """
+        # Track the virtual clock so _elapsed_s()/get_state_snapshot() can
+        # measure stage progress against it in timed/PCAP mode.
+        self._current_time_ms = current_time_ms
+
         # Process pending commands first
         self._process_pending_command(scheduler, current_time_ms)
 
@@ -216,8 +324,8 @@ class AttackOrchestrator:
         stage = self._stages[self._current_stage_idx]
 
         # Check if stage duration has expired
-        elapsed_s = time.monotonic() - self._stage_start_monotonic
-        if elapsed_s >= stage.duration_seconds:
+        elapsed_s = self._elapsed_s()
+        if elapsed_s >= self._stage_duration_s(self._current_stage_idx):
             if self._config.auto_advance:
                 self._advance_stage()
                 if self._is_completed:
@@ -255,9 +363,10 @@ class AttackOrchestrator:
         progress_pct = 0.0
         remaining_s = 0.0
         if stage and self._is_active and self._stage_start_monotonic > 0:
-            elapsed_s = time.monotonic() - self._stage_start_monotonic
-            progress_pct = min(100.0, (elapsed_s / max(1, stage.duration_seconds)) * 100)
-            remaining_s = max(0.0, stage.duration_seconds - elapsed_s)
+            stage_dur_s = self._stage_duration_s(self._current_stage_idx)
+            elapsed_s = self._elapsed_s()
+            progress_pct = min(100.0, (elapsed_s / max(1, stage_dur_s)) * 100)
+            remaining_s = max(0.0, stage_dur_s - elapsed_s)
 
         state = AttackState(
             playbook_id=self._playbook.playbook_id,
@@ -312,7 +421,7 @@ class AttackOrchestrator:
                 self._is_paused = False
                 self._is_completed = False
                 self._current_stage_idx = 0
-                self._stage_start_monotonic = time.monotonic()
+                self._mark_stage_clock_start()
                 self._stage_actions_fired.clear()
                 self._mark_report_started()
                 logger.info(f"Attack playbook '{self._playbook.name}' started")
@@ -324,7 +433,7 @@ class AttackOrchestrator:
                 self._stages_completed = 0
                 self._actions_completed = 0
                 self._packets_generated = 0
-                self._stage_start_monotonic = time.monotonic()
+                self._mark_stage_clock_start()
                 self._stage_actions_fired.clear()
                 self._reset_report()
                 self._mark_report_started()
@@ -357,10 +466,12 @@ class AttackOrchestrator:
         if self._current_stage_idx >= len(self._stages):
             return
 
-        stage = self._stages[self._current_stage_idx]
-        elapsed_s = time.monotonic() - self._stage_start_monotonic
+        # Keep the virtual-clock anchor fresh so _elapsed_s() is accurate
+        # between ticks (this runs every event-loop iteration).
+        self._current_time_ms = current_time_ms
+        elapsed_s = self._elapsed_s()
 
-        if elapsed_s >= stage.duration_seconds and self._config.auto_advance:
+        if elapsed_s >= self._stage_duration_s(self._current_stage_idx) and self._config.auto_advance:
             self._advance_stage()
             # Schedule an immediate tick so the new stage generates packets
             if not self._is_completed:
@@ -390,7 +501,7 @@ class AttackOrchestrator:
             logger.info(f"Attack playbook '{self._playbook.name}' — all stages completed")
         else:
             new_stage = self._stages[self._current_stage_idx]
-            self._stage_start_monotonic = time.monotonic()
+            self._mark_stage_clock_start()
             self._mark_stage_started(self._current_stage_idx)
             logger.info(
                 f"Advancing to attack stage: {new_stage.name} "
@@ -409,8 +520,8 @@ class AttackOrchestrator:
         """Generate attack packets for the current stage's actions."""
         packets: list[PacketEvent] = []
 
-        elapsed_s = time.monotonic() - self._stage_start_monotonic
-        stage_progress = elapsed_s / max(1, stage.duration_seconds)
+        elapsed_s = self._elapsed_s()
+        stage_progress = elapsed_s / max(1, self._stage_duration_s(self._current_stage_idx))
 
         for action in stage.actions:
             # Determine when this action should fire based on its position
@@ -501,22 +612,29 @@ class AttackOrchestrator:
         allowed_ids = set(self._config.target_device_ids) if self._config.target_device_ids else None
 
         for dev in devices:
-            dev_id = dev.get("id", "")
+            # Accept BOTH device shapes: the frontend scenario shape
+            # (``id`` / ``type`` / nested ``network.ipAddress``) used by the
+            # live agent, and the flat shape (``device_id`` / ``device_type``
+            # / ``ip_address``) the PCAP path builds in
+            # traffic_generator/orchestrator.py. Reading only the former left
+            # the PCAP attack with zero targets → zero attack packets.
+            dev_id = dev.get("id") or dev.get("device_id") or ""
             if allowed_ids and dev_id not in allowed_ids:
                 continue
 
-            network = dev.get("network", {})
-            ip = network.get("ipAddress", "")
-            mac = network.get("macAddress", "")
+            network = dev.get("network", {}) or {}
+            ip = network.get("ipAddress") or dev.get("ip_address") or ""
+            mac = network.get("macAddress") or dev.get("mac_address") or ""
             if not ip:
                 continue
 
+            dev_type = (dev.get("type") or dev.get("device_type") or "unknown").lower()
             targets.append(TargetInfo(
                 device_id=dev_id,
                 ip_address=ip,
                 mac_address=mac,
-                device_type=dev.get("type", "unknown").lower(),
-                protocols=dev.get("protocols", []),
+                device_type=dev_type,
+                protocols=dev.get("protocols", []) or [],
                 port=0,
             ))
 

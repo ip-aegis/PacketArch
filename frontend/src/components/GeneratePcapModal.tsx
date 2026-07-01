@@ -85,6 +85,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         duration_minutes: Math.round((defaultDurationMs / 60000) * 10) / 10,
         attack_playbook_id: undefined,
         attack_intensity: 1.0,
+        export_attack_pcap: false,
         adaptive_enabled: false,
         cell_isolation_mode: 'inherit',
       });
@@ -126,6 +127,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
       durationMinutes: number;
       attackPlaybookId?: string;
       attackIntensity?: number;
+      exportAttackPcap?: boolean;
       adaptiveEnabled?: boolean;
       cellIsolationMode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
     }) =>
@@ -136,6 +138,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         attack_config: params.attackPlaybookId
           ? { intensity: params.attackIntensity ?? 1.0 }
           : null,
+        export_attack_pcap: !!(params.attackPlaybookId && params.exportAttackPcap),
         adaptive_config: params.adaptiveEnabled ? { enabled: true } : null,
         cell_isolation_override:
           params.cellIsolationMode && params.cellIsolationMode !== 'inherit'
@@ -169,19 +172,25 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
   });
 
   // Download handler
-  const handleDownload = useCallback(async () => {
-    if (!job) return;
-    try {
-      const filename = job.output_path
-        ? job.output_path.split('/').pop()
-        : `${scenarioName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pcap`;
-      await generationApi.downloadPcap(job.job_id, filename);
-      message.success('Download started');
-    } catch (error: unknown) {
-      const detail = extractErrorMessage(error, 'Failed to download');
-      message.error(detail);
-    }
-  }, [job, scenarioName]);
+  const handleDownload = useCallback(
+    async (artifact?: 'combined' | 'baseline' | 'attack') => {
+      if (!job) return;
+      try {
+        const base = scenarioName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const art = artifact && artifact !== 'combined'
+          ? job.artifacts?.find((a) => a.kind === artifact)
+          : undefined;
+        const filename = art?.filename
+          ?? (job.output_path ? job.output_path.split('/').pop() : `${base}.pcap`);
+        await generationApi.downloadPcap(job.job_id, filename, artifact);
+        message.success('Download started');
+      } catch (error: unknown) {
+        const detail = extractErrorMessage(error, 'Failed to download');
+        message.error(detail);
+      }
+    },
+    [job, scenarioName],
+  );
 
   const handleStart = () => {
     form.validateFields().then((values) => {
@@ -189,6 +198,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         durationMinutes: values.duration_minutes,
         attackPlaybookId: values.attack_playbook_id,
         attackIntensity: values.attack_intensity,
+        exportAttackPcap: values.export_attack_pcap,
         adaptiveEnabled: values.adaptive_enabled,
         cellIsolationMode: values.cell_isolation_mode,
       });
@@ -333,6 +343,31 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
                       message="Attack stages are pre-baked into the PCAP at generation time. Live runtime controls (advance, pause, inject) are not available in PCAP mode."
                       style={{ marginTop: 8 }}
                     />
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, cur) =>
+                        prev.attack_playbook_id !== cur.attack_playbook_id
+                      }
+                    >
+                      {({ getFieldValue }) => {
+                        const hasPlaybook = !!getFieldValue('attack_playbook_id');
+                        return (
+                          <Form.Item
+                            name="export_attack_pcap"
+                            label={
+                              <Text style={{ color: '#a8a8c0' }}>
+                                Also export attack-only PCAP
+                              </Text>
+                            }
+                            valuePropName="checked"
+                            tooltip="One run, three files: the regular combined PCAP plus a baseline-only (attack removed) and an attack-only capture."
+                            style={{ marginTop: 12, marginBottom: 0 }}
+                          >
+                            <Switch disabled={!hasPlaybook} />
+                          </Form.Item>
+                        );
+                      }}
+                    </Form.Item>
                   </>
                 ),
               },
@@ -494,9 +529,31 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
             {isComplete && (
               <>
                 <Button onClick={onClose}>Close</Button>
-                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
-                  Download PCAP
-                </Button>
+                {job.artifacts && job.artifacts.length > 1 ? (
+                  job.artifacts.map((art) => (
+                    <Button
+                      key={art.kind}
+                      type={art.kind === 'attack' ? 'primary' : 'default'}
+                      danger={art.kind === 'attack'}
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleDownload(art.kind)}
+                    >
+                      {art.kind === 'combined'
+                        ? 'Combined'
+                        : art.kind === 'baseline'
+                          ? 'Baseline'
+                          : 'Attack only'}
+                    </Button>
+                  ))
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => handleDownload('combined')}
+                  >
+                    Download PCAP
+                  </Button>
+                )}
               </>
             )}
             {(isFailed || isCancelled) && (
