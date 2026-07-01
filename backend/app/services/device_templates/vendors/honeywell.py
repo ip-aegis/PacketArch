@@ -552,7 +552,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         bacnet_identity={
-            "vendor_id": 256,  # Tridium (Honeywell subsidiary)
+            "vendor_id": 17,  # Honeywell (JACE/Tridium sold under Honeywell)
             "vendor_name": "Tridium, Inc.",
             "model_name": "JACE 8000",
         },
@@ -622,7 +622,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         bacnet_identity={
-            "vendor_id": 94,  # Honeywell
+            "vendor_id": 17,  # Honeywell
             "vendor_name": "Honeywell",
             "model_name": "Excel Web",
         },
@@ -817,7 +817,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 7,  # Honeywell
+            "vendor_id": 17,  # Honeywell
             "device_type": "VAV Controller",
             "model_name": "Spyder PUB6438S",
         },

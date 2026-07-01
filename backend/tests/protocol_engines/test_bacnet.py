@@ -226,6 +226,32 @@ class TestBACnetEncoding:
         assert (tag >> 4) == 12  # Object identifier tag
         assert (tag & 0x0F) == 4  # 4 bytes
 
+    def test_encode_character_string_extended_length(self):
+        """Strings >= 128 bytes must use BACnet extended length (single
+        length octet for <= 253), NOT ASN.1 BER (0x81-prefixed).
+
+        Regression: the old code emitted ``75 81 C9`` (BER) for a 200-byte
+        string, which BACnet decoders read as length 0x81 = 129, corrupting
+        the value and trailing PDU data.
+        """
+        result = encode_character_string("X" * 200)
+        # encoded payload = 1 encoding byte + 200 chars = 201 bytes
+        assert result[0] == (7 << 4) | 5  # char-string tag, LVT=5 (extended)
+        assert result[1] == 201  # single extended-length octet, not 0x81
+        assert len(result) == 2 + 201
+
+    def test_encode_bitstring_status_flags(self):
+        """Status_Flags is a 4-bit string: ``tag(0x82) unused(0x04) data``.
+
+        Regression: the old code emitted a redundant length octet
+        (``82 02 04 00``), leaving a stray trailing byte that decoders
+        reported as 'too many cast components'.
+        """
+        from app.protocol_engines.bacnet.packets import encode_bitstring
+        assert encode_bitstring(0) == bytes([0x82, 0x04, 0x00])
+        # bit 3 (out-of-service) set -> MSB-first in the data octet
+        assert encode_bitstring(0b1000) == bytes([0x82, 0x04, 0x10])
+
     def test_encode_context_tag(self):
         """Test context-specific tag encoding."""
         data = bytes([0x01, 0x02])
@@ -320,6 +346,20 @@ class TestBACnetPackets:
 
         assert apdu[0] == (BACnetPDUType.COMPLEX_ACK << 4)
         assert apdu[1] == 1  # Invoke ID
+
+    def test_read_property_response_apdu_status_flags(self):
+        """ReadProperty response carrying Status_Flags must wrap a
+        well-formed bit string between the [3] opening/closing tags."""
+        apdu = build_read_property_response_apdu(
+            invoke_id=1,
+            object_type=BACnetObjectType.ANALOG_INPUT,
+            object_instance=1,
+            property_id=BACnetPropertyIdentifier.STATUS_FLAGS,
+            property_value=0,
+            property_type="bitstring",
+        )
+        # value is framed by opening tag [3] (0x3E) ... closing tag [3] (0x3F)
+        assert apdu.endswith(bytes([0x3E, 0x82, 0x04, 0x00, 0x3F]))
 
     def test_read_property_response_apdu_real(self):
         """Test ReadProperty response APDU with real (float) value."""

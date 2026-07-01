@@ -323,7 +323,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 71,
+            "vendor_id": 24,
             "model_name": "WebCTRL Server",
             "device_instance": 0,
         },
@@ -589,7 +589,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 56,  # Carrier
+            "vendor_id": 16,  # Carrier
             "device_type": "Automation Server",
             "model_name": "i-Vu Pro",
         },
@@ -652,7 +652,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 56,
+            "vendor_id": 16,
             "device_type": "Thermostat",
             "model_name": "33CS2PP",
         },
@@ -716,7 +716,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 285,  # Distech Controls
+            "vendor_id": 332,  # Distech Controls
             "device_type": "VAV Controller",
             "model_name": "EC-BOS-8",
         },
@@ -843,7 +843,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 108,  # Automated Logic
+            "vendor_id": 24,  # Automated Logic
             "device_type": "Automation Server",
             "model_name": "WebCTRL",
         },
@@ -912,7 +912,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         bacnet_identity={
-            "vendor_id": 198,
+            "vendor_id": 77,
             "device_type": "HVAC Controller",
             "model_name": "pCO5+",
             "firmware_revision": "V3.5.0",
@@ -1084,7 +1084,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 86,
+                "vendor_id": 24,
                 "vendor_name": "Automated Logic",
                 "model_name": "ME812U Field Controller",
                 "firmware_revision": "6.2.0",
@@ -1140,7 +1140,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 301,
+                "vendor_id": 16,
                 "vendor_name": "Carrier",
                 "model_name": "i-Vu Pro Open Server",
                 "firmware_revision": "7.0.2",
@@ -1196,7 +1196,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 122,
+                "vendor_id": 8,
                 "vendor_name": "Delta Controls",
                 "model_name": "enteliBUS Manager",
                 "firmware_revision": "4.8.0",
@@ -1249,7 +1249,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 122,
+                "vendor_id": 8,
                 "vendor_name": "Delta Controls",
                 "model_name": "eBCON Controller",
                 "firmware_revision": "3.5.0",
@@ -1301,7 +1301,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 165,
+                "vendor_id": 332,
                 "vendor_name": "Distech Controls",
                 "model_name": "ECY-VAV Variable Air Volume Controller",
                 "firmware_revision": "2.5.0",
@@ -1410,7 +1410,7 @@ TEMPLATES: list[DeviceTemplate] = [
             is_latest=True,
         )],
         bacnet_identity={
-                "vendor_id": 97,
+                "vendor_id": 2,
                 "vendor_name": "Trane",
                 "model_name": "UC600 Unit Controller",
                 "firmware_revision": "3.5.2",

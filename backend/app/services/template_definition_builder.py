@@ -61,9 +61,12 @@ def populate_definition_from_template(
     )
     from app.scenario_templates import get_template
     from app.services.conduit_service import generate_default_conduits
-    from app.services.device_templates._fingerprints import (
+    from app.services.device_templates import (
         get_fingerprint_by_vendor_model,
         get_fingerprint_from_template,
+        get_template_by_id,
+        get_template_by_vendor_model,
+        select_firmware_variant,
     )
     from app.protocol_engines.vendor_oui import generate_mac_address
     from app.services.device_identity_enricher import (
@@ -173,23 +176,49 @@ def populate_definition_from_template(
             fingerprint_model = device_spec.get("fingerprint_model")
             fingerprint_id = device_spec.get("fingerprint_id")
             full_fingerprint = None
+
+            # Mirror routes/templates.py:create_scenario_from_template — the
+            # chosen firmware variant (pinned per device via firmware_version,
+            # else the per-instance weighted selector) drives BOTH the emitted
+            # fingerprint firmware AND the CVEs, so they agree on the wire.
+            tpl = None
             if fingerprint_id:
+                tpl = get_template_by_id(fingerprint_id)
+            elif vendor and fingerprint_model:
+                tpl = get_template_by_vendor_model(vendor, fingerprint_model)
+            pinned_fw = device_spec.get("firmware_version")
+            variant = None
+            if tpl:
+                variant = (
+                    tpl.get_firmware_by_version(pinned_fw) if pinned_fw
+                    else select_firmware_variant(tpl, i, count)
+                )
+            cve_ids: list[str] = list(variant.cves) if variant else []
+
+            if tpl and variant:
+                full_fingerprint = get_fingerprint_from_template(
+                    tpl.id, firmware_version=variant.version
+                )
+            elif fingerprint_id:
                 full_fingerprint = get_fingerprint_from_template(fingerprint_id)
-                if full_fingerprint and not fingerprint_model:
-                    device["fingerprintModel"] = full_fingerprint.get("model")
             elif vendor and fingerprint_model:
                 full_fingerprint = get_fingerprint_by_vendor_model(
                     vendor, fingerprint_model
                 )
             if full_fingerprint:
+                if not fingerprint_model and full_fingerprint.get("model"):
+                    device["fingerprintModel"] = full_fingerprint.get("model")
                 device["vendorFingerprint"] = full_fingerprint
 
             if device_spec.get("role"):
                 device["role"] = device_spec.get("role")
             if device_spec.get("error_config"):
                 device["errorConfig"] = device_spec.get("error_config")
-            if device_spec.get("cve_ids"):
-                device["cveIds"] = list(device_spec.get("cve_ids"))
+            # CVEs come from the chosen firmware variant (above), matching
+            # production — any legacy per-device cve_ids in the template spec
+            # is intentionally ignored (device template is authoritative).
+            if cve_ids:
+                device["cveIds"] = cve_ids
 
             mac_override = device_spec.get("mac_address")
             if mac_override:

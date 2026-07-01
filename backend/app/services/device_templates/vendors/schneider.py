@@ -1179,7 +1179,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         bacnet_identity={
-            "vendor_id": 67,
+            "vendor_id": 10,
             "model_name": "PM8000",
             "device_instance": 0,
         },
@@ -1605,7 +1605,7 @@ TEMPLATES: list[DeviceTemplate] = [
         },
 
         bacnet_identity={
-            "vendor_id": 67,
+            "vendor_id": 10,
             "device_type": "Precision Cooling Unit",
             "model_name": "InRow DX",
             "firmware_revision": "V7.0.2",
@@ -1792,7 +1792,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 67,
+            "vendor_id": 10,
             "device_type": "Building Controller",
             "model_name": "Continuum CX9680",
         },

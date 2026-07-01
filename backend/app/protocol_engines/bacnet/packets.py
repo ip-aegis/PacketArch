@@ -59,6 +59,37 @@ def encode_length(length: int) -> bytes:
                       (length >> 8) & 0xFF, length & 0xFF])
 
 
+def _encode_tag(tag_number: int, length: int, context: bool = False) -> bytes:
+    """Encode a BACnet tag octet with its length/value/type (LVT) field.
+
+    This implements the BACnet tag-length encoding (ASHRAE 135 §20.2.1.3),
+    which is NOT the same as ASN.1 BER length encoding: when the length is
+    >= 5 the LVT nibble is set to 5 and the real length follows as an
+    extended length field — one octet for lengths up to 253, then the
+    marker 254 + uint16, or 255 + uint32 for larger payloads.
+
+    Args:
+        tag_number: Tag number (application tag type, or context tag number)
+        length: Length of the data the tag describes
+        context: True for a context-specific tag, False for application
+
+    Returns:
+        The encoded tag octet plus any extended-length octets.
+    """
+    tag = (tag_number << 4)
+    if context:
+        tag |= 0x08
+    if length < 5:
+        return bytes([tag | length])
+    tag |= 5  # Extended length follows
+    if length <= 253:
+        return bytes([tag, length])
+    elif length <= 0xFFFF:
+        return bytes([tag, 254]) + struct.pack(">H", length)
+    else:
+        return bytes([tag, 255]) + struct.pack(">I", length)
+
+
 def encode_unsigned(value: int) -> bytes:
     """Encode an unsigned integer as BACnet application-tagged data.
 
@@ -79,14 +110,7 @@ def encode_unsigned(value: int) -> bytes:
     else:
         data = struct.pack(">I", value)
 
-    # Application tag 2 (unsigned integer)
-    tag = BACnetApplicationTag.UNSIGNED_INT << 4
-    if len(data) < 5:
-        tag |= len(data)
-        return bytes([tag]) + data
-    else:
-        tag |= 5  # Extended length
-        return bytes([tag]) + encode_length(len(data)) + data
+    return _encode_tag(BACnetApplicationTag.UNSIGNED_INT, len(data)) + data
 
 
 def encode_signed(value: int) -> bytes:
@@ -98,13 +122,7 @@ def encode_signed(value: int) -> bytes:
     else:
         data = struct.pack(">i", value)
 
-    tag = BACnetApplicationTag.SIGNED_INT << 4
-    if len(data) < 5:
-        tag |= len(data)
-        return bytes([tag]) + data
-    else:
-        tag |= 5
-        return bytes([tag]) + encode_length(len(data)) + data
+    return _encode_tag(BACnetApplicationTag.SIGNED_INT, len(data)) + data
 
 
 def encode_real(value: float) -> bytes:
@@ -123,13 +141,7 @@ def encode_enumerated(value: int) -> bytes:
     else:
         data = struct.pack(">I", value)
 
-    tag = BACnetApplicationTag.ENUMERATED << 4
-    if len(data) < 5:
-        tag |= len(data)
-        return bytes([tag]) + data
-    else:
-        tag |= 5
-        return bytes([tag]) + encode_length(len(data)) + data
+    return _encode_tag(BACnetApplicationTag.ENUMERATED, len(data)) + data
 
 
 def encode_character_string(value: str, encoding: int = 0) -> bytes:
@@ -143,18 +155,40 @@ def encode_character_string(value: str, encoding: int = 0) -> bytes:
         Encoded bytes with application tag
     """
     encoded = bytes([encoding]) + value.encode("utf-8")
-    tag = BACnetApplicationTag.CHARACTER_STRING << 4
-    if len(encoded) < 5:
-        tag |= len(encoded)
-        return bytes([tag]) + encoded
-    else:
-        tag |= 5
-        return bytes([tag]) + encode_length(len(encoded)) + encoded
+    return _encode_tag(BACnetApplicationTag.CHARACTER_STRING, len(encoded)) + encoded
 
 
 def encode_boolean(value: bool) -> bytes:
     """Encode a boolean as BACnet application-tagged data."""
     return bytes([0x10 | (1 if value else 0)])
+
+
+def encode_bitstring(value: int, num_bits: int = 4) -> bytes:
+    """Encode a BACnet bit string as application-tagged data.
+
+    BACnet bit strings (application tag 8) are encoded as: a leading octet
+    giving the number of unused bits in the final data octet, followed by
+    the data octets with bits packed MSB-first (bit 0 is the most
+    significant bit of the first data octet).
+
+    The common case is Status_Flags, a 4-bit string (in-alarm, fault,
+    overridden, out-of-service).
+
+    Args:
+        value: Integer whose bit i maps to bit-string position i
+        num_bits: Number of significant bits (default 4 for Status_Flags)
+
+    Returns:
+        Encoded bytes with application tag.
+    """
+    num_bytes = max(1, (num_bits + 7) // 8)
+    unused = num_bytes * 8 - num_bits
+    data = bytearray(num_bytes)
+    for i in range(num_bits):
+        if value & (1 << i):
+            data[i // 8] |= 1 << (7 - (i % 8))
+    content = bytes([unused]) + bytes(data)
+    return _encode_tag(BACnetApplicationTag.BIT_STRING, len(content)) + content
 
 
 def encode_null() -> bytes:
@@ -559,8 +593,7 @@ def build_read_property_response_apdu(
         else:
             apdu += encode_object_identifier(BACnetObjectType.DEVICE, property_value)
     elif property_type == "bitstring":
-        # Encode as octet string for simplicity
-        apdu += bytes([0x82, 0x02, 0x04, property_value & 0xFF])
+        apdu += encode_bitstring(property_value if isinstance(property_value, int) else 0)
     else:
         # Default to unsigned
         apdu += encode_unsigned(property_value if isinstance(property_value, int) else 0)

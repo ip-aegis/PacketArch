@@ -3446,6 +3446,571 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "target_zones": ["stage2_calender", "stage3_formation", "stage5_pack"]},
         ],
     },
+    "rockwell_cip_motion_plant": {
+        "name": "Allen-Bradley Discrete Plant — CIP Motion & Sync",
+        "description": "Single-vendor Rockwell / Allen-Bradley discrete "
+                       "manufacturing plant laid out to the Purdue model. "
+                       "Level 3 site operations runs a FactoryTalk "
+                       "asset/historian server, a Studio 5000 engineering "
+                       "workstation, and central PanelView operator HMIs. "
+                       "Level 2 control is one ControlLogix or CompactLogix "
+                       "PLC per production cell (stamping / metal-forming, "
+                       "injection molding, sub-assembly, battery line). "
+                       "Level 1 field & motion is Kinetix servo drives on the "
+                       "motion cells (CIP Motion + CIP Sync / IEEE-1588 PTP), "
+                       "PowerFlex VFDs on conveyors and pumps, and distributed "
+                       "EtherNet/IP I/O (FLEX 5000 + POINT I/O). EtherNet/IP "
+                       "CIP is the dominant protocol: class-1 cyclic implicit "
+                       "I/O between PLCs and drives/I/O, plus explicit "
+                       "messaging for config/reads from the FactoryTalk server "
+                       "and engineering workstation. Cisco IE3500 cell/zone "
+                       "switches carry a native Cyber Vision sensor "
+                       "aggregating up to a CV Center. NTP / DNS management "
+                       "noise is supplied by the ambient generator. A "
+                       "GuardLogix safety controller on the stamping cell runs "
+                       "CIP Safety to its press-guard / e-stop safety I/O. An "
+                       "L3.5 IDMZ holds an eWON Flexy remote-access gateway "
+                       "(phoning home to Talk2M), a jump server, a reverse-proxy "
+                       "data broker, and a WSUS patch server — the controlled "
+                       "external-comms boundary up to IT/internet. "
+                       "~41 devices across 7 zones.",
+        "vertical": "manufacturing",
+        "phase_preset": "with_maintenance",
+        "total_duration_ms": 600000,
+
+        # Cells are hermetic at the area-zone boundary; only the L3 Operations
+        # zone may reach into a cell (northbound supervisory + engineering).
+        "cell_isolation": {
+            "mode": "strict_northbound",
+            "applies_to_levels": [0, 1, 2],
+        },
+
+        "zones": [
+            # Site Operations — Level 3 (FactoryTalk server, Studio 5000 EWS,
+            # central PanelView HMIs, core switch). All cross-cell supervisory
+            # and engineering traffic originates here.
+            {"id": "operations", "name": "Site Operations", "level": 3,
+             "subnet_offset": 0, "vlan": 150, "security_level": "critical"},
+            # Industrial DMZ — Level 3.5 (bastion: eWON remote-access gateway,
+            # jump server, reverse-proxy data broker, WSUS patch server, switch).
+            # The only zone permitted to talk to the external/internet zone.
+            {"id": "idmz", "name": "Industrial DMZ", "level": 3.5,
+             "subnet_offset": 5, "vlan": 160, "security_level": "critical"},
+            # External / Internet — Level 4 (Talk2M cloud, vendor remote support).
+            {"id": "external", "name": "External / Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+            # Cell 1 — Stamping / Metal-Forming (ControlLogix + Kinetix motion)
+            {"id": "cell_stamping", "name": "Cell 1 - Stamping / Metal-Forming", "level": 2,
+             "subnet_offset": 1, "vlan": 211, "security_level": "high"},
+            # Cell 2 — Injection Molding (CompactLogix + PowerFlex)
+            {"id": "cell_injection", "name": "Cell 2 - Injection Molding", "level": 2,
+             "subnet_offset": 2, "vlan": 212, "security_level": "high"},
+            # Cell 3 — Sub-Assembly (CompactLogix + PowerFlex + distributed I/O)
+            {"id": "cell_subassembly", "name": "Cell 3 - Sub-Assembly", "level": 2,
+             "subnet_offset": 3, "vlan": 213, "security_level": "high"},
+            # Cell 4 — Battery Line (ControlLogix + Kinetix CIP Sync motion)
+            {"id": "cell_battery", "name": "Cell 4 - Battery Line", "level": 2,
+             "subnet_offset": 4, "vlan": 214, "security_level": "critical"},
+        ],
+
+        "conduits": [
+            # Operations <-> each cell: EtherNet/IP (FactoryTalk RPC / explicit
+            # messaging + Studio 5000 program push), OPC UA (historian trend
+            # collection where the controller supports it), SNMP infra polling.
+            {"id": "ops_cell_stamping", "name": "Operations ↔ Stamping Cell",
+             "source_zone": "operations", "target_zone": "cell_stamping",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "opc_ua", "snmp"],
+             "security_level": "high",
+             "description": "FactoryTalk EtherNet/IP explicit messaging and Studio 5000 program "
+                            "access to the stamping ControlLogix, SNMP infrastructure monitoring"},
+            {"id": "ops_cell_injection", "name": "Operations ↔ Injection Molding Cell",
+             "source_zone": "operations", "target_zone": "cell_injection",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "opc_ua", "snmp"],
+             "security_level": "high",
+             "description": "FactoryTalk EtherNet/IP explicit messaging and Studio 5000 program "
+                            "access to the injection-molding CompactLogix, SNMP monitoring"},
+            {"id": "ops_cell_subassembly", "name": "Operations ↔ Sub-Assembly Cell",
+             "source_zone": "operations", "target_zone": "cell_subassembly",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "opc_ua", "snmp"],
+             "security_level": "high",
+             "description": "FactoryTalk EtherNet/IP explicit messaging and Studio 5000 program "
+                            "access to the sub-assembly CompactLogix, SNMP monitoring"},
+            {"id": "ops_cell_battery", "name": "Operations ↔ Battery Line Cell",
+             "source_zone": "operations", "target_zone": "cell_battery",
+             "direction": "bidirectional",
+             "allowed_protocols": ["ethernet_ip", "opc_ua", "snmp"],
+             "security_level": "critical",
+             "description": "FactoryTalk OPC UA historian collection + EtherNet/IP explicit "
+                            "messaging and Studio 5000 program access to the battery-line "
+                            "ControlLogix, SNMP monitoring"},
+            # L3 Operations <-> L3.5 IDMZ: historian/FactoryTalk forwards data up
+            # to the reverse-proxy broker (HTTPS), WSUS patches the engineering
+            # workstation (HTTPS), jump-server RDP pivot, NMS SNMP of the IDMZ switch.
+            {"id": "ops_idmz", "name": "Operations ↔ IDMZ",
+             "source_zone": "operations", "target_zone": "idmz",
+             "direction": "bidirectional",
+             "allowed_protocols": ["opc_ua", "snmp", "rdp", "https"],
+             "security_level": "critical",
+             "description": "Historian forwarding to the IDMZ reverse-proxy broker, WSUS patch "
+                            "distribution to the engineering workstation, jump-server RDP pivot, "
+                            "NMS SNMP polling of the IDMZ switch"},
+            # L3.5 IDMZ <-> Cell 4 Battery: eWON remote-monitoring SNMP poll of the
+            # battery-line ControlLogix for offsite vendor support.
+            {"id": "idmz_cell_battery", "name": "IDMZ ↔ Battery Line",
+             "source_zone": "idmz", "target_zone": "cell_battery",
+             "direction": "bidirectional",
+             "allowed_protocols": ["snmp"],
+             "security_level": "critical",
+             "description": "eWON remote-access gateway SNMP monitoring of the battery-line "
+                            "controller for offsite vendor support"},
+            # L3.5 IDMZ <-> L4 External: the only path to the internet. eWON Talk2M
+            # tunnel + jump-server vendor remote support (HTTPS/TLS).
+            {"id": "idmz_external", "name": "IDMZ ↔ External / Internet",
+             "source_zone": "idmz", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "external",
+             "description": "eWON outbound Talk2M cloud tunnel and jump-server vendor remote-support "
+                            "session — the controlled external-comms boundary"},
+            # NOTE: No L0-L2 cell-to-cell conduits exist by design. Cells are
+            # hermetic at the IEC 62443 area-zone boundary; cell_isolation.mode
+            # = strict_northbound drops any cell-to-cell flow added later.
+        ],
+
+        "recommended_attack_playbooks": [
+            {"playbook_id": "pipedream_like", "relevance": "high",
+             "rationale": "Exercises PIPEDREAM-style CIP/EtherNet/IP abuse against the "
+                          "Rockwell controllers and the Purdue-segmented cell model"},
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "Strict northbound model tests reconnaissance containment between cells"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "process_sim": {
+            "template": "manufacturing",
+            "description": "Discrete stamping + molding + battery-winding motion simulation",
+            "key_variables": ["press_position", "mold_temp", "conveyor_speed",
+                              "winder_torque", "servo_following_error"],
+            "available_faults": ["servo_overload", "drive_fault", "following_error_spike"],
+        },
+
+        # External comms: the eWON Flexy phones home to the Talk2M cloud and the
+        # jump server brokers vendor remote-support sessions — both ride a
+        # wall-clock heartbeat out of the IDMZ to the external/internet zone.
+        "cloud_services": [
+            {"provider": "talk2m", "region": "eu",
+             "device_types": ["remote_gateway"], "heartbeat_interval_ms": 30000},
+            {"provider": "teamviewer", "region": "global",
+             "device_types": ["jump_server"], "heartbeat_interval_ms": 30000},
+        ],
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "talk2m",
+            "cloud_ips": ["51.38.74.240", "87.98.169.126"],
+            "enable_jump_server": True,
+            "jump_server_external_ip": "203.0.113.60",
+        },
+
+        "devices": [
+            # ============================================================
+            # SITE OPERATIONS (Level 3) — 6 devices
+            # FactoryTalk asset/historian server, Studio 5000 engineering
+            # workstation, network management server (canonical SNMP source),
+            # two central PanelView HMIs, core switch.
+            # ============================================================
+            {"type": "historian", "vendor": "rockwell", "count": 1, "zone": "operations",
+             "name": "Plant_FactoryTalk_Server",
+             "protocols": ["ethernet_ip", "opc_ua", "https", "snmp"],
+             "fingerprint_model": "FactoryTalk View SE Station 14",
+             "role": "FactoryTalk Asset / Historian Server"},
+            {"type": "engineering_workstation", "vendor": "rockwell", "count": 1, "zone": "operations",
+             "name": "Controls_Engineering_WS",
+             "protocols": ["ethernet_ip", "https", "snmp"],
+             "fingerprint_model": "Studio 5000 Logix Designer 36",
+             "role": "Studio 5000 Engineering Workstation"},
+            {"type": "nms", "vendor": "paessler", "count": 1, "zone": "operations",
+             "name": "Plant_Network_Management_Server",
+             "protocols": ["snmp", "https"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "role": "Network Management Server"},
+            {"type": "hmi", "vendor": "rockwell", "count": 2, "zone": "operations",
+             "name": "Plant_Overview_PanelView",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T15C22D9P",
+             "firmware_version": "V12.00",
+             "role": "Central Operator HMI"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
+             "name": "Plant_Core_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "26.1.1",
+             "role": "Core Aggregation Switch"},
+
+            # ============================================================
+            # INDUSTRIAL DMZ (Level 3.5) — 5 devices
+            # Bastion zone: the controlled boundary between OT and IT/internet.
+            # eWON remote-access gateway (Talk2M), jump server, reverse-proxy
+            # data broker, WSUS patch server, IDMZ switch.
+            # ============================================================
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "idmz",
+             "name": "IDMZ_eWON_Gateway",
+             "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "Remote Access Gateway",
+             "external_comms": True},
+            {"type": "jump_server", "vendor": "microsoft", "count": 1, "zone": "idmz",
+             "name": "IDMZ_Jump_Server",
+             "protocols": ["rdp", "snmp"],
+             "fingerprint_model": "Jump Server 2016 (Vulnerable)",
+             "role": "Remote Access Jump Server",
+             "external_comms": True},
+            {"type": "reverse_proxy", "vendor": "f5", "count": 1, "zone": "idmz",
+             "name": "IDMZ_Data_Broker_Proxy",
+             "protocols": ["https", "snmp"],
+             "fingerprint_model": "BIG-IP i2800",
+             "role": "Reverse Proxy / Data Broker"},
+            {"type": "patch_server", "vendor": "microsoft", "count": 1, "zone": "idmz",
+             "name": "IDMZ_WSUS_Patch_Server",
+             "protocols": ["https", "snmp"],
+             "fingerprint_model": "WSUS Server 2019",
+             "role": "Patch Staging Server"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "idmz",
+             "name": "IDMZ_Core_Switch",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24P4X-E",
+             "firmware_version": "26.1.1",
+             "role": "IDMZ Network Switch"},
+
+            # ============================================================
+            # CELL 1: STAMPING / METAL-FORMING — ControlLogix + Kinetix motion (9 devices)
+            # EtherNet/IP class-1 cyclic I/O + CIP Motion on the press/feed servos,
+            # plus a GuardLogix safety controller (SIS) running CIP Safety to the
+            # press-guard / e-stop / light-curtain safety I/O.
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Press_ControlLogix",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1756-L83E",
+             "firmware_version": "V33.013",
+             "role": "Cell Controller"},
+            {"type": "servo", "vendor": "rockwell", "count": 2, "zone": "cell_stamping",
+             "name": "Stamping_Press_Servo",
+             "protocols": ["ethernet_ip", "cip_motion"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Press / Feed Servo (CIP Motion)"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Scrap_Conveyor_VFD",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "25B-D030N104",
+             "firmware_version": "V5.001",
+             "role": "Scrap Conveyor VFD"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_FLEX_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Distributed FLEX 5000 I/O"},
+            {"type": "safety_plc", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Safety_GuardLogix",
+             "protocols": ["ethernet_ip", "cip_safety"],
+             "fingerprint_model": "1756-L83ES",
+             "firmware_version": "V35.011",
+             "role": "Safety Controller (SIS)"},
+            {"type": "safety_io", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Safety_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Guard Safety I/O (e-stop / light curtain)"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Operator_PanelView",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell_stamping",
+             "name": "Stamping_Cell_IE3500",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3500-8P3S-E",
+             "firmware_version": "26.1.1",
+             "role": "Cell Switch (native CV sensor)"},
+
+            # ============================================================
+            # CELL 2: INJECTION MOLDING — CompactLogix + PowerFlex (6 devices)
+            # EtherNet/IP cyclic I/O to the screw/clamp drives + distributed I/O.
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell_injection",
+             "name": "Injection_Molding_CompactLogix",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1769-L33ER",
+             "firmware_version": "V33.013",
+             "role": "Cell Controller"},
+            {"type": "drive", "vendor": "rockwell", "count": 2, "zone": "cell_injection",
+             "name": "Injection_Screw_VFD",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "20F-D052N103",
+             "role": "Screw / Clamp VFD"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell_injection",
+             "name": "Injection_POINT_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Distributed POINT I/O"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell_injection",
+             "name": "Injection_Operator_PanelView",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell_injection",
+             "name": "Injection_Cell_IE3500",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3500-8T3S-E",
+             "firmware_version": "26.1.1",
+             "role": "Cell Switch (native CV sensor)"},
+
+            # ============================================================
+            # CELL 3: SUB-ASSEMBLY — CompactLogix + PowerFlex + distributed I/O (7 devices)
+            # EtherNet/IP cyclic I/O to conveyor drives + FLEX and POINT I/O blocks.
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell_subassembly",
+             "name": "SubAssembly_CompactLogix",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1769-L33ER",
+             "firmware_version": "V30.014",
+             "role": "Cell Controller"},
+            {"type": "drive", "vendor": "rockwell", "count": 2, "zone": "cell_subassembly",
+             "name": "SubAssembly_Conveyor_VFD",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "25B-D030N104",
+             "firmware_version": "V5.001",
+             "role": "Conveyor VFD"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell_subassembly",
+             "name": "SubAssembly_FLEX_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Distributed FLEX 5000 I/O"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell_subassembly",
+             "name": "SubAssembly_POINT_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "1734-AENT",
+             "role": "Distributed POINT I/O"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell_subassembly",
+             "name": "SubAssembly_Operator_PanelView",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T10C22D9P",
+             "role": "Operator Interface"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell_subassembly",
+             "name": "SubAssembly_Cell_IE3500",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3500-8U3X-E",
+             "firmware_version": "26.1.1",
+             "role": "Cell Switch (native CV sensor)"},
+
+            # ============================================================
+            # CELL 4: BATTERY LINE — ControlLogix + Kinetix CIP Sync motion (8 devices)
+            # The precise-timing showcase: EtherNet/IP cyclic I/O + CIP Motion
+            # with CIP Sync (IEEE-1588 PTP) coordinating the winder servos.
+            # L85E controller adds OPC UA + SNMP for northbound historian trends.
+            # ============================================================
+            {"type": "plc", "vendor": "rockwell", "count": 1, "zone": "cell_battery",
+             "name": "Battery_Line_ControlLogix",
+             "protocols": ["ethernet_ip", "opc_ua", "snmp"],
+             "fingerprint_model": "1756-L85E",
+             "firmware_version": "V35.011",
+             "role": "Cell Controller"},
+            {"type": "servo", "vendor": "rockwell", "count": 3, "zone": "cell_battery",
+             "name": "Battery_Winder_Servo",
+             "protocols": ["ethernet_ip", "cip_motion"],
+             "fingerprint_model": "2198-D012-ERS3",
+             "role": "Winder Servo (CIP Motion + CIP Sync)"},
+            {"type": "drive", "vendor": "rockwell", "count": 1, "zone": "cell_battery",
+             "name": "Battery_Conveyor_VFD",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "PowerFlex 755",
+             "role": "Conveyor VFD"},
+            {"type": "io_module", "vendor": "rockwell", "count": 1, "zone": "cell_battery",
+             "name": "Battery_FLEX_IO",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "5094-AEN2TR",
+             "role": "Distributed FLEX 5000 I/O"},
+            {"type": "hmi", "vendor": "rockwell", "count": 1, "zone": "cell_battery",
+             "name": "Battery_Operator_PanelView",
+             "protocols": ["ethernet_ip"],
+             "fingerprint_model": "2711P-T15C22D9P",
+             "firmware_version": "V12.00",
+             "role": "Operator Interface"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "cell_battery",
+             "name": "Battery_Cell_IE3500",
+             "protocols": ["snmp"],
+             "fingerprint_model": "IE-3500-8P3S-E",
+             "firmware_version": "26.1.1",
+             "role": "Cell Switch (native CV sensor)"},
+        ],
+
+        "flows": [
+            # ============================================================
+            # CELL 1 STAMPING INTRA-CELL — EtherNet/IP CIP + CIP Motion + CIP Safety
+            # ============================================================
+            # Class-1 cyclic motion loop: PLC <-> Kinetix servos (tight 2ms).
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 2,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"],
+             "jitter_ms": 0.2, "jitter_type": "gaussian"},
+            # Class-1 cyclic I/O: PLC <-> PowerFlex conveyor VFD.
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            # Class-1 cyclic I/O: PLC <-> FLEX 5000 distributed I/O.
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            # Explicit messaging: PanelView HMI <-> PLC (operator screen).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+            # CIP Safety: GuardLogix SIS <-> safety I/O — fast deterministic
+            # safety connection (press guard / e-stop / light curtain), 4ms.
+            {"protocol": "cip_safety", "pattern": "safety", "interval_ms": 4,
+             "source_types": ["safety_plc"], "target_types": ["safety_io"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"]},
+            # Standard/safety controller coordination: the ControlLogix exchanges
+            # interlock/zone status with the GuardLogix over EtherNet/IP (100ms).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 100,
+             "source_types": ["plc"], "target_types": ["safety_plc"],
+             "source_zones": ["cell_stamping"], "target_zones": ["cell_stamping"],
+             "jitter_ms": 10, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # CELL 2 INJECTION MOLDING INTRA-CELL — EtherNet/IP CIP
+            # ============================================================
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["cell_injection"], "target_zones": ["cell_injection"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["cell_injection"], "target_zones": ["cell_injection"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["cell_injection"], "target_zones": ["cell_injection"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # CELL 3 SUB-ASSEMBLY INTRA-CELL — EtherNet/IP CIP
+            # ============================================================
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["cell_subassembly"], "target_zones": ["cell_subassembly"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["cell_subassembly"], "target_zones": ["cell_subassembly"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["cell_subassembly"], "target_zones": ["cell_subassembly"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # CELL 4 BATTERY LINE INTRA-CELL — EtherNet/IP CIP + CIP Sync motion
+            # ============================================================
+            # Precise-timing winder motion loop (tightest, 1ms) — the segment
+            # coordinated by CIP Sync / IEEE-1588 PTP.
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 1,
+             "source_types": ["plc"], "target_types": ["servo"],
+             "source_zones": ["cell_battery"], "target_zones": ["cell_battery"],
+             "jitter_ms": 0.1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 10,
+             "source_types": ["plc"], "target_types": ["drive"],
+             "source_zones": ["cell_battery"], "target_zones": ["cell_battery"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 8,
+             "source_types": ["plc"], "target_types": ["io_module"],
+             "source_zones": ["cell_battery"], "target_zones": ["cell_battery"],
+             "jitter_ms": 1, "jitter_type": "gaussian"},
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["cell_battery"], "target_zones": ["cell_battery"],
+             "jitter_ms": 50, "jitter_type": "uniform"},
+
+            # ============================================================
+            # L3 SITE OPERATIONS → CELLS (northbound supervisory + engineering)
+            # FactoryTalk + Studio 5000 + central HMIs live in Operations.
+            # Strict Purdue: no cell initiates northbound, no cell-to-cell lateral.
+            # ============================================================
+            # FactoryTalk RPC == EtherNet/IP CIP explicit messaging: the
+            # FactoryTalk server reads tags from every cell controller (1s).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["cell_stamping", "cell_injection",
+                              "cell_subassembly", "cell_battery"],
+             "jitter_ms": 100, "jitter_type": "gaussian"},
+            # Historian trend collection over OPC UA from the battery-line
+            # ControlLogix (1756-L85E exposes an OPC UA server) (5s).
+            {"protocol": "opc_ua", "pattern": "subscription", "interval_ms": 5000,
+             "source_types": ["historian"], "target_types": ["plc"],
+             "source_zones": ["operations"], "target_zones": ["cell_battery"]},
+            # Studio 5000 engineering workstation: online edits / program push /
+            # uploads to every cell controller over EtherNet/IP (2s).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["engineering_workstation"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["cell_stamping", "cell_injection",
+                              "cell_subassembly", "cell_battery"],
+             "jitter_ms": 200, "jitter_type": "gaussian"},
+            # Central PanelView overview HMIs polling every cell controller (1s).
+            {"protocol": "ethernet_ip", "pattern": "poll", "interval_ms": 1000,
+             "source_types": ["hmi"], "target_types": ["plc"],
+             "source_zones": ["operations"],
+             "target_zones": ["cell_stamping", "cell_injection",
+                              "cell_subassembly", "cell_battery"],
+             "jitter_ms": 100, "jitter_type": "uniform"},
+            # SNMP infrastructure monitoring: the network management server
+            # (canonical SNMP source) polls every IE3500 cell switch, the core
+            # switch, and the IDMZ switch (30s).
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["nms"], "target_types": ["switch"],
+             "source_zones": ["operations"],
+             "target_zones": ["operations", "idmz", "cell_stamping", "cell_injection",
+                              "cell_subassembly", "cell_battery"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # INDUSTRIAL DMZ (L3.5) — boundary + external comms
+            # ============================================================
+            # eWON remote-access gateway: SNMP remote-monitoring poll of the
+            # battery-line ControlLogix for offsite vendor support (60s). The
+            # eWON's outbound Talk2M cloud tunnel is driven by cloud_services.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["remote_gateway"], "target_types": ["plc"],
+             "source_zones": ["idmz"], "target_zones": ["cell_battery"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+            # FactoryTalk historian forwards plant data UP to the IDMZ
+            # reverse-proxy data broker over HTTPS (10s).
+            {"protocol": "https", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["historian"], "target_types": ["reverse_proxy"],
+             "source_zones": ["operations"], "target_zones": ["idmz"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+            # WSUS patch server distributes updates DOWN to the engineering
+            # workstation over HTTPS (hourly).
+            {"protocol": "https", "pattern": "poll", "interval_ms": 3600000,
+             "source_types": ["patch_server"], "target_types": ["engineering_workstation"],
+             "source_zones": ["idmz"], "target_zones": ["operations"],
+             "jitter_ms": 60000, "jitter_type": "uniform"},
+            # Jump server: SNMP health checks of the boundary switches
+            # (IDMZ + operations core) (60s). Inbound RDP pivots are driven
+            # by the attack-simulation layer.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["jump_server"], "target_types": ["switch"],
+             "source_zones": ["idmz"], "target_zones": ["idmz", "operations"],
+             "jitter_ms": 5000, "jitter_type": "uniform"},
+        ],
+    },
     "pharma_vaccine_bioreactor": {
         "name": "Pharma — Vaccine Bioreactor Plant",
         "description": "GMP-regulated vaccine / monoclonal-antibody plant. "

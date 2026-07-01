@@ -1375,7 +1375,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 42,
+            "vendor_id": 7,
             "model_name": "Desigo CC",
             "device_instance": 0,
         },
@@ -2249,7 +2249,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 10,  # Siemens Building Technologies
+            "vendor_id": 7,  # Siemens Building Technologies
             "device_type": "Management Platform",
             "model_name": "Desigo CC",
         },
@@ -2318,7 +2318,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         bacnet_identity={
-            "vendor_id": 10,
+            "vendor_id": 7,
             "device_type": "Room Controller",
             "model_name": "DXR2.E12",
         },

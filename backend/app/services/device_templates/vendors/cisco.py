@@ -48,10 +48,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.12.02",
-                release_date=date(2024, 2, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.12.02",
+                release_date=date(2024, 2, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -203,10 +208,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
                 population_weight=0.66,
             ),
@@ -305,10 +315,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -396,10 +411,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -471,10 +491,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -562,10 +587,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -662,10 +692,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -753,10 +788,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(
@@ -844,10 +884,15 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="17.15.01",
-                release_date=date(2024, 11, 1),
+                version="26.1.1",
+                release_date=date(2026, 4, 10),
                 is_latest=True,
                 is_default=True,
+                cves=[],
+            ),
+            FirmwareVariant(
+                version="17.15.01",
+                release_date=date(2024, 11, 1),
                 cves=[],
             ),
             FirmwareVariant(

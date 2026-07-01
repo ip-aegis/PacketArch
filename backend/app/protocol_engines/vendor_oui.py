@@ -272,6 +272,8 @@ BACNET_VENDOR_IDS: dict[int, str] = {
     91: "Novar (Honeywell)",  # was 416
     225: "Computrols",  # was 438
     245: "Contemporary Controls",  # was 489
+    115: "Lutron",  # Lutron Electronics
+    188: "Notifier",  # Notifier (Honeywell fire) — template-sourced, verify vs assigned-vendor-ids
 }
 
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to

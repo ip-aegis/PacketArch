@@ -36,9 +36,9 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-VERSION = "1.8.0"
-COMMIT = "d53bf59"
-DATE = "June 9, 2026"
+VERSION = "1.10.1"
+COMMIT = "70f97ae"
+DATE = "June 25, 2026"
 
 # --- palette -------------------------------------------------------------
 INK = colors.HexColor("#1a2230")
@@ -422,7 +422,10 @@ def build():
         "VirtualBox, VMware Workstation/Player, or ESXi/vSphere. The "
         "appliance is a real git clone pinned to a release tag using the "
         "production compose file, so it stays self-upgradeable from the "
-        "UI &mdash; you only rebuild the OVA at major releases.", body))
+        "UI. The release pipeline now builds the "
+        "<font face='Courier'>.ova</font> in CI and attaches it to the "
+        "GitHub Release, so most operators download it rather than building "
+        "it &mdash; you only rebuild at major releases.", body))
 
     s.append(Paragraph("Building the OVA", h3))
     s.append(codeblock(
@@ -560,6 +563,9 @@ def build():
           "Host docker group id so the backend can use the Docker socket."],
          ["HOST_INSTALL_DIR / COMPOSE_PROJECT_NAME",
           "Targets for the in-app self-upgrade (git-clone installs)."],
+         ["BUILD_COMMIT / BUILD_DATE",
+          "Build provenance stamped at release-build time; surfaced in the "
+          "UI footer / About page."],
          ["DEBUG", "false in production."]],
         col_widths=[2.3 * inch, 4.4 * inch], code_cols=(0,)))
     s.append(KeepTogether(env_block))

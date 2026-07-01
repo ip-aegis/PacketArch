@@ -75,6 +75,7 @@ from app.protocol_engines.bacnet.packets import (
     build_who_is_apdu,
     build_who_is_packet,
     build_write_property_request_apdu,
+    encode_bitstring,
     encode_character_string,
     encode_enumerated,
     encode_object_identifier,
@@ -140,5 +141,6 @@ __all__ = [
     "encode_real",
     "encode_enumerated",
     "encode_character_string",
+    "encode_bitstring",
     "encode_object_identifier",
 ]

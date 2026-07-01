@@ -35,6 +35,7 @@ from app.protocol_engines.bacnet.types import (
     BACnetState,
     BACnetUnits,
 )
+from app.protocol_engines.vendor_oui import BACNET_VENDOR_IDS
 from app.protocol_engines.types import (
     ConversationState,
     FlowContext,
@@ -184,10 +185,32 @@ class BACnetEngine(ProtocolEngine):
         vuln_override = flow.destination.vulnerability_override or {}
         bacnet_override = vuln_override.get("bacnet_identity_override", {})
 
+        # Derive a vendor_name when the bacnet_identity omits one — most
+        # building-automation templates set vendor_id but leave vendor_name
+        # blank, and without this the VENDOR_NAME ReadProperty response (and
+        # CV's vendor classification) falls back to the useless literal
+        # "Unknown". Preference order:
+        #   1. explicit bacnet_identity.vendor_name
+        #   2. the device's authoritative manufacturer (template `vendor`) —
+        #      this is correct even when vendor_id is mis-set, so a Siemens
+        #      device never announces "Schneider Electric" just because its
+        #      vendor_id happens to collide with Schneider's registered id
+        #   3. the registered name for vendor_id (BACnet vendor registry)
+        vendor_id = bacnet_id.get("vendor_id", 0)
+        device_vendor = (
+            getattr(flow.destination, "vendor", None)
+            or (flow.destination.vendor_fingerprint or {}).get("vendor")
+        )
+        default_vendor_name = (
+            device_vendor
+            or BACNET_VENDOR_IDS.get(vendor_id)
+            or "Unknown"
+        )
+
         # Merge base identity with vulnerability overrides
         identity = {
-            "vendor_id": bacnet_id.get("vendor_id", 0),
-            "vendor_name": bacnet_id.get("vendor_name", "Unknown"),
+            "vendor_id": vendor_id,
+            "vendor_name": bacnet_id.get("vendor_name") or default_vendor_name,
             "model_name": bacnet_id.get("model_name", "BACnet Device"),
             "firmware_revision": bacnet_id.get("firmware_revision", "1.0"),
             "application_software_version": bacnet_id.get(
