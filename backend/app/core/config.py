@@ -22,9 +22,19 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "PacketArch"
-    app_version: str = "1.12.1"
+    app_version: str = "1.12.2"
     debug: bool = False
     environment: str = "development"
+
+    # Agent image auto-distribution. When the server can't build the agent from
+    # source (no mounted source) and has no current local image, it pulls the
+    # agent image from this registry ref on boot and re-serves it as the
+    # downloadable tarball (see startup.ensure_agent_image_current) — so
+    # internet-connected installs auto-update agents with no on-box build.
+    # Air-gapped/offline installs set AGENT_REGISTRY_PULL_ENABLED=false and rely
+    # on the bundle-loaded image instead (install.sh writes this).
+    agent_image_registry_ref: str = "ghcr.io/ip-aegis/packetarch-agent:latest"
+    agent_registry_pull_enabled: bool = True
 
     # Self-upgrade (git-clone installs). Populated from the host on Docker
     # installs so the backend can launch the updater container against the

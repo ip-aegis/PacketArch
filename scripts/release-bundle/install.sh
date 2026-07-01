@@ -119,6 +119,11 @@ ADMIN_PASSWORD=
 AI_ENABLED=false
 LIVE_TRAFFIC_ENABLED=${LIVE_TRAFFIC_DEFAULT}
 
+# Offline bundles ship the agent image (loaded above) and re-serve it on boot,
+# so don't reach out to the registry — this install may be air-gapped. An
+# internet-connected site can set this true to auto-pull agent updates from GHCR.
+AGENT_REGISTRY_PULL_ENABLED=false
+
 # Build metadata (read by backend for /api/v1/about)
 BUILD_COMMIT=${BUILD_COMMIT}
 BUILD_DATE=${BUILD_DATE}

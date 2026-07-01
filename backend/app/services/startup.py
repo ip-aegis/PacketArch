@@ -274,23 +274,48 @@ def _serve_agent_image(image_ref: str, version: str) -> None:
     AGENT_VERSION_PATH.write_text(version)
 
 
+def _try_pull_agent_from_registry(ref: str) -> tuple[str | None, str | None]:
+    """Best-effort pull of the agent image from a registry (e.g. GHCR).
+
+    Returns (image_ref, org.packetarch.agent_version) on success, else
+    (None, None). Never raises — an unreachable registry (air-gapped host) just
+    means we fall back to a locally-loaded image.
+    """
+    try:
+        import docker
+        client = docker.from_env()
+    except Exception:
+        return None, None
+    try:
+        repo, tag = (ref.rsplit(":", 1) if ":" in ref.rsplit("/", 1)[-1] else (ref, "latest"))
+        img = client.images.pull(repo, tag=tag)
+        return ref, (img.labels or {}).get("org.packetarch.agent_version")
+    except Exception as e:  # noqa: BLE001
+        logger.info("agent registry pull skipped/failed (%s): %s", ref, e)
+        return None, None
+
+
 async def ensure_agent_image_current() -> str:
     """Keep the served agent tarball current with the newest available agent.
 
-    "Build once, distribute": if a prebuilt agent image is loaded (shipped in the
-    offline bundle, or built earlier) and it is the newest version available,
-    RE-SERVE it — a fast ``docker save`` with no source and no rebuild, so offline
-    installs/upgrades auto-prompt an agent update with zero "Build Image" step.
-    Only fall back to a source rebuild when the agent SOURCE is strictly newer
-    than any loaded image (a developer changed the agent code); that heavy build
-    runs in a background thread so startup isn't blocked. Gated by the caller to
-    live-traffic deployments.
+    "Build once, distribute" — no on-box build unless a developer changed the
+    agent source:
+      * Source mounted (dev/git) → source is authoritative: re-serve a matching
+        loaded image if present, else background-build from source.
+      * No source (offline bundle, or a source-less install) → take the newest
+        agent image available LOCALLY (bundle-loaded / previously pulled) or, when
+        AGENT_REGISTRY_PULL_ENABLED, from the configured registry (GHCR), then
+        re-serve it (fast ``docker save``, no build). Air-gapped installs disable
+        the pull and rely on the bundle-loaded image.
+    Re-serving writes version.txt/checksum so the update banner + agent
+    self-update fire automatically. Gated by the caller to live-traffic.
     """
     import asyncio
     import threading
 
     from fastapi import BackgroundTasks
 
+    from app.core.config import settings
     from app.api.routes.agents import (
         AGENT_IMAGE_PATH,
         AGENT_VERSION_PATH,
@@ -299,27 +324,24 @@ async def ensure_agent_image_current() -> str:
     )
 
     served_v = AGENT_VERSION_PATH.read_text().strip() if AGENT_VERSION_PATH.exists() else None
-    source_v = extract_agent_version_from_source()  # None on offline (no source)
+    source_v = extract_agent_version_from_source()  # None when the source isn't mounted
     image_ref, image_v = _find_loaded_agent_image()
 
-    candidates = [v for v in (source_v, image_v) if v]
-    if not candidates:
-        return "skipped (no agent source and no versioned image)"
-    target_v = max(candidates, key=_agent_vt)
+    def _up_to_date(v: str) -> bool:
+        return bool(served_v) and AGENT_IMAGE_PATH.exists() and _agent_vt(served_v) >= _agent_vt(v)
 
-    if served_v and AGENT_IMAGE_PATH.exists() and _agent_vt(served_v) >= _agent_vt(target_v):
-        return f"up to date (served v{served_v})"
-
-    # Preferred path: re-serve the prebuilt image when it is the newest available.
-    if image_ref and image_v and _agent_vt(image_v) >= _agent_vt(target_v):
-        try:
-            _serve_agent_image(image_ref, image_v)
-            return f"served prebuilt agent image v{image_v} (was v{served_v or 'none'})"
-        except Exception as e:  # noqa: BLE001
-            logger.warning("re-serve of prebuilt agent image failed: %s", e)
-
-    # Fallback: source rebuild (dev/git where the source is newer, or no image).
-    if source_v and _agent_vt(source_v) >= _agent_vt(target_v):
+    # --- Source available (dev/git with the source mounted) -----------------
+    # Source is authoritative: re-serve a matching loaded image if we have one,
+    # else rebuild from source in the background.
+    if source_v:
+        if _up_to_date(source_v):
+            return f"up to date (served v{served_v})"
+        if image_ref and image_v and _agent_vt(image_v) >= _agent_vt(source_v):
+            try:
+                _serve_agent_image(image_ref, image_v)
+                return f"served prebuilt agent image v{image_v} (was v{served_v or 'none'})"
+            except Exception as e:  # noqa: BLE001
+                logger.warning("re-serve of prebuilt agent image failed: %s", e)
         bt = BackgroundTasks()
         await build_agent_image(bt)  # writes status, guards concurrent builds, queues the build
         if bt.tasks:
@@ -329,7 +351,23 @@ async def ensure_agent_image_current() -> str:
             return f"rebuilding agent image from source (v{source_v}, was v{served_v or 'none'})"
         return f"build already in progress / unavailable (was v{served_v or 'none'})"
 
-    return f"skipped (cannot produce v{target_v}; served v{served_v or 'none'})"
+    # --- No source: newest local image, or pull from the registry -----------
+    best_ref, best_v = image_ref, image_v
+    if settings.agent_registry_pull_enabled:
+        pulled_ref, pulled_v = _try_pull_agent_from_registry(settings.agent_image_registry_ref)
+        if pulled_v and (best_v is None or _agent_vt(pulled_v) > _agent_vt(best_v)):
+            best_ref, best_v = pulled_ref, pulled_v
+
+    if not best_v:
+        return "skipped (no source, no versioned local image, no registry image)"
+    if _up_to_date(best_v):
+        return f"up to date (served v{served_v})"
+    try:
+        _serve_agent_image(best_ref, best_v)
+        return f"served agent image v{best_v} (was v{served_v or 'none'})"
+    except Exception as e:  # noqa: BLE001
+        logger.warning("re-serve of agent image failed: %s", e)
+        return f"check failed: {e}"
 
 
 async def reconcile_local_labs(db: AsyncSession) -> str:

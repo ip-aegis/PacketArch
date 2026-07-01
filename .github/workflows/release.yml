@@ -33,7 +33,7 @@ on:
 
 permissions:
   contents: write       # needed to create the GitHub Release
-  # packages: write     # uncomment if publishing images to GHCR
+  packages: write       # publish the agent image to GHCR (build once, distribute)
 
 jobs:
   build:
@@ -144,28 +144,34 @@ jobs:
             LICENSE
             NOTICE
 
-      # --- Optional: publish images to GHCR ---------------------------
-      # Enable once `packages: write` is granted at the top of this file.
-      #
-      # - name: Log in to GHCR
-      #   uses: docker/login-action@v4
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      #
-      # - name: Tag and push backend/frontend/agent images
-      #   env:
-      #     VERSION: ${{ steps.version.outputs.VERSION }}
-      #   run: |
-      #     for img in backend frontend agent; do
-      #         docker tag "packetarch/${img}:${VERSION}" \
-      #             "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:${VERSION}"
-      #         docker tag "packetarch/${img}:${VERSION}" \
-      #             "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:latest"
-      #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:${VERSION}"
-      #         docker push "ghcr.io/${{ github.repository_owner }}/packetarch-${img}:latest"
-      #     done
+      # --- Publish the agent image to GHCR ----------------------------
+      # So internet-connected installs auto-pull the labeled agent image on boot
+      # and re-serve it (startup.ensure_agent_image_current) — no on-box build,
+      # source mount, or manual "Build Image". Full variant only (pcap-only
+      # ships no agent). build-release.sh already tagged packetarch-agent:latest
+      # (labeled org.packetarch.agent_version via the AGENT_VERSION build-arg).
+      # NOTE: the GHCR package is created private on first push; make it PUBLIC
+      # once in the repo's package settings so unauthenticated boxes can pull.
+      - name: Log in to GHCR
+        if: matrix.variant == 'full' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push agent image to GHCR
+        if: matrix.variant == 'full' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          # Publish both the app-release version tag and :latest, pointing at the
+          # canonical image build-release.sh produced.
+          for tag in "${VERSION}" latest; do
+              docker tag packetarch-agent:latest "ghcr.io/${OWNER}/packetarch-agent:${tag}"
+              docker push "ghcr.io/${OWNER}/packetarch-agent:${tag}"
+          done
 
   build-ova:
     name: Build OVA appliance
