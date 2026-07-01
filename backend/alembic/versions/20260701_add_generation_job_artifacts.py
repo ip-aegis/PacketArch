@@ -6,7 +6,7 @@ runs (combined + baseline + attack); NULL for single-file runs and all rows
 written before attack export existed. Nothing existing is modified or dropped.
 
 Revision ID: add_gen_job_artifacts
-Revises: add_local_labs
+Revises: add_scenario_naming_status
 Create Date: 2026-07-01
 """
 
@@ -14,7 +14,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "add_gen_job_artifacts"
-down_revision = "add_local_labs"
+down_revision = "add_scenario_naming_status"
 branch_labels = None
 depends_on = None
 
