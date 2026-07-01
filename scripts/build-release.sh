@@ -121,9 +121,22 @@ PYEOF
     # accumulate cruft across local builds. _shared/ is gitignored.
     trap "rm -rf '${SHARED_DIR}'" EXIT
 
+    # Stamp the agent's own version (from its version.py, NOT the app version)
+    # as a build-arg so the image carries an org.packetarch.agent_version label.
+    # The server reads that label to re-serve the shipped image as the
+    # downloadable agent tarball on install/upgrade — no in-app "Build Image".
+    AGENT_VERSION="$(grep -E '^VERSION' "${REPO_ROOT}/docker/packetarch-agent/app/version.py" \
+        | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+    echo "  agent version: ${AGENT_VERSION:-unknown}"
+
     docker build \
         --tag "${AGENT_IMAGE}" \
+        --build-arg "AGENT_VERSION=${AGENT_VERSION:-dev}" \
         "${AGENT_BUILD_CTX}"
+
+    # Also tag the canonical name the server/agents expect, so a `docker load`
+    # on an offline install yields packetarch-agent:latest directly.
+    docker tag "${AGENT_IMAGE}" packetarch-agent:latest
 
     AGENT_INCLUDED=1
 fi
@@ -140,7 +153,8 @@ docker save "${FRONTEND_IMAGE}" | gzip > "${STAGE}/images/frontend.tar.gz"
 docker save "${POSTGRES_IMAGE}" | gzip > "${STAGE}/images/postgres.tar.gz"
 docker save "${REDIS_IMAGE}"    | gzip > "${STAGE}/images/redis.tar.gz"
 if [[ "${AGENT_INCLUDED}" == "1" ]]; then
-    docker save "${AGENT_IMAGE}" | gzip > "${STAGE}/images/agent.tar.gz"
+    # Save under the canonical name so it loads as packetarch-agent:latest.
+    docker save packetarch-agent:latest | gzip > "${STAGE}/images/agent.tar.gz"
 fi
 
 # --- stage runtime files ------------------------------------------------

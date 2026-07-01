@@ -43,6 +43,13 @@ COPY app/ ./app/
 COPY _shared/protocol_engines/ ./app/protocol_engines/
 COPY _shared/traffic_generator/ ./app/traffic_generator/
 
+# Stamp the agent version as an image label so the server can detect a loaded
+# image's version WITHOUT the agent source (offline installs have no source) and
+# re-serve it as the downloadable tarball. Supplied by the build (build-arg);
+# defaults to "dev" for ad-hoc builds. Kept in lockstep with app/version.py.
+ARG AGENT_VERSION=dev
+LABEL org.packetarch.agent_version="${AGENT_VERSION}"
+
 # Environment variables (set by deployment)
 ENV PACKETARCH_SERVER=""
 ENV AGENT_TOKEN=""

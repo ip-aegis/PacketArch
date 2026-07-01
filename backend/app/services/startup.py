@@ -199,17 +199,94 @@ async def reconcile_agent_statuses(db: AsyncSession) -> int:
     return agents_reset
 
 
-async def ensure_agent_image_current() -> str:
-    """Rebuild the served agent image if it's missing or older than the source.
+def _agent_vt(v: str | None) -> tuple:
+    import re
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
 
-    Keeps installs/upgrades automatically current: after an agent version bump,
-    the next backend boot rebuilds the served tarball so `install.sh` hands out
-    the latest agent. The heavy build runs in a background thread (so startup is
-    not blocked) and reuses the build-image route's logic, including its
-    concurrent-build guard. Gated by the caller to live-traffic deployments.
+
+def _find_loaded_agent_image() -> tuple[str | None, str | None]:
+    """Locate a loaded agent image + its org.packetarch.agent_version label.
+
+    Prefers the canonical packetarch-agent:latest; falls back to a release-tagged
+    packetarch/agent:* image. Version is None for images built before the label
+    existed (older bundles) — callers then fall back to a source build.
+    """
+    try:
+        import docker
+        client = docker.from_env()
+    except Exception:
+        return None, None
+    try:
+        img = client.images.get("packetarch-agent:latest")
+        return "packetarch-agent:latest", (img.labels or {}).get("org.packetarch.agent_version")
+    except Exception:
+        pass
+    try:
+        imgs = client.images.list(name="packetarch/agent")
+        if imgs:
+            img = imgs[0]
+            ref = (img.tags or ["packetarch/agent:latest"])[0]
+            return ref, (img.labels or {}).get("org.packetarch.agent_version")
+    except Exception:
+        pass
+    return None, None
+
+
+def _serve_agent_image(image_ref: str, version: str) -> None:
+    """Publish a loaded agent image as the downloadable served tarball + metadata.
+
+    The 'distribute the prebuilt image' path — no source build. Writes the
+    gzipped ``docker save`` to AGENT_IMAGE_PATH and stamps version.txt +
+    checksum.txt exactly like the in-app build, so /agent/image.tar.gz and
+    out-of-date detection behave identically.
+    """
+    import gzip
+    import hashlib
+
+    import docker
+
+    from app.api.routes.agents import (
+        AGENT_CHECKSUM_PATH,
+        AGENT_IMAGE_PATH,
+        AGENT_VERSION_PATH,
+    )
+
+    client = docker.from_env()
+    img = client.images.get(image_ref)
+    # Ensure the canonical tag exists so the tarball loads as
+    # packetarch-agent:latest on the agent host (its compose references it).
+    try:
+        img.tag("packetarch-agent", "latest")
+    except Exception:
+        pass
+
+    AGENT_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    save_img = client.images.get("packetarch-agent:latest")
+    with gzip.open(AGENT_IMAGE_PATH, "wb") as f:
+        for chunk in save_img.save(named=True):
+            f.write(chunk)
+
+    checksum = hashlib.sha256()
+    with open(AGENT_IMAGE_PATH, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            checksum.update(chunk)
+    AGENT_CHECKSUM_PATH.write_text(checksum.hexdigest())
+    AGENT_VERSION_PATH.write_text(version)
+
+
+async def ensure_agent_image_current() -> str:
+    """Keep the served agent tarball current with the newest available agent.
+
+    "Build once, distribute": if a prebuilt agent image is loaded (shipped in the
+    offline bundle, or built earlier) and it is the newest version available,
+    RE-SERVE it — a fast ``docker save`` with no source and no rebuild, so offline
+    installs/upgrades auto-prompt an agent update with zero "Build Image" step.
+    Only fall back to a source rebuild when the agent SOURCE is strictly newer
+    than any loaded image (a developer changed the agent code); that heavy build
+    runs in a background thread so startup isn't blocked. Gated by the caller to
+    live-traffic deployments.
     """
     import asyncio
-    import re
     import threading
 
     from fastapi import BackgroundTasks
@@ -221,25 +298,38 @@ async def ensure_agent_image_current() -> str:
         extract_agent_version_from_source,
     )
 
-    def _vt(v: str | None) -> tuple:
-        return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
-
-    source_v = extract_agent_version_from_source()
-    if not source_v:
-        return "skipped (no agent source version)"
     served_v = AGENT_VERSION_PATH.read_text().strip() if AGENT_VERSION_PATH.exists() else None
-    if served_v and AGENT_IMAGE_PATH.exists() and _vt(served_v) >= _vt(source_v):
+    source_v = extract_agent_version_from_source()  # None on offline (no source)
+    image_ref, image_v = _find_loaded_agent_image()
+
+    candidates = [v for v in (source_v, image_v) if v]
+    if not candidates:
+        return "skipped (no agent source and no versioned image)"
+    target_v = max(candidates, key=_agent_vt)
+
+    if served_v and AGENT_IMAGE_PATH.exists() and _agent_vt(served_v) >= _agent_vt(target_v):
         return f"up to date (served v{served_v})"
 
-    # Stale or missing — trigger a background rebuild via the route's own logic.
-    bt = BackgroundTasks()
-    await build_agent_image(bt)  # writes build status, guards concurrent builds, queues the build
-    if bt.tasks:
-        threading.Thread(
-            target=lambda: asyncio.run(bt()), name="agent-image-autobuild", daemon=True
-        ).start()
-        return f"rebuilding agent image (served v{served_v or 'none'} -> source v{source_v})"
-    return f"build already in progress / unavailable (served v{served_v or 'none'})"
+    # Preferred path: re-serve the prebuilt image when it is the newest available.
+    if image_ref and image_v and _agent_vt(image_v) >= _agent_vt(target_v):
+        try:
+            _serve_agent_image(image_ref, image_v)
+            return f"served prebuilt agent image v{image_v} (was v{served_v or 'none'})"
+        except Exception as e:  # noqa: BLE001
+            logger.warning("re-serve of prebuilt agent image failed: %s", e)
+
+    # Fallback: source rebuild (dev/git where the source is newer, or no image).
+    if source_v and _agent_vt(source_v) >= _agent_vt(target_v):
+        bt = BackgroundTasks()
+        await build_agent_image(bt)  # writes status, guards concurrent builds, queues the build
+        if bt.tasks:
+            threading.Thread(
+                target=lambda: asyncio.run(bt()), name="agent-image-autobuild", daemon=True
+            ).start()
+            return f"rebuilding agent image from source (v{source_v}, was v{served_v or 'none'})"
+        return f"build already in progress / unavailable (was v{served_v or 'none'})"
+
+    return f"skipped (cannot produce v{target_v}; served v{served_v or 'none'})"
 
 
 async def reconcile_local_labs(db: AsyncSession) -> str:

@@ -274,6 +274,7 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
                 tag="packetarch-agent:latest",
                 rm=True,
                 nocache=True,
+                buildargs={"AGENT_VERSION": version or "dev"},
             )
 
             # Log build output
