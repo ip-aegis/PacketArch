@@ -878,21 +878,24 @@ async def reconcile_cv(
     db: DBSession,
     _admin: AdminUser,
 ) -> dict:
-    """Re-derive CV group names + vertical roll-up presets from the current scenarios.
+    """Re-derive CV group names, custom networks, and vertical roll-up presets.
 
     One-shot cleanup lever: rewrites every zone group's label to the readable
     convention (bare zone name, scenario-suffixed only on cross-scenario
-    collisions, acronym casing) and rebuilds each vertical's roll-up preset.
-    Idempotent — safe to run anytime CV drifts from the scenario set.
+    collisions, acronym casing), ensures each scenario's custom networks (/16 +
+    zone /24s) exist, and rebuilds each vertical's roll-up preset. Idempotent —
+    safe to run anytime CV drifts from the scenario set.
     Requires admin (writes to Cyber Vision).
     """
     from app.services.cv_provisioning_service import (
         reconcile_cv_group_names,
+        reconcile_cv_networks,
         reconcile_vertical_presets,
     )
 
     try:
         groups = await reconcile_cv_group_names(db)
+        networks = await reconcile_cv_networks(db)
         verticals = await reconcile_vertical_presets(db)
     except RuntimeError as e:
         raise ValidationError(str(e))
@@ -905,6 +908,7 @@ async def reconcile_cv(
         )
     return {
         "group_names": groups,
+        "networks": networks,
         "vertical_presets": [
             {"vertical": v["vertical"], "label": v["label"], "subnets": len(v["subnets"])}
             for v in verticals

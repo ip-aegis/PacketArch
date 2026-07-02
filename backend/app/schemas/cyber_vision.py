@@ -265,6 +265,7 @@ class CVProvisionResponse(BaseModel):
         description="not_started | preset_created | polling | groups_created | error",
     )
     groups: dict = Field(default_factory=dict, description="zone_id -> {group_id, label, device_count}")
+    networks: dict = Field(default_factory=dict, description="ipRange -> {id, name, type} CV custom networks (scenario /16 + zone /24s)")
     device_count: int = Field(0, description="Devices assigned to groups")
     error: str | None = Field(None, description="Error message if provisioning failed")
     updated_at: str | None = Field(None, description="Last state update timestamp")

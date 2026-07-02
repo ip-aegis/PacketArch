@@ -211,12 +211,20 @@ export interface CVProvisionGroup {
   unmatched?: number;
 }
 
+// A CV custom network (network organization): scenario /16 or a zone /24.
+export interface CVProvisionNetwork {
+  id: string;
+  name?: string | null;
+  type?: string | null; // e.g. "OT Internal"
+}
+
 export interface CVProvisionStatus {
   preset_id: string | null;
   preset_label: string | null;
   subnet: string | null;
   status: 'not_started' | 'preset_created' | 'polling' | 'groups_created' | 'error' | null;
   groups: Record<string, CVProvisionGroup>;
+  networks?: Record<string, CVProvisionNetwork>; // ipRange -> network
   device_count: number;
   error: string | null;
   updated_at: string | null;

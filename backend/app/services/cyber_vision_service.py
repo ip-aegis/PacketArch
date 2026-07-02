@@ -1281,6 +1281,69 @@ class CyberVisionService:
             logger.info(f"Group {group_id}: {op} {len(ids)} entities on {path}")
         return sent
 
+    # ==================== Custom Networks (network organization) ====================
+    # CV models network organization as "custom networks": named IP ranges with a
+    # type (OT Internal / IT Internal / External). The endpoint is batch and takes
+    # an ARRAY body (a single network is a one-element list). CV does longest-prefix
+    # matching, so a scenario /16 and its zone /24s override the built-in 10/8.
+
+    async def get_networks(self) -> list[dict]:
+        """Fetch CV custom-network definitions (network organization).
+
+        Returns CV's built-in ranges (10/8, 172.16/12, loopback, multicast, …)
+        alongside any custom networks. Each item:
+        ``{id, name, type, ipRange, vlanId, duplicated, splitDevicesPerSensor}``.
+        """
+        try:
+            data = await self._request("GET", "/networks/")
+            return data if isinstance(data, list) else data.get("items", [])
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to fetch CV networks: {e.response.status_code}")
+            raise
+
+    async def create_networks(self, networks: list[dict]) -> bool:
+        """Create custom networks (batch, array body).
+
+        CV assigns each an ``id`` and returns an empty 200 body, so callers
+        resolve the new ids with a follow-up ``get_networks()`` matched on
+        ``ipRange``. Each item needs ``{name, ipRange, type}`` and may set
+        ``vlanId`` / ``duplicated`` / ``splitDevicesPerSensor``.
+        """
+        if not networks:
+            return False
+        await self._request("POST", "/networks/", json=networks)
+        logger.info(f"Created {len(networks)} CV custom network(s)")
+        return True
+
+    async def update_networks(self, networks: list[dict]) -> bool:
+        """Update existing custom networks (batch). Each item MUST include ``id``."""
+        if not networks:
+            return False
+        await self._request("PUT", "/networks/", json=networks)
+        logger.info(f"Updated {len(networks)} CV custom network(s)")
+        return True
+
+    async def delete_networks(self, network_ids: list[str]) -> bool:
+        """Delete custom networks by id (batch). Body is an array of id strings."""
+        ids = [str(nid) for nid in network_ids if nid]
+        if not ids:
+            return False
+        await self._request("DELETE", "/networks/", json=ids)
+        logger.info(f"Deleted {len(ids)} CV custom network(s)")
+        return True
+
+    async def check_networks(self, networks: list[dict]) -> dict:
+        """Preview the impact of changing EXISTING custom networks (dry-run).
+
+        Each item must reference a live custom network by ``id`` (CV rejects
+        unknown ids with 400 "custom network not found") — this is an
+        impact-preview for edits/removals, not a pre-create validator. Returns
+        ``{nbCmpToRemove, nbExternalCommToRemove}`` — components / external
+        communications the change would reclassify. Never mutates CV state.
+        """
+        result = await self._request("POST", "/networks/check", json=networks)
+        return result if isinstance(result, dict) else {}
+
     async def enrich_device_direct(
         self, device_id: str, properties: dict[str, str]
     ) -> dict[str, str]:

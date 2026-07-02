@@ -326,7 +326,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
               style={{ marginBottom: 12 }}
             >
               <Checkbox style={{ fontSize: 12, color: '#8aa4bc' }}>
-                <Tooltip title="Creates a Cyber Vision preset scoped to this scenario's subnet now, then auto-creates one CV group per zone once CV has discovered the simulated devices.">
+                <Tooltip title="Creates a Cyber Vision preset scoped to this scenario's subnet and defines its network organization (scenario /16 + one /24 per zone) now, then auto-creates one CV group per zone once CV has discovered the simulated devices.">
                   Provision to Cyber Vision
                 </Tooltip>
               </Checkbox>

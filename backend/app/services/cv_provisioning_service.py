@@ -77,6 +77,12 @@ def _color_for_vertical(vertical: str | None) -> str:
 # Cyber Vision caps group labels at 60 characters.
 GROUP_LABEL_LIMIT = 60
 
+# CV "type" for the custom networks we mint for simulated OT ranges. CV also
+# supports "IT Internal" / "External"; we default everything to "OT Internal"
+# (matches CV's built-in ranges and is the only value confirmed on-install).
+# Purdue-level-aware typing (enterprise/DMZ -> IT Internal) can layer on later.
+DEFAULT_NETWORK_TYPE = "OT Internal"
+
 
 def _group_label(scenario: Scenario, zone_name: str, duplicates: set[str]) -> str:
     """Readable CV group label (<=60 chars — CV's hard limit).
@@ -271,6 +277,185 @@ async def get_scenario_subnet(db, scenario_id: UUID) -> str | None:
     return allocation.cidr_range if allocation else None
 
 
+# ---------------------------------------------------------------------------
+# Custom networks — mirror the scenario's IP topology into CV's "network
+# organization" so CV segments the map by scenario/zone instead of lumping
+# everything under its built-in 10/8. One /16 for the scenario umbrella + one
+# /24 per zone; names match the zone GROUP labels. Idempotent get-or-create
+# keyed by ipRange; never touches CV's built-ins or other scenarios' ranges.
+# ---------------------------------------------------------------------------
+def _range_index_from_cidr(cidr: str | None) -> int | None:
+    """Second octet of a ``10.{n}.0.0/16`` scenario CIDR (the range index)."""
+    if not cidr:
+        return None
+    try:
+        return int(cidr.split("/")[0].split(".")[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _zone_subnet(zone: dict, range_index: int | None) -> str | None:
+    """A zone's /24 CIDR: prefer the stored network config, else derive it
+    from the scenario range index + the zone's subnet offset."""
+    net = zone.get("network") or {}
+    if net.get("subnet"):
+        return net["subnet"]
+    offset = net.get("subnet_offset")
+    if offset is None:
+        offset = zone.get("subnet_offset")
+    if offset is None or range_index is None:
+        return None
+    return f"10.{range_index}.{int(offset)}.0/24"
+
+
+def _net_item(name: str, ip_range: str) -> dict:
+    """Build a CV custom-network payload item with our standard defaults."""
+    return {
+        "name": (name or "PacketArch")[:GROUP_LABEL_LIMIT],
+        "ipRange": ip_range,
+        "type": DEFAULT_NETWORK_TYPE,
+        "vlanId": None,
+        "duplicated": False,
+        "splitDevicesPerSensor": False,
+    }
+
+
+def _desired_networks(scenario: Scenario, subnet: str | None, duplicates: set[str]) -> list[dict]:
+    """Desired CV custom networks for a scenario: the scenario /16 umbrella plus
+    one /24 per zone. Zone names reuse ``_group_label`` so the networks read
+    identically to the zone groups in CV. De-duplicated by ipRange."""
+    definition = scenario.definition or {}
+    zones = definition.get("zones", {}) or {}
+    range_index = _range_index_from_cidr(subnet)
+
+    desired: list[dict] = []
+    seen: set[str] = set()
+
+    if subnet:
+        desired.append(_net_item(getattr(scenario, "name", None) or "PacketArch scenario", subnet))
+        seen.add(subnet)
+
+    for zone_id, zone in zones.items():
+        z24 = _zone_subnet(zone, range_index)
+        if not z24 or z24 in seen:
+            continue
+        seen.add(z24)
+        label = _group_label(scenario, zone.get("name") or zone_id, duplicates)
+        desired.append(_net_item(label, z24))
+
+    return desired
+
+
+async def _save_cv_networks(db, scenario_id: UUID, networks_state: dict) -> None:
+    """Persist ONLY ``definition['cyber_vision']['networks']`` via a targeted
+    jsonb_set, so it never clobbers preset_id/groups (and isn't clobbered by
+    them). The inner jsonb_set guarantees the ``cyber_vision`` object exists
+    first, whether or not the preset step has run yet."""
+    import json
+
+    await db.execute(
+        text(
+            "UPDATE scenarios SET definition = jsonb_set("
+            "jsonb_set(COALESCE(definition, '{}'::jsonb), '{cyber_vision}', "
+            "COALESCE(definition->'cyber_vision', '{}'::jsonb), true), "
+            "'{cyber_vision,networks}', CAST(:nw AS jsonb), true) "
+            "WHERE id = :sid"
+        ),
+        {"nw": json.dumps(networks_state), "sid": str(scenario_id)},
+    )
+    await db.commit()
+
+
+async def provision_networks(db, scenario: Scenario) -> dict:
+    """Define CV custom networks for a scenario (scenario /16 + per-zone /24s).
+
+    Idempotent get-or-create keyed by ipRange: ranges CV already has (built-ins
+    like 10/8, or a prior deploy of this scenario) are left untouched; only the
+    missing ones are created. Networks need no device aggregation, so this runs
+    synchronously at deploy time. Self-contained (own CV client + targeted state
+    save). Raises only if CV is unconfigured; the caller wraps it best-effort.
+
+    Returns ``{created, existing, networks: {ipRange: {id, name, type}}}``.
+    """
+    svc = await cv_service_from_settings(db)
+    if svc is None:
+        raise RuntimeError("Cyber Vision is not configured")
+
+    subnet = await get_scenario_subnet(db, scenario.id)
+    duplicates = await _duplicate_zone_names(db)
+    desired = _desired_networks(scenario, subnet, duplicates)
+
+    result: dict = {"created": 0, "existing": 0, "networks": {}}
+    if not desired:
+        await svc.close()
+        return result
+
+    try:
+        by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
+        to_create = [d for d in desired if d["ipRange"] not in by_range]
+        if to_create:
+            await svc.create_networks(to_create)
+            # POST returns an empty body — re-fetch to resolve server-assigned ids.
+            by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
+
+        created_ranges = {d["ipRange"] for d in to_create}
+        networks_state: dict = {}
+        for d in desired:
+            live = by_range.get(d["ipRange"])
+            if not live:
+                logger.warning(f"CV network {d['ipRange']} not present after create — skipping")
+                continue
+            networks_state[d["ipRange"]] = {
+                "id": str(live.get("id")),
+                "name": live.get("name"),
+                "type": live.get("type"),
+            }
+            if d["ipRange"] in created_ranges:
+                result["created"] += 1
+            else:
+                result["existing"] += 1
+        result["networks"] = networks_state
+    finally:
+        await svc.close()
+
+    await _save_cv_networks(db, scenario.id, result["networks"])
+    logger.info(
+        f"CV networks for scenario {scenario.id}: {result['created']} created, "
+        f"{result['existing']} existing ({len(result['networks'])} total)"
+    )
+    return result
+
+
+def _scenario_network_ids(networks_state: dict, scenario_cidr: str | None) -> list[str]:
+    """Network ids safe to delete on teardown: only those whose ipRange falls
+    within the scenario's /16 (equal or a subnet). Guards against ever deleting
+    a CV built-in (e.g. 10/8, which CONTAINS the /16 rather than nesting in it)
+    or an out-of-scope range, even if state somehow recorded one."""
+    import ipaddress
+
+    scope = None
+    if scenario_cidr:
+        try:
+            scope = ipaddress.ip_network(scenario_cidr, strict=False)
+        except ValueError:
+            scope = None
+
+    ids: list[str] = []
+    for ip_range, meta in (networks_state or {}).items():
+        nid = (meta or {}).get("id")
+        if not nid:
+            continue
+        if scope is not None:
+            try:
+                net = ipaddress.ip_network(ip_range, strict=False)
+            except ValueError:
+                continue
+            if net != scope and not net.subnet_of(scope):
+                continue
+        ids.append(str(nid))
+    return ids
+
+
 async def provision_preset(db, scenario: Scenario) -> dict:
     """Create a CV preset for the scenario and record it on the definition.
 
@@ -308,6 +493,15 @@ async def provision_preset(db, scenario: Scenario) -> dict:
     })
     await _save_cv_state(db, scenario, state)
     logger.info(f"Provisioned CV preset {preset.get('id')} for scenario {scenario.id}")
+
+    # Define CV custom networks (scenario /16 + per-zone /24s) so CV segments the
+    # map by scenario/zone. Networks need no device aggregation, so unlike zone
+    # groups they're created here at deploy time. Best-effort — never block the
+    # preset (which is the operator-visible artifact) on network provisioning.
+    try:
+        state["networks"] = (await provision_networks(db, scenario)).get("networks", {})
+    except Exception:  # noqa: BLE001 — network org is additive, never fatal
+        logger.exception("CV network provisioning failed (continuing)")
 
     # Keep the vertical roll-up preset in sync with this scenario's addition.
     vertical = getattr(scenario, "vertical", None)
@@ -371,7 +565,7 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
 
     Returns a summary dict {preset_deleted, groups_deleted, entities_*, errors}.
     """
-    summary = {"preset_deleted": False, "groups_deleted": 0, "errors": []}
+    summary = {"preset_deleted": False, "groups_deleted": 0, "networks_deleted": 0, "errors": []}
     state = _get_cv_state(scenario)
     if not state:
         return summary
@@ -401,6 +595,18 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
                 summary["errors"].append(f"preset {preset_id}: {e}")
                 logger.warning(f"CV teardown: failed to delete preset {preset_id}: {e}")
 
+        # Delete the scenario's custom networks (scenario /16 + zone /24s),
+        # scoped strictly to ranges within the scenario /16 so built-ins and
+        # other scenarios' networks are never touched.
+        net_ids = _scenario_network_ids(state.get("networks") or {}, state.get("subnet"))
+        if net_ids:
+            try:
+                await svc.delete_networks(net_ids)
+                summary["networks_deleted"] = len(net_ids)
+            except Exception as e:  # noqa: BLE001
+                summary["errors"].append(f"networks: {e}")
+                logger.warning(f"CV teardown: failed to delete networks {net_ids}: {e}")
+
         # Best-effort: clear the scenario's own discovered entities (ghost cleanup).
         try:
             summary.update(await _purge_scenario_entities(svc, scenario))
@@ -411,7 +617,7 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
 
     logger.info(
         f"CV teardown for scenario {scenario.id}: preset_deleted={summary['preset_deleted']}, "
-        f"groups_deleted={summary['groups_deleted']}, "
+        f"groups_deleted={summary['groups_deleted']}, networks_deleted={summary['networks_deleted']}, "
         f"entities_deleted={summary.get('entities_deleted', 0)}/{summary.get('entities_attempted', 0)}, "
         f"errors={len(summary['errors'])}"
     )
@@ -783,6 +989,41 @@ async def reconcile_cv_group_names(db) -> dict:
     finally:
         await svc.close()
     logger.info(f"reconcile_cv_group_names: checked={summary['checked']} renamed={summary['renamed']} errors={len(summary['errors'])}")
+    return summary
+
+
+async def reconcile_cv_networks(db) -> dict:
+    """Ensure every scenario's CV custom networks (/16 + zone /24s) exist.
+
+    One-shot cleanup lever mirroring ``reconcile_cv_group_names``: walks the
+    current scenario set and get-or-creates each scenario's networks (idempotent
+    by ipRange). Scenarios without an allocated /16 are skipped. Collects
+    per-scenario failures instead of aborting the whole pass.
+    """
+    summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "errors": []}
+    # Fail fast if CV isn't configured, consistent with the sibling reconcilers.
+    probe = await cv_service_from_settings(db)
+    if probe is None:
+        raise RuntimeError("Cyber Vision is not configured")
+    await probe.close()
+
+    rows = (await db.execute(select(Scenario))).scalars().all()
+    for s in rows:
+        if await get_scenario_subnet(db, s.id) is None:
+            continue  # no allocated /16 → nothing to define
+        summary["scenarios"] += 1
+        try:
+            res = await provision_networks(db, s)
+            summary["created"] += res.get("created", 0)
+            summary["existing"] += res.get("existing", 0)
+        except Exception as e:  # noqa: BLE001
+            summary["errors"].append(f"scenario {s.id}: {e}")
+            logger.warning(f"reconcile_cv_networks: scenario {s.id} failed: {e}")
+
+    logger.info(
+        f"reconcile_cv_networks: scenarios={summary['scenarios']} created={summary['created']} "
+        f"existing={summary['existing']} errors={len(summary['errors'])}"
+    )
     return summary
 
 

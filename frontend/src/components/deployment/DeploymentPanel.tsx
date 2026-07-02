@@ -15,6 +15,7 @@ import {
   Space,
   Button,
   Tag,
+  Tooltip,
   message,
 } from 'antd';
 import { CloudServerOutlined, ApiOutlined } from '@ant-design/icons';
@@ -423,6 +424,27 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
                     {Object.keys(cvProvision.groups || {}).length} group(s),{' '}
                     {cvProvision.device_count} device(s) assigned
                   </div>
+                )}
+                {cvProvision.networks && Object.keys(cvProvision.networks).length > 0 && (
+                  <Tooltip
+                    title={
+                      <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                        {Object.entries(cvProvision.networks)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([range, net]) => (
+                            <div key={range}>
+                              <Tag style={{ marginRight: 4 }}>{range}</Tag>
+                              {net.name}
+                            </div>
+                          ))}
+                      </div>
+                    }
+                  >
+                    <div style={{ marginTop: 4, cursor: 'help' }}>
+                      {Object.keys(cvProvision.networks).length} network(s) defined
+                      {' '}(scenario /16 + zone /24s)
+                    </div>
+                  </Tooltip>
                 )}
                 {cvProvision.error && (
                   <div style={{ marginTop: 4, color: '#ff7875' }}>{cvProvision.error}</div>
