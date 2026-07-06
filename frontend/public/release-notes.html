@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<!--
+  PacketArch — OT Traffic Simulation Platform
+  Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+  Licensed under GPL-3.0. See LICENSE at the repo root.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PacketArch Release Notes — v1.10 through v1.13</title>
+  <style>
+/* ──────────────────────────────────────────────────────
+   TOKENS
+   Palette: deep space-navy · precise cyan accent
+   Semantic: cyan=new, violet=fix, amber=infra
+   Two typeface roles: system-ui (prose) · ui-monospace (all technical)
+   ────────────────────────────────────────────────────── */
+:root {
+  --c-ground:    #F7F9FB;
+  --c-surface:   #FFFFFF;
+  --c-raised:    #EFF3F8;
+  --c-border:    #D0DAE8;
+  --c-border-lo: #E4EAF3;
+  --c-text:      #0B1A2A;
+  --c-muted:     #4A6580;
+  --c-faint:     #8BA5BE;
+  --c-accent:    #0A7FA8;
+  --c-new:       #0A7FA8;
+  --c-new-bg:    #E0F4FA;
+  --c-fix:       #6D3BB3;
+  --c-fix-bg:    #EEE6FF;
+  --c-infra:     #A05A00;
+  --c-infra-bg:  #FFF0D6;
+  --c-badge-bg:  #0B1A2A;
+  --c-badge-fg:  #22D3EE;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-ground:    #080D14;
+    --c-surface:   #0F1922;
+    --c-raised:    #131F2B;
+    --c-border:    #1E2D3E;
+    --c-border-lo: #172130;
+    --c-text:      #E2EBF5;
+    --c-muted:     #7896B2;
+    --c-faint:     #3D5A72;
+    --c-accent:    #22D3EE;
+    --c-new:       #22D3EE;
+    --c-new-bg:    #0D2A35;
+    --c-fix:       #B48EF8;
+    --c-fix-bg:    #1E1035;
+    --c-infra:     #FCD34D;
+    --c-infra-bg:  #201500;
+    --c-badge-bg:  #22D3EE;
+    --c-badge-fg:  #080D14;
+  }
+}
+
+:root[data-theme="light"] {
+  --c-ground:    #F7F9FB;
+  --c-surface:   #FFFFFF;
+  --c-raised:    #EFF3F8;
+  --c-border:    #D0DAE8;
+  --c-border-lo: #E4EAF3;
+  --c-text:      #0B1A2A;
+  --c-muted:     #4A6580;
+  --c-faint:     #8BA5BE;
+  --c-accent:    #0A7FA8;
+  --c-new:       #0A7FA8;
+  --c-new-bg:    #E0F4FA;
+  --c-fix:       #6D3BB3;
+  --c-fix-bg:    #EEE6FF;
+  --c-infra:     #A05A00;
+  --c-infra-bg:  #FFF0D6;
+  --c-badge-bg:  #0B1A2A;
+  --c-badge-fg:  #22D3EE;
+}
+
+:root[data-theme="dark"] {
+  --c-ground:    #080D14;
+  --c-surface:   #0F1922;
+  --c-raised:    #131F2B;
+  --c-border:    #1E2D3E;
+  --c-border-lo: #172130;
+  --c-text:      #E2EBF5;
+  --c-muted:     #7896B2;
+  --c-faint:     #3D5A72;
+  --c-accent:    #22D3EE;
+  --c-new:       #22D3EE;
+  --c-new-bg:    #0D2A35;
+  --c-fix:       #B48EF8;
+  --c-fix-bg:    #1E1035;
+  --c-infra:     #FCD34D;
+  --c-infra-bg:  #201500;
+  --c-badge-bg:  #22D3EE;
+  --c-badge-fg:  #080D14;
+}
+
+/* ── BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--c-text);
+  background: var(--c-ground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── PRINT TOOLBAR (screen only) ── */
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  padding: 10px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbar-brand {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-accent);
+  letter-spacing: 0.04em;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:hover {
+  background: var(--c-raised);
+  border-color: var(--c-accent);
+}
+
+.btn-primary {
+  background: var(--c-accent);
+  color: var(--c-surface);
+  border-color: var(--c-accent);
+}
+
+.btn-primary:hover {
+  opacity: 0.88;
+  background: var(--c-accent);
+}
+
+/* ── PAGE ── */
+.page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 52px 32px 96px;
+}
+
+/* ── COVER ── */
+.cover {
+  margin-bottom: 52px;
+  padding-bottom: 44px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.cover-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: 22px;
+}
+
+.cover-kicker-rule {
+  display: block;
+  width: 28px;
+  height: 2px;
+  background: var(--c-accent);
+  flex-shrink: 0;
+}
+
+.cover-title {
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--c-text);
+  text-wrap: balance;
+  margin-bottom: 14px;
+}
+
+.cover-sub {
+  font-size: 16px;
+  color: var(--c-muted);
+  max-width: 500px;
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+
+.cover-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.cover-stat {
+  padding: 10px 20px;
+  border-right: 1px solid var(--c-border);
+  background: var(--c-surface);
+}
+
+.cover-stat:last-child { border-right: none; }
+
+.cover-stat-label {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  margin-bottom: 2px;
+}
+
+.cover-stat-value {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-text);
+  letter-spacing: -0.01em;
+}
+
+/* ── TABLE OF CONTENTS ── */
+.toc { margin-bottom: 56px; }
+
+.toc-heading {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--c-faint);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+
+.toc-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--c-surface);
+}
+
+.toc-table tr:not(:last-child) td { border-bottom: 1px solid var(--c-border-lo); }
+
+.toc-table td { padding: 9px 16px; vertical-align: middle; }
+
+.toc-table td:first-child {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-accent);
+  white-space: nowrap;
+  padding-right: 8px;
+  width: 72px;
+}
+
+.toc-table td:nth-child(2) { font-size: 13.5px; color: var(--c-text); }
+
+.toc-table td:nth-child(3) {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  color: var(--c-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.toc-table tr.patch td { background: var(--c-raised); }
+.toc-table tr.patch td:nth-child(2) { color: var(--c-muted); }
+
+/* ── RELEASE SECTION ── */
+.release { margin-bottom: 0; }
+
+.release + .release {
+  margin-top: 56px;
+  padding-top: 52px;
+  border-top: 1px solid var(--c-border);
+}
+
+.release-header {
+  display: flex;
+  gap: 0;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.release-ver-col {
+  flex-shrink: 0;
+  width: 92px;
+  padding-right: 20px;
+  padding-top: 2px;
+}
+
+.release-version {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--c-accent);
+  line-height: 1.1;
+  margin-bottom: 5px;
+}
+
+.release.patch .release-version { font-size: 19px; }
+
+.release-date {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+  color: var(--c-faint);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.release-content-col {
+  flex: 1;
+  border-left: 1px solid var(--c-border);
+  padding-left: 28px;
+}
+
+.release-category {
+  display: inline-block;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin-bottom: 8px;
+}
+
+.release-headline {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--c-text);
+  text-wrap: balance;
+  max-width: 600px;
+}
+
+.release.patch .release-headline { font-size: 15.5px; font-weight: 600; }
+
+/* ── CHANGE GROUPS ── */
+.change-groups { display: flex; flex-direction: column; gap: 22px; }
+
+.change-group {
+  padding-left: 16px;
+  border-left: 2px solid var(--c-border);
+}
+
+.change-group[data-t="new"] { border-left-color: var(--c-new); }
+.change-group[data-t="fix"] { border-left-color: var(--c-fix); }
+.change-group[data-t="infra"] { border-left-color: var(--c-infra); }
+
+.change-type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+.change-group[data-t="new"] .change-type-label { color: var(--c-new); background: var(--c-new-bg); }
+.change-group[data-t="fix"] .change-type-label { color: var(--c-fix); background: var(--c-fix-bg); }
+.change-group[data-t="infra"] .change-type-label { color: var(--c-infra); background: var(--c-infra-bg); }
+
+.change-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+
+.change-item {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--c-text);
+  padding-left: 16px;
+  position: relative;
+}
+
+.change-item::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--c-faint);
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+}
+
+.change-item strong { font-weight: 700; }
+
+code {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 12.5px;
+  background: var(--c-raised);
+  border: 1px solid var(--c-border-lo);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--c-text);
+}
+
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 16px;
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: var(--c-badge-bg);
+  color: var(--c-badge-fg);
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+
+/* ── FOOTER ── */
+.doc-footer {
+  margin-top: 72px;
+  padding-top: 24px;
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-brand {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-muted);
+}
+
+.footer-brand .accent { color: var(--c-accent); }
+
+.footer-meta {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  color: var(--c-faint);
+  letter-spacing: 0.04em;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 560px) {
+  .print-toolbar { padding: 10px 18px; }
+  .page { padding: 28px 18px 60px; }
+  .cover-title { font-size: 32px; }
+  .cover-stats { flex-direction: column; width: 100%; }
+  .cover-stat { border-right: none; border-bottom: 1px solid var(--c-border); }
+  .cover-stat:last-child { border-bottom: none; }
+  .release-ver-col { width: 70px; }
+  .release-version { font-size: 18px; }
+  .release.patch .release-version { font-size: 15px; }
+  .release-content-col { padding-left: 16px; }
+}
+
+/* ── PRINT / PDF ── */
+@media print {
+  @page { size: A4; margin: 18mm 16mm 20mm; }
+
+  .print-toolbar { display: none !important; }
+
+  body { background: #fff !important; color: #0B1A2A !important; font-size: 10.5pt; }
+
+  .page { padding: 0; max-width: 100%; }
+  .cover { break-after: page; }
+  .toc { break-after: page; }
+  .release { break-inside: avoid; }
+
+  :root {
+    --c-ground:    #fff;
+    --c-surface:   #fff;
+    --c-raised:    #F3F6FA;
+    --c-border:    #C8D4E2;
+    --c-border-lo: #DDE6F0;
+    --c-text:      #0B1A2A;
+    --c-muted:     #4A6580;
+    --c-faint:     #7896B2;
+    --c-accent:    #0A7FA8;
+    --c-new:       #0A7FA8;
+    --c-new-bg:    #EAF7FB;
+    --c-fix:       #6D3BB3;
+    --c-fix-bg:    #F0EAFF;
+    --c-infra:     #A05A00;
+    --c-infra-bg:  #FFF5E0;
+    --c-badge-bg:  #0B1A2A;
+    --c-badge-fg:  #22D3EE;
+  }
+}
+  </style>
+</head>
+<body>
+
+<!-- PRINT TOOLBAR — visible on screen only, hidden when printing -->
+<div class="print-toolbar" aria-hidden="true">
+  <span class="toolbar-brand">PacketArch · Release Notes</span>
+  <div class="toolbar-actions">
+    <button class="btn" onclick="window.print()" title="Save as PDF via browser print dialog">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Save as PDF
+    </button>
+    <a class="btn" href="/release-notes.html" download="packetarch-release-notes.html">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download HTML
+    </a>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- COVER -->
+  <header class="cover">
+    <div class="cover-kicker">
+      <span class="cover-kicker-rule"></span>
+      PacketArch &middot; OT Traffic Simulation Platform
+    </div>
+    <h1 class="cover-title">Release Notes</h1>
+    <p class="cover-sub">
+      Feature releases and patches from v1.10.0 through v1.13.0,
+      covering June 17 &ndash; July 2, 2026.
+    </p>
+    <div class="cover-stats">
+      <div class="cover-stat">
+        <div class="cover-stat-label">Releases</div>
+        <div class="cover-stat-value">7</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Version span</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.13.0</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Agent</div>
+        <div class="cover-stat-value">2.1.4 &rarr; 2.2.1</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Generated</div>
+        <div class="cover-stat-value">2026-07-06</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABLE OF CONTENTS -->
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-heading">Contents</div>
+    <table class="toc-table">
+      <tbody>
+        <tr>
+          <td>v1.10.0</td>
+          <td>Cyber Vision provisioning overhaul &amp; IEEE-grounded vendor OUIs</td>
+          <td>Jun 17, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.10.1</td>
+          <td>OVA appliance: BIOS boot, console user, local-lab registration</td>
+          <td>Jun 19, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.11.0</td>
+          <td>Async AI device naming, provisioning gate, reliability improvements</td>
+          <td>Jun 29, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.12.0</td>
+          <td>Attack PCAP export, kill-chain timing, BACnet on-wire fixes</td>
+          <td>Jul 1, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.12.1</td>
+          <td>Agent distribution: prebuilt image re-served from bundle on boot</td>
+          <td>Jul 1, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.12.2</td>
+          <td>Agent distribution: GHCR registry channel for online installs</td>
+          <td>Jul 1, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.13.0</td>
+          <td>CV network organization: per-scenario /16 and per-zone /24 networks</td>
+          <td>Jul 2, 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.10.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.10.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.10.0</div>
+        <div class="release-date">2026-06-17</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">OT Intelligence</div>
+        <div class="release-headline">IEEE-grounded vendor OUIs and Cyber Vision provisioning overhaul</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>IEEE-grounded vendor OUIs.</strong> <code>VENDOR_OUIS</code> is now auto-generated
+            from a bundled IEEE registry (<code>protocol_engines/data/ieee_oui.csv</code>) by
+            <code>scripts/generate_vendor_ouis.py</code>. All 326 device templates were rewritten to their
+            vendor's authoritative OUI. <code>get_vendor_for_oui()</code> returns the exact IEEE
+            registrant name Cyber Vision uses internally &mdash; eliminating mislabeling (e.g.
+            Yokogawa analyzers appearing as &ldquo;Siemon&rdquo;). A CI guard,
+            <code>tests/test_oui_data_integrity.py</code>, prevents future OUI drift.
+          </li>
+          <li class="change-item">
+            <strong>CV group naming overhaul.</strong> Provisioned groups now use readable bare zone
+            names with deterministic cross-scenario deduplication and correct acronym casing
+            (<code>app/core/name_normalize.py</code>). A new <code>POST /api/v1/cyber-vision/reconcile</code>
+            endpoint lets operators re-run normalization against a live CV center without redeploying.
+          </li>
+          <li class="change-item">
+            <strong>Vertical roll-up presets.</strong> <code>provision_vertical_preset</code> /
+            <code>reconcile_vertical_presets</code> accept multiple subnets in a single call.
+            Presets reconcile automatically on scenario create and delete.
+          </li>
+          <li class="change-item">
+            <strong>Ghost purge on scenario delete.</strong> Teardown now best-effort deletes the
+            scenario&rsquo;s CV components and devices by MAC address, keeping the CV device map
+            clean after scenarios are removed.
+          </li>
+        </ul>
+        <div class="agent-badge">Agent v2.1.4</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.10.1
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.10.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.10.1</div>
+        <div class="release-date">2026-06-19</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Patch &mdash; OVA Appliance</div>
+        <div class="release-headline">Three OVA appliance bugs fixed: BIOS boot, console user, local-lab agent registration</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>BIOS boot failure.</strong> OVAs without an explicit OVF firmware attribute dropped
+            to <code>grub rescue&gt;</code> on BIOS hypervisors. Fixed in <code>build-ova.sh</code> by
+            installing <code>grub-pc-bin</code> and running <code>grub-install --target=i386-pc</code>.
+            The appliance now boots under both BIOS and UEFI.
+          </li>
+          <li class="change-item">
+            <strong>No console user.</strong> The Ubuntu cloud image creates its user via cloud-init,
+            which is disabled in the seedless OVA. The previous <code>--password</code>
+            virt-customize flag was a no-op against a nonexistent account. Fixed with explicit
+            <code>useradd</code> + <code>chpasswd</code> + <code>sudo</code> grant.
+          </li>
+          <li class="change-item">
+            <strong>Local-lab agent registration.</strong> The on-box local-lab agent phoned home to
+            <code>site.fqdn</code>, which is frequently unresolvable from inside the appliance
+            (no internal DNS, NAT hairpin). The agent now uses <code>https://127.0.0.1</code> with
+            an optional <code>local_sensor.server_url</code> override. CV sensor enrollment is unaffected.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.11.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.11.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.11.0</div>
+        <div class="release-date">2026-06-29</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">AI &amp; Reliability</div>
+        <div class="release-headline">Async AI device naming with provisioning gate, CIRCUIT model update, and platform reliability improvements</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Asynchronous AI device naming.</strong> Creating a scenario from a template
+            previously ran LLM site-identity generation and descriptive device naming inline
+            (2&ndash;3 minutes total), exceeding upstream proxy timeouts (Cloudflare caps at ~100&thinsp;s).
+            The scenario now commits immediately with deterministic site-rail names
+            (<code>naming_status: pending</code>). The LLM overlay runs in a Celery task
+            (<code>apply_template_naming</code>) and writes names back when done.
+            This also eliminates FK violations where audit rows were committed before the scenario
+            row existed. A <code>NamingProgressModal</code> gates the Studio until naming succeeds.
+          </li>
+          <li class="change-item">
+            <strong>Provisioning gate.</strong> Deploy (agents) and PCAP generation return
+            <code>409 Conflict</code> while <code>naming_status</code> is <code>pending</code>
+            or <code>running</code>. <code>POST /scenarios/{id}/naming/retry</code>
+            re-triggers a failed run; <code>reconcile_pending_naming()</code> requeues any
+            scenarios left in-flight after a restart.
+          </li>
+          <li class="change-item">
+            <strong>OT Engineering Workstation fingerprint.</strong> A new device fingerprint
+            models a Windows host running vendor PLC-programming software: EtherNet/IP,
+            S7comm, and OPC-UA alongside RDP, HTTPS, and SNMP, with Microsoft Windows OUIs.
+            The <code>ev_battery_cell_plant</code> template now uses this fingerprint with
+            realistic cross-vendor programming flows.
+          </li>
+          <li class="change-item">
+            <strong>CIRCUIT model default: gpt-5-nano.</strong> The <code>.env.example</code>
+            previously shipped <code>CIRCUIT_MODEL=gpt-4.1</code>, which was removed in March 2026.
+            New installs now default to <code>gpt-5-nano</code>. gpt-4.1 and gpt-4.1-mini are
+            labeled <em>&ldquo;(deprecated &mdash; removed Mar 2026)&rdquo;</em> in the CIRCUIT model picker.
+          </li>
+          <li class="change-item">
+            <strong>Nginx no-cache for <code>index.html</code>.</strong> Served with
+            <code>Cache-Control: no-cache</code> while hashed asset bundles remain immutable.
+            Operators behind CDNs pick up new frontend deploys reliably without cache purging.
+          </li>
+          <li class="change-item">
+            <strong>Scenario template hygiene.</strong> All 32 CI-tested scenario templates are
+            lint-clean: zero orphaned devices, all flow protocols declared on both endpoints.
+            Fixes covered semiconductor fab OPC-UA/KUKA mismatch, EV battery
+            <code>cip_motion</code> non-existent type, and fulfillment center WCS Modbus
+            undeclared protocol.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fix</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Host-agent crash loop from stale bind mount.</strong> The host-agent used a
+            relative bind mount for live-editing convenience. When recreated from a different or absent
+            directory, Docker silently created an empty directory at the stale path and mounted it
+            over <code>/app</code>, producing a <code>ModuleNotFoundError</code> crash loop that
+            silently blocked all local-lab provisioning. The shipped compose no longer includes
+            this mount; a <code>docker-compose.host-agent-dev.yml</code> overlay is available for development.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="infra">
+        <div class="change-type-label">Infrastructure</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>OVA build on self-hosted KVM runner.</strong> The <code>build-ova</code>
+            CI job now targets a self-hosted runner labeled <code>ova-builder</code>, replacing
+            the unstable GitHub-hosted path. OVA artifacts attach to every draft release; if
+            the runner is offline the job queues while bundle jobs continue to publish.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.12.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.12.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.12.0</div>
+        <div class="release-date">2026-07-01</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Attack Simulation &amp; Protocol</div>
+        <div class="release-headline">Attack PCAP export with split artifacts, kill-chain timing fix, and BACnet on-wire corrections</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Attack PCAP export &mdash; split artifacts.</strong> A single generation run now
+            emits three PCAP files via <code>SplitPcapOutput</code>: combined (all traffic),
+            baseline-only, and attack-only. Controlled by <code>GenerationRequest.export_attack_pcap</code>;
+            downloaded via <code>GET /generation/{id}/download?artifact=</code>. The frontend adds
+            a toggle and per-artifact download buttons.
+          </li>
+          <li class="change-item">
+            <strong>Local-sensor agent-update reliability.</strong> A CV sensor failure no longer
+            aborts the reconcile loop. <code>ensure_agent_image</code> now compares the served
+            tarball&rsquo;s <code>X-Checksum-SHA256</code> header on each reconcile and refreshes
+            when the served version changes. <code>Build Image</code> triggers an immediate reconcile.
+            The CV sensor compose uses <code>pull_policy: missing</code> to tolerate transient registry hiccups.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Kill-chain timing in PCAP mode.</strong> Attack stages advanced on the wall clock,
+            causing the heap to drain in a fraction of a second in timed PCAP mode &mdash; only stage 0&rsquo;s
+            first actions appeared. PCAP mode now advances on the virtual clock and time-compresses
+            the kill chain to fit the capture window.
+          </li>
+          <li class="change-item">
+            <strong>BACnet on-wire encoding.</strong> Two encoding bugs: (1) <code>Status_Flags</code>
+            ReadProperty responses included a spurious length octet; (2) application-tagged primitives
+            &ge;128 bytes used ASN.1 BER instead of BACnet extended-length encoding. Both corrected.
+            <code>bacnet_vendor_id</code> drift across building-automation, Honeywell, Schneider, and
+            Siemens templates normalized to the BACnet vendor registry.
+          </li>
+          <li class="change-item">
+            <strong>Attack target resolution in PCAP mode.</strong> <code>_resolve_targets()</code>
+            only accepted the frontend device shape; the flat PCAP device representation produced
+            zero targets and zero attack packets. Fixed to handle both shapes. A spurious
+            double-warmup in <code>schedule_initial_events</code> was also removed.
+          </li>
+          <li class="change-item">
+            <strong>Alembic multiple-heads on fresh install.</strong> A rebase created two alembic
+            heads with the same parent; <code>alembic upgrade head</code> failed on a clean database,
+            blocking fresh installs and CI. Fixed by re-pointing <code>add_gen_job_artifacts.down_revision</code>
+            to restore a linear migration history.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="infra">
+        <div class="change-type-label">Agent</div>
+        <ul class="change-list">
+          <li class="change-item">Agent bumped to <strong>v2.2.0</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.12.1
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.12.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.12.1</div>
+        <div class="release-date">2026-07-01</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Patch &mdash; Agent Distribution</div>
+        <div class="release-headline">Prebuilt agent image re-served from bundle on boot &mdash; no manual &ldquo;Build Image&rdquo; required</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">Improvement</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Build once, distribute.</strong> On boot, <code>startup.ensure_agent_image_current</code>
+            detects when a prebuilt agent image is loaded and is the newest available, then runs
+            <code>docker save</code> to write <code>version.txt</code> and the SHA256 checksum &mdash;
+            exactly as an in-app build would, but in ~4&thinsp;s with no source required. Source
+            rebuilds are still performed when the agent source is strictly newer (development installs).
+          </li>
+          <li class="change-item">
+            <strong>Dockerfile version label.</strong> The agent Dockerfile now stamps
+            <code>org.packetarch.agent_version</code> via an <code>AGENT_VERSION</code>
+            build-arg, allowing the server to read a loaded image&rsquo;s version without any source files.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="infra">
+        <div class="change-type-label">Agent</div>
+        <ul class="change-list">
+          <li class="change-item">Agent bumped to <strong>v2.2.1</strong> (packaging label change only &mdash; no protocol or behavioral changes).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.12.2
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.12.2">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.12.2</div>
+        <div class="release-date">2026-07-01</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Patch &mdash; Agent Distribution</div>
+        <div class="release-headline">GHCR registry channel completes zero-touch agent updates for all install types</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">Improvement</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Three-path agent distribution.</strong> v1.12.1 covered offline bundles and
+            source-mounted dev installs. Internet-connected installs with neither had no automated
+            path to a new agent. All three paths now auto-serve on boot, firing the update banner
+            with no manual &ldquo;Build Image&rdquo; and no compose edits:
+            <ul style="list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:6px;padding-left:0">
+              <li style="padding-left:16px;position:relative"><span style="position:absolute;left:0;color:var(--c-faint)">&rarr;</span><strong>Offline</strong> &mdash; re-serve the bundle image</li>
+              <li style="padding-left:16px;position:relative"><span style="position:absolute;left:0;color:var(--c-faint)">&rarr;</span><strong>Online</strong> &mdash; pull from <code>ghcr.io/&lt;owner&gt;/packetarch-agent:&lt;version&gt;</code></li>
+              <li style="padding-left:16px;position:relative"><span style="position:absolute;left:0;color:var(--c-faint)">&rarr;</span><strong>Development</strong> &mdash; build from source (unchanged)</li>
+            </ul>
+          </li>
+          <li class="change-item">
+            <strong>GHCR publish in release pipeline.</strong> <code>release.yml</code> pushes the
+            agent image to <code>ghcr.io/&lt;owner&gt;/packetarch-agent</code> as both a version tag
+            and <code>:latest</code> on every <code>v*</code> tag (full variant only). Note: the GHCR
+            package is private on first push &mdash; publish it publicly once so unauthenticated
+            installs can pull without credentials.
+          </li>
+          <li class="change-item">
+            <strong>Offline install guard.</strong> The bundle installer writes
+            <code>AGENT_REGISTRY_PULL_ENABLED=false</code> into the generated <code>.env</code>
+            so air-gapped hosts never attempt a registry pull.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.13.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.13.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.13.0</div>
+        <div class="release-date">2026-07-02</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">Cyber Vision network organization &mdash; scenario /16 and per-zone /24 networks provisioned at deploy</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>CV network provisioning.</strong> When a scenario is provisioned to Cyber Vision,
+            PacketArch now defines its network organization: one custom network for the scenario&rsquo;s
+            <code>/16</code> range and one <code>/24</code> per zone, using the same zone labels as
+            the group names, all typed <em>OT Internal</em>. This segments the CV topology map by
+            scenario and zone instead of lumping all simulated traffic under the built-in
+            <code>10/8</code> catch-all.
+          </li>
+          <li class="change-item">
+            <strong>Idempotent and safe.</strong> <code>provision_networks()</code> uses
+            get-or-create keyed by IP range; runs synchronously at deploy with no device-aggregation
+            wait. Teardown deletes only the scenario&rsquo;s own networks, scoped strictly to ranges
+            within the scenario&rsquo;s <code>/16</code> &mdash; built-in networks and other scenarios
+            are never touched.
+          </li>
+          <li class="change-item">
+            <strong>Frontend network visibility.</strong> The DeploymentPanel surfaces provisioned
+            networks &mdash; a count and per-range tooltip. <code>CVProvisionStatus</code> carries a
+            <code>networks</code> map for at-a-glance status without opening the CV center.
+          </li>
+          <li class="change-item">
+            <strong>Reconcile endpoint.</strong> <code>reconcile_cv_networks()</code> is wired into
+            <code>POST /api/v1/cyber-vision/reconcile</code> so operators can re-sync network
+            definitions after manual CV edits without redeploying the scenario.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="doc-footer">
+    <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-06</div>
+  </footer>
+
+</div>
+</body>
+</html>

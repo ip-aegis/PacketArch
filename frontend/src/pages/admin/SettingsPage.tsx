@@ -34,6 +34,7 @@ import {
   EyeOutlined,
   DownloadOutlined,
   FileOutlined,
+  FileTextOutlined,
   IdcardOutlined,
   DashboardOutlined,
   DollarOutlined,
@@ -49,6 +50,7 @@ import SiteConfigOverviewTab from '../../components/admin/SiteConfigOverviewTab'
 import AICostsTab from '../../components/admin/AICostsTab';
 import AITokenUsageTab from '../../components/admin/AITokenUsageTab';
 import SystemUpdatesTab from '../../components/admin/SystemUpdatesTab';
+import ReleaseNotesTab from '../../components/admin/ReleaseNotesTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { SystemSetting, SettingsResponse } from '../../types';
 import ContextualHelpIcon from '../../components/help/ContextualHelpIcon';
@@ -758,6 +760,15 @@ const SettingsPage: React.FC = () => {
         </span>
       ),
       children: <DownloadsTab />,
+    },
+    {
+      key: 'release-notes',
+      label: (
+        <span>
+          <FileTextOutlined /> Release Notes
+        </span>
+      ),
+      children: <ReleaseNotesTab />,
     },
     {
       key: 'pcaps',

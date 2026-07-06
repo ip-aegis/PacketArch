@@ -131,6 +131,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Stage release notes for attachment
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          # Give the HTML file a versioned name so it's unambiguous in the release assets list.
+          cp frontend/public/release-notes.html \
+             "packetarch-${VERSION}-release-notes.html"
+
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
@@ -140,6 +149,7 @@ jobs:
           generate_release_notes: true
           files: |
             ${{ steps.paths.outputs.TARBALL }}
+            packetarch-${{ steps.version.outputs.VERSION }}-release-notes.html
             THIRD_PARTY_LICENSES.md
             LICENSE
             NOTICE

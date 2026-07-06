@@ -206,6 +206,13 @@ fi
 cp "${REPO_ROOT}/docs/SCENARIO_SPEC.md" "${STAGE}/docs/SCENARIO_SPEC.md"
 cp "${REPO_ROOT}/backend/app/static/downloads/LLM_PROMPT.md" "${STAGE}/docs/LLM_PROMPT.md"
 
+# Release notes HTML — viewable in any browser, print to PDF for distribution.
+if [[ -f "${REPO_ROOT}/frontend/public/release-notes.html" ]]; then
+    cp "${REPO_ROOT}/frontend/public/release-notes.html" "${STAGE}/docs/release-notes.html"
+else
+    echo "WARNING: frontend/public/release-notes.html not found; release notes will be absent from the bundle." >&2
+fi
+
 # --- pack ---------------------------------------------------------------
 echo "Packing ${TARBALL} ..."
 mkdir -p "${OUT_DIR}"
