@@ -36,6 +36,9 @@
 #   UBUNTU_IMG_URL=...     Override the cloud image source
 #   ROOT_PART=/dev/sdaN    Override root-partition autodetection
 #   OUT_DIR=/some/path     Output dir (default: dist/)
+#   OVA_CACHE_DIR=/path    Ubuntu cloud-image download cache (default:
+#                          /var/cache/packetarch-ova — deliberately OUTSIDE
+#                          the repo checkout; see note below)
 #   KEEP_WORK=1            Keep the intermediate qcow2/vmdk for debugging
 
 set -euo pipefail
@@ -59,7 +62,13 @@ OUT_DIR="${OUT_DIR:-${REPO_ROOT}/dist}"
 KEEP_WORK="${KEEP_WORK:-0}"
 
 UBUNTU_IMG_URL="${UBUNTU_IMG_URL:-https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img}"
-CACHE_DIR="${REPO_ROOT}/dist/.ova-cache"
+# Deliberately OUTSIDE the repo checkout (not under OUT_DIR/REPO_ROOT): this
+# script runs as root, so a cache dir inside the git working tree ends up
+# root-owned, and a later `actions/checkout` (running as the unprivileged
+# runner user) can't `git clean` it away — EACCES on the next CI run. A
+# fixed, non-workspace path also means the ~600MB cloud image survives across
+# runs/checkouts instead of being re-downloaded every build.
+CACHE_DIR="${OVA_CACHE_DIR:-/var/cache/packetarch-ova}"
 BASE_IMG="${CACHE_DIR}/$(basename "${UBUNTU_IMG_URL}")"
 
 WORK="${OUT_DIR}/.ova-work-${VERSION}"

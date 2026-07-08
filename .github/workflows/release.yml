@@ -190,6 +190,18 @@ jobs:
     runs-on: [self-hosted, ova-builder]
     timeout-minutes: 30
     steps:
+      # build-ova.sh runs as root (virt-customize requires it). Older
+      # versions of the script cached the Ubuntu image under the repo
+      # checkout (dist/.ova-cache), which left a root-owned directory behind;
+      # actions/checkout's pre-checkout `git clean` runs as the unprivileged
+      # runner user and can't remove it, so every run after that failed with
+      # EACCES before a single job step ran. The cache now lives outside the
+      # checkout (OVA_CACHE_DIR, see build-ova.sh), but this step stays as a
+      # permanent, harmless guard against any other stray root-owned file a
+      # privileged step leaves in the workspace.
+      - name: Ensure workspace is owned by the runner user
+        run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" 2>/dev/null || true
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
