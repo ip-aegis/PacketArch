@@ -220,12 +220,22 @@ jobs:
           fi
           if [[ -z "${REF}" ]]; then echo "::error::no v* tag to build an OVA from"; exit 1; fi
           echo "REF=${REF}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${REF#v}" >> "$GITHUB_OUTPUT"
           echo "Building OVA from ref ${REF}"
 
       - name: Build OVA appliance
         run: |
+          # VERSION is passed explicitly (not left to build-ova.sh's own
+          # OVA_GIT_REF-derived default) because this runner is long-lived
+          # and persistent, unlike an ephemeral GitHub-hosted runner — a
+          # stray exported VERSION left over from a prior manual/CI run can
+          # survive in the runner service's environment and silently win
+          # over the script's `${VERSION:-...}` fallback. Seen in practice:
+          # a v1.14.0 build named + OVF-stamped itself "1.10.1" even though
+          # OVA_GIT_REF correctly pinned the appliance content to v1.14.0.
           sudo env \
             OVA_GIT_REF="${{ steps.ovaref.outputs.REF }}" \
+            VERSION="${{ steps.ovaref.outputs.VERSION }}" \
             OUT_DIR="${RUNNER_TEMP}/ova-out" \
             ./scripts/ova/build-ova.sh
 
