@@ -225,14 +225,13 @@ jobs:
 
       - name: Build OVA appliance
         run: |
-          # VERSION is passed explicitly (not left to build-ova.sh's own
-          # OVA_GIT_REF-derived default) because this runner is long-lived
-          # and persistent, unlike an ephemeral GitHub-hosted runner — a
-          # stray exported VERSION left over from a prior manual/CI run can
-          # survive in the runner service's environment and silently win
-          # over the script's `${VERSION:-...}` fallback. Seen in practice:
-          # a v1.14.0 build named + OVF-stamped itself "1.10.1" even though
-          # OVA_GIT_REF correctly pinned the appliance content to v1.14.0.
+          # This runner's ${RUNNER_TEMP} is not reliably wiped between jobs
+          # (see the note on "Locate OVA" below) — old OVAs accumulate
+          # otherwise, ~900MB+ each.
+          sudo rm -rf "${RUNNER_TEMP}/ova-out"
+          # VERSION is passed explicitly rather than left to build-ova.sh's
+          # own OVA_GIT_REF-derived default, so the output filename is
+          # always deterministic and matches what "Locate OVA" expects below.
           sudo env \
             OVA_GIT_REF="${{ steps.ovaref.outputs.REF }}" \
             VERSION="${{ steps.ovaref.outputs.VERSION }}" \
@@ -242,8 +241,15 @@ jobs:
       - name: Locate OVA
         id: ova
         run: |
-          OVA="$(ls "${RUNNER_TEMP}"/ova-out/packetarch-*-appliance.ova 2>/dev/null | head -1)"
-          if [[ ! -f "${OVA}" ]]; then echo "::error::OVA was not produced"; exit 1; fi
+          # Match the EXACT expected filename, not a `packetarch-*-appliance.ova`
+          # glob. This runner's ${RUNNER_TEMP} is NOT reliably wiped between
+          # jobs (self-hosted, unlike GitHub-hosted runners), so old OVAs from
+          # prior builds/versions can still be sitting in ova-out/ — a glob
+          # piped through plain `ls | head -1` sorts alphabetically and can
+          # silently pick a stale OVA from an unrelated older version instead
+          # of the one this run just built.
+          OVA="${RUNNER_TEMP}/ova-out/packetarch-${{ steps.ovaref.outputs.VERSION }}-appliance.ova"
+          if [[ ! -f "${OVA}" ]]; then echo "::error::expected OVA not found at ${OVA}"; exit 1; fi
           sudo chown "$(id -u):$(id -g)" "${OVA}"   # build-ova.sh runs as root
           echo "OVA=${OVA}" >> "$GITHUB_OUTPUT"
           echo "OVA: ${OVA} ($(du -h "${OVA}" | awk '{print $1}'))"
