@@ -10,10 +10,13 @@
  * is undoable; per-entity coalescing folds a typing burst into one step.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDocumentStore, commands } from '../document/documentStore';
+import { useStudio2UI } from '../uiState';
 import { DeviceGlyph } from '../glyphs';
 import { getDeviceTypeMeta } from '../../constants/deviceTypeRegistry';
+import DevicePropertyForm from '../../components/panels/DevicePropertyForm';
+import type { ScenarioDevice } from '../../types';
 import { PROTOCOL_EDGE_LABELS } from '../../constants/protocols';
 import type { ProtocolType } from '../../types';
 import { SURFACE, TEXT, FONT, protocolEdgeColor } from '../tokens';
@@ -75,15 +78,18 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // Device form
 // ---------------------------------------------------------------------------
 
+/** Full-parity device editor: v2 glyph header + the proven v1 form
+    (identity, zone, vendor/model/firmware, CVE, network, protocols,
+    timing) re-homed onto the command bus — every edit is undoable. */
 const DeviceForm: React.FC<{ deviceId: string }> = ({ deviceId }) => {
   const device = useDocumentStore((s) => s.doc?.devices[deviceId]);
   const zones = useDocumentStore((s) => s.doc?.zones);
   if (!device) return null;
 
-  const dispatchUpdate = (updates: Parameters<typeof commands.updateDevice>[2]) => {
+  const onUpdate = (id: string, updates: Partial<ScenarioDevice>) => {
     const state = useDocumentStore.getState();
     if (!state.doc) return;
-    const cmd = commands.updateDevice(state.doc, deviceId, updates);
+    const cmd = commands.updateDevice(state.doc, id, updates);
     if (cmd) state.dispatch(cmd);
   };
 
@@ -91,7 +97,7 @@ const DeviceForm: React.FC<{ deviceId: string }> = ({ deviceId }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <div
           style={{
             width: 34,
@@ -115,69 +121,12 @@ const DeviceForm: React.FC<{ deviceId: string }> = ({ deviceId }) => {
         </div>
       </div>
 
-      <SectionTitle>Identity</SectionTitle>
-      <Field label="Name">
-        <input
-          style={fieldInput}
-          value={device.name}
-          onChange={(e) => dispatchUpdate({ name: e.target.value })}
-        />
-      </Field>
-      <Field label="Zone">
-        <select
-          style={{ ...fieldInput, appearance: 'auto' }}
-          value={device.zoneId ?? ''}
-          onChange={(e) => dispatchUpdate({ zoneId: e.target.value || undefined })}
-        >
-          <option value="">— none —</option>
-          {Object.values(zones ?? {}).map((z) => (
-            <option key={z.id} value={z.id}>
-              {z.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <SectionTitle>Network</SectionTitle>
-      <Field label="IP address">
-        <input
-          style={{ ...fieldInput, fontFamily: FONT.mono }}
-          value={device.network?.ipAddress ?? ''}
-          placeholder="auto-assigned"
-          onChange={(e) =>
-            dispatchUpdate({ network: { ...device.network, ipAddress: e.target.value } })
-          }
-        />
-      </Field>
-      {device.network?.macAddress ? (
-        <Field label="MAC (from fingerprint)">
-          <div style={{ ...fieldInput, background: 'transparent', color: TEXT.muted, fontFamily: FONT.mono }}>
-            {device.network.macAddress}
-          </div>
-        </Field>
-      ) : null}
-
-      <SectionTitle>Protocols</SectionTitle>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {device.protocols.length === 0 && (
-          <span style={{ fontSize: 11.5, color: TEXT.faint }}>none</span>
-        )}
-        {device.protocols.map((p) => (
-          <span
-            key={p}
-            style={{
-              fontFamily: FONT.mono,
-              fontSize: 10,
-              color: protocolEdgeColor(p),
-              border: `1px solid ${SURFACE.border}`,
-              borderRadius: 4,
-              padding: '1px 6px',
-            }}
-          >
-            {PROTOCOL_EDGE_LABELS[p as keyof typeof PROTOCOL_EDGE_LABELS] ?? p}
-          </span>
-        ))}
-      </div>
+      <DevicePropertyForm
+        deviceId={deviceId}
+        device={device}
+        zones={zones ?? {}}
+        onUpdate={onUpdate}
+      />
     </div>
   );
 };
@@ -500,8 +449,113 @@ const ConduitForm: React.FC<{ conduitId: string }> = ({ conduitId }) => {
 // Scenario settings (nothing selected)
 // ---------------------------------------------------------------------------
 
+const ZONE_TYPE_LABELS: Record<string, string> = {
+  vertical: 'Vertical',
+  network: 'Network',
+  vlan: 'VLAN',
+  logical: 'Logical',
+};
+
+/** Zones with their /24 networks, sorted by Purdue level — carried over
+    from the v1 scenario properties view. Click a row to zoom to the zone. */
+const ZoneNetworkList: React.FC = () => {
+  const zones = useDocumentStore((s) => s.doc?.zones);
+  const devices = useDocumentStore((s) => s.doc?.devices);
+  const setFocusRequest = useStudio2UI((s) => s.setFocusRequest);
+
+  const summaries = useMemo(() => {
+    if (!zones) return [];
+    const countByZone: Record<string, number> = {};
+    for (const d of Object.values(devices ?? {})) {
+      if (d.zoneId) countByZone[d.zoneId] = (countByZone[d.zoneId] ?? 0) + 1;
+    }
+    return Object.values(zones)
+      .slice()
+      .sort((a, b) => {
+        const la = a.level ?? 99;
+        const lb = b.level ?? 99;
+        if (la !== lb) return la - lb;
+        return (a.name ?? '').localeCompare(b.name ?? '');
+      })
+      .map((zone) => {
+        // Legacy scenarios sometimes carry subnet/vlan as flat fields
+        const raw = zone as Record<string, unknown> & typeof zone;
+        const network = (raw.network ?? {}) as { subnet?: string; vlanId?: number };
+        const subnet = network.subnet ?? (raw.subnet as string | undefined) ?? null;
+        const vlanId =
+          network.vlanId ?? (raw.vlan as number | undefined) ?? (raw.vlanId as number | undefined);
+        const legacyIds = Array.isArray(zone.deviceIds) ? zone.deviceIds : [];
+        const deviceCount = countByZone[zone.id] ?? legacyIds.length;
+        const parts: string[] = [];
+        if (typeof zone.level === 'number') parts.push(`Purdue L${zone.level}`);
+        if (zone.type) parts.push(ZONE_TYPE_LABELS[zone.type] ?? zone.type);
+        if (vlanId !== undefined) parts.push(`VLAN ${vlanId}`);
+        parts.push(`${deviceCount} device${deviceCount === 1 ? '' : 's'}`);
+        return { id: zone.id, name: zone.name ?? zone.id, subnet, description: parts.join(' · ') };
+      });
+  }, [zones, devices]);
+
+  if (summaries.length === 0) return null;
+
+  return (
+    <>
+      <SectionTitle>Zones &amp; networks ({summaries.length})</SectionTitle>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {summaries.map((zone) => (
+          <button
+            key={zone.id}
+            onClick={() => setFocusRequest({ nodeIds: [zone.id], edgeIds: [] })}
+            title="Zoom to zone"
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 10,
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 6,
+              padding: '5px 8px',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = SURFACE.hover)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: TEXT.primary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {zone.name}
+              </div>
+              <div style={{ fontSize: 10, color: TEXT.faint, marginTop: 1 }}>{zone.description}</div>
+            </div>
+            <span
+              style={{
+                fontFamily: FONT.mono,
+                fontSize: 10.5,
+                color: zone.subnet ? TEXT.secondary : TEXT.faint,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {zone.subnet ?? '—'}
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+};
+
 const ScenarioForm: React.FC = () => {
   const meta = useDocumentStore((s) => s.doc?.meta);
+  const ipRange = useDocumentStore((s) => s.doc?.addressing?.ipRange);
   if (!meta) return null;
 
   const dispatchMeta = (updates: Partial<typeof meta>) => {
@@ -512,8 +566,11 @@ const ScenarioForm: React.FC = () => {
 
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 650, color: TEXT.primary, marginBottom: 4 }}>
-        Scenario
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 650, color: TEXT.primary }}>Scenario</span>
+        {ipRange && (
+          <span style={{ fontFamily: FONT.mono, fontSize: 10.5, color: TEXT.muted }}>{ipRange}</span>
+        )}
       </div>
       <SectionTitle>Settings</SectionTitle>
       <Field label="Name">
@@ -526,10 +583,7 @@ const ScenarioForm: React.FC = () => {
           onChange={(e) => dispatchMeta({ description: e.target.value })}
         />
       </Field>
-      <div style={{ fontSize: 11, color: TEXT.faint, lineHeight: 1.5 }}>
-        Select a device or flow to edit it here. Modes, phases, and health land in the next
-        phases of the v2 build.
-      </div>
+      <ZoneNetworkList />
     </div>
   );
 };

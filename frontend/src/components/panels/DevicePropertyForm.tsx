@@ -34,15 +34,26 @@ const { Option } = Select;
 
 interface DevicePropertyFormProps {
   deviceId: string;
+  /** Studio v2 overrides — v2 passes its own document state and command
+      dispatcher (the v1 scenarioStore is empty on the /studio2 route). */
+  device?: ScenarioDevice;
+  zones?: Record<string, import('../../types').ScenarioZone>;
+  onUpdate?: (id: string, updates: Partial<ScenarioDevice>) => void;
 }
 
 const DevicePropertyForm: React.FC<DevicePropertyFormProps> = ({
   deviceId,
+  device: deviceOverride,
+  zones: zonesOverride,
+  onUpdate,
 }) => {
   const [form] = Form.useForm();
-  const device = useScenarioStore((state) => state.devices[deviceId]);
-  const updateDevice = useScenarioStore((state) => state.updateDevice);
-  const zonesRecord = useScenarioStore((state) => state.zones);
+  const storeDevice = useScenarioStore((state) => state.devices[deviceId]);
+  const device = deviceOverride ?? storeDevice;
+  const storeUpdateDevice = useScenarioStore((state) => state.updateDevice);
+  const updateDevice = onUpdate ?? storeUpdateDevice;
+  const storeZones = useScenarioStore((state) => state.zones);
+  const zonesRecord = zonesOverride ?? storeZones;
   const zoneOptions = React.useMemo(
     () =>
       Object.values(zonesRecord)
