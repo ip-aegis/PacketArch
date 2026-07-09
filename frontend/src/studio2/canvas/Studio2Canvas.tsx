@@ -29,13 +29,28 @@ import type {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+import { message } from 'antd';
+
 import DeviceNode2 from './DeviceNode2';
 import ZoneNode2 from './ZoneNode2';
 import FlowEdge2 from './FlowEdge2';
 import { useDocumentStore, commands } from '../document/documentStore';
+import { placeDevice } from '../document/createDevice';
+import { useStudio2UI } from '../uiState';
 import { layoutDocument, isUnpositioned } from './layout';
-import type { ScenarioFlow } from '../../types';
-import { SURFACE, ACCENT } from '../tokens';
+import { PROTOCOL_EDGE_LABELS } from '../../constants/protocols';
+import type { PaletteDeviceResponse } from '../../api/fingerprints';
+import type { ScenarioFlow, ProtocolType } from '../../types';
+import { SURFACE, TEXT, FONT, ACCENT, protocolEdgeColor } from '../tokens';
+
+interface PendingConnection {
+  sourceId: string;
+  targetId: string;
+  options: ProtocolType[];
+  /** Position within the canvas wrapper, px */
+  x: number;
+  y: number;
+}
 
 const nodeTypes = { device2: DeviceNode2, zone2: ZoneNode2 };
 const edgeTypes = { flow2: FlowEdge2 };
@@ -44,11 +59,46 @@ function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function createFlow(sourceId: string, targetId: string, protocol: ProtocolType): void {
+  const state = useDocumentStore.getState();
+  if (!state.doc) return;
+  const source = state.doc.devices[sourceId];
+  const target = state.doc.devices[targetId];
+  if (!source || !target) return;
+  const flow: ScenarioFlow = {
+    id: newId('flow'),
+    name: `${source.name} -> ${target.name}`,
+    sourceDeviceId: sourceId,
+    targetDeviceId: targetId,
+    protocol,
+    protocolConfig: {},
+    timing: { intervalMs: 1000, jitterMs: 100 },
+    phases: { startup: true, steadyState: true, maintenance: true, shutdown: true },
+  };
+  state.dispatch(commands.addFlow(flow));
+}
+
 /** Must be rendered inside a ReactFlowProvider (Studio2Page owns it). */
 const Studio2Canvas: React.FC = () => {
   const doc = useDocumentStore((s) => s.doc);
   const setSelection = useDocumentStore((s) => s.setSelection);
-  const { fitView } = useReactFlow();
+  const { fitView, screenToFlowPosition, flowToScreenPosition } = useReactFlow();
+  const armedTemplate = useStudio2UI((s) => s.armedTemplate);
+  const setArmedTemplate = useStudio2UI((s) => s.setArmedTemplate);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [pending, setPending] = useState<PendingConnection | null>(null);
+
+  // Escape cancels click-to-place arming and the protocol picker
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setArmedTemplate(null);
+        setPending(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [setArmedTemplate]);
 
   // Auto-layout scenarios that arrive with no saved positions (templated /
   // AI-generated ones would otherwise pile every node at the origin).
@@ -168,29 +218,79 @@ const Studio2Canvas: React.FC = () => {
     }
   }, []);
 
-  const onConnect = useCallback((connection: Connection) => {
-    const state = useDocumentStore.getState();
-    if (!state.doc || !connection.source || !connection.target) return;
-    const source = state.doc.devices[connection.source];
-    const target = state.doc.devices[connection.target];
-    if (!source || !target) return;
+  // Connect: one common protocol → create immediately; several → inline
+  // picker at the midpoint; none → reject (realism rule: flows must use a
+  // protocol both endpoints support).
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const state = useDocumentStore.getState();
+      if (!state.doc || !connection.source || !connection.target) return;
+      const source = state.doc.devices[connection.source];
+      const target = state.doc.devices[connection.target];
+      if (!source || !target) return;
 
-    const common = source.protocols.filter((p) => target.protocols.includes(p));
-    const protocol = common[0] ?? source.protocols[0];
-    if (!protocol) return;
+      const common = source.protocols.filter((p) => target.protocols.includes(p));
+      if (common.length === 0) {
+        message.warning(
+          `${source.name} and ${target.name} share no protocol — flow not created.`,
+          4,
+        );
+        return;
+      }
+      if (common.length === 1) {
+        createFlow(source.id, target.id, common[0]);
+        return;
+      }
 
-    const flow: ScenarioFlow = {
-      id: newId('flow'),
-      name: `${source.name} -> ${target.name}`,
-      sourceDeviceId: source.id,
-      targetDeviceId: target.id,
-      protocol,
-      protocolConfig: {},
-      timing: { intervalMs: 1000, jitterMs: 100 },
-      phases: { startup: true, steadyState: true, maintenance: true, shutdown: true },
-    };
-    state.dispatch(commands.addFlow(flow));
+      const mid = flowToScreenPosition({
+        x: (source.position.x + target.position.x) / 2,
+        y: (source.position.y + target.position.y) / 2,
+      });
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      setPending({
+        sourceId: source.id,
+        targetId: target.id,
+        options: common,
+        x: mid.x - (rect?.left ?? 0),
+        y: mid.y - (rect?.top ?? 0),
+      });
+    },
+    [flowToScreenPosition],
+  );
+
+  // Palette drop / click-to-place
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
   }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      const payload = event.dataTransfer.getData('application/json');
+      if (!payload) return;
+      event.preventDefault();
+      try {
+        const template = JSON.parse(payload) as PaletteDeviceResponse;
+        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        void placeDevice(template, position);
+      } catch (e) {
+        console.error('Failed to parse palette payload', e);
+      }
+    },
+    [screenToFlowPosition],
+  );
+
+  const onPaneClick = useCallback(
+    (event: React.MouseEvent) => {
+      setPending(null);
+      if (!armedTemplate) return;
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      void placeDevice(armedTemplate, position);
+      // Shift-click keeps the template armed for rapid placement
+      if (!event.shiftKey) setArmedTemplate(null);
+    },
+    [armedTemplate, screenToFlowPosition, setArmedTemplate],
+  );
 
   const onSelectionChange = useCallback(
     ({ nodes: selNodes, edges: selEdges }: OnSelectionChangeParams) => {
@@ -203,10 +303,10 @@ const Studio2Canvas: React.FC = () => {
   );
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
+    <div ref={wrapperRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <style>{`
         .s2-node:hover .s2-handle, .s2-node .s2-handle.connectingto, .react-flow__node:hover .s2-handle { opacity: 1 !important; }
-        .react-flow__pane { cursor: default; }
+        .react-flow__pane { cursor: ${armedTemplate ? 'crosshair' : 'default'}; }
         .s2-flow .react-flow__edge.selected .react-flow__edge-path { filter: none; }
         .s2-flow .react-flow__attribution { background: transparent; color: ${SURFACE.border}; }
       `}</style>
@@ -221,6 +321,9 @@ const Studio2Canvas: React.FC = () => {
         onNodesDelete={onNodesDelete}
         onConnect={onConnect}
         onSelectionChange={onSelectionChange}
+        onPaneClick={onPaneClick}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
         snapToGrid
         snapGrid={[20, 20]}
         minZoom={0.1}
@@ -234,6 +337,80 @@ const Studio2Canvas: React.FC = () => {
       >
         <Background variant={BackgroundVariant.Dots} color={SURFACE.grid} gap={22} size={1} />
       </ReactFlow>
+
+      {/* Inline protocol picker — shown when the connected endpoints share
+          more than one protocol */}
+      {pending && (
+        <div
+          role="menu"
+          aria-label="Choose flow protocol"
+          style={{
+            position: 'absolute',
+            left: pending.x,
+            top: pending.y,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20,
+            background: SURFACE.raised,
+            border: `1px solid ${SURFACE.border}`,
+            borderRadius: 8,
+            padding: 6,
+            boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+            fontFamily: FONT.ui,
+            minWidth: 150,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: FONT.mono,
+              fontSize: 9.5,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: TEXT.muted,
+              padding: '2px 8px 6px',
+            }}
+          >
+            Protocol
+          </div>
+          {pending.options.map((p) => (
+            <button
+              key={p}
+              role="menuitem"
+              onClick={() => {
+                createFlow(pending.sourceId, pending.targetId, p);
+                setPending(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 5,
+                color: TEXT.primary,
+                fontFamily: FONT.ui,
+                fontSize: 12.5,
+                padding: '5px 8px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = SURFACE.hover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 3,
+                  borderRadius: 2,
+                  background: protocolEdgeColor(p),
+                  flex: '0 0 auto',
+                }}
+              />
+              {PROTOCOL_EDGE_LABELS[p as keyof typeof PROTOCOL_EDGE_LABELS] ?? p}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

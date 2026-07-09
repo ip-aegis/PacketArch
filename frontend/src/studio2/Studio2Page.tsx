@@ -24,6 +24,9 @@ import { parseScenario, buildUpdatePayload } from './document/codec';
 import Studio2Canvas from './canvas/Studio2Canvas';
 import TopBar from './shell/TopBar';
 import BottomStrip from './shell/BottomStrip';
+import Rail from './shell/Rail';
+import Inspector from './shell/Inspector';
+import { useStudio2UI } from './uiState';
 import { SURFACE } from './tokens';
 
 const AUTOSAVE_DEBOUNCE_MS = 2000;
@@ -38,6 +41,8 @@ const Studio2Page: React.FC = () => {
   const closeDocument = useDocumentStore((s) => s.closeDocument);
   const dirty = useDocumentStore((s) => s.dirty);
   const docId = useDocumentStore((s) => s.doc?.meta.id ?? null);
+  const railOpen = useStudio2UI((s) => s.railOpen);
+  const inspectorOpen = useStudio2UI((s) => s.inspectorOpen);
 
   useEffect(() => {
     if (!scenarioId) navigate('/scenarios', { replace: true });
@@ -152,8 +157,12 @@ const Studio2Page: React.FC = () => {
         }}
       >
         <TopBar />
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <Studio2Canvas />
+        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+          {railOpen && <Rail />}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Studio2Canvas />
+          </div>
+          {inspectorOpen && <Inspector />}
         </div>
         <BottomStrip />
       </div>

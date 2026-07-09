@@ -17,11 +17,12 @@ Design doc: https://claude.ai/code/artifact/e7e65e37-a46f-474c-9b5d-2e0052bbe524
 - [x] Single zod codec (studio2/document/codec.ts — load/autosave/Ctrl+S one path; definitionExtras round-trips unknown fields)
 - [x] Canvas on new architecture: DeviceNode2 (3 LOD tiers, hover handles), FlowEdge2 (zoom-gated labels), ZoneNode2 (read-only), Studio2Canvas
 - [x] Shell: TopBar (undo/redo, save state, workspace switcher) + BottomStrip (single zoom cluster)
-- [ ] Left rail: device palette (search + click-to-place + drag)
-- [ ] Inspector: selection-driven device/flow forms (sectioned)
-- [ ] Protocol picker on connect
-- [ ] IP auto-assign on device add
-- [ ] Purdue auto-layout for unpositioned scenarios
+- [x] Left rail: device palette (search, grouped, drag AND click-to-place, shift-click for rapid placement)
+- [x] Inspector: selection-driven device/flow/scenario forms (sectioned, all edits undoable via command bus)
+- [x] Protocol picker on connect (1 common → immediate; several → inline midpoint menu; none → rejected)
+- [x] IP auto-assign on device add (coalesced into the add-device undo step)
+- [x] Purdue auto-layout for unpositioned scenarios + tidy/layout actions
+- [ ] Remaining Phase 1 polish: bulk edit, rail/inspector toggle buttons, vendor/firmware/CVE sections in inspector
 
 ## Later phases
 - Phase 2: zones as containers, conduits, layouts, clusters
