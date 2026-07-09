@@ -13,7 +13,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../document/documentStore';
 import { useStudio2UI } from '../uiState';
-import { SURFACE, TEXT, ACCENT, ACCENT_SOFT, STATUS, FONT } from '../tokens';
+import { useHealth } from '../health/healthStore';
+import { SURFACE, TEXT, ACCENT, ACCENT_SOFT, STATUS, FONT, type StatusLevel } from '../tokens';
 
 const barButton: React.CSSProperties = {
   background: 'transparent',
@@ -42,6 +43,10 @@ const TopBar: React.FC = () => {
   const inspectorOpen = useStudio2UI((s) => s.inspectorOpen);
   const toggleRail = useStudio2UI((s) => s.toggleRail);
   const toggleInspector = useStudio2UI((s) => s.toggleInspector);
+  const workspace = useStudio2UI((s) => s.workspace);
+  const setWorkspace = useStudio2UI((s) => s.setWorkspace);
+  const { score, counts } = useHealth();
+  const scoreStatus: StatusLevel = score >= 85 ? 'ok' : score >= 60 ? 'warn' : 'crit';
 
   return (
     <div
@@ -113,6 +118,24 @@ const TopBar: React.FC = () => {
         </button>
       </div>
 
+      {/* Health chip — summary of the Verify workspace */}
+      <button
+        onClick={() => setWorkspace('verify')}
+        title={`${counts.crit} critical · ${counts.warn} warnings — open Verify`}
+        style={{
+          ...barButton,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          borderColor: STATUS[scoreStatus],
+          color: STATUS[scoreStatus],
+          fontFamily: FONT.mono,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        ● {score}
+      </button>
+
       <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
         <button
           style={{ ...barButton, color: railOpen ? ACCENT : TEXT.faint }}
@@ -146,24 +169,27 @@ const TopBar: React.FC = () => {
         aria-label="Workspace"
       >
         {WORKSPACES.map((w) => {
-          const active = w === 'Build';
+          const key = w.toLowerCase() as 'build' | 'verify' | 'run';
+          const available = key === 'build' || key === 'verify';
+          const active = workspace === key;
           return (
             <button
               key={w}
               role="tab"
               aria-selected={active}
-              disabled={!active}
-              title={active ? undefined : 'Coming in a later phase'}
+              disabled={!available}
+              title={available ? undefined : 'Coming in Phase 4'}
+              onClick={() => available && setWorkspace(key as 'build' | 'verify')}
               style={{
                 background: active ? ACCENT_SOFT : 'transparent',
-                color: active ? ACCENT : TEXT.faint,
+                color: active ? ACCENT : available ? TEXT.secondary : TEXT.faint,
                 border: 'none',
                 borderRadius: 5,
                 fontFamily: FONT.ui,
                 fontSize: 12,
                 fontWeight: 600,
                 padding: '3px 12px',
-                cursor: active ? 'pointer' : 'default',
+                cursor: available ? 'pointer' : 'default',
               }}
             >
               {w}

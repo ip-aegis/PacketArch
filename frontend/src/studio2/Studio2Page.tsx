@@ -26,7 +26,10 @@ import TopBar from './shell/TopBar';
 import BottomStrip from './shell/BottomStrip';
 import Rail from './shell/Rail';
 import Inspector from './shell/Inspector';
+import HealthPanel from './shell/HealthPanel';
 import { useStudio2UI } from './uiState';
+import { useHealthStore, useRationalityEvaluator2 } from './health/healthStore';
+import { useRationalityStore } from '../stores/rationalityStore';
 import { SURFACE } from './tokens';
 
 const AUTOSAVE_DEBOUNCE_MS = 2000;
@@ -43,6 +46,17 @@ const Studio2Page: React.FC = () => {
   const docId = useDocumentStore((s) => s.doc?.meta.id ?? null);
   const railOpen = useStudio2UI((s) => s.railOpen);
   const inspectorOpen = useStudio2UI((s) => s.inspectorOpen);
+  const workspace = useStudio2UI((s) => s.workspace);
+  const doc = useDocumentStore((s) => s.doc);
+
+  // Architecture rationality evaluates continuously against the document
+  useRationalityEvaluator2(doc);
+
+  // Fresh health state per scenario
+  useEffect(() => {
+    useHealthStore.getState().reset();
+    useRationalityStore.getState().reset();
+  }, [scenarioId]);
 
   useEffect(() => {
     if (!scenarioId) navigate('/scenarios', { replace: true });
@@ -158,11 +172,11 @@ const Studio2Page: React.FC = () => {
       >
         <TopBar />
         <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          {railOpen && <Rail />}
+          {workspace === 'build' && railOpen && <Rail />}
           <div style={{ flex: 1, minWidth: 0 }}>
             <Studio2Canvas />
           </div>
-          {inspectorOpen && <Inspector />}
+          {workspace === 'verify' ? <HealthPanel /> : inspectorOpen && <Inspector />}
         </div>
         <BottomStrip />
       </div>

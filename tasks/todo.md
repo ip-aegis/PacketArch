@@ -39,7 +39,13 @@ Design doc: https://claude.ai/code/artifact/e7e65e37-a46f-474c-9b5d-2e0052bbe524
 
 Phase 2 COMPLETE — /studio2 at full Build parity with v1 (minus vendor/firmware/CVE inspector sections, tracked in Phase 1 polish)
 
+## Phase 3 — Verify workspace (in progress)
+- [x] Unified health model (studio2/health/health.ts): conduit compliance (ported v1 rules incl. protocol aliases) + architecture rationality (shared rationalityStore/cache) + backend validation + AI review → one HealthFinding list, one severity scale, score
+- [x] Verify workspace: TopBar Build/Verify switcher live; HealthPanel replaces inspector (score header, severity-sorted findings, re-run checks, run AI review, Fix / Fix All via remediate API + scenario reload)
+- [x] Hover finding → spotlight (everything else dims to 8-18%); click → select + zoom to elements
+- [x] Health chip in TopBar (score, colored, opens Verify); Build-mode status: worst-finding dot on device nodes, status-colored label border on flow edges
+- [ ] Phase 3 polish: zone-level findings highlight zones; readiness findings mapped to elements where backend provides ids
+
 ## Later phases
-- Phase 3: Verify workspace (unified Health)
-- Phase 4: Run workspace + copilot
-- Phase 5: swap default, delete v1 shell
+- Phase 4: Run workspace (deploy + attack port) + AI copilot flyout
+- Phase 5: swap default /studio → v2, keep /studio-legacy one release, delete v1 shell

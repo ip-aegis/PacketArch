@@ -46,6 +46,12 @@ interface Studio2UIState {
   groupBy: GroupByMode;
   /** Clusters expanded in place (reset on mode change). */
   expandedClusterIds: Set<string>;
+  /** Active workspace: Build (edit) or Verify (health). Run lands in Phase 4. */
+  workspace: 'build' | 'verify';
+  /** Hovered health finding: elements to spotlight (everything else dims). */
+  highlight: { nodeIds: string[]; edgeIds: string[] } | null;
+  /** One-shot request to select + zoom to elements (consumed by the canvas). */
+  focusRequest: { nodeIds: string[]; edgeIds: string[] } | null;
 
   toggleRail: () => void;
   toggleInspector: () => void;
@@ -55,6 +61,9 @@ interface Studio2UIState {
   setConduitSourceZoneId: (zoneId: string | null) => void;
   setGroupBy: (mode: GroupByMode) => void;
   toggleCluster: (clusterId: string) => void;
+  setWorkspace: (w: 'build' | 'verify') => void;
+  setHighlight: (h: { nodeIds: string[]; edgeIds: string[] } | null) => void;
+  setFocusRequest: (f: { nodeIds: string[]; edgeIds: string[] } | null) => void;
 }
 
 export const useStudio2UI = create<Studio2UIState>((set) => ({
@@ -66,6 +75,9 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   conduitSourceZoneId: null,
   groupBy: 'none',
   expandedClusterIds: new Set<string>(),
+  workspace: 'build',
+  highlight: null,
+  focusRequest: null,
 
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
@@ -84,4 +96,7 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
       else next.add(clusterId);
       return { expandedClusterIds: next };
     }),
+  setWorkspace: (workspace) => set({ workspace, highlight: null }),
+  setHighlight: (highlight) => set({ highlight }),
+  setFocusRequest: (focusRequest) => set({ focusRequest }),
 }));

@@ -12,6 +12,7 @@
 import React from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@xyflow/react';
 import type { EdgeProps } from '@xyflow/react';
+import { useStudio2UI } from '../uiState';
 import { SURFACE, TEXT, FONT } from '../tokens';
 
 export interface ConduitEdge2Data extends Record<string, unknown> {
@@ -21,8 +22,9 @@ export interface ConduitEdge2Data extends Record<string, unknown> {
 }
 
 const ConduitEdge2: React.FC<EdgeProps> = React.memo((props) => {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, data } = props;
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, data } = props;
   const d = (data ?? {}) as ConduitEdge2Data;
+  const dimmed = useStudio2UI((s) => s.highlight !== null && !s.highlight.edgeIds.includes(id));
 
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -44,9 +46,11 @@ const ConduitEdge2: React.FC<EdgeProps> = React.memo((props) => {
           stroke: selected ? TEXT.secondary : TEXT.faint,
           strokeWidth: 3,
           strokeDasharray: '7 5',
-          opacity: 0.65,
+          opacity: dimmed ? 0.08 : 0.65,
+          transition: 'opacity 120ms ease',
         }}
       />
+      {!dimmed && (
       <EdgeLabelRenderer>
         <div
           style={{
@@ -67,6 +71,7 @@ const ConduitEdge2: React.FC<EdgeProps> = React.memo((props) => {
           {typeof d.protocolCount === 'number' ? ` · ${d.protocolCount}p` : ''}
         </div>
       </EdgeLabelRenderer>
+      )}
     </>
   );
 });

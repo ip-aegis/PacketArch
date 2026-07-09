@@ -14,6 +14,7 @@ import { Handle, Position, useStore } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { DeviceGlyph, accentForType } from '../glyphs';
 import { getDeviceTypeMeta } from '../../constants/deviceTypeRegistry';
+import { useStudio2UI } from '../uiState';
 import { SURFACE, TEXT, ACCENT, STATUS, NODE, FONT, type StatusLevel } from '../tokens';
 
 export interface DeviceNode2Data extends Record<string, unknown> {
@@ -43,13 +44,19 @@ const handleStyle: React.CSSProperties = {
   transition: 'opacity 120ms ease',
 };
 
-const DeviceNode2: React.FC<NodeProps> = React.memo(({ data, selected }) => {
+const DeviceNode2: React.FC<NodeProps> = React.memo(({ id, data, selected }) => {
   const d = data as DeviceNode2Data;
   const rawTier = useLodTier();
   // A selected node always shows full detail
   const tier: LodTier = selected ? 'card' : rawTier;
   const accent = accentForType(d.deviceType);
   const typeLabel = getDeviceTypeMeta(d.deviceType).label;
+  // Health spotlight: dim everything a hovered finding doesn't touch
+  const dimmed = useStudio2UI((s) => s.highlight !== null && !s.highlight.nodeIds.includes(id));
+  const dimStyle: React.CSSProperties = {
+    opacity: dimmed ? 0.18 : 1,
+    transition: 'opacity 120ms ease',
+  };
 
   const handles = (
     <>
@@ -90,6 +97,7 @@ const DeviceNode2: React.FC<NodeProps> = React.memo(({ data, selected }) => {
           border: `2px solid ${d.status ? STATUS[d.status] : accent}`,
           position: 'relative',
           cursor: 'pointer',
+          ...dimStyle,
         }}
       >
         {handles}
@@ -115,6 +123,7 @@ const DeviceNode2: React.FC<NodeProps> = React.memo(({ data, selected }) => {
           position: 'relative',
           cursor: 'pointer',
           fontFamily: FONT.ui,
+          ...dimStyle,
         }}
       >
         {handles}
@@ -159,6 +168,7 @@ const DeviceNode2: React.FC<NodeProps> = React.memo(({ data, selected }) => {
         fontFamily: FONT.ui,
         outline: selected ? `1.5px solid ${ACCENT}` : 'none',
         outlineOffset: 2,
+        ...dimStyle,
       }}
     >
       {handles}

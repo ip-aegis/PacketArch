@@ -42,6 +42,7 @@ import { useClusterView2 } from './useClusterView2';
 import { useDocumentStore, commands } from '../document/documentStore';
 import { placeDevice } from '../document/createDevice';
 import { useStudio2UI, GROUP_BY_MODES } from '../uiState';
+import { useHealth } from '../health/healthStore';
 import { layoutDocument, isUnpositioned } from './layout';
 import { PROTOCOL_EDGE_LABELS } from '../../constants/protocols';
 import type { PaletteDeviceResponse } from '../../api/fingerprints';
@@ -120,6 +121,7 @@ const Studio2Canvas: React.FC = () => {
   const groupBy = useStudio2UI((s) => s.groupBy);
   const expandedClusterIds = useStudio2UI((s) => s.expandedClusterIds);
   const toggleCluster = useStudio2UI((s) => s.toggleCluster);
+  const { byDevice: statusByDevice, byFlow: statusByFlow } = useHealth();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState<PendingConnection | null>(null);
 
@@ -204,11 +206,12 @@ const Studio2Canvas: React.FC = () => {
           name: d.name,
           deviceType: d.type as string,
           ipAddress: d.network?.ipAddress,
+          status: statusByDevice[d.id],
         },
       };
     });
     return [...zoneNodes, ...deviceNodes];
-  }, [doc]);
+  }, [doc, statusByDevice]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
     if (!doc) return [];
@@ -217,7 +220,7 @@ const Studio2Canvas: React.FC = () => {
       type: 'flow2',
       source: f.sourceDeviceId,
       target: f.targetDeviceId,
-      data: { protocol: f.protocol as string },
+      data: { protocol: f.protocol as string, status: statusByFlow[f.id] },
     }));
     const conduitEdges: Edge[] = Object.values(doc.conduits)
       .filter((c) => doc.zones[c.sourceZoneId] && doc.zones[c.targetZoneId])
@@ -235,7 +238,7 @@ const Studio2Canvas: React.FC = () => {
         },
       }));
     return [...flowEdges, ...conduitEdges];
-  }, [doc]);
+  }, [doc, statusByFlow]);
 
   // Group-by cluster view sits between the derived graph and React Flow
   const { nodes: viewNodes, edges: viewEdges } = useClusterView2(
@@ -484,6 +487,27 @@ const Studio2Canvas: React.FC = () => {
     },
     [toggleCluster, fitView],
   );
+
+  // Consume focus requests from the Health panel: select + zoom to the
+  // finding's elements.
+  const focusRequest = useStudio2UI((s) => s.focusRequest);
+  useEffect(() => {
+    if (!focusRequest) return;
+    useStudio2UI.getState().setFocusRequest(null);
+    const nodeIdSet = new Set(focusRequest.nodeIds);
+    const edgeIdSet = new Set(focusRequest.edgeIds);
+    setNodes(nodesRef.current.map((n) => ({ ...n, selected: nodeIdSet.has(n.id) })));
+    setEdges((eds) => eds.map((e) => ({ ...e, selected: edgeIdSet.has(e.id) })));
+    useDocumentStore.getState().setSelection(focusRequest.nodeIds, focusRequest.edgeIds);
+    if (focusRequest.nodeIds.length > 0) {
+      fitView({
+        nodes: focusRequest.nodeIds.map((id) => ({ id })),
+        padding: 0.5,
+        duration: 300,
+        maxZoom: 1.2,
+      });
+    }
+  }, [focusRequest, fitView, setNodes]);
 
   // Re-center when the grouping mode changes
   const prevGroupByRef = useRef(groupBy);
