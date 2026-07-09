@@ -64,6 +64,7 @@ const TopBar: React.FC = () => {
         borderBottom: `1px solid ${SURFACE.border}`,
         fontFamily: FONT.ui,
         flex: '0 0 auto',
+        position: 'relative',
       }}
     >
       <button style={barButton} onClick={() => navigate('/scenarios')} aria-label="Back to scenarios">
@@ -180,7 +181,7 @@ const TopBar: React.FC = () => {
         </button>
       </div>
 
-      {/* Workspace switcher — Build is live; Verify/Run land in Phases 3–4 */}
+      {/* Workspace switcher — centered in the bar */}
       <div
         style={{
           display: 'flex',
@@ -189,6 +190,9 @@ const TopBar: React.FC = () => {
           border: `1px solid ${SURFACE.border}`,
           borderRadius: 7,
           padding: 2,
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
         }}
         role="tablist"
         aria-label="Workspace"
