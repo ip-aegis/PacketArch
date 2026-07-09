@@ -117,6 +117,7 @@ const DeviceForm: React.FC<{ deviceId: string }> = ({ deviceId }) => {
           <div style={{ fontFamily: FONT.mono, fontSize: 10, color: TEXT.faint }}>
             {device.vendor ?? 'no vendor'}
             {device.fingerprintModel ? ` · ${device.fingerprintModel}` : ''}
+            {device.firmwareVersion ? ` · fw ${device.firmwareVersion}` : ''}
           </div>
         </div>
       </div>
