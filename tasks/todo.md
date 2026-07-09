@@ -46,6 +46,10 @@ Phase 2 COMPLETE — /studio2 at full Build parity with v1 (minus vendor/firmwar
 - [x] Health chip in TopBar (score, colored, opens Verify); Build-mode status: worst-finding dot on device nodes, status-colored label border on flow edges
 - [ ] Phase 3 polish: zone-level findings highlight zones; readiness findings mapped to elements where backend provides ids
 
+## Phase 4 — Run workspace + copilot (in progress)
+- [x] Run workspace: re-homed v1 DeploymentPanel (with new `phases` prop — its only v1-store dependency) + AttackPanel in a 400px panel with Deploy/Attack tabs; activeDeployment derived from deploymentsStore; liveTrafficEnabled gate (Run tab disabled in PCAP-only builds)
+- [x] AI copilot flyout (Ctrl/Cmd+J or top-bar ✦): reuses ChatInterface/ChatInput + shared session; aiAssistantStore.refreshScenarioCanvas now also reloads the v2 document after AI tool modifications
+- [ ] Phase 4 polish: live canvas annotations during deploy/attack (flow animation, kill-chain stage markers)
+
 ## Later phases
-- Phase 4: Run workspace (deploy + attack port) + AI copilot flyout
-- Phase 5: swap default /studio → v2, keep /studio-legacy one release, delete v1 shell
+- Phase 5: swap default /studio → v2, keep /studio-legacy one release, delete v1 shell; update onboarding/help copy

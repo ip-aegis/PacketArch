@@ -43,10 +43,14 @@ const { Title } = Typography;
 
 interface DeploymentPanelProps {
   scenarioId: string | null;
+  /** Scenario phases override — Studio v2 passes its own document's phases
+      (the v1 scenarioStore is empty on the /studio2 route). */
+  phases?: import('../../types').Phase[];
 }
 
 const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   scenarioId,
+  phases,
 }) => {
   const [form] = Form.useForm();
   const [agentInterfaces, setAgentInterfaces] = useState<AgentInterface[]>([]);
@@ -346,7 +350,8 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     }
   };
 
-  const scenarioPhases = useScenarioStore((s) => s.phases);
+  const storePhases = useScenarioStore((s) => s.phases);
+  const scenarioPhases = phases ?? storePhases;
 
   const onlineAgents = useMemo(
     () => agents.filter((a) => a.status === 'online' && a.is_active),

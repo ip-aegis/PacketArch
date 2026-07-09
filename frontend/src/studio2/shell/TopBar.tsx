@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../document/documentStore';
 import { useStudio2UI } from '../uiState';
 import { useHealth } from '../health/healthStore';
+import { useFeatures } from '../../hooks/useFeatures';
 import { SURFACE, TEXT, ACCENT, ACCENT_SOFT, STATUS, FONT, type StatusLevel } from '../tokens';
 
 const barButton: React.CSSProperties = {
@@ -45,6 +46,9 @@ const TopBar: React.FC = () => {
   const toggleInspector = useStudio2UI((s) => s.toggleInspector);
   const workspace = useStudio2UI((s) => s.workspace);
   const setWorkspace = useStudio2UI((s) => s.setWorkspace);
+  const copilotOpen = useStudio2UI((s) => s.copilotOpen);
+  const toggleCopilot = useStudio2UI((s) => s.toggleCopilot);
+  const { aiEnabled, liveTrafficEnabled } = useFeatures();
   const { score, counts } = useHealth();
   const scoreStatus: StatusLevel = score >= 85 ? 'ok' : score >= 60 ? 'warn' : 'crit';
 
@@ -137,6 +141,16 @@ const TopBar: React.FC = () => {
       </button>
 
       <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+        {aiEnabled && (
+          <button
+            style={{ ...barButton, color: copilotOpen ? ACCENT : TEXT.faint }}
+            onClick={toggleCopilot}
+            aria-pressed={copilotOpen}
+            title="AI copilot (Ctrl+J)"
+          >
+            ✦ Copilot
+          </button>
+        )}
         <button
           style={{ ...barButton, color: railOpen ? ACCENT : TEXT.faint }}
           onClick={toggleRail}
@@ -170,7 +184,7 @@ const TopBar: React.FC = () => {
       >
         {WORKSPACES.map((w) => {
           const key = w.toLowerCase() as 'build' | 'verify' | 'run';
-          const available = key === 'build' || key === 'verify';
+          const available = key !== 'run' || liveTrafficEnabled;
           const active = workspace === key;
           return (
             <button
@@ -178,8 +192,8 @@ const TopBar: React.FC = () => {
               role="tab"
               aria-selected={active}
               disabled={!available}
-              title={available ? undefined : 'Coming in Phase 4'}
-              onClick={() => available && setWorkspace(key as 'build' | 'verify')}
+              title={available ? undefined : 'Live traffic is disabled in this build'}
+              onClick={() => available && setWorkspace(key)}
               style={{
                 background: active ? ACCENT_SOFT : 'transparent',
                 color: active ? ACCENT : available ? TEXT.secondary : TEXT.faint,

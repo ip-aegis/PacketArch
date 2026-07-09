@@ -46,8 +46,10 @@ interface Studio2UIState {
   groupBy: GroupByMode;
   /** Clusters expanded in place (reset on mode change). */
   expandedClusterIds: Set<string>;
-  /** Active workspace: Build (edit) or Verify (health). Run lands in Phase 4. */
-  workspace: 'build' | 'verify';
+  /** Active workspace: Build (edit), Verify (health), or Run (deploy/attack). */
+  workspace: 'build' | 'verify' | 'run';
+  /** AI copilot flyout visibility (Cmd/Ctrl+J). */
+  copilotOpen: boolean;
   /** Hovered health finding: elements to spotlight (everything else dims). */
   highlight: { nodeIds: string[]; edgeIds: string[] } | null;
   /** One-shot request to select + zoom to elements (consumed by the canvas). */
@@ -61,9 +63,10 @@ interface Studio2UIState {
   setConduitSourceZoneId: (zoneId: string | null) => void;
   setGroupBy: (mode: GroupByMode) => void;
   toggleCluster: (clusterId: string) => void;
-  setWorkspace: (w: 'build' | 'verify') => void;
+  setWorkspace: (w: 'build' | 'verify' | 'run') => void;
   setHighlight: (h: { nodeIds: string[]; edgeIds: string[] } | null) => void;
   setFocusRequest: (f: { nodeIds: string[]; edgeIds: string[] } | null) => void;
+  toggleCopilot: () => void;
 }
 
 export const useStudio2UI = create<Studio2UIState>((set) => ({
@@ -76,6 +79,7 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   groupBy: 'none',
   expandedClusterIds: new Set<string>(),
   workspace: 'build',
+  copilotOpen: false,
   highlight: null,
   focusRequest: null,
 
@@ -99,4 +103,5 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   setWorkspace: (workspace) => set({ workspace, highlight: null }),
   setHighlight: (highlight) => set({ highlight }),
   setFocusRequest: (focusRequest) => set({ focusRequest }),
+  toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
 }));

@@ -57,6 +57,17 @@ const refreshScenarioCanvas = async (scenarioId: string) => {
         auto_assign_enabled?: boolean;
       } | null,
     });
+    // Studio v2 keeps its own document — refresh it too when it has the
+    // same scenario open (the /studio2 route doesn't use scenarioStore).
+    try {
+      const { useDocumentStore } = await import('../studio2/document/documentStore');
+      const { parseScenario } = await import('../studio2/document/codec');
+      if (useDocumentStore.getState().doc?.meta.id === scenarioId) {
+        useDocumentStore.getState().loadDocument(parseScenario(scenario));
+      }
+    } catch (e) {
+      console.warn('Studio v2 document refresh skipped:', e);
+    }
     console.log('Scenario canvas refreshed after AI modifications');
   } catch (error) {
     console.error('Failed to refresh scenario after AI modifications:', error);

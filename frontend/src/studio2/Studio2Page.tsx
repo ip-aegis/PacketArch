@@ -27,6 +27,8 @@ import BottomStrip from './shell/BottomStrip';
 import Rail from './shell/Rail';
 import Inspector from './shell/Inspector';
 import HealthPanel from './shell/HealthPanel';
+import RunPanel from './shell/RunPanel';
+import CopilotFlyout from './shell/CopilotFlyout';
 import { useStudio2UI } from './uiState';
 import { useHealthStore, useRationalityEvaluator2 } from './health/healthStore';
 import { useRationalityStore } from '../stores/rationalityStore';
@@ -47,6 +49,7 @@ const Studio2Page: React.FC = () => {
   const railOpen = useStudio2UI((s) => s.railOpen);
   const inspectorOpen = useStudio2UI((s) => s.inspectorOpen);
   const workspace = useStudio2UI((s) => s.workspace);
+  const copilotOpen = useStudio2UI((s) => s.copilotOpen);
   const doc = useDocumentStore((s) => s.doc);
 
   // Architecture rationality evaluates continuously against the document
@@ -137,6 +140,9 @@ const Studio2Page: React.FC = () => {
       } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey) || (e.key === 'Z' && e.shiftKey)) {
         e.preventDefault();
         useDocumentStore.getState().redo();
+      } else if (e.key === 'j') {
+        e.preventDefault();
+        useStudio2UI.getState().toggleCopilot();
       }
     };
     window.addEventListener('keydown', handler);
@@ -173,10 +179,17 @@ const Studio2Page: React.FC = () => {
         <TopBar />
         <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
           {workspace === 'build' && railOpen && <Rail />}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
             <Studio2Canvas />
+            {copilotOpen && <CopilotFlyout />}
           </div>
-          {workspace === 'verify' ? <HealthPanel /> : inspectorOpen && <Inspector />}
+          {workspace === 'verify' ? (
+            <HealthPanel />
+          ) : workspace === 'run' ? (
+            <RunPanel />
+          ) : (
+            inspectorOpen && <Inspector />
+          )}
         </div>
         <BottomStrip />
       </div>
