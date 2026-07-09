@@ -11,6 +11,26 @@
 import { create } from 'zustand';
 import type { PaletteDeviceResponse } from '../api/fingerprints';
 
+export type GroupByMode = 'none' | 'zone' | 'protocol' | 'vendor' | 'purdueLevel' | 'deviceType';
+
+export const GROUP_BY_MODES: GroupByMode[] = [
+  'none',
+  'zone',
+  'protocol',
+  'vendor',
+  'purdueLevel',
+  'deviceType',
+];
+
+export const GROUP_BY_LABELS: Record<GroupByMode, string> = {
+  none: 'no grouping',
+  zone: 'by zone',
+  protocol: 'by protocol',
+  vendor: 'by vendor',
+  purdueLevel: 'by Purdue level',
+  deviceType: 'by device type',
+};
+
 interface Studio2UIState {
   railOpen: boolean;
   inspectorOpen: boolean;
@@ -22,6 +42,10 @@ interface Studio2UIState {
   conduitArmed: boolean;
   /** First zone clicked while the conduit tool is armed. */
   conduitSourceZoneId: string | null;
+  /** Group-by cluster view mode ('none' = normal canvas). */
+  groupBy: GroupByMode;
+  /** Clusters expanded in place (reset on mode change). */
+  expandedClusterIds: Set<string>;
 
   toggleRail: () => void;
   toggleInspector: () => void;
@@ -29,6 +53,8 @@ interface Studio2UIState {
   setZoneArmed: (armed: boolean) => void;
   setConduitArmed: (armed: boolean) => void;
   setConduitSourceZoneId: (zoneId: string | null) => void;
+  setGroupBy: (mode: GroupByMode) => void;
+  toggleCluster: (clusterId: string) => void;
 }
 
 export const useStudio2UI = create<Studio2UIState>((set) => ({
@@ -38,6 +64,8 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   zoneArmed: false,
   conduitArmed: false,
   conduitSourceZoneId: null,
+  groupBy: 'none',
+  expandedClusterIds: new Set<string>(),
 
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
@@ -48,4 +76,12 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   setConduitArmed: (conduitArmed) =>
     set({ conduitArmed, armedTemplate: null, zoneArmed: false, conduitSourceZoneId: null }),
   setConduitSourceZoneId: (conduitSourceZoneId) => set({ conduitSourceZoneId }),
+  setGroupBy: (groupBy) => set({ groupBy, expandedClusterIds: new Set() }),
+  toggleCluster: (clusterId) =>
+    set((s) => {
+      const next = new Set(s.expandedClusterIds);
+      if (next.has(clusterId)) next.delete(clusterId);
+      else next.add(clusterId);
+      return { expandedClusterIds: next };
+    }),
 }));

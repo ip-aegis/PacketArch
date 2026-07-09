@@ -13,6 +13,7 @@ import React from 'react';
 import { useReactFlow, useViewport } from '@xyflow/react';
 import { useDocumentStore } from '../document/documentStore';
 import { layoutDocument, resolveOverlaps } from '../canvas/layout';
+import { useStudio2UI, GROUP_BY_MODES, GROUP_BY_LABELS, type GroupByMode } from '../uiState';
 import { SURFACE, TEXT, FONT } from '../tokens';
 
 const stripButton: React.CSSProperties = {
@@ -24,6 +25,34 @@ const stripButton: React.CSSProperties = {
   padding: '2px 8px',
   cursor: 'pointer',
   borderRadius: 4,
+};
+
+const GroupBySelect: React.FC = () => {
+  const groupBy = useStudio2UI((s) => s.groupBy);
+  const setGroupBy = useStudio2UI((s) => s.setGroupBy);
+  return (
+    <select
+      value={groupBy}
+      onChange={(e) => setGroupBy(e.target.value as GroupByMode)}
+      aria-label="Group devices by"
+      title="Group devices into clusters (G cycles modes; double-click a cluster to expand)"
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: groupBy === 'none' ? TEXT.muted : TEXT.primary,
+        fontFamily: FONT.mono,
+        fontSize: 11,
+        cursor: 'pointer',
+        outline: 'none',
+      }}
+    >
+      {GROUP_BY_MODES.map((m) => (
+        <option key={m} value={m} style={{ background: SURFACE.raised }}>
+          {GROUP_BY_LABELS[m]}
+        </option>
+      ))}
+    </select>
+  );
 };
 
 const BottomStrip: React.FC = () => {
@@ -95,6 +124,8 @@ const BottomStrip: React.FC = () => {
       >
         layout
       </button>
+      <span style={{ color: SURFACE.border }}>│</span>
+      <GroupBySelect />
       <span style={{ color: SURFACE.border }}>│</span>
       <span>grid 20</span>
       <span style={{ marginLeft: 'auto', color: TEXT.faint }}>

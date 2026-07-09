@@ -33,11 +33,15 @@ import { message } from 'antd';
 
 import DeviceNode2 from './DeviceNode2';
 import ZoneNode2 from './ZoneNode2';
+import ClusterNode2 from './ClusterNode2';
+import type { ClusterNode2Data } from './ClusterNode2';
 import FlowEdge2 from './FlowEdge2';
 import ConduitEdge2 from './ConduitEdge2';
+import AggregateEdge2 from './AggregateEdge2';
+import { useClusterView2 } from './useClusterView2';
 import { useDocumentStore, commands } from '../document/documentStore';
 import { placeDevice } from '../document/createDevice';
-import { useStudio2UI } from '../uiState';
+import { useStudio2UI, GROUP_BY_MODES } from '../uiState';
 import { layoutDocument, isUnpositioned } from './layout';
 import { PROTOCOL_EDGE_LABELS } from '../../constants/protocols';
 import type { PaletteDeviceResponse } from '../../api/fingerprints';
@@ -53,8 +57,8 @@ interface PendingConnection {
   y: number;
 }
 
-const nodeTypes = { device2: DeviceNode2, zone2: ZoneNode2 };
-const edgeTypes = { flow2: FlowEdge2, conduit2: ConduitEdge2 };
+const nodeTypes = { device2: DeviceNode2, zone2: ZoneNode2, cluster2: ClusterNode2 };
+const edgeTypes = { flow2: FlowEdge2, conduit2: ConduitEdge2, aggregate2: AggregateEdge2 };
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -113,6 +117,9 @@ const Studio2Canvas: React.FC = () => {
   const setZoneArmed = useStudio2UI((s) => s.setZoneArmed);
   const conduitArmed = useStudio2UI((s) => s.conduitArmed);
   const setConduitArmed = useStudio2UI((s) => s.setConduitArmed);
+  const groupBy = useStudio2UI((s) => s.groupBy);
+  const expandedClusterIds = useStudio2UI((s) => s.expandedClusterIds);
+  const toggleCluster = useStudio2UI((s) => s.toggleCluster);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState<PendingConnection | null>(null);
 
@@ -124,6 +131,21 @@ const Studio2Canvas: React.FC = () => {
         setZoneArmed(false);
         setConduitArmed(false);
         setPending(null);
+        return;
+      }
+      // G cycles the group-by cluster modes
+      if (
+        e.key === 'g' &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLSelectElement)
+      ) {
+        const ui = useStudio2UI.getState();
+        const idx = GROUP_BY_MODES.indexOf(ui.groupBy);
+        ui.setGroupBy(GROUP_BY_MODES[(idx + 1) % GROUP_BY_MODES.length]);
       }
     };
     window.addEventListener('keydown', handler);
@@ -215,33 +237,46 @@ const Studio2Canvas: React.FC = () => {
     return [...flowEdges, ...conduitEdges];
   }, [doc]);
 
+  // Group-by cluster view sits between the derived graph and React Flow
+  const { nodes: viewNodes, edges: viewEdges } = useClusterView2(
+    doc,
+    derivedNodes,
+    derivedEdges,
+    groupBy,
+    expandedClusterIds,
+  );
+  const clusterViewActive = groupBy !== 'none';
+
   // Local mirror for smooth dragging; document remains the source of truth.
   // Selection flags live in the mirror — carry them across doc rebuilds so
   // finishing a drag (which dispatches a command) doesn't deselect.
   // nodesRef mirrors the state synchronously so gesture-end handlers can
   // read authoritative geometry without waiting for a render.
-  const [nodes, setNodesState] = useState<Node[]>(derivedNodes);
-  const [edges, setEdges] = useState<Edge[]>(derivedEdges);
-  const nodesRef = useRef<Node[]>(derivedNodes);
+  const [nodes, setNodesState] = useState<Node[]>(viewNodes);
+  const [edges, setEdges] = useState<Edge[]>(viewEdges);
+  const nodesRef = useRef<Node[]>(viewNodes);
   const setNodes = useCallback((next: Node[]) => {
     nodesRef.current = next;
     setNodesState(next);
   }, []);
   useEffect(() => {
     const selected = new Set(nodesRef.current.filter((n) => n.selected).map((n) => n.id));
-    setNodes(derivedNodes.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
-  }, [derivedNodes, setNodes]);
+    setNodes(viewNodes.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
+  }, [viewNodes, setNodes]);
   useEffect(() => {
     setEdges((prev) => {
       const selected = new Set(prev.filter((e) => e.selected).map((e) => e.id));
-      return derivedEdges.map((e) => (selected.has(e.id) ? { ...e, selected: true } : e));
+      return viewEdges.map((e) => (selected.has(e.id) ? { ...e, selected: true } : e));
     });
-  }, [derivedEdges]);
+  }, [viewEdges]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const next = applyNodeChanges(changes, nodesRef.current);
       setNodes(next);
+
+      // Cluster view is view-only: computed positions must never persist
+      if (useStudio2UI.getState().groupBy !== 'none') return;
 
       const state = useDocumentStore.getState();
       if (!state.doc) return;
@@ -440,6 +475,25 @@ const Studio2Canvas: React.FC = () => {
     [conduitArmed],
   );
 
+  // Double-click a cluster to expand/collapse it in place
+  const onNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.type !== 'cluster2' || !node.data) return;
+      toggleCluster((node.data as ClusterNode2Data).clusterId);
+      setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+    },
+    [toggleCluster, fitView],
+  );
+
+  // Re-center when the grouping mode changes
+  const prevGroupByRef = useRef(groupBy);
+  useEffect(() => {
+    if (prevGroupByRef.current !== groupBy) {
+      prevGroupByRef.current = groupBy;
+      setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 60);
+    }
+  }, [groupBy, fitView]);
+
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
       setPending(null);
@@ -504,6 +558,7 @@ const Studio2Canvas: React.FC = () => {
         onConnect={onConnect}
         onSelectionChange={onSelectionChange}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         onPaneClick={onPaneClick}
         onDrop={onDrop}
         onDragOver={onDragOver}

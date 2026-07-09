@@ -34,8 +34,10 @@ Design doc: https://claude.ai/code/artifact/e7e65e37-a46f-474c-9b5d-2e0052bbe524
 - [x] Zone delete cascade: members leave zone (not deleted), touching conduits removed — undoable
 - [x] Conduit edges rendered (dashed, name/direction/protocol-count label) + read-only conduit inspector + delete
 - [x] Rail/inspector toggle buttons in top bar
-- [ ] Conduit tool: draw zone→zone conduits + full conduit editor (direction, protocols, SL)
-- [ ] Group-by cluster view (port from v1)
+- [x] Conduit tool: click zone A → zone B (dedupe, Esc cancels) + full editor (name/direction/SL/protocol chips)
+- [x] Group-by cluster view: zone/protocol/vendor/purdueLevel/deviceType via shared clusterGrouping utils; ClusterNode2 + AggregateEdge2; double-click expands in place; `g` cycles; bottom-strip select; view-only (position dispatches suppressed)
+
+Phase 2 COMPLETE — /studio2 at full Build parity with v1 (minus vendor/firmware/CVE inspector sections, tracked in Phase 1 polish)
 
 ## Later phases
 - Phase 3: Verify workspace (unified Health)
