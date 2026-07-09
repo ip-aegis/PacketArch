@@ -377,6 +377,23 @@ const ScenarioStudioPage: React.FC = () => {
         overflow: 'hidden',
       }}
     >
+      {/* Legacy notice — Studio v2 is now the default /studio */}
+      <Alert
+        type="info"
+        banner
+        showIcon={false}
+        message={
+          <span style={{ fontSize: 12.5 }}>
+            You're in the <b>legacy Studio</b> — the new Studio is now the default.
+          </span>
+        }
+        action={
+          <Button size="small" onClick={() => navigate(`/studio?scenario=${scenarioId}`)}>
+            Open in new Studio
+          </Button>
+        }
+      />
+
       {/* Background AI-naming progress banner */}
       {namingInProgress && (
         <Alert

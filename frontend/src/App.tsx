@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import FeatureGate from './components/FeatureGate';
@@ -32,6 +32,14 @@ function LegacyAttackDetailRedirect() {
   return <Navigate to={`/libraries/attacks/${playbookId}`} replace />;
 }
 
+// /studio2 was the v2 preview route; v2 is now the default /studio.
+// Preserve ?scenario= for old bookmarks.
+function Studio2Redirect() {
+  const [searchParams] = useSearchParams();
+  const qs = searchParams.toString();
+  return <Navigate to={`/studio${qs ? `?${qs}` : ''}`} replace />;
+}
+
 function App() {
   return (
     <SetupGate>
@@ -50,9 +58,11 @@ function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
-        <Route path="studio" element={<ScenarioStudioPage />} />
-        {/* Studio v2 preview (Phase 1) — unadvertised parallel route; no nav entry */}
-        <Route path="studio2" element={<Studio2Page />} />
+        {/* Studio v2 is the default; v1 stays reachable while it's driven
+            side by side. Old /studio2 preview links redirect. */}
+        <Route path="studio" element={<Studio2Page />} />
+        <Route path="studio-legacy" element={<ScenarioStudioPage />} />
+        <Route path="studio2" element={<Studio2Redirect />} />
         <Route path="scenarios" element={<ScenariosPage />} />
         <Route
           path="scenarios/ai-create"

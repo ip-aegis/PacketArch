@@ -42,7 +42,11 @@ export function useCommands(
 ): CommandDefinition[] {
   const navigate = useNavigate();
   const location = useLocation();
-  const isStudio = location.pathname === '/studio';
+  void location;
+  // Studio commands appear exactly when a canvas has registered its deps
+  // (the legacy studio at /studio-legacy). Studio v2 at /studio has its
+  // own keyboard layer and on-screen controls.
+  const isStudio = canvasDeps !== null;
 
   // Store selectors
   const canUndo = useHistoryStore((s) => s.canUndo());

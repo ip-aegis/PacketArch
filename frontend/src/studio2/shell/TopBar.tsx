@@ -70,6 +70,17 @@ const TopBar: React.FC = () => {
         ◂ Scenarios
       </button>
 
+      <button
+        style={{ ...barButton, color: TEXT.faint, fontSize: 11 }}
+        onClick={() => {
+          const id = useDocumentStore.getState().doc?.meta.id;
+          navigate(id ? `/studio-legacy?scenario=${id}` : '/studio-legacy');
+        }}
+        title="Open this scenario in the legacy (v1) studio"
+      >
+        v1
+      </button>
+
       <span
         style={{
           fontSize: 14,

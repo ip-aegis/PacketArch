@@ -32,6 +32,7 @@ import {
   ApartmentOutlined,
   ThunderboltOutlined,
   RocketOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
@@ -43,6 +44,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { useIdleLogout } from '../../hooks/useIdleLogout';
 import ChangePasswordModal from '../modals/ChangePasswordModal';
 import AboutModal from '../modals/AboutModal';
+import FeedbackModal from '../modals/FeedbackModal';
 import AcknowledgmentModal from '../modals/AcknowledgmentModal';
 import AgentVersionBanner from './AgentVersionBanner';
 import CommandPalette from '../command-palette/CommandPalette';
@@ -62,6 +64,7 @@ const AppLayout: React.FC = () => {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [ackRequired, setAckRequired] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
@@ -411,6 +414,26 @@ const AppLayout: React.FC = () => {
               />
             </Tooltip>
 
+            {/* Feedback — intentionally prominent CTA */}
+            <Button
+              icon={<MessageOutlined />}
+              onClick={() => setFeedbackModalOpen(true)}
+              style={{
+                background: 'linear-gradient(135deg, #049FD9 0%, #00BCEB 100%)',
+                border: 'none',
+                borderRadius: 20,
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 13,
+                height: 32,
+                paddingLeft: 14,
+                paddingRight: 14,
+                boxShadow: '0 0 10px rgba(0,188,235,0.35)',
+              }}
+            >
+              Feedback
+            </Button>
+
             {/* Help — opens contextual drawer, Shift+click for full page */}
             <HelpButton />
 
@@ -463,11 +486,11 @@ const AppLayout: React.FC = () => {
           className="tech-grid-bg"
           style={{
             margin: 0,
-            // No padding for studio page to maximize canvas space
-            padding: location.pathname === '/studio' ? 0 : 24,
+            // No padding for studio pages (v2 and legacy) to maximize canvas space
+            padding: location.pathname.startsWith('/studio') ? 0 : 24,
             background: '#1a1a2e',
             height: 'calc(100vh - 64px)',
-            overflow: location.pathname === '/studio' ? 'hidden' : 'auto',
+            overflow: location.pathname.startsWith('/studio') ? 'hidden' : 'auto',
           }}
         >
           <Outlet />
@@ -478,6 +501,12 @@ const AppLayout: React.FC = () => {
       <ChangePasswordModal
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        open={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
       />
 
       {/* About Modal */}
