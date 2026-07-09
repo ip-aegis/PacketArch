@@ -18,11 +18,17 @@ interface Studio2UIState {
   armedTemplate: PaletteDeviceResponse | null;
   /** Zone-draw armed: next canvas click places a new zone. */
   zoneArmed: boolean;
+  /** Conduit tool armed: click two zones to connect them. */
+  conduitArmed: boolean;
+  /** First zone clicked while the conduit tool is armed. */
+  conduitSourceZoneId: string | null;
 
   toggleRail: () => void;
   toggleInspector: () => void;
   setArmedTemplate: (t: PaletteDeviceResponse | null) => void;
   setZoneArmed: (armed: boolean) => void;
+  setConduitArmed: (armed: boolean) => void;
+  setConduitSourceZoneId: (zoneId: string | null) => void;
 }
 
 export const useStudio2UI = create<Studio2UIState>((set) => ({
@@ -30,9 +36,16 @@ export const useStudio2UI = create<Studio2UIState>((set) => ({
   inspectorOpen: true,
   armedTemplate: null,
   zoneArmed: false,
+  conduitArmed: false,
+  conduitSourceZoneId: null,
 
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
-  setArmedTemplate: (armedTemplate) => set({ armedTemplate, zoneArmed: false }),
-  setZoneArmed: (zoneArmed) => set({ zoneArmed, armedTemplate: null }),
+  setArmedTemplate: (armedTemplate) =>
+    set({ armedTemplate, zoneArmed: false, conduitArmed: false, conduitSourceZoneId: null }),
+  setZoneArmed: (zoneArmed) =>
+    set({ zoneArmed, armedTemplate: null, conduitArmed: false, conduitSourceZoneId: null }),
+  setConduitArmed: (conduitArmed) =>
+    set({ conduitArmed, armedTemplate: null, zoneArmed: false, conduitSourceZoneId: null }),
+  setConduitSourceZoneId: (conduitSourceZoneId) => set({ conduitSourceZoneId }),
 }));

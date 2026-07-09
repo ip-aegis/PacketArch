@@ -14,6 +14,7 @@ import React from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
 import { useDocumentStore, commands } from '../document/documentStore';
+import { useStudio2UI } from '../uiState';
 import { SURFACE, TEXT, ZONE, ACCENT, FONT } from '../tokens';
 
 export interface ZoneNode2Data extends Record<string, unknown> {
@@ -31,6 +32,8 @@ const hiddenHandle: React.CSSProperties = {
 
 const ZoneNode2: React.FC<NodeProps> = React.memo(({ id, data, selected }) => {
   const d = data as ZoneNode2Data;
+  const isConduitSource = useStudio2UI((s) => s.conduitArmed && s.conduitSourceZoneId === id);
+  const highlighted = selected || isConduitSource;
   return (
     <div
       role="group"
@@ -39,8 +42,8 @@ const ZoneNode2: React.FC<NodeProps> = React.memo(({ id, data, selected }) => {
         width: '100%',
         height: '100%',
         borderRadius: ZONE.radius,
-        background: ZONE.fill,
-        border: `1px solid ${selected ? ACCENT : ZONE.border}`,
+        background: isConduitSource ? 'rgba(67, 190, 232, 0.09)' : ZONE.fill,
+        border: `1px solid ${highlighted ? ACCENT : ZONE.border}`,
         position: 'relative',
         fontFamily: FONT.ui,
         cursor: 'grab',
@@ -84,7 +87,7 @@ const ZoneNode2: React.FC<NodeProps> = React.memo(({ id, data, selected }) => {
           gap: 8,
           padding: '3px 12px',
           background: ZONE.headerBg,
-          border: `1px solid ${selected ? ACCENT : ZONE.border}`,
+          border: `1px solid ${highlighted ? ACCENT : ZONE.border}`,
           borderRadius: `${ZONE.radius}px 0 ${ZONE.radius}px 0`,
           maxWidth: '90%',
         }}

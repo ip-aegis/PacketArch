@@ -331,6 +331,23 @@ export const commands = {
     return { label: ids.length > 1 ? `Delete ${ids.length} flows` : 'Delete flow', mutations };
   },
 
+  addConduit(conduit: ScenarioConduit): Omit<Command, 'at'> {
+    return {
+      label: `Add conduit ${conduit.name}`,
+      mutations: [{ kind: 'conduit', id: conduit.id, before: undefined, after: conduit }],
+    };
+  },
+
+  updateConduit(doc: ScenarioDocument, id: string, updates: Partial<ScenarioConduit>): Omit<Command, 'at'> | null {
+    const before = doc.conduits[id];
+    if (!before) return null;
+    return {
+      label: 'Edit conduit',
+      coalesceKey: `update-conduit-${id}`,
+      mutations: [{ kind: 'conduit', id, before, after: { ...before, ...updates } }],
+    };
+  },
+
   deleteConduits(doc: ScenarioDocument, ids: string[]): Omit<Command, 'at'> {
     const mutations: Mutation[] = [];
     for (const id of ids) {

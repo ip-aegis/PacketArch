@@ -114,6 +114,9 @@ const Rail: React.FC = () => {
   const armedTemplate = useStudio2UI((s) => s.armedTemplate);
   const zoneArmed = useStudio2UI((s) => s.zoneArmed);
   const setZoneArmed = useStudio2UI((s) => s.setZoneArmed);
+  const conduitArmed = useStudio2UI((s) => s.conduitArmed);
+  const setConduitArmed = useStudio2UI((s) => s.setConduitArmed);
+  const conduitSourceZoneId = useStudio2UI((s) => s.conduitSourceZoneId);
 
   const { data, isLoading } = useQuery({
     queryKey: ['studio2-palette'],
@@ -188,13 +191,13 @@ const Rail: React.FC = () => {
         />
       </div>
 
-      <div style={{ padding: '0 10px 8px' }}>
+      <div style={{ padding: '0 10px 8px', display: 'flex', gap: 6 }}>
         <button
           onClick={() => setZoneArmed(!zoneArmed)}
           aria-pressed={zoneArmed}
           title="Click, then click the canvas to place a zone — resize it with the handles"
           style={{
-            width: '100%',
+            flex: 1,
             background: zoneArmed ? ACCENT_SOFT : SURFACE.raised,
             border: `1px solid ${zoneArmed ? ACCENT : SURFACE.border}`,
             borderRadius: 6,
@@ -202,15 +205,34 @@ const Rail: React.FC = () => {
             fontFamily: FONT.ui,
             fontSize: 12,
             fontWeight: 600,
-            padding: '6px 10px',
+            padding: '6px 8px',
             cursor: 'pointer',
           }}
         >
-          ▭ Add zone
+          ▭ Zone
+        </button>
+        <button
+          onClick={() => setConduitArmed(!conduitArmed)}
+          aria-pressed={conduitArmed}
+          title="Click, then click two zones to connect them with an IEC 62443 conduit"
+          style={{
+            flex: 1,
+            background: conduitArmed ? ACCENT_SOFT : SURFACE.raised,
+            border: `1px solid ${conduitArmed ? ACCENT : SURFACE.border}`,
+            borderRadius: 6,
+            color: conduitArmed ? ACCENT : TEXT.secondary,
+            fontFamily: FONT.ui,
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '6px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          ⛨ Conduit
         </button>
       </div>
 
-      {(armedTemplate || zoneArmed) && (
+      {(armedTemplate || zoneArmed || conduitArmed) && (
         <div
           style={{
             margin: '0 10px 8px',
@@ -226,6 +248,12 @@ const Rail: React.FC = () => {
             <>
               Click the canvas to place <b>{armedTemplate.name}</b> — Esc to cancel
             </>
+          ) : conduitArmed ? (
+            conduitSourceZoneId ? (
+              <>Now click the second zone — Esc to cancel</>
+            ) : (
+              <>Click the first zone to connect — Esc to cancel</>
+            )
           ) : (
             <>Click the canvas to place a zone — Esc to cancel</>
           )}

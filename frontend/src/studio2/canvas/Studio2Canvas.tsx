@@ -111,6 +111,8 @@ const Studio2Canvas: React.FC = () => {
   const setArmedTemplate = useStudio2UI((s) => s.setArmedTemplate);
   const zoneArmed = useStudio2UI((s) => s.zoneArmed);
   const setZoneArmed = useStudio2UI((s) => s.setZoneArmed);
+  const conduitArmed = useStudio2UI((s) => s.conduitArmed);
+  const setConduitArmed = useStudio2UI((s) => s.setConduitArmed);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState<PendingConnection | null>(null);
 
@@ -120,12 +122,13 @@ const Studio2Canvas: React.FC = () => {
       if (e.key === 'Escape') {
         setArmedTemplate(null);
         setZoneArmed(false);
+        setConduitArmed(false);
         setPending(null);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setArmedTemplate, setZoneArmed]);
+  }, [setArmedTemplate, setZoneArmed, setConduitArmed]);
 
   // Auto-layout scenarios that arrive with no saved positions (templated /
   // AI-generated ones would otherwise pile every node at the origin).
@@ -390,6 +393,53 @@ const Studio2Canvas: React.FC = () => {
     [screenToFlowPosition],
   );
 
+  // Conduit tool: click zone A, then zone B. Selection stays untouched;
+  // the tool disarms after a successful connect (Esc cancels midway).
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (!conduitArmed || node.type !== 'zone2') return;
+      const ui = useStudio2UI.getState();
+      const sourceZoneId = ui.conduitSourceZoneId;
+      if (!sourceZoneId) {
+        ui.setConduitSourceZoneId(node.id);
+        return;
+      }
+      if (sourceZoneId === node.id) {
+        message.info('Pick a different zone for the other end');
+        return;
+      }
+      const state = useDocumentStore.getState();
+      if (!state.doc) return;
+      const zoneA = state.doc.zones[sourceZoneId];
+      const zoneB = state.doc.zones[node.id];
+      if (!zoneA || !zoneB) {
+        ui.setConduitSourceZoneId(null);
+        return;
+      }
+      const existing = Object.values(state.doc.conduits).find(
+        (c) =>
+          (c.sourceZoneId === zoneA.id && c.targetZoneId === zoneB.id) ||
+          (c.sourceZoneId === zoneB.id && c.targetZoneId === zoneA.id),
+      );
+      if (existing) {
+        message.info(`Conduit already exists: ${existing.name}`);
+      } else {
+        state.dispatch(
+          commands.addConduit({
+            id: newId('conduit'),
+            name: `${zoneA.name} ↔ ${zoneB.name}`,
+            sourceZoneId: zoneA.id,
+            targetZoneId: zoneB.id,
+            direction: 'bidirectional',
+            allowedProtocols: [],
+          }),
+        );
+      }
+      ui.setConduitArmed(false);
+    },
+    [conduitArmed],
+  );
+
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
       setPending(null);
@@ -438,7 +488,7 @@ const Studio2Canvas: React.FC = () => {
     <div ref={wrapperRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <style>{`
         .s2-node:hover .s2-handle, .s2-node .s2-handle.connectingto, .react-flow__node:hover .s2-handle { opacity: 1 !important; }
-        .react-flow__pane { cursor: ${armedTemplate || zoneArmed ? 'crosshair' : 'default'}; }
+        .react-flow__pane { cursor: ${armedTemplate || zoneArmed || conduitArmed ? 'crosshair' : 'default'}; }
         .s2-flow .react-flow__edge.selected .react-flow__edge-path { filter: none; }
         .s2-flow .react-flow__attribution { background: transparent; color: ${SURFACE.border}; }
       `}</style>
@@ -453,6 +503,7 @@ const Studio2Canvas: React.FC = () => {
         onNodesDelete={onNodesDelete}
         onConnect={onConnect}
         onSelectionChange={onSelectionChange}
+        onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onDrop={onDrop}
         onDragOver={onDragOver}

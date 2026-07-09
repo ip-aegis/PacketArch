@@ -34,7 +34,7 @@ const ConduitEdge2: React.FC<EdgeProps> = React.memo((props) => {
     borderRadius: 10,
   });
 
-  const arrow = d.direction === 'bidirectional' ? '↔' : d.direction === 'reverse' ? '←' : '→';
+  const arrow = d.direction === 'bidirectional' ? '↔' : d.direction === 'b_to_a' ? '←' : '→';
 
   return (
     <>
