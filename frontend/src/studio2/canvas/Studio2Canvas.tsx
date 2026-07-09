@@ -34,6 +34,7 @@ import { message } from 'antd';
 import DeviceNode2 from './DeviceNode2';
 import ZoneNode2 from './ZoneNode2';
 import FlowEdge2 from './FlowEdge2';
+import ConduitEdge2 from './ConduitEdge2';
 import { useDocumentStore, commands } from '../document/documentStore';
 import { placeDevice } from '../document/createDevice';
 import { useStudio2UI } from '../uiState';
@@ -53,10 +54,33 @@ interface PendingConnection {
 }
 
 const nodeTypes = { device2: DeviceNode2, zone2: ZoneNode2 };
-const edgeTypes = { flow2: FlowEdge2 };
+const edgeTypes = { flow2: FlowEdge2, conduit2: ConduitEdge2 };
 
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+/** Smallest zone whose rect contains the point (tightest wins on overlap). */
+function findZoneAt(
+  zones: Record<string, import('../../types').ScenarioZone>,
+  point: { x: number; y: number },
+): import('../../types').ScenarioZone | undefined {
+  let best: import('../../types').ScenarioZone | undefined;
+  let bestArea = Infinity;
+  for (const zone of Object.values(zones)) {
+    const x = zone.position?.x ?? 0;
+    const y = zone.position?.y ?? 0;
+    const w = zone.dimensions?.width ?? 350;
+    const h = zone.dimensions?.height ?? 300;
+    if (point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h) {
+      const area = w * h;
+      if (area < bestArea) {
+        best = zone;
+        bestArea = area;
+      }
+    }
+  }
+  return best;
 }
 
 function createFlow(sourceId: string, targetId: string, protocol: ProtocolType): void {
@@ -85,6 +109,8 @@ const Studio2Canvas: React.FC = () => {
   const { fitView, screenToFlowPosition, flowToScreenPosition } = useReactFlow();
   const armedTemplate = useStudio2UI((s) => s.armedTemplate);
   const setArmedTemplate = useStudio2UI((s) => s.setArmedTemplate);
+  const zoneArmed = useStudio2UI((s) => s.zoneArmed);
+  const setZoneArmed = useStudio2UI((s) => s.setZoneArmed);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState<PendingConnection | null>(null);
 
@@ -93,12 +119,13 @@ const Studio2Canvas: React.FC = () => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setArmedTemplate(null);
+        setZoneArmed(false);
         setPending(null);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setArmedTemplate]);
+  }, [setArmedTemplate, setZoneArmed]);
 
   // Auto-layout scenarios that arrive with no saved positions (templated /
   // AI-generated ones would otherwise pile every node at the origin).
@@ -117,59 +144,90 @@ const Studio2Canvas: React.FC = () => {
     }
   }, [docMetaId, fitView]);
 
-  // Derive React Flow nodes/edges from the document
+  // Derive React Flow nodes/edges from the document. Zones are real parent
+  // containers: member devices are children with positions RELATIVE to the
+  // zone (the document always stores absolute positions, so v1 and the
+  // backend see the same shape).
   const derivedNodes = useMemo<Node[]>(() => {
     if (!doc) return [];
     const zoneNodes: Node[] = Object.values(doc.zones).map((z) => ({
       id: z.id,
       type: 'zone2',
       position: z.position ?? { x: 0, y: 0 },
-      draggable: false,
-      selectable: false,
-      zIndex: -1,
+      style: {
+        width: z.dimensions?.width ?? 350,
+        height: z.dimensions?.height ?? 300,
+      },
       data: {
         name: z.name,
         purdueLevel: z.level,
         subnet: z.network?.subnet,
-        width: z.dimensions?.width ?? 350,
-        height: z.dimensions?.height ?? 300,
       },
     }));
-    const deviceNodes: Node[] = Object.values(doc.devices).map((d) => ({
-      id: d.id,
-      type: 'device2',
-      position: d.position ?? { x: 0, y: 0 },
-      data: {
-        name: d.name,
-        deviceType: d.type as string,
-        ipAddress: d.network?.ipAddress,
-      },
-    }));
+    const deviceNodes: Node[] = Object.values(doc.devices).map((d) => {
+      const abs = d.position ?? { x: 0, y: 0 };
+      const zone = d.zoneId ? doc.zones[d.zoneId] : undefined;
+      const position = zone
+        ? { x: abs.x - (zone.position?.x ?? 0), y: abs.y - (zone.position?.y ?? 0) }
+        : abs;
+      return {
+        id: d.id,
+        type: 'device2',
+        position,
+        ...(zone ? { parentId: zone.id } : {}),
+        data: {
+          name: d.name,
+          deviceType: d.type as string,
+          ipAddress: d.network?.ipAddress,
+        },
+      };
+    });
     return [...zoneNodes, ...deviceNodes];
   }, [doc]);
 
   const derivedEdges = useMemo<Edge[]>(() => {
     if (!doc) return [];
-    return Object.values(doc.flows).map((f) => ({
+    const flowEdges: Edge[] = Object.values(doc.flows).map((f) => ({
       id: f.id,
       type: 'flow2',
       source: f.sourceDeviceId,
       target: f.targetDeviceId,
       data: { protocol: f.protocol as string },
     }));
+    const conduitEdges: Edge[] = Object.values(doc.conduits)
+      .filter((c) => doc.zones[c.sourceZoneId] && doc.zones[c.targetZoneId])
+      .map((c) => ({
+        id: c.id,
+        type: 'conduit2',
+        source: c.sourceZoneId,
+        target: c.targetZoneId,
+        sourceHandle: 'conduit-s',
+        targetHandle: 'conduit-t',
+        data: {
+          name: c.name,
+          direction: c.direction,
+          protocolCount: c.allowedProtocols?.length,
+        },
+      }));
+    return [...flowEdges, ...conduitEdges];
   }, [doc]);
 
   // Local mirror for smooth dragging; document remains the source of truth.
   // Selection flags live in the mirror — carry them across doc rebuilds so
   // finishing a drag (which dispatches a command) doesn't deselect.
-  const [nodes, setNodes] = useState<Node[]>(derivedNodes);
+  // nodesRef mirrors the state synchronously so gesture-end handlers can
+  // read authoritative geometry without waiting for a render.
+  const [nodes, setNodesState] = useState<Node[]>(derivedNodes);
   const [edges, setEdges] = useState<Edge[]>(derivedEdges);
+  const nodesRef = useRef<Node[]>(derivedNodes);
+  const setNodes = useCallback((next: Node[]) => {
+    nodesRef.current = next;
+    setNodesState(next);
+  }, []);
   useEffect(() => {
-    setNodes((prev) => {
-      const selected = new Set(prev.filter((n) => n.selected).map((n) => n.id));
-      return derivedNodes.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n));
-    });
-  }, [derivedNodes]);
+    const selected = new Set(nodesRef.current.filter((n) => n.selected).map((n) => n.id));
+    setNodes(derivedNodes.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
+  }, [derivedNodes, setNodes]);
   useEffect(() => {
     setEdges((prev) => {
       const selected = new Set(prev.filter((e) => e.selected).map((e) => e.id));
@@ -179,42 +237,94 @@ const Studio2Canvas: React.FC = () => {
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes((nds) => applyNodeChanges(changes, nds));
+      const next = applyNodeChanges(changes, nodesRef.current);
+      setNodes(next);
+
       const state = useDocumentStore.getState();
       if (!state.doc) return;
-      const moves = changes
-        .filter(
-          (c): c is Extract<NodeChange, { type: 'position' }> =>
-            c.type === 'position' && !!c.position && !c.dragging,
-        )
-        .filter((c) => state.doc!.devices[c.id])
-        .map((c) => ({ id: c.id, position: c.position! }));
-      if (moves.length > 0) {
-        state.dispatch(commands.moveDevices(state.doc, moves));
+      const doc = state.doc;
+
+      const deviceMoves: { id: string; position: { x: number; y: number } }[] = [];
+      for (const change of changes) {
+        if (change.type !== 'position' || !change.position || change.dragging !== false) continue;
+
+        const device = doc.devices[change.id];
+        if (device) {
+          // Child positions are relative to their zone — convert to absolute
+          const node = next.find((n) => n.id === change.id);
+          const parentZone = node?.parentId ? doc.zones[node.parentId] : undefined;
+          const abs = parentZone
+            ? {
+                x: (parentZone.position?.x ?? 0) + change.position.x,
+                y: (parentZone.position?.y ?? 0) + change.position.y,
+              }
+            : change.position;
+
+          // Zone membership follows the node's center point
+          const w = node?.measured?.width ?? 180;
+          const h = node?.measured?.height ?? 56;
+          const zoneAtDrop = findZoneAt(doc.zones, { x: abs.x + w / 2, y: abs.y + h / 2 });
+          if ((zoneAtDrop?.id ?? undefined) !== device.zoneId) {
+            const fresh = useDocumentStore.getState();
+            if (!fresh.doc) continue;
+            const cmd = commands.setDeviceZone(fresh.doc, change.id, zoneAtDrop?.id, abs);
+            if (cmd) fresh.dispatch(cmd);
+          } else {
+            deviceMoves.push({ id: change.id, position: abs });
+          }
+          continue;
+        }
+
+        if (doc.zones[change.id]) {
+          const fresh = useDocumentStore.getState();
+          if (!fresh.doc) continue;
+          const cmd = commands.moveZone(fresh.doc, change.id, change.position);
+          if (cmd) fresh.dispatch(cmd);
+        }
+      }
+      if (deviceMoves.length > 0) {
+        const fresh = useDocumentStore.getState();
+        if (fresh.doc) fresh.dispatch(commands.moveDevices(fresh.doc, deviceMoves));
       }
     },
-    [],
+    [setNodes],
   );
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
     const state = useDocumentStore.getState();
     if (!state.doc) return;
-    const removed = changes
+    const removedIds = changes
       .filter((c): c is Extract<EdgeChange, { type: 'remove' }> => c.type === 'remove')
-      .map((c) => c.id)
-      .filter((id) => state.doc!.flows[id]);
-    if (removed.length > 0) {
-      state.dispatch(commands.deleteFlows(state.doc, removed));
+      .map((c) => c.id);
+    const removedFlows = removedIds.filter((id) => state.doc!.flows[id]);
+    const removedConduits = removedIds.filter((id) => state.doc!.conduits[id]);
+    if (removedFlows.length > 0) {
+      state.dispatch(commands.deleteFlows(state.doc, removedFlows));
+    }
+    if (removedConduits.length > 0) {
+      const fresh = useDocumentStore.getState();
+      if (fresh.doc) fresh.dispatch(commands.deleteConduits(fresh.doc, removedConduits));
     }
   }, []);
 
   const onNodesDelete = useCallback((deleted: Node[]) => {
     const state = useDocumentStore.getState();
     if (!state.doc) return;
-    const deviceIds = deleted.filter((n) => n.type === 'device2').map((n) => n.id);
+    const zoneIds = deleted.filter((n) => n.type === 'zone2').map((n) => n.id);
+    const zoneIdSet = new Set(zoneIds);
+    // React Flow deletes a parent's children with it — but deleting a zone
+    // must NOT delete its member devices; they just leave the zone.
+    const deviceIds = deleted
+      .filter((n) => n.type === 'device2')
+      .filter((n) => !(n.parentId && zoneIdSet.has(n.parentId)))
+      .map((n) => n.id);
     if (deviceIds.length > 0) {
       state.dispatch(commands.deleteDevices(state.doc, deviceIds));
+    }
+    if (zoneIds.length > 0) {
+      const fresh = useDocumentStore.getState();
+      if (fresh.doc) fresh.dispatch(commands.deleteZones(fresh.doc, zoneIds));
     }
   }, []);
 
@@ -283,19 +393,41 @@ const Studio2Canvas: React.FC = () => {
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
       setPending(null);
+
+      if (zoneArmed) {
+        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const state = useDocumentStore.getState();
+        if (!state.doc) return;
+        const names = new Set(Object.values(state.doc.zones).map((z) => z.name));
+        let n = 1;
+        while (names.has(`Zone ${n}`)) n++;
+        state.dispatch(
+          commands.addZone({
+            id: newId('zone'),
+            name: `Zone ${n}`,
+            type: 'logical',
+            position,
+            dimensions: { width: 480, height: 320 },
+            deviceIds: [],
+          }),
+        );
+        if (!event.shiftKey) setZoneArmed(false);
+        return;
+      }
+
       if (!armedTemplate) return;
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
       void placeDevice(armedTemplate, position);
       // Shift-click keeps the template armed for rapid placement
       if (!event.shiftKey) setArmedTemplate(null);
     },
-    [armedTemplate, screenToFlowPosition, setArmedTemplate],
+    [armedTemplate, zoneArmed, screenToFlowPosition, setArmedTemplate, setZoneArmed],
   );
 
   const onSelectionChange = useCallback(
     ({ nodes: selNodes, edges: selEdges }: OnSelectionChangeParams) => {
       setSelection(
-        selNodes.filter((n) => n.type === 'device2').map((n) => n.id),
+        selNodes.map((n) => n.id),
         selEdges.map((e) => e.id),
       );
     },
@@ -306,7 +438,7 @@ const Studio2Canvas: React.FC = () => {
     <div ref={wrapperRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <style>{`
         .s2-node:hover .s2-handle, .s2-node .s2-handle.connectingto, .react-flow__node:hover .s2-handle { opacity: 1 !important; }
-        .react-flow__pane { cursor: ${armedTemplate ? 'crosshair' : 'default'}; }
+        .react-flow__pane { cursor: ${armedTemplate || zoneArmed ? 'crosshair' : 'default'}; }
         .s2-flow .react-flow__edge.selected .react-flow__edge-path { filter: none; }
         .s2-flow .react-flow__attribution { background: transparent; color: ${SURFACE.border}; }
       `}</style>

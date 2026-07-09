@@ -331,6 +331,94 @@ export const commands = {
     return { label: ids.length > 1 ? `Delete ${ids.length} flows` : 'Delete flow', mutations };
   },
 
+  deleteConduits(doc: ScenarioDocument, ids: string[]): Omit<Command, 'at'> {
+    const mutations: Mutation[] = [];
+    for (const id of ids) {
+      const conduit = doc.conduits[id];
+      if (conduit) mutations.push({ kind: 'conduit', id, before: conduit, after: undefined });
+    }
+    return { label: ids.length > 1 ? `Delete ${ids.length} conduits` : 'Delete conduit', mutations };
+  },
+
+  addZone(zone: ScenarioZone): Omit<Command, 'at'> {
+    return {
+      label: `Add zone ${zone.name}`,
+      mutations: [{ kind: 'zone', id: zone.id, before: undefined, after: zone }],
+    };
+  },
+
+  updateZone(doc: ScenarioDocument, id: string, updates: Partial<ScenarioZone>): Omit<Command, 'at'> | null {
+    const before = doc.zones[id];
+    if (!before) return null;
+    return {
+      label: `Edit ${before.name}`,
+      coalesceKey: `update-zone-${id}`,
+      mutations: [{ kind: 'zone', id, before, after: { ...before, ...updates } }],
+    };
+  },
+
+  /**
+   * Move a zone and shift its member devices' absolute positions by the
+   * same delta (members are stored in absolute coordinates).
+   */
+  moveZone(doc: ScenarioDocument, id: string, position: { x: number; y: number }): Omit<Command, 'at'> | null {
+    const zone = doc.zones[id];
+    if (!zone) return null;
+    const dx = position.x - (zone.position?.x ?? 0);
+    const dy = position.y - (zone.position?.y ?? 0);
+    const mutations: Mutation[] = [{ kind: 'zone', id, before: zone, after: { ...zone, position } }];
+    for (const device of Object.values(doc.devices)) {
+      if (device.zoneId !== id) continue;
+      mutations.push({
+        kind: 'device',
+        id: device.id,
+        before: device,
+        after: {
+          ...device,
+          position: { x: (device.position?.x ?? 0) + dx, y: (device.position?.y ?? 0) + dy },
+        },
+      });
+    }
+    return { label: `Move ${zone.name}`, coalesceKey: `move-zone-${id}`, mutations };
+  },
+
+  /** Delete zones: members keep their positions but leave the zone; conduits touching the zone go too. */
+  deleteZones(doc: ScenarioDocument, ids: string[]): Omit<Command, 'at'> {
+    const idSet = new Set(ids);
+    const mutations: Mutation[] = [];
+    for (const id of ids) {
+      const zone = doc.zones[id];
+      if (zone) mutations.push({ kind: 'zone', id, before: zone, after: undefined });
+    }
+    for (const device of Object.values(doc.devices)) {
+      if (device.zoneId && idSet.has(device.zoneId)) {
+        mutations.push({ kind: 'device', id: device.id, before: device, after: { ...device, zoneId: undefined } });
+      }
+    }
+    for (const conduit of Object.values(doc.conduits)) {
+      if (idSet.has(conduit.sourceZoneId) || idSet.has(conduit.targetZoneId)) {
+        mutations.push({ kind: 'conduit', id: conduit.id, before: conduit, after: undefined });
+      }
+    }
+    return { label: ids.length > 1 ? `Delete ${ids.length} zones` : 'Delete zone', mutations };
+  },
+
+  /** Change a device's zone membership (drag-in / drag-out). */
+  setDeviceZone(
+    doc: ScenarioDocument,
+    deviceId: string,
+    zoneId: string | undefined,
+    position: { x: number; y: number },
+  ): Omit<Command, 'at'> | null {
+    const device = doc.devices[deviceId];
+    if (!device) return null;
+    const zoneName = zoneId ? doc.zones[zoneId]?.name : undefined;
+    return {
+      label: zoneName ? `Move ${device.name} into ${zoneName}` : `Move ${device.name} out of zone`,
+      mutations: [{ kind: 'device', id: deviceId, before: device, after: { ...device, zoneId, position } }],
+    };
+  },
+
   setMeta(doc: ScenarioDocument, updates: Partial<ScenarioMeta>): Omit<Command, 'at'> {
     const before: Partial<ScenarioMeta> = {};
     for (const key of Object.keys(updates) as (keyof ScenarioMeta)[]) {

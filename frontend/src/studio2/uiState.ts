@@ -16,18 +16,23 @@ interface Studio2UIState {
   inspectorOpen: boolean;
   /** Palette template armed for click-to-place (null = not armed). */
   armedTemplate: PaletteDeviceResponse | null;
+  /** Zone-draw armed: next canvas click places a new zone. */
+  zoneArmed: boolean;
 
   toggleRail: () => void;
   toggleInspector: () => void;
   setArmedTemplate: (t: PaletteDeviceResponse | null) => void;
+  setZoneArmed: (armed: boolean) => void;
 }
 
 export const useStudio2UI = create<Studio2UIState>((set) => ({
   railOpen: true,
   inspectorOpen: true,
   armedTemplate: null,
+  zoneArmed: false,
 
   toggleRail: () => set((s) => ({ railOpen: !s.railOpen })),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
-  setArmedTemplate: (armedTemplate) => set({ armedTemplate }),
+  setArmedTemplate: (armedTemplate) => set({ armedTemplate, zoneArmed: false }),
+  setZoneArmed: (zoneArmed) => set({ zoneArmed, armedTemplate: null }),
 }));

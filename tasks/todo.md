@@ -22,10 +22,22 @@ Design doc: https://claude.ai/code/artifact/e7e65e37-a46f-474c-9b5d-2e0052bbe524
 - [x] Protocol picker on connect (1 common → immediate; several → inline midpoint menu; none → rejected)
 - [x] IP auto-assign on device add (coalesced into the add-device undo step)
 - [x] Purdue auto-layout for unpositioned scenarios + tidy/layout actions
-- [ ] Remaining Phase 1 polish: bulk edit, rail/inspector toggle buttons, vendor/firmware/CVE sections in inspector
+- [ ] Remaining Phase 1 polish: bulk edit, vendor/firmware/CVE sections in inspector
+
+## Phase 2 — zones as containers (in progress)
+- [x] Zones are React Flow parent containers: devices render as children (doc keeps absolute positions — v1/backend shape unchanged)
+- [x] Drag a device in/out of a zone = membership change (undoable setDeviceZone command; smallest containing zone wins)
+- [x] Zone drag moves members (moveZone command shifts member absolute positions in the same undo step)
+- [x] Zone resize via NodeResizer (selected zones show handles; onResizeEnd dispatches updateZone)
+- [x] Draw-zone tool: "Add zone" in rail → click canvas places 480×320 zone (shift-click repeats, Esc cancels)
+- [x] Zone inspector form (name/type/Purdue level/subnet/VLAN + delete-zone-keeps-devices)
+- [x] Zone delete cascade: members leave zone (not deleted), touching conduits removed — undoable
+- [x] Conduit edges rendered (dashed, name/direction/protocol-count label) + read-only conduit inspector + delete
+- [x] Rail/inspector toggle buttons in top bar
+- [ ] Conduit tool: draw zone→zone conduits + full conduit editor (direction, protocols, SL)
+- [ ] Group-by cluster view (port from v1)
 
 ## Later phases
-- Phase 2: zones as containers, conduits, layouts, clusters
 - Phase 3: Verify workspace (unified Health)
 - Phase 4: Run workspace + copilot
 - Phase 5: swap default, delete v1 shell

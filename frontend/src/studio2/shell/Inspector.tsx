@@ -260,6 +260,171 @@ const FlowForm: React.FC<{ flowId: string }> = ({ flowId }) => {
 };
 
 // ---------------------------------------------------------------------------
+// Zone form
+// ---------------------------------------------------------------------------
+
+const ZONE_TYPES = ['vertical', 'network', 'vlan', 'logical'] as const;
+const PURDUE_LEVELS = [0, 1, 2, 3, 3.5, 4] as const;
+
+const ZoneForm: React.FC<{ zoneId: string }> = ({ zoneId }) => {
+  const zone = useDocumentStore((s) => s.doc?.zones[zoneId]);
+  const memberCount = useDocumentStore(
+    (s) => Object.values(s.doc?.devices ?? {}).filter((d) => d.zoneId === zoneId).length,
+  );
+  if (!zone) return null;
+
+  const dispatchUpdate = (updates: Parameters<typeof commands.updateZone>[2]) => {
+    const state = useDocumentStore.getState();
+    if (!state.doc) return;
+    const cmd = commands.updateZone(state.doc, zoneId, updates);
+    if (cmd) state.dispatch(cmd);
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 650, color: TEXT.primary, marginBottom: 2 }}>Zone</div>
+      <div style={{ fontFamily: FONT.mono, fontSize: 10.5, color: TEXT.muted, marginBottom: 4 }}>
+        {memberCount} device{memberCount === 1 ? '' : 's'} — drag devices in or out to change
+        membership
+      </div>
+
+      <SectionTitle>Identity</SectionTitle>
+      <Field label="Name">
+        <input style={fieldInput} value={zone.name} onChange={(e) => dispatchUpdate({ name: e.target.value })} />
+      </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="Type">
+          <select
+            style={{ ...fieldInput, appearance: 'auto' }}
+            value={zone.type}
+            onChange={(e) => dispatchUpdate({ type: e.target.value as typeof zone.type })}
+          >
+            {ZONE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Purdue level">
+          <select
+            style={{ ...fieldInput, appearance: 'auto' }}
+            value={zone.level ?? ''}
+            onChange={(e) =>
+              dispatchUpdate({ level: e.target.value === '' ? undefined : Number(e.target.value) })
+            }
+          >
+            <option value="">—</option>
+            {PURDUE_LEVELS.map((l) => (
+              <option key={l} value={l}>
+                L{l}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <SectionTitle>Network</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="Subnet">
+          <input
+            style={{ ...fieldInput, fontFamily: FONT.mono }}
+            value={zone.network?.subnet ?? ''}
+            placeholder="10.x.y.0/24"
+            onChange={(e) =>
+              dispatchUpdate({ network: { ...zone.network, subnet: e.target.value } })
+            }
+          />
+        </Field>
+        <Field label="VLAN">
+          <input
+            type="number"
+            style={{ ...fieldInput, fontFamily: FONT.mono }}
+            value={zone.network?.vlanId ?? ''}
+            onChange={(e) =>
+              dispatchUpdate({
+                network: {
+                  subnet: zone.network?.subnet ?? '',
+                  ...zone.network,
+                  vlanId: e.target.value === '' ? undefined : Number(e.target.value),
+                },
+              })
+            }
+          />
+        </Field>
+      </div>
+
+      <button
+        onClick={() => {
+          const state = useDocumentStore.getState();
+          if (!state.doc) return;
+          state.dispatch(commands.deleteZones(state.doc, [zoneId]));
+          state.setSelection([], []);
+        }}
+        style={{
+          marginTop: 8,
+          background: 'transparent',
+          border: `1px solid ${SURFACE.border}`,
+          borderRadius: 6,
+          color: TEXT.muted,
+          fontFamily: FONT.ui,
+          fontSize: 12,
+          padding: '5px 12px',
+          cursor: 'pointer',
+        }}
+      >
+        Delete zone (keeps devices)
+      </button>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Conduit info (editing arrives with the conduit tool)
+// ---------------------------------------------------------------------------
+
+const ConduitInfo: React.FC<{ conduitId: string }> = ({ conduitId }) => {
+  const conduit = useDocumentStore((s) => s.doc?.conduits[conduitId]);
+  const doc = useDocumentStore((s) => s.doc);
+  if (!conduit || !doc) return null;
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 650, color: TEXT.primary, marginBottom: 2 }}>
+        Conduit
+      </div>
+      <div style={{ fontFamily: FONT.mono, fontSize: 10.5, color: TEXT.muted, marginBottom: 8 }}>
+        {doc.zones[conduit.sourceZoneId]?.name ?? '?'} {conduit.direction === 'bidirectional' ? '↔' : '→'}{' '}
+        {doc.zones[conduit.targetZoneId]?.name ?? '?'}
+      </div>
+      <SectionTitle>Allowed protocols</SectionTitle>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {(conduit.allowedProtocols ?? []).length === 0 && (
+          <span style={{ fontSize: 11.5, color: TEXT.faint }}>none defined</span>
+        )}
+        {(conduit.allowedProtocols ?? []).map((p) => (
+          <span
+            key={p}
+            style={{
+              fontFamily: FONT.mono,
+              fontSize: 10,
+              color: protocolEdgeColor(p),
+              border: `1px solid ${SURFACE.border}`,
+              borderRadius: 4,
+              padding: '1px 6px',
+            }}
+          >
+            {PROTOCOL_EDGE_LABELS[p as keyof typeof PROTOCOL_EDGE_LABELS] ?? p}
+          </span>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: TEXT.faint, marginTop: 12, lineHeight: 1.5 }}>
+        Conduit editing (direction, protocols, SL) arrives with the conduit tool.
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Scenario settings (nothing selected)
 // ---------------------------------------------------------------------------
 
@@ -301,19 +466,26 @@ const ScenarioForm: React.FC = () => {
 
 const Inspector: React.FC = () => {
   const selection = useDocumentStore((s) => s.selection);
+  const doc = useDocumentStore((s) => s.doc);
   const total = selection.deviceIds.length + selection.edgeIds.length;
 
   let body: React.ReactNode;
   if (total > 1) {
     body = (
       <div style={{ fontSize: 12, color: TEXT.muted }}>
-        {total} items selected — bulk editing lands later in Phase 1.
+        {total} items selected — bulk editing lands later.
       </div>
     );
   } else if (selection.deviceIds.length === 1) {
-    body = <DeviceForm deviceId={selection.deviceIds[0]} />;
+    const nodeId = selection.deviceIds[0];
+    if (doc?.devices[nodeId]) body = <DeviceForm deviceId={nodeId} />;
+    else if (doc?.zones[nodeId]) body = <ZoneForm zoneId={nodeId} />;
+    else body = <ScenarioForm />;
   } else if (selection.edgeIds.length === 1) {
-    body = <FlowForm flowId={selection.edgeIds[0]} />;
+    const edgeId = selection.edgeIds[0];
+    if (doc?.flows[edgeId]) body = <FlowForm flowId={edgeId} />;
+    else if (doc?.conduits[edgeId]) body = <ConduitInfo conduitId={edgeId} />;
+    else body = <ScenarioForm />;
   } else {
     body = <ScenarioForm />;
   }

@@ -4,40 +4,76 @@
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
 /**
- * Studio v2 zone node — near-neutral container: 4% tint, 1px border,
- * header tab with name + Purdue chip. Read-only in Phase 1; Phase 2 makes
- * zones true parent containers with resize and drag-in membership.
+ * Studio v2 zone node — a real container. Devices are React Flow children
+ * of the zone (drag in to join, out to leave); resize handles appear on
+ * selection. Near-neutral visuals: 4% tint, 1px border, header tab with
+ * name + Purdue chip.
  */
 
 import React from 'react';
+import { Handle, Position, NodeResizer } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { SURFACE, TEXT, ZONE, FONT } from '../tokens';
+import { useDocumentStore, commands } from '../document/documentStore';
+import { SURFACE, TEXT, ZONE, ACCENT, FONT } from '../tokens';
 
 export interface ZoneNode2Data extends Record<string, unknown> {
   name: string;
   purdueLevel?: number | string;
   subnet?: string;
-  width: number;
-  height: number;
 }
 
-const ZoneNode2: React.FC<NodeProps> = React.memo(({ data }) => {
+const hiddenHandle: React.CSSProperties = {
+  opacity: 0,
+  pointerEvents: 'none',
+  width: 6,
+  height: 6,
+};
+
+const ZoneNode2: React.FC<NodeProps> = React.memo(({ id, data, selected }) => {
   const d = data as ZoneNode2Data;
   return (
     <div
       role="group"
       aria-label={`Zone: ${d.name}`}
       style={{
-        width: d.width,
-        height: d.height,
+        width: '100%',
+        height: '100%',
         borderRadius: ZONE.radius,
         background: ZONE.fill,
-        border: `1px solid ${ZONE.border}`,
+        border: `1px solid ${selected ? ACCENT : ZONE.border}`,
         position: 'relative',
         fontFamily: FONT.ui,
-        pointerEvents: 'none',
+        cursor: 'grab',
       }}
     >
+      <NodeResizer
+        isVisible={!!selected}
+        minWidth={200}
+        minHeight={140}
+        lineStyle={{ borderColor: ACCENT }}
+        handleStyle={{
+          width: 8,
+          height: 8,
+          borderRadius: 2,
+          background: SURFACE.node,
+          border: `1.5px solid ${ACCENT}`,
+        }}
+        onResizeEnd={(_event, params) => {
+          const state = useDocumentStore.getState();
+          if (!state.doc) return;
+          const cmd = commands.updateZone(state.doc, id, {
+            position: { x: params.x, y: params.y },
+            dimensions: { width: params.width, height: params.height },
+          });
+          if (cmd) state.dispatch(cmd);
+        }}
+      />
+
+      {/* Anchor points for conduit edges (invisible; conduit tool arrives
+          with the conduit editor) */}
+      <Handle type="target" position={Position.Top} id="conduit-t" style={hiddenHandle} />
+      <Handle type="source" position={Position.Bottom} id="conduit-s" style={hiddenHandle} />
+
       <div
         style={{
           position: 'absolute',
@@ -48,7 +84,7 @@ const ZoneNode2: React.FC<NodeProps> = React.memo(({ data }) => {
           gap: 8,
           padding: '3px 12px',
           background: ZONE.headerBg,
-          border: `1px solid ${ZONE.border}`,
+          border: `1px solid ${selected ? ACCENT : ZONE.border}`,
           borderRadius: `${ZONE.radius}px 0 ${ZONE.radius}px 0`,
           maxWidth: '90%',
         }}

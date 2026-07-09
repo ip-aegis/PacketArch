@@ -12,6 +12,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '../document/documentStore';
+import { useStudio2UI } from '../uiState';
 import { SURFACE, TEXT, ACCENT, ACCENT_SOFT, STATUS, FONT } from '../tokens';
 
 const barButton: React.CSSProperties = {
@@ -37,6 +38,10 @@ const TopBar: React.FC = () => {
   const redo = useDocumentStore((s) => s.redo);
   const canUndo = useDocumentStore((s) => s.undoStack.length > 0);
   const canRedo = useDocumentStore((s) => s.redoStack.length > 0);
+  const railOpen = useStudio2UI((s) => s.railOpen);
+  const inspectorOpen = useStudio2UI((s) => s.inspectorOpen);
+  const toggleRail = useStudio2UI((s) => s.toggleRail);
+  const toggleInspector = useStudio2UI((s) => s.toggleInspector);
 
   return (
     <div
@@ -108,12 +113,30 @@ const TopBar: React.FC = () => {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+        <button
+          style={{ ...barButton, color: railOpen ? ACCENT : TEXT.faint }}
+          onClick={toggleRail}
+          aria-pressed={railOpen}
+          title="Toggle device palette"
+        >
+          ▤ Palette
+        </button>
+        <button
+          style={{ ...barButton, color: inspectorOpen ? ACCENT : TEXT.faint }}
+          onClick={toggleInspector}
+          aria-pressed={inspectorOpen}
+          title="Toggle inspector"
+        >
+          Inspector ▤
+        </button>
+      </div>
+
       {/* Workspace switcher — Build is live; Verify/Run land in Phases 3–4 */}
       <div
         style={{
           display: 'flex',
           gap: 2,
-          marginLeft: 'auto',
           background: SURFACE.raised,
           border: `1px solid ${SURFACE.border}`,
           borderRadius: 7,

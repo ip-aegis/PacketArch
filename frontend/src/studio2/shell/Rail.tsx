@@ -112,6 +112,8 @@ const Rail: React.FC = () => {
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const armedTemplate = useStudio2UI((s) => s.armedTemplate);
+  const zoneArmed = useStudio2UI((s) => s.zoneArmed);
+  const setZoneArmed = useStudio2UI((s) => s.setZoneArmed);
 
   const { data, isLoading } = useQuery({
     queryKey: ['studio2-palette'],
@@ -186,7 +188,29 @@ const Rail: React.FC = () => {
         />
       </div>
 
-      {armedTemplate && (
+      <div style={{ padding: '0 10px 8px' }}>
+        <button
+          onClick={() => setZoneArmed(!zoneArmed)}
+          aria-pressed={zoneArmed}
+          title="Click, then click the canvas to place a zone — resize it with the handles"
+          style={{
+            width: '100%',
+            background: zoneArmed ? ACCENT_SOFT : SURFACE.raised,
+            border: `1px solid ${zoneArmed ? ACCENT : SURFACE.border}`,
+            borderRadius: 6,
+            color: zoneArmed ? ACCENT : TEXT.secondary,
+            fontFamily: FONT.ui,
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '6px 10px',
+            cursor: 'pointer',
+          }}
+        >
+          ▭ Add zone
+        </button>
+      </div>
+
+      {(armedTemplate || zoneArmed) && (
         <div
           style={{
             margin: '0 10px 8px',
@@ -198,7 +222,13 @@ const Rail: React.FC = () => {
             lineHeight: 1.4,
           }}
         >
-          Click the canvas to place <b>{armedTemplate.name}</b> — Esc to cancel
+          {armedTemplate ? (
+            <>
+              Click the canvas to place <b>{armedTemplate.name}</b> — Esc to cancel
+            </>
+          ) : (
+            <>Click the canvas to place a zone — Esc to cancel</>
+          )}
         </div>
       )}
 
