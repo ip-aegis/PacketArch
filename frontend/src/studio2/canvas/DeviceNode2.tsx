@@ -153,7 +153,7 @@ const DeviceNode2: React.FC<NodeProps> = React.memo(({ data, selected }) => {
         background: SURFACE.node,
         border: `1px solid ${SURFACE.border}`,
         minWidth: NODE.minWidth,
-        maxWidth: 240,
+        maxWidth: 220,
         position: 'relative',
         cursor: 'pointer',
         fontFamily: FONT.ui,

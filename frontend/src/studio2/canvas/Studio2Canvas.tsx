@@ -10,13 +10,14 @@
  * Flow's own selection is the single selection source.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   applyNodeChanges,
   applyEdgeChanges,
+  useReactFlow,
 } from '@xyflow/react';
 import type {
   Node,
@@ -32,6 +33,7 @@ import DeviceNode2 from './DeviceNode2';
 import ZoneNode2 from './ZoneNode2';
 import FlowEdge2 from './FlowEdge2';
 import { useDocumentStore, commands } from '../document/documentStore';
+import { layoutDocument, isUnpositioned } from './layout';
 import type { ScenarioFlow } from '../../types';
 import { SURFACE, ACCENT } from '../tokens';
 
@@ -45,8 +47,25 @@ function newId(prefix: string): string {
 /** Must be rendered inside a ReactFlowProvider (Studio2Page owns it). */
 const Studio2Canvas: React.FC = () => {
   const doc = useDocumentStore((s) => s.doc);
-  const dispatch = useDocumentStore((s) => s.dispatch);
   const setSelection = useDocumentStore((s) => s.setSelection);
+  const { fitView } = useReactFlow();
+
+  // Auto-layout scenarios that arrive with no saved positions (templated /
+  // AI-generated ones would otherwise pile every node at the origin).
+  // One undoable command; runs once per loaded scenario.
+  const autoLaidRef = useRef<string | null>(null);
+  const docMetaId = useDocumentStore((s) => s.doc?.meta.id ?? null);
+  useEffect(() => {
+    if (!docMetaId || autoLaidRef.current === docMetaId) return;
+    autoLaidRef.current = docMetaId;
+    const state = useDocumentStore.getState();
+    if (!state.doc || !isUnpositioned(state.doc)) return;
+    const cmd = layoutDocument(state.doc);
+    if (cmd) {
+      state.dispatch(cmd);
+      requestAnimationFrame(() => fitView({ padding: 0.15, duration: 300 }));
+    }
+  }, [docMetaId, fitView]);
 
   // Derive React Flow nodes/edges from the document
   const derivedNodes = useMemo<Node[]>(() => {

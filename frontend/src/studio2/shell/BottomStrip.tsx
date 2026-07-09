@@ -12,6 +12,7 @@
 import React from 'react';
 import { useReactFlow, useViewport } from '@xyflow/react';
 import { useDocumentStore } from '../document/documentStore';
+import { layoutDocument, resolveOverlaps } from '../canvas/layout';
 import { SURFACE, TEXT, FONT } from '../tokens';
 
 const stripButton: React.CSSProperties = {
@@ -62,6 +63,37 @@ const BottomStrip: React.FC = () => {
         aria-label="Fit view"
       >
         fit
+      </button>
+      <span style={{ color: SURFACE.border }}>│</span>
+      <button
+        style={stripButton}
+        title="Nudge overlapping devices apart (keeps your arrangement, undoable)"
+        onClick={() => {
+          const state = useDocumentStore.getState();
+          if (!state.doc) return;
+          const cmd = resolveOverlaps(state.doc);
+          if (cmd) {
+            state.dispatch(cmd);
+            setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+          }
+        }}
+      >
+        tidy
+      </button>
+      <button
+        style={stripButton}
+        title="Re-layout all zones and devices in Purdue bands (undoable)"
+        onClick={() => {
+          const state = useDocumentStore.getState();
+          if (!state.doc) return;
+          const cmd = layoutDocument(state.doc);
+          if (cmd) {
+            state.dispatch(cmd);
+            setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+          }
+        }}
+      >
+        layout
       </button>
       <span style={{ color: SURFACE.border }}>│</span>
       <span>grid 20</span>

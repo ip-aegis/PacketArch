@@ -128,7 +128,7 @@ export const NODE = {
   radius: 9,
   iconWellSize: 36,
   glyphSize: 22,
-  minWidth: 172,
+  minWidth: 156,
   nameSize: 13,
   subSize: 10,
   /** Zoom thresholds for the three level-of-detail tiers */
