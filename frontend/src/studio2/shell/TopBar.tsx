@@ -1,0 +1,155 @@
+/*
+ * PacketArch — OT Traffic Simulation Platform
+ * Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+ * Licensed under GPL-3.0. See LICENSE at the repo root.
+ */
+/**
+ * Studio v2 top bar — scenario identity, save state, undo/redo, and the
+ * workspace switcher. One of exactly four docked regions; nothing here
+ * ever floats over the canvas.
+ */
+
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDocumentStore } from '../document/documentStore';
+import { SURFACE, TEXT, ACCENT, ACCENT_SOFT, STATUS, FONT } from '../tokens';
+
+const barButton: React.CSSProperties = {
+  background: 'transparent',
+  border: `1px solid ${SURFACE.border}`,
+  borderRadius: 6,
+  color: TEXT.secondary,
+  fontFamily: FONT.ui,
+  fontSize: 12.5,
+  padding: '4px 10px',
+  cursor: 'pointer',
+  lineHeight: 1.4,
+};
+
+const WORKSPACES = ['Build', 'Verify', 'Run'] as const;
+
+const TopBar: React.FC = () => {
+  const navigate = useNavigate();
+  const name = useDocumentStore((s) => s.doc?.meta.name ?? '');
+  const ipRange = useDocumentStore((s) => s.doc?.addressing?.ipRange);
+  const dirty = useDocumentStore((s) => s.dirty);
+  const undo = useDocumentStore((s) => s.undo);
+  const redo = useDocumentStore((s) => s.redo);
+  const canUndo = useDocumentStore((s) => s.undoStack.length > 0);
+  const canRedo = useDocumentStore((s) => s.redoStack.length > 0);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        height: 46,
+        padding: '0 14px',
+        background: SURFACE.chrome,
+        borderBottom: `1px solid ${SURFACE.border}`,
+        fontFamily: FONT.ui,
+        flex: '0 0 auto',
+      }}
+    >
+      <button style={barButton} onClick={() => navigate('/scenarios')} aria-label="Back to scenarios">
+        ◂ Scenarios
+      </button>
+
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 650,
+          color: TEXT.primary,
+          maxWidth: 320,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+        title={name}
+      >
+        {name}
+      </span>
+
+      {ipRange && (
+        <span style={{ fontFamily: FONT.mono, fontSize: 11, color: TEXT.faint }}>{ipRange}</span>
+      )}
+
+      <span
+        style={{
+          fontFamily: FONT.mono,
+          fontSize: 10,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: dirty ? STATUS.warn : STATUS.ok,
+        }}
+      >
+        {dirty ? 'Unsaved' : 'Saved'}
+      </span>
+
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          style={{ ...barButton, opacity: canUndo ? 1 : 0.4, cursor: canUndo ? 'pointer' : 'default' }}
+          onClick={undo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+        >
+          ↶
+        </button>
+        <button
+          style={{ ...barButton, opacity: canRedo ? 1 : 0.4, cursor: canRedo ? 'pointer' : 'default' }}
+          onClick={redo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          ↷
+        </button>
+      </div>
+
+      {/* Workspace switcher — Build is live; Verify/Run land in Phases 3–4 */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 2,
+          marginLeft: 'auto',
+          background: SURFACE.raised,
+          border: `1px solid ${SURFACE.border}`,
+          borderRadius: 7,
+          padding: 2,
+        }}
+        role="tablist"
+        aria-label="Workspace"
+      >
+        {WORKSPACES.map((w) => {
+          const active = w === 'Build';
+          return (
+            <button
+              key={w}
+              role="tab"
+              aria-selected={active}
+              disabled={!active}
+              title={active ? undefined : 'Coming in a later phase'}
+              style={{
+                background: active ? ACCENT_SOFT : 'transparent',
+                color: active ? ACCENT : TEXT.faint,
+                border: 'none',
+                borderRadius: 5,
+                fontFamily: FONT.ui,
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '3px 12px',
+                cursor: active ? 'pointer' : 'default',
+              }}
+            >
+              {w}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default TopBar;

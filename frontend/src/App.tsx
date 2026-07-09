@@ -11,6 +11,7 @@ import SetupGate from './components/SetupGate';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ScenarioStudioPage from './pages/ScenarioStudioPage';
+import Studio2Page from './studio2/Studio2Page';
 import ScenariosPage from './pages/ScenariosPage';
 
 import IPManagementPage from './pages/IPManagementPage';
@@ -50,6 +51,8 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="studio" element={<ScenarioStudioPage />} />
+        {/* Studio v2 preview (Phase 1) — unadvertised parallel route; no nav entry */}
+        <Route path="studio2" element={<Studio2Page />} />
         <Route path="scenarios" element={<ScenariosPage />} />
         <Route
           path="scenarios/ai-create"
