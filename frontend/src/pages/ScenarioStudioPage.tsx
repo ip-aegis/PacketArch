@@ -25,6 +25,30 @@ import { scenariosApi } from '../api/scenarios';
 import { scenarioVersionsApi } from '../api/scenarioVersions';
 import { useScenarioLifecycle } from '../hooks/useScenarioLifecycle';
 
+type ScenarioStoreState = ReturnType<typeof useScenarioStore.getState>;
+
+/**
+ * Single serializer for scenario saves. Auto-save and Ctrl+S MUST send the
+ * same definition shape — the backend replaces `definition` wholesale, so
+ * any field omitted here is silently wiped from the stored scenario.
+ */
+const buildScenarioUpdatePayload = (state: ScenarioStoreState) => ({
+  name: state.name,
+  description: state.description,
+  vertical: state.vertical,
+  total_duration_ms: state.totalDurationMs,
+  definition: {
+    devices: state.devices,
+    flows: state.flows,
+    zones: state.zones,
+    conduits: state.conduits,
+    phases: state.phases,
+    cell_isolation: state.cellIsolation,
+    broadcast_traffic_enabled: state.broadcastTrafficEnabled,
+    clean_demo_mode: state.cleanDemoMode,
+  },
+});
+
 const ScenarioStudioPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const scenarioId = searchParams.get('scenario');
@@ -261,22 +285,7 @@ const ScenarioStudioPage: React.FC = () => {
       }
 
       try {
-        await scenariosApi.update(targetScenarioId, {
-          name: currentState.name,
-          description: currentState.description,
-          vertical: currentState.vertical,
-          total_duration_ms: currentState.totalDurationMs,
-          definition: {
-            devices: currentState.devices,
-            flows: currentState.flows,
-            zones: currentState.zones,
-            conduits: currentState.conduits,
-            phases: currentState.phases,
-            cell_isolation: currentState.cellIsolation,
-            broadcast_traffic_enabled: currentState.broadcastTrafficEnabled,
-            clean_demo_mode: currentState.cleanDemoMode,
-          },
-        });
+        await scenariosApi.update(targetScenarioId, buildScenarioUpdatePayload(currentState));
 
         // Only clear dirty if still on the same scenario
         if (useScenarioStore.getState().id === targetScenarioId) {
@@ -314,19 +323,7 @@ const ScenarioStudioPage: React.FC = () => {
           if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
           }
-          await scenariosApi.update(currentState.id, {
-            name: currentState.name,
-            description: currentState.description,
-            vertical: currentState.vertical,
-            total_duration_ms: currentState.totalDurationMs,
-            definition: {
-              devices: currentState.devices,
-              flows: currentState.flows,
-              zones: currentState.zones,
-              conduits: currentState.conduits,
-              phases: currentState.phases,
-            },
-          });
+          await scenariosApi.update(currentState.id, buildScenarioUpdatePayload(currentState));
           setDirty(false);
 
           // Create explicit version

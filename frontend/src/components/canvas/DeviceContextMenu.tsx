@@ -15,6 +15,7 @@ import { useScenarioStore } from '../../stores/scenarioStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import type { ScenarioDevice } from '../../types';
 import { getDeviceTypeLabel } from '../../constants/deviceTypeRegistry';
+import { deleteDeviceWithHistory } from './deleteDevice';
 
 const { Text } = Typography;
 
@@ -191,14 +192,7 @@ const DeviceContextMenu: React.FC<DeviceContextMenuProps> = ({
   };
 
   const handleDelete = () => {
-    const device = { ...sourceDevice };
-    removeDevice(deviceId);
-    pushHistory({
-      type: 'REMOVE_DEVICE',
-      undo: () => addDevice(device),
-      redo: () => removeDevice(deviceId),
-      timestamp: Date.now(),
-    });
+    deleteDeviceWithHistory(deviceId);
     onClose();
   };
 

@@ -53,6 +53,7 @@ import VersionHistoryDrawer from './VersionHistoryDrawer';
 import ScenarioReviewDrawer from './ScenarioReviewDrawer';
 import CellIsolationControl from './CellIsolationControl';
 import RationalityBadge from './RationalityBadge';
+import { deleteDeviceWithHistory } from './deleteDevice';
 
 const CanvasControls: React.FC = () => {
   const { message } = App.useApp();
@@ -65,7 +66,6 @@ const CanvasControls: React.FC = () => {
   const canUndo = useHistoryStore((state) => state.canUndo());
   const canRedo = useHistoryStore((state) => state.canRedo());
   const selectedNodeIds = useUIStore((state) => state.selectedNodeIds);
-  const removeDevice = useScenarioStore((state) => state.removeDevice);
   const scenarioId = useScenarioStore((state) => state.id);
   const deviceCount = useScenarioStore((state) => Object.keys(state.devices).length);
   const minimapVisible = useUIStore((state) => state.panels.minimapVisible);
@@ -205,7 +205,7 @@ const CanvasControls: React.FC = () => {
 
   const handleDelete = () => {
     selectedNodeIds.forEach((nodeId) => {
-      removeDevice(nodeId);
+      deleteDeviceWithHistory(nodeId);
     });
   };
 

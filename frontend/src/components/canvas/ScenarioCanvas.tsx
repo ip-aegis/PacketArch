@@ -20,7 +20,7 @@ import {
   applyEdgeChanges,
   useReactFlow,
 } from '@xyflow/react';
-import type { NodeChange, EdgeChange, Connection, Node, Edge } from '@xyflow/react';
+import type { NodeChange, EdgeChange, Connection, Node, Edge, OnSelectionChangeParams } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import DeviceNode from './nodes/DeviceNode';
@@ -49,6 +49,7 @@ import { getDeviceTypeColor } from '../../constants/deviceTypeRegistry';
 import { validateProtocolVendorAffinity } from '../../utils/protocolVendorAffinity';
 import { message } from 'antd';
 import { registerCanvasDeps } from '../command-palette/canvasDepsBridge';
+import { deleteDeviceWithHistory } from './deleteDevice';
 
 const nodeTypes = {
   deviceNode: DeviceNode,
@@ -160,7 +161,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
       applyLayout: (type: string) => applyLayout(type as 'purdue' | 'dataflow' | 'grid' | 'circular'),
       deleteSelected: () => {
         const ids = useUIStore.getState().selectedNodeIds;
-        ids.forEach((id) => removeDevice(id));
+        ids.forEach((id) => deleteDeviceWithHistory(id));
       },
       saveVersion: () => {
         // Dispatch Ctrl+S event to trigger existing handler in ScenarioStudioPage
@@ -472,20 +473,31 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
     (nodesToDelete: Node[]) => {
       nodesToDelete.forEach((node) => {
         if (node.type === 'deviceNode') {
-          const device = useScenarioStore.getState().devices[node.id];
-          if (device) {
-            removeDevice(node.id);
-            pushHistory({
-              type: 'REMOVE_DEVICE',
-              undo: () => useScenarioStore.getState().addDevice(device),
-              redo: () => removeDevice(node.id),
-              timestamp: Date.now(),
-            });
-          }
+          deleteDeviceWithHistory(node.id);
         }
       });
     },
-    [removeDevice, pushHistory]
+    []
+  );
+
+  // Keep uiStore selection in sync with React Flow's own selection so
+  // marquee/shift multi-select drives Ctrl+D, toolbar delete, and the
+  // command palette. Without this, those act on a stale selection.
+  const onSelectionChange = useCallback(
+    ({ nodes: selNodes, edges: selEdges }: OnSelectionChangeParams) => {
+      const nodeIds = selNodes.map((n) => n.id);
+      const edgeIds = selEdges.map((e) => e.id);
+      const { selectedNodeIds, selectedEdgeIds } = useUIStore.getState();
+      const unchanged =
+        nodeIds.length === selectedNodeIds.length &&
+        edgeIds.length === selectedEdgeIds.length &&
+        nodeIds.every((id) => selectedNodeIds.includes(id)) &&
+        edgeIds.every((id) => selectedEdgeIds.includes(id));
+      if (!unchanged) {
+        setSelection(nodeIds, edgeIds);
+      }
+    },
+    [setSelection]
   );
 
   // Duplicate selected device (Ctrl+D)
@@ -542,11 +554,15 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         duplicateSelectedDevice();
       }
 
-      // Ctrl+A or Cmd+A - Select all devices
+      // Ctrl+A or Cmd+A - Select all devices (in React Flow too, so the
+      // visual selection and Delete-key behavior match the store)
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
         const deviceIds = Object.keys(useScenarioStore.getState().devices);
         setSelection(deviceIds, []);
+        setNodes((nds) =>
+          nds.map((n) => (n.type === 'deviceNode' ? { ...n, selected: true } : n))
+        );
       }
 
       // G - Cycle through group-by modes
@@ -598,6 +614,7 @@ const ScenarioCanvas: React.FC<ScenarioCanvasProps> = ({ onDrop, onDragOver }) =
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onNodesDelete={onNodesDelete}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onDrop={onCanvasDrop}
