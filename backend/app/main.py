@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, local_sensor, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, feedback, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, local_sensor, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
 from app.api.websocket import agent_hub
 from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete, get_current_user
 from app.mcp_server.transport import http_sse
@@ -212,6 +212,7 @@ app.include_router(agents.image_router, prefix=settings.api_prefix, dependencies
 app.include_router(agents.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(health_monitor_routes.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, Depends(get_current_user)])
 app.include_router(downloads.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
+app.include_router(feedback.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(http_sse.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 
 # WebSocket + agent install bundle: live-traffic-only. Conditionally mounted

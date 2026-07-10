@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     # remain available. Default true preserves full-build behavior.
     live_traffic_enabled: bool = True
 
+    # WebEx feedback bot — set both to enable the /feedback endpoint.
+    # WEBEX_BOT_TOKEN: bot token from developer.webex.com
+    # WEBEX_RECIPIENT_EMAIL: the email address that receives the DM (e.g. you)
+    webex_bot_token: str = ""
+    webex_recipient_email: str = ""
+
     # PCAP Output
     pcap_output_dir: str = "./output/pcap"
     max_simulation_duration_ms: int = 3600000  # 60 minutes default max

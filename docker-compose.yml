@@ -71,6 +71,9 @@ services:
       CIRCUIT_CLIENT_SECRET: ${CIRCUIT_CLIENT_SECRET:-}
       CIRCUIT_APP_KEY: ${CIRCUIT_APP_KEY:-}
       CIRCUIT_MODEL: ${CIRCUIT_MODEL:-}
+      # WebEx feedback bot — set in .env to enable the feedback button.
+      WEBEX_BOT_TOKEN: ${WEBEX_BOT_TOKEN:-}
+      WEBEX_RECIPIENT_EMAIL: ${WEBEX_RECIPIENT_EMAIL:-}
     # Backend is only accessible via nginx proxy (not exposed to host)
     expose:
       - "8001"
