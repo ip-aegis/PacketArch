@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.15</title>
+  <title>PacketArch Release Notes — v1.10 through v1.16</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.15.0,
+      Feature releases and patches from v1.10.0 through v1.16.0,
       covering June 17 &ndash; July 10, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">8</div>
+        <div class="cover-stat-value">10</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.15.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.16.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -629,8 +629,18 @@ code {
           <td>Jul 2, 2026</td>
         </tr>
         <tr>
+          <td>v1.14.0</td>
+          <td>Release Notes: in-app page, Settings tab, and offline bundle docs</td>
+          <td>Jul 6, 2026</td>
+        </tr>
+        <tr>
           <td>v1.15.0</td>
           <td>Local Sensor Labs: auto-provisioned sensors, deploy-to-new-lab, new device library</td>
+          <td>Jul 10, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.16.0</td>
+          <td>Release notes: v1.14.0 backfilled, build-freshness fix</td>
           <td>Jul 10, 2026</td>
         </tr>
       </tbody>
@@ -1025,6 +1035,48 @@ code {
   </section>
 
   <!-- ════════════════════════════════════════════════════
+       v1.14.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.14.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.14.0</div>
+        <div class="release-date">2026-07-06</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Documentation</div>
+        <div class="release-headline">Release Notes: a real changelog, in-app and in every offline bundle</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>This page.</strong> A self-contained, printable release-notes document
+            (<code>/release-notes.html</code>) with sticky print/download controls, <code>@page
+            A4</code> print styles for browser-native PDF export, and full light/dark theme
+            support &mdash; the document you're reading right now.
+          </li>
+          <li class="change-item">
+            <strong>Settings &rarr; Release Notes tab.</strong> An in-app iframe preview of this
+            page with Save as PDF, Download HTML, and Open in new tab actions
+            (<code>?tab=release-notes</code>).
+          </li>
+          <li class="change-item">
+            <strong>Ships in every offline bundle.</strong> <code>build-release.sh</code> copies
+            the release notes into the bundle's <code>docs/</code> alongside
+            <code>SCENARIO_SPEC.md</code> and <code>LLM_PROMPT.md</code>, and the release CI
+            workflow attaches a versioned copy
+            (<code>packetarch-&lt;version&gt;-release-notes.html</code>) to every GitHub Release
+            as a standalone downloadable asset.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
        v1.15.0
   ════════════════════════════════════════════════════ -->
   <section class="release" id="v1.15.0">
@@ -1080,6 +1132,41 @@ code {
             every deploy path, and a persistent status card tracks a new lab's provisioning until
             the scenario actually deploys &mdash; previously a "New Local Lab" deploy gave no
             visible feedback beyond an easy-to-miss toast.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.16.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.16.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.16.0</div>
+        <div class="release-date">2026-07-10</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Documentation</div>
+        <div class="release-headline">Release notes: v1.14.0 backfilled, and a build-freshness fix</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Fixed</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Missing v1.14.0 entry.</strong> v1.14.0 was itself the release that
+            introduced this page, but never got its own write-up &mdash; backfilled below.
+          </li>
+          <li class="change-item">
+            <strong>Settings &rarr; Release Notes tab showing stale content.</strong>
+            <code>release-notes.html</code> lives under <code>frontend/public/</code>, which Vite
+            bakes into the built image at container-build time &mdash; editing the file alone
+            doesn't reach a already-running deployment until the frontend is rebuilt. No code
+            change; noting it here since it's the reason the v1.15.0 write-up didn't initially
+            appear in-app.
           </li>
         </ul>
       </div>
