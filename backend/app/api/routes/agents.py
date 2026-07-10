@@ -5,7 +5,6 @@
 
 import hashlib
 import logging
-import secrets
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
@@ -30,17 +29,15 @@ from app.schemas.agent import (
     AgentUpdate,
     AgentUpdateStatus,
     AgentWithToken,
+    DeployNewLabRequest,
+    DeployNewLabResponse,
     DeploymentCreate,
     DeploymentResponse,
     InterfaceInfo,
 )
+from app.services import local_sensor_service
 from app.services.agent_manager import agent_manager
-from app.services.scenario_enrichment import (
-    auto_repair_protocols,
-    ensure_device_flow_coverage,
-    ensure_remote_access_cloud_links,
-    repair_flow_protocols,
-)
+from app.services.agent_tokens import generate_agent_token, hash_token
 
 logger = logging.getLogger(__name__)
 # Admin-only at the router level. The handlers below hand out agent
@@ -63,16 +60,6 @@ router = APIRouter(
 # to add the X-Checksum-SHA256 verification header. Mounted ahead of the
 # admin router in main.py so /image resolves here, not as /{agent_id}.
 image_router = APIRouter(prefix="/agents", tags=["agents"])
-
-
-def generate_agent_token() -> str:
-    """Generate a secure random token for agent authentication."""
-    return secrets.token_urlsafe(32)
-
-
-def hash_token(token: str) -> str:
-    """Hash a token for secure storage."""
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 # Built agent artifacts live in static/agent/dist/ — a named volume in compose so
@@ -810,81 +797,64 @@ async def deploy_scenario_to_agent(
         )
         return DeploymentResponse.model_validate(existing_deployment)
 
-    # Create deployment record
-    interface = deployment.interface or agent.default_interface
-    agent_deployment = AgentDeployment(
-        agent_id=agent_id,
-        scenario_id=scenario.id,
-        interface=interface,
+    agent_deployment = await agent_manager.execute_deployment(
+        db,
+        agent=agent,
+        scenario=scenario,
+        interface=deployment.interface,
+        adaptive_config=deployment.adaptive_config,
+        attack_playbook=deployment.attack_playbook,
+        cell_isolation_override=deployment.cell_isolation_override,
+        provision_cyber_vision=deployment.provision_cyber_vision,
     )
-    db.add(agent_deployment)
-    await db.commit()
-    await db.refresh(agent_deployment)
-
-    # Send deployment command — merge overrides into definition
-    definition = scenario.definition
-    if deployment.adaptive_config:
-        definition = {**definition}
-        existing_adaptive = definition.get("adaptive_config", {})
-        definition["adaptive_config"] = {**existing_adaptive, **deployment.adaptive_config}
-    if deployment.attack_playbook:
-        definition = {**definition} if definition is scenario.definition else definition
-        definition["attack_playbook"] = deployment.attack_playbook
-    if deployment.cell_isolation_override:
-        definition = {**definition} if definition is scenario.definition else definition
-        existing_iso = definition.get("cell_isolation", {})
-        definition["cell_isolation"] = {**existing_iso, **deployment.cell_isolation_override}
-
-    # Defense-in-depth: even if the scenario was created by an older code
-    # path that didn't apply the protocol-mismatch repair, fix it here so
-    # the agent never sees a device declaring protocols its fingerprint
-    # can't actually serve. Flow-protocol snap immediately after so any
-    # flow whose protocol no longer matches an endpoint gets healed.
-    definition = auto_repair_protocols(definition)
-    definition = repair_flow_protocols(definition)
-
-    # Guarantee remote-access devices (EWON, jump server, etc.) emit external
-    # heartbeat traffic even when the scenario forgot to wire a cloud link.
-    definition = await ensure_remote_access_cloud_links(db, definition)
-
-    # Guarantee no orphan devices — every device gets at least one flow with
-    # a rational partner so CV can fingerprint it. Cell-isolation aware.
-    definition = await ensure_device_flow_coverage(definition)
-
-    success = await agent_manager.deploy_scenario(
-        agent_id=agent_id,
-        scenario_id=str(scenario.id),
-        definition=definition,
-        interface=interface,
-    )
-
-    if not success:
-        agent_deployment.state = "error"
-        agent_deployment.error_message = "Failed to send deployment command"
-        await db.commit()
-        raise ExternalServiceError(
-            service="agent",
-            message="Failed to send deployment command to agent",
-        )
-
-    logger.info(
-        f"Deployed scenario {scenario.id} to agent {agent.name} on interface {interface}"
-    )
-
-    # Optionally provision Cyber Vision: create the preset now, schedule groups.
-    if deployment.provision_cyber_vision:
-        try:
-            from app.services.cv_provisioning_service import provision_preset
-            from app.traffic_generator.tasks import provision_cyber_vision as provision_cv_task
-
-            await provision_preset(db, scenario)
-            provision_cv_task.apply_async(kwargs={"scenario_id": str(scenario.id)})
-            logger.info(f"Scheduled CV provisioning for scenario {scenario.id}")
-        except Exception:
-            # Never fail a deployment because CV provisioning hiccuped.
-            logger.exception("CV provisioning at deploy time failed (deployment unaffected)")
 
     return DeploymentResponse.model_validate(agent_deployment)
+
+
+@router.post("/deploy-new-lab", response_model=DeployNewLabResponse)
+async def deploy_scenario_to_new_lab(
+    request: DeployNewLabRequest,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_admin_user),
+) -> DeployNewLabResponse:
+    """Deploy a scenario to a brand-new, dedicated Local Sensor Lab.
+
+    Auto-provisions the CV sensor + agent (see local_sensor_service.build_lab)
+    and queues the deploy to fire automatically the moment the new agent's
+    websocket connects (see agent_manager.resolve_pending_deploy) — enrollment
+    + container startup takes real time, so this never blocks on it.
+    """
+    scenario = await get_or_404(db, Scenario, request.scenario_id, "Scenario")
+    ensure_naming_complete(scenario)
+
+    result = await local_sensor_service.build_lab(
+        db,
+        name=request.lab_name,
+        agent_name=request.agent_name,
+        created_by_id=admin.id,
+    )
+
+    agent = await get_or_404(db, TrafficAgent, UUID(result["agent_id"]), "Agent")
+    agent.pending_deploy_scenario_id = scenario.id
+    agent.pending_deploy_config = {
+        "adaptive_config": request.adaptive_config,
+        "attack_playbook": request.attack_playbook,
+        "cell_isolation_override": request.cell_isolation_override,
+        "provision_cyber_vision": request.provision_cyber_vision,
+    }
+    await db.commit()
+
+    return DeployNewLabResponse(
+        success=result["success"],
+        message="Local sensor lab queued for provisioning — the scenario will "
+                "deploy automatically once the sensor comes online.",
+        lab_id=result["lab_id"],
+        slug=result["slug"],
+        agent_id=result["agent_id"],
+        agent_token=result["agent_token"],
+        sensor_serial=result["sensor_serial"],
+        state=result["state"],
+    )
 
 
 @router.delete("/{agent_id}/deploy/{scenario_id}", status_code=status.HTTP_204_NO_CONTENT)

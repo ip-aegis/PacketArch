@@ -12,8 +12,20 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import WebSocket
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.helpers import ensure_naming_complete
+from app.core.database import async_session_maker
+from app.core.exceptions import ExternalServiceError
+from app.models.scenario import Scenario
+from app.models.traffic_agent import AgentDeployment, TrafficAgent
 from app.services.device_identity_enricher import enrich_definition_serial_numbers
+from app.services.scenario_enrichment import (
+    auto_repair_protocols,
+    ensure_device_flow_coverage,
+    ensure_remote_access_cloud_links,
+    repair_flow_protocols,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -826,6 +838,150 @@ class AgentManager:
             agent_id: Agent UUID
         """
         self._update_statuses.pop(agent_id, None)
+
+    async def execute_deployment(
+        self,
+        db: AsyncSession,
+        *,
+        agent: TrafficAgent,
+        scenario: Scenario,
+        interface: str | None,
+        adaptive_config: dict | None,
+        attack_playbook: dict | None,
+        cell_isolation_override: dict | None,
+        provision_cyber_vision: bool,
+    ) -> AgentDeployment:
+        """Create an AgentDeployment row, repair+merge the scenario definition,
+        and send the deploy command to the agent.
+
+        Shared by the HTTP `/agents/{agent_id}/deploy` route and the
+        auto-fire-on-connect path for scenarios deployed to a brand-new Local
+        Lab. Callers own their own pre-checks (agent active/connected,
+        existing-deployment dedup, naming completion) — this always creates a
+        fresh deployment.
+        """
+        interface = interface or agent.default_interface
+        agent_deployment = AgentDeployment(
+            agent_id=agent.id,
+            scenario_id=scenario.id,
+            interface=interface,
+        )
+        db.add(agent_deployment)
+        await db.commit()
+        await db.refresh(agent_deployment)
+
+        definition = scenario.definition
+        if adaptive_config:
+            definition = {**definition}
+            existing_adaptive = definition.get("adaptive_config", {})
+            definition["adaptive_config"] = {**existing_adaptive, **adaptive_config}
+        if attack_playbook:
+            definition = {**definition} if definition is scenario.definition else definition
+            definition["attack_playbook"] = attack_playbook
+        if cell_isolation_override:
+            definition = {**definition} if definition is scenario.definition else definition
+            existing_iso = definition.get("cell_isolation", {})
+            definition["cell_isolation"] = {**existing_iso, **cell_isolation_override}
+
+        # Defense-in-depth: even if the scenario was created by an older code
+        # path that didn't apply the protocol-mismatch repair, fix it here so
+        # the agent never sees a device declaring protocols its fingerprint
+        # can't actually serve. Flow-protocol snap immediately after so any
+        # flow whose protocol no longer matches an endpoint gets healed.
+        definition = auto_repair_protocols(definition)
+        definition = repair_flow_protocols(definition)
+
+        # Guarantee remote-access devices (EWON, jump server, etc.) emit
+        # external heartbeat traffic even when the scenario forgot to wire a
+        # cloud link.
+        definition = await ensure_remote_access_cloud_links(db, definition)
+
+        # Guarantee no orphan devices — every device gets at least one flow
+        # with a rational partner so CV can fingerprint it. Cell-isolation aware.
+        definition = await ensure_device_flow_coverage(definition)
+
+        success = await self.deploy_scenario(
+            agent_id=agent.id,
+            scenario_id=str(scenario.id),
+            definition=definition,
+            interface=interface,
+        )
+
+        if not success:
+            agent_deployment.state = "error"
+            agent_deployment.error_message = "Failed to send deployment command"
+            await db.commit()
+            raise ExternalServiceError(
+                service="agent",
+                message="Failed to send deployment command to agent",
+            )
+
+        logger.info(
+            f"Deployed scenario {scenario.id} to agent {agent.name} on interface {interface}"
+        )
+
+        # Optionally provision Cyber Vision: create the preset now, schedule groups.
+        if provision_cyber_vision:
+            try:
+                from app.services.cv_provisioning_service import provision_preset
+                from app.traffic_generator.tasks import provision_cyber_vision as provision_cv_task
+
+                await provision_preset(db, scenario)
+                provision_cv_task.apply_async(kwargs={"scenario_id": str(scenario.id)})
+                logger.info(f"Scheduled CV provisioning for scenario {scenario.id}")
+            except Exception:
+                # Never fail a deployment because CV provisioning hiccuped.
+                logger.exception("CV provisioning at deploy time failed (deployment unaffected)")
+
+        return agent_deployment
+
+    async def resolve_pending_deploy(self, agent_id: UUID) -> None:
+        """Fire an auto-deploy queued by "deploy to a new dedicated Local
+        Lab", if this agent has one pending. Called right after an agent's
+        websocket connects (see api/websocket/agent_hub.py) — opens its own
+        session since the connect handler has none in scope, and must never
+        raise: a failure here must not break the websocket handshake it's
+        piggybacking on.
+        """
+        async with async_session_maker() as db:
+            agent = await db.get(TrafficAgent, agent_id)
+            if agent is None or agent.pending_deploy_scenario_id is None:
+                return
+
+            scenario_id = agent.pending_deploy_scenario_id
+            config = agent.pending_deploy_config or {}
+
+            # Clear immediately, before doing anything else, so a failure or a
+            # reconnect never re-fires the same deploy.
+            agent.pending_deploy_scenario_id = None
+            agent.pending_deploy_config = None
+            await db.commit()
+
+            try:
+                scenario = await db.get(Scenario, scenario_id)
+                if scenario is None:
+                    logger.warning(
+                        f"pending deploy for agent {agent_id}: scenario {scenario_id} not found"
+                    )
+                    return
+                ensure_naming_complete(scenario)
+                await self.execute_deployment(
+                    db,
+                    agent=agent,
+                    scenario=scenario,
+                    interface=config.get("interface"),
+                    adaptive_config=config.get("adaptive_config"),
+                    attack_playbook=config.get("attack_playbook"),
+                    cell_isolation_override=config.get("cell_isolation_override"),
+                    provision_cyber_vision=bool(config.get("provision_cyber_vision")),
+                )
+                logger.info(
+                    f"Auto-deployed scenario {scenario_id} to agent {agent_id} on connect"
+                )
+            except Exception:
+                logger.exception(
+                    f"pending deploy for agent {agent_id} (scenario {scenario_id}) failed"
+                )
 
 
 # Global singleton instance

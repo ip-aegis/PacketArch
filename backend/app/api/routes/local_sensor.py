@@ -58,7 +58,6 @@ async def build(req: LocalLabBuildRequest, db: DBSession, admin: AdminUser) -> L
     result = await local_sensor_service.build_lab(
         db,
         name=req.name,
-        sensor_compose=req.sensor_compose,
         agent_name=req.agent_name,
         created_by_id=admin.id,
     )

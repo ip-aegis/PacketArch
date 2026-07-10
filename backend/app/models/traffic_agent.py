@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -120,6 +120,21 @@ class TrafficAgent(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id"),
         nullable=True,
+    )
+    # Set when this agent was created via "deploy to a new dedicated Local
+    # Lab" — resolved (and cleared) the moment the agent's websocket first
+    # connects, at which point the scenario is deployed to it automatically.
+    # Null for every other agent creation path.
+    pending_deploy_scenario_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scenarios.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    pending_deploy_config: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Deploy params for the pending deploy: {interface, adaptive_config, "
+                "attack_playbook, cell_isolation_override, provision_cyber_vision}",
     )
 
     # Relationships

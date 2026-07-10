@@ -3,14 +3,19 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Local sensor lab service.
 
-Orchestrates app-managed on-box labs by mirroring the CML build-lab workflow:
-parse the operator-pasted CV sensor compose, mint an agent token, persist the
+Orchestrates app-managed on-box labs: auto-provision a CV docker sensor via
+the Cyber Vision API (deployment token -> per-sensor JWT), synthesize the
+compose CV's own GUI would have generated, mint an agent token, persist the
 desired LocalLab + TrafficAgent rows, and hand a spec to the privileged
 host-agent (via the shared-volume file-queue) which does the actual host work.
 
-Reuses, verbatim:
-  - CMLService.parse_sensor_compose()  (token/serial/image/registry)
-  - agents.generate_agent_token / hash_token
+The host-agent's `hostops.rewrite_sensor_compose()` is tolerant of any
+well-formed compose (it only cares "is there a macvlan network" / "what's the
+service image") — it doesn't care whether the YAML was pasted by a human or
+synthesized here, so this module owns 100% of the CV-provisioning change; the
+host-agent needed zero modifications.
+
+Reuses, verbatim: agents.generate_agent_token / hash_token.
 The backend never touches the host — see services/host_agent_client.py.
 """
 
@@ -19,17 +24,23 @@ from __future__ import annotations
 import logging
 import uuid
 
+import yaml
 from sqlalchemy import select
 
-from app.api.routes.agents import generate_agent_token, hash_token
 from app.core.exceptions import ConflictError, ExternalServiceError, ValidationError
 from app.models.local_lab import LocalLab
 from app.models.settings import SystemSetting
 from app.models.traffic_agent import TrafficAgent
 from app.services import host_agent_client, local_lab_naming
-from app.services.cml_service import CMLService
+from app.services.agent_tokens import generate_agent_token, hash_token
+from app.services.cyber_vision_service import CyberVisionService, cv_service_from_settings
 
 logger = logging.getLogger(__name__)
+
+# Headroom left on a deployment token's maxUsageCount before rotating to a
+# freshly-suffixed one, so a long-lived install cycling many labs doesn't hit
+# the cap mid-mint.
+_DEPLOYMENT_TOKEN_HEADROOM = 5
 
 
 async def _resolve_server_url(db) -> str:
@@ -58,6 +69,92 @@ async def _resolve_server_url(db) -> str:
     return "https://127.0.0.1"
 
 
+async def _resolve_cv_deployment_name(db, cv: CyberVisionService) -> str:
+    """Per-install CV deployment-token name: lazily generated once and
+    persisted (mirrors the `local_sensor.server_url` setting pattern above),
+    so two PacketArch instances pointed at the same CV Center never collide
+    on a shared hardcoded name. Rotates to a numbered suffix if the current
+    token is near its usage cap (deployment tokens aren't single-use — CV
+    reports `maxUsageCount`/`usageCount` — but they're finite and nothing
+    decrements them when a lab is torn down)."""
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == "local_sensor.cv_deployment_name")
+    )
+    row = result.scalar_one_or_none()
+    base_name = (row.value if row else "") or ""
+    if not base_name:
+        base_name = f"packetarch-{uuid.uuid4().hex[:8]}"
+        if row:
+            row.value = base_name
+        else:
+            db.add(SystemSetting(key="local_sensor.cv_deployment_name", value=base_name))
+        await db.flush()
+
+    name = base_name
+    suffix = 1
+    while True:
+        deployment = await cv.create_deployment_token(name)
+        usage = deployment.get("usageCount", 0)
+        cap = deployment.get("maxUsageCount", 100)
+        if usage < cap - _DEPLOYMENT_TOKEN_HEADROOM:
+            return name
+        suffix += 1
+        name = f"{base_name}-{suffix}"
+
+
+def _synthesize_sensor_compose(*, image: str, serial: str, jwt: str) -> str:
+    """Build a CV docker-sensor compose matching CV's own GUI-generated shape
+    (confirmed against a real, redacted sample — NOT the internal doc's
+    `perf_bench` example, which is a different/simpler lab tool): a routable
+    bridge "collection" network ordered BEFORE a gatewayless macvlan "capture"
+    network. `hostops.rewrite_sensor_compose()` relies on that ordering (a
+    previously-debugged bug: swap them and the macvlan wins the default-route
+    slot, leaving the sensor unable to reach the Center) and forces
+    `container_name`/`pull_policy`/the macvlan `driver_opts.parent` itself —
+    those fields here are placeholders that get overwritten downstream.
+    """
+    doc = {
+        "services": {
+            "sensor": {
+                "image": image,
+                "container_name": "sensor",
+                "restart": "always",
+                "pull_policy": "always",
+                "sysctls": [
+                    "net.ipv4.ip_forward=0",
+                    "net.ipv6.conf.all.forwarding=0",
+                ],
+                "environment": [
+                    f"SERIAL_NUMBER={serial}",
+                    f"PROVISIONING_TOKEN={jwt}",
+                ],
+                "cap_add": ["NET_ADMIN"],
+                "networks": {
+                    "ccv-network-0-collection": {},
+                    "ccv-network-capture-1": {},
+                },
+                "volumes": ["ccv-volume-1:/data"],
+            }
+        },
+        "networks": {
+            "ccv-network-0-collection": {
+                "name": "ccv-network-0-collection",
+                "driver": "bridge",
+            },
+            "ccv-network-capture-1": {
+                "name": "ccv-network-capture-1",
+                "driver": "macvlan",
+                "driver_opts": {
+                    "macvlan_mode": "passthru",
+                    "parent": "placeholder",
+                },
+            },
+        },
+        "volumes": {"ccv-volume-1": {}},
+    }
+    return yaml.safe_dump(doc, sort_keys=False)
+
+
 def _spec_from_lab(lab: LocalLab, *, agent_token: str, agent_name: str,
                    server_url: str, registry: str | None) -> dict:
     """Build the host-agent spec dict from a persisted LocalLab row."""
@@ -79,9 +176,10 @@ def _spec_from_lab(lab: LocalLab, *, agent_token: str, agent_name: str,
     }
 
 
-async def build_lab(db, *, name: str, sensor_compose: str,
+async def build_lab(db, *, name: str,
                     agent_name: str | None, created_by_id: uuid.UUID | None) -> dict:
-    """Create a local sensor lab: persist desired state + queue host provisioning.
+    """Create a local sensor lab: auto-provision a CV sensor, persist desired
+    state, and queue host provisioning.
 
     Returns a dict suitable for LocalLabBuildResponse. The agent token is shown
     only once (in the return value); only its hash is stored.
@@ -93,11 +191,11 @@ async def build_lab(db, *, name: str, sensor_compose: str,
                     "mounted on the backend). Local sensor labs require the host-agent service.",
         )
 
-    parsed = CMLService.parse_sensor_compose(sensor_compose)
-    if not parsed.get("token") or not parsed.get("serial"):
+    cv = await cv_service_from_settings(db)
+    if cv is None:
         raise ValidationError(
-            "Could not parse the CV sensor compose. Expected 'image:', "
-            "'SERIAL_NUMBER=', and 'PROVISIONING_TOKEN=' (paste the full YAML CV gives you)."
+            "Cyber Vision isn't configured. Configure it under Settings > Cyber Vision "
+            "before creating a local sensor lab — auto-provisioning needs it."
         )
 
     # Name uniqueness (friendly error before hitting the DB constraint).
@@ -113,6 +211,26 @@ async def build_lab(db, *, name: str, sensor_compose: str,
     dup = await db.execute(select(TrafficAgent).where(TrafficAgent.name == resolved_agent_name))
     if dup.scalar_one_or_none():
         raise ConflictError(f"An agent named '{resolved_agent_name}' already exists.")
+
+    # Mint the CV provisioning JWT as late as possible (right before persist +
+    # queueing the host-agent build) to minimize the window between minting
+    # and the host-agent actually running `compose up`.
+    serial = local_lab_naming.sensor_serial(name, slug)
+    try:
+        deployment_name = await _resolve_cv_deployment_name(db, cv)
+        jwt = await cv.mint_sensor_jwt(deployment_name, serial)
+        image = cv.sensor_image_ref()
+    except Exception as e:  # noqa: BLE001
+        raise ExternalServiceError(
+            service="cyber_vision",
+            message=f"Failed to provision a Cyber Vision sensor: {e}",
+            original_error=e,
+        )
+    finally:
+        await cv.close()
+
+    registry = image.rsplit("/", 1)[0]
+    sensor_compose = _synthesize_sensor_compose(image=image, serial=serial, jwt=jwt)
 
     token = generate_agent_token()
     agent = TrafficAgent(
@@ -131,8 +249,8 @@ async def build_lab(db, *, name: str, sensor_compose: str,
         name=name,
         slug=slug,
         agent_id=agent.id,
-        sensor_serial=parsed.get("serial"),
-        registry=parsed.get("registry"),
+        sensor_serial=serial,
+        registry=registry,
         sensor_compose=sensor_compose,
         gen_if=local_lab_naming.gen_if(slug),
         mon_if=local_lab_naming.mon_if(slug),
@@ -145,7 +263,7 @@ async def build_lab(db, *, name: str, sensor_compose: str,
 
     server_url = await _resolve_server_url(db)
     spec = _spec_from_lab(lab, agent_token=token, agent_name=resolved_agent_name,
-                          server_url=server_url, registry=parsed.get("registry"))
+                          server_url=server_url, registry=registry)
     try:
         host_agent_client.submit_build(spec)
     except Exception as e:  # noqa: BLE001
@@ -162,7 +280,7 @@ async def build_lab(db, *, name: str, sensor_compose: str,
         "slug": slug,
         "agent_id": str(agent.id),
         "agent_token": token,
-        "sensor_serial": parsed.get("serial"),
+        "sensor_serial": serial,
         "state": lab.state,
         "warnings": [],
     }
@@ -257,6 +375,26 @@ async def teardown_lab(db, lab_id: str) -> dict:
             host_agent_client.submit_teardown(slug)
         except Exception:  # noqa: BLE001 — proceed with DB delete regardless
             logger.exception("failed to queue host-agent teardown for %s", slug)
+
+    # Best-effort: remove the sensor object from the CV Center too, so labs
+    # don't leave orphaned sensor entries behind. Non-fatal — a stale/
+    # reconfigured CV connection (or a lab built via the old paste-a-compose
+    # flow against a different Center) just no-ops with a logged warning,
+    # same as the host-agent teardown call above.
+    if lab.sensor_serial:
+        cv = await cv_service_from_settings(db)
+        if cv is not None:
+            try:
+                sensor = await cv.find_sensor_by_serial(lab.sensor_serial)
+                if sensor and sensor.get("id"):
+                    await cv.delete_sensor(sensor["id"])
+            except Exception:  # noqa: BLE001 — proceed with DB delete regardless
+                logger.warning(
+                    "failed to delete CV sensor for lab %s (serial %s)",
+                    slug, lab.sensor_serial, exc_info=True,
+                )
+            finally:
+                await cv.close()
 
     # Delete the agent row (full delete) then the lab row.
     if lab.agent_id:

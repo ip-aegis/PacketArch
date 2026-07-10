@@ -310,6 +310,10 @@ async def agent_websocket(
     # Notify health monitor (may trigger auto-redeploy of disconnected scenarios)
     await health_monitor.on_agent_connected(agent.id, agent.name)
 
+    # Fire any deploy queued by "deploy to a new dedicated Local Lab" — no-op
+    # for every other agent (pending_deploy_scenario_id is null).
+    await agent_manager.resolve_pending_deploy(agent.id)
+
     # Send connection confirmation
     await websocket.send_json({
         "type": "CONNECTED",

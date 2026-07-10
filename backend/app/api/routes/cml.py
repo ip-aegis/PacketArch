@@ -15,7 +15,7 @@ from sqlalchemy import or_, select
 from app.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.encryption import decrypt_value, encrypt_value
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
-from app.api.routes.agents import generate_agent_token, hash_token
+from app.services.agent_tokens import generate_agent_token, hash_token
 from app.models.settings import SystemSetting
 from app.models.traffic_agent import TrafficAgent
 from app.schemas.cml import (

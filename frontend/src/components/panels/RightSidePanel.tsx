@@ -380,7 +380,7 @@ const RightSidePanel: React.FC<RightSidePanelProps> = ({ scenarioId }) => {
   );
 
   const deployContent = (
-    <DeploymentPanel scenarioId={scenarioId} />
+    <DeploymentPanel scenarioId={scenarioId} scenarioName={scenarioName} />
   );
 
   const attackContent = (

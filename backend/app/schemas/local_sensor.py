@@ -24,14 +24,13 @@ class LocalHostStatusResponse(BaseModel):
 # --- build ------------------------------------------------------------------
 
 class LocalLabBuildRequest(BaseModel):
-    """Schema for building a local agent + CV-sensor lab on the host."""
+    """Schema for building a local agent + CV-sensor lab on the host.
+
+    The CV sensor is auto-provisioned via the Cyber Vision API (Settings >
+    Cyber Vision must be configured) — no compose paste required.
+    """
 
     name: str = Field(..., min_length=1, max_length=128, description="Name for the new local lab")
-    sensor_compose: str = Field(
-        ...,
-        description="The full docker-compose YAML CV generates for a docker sensor "
-                    "(contains image, SERIAL_NUMBER, PROVISIONING_TOKEN, macvlan network)",
-    )
     agent_name: str | None = Field(
         default=None,
         max_length=255,

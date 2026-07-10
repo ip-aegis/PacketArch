@@ -21,6 +21,8 @@ import type {
   AgentInterface,
   AgentDeployment,
   DeploymentCreate,
+  DeployNewLabRequest,
+  DeployNewLabResponse,
 } from '../types/agent';
 
 const crud = createResourceSlice<TrafficAgent, AgentCreate, AgentUpdate>({
@@ -67,6 +69,7 @@ interface AgentsState {
   fetchDeployments: (id: string, activeOnly?: boolean) => Promise<AgentDeployment[]>;
   fetchConnectedAgents: () => Promise<void>;
   deployScenario: (agentId: string, data: DeploymentCreate) => Promise<AgentDeployment>;
+  deployToNewLab: (data: DeployNewLabRequest) => Promise<DeployNewLabResponse>;
   stopDeployment: (agentId: string, scenarioId: string) => Promise<void>;
   setSelectedAgent: (agent: TrafficAgent | null) => void;
   clearError: () => void;
@@ -214,6 +217,19 @@ export const useAgentsStore = create<AgentsState>()((set, get) => {
         return deployment;
       } catch (error: unknown) {
         const message = extractErrorMessage(error, 'Failed to deploy scenario');
+        set({ error: message, isLoading: false });
+        throw error;
+      }
+    },
+
+    deployToNewLab: async (data: DeployNewLabRequest) => {
+      set({ isLoading: true, error: null });
+      try {
+        const result = await agentsApi.deployNewLab(data);
+        set({ isLoading: false });
+        return result;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to deploy to a new local lab');
         set({ error: message, isLoading: false });
         throw error;
       }

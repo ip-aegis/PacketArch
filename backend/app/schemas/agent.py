@@ -132,6 +132,62 @@ class DeploymentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DeployNewLabRequest(BaseModel):
+    """Schema for deploying a scenario to a brand-new, dedicated Local Lab.
+
+    Mirrors DeploymentCreate (minus scenario_id living outside as a sibling
+    field) plus the two Local Lab naming fields from LocalLabBuildRequest.
+    The sensor is auto-provisioned via the Cyber Vision API; the scenario
+    deploys automatically the moment the new agent comes online.
+    """
+
+    scenario_id: UUID
+    lab_name: str = Field(..., min_length=1, max_length=128, description="Name for the new local lab")
+    agent_name: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Name for the PacketArch agent; default derived from the lab slug",
+    )
+    adaptive_config: dict[str, Any] | None = Field(
+        None,
+        description="Optional adaptive config overrides (e.g. phase_schedule)",
+    )
+    attack_playbook: dict[str, Any] | None = Field(
+        None,
+        description="Optional attack playbook config (playbook_id, intensity, etc.)",
+    )
+    cell_isolation_override: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "Optional per-run override for Purdue cell isolation "
+            "({'mode': ..., 'applies_to_levels': [...]}). Merged into the "
+            "scenario definition before it is sent to the agent."
+        ),
+    )
+    provision_cyber_vision: bool = Field(
+        False,
+        description=(
+            "If true and Cyber Vision is configured, create a CV preset for "
+            "this scenario once it deploys and schedule zone-group creation "
+            "once CV has discovered the simulated devices."
+        ),
+    )
+
+
+class DeployNewLabResponse(BaseModel):
+    """Result of a deploy-new-lab request. The lab is still provisioning when
+    this returns — the scenario deploys automatically once the agent connects."""
+
+    success: bool
+    message: str
+    lab_id: str | None = None
+    slug: str | None = None
+    agent_id: str | None = None
+    agent_token: str | None = Field(default=None, description="Agent token (shown only once)")
+    sensor_serial: str | None = None
+    state: str = "pending"
+
+
 class InterfaceInfo(BaseModel):
     """Network interface information from agent."""
 

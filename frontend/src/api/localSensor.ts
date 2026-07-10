@@ -18,7 +18,6 @@ export interface LocalHostStatus {
 
 export interface LocalLabBuildRequest {
   name: string;
-  sensor_compose: string;
   agent_name?: string | null;
 }
 

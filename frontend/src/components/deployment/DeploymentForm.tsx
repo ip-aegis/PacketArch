@@ -7,7 +7,7 @@
  * DeploymentForm - Form for configuring and launching a deployment to a traffic agent.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -15,7 +15,9 @@ import {
   Checkbox,
   Collapse,
   Form,
+  Input,
   InputNumber,
+  Segmented,
   Select,
   Space,
   Tag,
@@ -59,6 +61,9 @@ export interface DeploymentFormProps {
   // Scenario phases
   phases?: Phase[];
 
+  // Scenario name — defaults the "New Local Lab" name field.
+  scenarioName?: string;
+
   // Whether Cyber Vision is configured (enables the provisioning checkbox)
   cvConfigured?: boolean;
 
@@ -68,8 +73,11 @@ export interface DeploymentFormProps {
   deploymentsLoading: boolean;
   deployDisabled?: boolean;
   onFinish: (values: {
+    mode: 'existing' | 'new_lab';
     agent_id?: string;
-    network_interface: string;
+    network_interface?: string;
+    lab_name?: string;
+    agent_name?: string;
     run_mode: RunMode;
     duration_minutes?: number;
     phase_schedule?: PhaseScheduleConfig;
@@ -84,6 +92,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   agentInterfaces,
   onAgentChange,
   phases,
+  scenarioName,
   cvConfigured,
   loadingInterfaces,
   validating,
@@ -91,6 +100,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   deployDisabled,
   onFinish,
 }) => {
+  const [mode, setMode] = useState<'existing' | 'new_lab'>('existing');
   const hasTargets = onlineAgents.length > 0;
   const [showAllInterfaces, setShowAllInterfaces] = useState(false);
 
@@ -137,9 +147,20 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
     return durations;
   });
 
+  // Default the new-lab name field to the scenario's name, once it's known —
+  // but never clobber something the operator already typed.
+  useEffect(() => {
+    if (mode === 'new_lab' && scenarioName && !form.getFieldValue('lab_name')) {
+      form.setFieldValue('lab_name', scenarioName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, scenarioName]);
+
   const handleFinish = (values: {
     agent_id?: string;
-    network_interface: string;
+    network_interface?: string;
+    lab_name?: string;
+    agent_name?: string;
     run_mode: RunMode;
     duration_minutes?: number;
   }) => {
@@ -157,7 +178,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
         })),
       };
     }
-    onFinish({ ...values, phase_schedule });
+    onFinish({ ...values, mode, phase_schedule });
   };
 
   return (
@@ -172,131 +193,169 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
       style={{ background: '#1a2734' }}
       styles={{ body: { padding: '12px' } }}
     >
-      {!hasTargets ? (
-        <Alert
-          message="No deployment targets available"
-          description="Configure traffic agents in Settings > Traffic Agents"
-          type="warning"
-          showIcon
-        />
-      ) : (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFinish}
-          initialValues={{ run_mode: 'perpetual' }}
-          size="small"
-        >
-          {/* Agent Selection */}
-          <Form.Item
-            name="agent_id"
-            label="Traffic Agent"
-            rules={[{ required: true, message: 'Select an agent' }]}
-          >
-            <Select
-              placeholder="Select agent"
-              loading={agentsLoading}
-              onChange={onAgentChange}
-              options={onlineAgents.map((a) => ({
-                value: a.id,
-                label: (
-                  <Space>
-                    <span>{a.name}</span>
-                    <Tag
-                      color="green"
-                      style={{ fontSize: 10 }}
-                    >
-                      Online
-                    </Tag>
-                    {a.hostname && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 11 }}
-                      >
-                        ({a.hostname})
-                      </Text>
-                    )}
-                  </Space>
-                ),
-              }))}
-            />
-          </Form.Item>
+      <Segmented
+        block
+        value={mode}
+        onChange={(v) => setMode(v as 'existing' | 'new_lab')}
+        options={[
+          { label: 'Existing agent', value: 'existing' },
+          { label: 'New Local Lab', value: 'new_lab' },
+        ]}
+        style={{ marginBottom: 12 }}
+      />
 
-          {/* Network Interface */}
-          <Form.Item
-            name="network_interface"
-            label="Network Interface"
-            rules={[
-              { required: true, message: 'Select an interface' },
-            ]}
-            extra={
-              isManagedAgent
-                ? 'Managed lab — injection uses its dedicated SPAN interface.'
-                : undefined
-            }
-          >
-            {isManagedAgent ? (
-              // Locked: DeploymentPanel.handleAgentChange sets this field to the
-              // agent's default_interface; the disabled select just displays it
-              // so the wrong interface can't be chosen.
-              <Select disabled suffixIcon={<LockOutlined />}>
-                {recommendedIface && (
-                  <Select.Option value={recommendedIface}>
-                    <Space>
-                      <span>{recommendedIface}</span>
-                      <Tag color="green">managed</Tag>
-                    </Space>
-                  </Select.Option>
-                )}
-              </Select>
-            ) : (
-            <Select
-              placeholder={
-                loadingInterfaces
-                  ? 'Loading interfaces...'
-                  : 'Select interface'
-              }
-              loading={loadingInterfaces}
-              disabled={agentInterfaces.length === 0}
-              popupRender={(menu) => (
-                <>
-                  {menu}
-                  {!showAllInterfaces && hiddenIfaceCount > 0 && (
-                    <div style={{ padding: '4px 8px', borderTop: '1px solid #2d2d52' }}>
-                      <Button
-                        type="link"
-                        size="small"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setShowAllInterfaces(true)}
-                      >
-                        Show {hiddenIfaceCount} hidden (loopback, docker, veth…)
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-              options={visibleInterfaces.map((i) => ({
-                value: i.name,
-                label: (
-                  <Space>
-                    <span>{i.name}</span>
-                    {i.name === recommendedIface && (
-                      <Tag color="green">recommended</Tag>
-                    )}
-                    {i.mac && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 10 }}
-                      >
-                        {i.mac}
-                      </Text>
-                    )}
-                  </Space>
-                ),
-              }))}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        initialValues={{ run_mode: 'perpetual' }}
+        size="small"
+      >
+        {mode === 'existing' ? (
+          !hasTargets ? (
+            <Alert
+              message="No deployment targets available"
+              description="Configure traffic agents in Settings > Traffic Agents, or use New Local Lab above."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
             />
-            )}
-          </Form.Item>
+          ) : (
+            <>
+              {/* Agent Selection */}
+              <Form.Item
+                name="agent_id"
+                label="Traffic Agent"
+                rules={[{ required: true, message: 'Select an agent' }]}
+              >
+                <Select
+                  placeholder="Select agent"
+                  loading={agentsLoading}
+                  onChange={onAgentChange}
+                  options={onlineAgents.map((a) => ({
+                    value: a.id,
+                    label: (
+                      <Space>
+                        <span>{a.name}</span>
+                        <Tag
+                          color="green"
+                          style={{ fontSize: 10 }}
+                        >
+                          Online
+                        </Tag>
+                        {a.hostname && (
+                          <Text
+                            type="secondary"
+                            style={{ fontSize: 11 }}
+                          >
+                            ({a.hostname})
+                          </Text>
+                        )}
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+
+              {/* Network Interface */}
+              <Form.Item
+                name="network_interface"
+                label="Network Interface"
+                rules={[
+                  { required: true, message: 'Select an interface' },
+                ]}
+                extra={
+                  isManagedAgent
+                    ? 'Managed lab — injection uses its dedicated SPAN interface.'
+                    : undefined
+                }
+              >
+                {isManagedAgent ? (
+                  // Locked: DeploymentPanel.handleAgentChange sets this field to the
+                  // agent's default_interface; the disabled select just displays it
+                  // so the wrong interface can't be chosen.
+                  <Select disabled suffixIcon={<LockOutlined />}>
+                    {recommendedIface && (
+                      <Select.Option value={recommendedIface}>
+                        <Space>
+                          <span>{recommendedIface}</span>
+                          <Tag color="green">managed</Tag>
+                        </Space>
+                      </Select.Option>
+                    )}
+                  </Select>
+                ) : (
+                <Select
+                  placeholder={
+                    loadingInterfaces
+                      ? 'Loading interfaces...'
+                      : 'Select interface'
+                  }
+                  loading={loadingInterfaces}
+                  disabled={agentInterfaces.length === 0}
+                  popupRender={(menu) => (
+                    <>
+                      {menu}
+                      {!showAllInterfaces && hiddenIfaceCount > 0 && (
+                        <div style={{ padding: '4px 8px', borderTop: '1px solid #2d2d52' }}>
+                          <Button
+                            type="link"
+                            size="small"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setShowAllInterfaces(true)}
+                          >
+                            Show {hiddenIfaceCount} hidden (loopback, docker, veth…)
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  options={visibleInterfaces.map((i) => ({
+                    value: i.name,
+                    label: (
+                      <Space>
+                        <span>{i.name}</span>
+                        {i.name === recommendedIface && (
+                          <Tag color="green">recommended</Tag>
+                        )}
+                        {i.mac && (
+                          <Text
+                            type="secondary"
+                            style={{ fontSize: 10 }}
+                          >
+                            {i.mac}
+                          </Text>
+                        )}
+                      </Space>
+                    ),
+                  }))}
+                />
+                )}
+              </Form.Item>
+            </>
+          )
+        ) : (
+          <>
+            {/* New Local Lab naming */}
+            <Form.Item
+              name="lab_name"
+              label="Lab name"
+              rules={[{ required: true, message: 'Give the lab a name' }]}
+            >
+              <Input placeholder="e.g. Bakery Sensor Lab" />
+            </Form.Item>
+            <Form.Item name="agent_name" label="Agent name (optional)">
+              <Input placeholder="Defaults to Local-Sensor-<id>" />
+            </Form.Item>
+            <Alert
+              type="info"
+              showIcon
+              message="Sensor auto-provisioned via Cyber Vision"
+              description="Uses the Cyber Vision connection configured under Settings > Cyber Vision. Enrollment takes a minute or two; the scenario deploys automatically once the sensor is online."
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
 
           {/* Cell Isolation override */}
           <Form.Item
@@ -452,8 +511,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
               </Button>
             </Tooltip>
           </Form.Item>
-        </Form>
-      )}
+      </Form>
     </Card>
   );
 });

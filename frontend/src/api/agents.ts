@@ -20,6 +20,8 @@ import type {
   AgentInterfacesResponse,
   AgentDeployment,
   DeploymentCreate,
+  DeployNewLabRequest,
+  DeployNewLabResponse,
   AgentUpdateStatus,
 } from '../types/agent';
 
@@ -65,6 +67,11 @@ export const agentsApi = {
 
   async deploy(agentId: string, data: DeploymentCreate): Promise<AgentDeployment> {
     const response = await apiClient.post<AgentDeployment>(`${PREFIX}/${agentId}/deploy`, data);
+    return response.data;
+  },
+
+  async deployNewLab(data: DeployNewLabRequest): Promise<DeployNewLabResponse> {
+    const response = await apiClient.post<DeployNewLabResponse>(`${PREFIX}/deploy-new-lab`, data);
     return response.data;
   },
 

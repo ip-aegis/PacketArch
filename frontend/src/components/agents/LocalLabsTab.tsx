@@ -9,7 +9,8 @@
  * Mirrors CmlTab's "Build Lab" UX but on-box and multi-lab.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   App,
@@ -38,20 +39,8 @@ import { useLocalSensorStore } from '../../stores/localSensorStore';
 import type { LocalLabItem } from '../../api/localSensor';
 
 const { Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
-/** Decode the (unverified) JWT payload of a CV provisioning token for preview. */
-function decodeProvisioningToken(compose: string): Record<string, unknown> | null {
-  const m = compose.match(/PROVISIONING_TOKEN\s*[=:]\s*(\S+)/);
-  if (!m) return null;
-  try {
-    let payload = m[1].split('.')[1];
-    payload += '='.repeat((4 - (payload.length % 4)) % 4);
-    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-  } catch {
-    return null;
-  }
-}
+const CV_NOT_CONFIGURED_MARKER = "Cyber Vision isn't configured";
 
 const stateColor: Record<string, string> = {
   running: 'success',
@@ -64,6 +53,7 @@ const stateColor: Record<string, string> = {
 
 const LocalLabsTab: React.FC = () => {
   const { message, modal } = App.useApp();
+  const navigate = useNavigate();
   const {
     hostStatus,
     labs,
@@ -81,7 +71,6 @@ const LocalLabsTab: React.FC = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
-  const composeValue = Form.useWatch('sensor_compose', form);
 
   // Initial load + poll while any lab is mid-provisioning.
   useEffect(() => {
@@ -97,22 +86,24 @@ const LocalLabsTab: React.FC = () => {
   }, [anyTransient, fetchLabs]);
 
   useEffect(() => {
-    if (error) {
+    if (!error) return;
+    if (error.includes(CV_NOT_CONFIGURED_MARKER)) {
+      modal.confirm({
+        title: 'Cyber Vision is not configured',
+        content: error,
+        okText: 'Go to Settings',
+        onOk: () => navigate('/admin/settings?tab=cyber_vision'),
+      });
+    } else {
       message.error(error);
-      clearError();
     }
-  }, [error, message, clearError]);
-
-  const tokenPreview = useMemo(
-    () => (composeValue ? decodeProvisioningToken(composeValue) : null),
-    [composeValue],
-  );
+    clearError();
+  }, [error, message, modal, navigate, clearError]);
 
   const handleBuild = async () => {
     const values = await form.validateFields();
     const result = await build({
       name: values.name,
-      sensor_compose: values.sensor_compose,
       agent_name: values.agent_name || null,
     });
     if (result?.success) {
@@ -311,28 +302,12 @@ const LocalLabsTab: React.FC = () => {
           <Form.Item name="agent_name" label="Agent name (optional)">
             <Input placeholder="Defaults to Local-Sensor-<id>" />
           </Form.Item>
-          <Form.Item
-            name="sensor_compose"
-            label="Cyber Vision sensor docker-compose YAML"
-            rules={[{ required: true, message: 'Paste the CV-generated docker-compose' }]}
-            extra="In the Cyber Vision Center, add a docker sensor (capture mode 'all') and paste the generated docker-compose here. The capture interface is wired automatically."
-          >
-            <TextArea rows={10} placeholder="services:\n  ccv-sensor-1:\n    image: ..." />
-          </Form.Item>
-          {tokenPreview && (
-            <Alert
-              type="info"
-              showIcon
-              message="Provisioning token decoded"
-              description={
-                <Space direction="vertical" size={0}>
-                  <Text>Serial: <Text code>{String(tokenPreview.serialNumber ?? '?')}</Text></Text>
-                  <Text>Center: <Text code>{String(tokenPreview.centerHost ?? '?')}</Text></Text>
-                  <Text>Capture mode: <Text code>{String(tokenPreview.captureMode ?? '?')}</Text></Text>
-                </Space>
-              }
-            />
-          )}
+          <Alert
+            type="info"
+            showIcon
+            message="Sensor auto-provisioned via Cyber Vision"
+            description="Uses the Cyber Vision connection configured under Settings > Cyber Vision to create and enroll the docker sensor automatically. The capture interface is wired automatically."
+          />
         </Form>
       </Modal>
     </Space>

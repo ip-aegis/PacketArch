@@ -6,11 +6,13 @@
 The host-agent file-queue is patched so these tests never touch a real shared
 volume or Docker — they exercise the route/service/DB layer only. Both the route
 and the service do `from app.services import host_agent_client`, so patching the
-attributes on that module covers both call sites.
+attributes on that module covers both call sites. The Cyber Vision API is
+likewise faked — `local_sensor_service` talks to it via `cv_service_from_settings`,
+patched to return an in-memory fake instead of a real httpx-backed client.
 """
 
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -19,29 +21,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.local_lab import LocalLab
 from app.models.traffic_agent import TrafficAgent
 
-# A minimal but valid CV docker-sensor compose: parse_sensor_compose needs
-# image:, SERIAL_NUMBER=, and PROVISIONING_TOKEN= to succeed.
-SAMPLE_COMPOSE = """\
-services:
-  ccv-sensor-1:
-    image: 10.0.0.5:443/sensor
-    container_name: ccv-sensor-1
-    environment:
-      - SERIAL_NUMBER=TST01
-      - PROVISIONING_TOKEN=eyJhbGciOiJIUzI1NiJ9.eyJzZXJpYWxOdW1iZXIiOiJUU1QwMSJ9.sig
-    networks:
-      ccv-network-0-collection: {}
-      ccv-network-capture-1: {}
-networks:
-  ccv-network-0-collection:
-    driver: bridge
-  ccv-network-capture-1:
-    driver: macvlan
-    driver_opts:
-      parent: ens3
-"""
-
 _HAC = "app.services.host_agent_client"
+_LSS = "app.services.local_sensor_service"
+
+
+class FakeCyberVisionService:
+    """Minimal stand-in for CyberVisionService's auto-provisioning surface."""
+
+    def __init__(self):
+        self.deleted_sensor_ids: list[str] = []
+        self.closed = False
+
+    async def create_deployment_token(self, name: str) -> dict:
+        return {"name": name, "usageCount": 1, "maxUsageCount": 100}
+
+    async def mint_sensor_jwt(self, deployment_name: str, serial: str) -> str:
+        return f"fake-jwt-for-{serial}"
+
+    def sensor_image_ref(self) -> str:
+        return "10.0.0.5:443/sensor"
+
+    async def find_sensor_by_serial(self, serial: str) -> dict | None:
+        return {"id": "sensor-uuid-1", "serialNumber": serial}
+
+    async def delete_sensor(self, sensor_id: str) -> None:
+        self.deleted_sensor_ids.append(sensor_id)
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 @contextmanager
@@ -55,6 +62,15 @@ def fake_host_agent(available: bool = True):
         patch(f"{_HAC}.submit_teardown", return_value="req-teardown") as teardown,
     ):
         yield {"build": build, "teardown": teardown}
+
+
+@contextmanager
+def fake_cyber_vision(configured: bool = True):
+    """Patch `cv_service_from_settings` to return a FakeCyberVisionService (or
+    None, simulating "Cyber Vision isn't configured")."""
+    fake = FakeCyberVisionService() if configured else None
+    with patch(f"{_LSS}.cv_service_from_settings", AsyncMock(return_value=fake)):
+        yield fake
 
 
 async def test_host_status_unavailable(
@@ -72,25 +88,28 @@ async def test_host_status_unavailable(
 async def test_build_creates_lab_and_agent(
     client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession
 ):
-    """Build parses the compose, mints a token, and persists LocalLab + agent."""
-    with fake_host_agent() as hac:
+    """Build auto-provisions via the (faked) CV API, mints an agent token, and
+    persists LocalLab + agent."""
+    with fake_host_agent() as hac, fake_cyber_vision():
         resp = await client.post(
             "/api/v1/local-sensor/build",
             headers=admin_auth_headers,
-            json={"name": "Test Lab", "sensor_compose": SAMPLE_COMPOSE},
+            json={"name": "Test Lab"},
         )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["success"] is True
     assert body["agent_token"]  # shown once
-    assert body["sensor_serial"] == "TST01"
+    assert body["sensor_serial"]
     assert body["slug"]
     hac["build"].assert_called_once()
 
     lab = (
         await db_session.execute(select(LocalLab).where(LocalLab.name == "Test Lab"))
     ).scalar_one()
-    assert lab.sensor_serial == "TST01"
+    assert lab.sensor_serial == body["sensor_serial"]
+    assert "SERIAL_NUMBER=" in lab.sensor_compose
+    assert "PROVISIONING_TOKEN=" in lab.sensor_compose
     agent = (
         await db_session.execute(
             select(TrafficAgent).where(TrafficAgent.local_lab_id == str(lab.id))
@@ -99,15 +118,15 @@ async def test_build_creates_lab_and_agent(
     assert agent.default_interface == lab.gen_if
 
 
-async def test_build_rejects_bad_compose(
+async def test_build_rejects_when_cv_not_configured(
     client: AsyncClient, admin_auth_headers: dict
 ):
-    """A compose missing the token/serial is a 400 ValidationError."""
-    with fake_host_agent():
+    """No Cyber Vision connection configured -> 400 ValidationError."""
+    with fake_host_agent(), fake_cyber_vision(configured=False):
         resp = await client.post(
             "/api/v1/local-sensor/build",
             headers=admin_auth_headers,
-            json={"name": "Bad Lab", "sensor_compose": "services: {}"},
+            json={"name": "Bad Lab"},
         )
     assert resp.status_code == 400
 
@@ -115,12 +134,13 @@ async def test_build_rejects_bad_compose(
 async def test_list_then_teardown(
     client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession
 ):
-    """A built lab lists, then teardown full-deletes the lab + its agent."""
-    with fake_host_agent() as hac:
+    """A built lab lists, then teardown full-deletes the lab + its agent (and
+    best-effort deletes the CV sensor object)."""
+    with fake_host_agent() as hac, fake_cyber_vision() as cv:
         build = await client.post(
             "/api/v1/local-sensor/build",
             headers=admin_auth_headers,
-            json={"name": "Cycle Lab", "sensor_compose": SAMPLE_COMPOSE},
+            json={"name": "Cycle Lab"},
         )
         lab_id = build.json()["lab_id"]
 
@@ -136,6 +156,7 @@ async def test_list_then_teardown(
     assert teardown.status_code == 200
     assert teardown.json()["success"] is True
     hac["teardown"].assert_called_once()
+    assert cv.deleted_sensor_ids == ["sensor-uuid-1"]
 
     remaining = (
         await db_session.execute(select(LocalLab).where(LocalLab.name == "Cycle Lab"))

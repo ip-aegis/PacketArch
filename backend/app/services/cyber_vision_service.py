@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.core.exceptions import ExternalServiceError
 from app.protocol_engines.vendor_oui import get_vendor_for_oui
 
 logger = logging.getLogger(__name__)
@@ -1374,6 +1375,89 @@ class CyberVisionService:
                 logger.debug(f"Could not add property '{label}' to device {device_id}: {e}")
 
         return results
+
+    # --- Docker sensor auto-provisioning (deployment token + JWT) -----------
+    #
+    # CV's own GUI uses a richer, session/CSRF-protected endpoint
+    # (POST /scv/3.0/admin/sensors/docker) that returns a ready-made compose —
+    # confirmed unreachable via our X-Token-Id API token (403 "CSRF token not
+    # found in request"). The token-auth-compatible surface is only this
+    # lower-level deployment-token + per-sensor-JWT pair, documented at
+    # uploads/cyber-vision-docker-sensor-api-provisioning.md and cross-checked
+    # live against a real CV Center: GET /deployments (read) and POST
+    # /deployments on an existing name (409, not 401/403) both confirmed.
+
+    async def list_deployment_tokens(self) -> list[dict]:
+        """GET /deployments — existing deployment tokens (name, usage counts)."""
+        data = await self._request("GET", "/deployments")
+        return data if isinstance(data, list) else []
+
+    async def create_deployment_token(
+        self, name: str, *, expiration_date: str = "2099-12-31", max_usage_count: int = 100
+    ) -> dict:
+        """POST /deployments. Raises on any error OTHER than 409 (name taken)."""
+        try:
+            result = await self._request(
+                "POST",
+                "/deployments",
+                json={
+                    "enable": True,
+                    "expirationDate": expiration_date,
+                    "maxUsageCount": max_usage_count,
+                    "name": name,
+                },
+            )
+            return result if isinstance(result, dict) else {}
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                existing = next(
+                    (d for d in await self.list_deployment_tokens() if d.get("name") == name), None
+                )
+                if existing:
+                    return existing
+            raise
+
+    async def mint_sensor_jwt(self, deployment_name: str, serial: str) -> str:
+        """POST /deployments/jwt — mint a per-sensor provisioning JWT.
+
+        The sensor's identity on the Center IS this serial number; must be
+        unique per Center. Consumes one use of the named deployment token.
+        """
+        result = await self._request(
+            "POST",
+            "/deployments/jwt",
+            json={"deploymentName": deployment_name, "sensorSerials": [serial]},
+        )
+        jwt = (result or {}).get(serial) if isinstance(result, dict) else None
+        if not jwt:
+            raise ExternalServiceError(
+                service="cyber_vision",
+                message=f"Cyber Vision did not return a provisioning JWT for serial '{serial}'.",
+            )
+        return jwt
+
+    async def find_sensor_by_serial(self, serial: str) -> dict | None:
+        """GET /sensors, filtered client-side by serialNumber."""
+        data = await self._request("GET", "/sensors")
+        sensors = data if isinstance(data, list) else []
+        return next((s for s in sensors if s.get("serialNumber") == serial), None)
+
+    async def delete_sensor(self, sensor_id: str) -> None:
+        """DELETE /sensors/{id} — removes the sensor object from the Center."""
+        await self._request("DELETE", f"/sensors/{sensor_id}")
+
+    def sensor_image_ref(self) -> str:
+        """The docker-sensor image ref for this Center: `{host}:{port or 443}/sensor`.
+
+        Confirmed against a real GUI-downloaded compose — NOT the
+        `cviox-x86-64`-style name found in deployment-token appNames (those
+        are per-arch update-tarball names, unrelated to the running image tag).
+        """
+        rest = self.base_url.split("://", 1)[-1]
+        host = rest.split("/", 1)[0]
+        if ":" not in host:
+            host = f"{host}:443"
+        return f"{host}/sensor"
 
 
 async def get_cyber_vision_service(

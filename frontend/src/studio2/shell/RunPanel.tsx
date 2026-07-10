@@ -22,6 +22,7 @@ const PANEL_WIDTH = 400;
 const RunPanel: React.FC = () => {
   const scenarioId = useDocumentStore((s) => s.doc?.meta.id ?? null);
   const docPhases = useDocumentStore((s) => s.doc?.phases);
+  const docScenarioName = useDocumentStore((s) => s.doc?.meta.name);
   const [tab, setTab] = useState<'deploy' | 'attack'>('deploy');
   const { liveTrafficEnabled } = useFeatures();
 
@@ -110,7 +111,7 @@ const RunPanel: React.FC = () => {
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {tab === 'deploy' ? (
-          <DeploymentPanel scenarioId={scenarioId} phases={docPhases} />
+          <DeploymentPanel scenarioId={scenarioId} phases={docPhases} scenarioName={docScenarioName} />
         ) : (
           <AttackPanel
             scenarioId={scenarioId}

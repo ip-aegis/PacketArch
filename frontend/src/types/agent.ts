@@ -108,6 +108,32 @@ export interface DeploymentCreate {
 }
 
 /**
+ * Deploy a scenario to a brand-new, dedicated Local Sensor Lab — the sensor
+ * is auto-provisioned via the Cyber Vision API and the scenario deploys
+ * automatically once the new agent comes online.
+ */
+export interface DeployNewLabRequest {
+  scenario_id: string;
+  lab_name: string;
+  agent_name?: string | null;
+  adaptive_config?: Record<string, unknown>;
+  attack_playbook?: Record<string, unknown>;
+  cell_isolation_override?: Record<string, unknown>;
+  provision_cyber_vision?: boolean;
+}
+
+export interface DeployNewLabResponse {
+  success: boolean;
+  message: string;
+  lab_id: string | null;
+  slug: string | null;
+  agent_id: string | null;
+  agent_token: string | null;
+  sensor_serial: string | null;
+  state: string;
+}
+
+/**
  * Status of an in-progress agent update
  */
 export interface AgentUpdateStatus {
