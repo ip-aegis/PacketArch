@@ -7,9 +7,12 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.2.1"
+VERSION = "2.3.0"
 
 # Version history:
+# 2.3.0 - New vendor device fingerprints (Carlo Gavazzi, Danfoss, Elvaco, Janitza) added
+#   matching entries to protocol_engines/_vendor_ouis_generated.py, which is staged into the
+#   agent build — no on-wire/behavior change, MINOR bump per the protocol_engines staging rule.
 # 2.2.1 - Packaging only (NO on-wire/behavior change): the agent Dockerfile now stamps an
 #   org.packetarch.agent_version LABEL (from an AGENT_VERSION build-arg). The server reads
 #   that label to detect a loaded agent image's version WITHOUT the agent source and re-serve

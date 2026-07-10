@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.13</title>
+  <title>PacketArch Release Notes — v1.10 through v1.15</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,25 +565,25 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.13.0,
-      covering June 17 &ndash; July 2, 2026.
+      Feature releases and patches from v1.10.0 through v1.15.0,
+      covering June 17 &ndash; July 10, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">7</div>
+        <div class="cover-stat-value">8</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.13.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.15.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
-        <div class="cover-stat-value">2.1.4 &rarr; 2.2.1</div>
+        <div class="cover-stat-value">2.1.4 &rarr; 2.3.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-07-06</div>
+        <div class="cover-stat-value">2026-07-10</div>
       </div>
     </div>
   </header>
@@ -627,6 +627,11 @@ code {
           <td>v1.13.0</td>
           <td>CV network organization: per-scenario /16 and per-zone /24 networks</td>
           <td>Jul 2, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.15.0</td>
+          <td>Local Sensor Labs: auto-provisioned sensors, deploy-to-new-lab, new device library</td>
+          <td>Jul 10, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1019,10 +1024,72 @@ code {
     </div>
   </section>
 
+  <!-- ════════════════════════════════════════════════════
+       v1.15.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.15.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.15.0</div>
+        <div class="release-date">2026-07-10</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Local Sensor Labs</div>
+        <div class="release-headline">One-click dedicated sensor labs &mdash; auto-provisioned straight from scenario deploy</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>No more pasting a Cyber Vision compose file.</strong> "New Local Lab" now
+            just asks for a name. PacketArch auto-provisions the docker sensor directly against
+            the Cyber Vision API (deployment token &rarr; per-sensor JWT), synthesizing the same
+            compose CV's own GUI would have generated &mdash; the manual GUI round-trip, and the
+            single-use-token footgun that came with it, are gone.
+          </li>
+          <li class="change-item">
+            <strong>Deploy straight to a new dedicated lab.</strong> The scenario Deploy panel
+            has a new "New Local Lab" option alongside picking an existing agent &mdash; it spins
+            up a dedicated agent/sensor pair for that scenario and deploys automatically the
+            moment the sensor comes online, no need to build a lab first and come back later.
+          </li>
+          <li class="change-item">
+            <strong>Human-readable sensor names.</strong> Docker sensors are named after the lab
+            or scenario that created them (sanitized, collision-safe) instead of an opaque id, and
+            teardown now also removes the sensor object from the Cyber Vision Center.
+          </li>
+          <li class="change-item">
+            <strong>New device library.</strong> Carlo Gavazzi, Danfoss, Elvaco, and Janitza
+            power-quality, metering, and M-Bus gateway fingerprints, with matching vendor OUIs and
+            comm-matrix patterns (NMS/remote-access polling, OPC UA aggregator protocol-gateway
+            behavior) across all six verticals.
+          </li>
+          <li class="change-item">
+            <strong>In-app feedback.</strong> A feedback button now DMs the PacketArch team over
+            WebEx so operators can report issues without leaving the app.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Fixed</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Deploy feedback.</strong> The Deploy button now shows its loading state for
+            every deploy path, and a persistent status card tracks a new lab's provisioning until
+            the scenario actually deploys &mdash; previously a "New Local Lab" deploy gave no
+            visible feedback beyond an easy-to-miss toast.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-06</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-10</div>
   </footer>
 
 </div>
