@@ -66,16 +66,19 @@ const CyberVisionTab: React.FC = () => {
     cyber_vision_url: string;
     cyber_vision_api_token?: string;
     cyber_vision_verify_ssl?: boolean;
+    cyber_vision_new_ui_token?: string;
   }) => {
     try {
       await updateSettings({
         cyber_vision_url: values.cyber_vision_url,
         cyber_vision_api_token: values.cyber_vision_api_token || undefined,
         cyber_vision_verify_ssl: values.cyber_vision_verify_ssl,
+        cyber_vision_new_ui_token: values.cyber_vision_new_ui_token || undefined,
       });
       message.success('Cyber Vision settings saved');
-      // Clear the API token field after save (it's stored encrypted)
+      // Clear the token fields after save (they're stored encrypted)
       form.setFieldValue('cyber_vision_api_token', '');
+      form.setFieldValue('cyber_vision_new_ui_token', '');
       // Refresh status
       fetchStatus();
     } catch {
@@ -236,6 +239,25 @@ const CyberVisionTab: React.FC = () => {
             tooltip="Enable SSL certificate verification. Disable for self-signed certificates."
           >
             <Switch checkedChildren="Yes" unCheckedChildren="No" />
+          </Form.Item>
+
+          <Form.Item
+            name="cyber_vision_new_ui_token"
+            label="New UI API Token"
+            tooltip="Optional. CV's new UI has its own API with a separate token store from the classic API token above — same Cyber Vision center, same URL/SSL setting. Enables mirroring scenario zones into CV's new Organization Hierarchy view. Leave empty to keep existing token, or leave unconfigured to skip this feature entirely."
+            extra={
+              settings?.cyber_vision_new_ui_token_set ? (
+                <Text type="success">
+                  <CheckCircleOutlined /> New UI API token is configured
+                </Text>
+              ) : (
+                <Text type="secondary">Optional — not configured (Organization Hierarchy sync skipped)</Text>
+              )
+            }
+          >
+            <Input.Password
+              placeholder="Enter New UI API token (leave empty to keep existing)"
+            />
           </Form.Item>
 
           <Form.Item>

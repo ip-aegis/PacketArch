@@ -63,6 +63,7 @@ export interface CVSettings {
   cyber_vision_url: string;
   cyber_vision_api_token_set: boolean;
   cyber_vision_verify_ssl: boolean;
+  cyber_vision_new_ui_token_set: boolean;
 }
 
 // CV Settings update
@@ -70,6 +71,7 @@ export interface CVSettingsUpdate {
   cyber_vision_url?: string;
   cyber_vision_api_token?: string;
   cyber_vision_verify_ssl?: boolean;
+  cyber_vision_new_ui_token?: string;
 }
 
 // Matched device in comparison
@@ -225,6 +227,7 @@ export interface CVProvisionStatus {
   status: 'not_started' | 'preset_created' | 'polling' | 'groups_created' | 'error' | null;
   groups: Record<string, CVProvisionGroup>;
   networks?: Record<string, CVProvisionNetwork>; // ipRange -> network
+  org_hierarchy?: { scenario_level_id?: string; zones?: Record<string, string> }; // new-UI Organization Hierarchy state
   device_count: number;
   error: string | null;
   updated_at: string | null;

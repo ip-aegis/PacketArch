@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.16</title>
+  <title>PacketArch Release Notes — v1.10 through v1.17</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.16.0,
+      Feature releases and patches from v1.10.0 through v1.17.0,
       covering June 17 &ndash; July 10, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">10</div>
+        <div class="cover-stat-value">11</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.16.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.17.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -641,6 +641,11 @@ code {
         <tr class="patch">
           <td>v1.16.0</td>
           <td>Release notes: v1.14.0 backfilled, build-freshness fix</td>
+          <td>Jul 10, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.17.0</td>
+          <td>Cyber Vision new-UI Organization Hierarchy provisioning</td>
           <td>Jul 10, 2026</td>
         </tr>
       </tbody>
@@ -1167,6 +1172,56 @@ code {
             doesn't reach a already-running deployment until the frontend is rebuilt. No code
             change; noting it here since it's the reason the v1.15.0 write-up didn't initially
             appear in-app.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.17.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.17.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.17.0</div>
+        <div class="release-date">2026-07-10</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">New-UI Organization Hierarchy provisioning &mdash; scenario zones mirrored into CV's next-gen tree view</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Organization Hierarchy provisioning.</strong> Cyber Vision is mid-transition to a
+            new UI with its own API (<code>/cvapi/v1</code>), which introduces an
+            <em>Organization Hierarchy</em> tree distinct from the classic API's flat Groups. Scenario
+            deploys now build one hierarchy level per scenario (under CV's built-in
+            <code>Global</code> root) and one child level per zone, so a deployed scenario reads the
+            same way in both the old and new CV UIs at once.
+          </li>
+          <li class="change-item">
+            <strong>Reuses the existing custom networks.</strong> The scenario's <code>/16</code> and
+            per-zone <code>/24</code> custom networks (provisioned since v1.13.0) are assigned directly
+            to the matching hierarchy levels &mdash; no new network objects, no device/MAC polling
+            required, since Organization Hierarchy membership is IP/network-based rather than
+            per-device.
+          </li>
+          <li class="change-item">
+            <strong>Separate, optional token.</strong> CV's new UI API authenticates with its own
+            token store, distinct from the classic API token. A new, optional "New UI API Token"
+            field in Settings &rarr; Cyber Vision enables this feature; leaving it unset skips
+            Organization Hierarchy provisioning entirely without affecting anything else.
+          </li>
+          <li class="change-item">
+            <strong>Idempotent, reconcilable, and torn down cleanly.</strong> Re-deploys and
+            <code>POST /api/v1/cyber-vision/reconcile</code> get-or-create-or-rename levels without
+            creating duplicates; scenario deletion removes the zone levels before the scenario level
+            (Cyber Vision requires child-levels-first) after the underlying networks are gone.
           </li>
         </ul>
       </div>

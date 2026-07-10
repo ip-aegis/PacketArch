@@ -32,6 +32,7 @@ from app.services.cyber_vision_service import (
     is_broadcast_multicast,
     normalize_mac,
 )
+from app.services.cyber_vision_v1_service import cv_v1_service_from_settings
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,30 @@ def _color_for_vertical(vertical: str | None) -> str:
 
 # Cyber Vision caps group labels at 60 characters.
 GROUP_LABEL_LIMIT = 60
+
+# CV's new-UI Organization Hierarchy caps level names at just 20 characters —
+# much stricter than Groups (60) or presets (100), and NOT documented in the
+# OpenAPI spec (confirmed live: CV rejects longer names with "only 20
+# characters allowed for name"). It also rejects non-ASCII characters
+# (confirmed live: the "…" ellipsis _truncate_at_word appends elsewhere gets
+# "Name is invalid") — so OH names need their own plain word-boundary
+# truncation, no suffix. The full-length _group_label value is still used for
+# the matching CV Group/custom network, so the old-UI/new-UI names can
+# visibly diverge when a zone or scenario name is long — that's a real CV
+# constraint, not a bug.
+OH_LEVEL_NAME_LIMIT = 20
+
+
+def _oh_level_name(text: str, limit: int = OH_LEVEL_NAME_LIMIT) -> str:
+    """Truncate a name to fit CV's new-UI OH level cap, at a word boundary,
+    with no suffix character (CV rejects non-ASCII names outright)."""
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rstrip()
+    if " " in cut:
+        cut = cut[: cut.rfind(" ")].rstrip()
+    return cut or text[:limit]
 
 # CV "type" for the custom networks we mint for simulated OT ranges. CV also
 # supports "IT Internal" / "External"; we default everything to "OT Internal"
@@ -456,6 +481,149 @@ def _scenario_network_ids(networks_state: dict, scenario_cidr: str | None) -> li
     return ids
 
 
+async def _save_cv_org_hierarchy(db, scenario_id: UUID, org_state: dict) -> None:
+    """Persist ONLY ``definition['cyber_vision']['org_hierarchy']`` via a targeted
+    jsonb_set (mirrors ``_save_cv_networks``)."""
+    import json
+
+    await db.execute(
+        text(
+            "UPDATE scenarios SET definition = jsonb_set("
+            "jsonb_set(COALESCE(definition, '{}'::jsonb), '{cyber_vision}', "
+            "COALESCE(definition->'cyber_vision', '{}'::jsonb), true), "
+            "'{cyber_vision,org_hierarchy}', CAST(:oh AS jsonb), true) "
+            "WHERE id = :sid"
+        ),
+        {"oh": json.dumps(org_state), "sid": str(scenario_id)},
+    )
+    await db.commit()
+
+
+def _match_existing_oh_level(
+    levels_by_id: dict, existing_id: str | None, parent_id: str, name: str
+) -> str | None:
+    """Resolve a level id: prefer the persisted id (if still live), else match
+    by (parentLevelId, name) among the currently-fetched levels."""
+    if existing_id and existing_id in levels_by_id:
+        return existing_id
+    for lid, lv in levels_by_id.items():
+        if lv.get("parentLevelId") == parent_id and lv.get("name") == name:
+            return lid
+    return None
+
+
+async def provision_org_hierarchy(
+    db, scenario: Scenario, networks_state: dict | None = None
+) -> dict:
+    """Mirror a scenario's zones into CV's new-UI Organization Hierarchy.
+
+    Creates one level for the scenario (under CV's built-in ``Global`` root)
+    and one child level per zone — named identically to the zone's CV Group
+    label (``_group_label``) so the same zone reads the same way in the old-UI
+    Groups, the custom networks, and this tree. Assigns the scenario's already-
+    provisioned custom networks (``provision_networks``) to the matching
+    levels: the scenario's /16 to the scenario level, each zone's /24 to its
+    zone level. OH membership is network/IP-based only (no per-device
+    assignment exists in this API), so unlike ``provision_groups`` this needs
+    no device/MAC polling and runs synchronously at deploy time.
+
+    Idempotent get-or-create-or-rename, keyed first by persisted level ids and
+    falling back to (parent, name) matching — safe to re-run (redeploy,
+    reconcile) without creating duplicate levels.
+
+    Raises:
+        RuntimeError: if the New UI API token isn't configured (caller wraps
+            this best-effort, same as ``provision_networks``).
+    """
+    svc = await cv_v1_service_from_settings(db)
+    if svc is None:
+        raise RuntimeError("Cyber Vision New UI API is not configured")
+
+    if networks_state is None:
+        networks_state = _get_cv_state(scenario).get("networks") or {}
+
+    subnet = await get_scenario_subnet(db, scenario.id)
+    duplicates = await _duplicate_zone_names(db)
+    definition = scenario.definition or {}
+    zones: dict = definition.get("zones", {}) or {}
+    range_index = _range_index_from_cidr(subnet)
+    prior = _get_cv_state(scenario).get("org_hierarchy") or {}
+    prior_zones: dict = prior.get("zones") or {}
+
+    try:
+        levels = await svc.get_oh_levels()
+        levels_by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
+
+        global_level = next(
+            (lv for lv in levels if lv.get("name") == "Global" and not lv.get("parentLevelId")),
+            None,
+        )
+        if global_level is None:
+            raise RuntimeError("CV Organization Hierarchy has no 'Global' root level")
+        global_id = global_level["id"]
+
+        scenario_name = _oh_level_name(getattr(scenario, "name", None) or "PacketArch scenario")
+        scenario_level_id = _match_existing_oh_level(
+            levels_by_id, prior.get("scenario_level_id"), global_id, scenario_name
+        )
+        if scenario_level_id is None:
+            await svc.create_oh_levels([{"name": scenario_name, "parentLevelId": global_id}])
+            levels = await svc.get_oh_levels()
+            levels_by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
+            scenario_level_id = _match_existing_oh_level(levels_by_id, None, global_id, scenario_name)
+            if scenario_level_id is None:
+                raise RuntimeError(f"CV org-hierarchy level '{scenario_name}' not found after create")
+        elif levels_by_id[scenario_level_id].get("name") != scenario_name:
+            await svc.rename_oh_level(scenario_level_id, scenario_name)
+            levels_by_id[scenario_level_id]["name"] = scenario_name
+
+        zone_labels = {
+            zone_id: _oh_level_name(_group_label(scenario, zone.get("name") or zone_id, duplicates))
+            for zone_id, zone in zones.items()
+        }
+        to_create = [
+            {"name": label, "parentLevelId": scenario_level_id}
+            for zone_id, label in zone_labels.items()
+            if _match_existing_oh_level(levels_by_id, prior_zones.get(zone_id), scenario_level_id, label) is None
+        ]
+        if to_create:
+            await svc.create_oh_levels(to_create)
+            levels = await svc.get_oh_levels()
+            levels_by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
+
+        zones_state: dict[str, str] = {}
+        for zone_id, label in zone_labels.items():
+            level_id = _match_existing_oh_level(
+                levels_by_id, prior_zones.get(zone_id), scenario_level_id, label
+            )
+            if level_id is None:
+                logger.warning(f"CV org-hierarchy level '{label}' not found after create — skipping zone {zone_id}")
+                continue
+            if levels_by_id[level_id].get("name") != label:
+                await svc.rename_oh_level(level_id, label)
+            zones_state[zone_id] = level_id
+
+        # Assign the already-provisioned custom networks to the matching levels.
+        if subnet and networks_state.get(subnet, {}).get("id"):
+            await svc.assign_networks_to_level(scenario_level_id, [networks_state[subnet]["id"]])
+        for zone_id, level_id in zones_state.items():
+            z24 = _zone_subnet(zones[zone_id], range_index)
+            net = networks_state.get(z24) if z24 else None
+            if net and net.get("id"):
+                await svc.assign_networks_to_level(level_id, [net["id"]])
+
+        result = {"scenario_level_id": scenario_level_id, "zones": zones_state}
+    finally:
+        await svc.close()
+
+    await _save_cv_org_hierarchy(db, scenario.id, result)
+    logger.info(
+        f"CV org-hierarchy for scenario {scenario.id}: scenario level {scenario_level_id}, "
+        f"{len(zones_state)} zone level(s)"
+    )
+    return result
+
+
 async def provision_preset(db, scenario: Scenario) -> dict:
     """Create a CV preset for the scenario and record it on the definition.
 
@@ -502,6 +670,16 @@ async def provision_preset(db, scenario: Scenario) -> dict:
         state["networks"] = (await provision_networks(db, scenario)).get("networks", {})
     except Exception:  # noqa: BLE001 — network org is additive, never fatal
         logger.exception("CV network provisioning failed (continuing)")
+
+    # Mirror the scenario/zones into CV's new-UI Organization Hierarchy, using
+    # the networks just provisioned above. Best-effort and independently
+    # optional (skipped entirely if the New UI API token isn't configured).
+    try:
+        state["org_hierarchy"] = await provision_org_hierarchy(
+            db, scenario, networks_state=state.get("networks")
+        )
+    except Exception:  # noqa: BLE001 — org hierarchy is additive, never fatal
+        logger.exception("CV org hierarchy provisioning failed (continuing)")
 
     # Keep the vertical roll-up preset in sync with this scenario's addition.
     vertical = getattr(scenario, "vertical", None)
@@ -565,7 +743,10 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
 
     Returns a summary dict {preset_deleted, groups_deleted, entities_*, errors}.
     """
-    summary = {"preset_deleted": False, "groups_deleted": 0, "networks_deleted": 0, "errors": []}
+    summary = {
+        "preset_deleted": False, "groups_deleted": 0, "networks_deleted": 0,
+        "org_levels_deleted": 0, "errors": [],
+    }
     state = _get_cv_state(scenario)
     if not state:
         return summary
@@ -607,6 +788,36 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
                 summary["errors"].append(f"networks: {e}")
                 logger.warning(f"CV teardown: failed to delete networks {net_ids}: {e}")
 
+        # Delete this scenario's new-UI Organization Hierarchy levels — zone
+        # (child) levels first, then the scenario level. Must run AFTER the
+        # networks are deleted above: an OH level can't be deleted while a
+        # network is still assigned to it, and there's no "unassign" call
+        # (only reassignment) — deleting the underlying network is what frees
+        # the level. Independently optional: skipped entirely if the New UI
+        # API token isn't configured.
+        org_hierarchy = state.get("org_hierarchy") or {}
+        if org_hierarchy:
+            v1 = await cv_v1_service_from_settings(db)
+            if v1 is not None:
+                try:
+                    for zone_id, level_id in (org_hierarchy.get("zones") or {}).items():
+                        try:
+                            await v1.delete_oh_level(level_id)
+                            summary["org_levels_deleted"] += 1
+                        except Exception as e:  # noqa: BLE001
+                            summary["errors"].append(f"org-hierarchy zone level {level_id}: {e}")
+                            logger.warning(f"CV teardown: failed to delete org-hierarchy level {level_id}: {e}")
+                    scenario_level_id = org_hierarchy.get("scenario_level_id")
+                    if scenario_level_id:
+                        try:
+                            await v1.delete_oh_level(scenario_level_id)
+                            summary["org_levels_deleted"] += 1
+                        except Exception as e:  # noqa: BLE001
+                            summary["errors"].append(f"org-hierarchy scenario level {scenario_level_id}: {e}")
+                            logger.warning(f"CV teardown: failed to delete org-hierarchy level {scenario_level_id}: {e}")
+                finally:
+                    await v1.close()
+
         # Best-effort: clear the scenario's own discovered entities (ghost cleanup).
         try:
             summary.update(await _purge_scenario_entities(svc, scenario))
@@ -618,6 +829,7 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
     logger.info(
         f"CV teardown for scenario {scenario.id}: preset_deleted={summary['preset_deleted']}, "
         f"groups_deleted={summary['groups_deleted']}, networks_deleted={summary['networks_deleted']}, "
+        f"org_levels_deleted={summary['org_levels_deleted']}, "
         f"entities_deleted={summary.get('entities_deleted', 0)}/{summary.get('entities_attempted', 0)}, "
         f"errors={len(summary['errors'])}"
     )
@@ -1023,6 +1235,43 @@ async def reconcile_cv_networks(db) -> dict:
     logger.info(
         f"reconcile_cv_networks: scenarios={summary['scenarios']} created={summary['created']} "
         f"existing={summary['existing']} errors={len(summary['errors'])}"
+    )
+    return summary
+
+
+async def reconcile_cv_org_hierarchy(db) -> dict:
+    """Backfill/repair every scenario's new-UI Organization Hierarchy tree.
+
+    Mirrors ``reconcile_cv_networks``, but SOFT-skips (returns a
+    ``{"skipped": True}`` summary) rather than raising when the New UI API
+    token isn't configured — unlike the classic CV connection the other
+    reconcilers require, this integration is optional/additive, and an
+    unconfigured token shouldn't abort the rest of a ``POST /reconcile`` pass.
+    ``provision_org_hierarchy`` is get-or-create-or-rename in one pass, so this
+    single reconciler covers both drift-repair and backfill for scenarios
+    provisioned before this feature existed.
+    """
+    summary: dict = {"scenarios": 0, "errors": []}
+    probe = await cv_v1_service_from_settings(db)
+    if probe is None:
+        summary["skipped"] = True
+        summary["reason"] = "Cyber Vision New UI API token is not configured"
+        return summary
+    await probe.close()
+
+    rows = (await db.execute(select(Scenario))).scalars().all()
+    for s in rows:
+        if await get_scenario_subnet(db, s.id) is None:
+            continue  # no allocated /16 → nothing to mirror
+        summary["scenarios"] += 1
+        try:
+            await provision_org_hierarchy(db, s)
+        except Exception as e:  # noqa: BLE001
+            summary["errors"].append(f"scenario {s.id}: {e}")
+            logger.warning(f"reconcile_cv_org_hierarchy: scenario {s.id} failed: {e}")
+
+    logger.info(
+        f"reconcile_cv_org_hierarchy: scenarios={summary['scenarios']} errors={len(summary['errors'])}"
     )
     return summary
 

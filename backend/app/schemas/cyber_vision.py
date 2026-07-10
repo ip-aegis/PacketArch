@@ -112,6 +112,10 @@ class CVSettingsUpdate(BaseModel):
     cyber_vision_url: str | None = Field(default=None, description="Cyber Vision URL")
     cyber_vision_api_token: str | None = Field(default=None, description="API token")
     cyber_vision_verify_ssl: bool | None = Field(default=None, description="Verify SSL")
+    cyber_vision_new_ui_token: str | None = Field(
+        default=None,
+        description="New UI API token (cvapi/v1 — separate token store, same URL/SSL)",
+    )
 
 
 class CVSettingsResponse(BaseModel):
@@ -120,6 +124,9 @@ class CVSettingsResponse(BaseModel):
     cyber_vision_url: str
     cyber_vision_api_token_set: bool = Field(description="Whether token is configured")
     cyber_vision_verify_ssl: bool
+    cyber_vision_new_ui_token_set: bool = Field(
+        default=False, description="Whether the New UI API token is configured"
+    )
 
 
 class CVPresetResponse(BaseModel):
@@ -266,6 +273,10 @@ class CVProvisionResponse(BaseModel):
     )
     groups: dict = Field(default_factory=dict, description="zone_id -> {group_id, label, device_count}")
     networks: dict = Field(default_factory=dict, description="ipRange -> {id, name, type} CV custom networks (scenario /16 + zone /24s)")
+    org_hierarchy: dict = Field(
+        default_factory=dict,
+        description="New-UI Organization Hierarchy state: {scenario_level_id, zones: {zone_id: level_id}}",
+    )
     device_count: int = Field(0, description="Devices assigned to groups")
     error: str | None = Field(None, description="Error message if provisioning failed")
     updated_at: str | None = Field(None, description="Last state update timestamp")

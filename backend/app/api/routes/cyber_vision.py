@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cyber-vision", tags=["Cyber Vision"])
 
 
+_SECRET_CV_KEYS = {"cyber_vision_api_token", "cyber_vision_new_ui_token"}
+
+
 async def get_cv_settings(db) -> tuple[str | None, str | None, bool]:
     """Get CV settings from database."""
     settings = {}
@@ -74,6 +77,15 @@ async def get_cv_settings(db) -> tuple[str | None, str | None, bool]:
     return url, token, verify_ssl
 
 
+async def _get_cv_new_ui_token_set(db) -> bool:
+    """Whether the separate New UI API token is configured (masked bool only)."""
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == "cyber_vision_new_ui_token")
+    )
+    setting = result.scalar_one_or_none()
+    return bool(setting and setting.value)
+
+
 async def get_cv_service(db) -> CyberVisionService:
     """Get a configured CV service instance."""
     url, token, verify_ssl = await get_cv_settings(db)
@@ -96,6 +108,7 @@ async def get_settings(
         cyber_vision_url=url or "",
         cyber_vision_api_token_set=bool(token),
         cyber_vision_verify_ssl=verify_ssl,
+        cyber_vision_new_ui_token_set=await _get_cv_new_ui_token_set(db),
     )
 
 
@@ -117,6 +130,9 @@ async def update_settings(
     if update.cyber_vision_verify_ssl is not None:
         updates["cyber_vision_verify_ssl"] = str(update.cyber_vision_verify_ssl).lower()
 
+    if update.cyber_vision_new_ui_token is not None:
+        updates["cyber_vision_new_ui_token"] = encrypt_value(update.cyber_vision_new_ui_token)
+
     for key, value in updates.items():
         result = await db.execute(
             select(SystemSetting).where(SystemSetting.key == key)
@@ -128,7 +144,7 @@ async def update_settings(
             setting = SystemSetting(
                 key=key,
                 value=value,
-                is_secret=(key == "cyber_vision_api_token"),
+                is_secret=(key in _SECRET_CV_KEYS),
                 category="cyber_vision",
                 description=f"Cyber Vision {key.replace('cyber_vision_', '').replace('_', ' ')}",
             )
@@ -878,24 +894,27 @@ async def reconcile_cv(
     db: DBSession,
     _admin: AdminUser,
 ) -> dict:
-    """Re-derive CV group names, custom networks, and vertical roll-up presets.
+    """Re-derive CV group names, custom networks, org hierarchy, and vertical roll-up presets.
 
     One-shot cleanup lever: rewrites every zone group's label to the readable
     convention (bare zone name, scenario-suffixed only on cross-scenario
     collisions, acronym casing), ensures each scenario's custom networks (/16 +
-    zone /24s) exist, and rebuilds each vertical's roll-up preset. Idempotent —
-    safe to run anytime CV drifts from the scenario set.
+    zone /24s) exist, backfills/repairs each scenario's new-UI org-hierarchy
+    tree, and rebuilds each vertical's roll-up preset. Idempotent — safe to run
+    anytime CV drifts from the scenario set.
     Requires admin (writes to Cyber Vision).
     """
     from app.services.cv_provisioning_service import (
         reconcile_cv_group_names,
         reconcile_cv_networks,
+        reconcile_cv_org_hierarchy,
         reconcile_vertical_presets,
     )
 
     try:
         groups = await reconcile_cv_group_names(db)
         networks = await reconcile_cv_networks(db)
+        org_hierarchy = await reconcile_cv_org_hierarchy(db)
         verticals = await reconcile_vertical_presets(db)
     except RuntimeError as e:
         raise ValidationError(str(e))
@@ -909,6 +928,7 @@ async def reconcile_cv(
     return {
         "group_names": groups,
         "networks": networks,
+        "org_hierarchy": org_hierarchy,
         "vertical_presets": [
             {"vertical": v["vertical"], "label": v["label"], "subnets": len(v["subnets"])}
             for v in verticals

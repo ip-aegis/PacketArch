@@ -211,6 +211,15 @@ DEFAULT_SETTINGS = [
         "category": "cyber_vision",
         "description": "Verify SSL certificates when connecting to Cyber Vision",
     },
+    {
+        "key": "cyber_vision_new_ui_token",
+        "is_secret": True,
+        "category": "cyber_vision",
+        "description": (
+            "Cisco Cyber Vision New UI API token (cvapi/v1 — a separate token "
+            "store from the classic API token above; same URL/SSL setting)"
+        ),
+    },
     # Cisco Modeling Labs (CML) settings
     {
         "key": "cml_url",
