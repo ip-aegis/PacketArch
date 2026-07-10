@@ -176,7 +176,7 @@ export const agentsHubArticle: HelpArticle = {
   ],
   summary: 'Manage traffic agents, on-box Local Labs with a CV sensor, and Cisco Modeling Labs deployments.',
   content: AgentsHubContent,
-  relatedArticles: ['deployments', 'live-traffic', 'cyber-vision'],
+  relatedArticles: ['deployments', 'live-traffic', 'cyber-vision', 'local-sensor-labs-scaling'],
   relatedPages: ['/agents'],
   order: 3,
 };

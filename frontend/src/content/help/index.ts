@@ -229,6 +229,7 @@ import { guidedBuilderArticle } from './guided-builder';
 import { scenarioVersionsArticle } from './scenario-versions';
 import { deviceLibraryArticle } from './device-library';
 import { agentsHubArticle } from './agents-hub';
+import { localSensorLabsScalingArticle } from './local-sensor-labs-scaling';
 import { attackSimulationArticle } from './attack-simulation';
 
 import { deploymentsArticle } from './deployments';
@@ -252,6 +253,7 @@ registerHelpArticle(guidedBuilderArticle);
 registerHelpArticle(scenarioVersionsArticle);
 registerHelpArticle(deviceLibraryArticle);
 registerHelpArticle(agentsHubArticle);
+registerHelpArticle(localSensorLabsScalingArticle);
 registerHelpArticle(attackSimulationArticle);
 
 registerHelpArticle(deploymentsArticle);
