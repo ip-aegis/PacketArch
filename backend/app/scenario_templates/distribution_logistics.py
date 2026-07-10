@@ -62,6 +62,12 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "name": "WMS_Core_Switch_2", "protocols": ["snmp"],
              "fingerprint_model": "Stratix 5700",
              "role": "Core Network Switch"},
+            # Network Management Station - Paessler PRTG (SNMP monitoring)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "wms_core",
+             "name": "WMS_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
 
             # ============================================================
             # FLEET MANAGEMENT ZONE (Level 2) - 3 devices
@@ -72,7 +78,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "KUKA.FleetManager",
              "role": "AGV Fleet Controller",
              },
-            {"type": "fleet_manager", "vendor": "mir", "count": 1, "zone": "fleet_mgmt",
+            {"type": "amr_fleet_manager", "vendor": "mir", "count": 1, "zone": "fleet_mgmt",
              "name": "MiR_Fleet_Controller", "protocols": ["modbus_tcp"],
              "fingerprint_model": "MiR Fleet",
              "role": "AMR Fleet Controller"},
@@ -280,7 +286,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
 
             # MiR Fleet Controller to MiR AMRs - Modbus mission commands (250ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
-             "source_types": ["fleet_manager"], "target_types": ["amr"],
+             "source_types": ["amr_fleet_manager"], "target_types": ["amr"],
              "source_zones": ["fleet_mgmt"], "target_zones": ["agv_zone"],
              "jitter_ms": 30, "jitter_type": "gaussian"},
 
@@ -299,8 +305,8 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["conveyor_zone"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 8, "jitter_type": "gaussian"},
 
-            # Safety PLC to conveyor PLCs and VFDs - safety interlock (20ms)
-            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 20,
+            # Safety PLC to conveyor PLCs and VFDs - safety interlock (100ms)
+            {"protocol": "ethernet_ip", "pattern": "cyclic_io", "interval_ms": 100,
              "source_types": ["safety_plc"], "target_types": ["plc", "sortation_controller", "drive"],
              "source_zones": ["conveyor_zone"], "target_zones": ["conveyor_zone"],
              "jitter_ms": 3, "jitter_type": "gaussian"},
@@ -352,7 +358,7 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # WCS to MiR Fleet Controller - Modbus TCP (500ms). MiR Fleet speaks
             # Modbus/HTTPS only, never EtherNet/IP.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
-             "source_types": ["scada_server"], "target_types": ["fleet_manager"],
+             "source_types": ["scada_server"], "target_types": ["amr_fleet_manager"],
              "source_zones": ["wms_core"], "target_zones": ["fleet_mgmt"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
@@ -377,10 +383,13 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             # ============================================================
             # SNMP NETWORK MONITORING
             # ============================================================
-            # WCS monitoring all switches (30s)
+            # NMS monitoring all switches (30s) — from the network management
+            # station, not the WCS. Pinned to SNMP so protocol repair won't
+            # upgrade it to HTTPS (which would break the crossed conduits).
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
-             "source_zones": ["wms_core"], "target_zones": ["wms_core", "fleet_mgmt", "conveyor_zone", "pick_zone"]},
+             "source_types": ["nms"], "target_types": ["switch"],
+             "source_zones": ["wms_core"], "target_zones": ["wms_core", "fleet_mgmt", "conveyor_zone", "pick_zone"],
+             "auto_repair_skip": True},
 
             # Jump server SNMP monitoring of core switches (60s)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
@@ -445,16 +454,16 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "wms_to_fleet", "name": "WMS Core \u2194 Fleet Management",
              "source_zone": "wms_core", "target_zone": "fleet_mgmt",
              "direction": "bidirectional",
-             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "security_level": "high",
-             "description": "WCS servers polling KUKA fleet manager (EtherNet/IP) and MiR fleet controller (Modbus) for AGV coordination and status"},
+             "description": "WCS servers polling KUKA fleet manager (EtherNet/IP) and MiR fleet controller (Modbus) for AGV coordination and status; NMS SNMP polling of the fleet management switch"},
             # L3 (wms_core) <-> L2 (conveyor_zone): WCS to conveyor automation
             {"id": "wms_to_conveyor", "name": "WMS Core \u2194 Conveyor Zone",
              "source_zone": "wms_core", "target_zone": "conveyor_zone",
              "direction": "bidirectional",
-             "allowed_protocols": ["ethernet_ip", "modbus_tcp"],
+             "allowed_protocols": ["ethernet_ip", "modbus_tcp", "snmp"],
              "security_level": "high",
-             "description": "WCS servers polling conveyor PLCs, sortation controllers, safety PLC, and VFDs"},
+             "description": "WCS servers polling conveyor PLCs, sortation controllers, safety PLC, and VFDs; NMS SNMP polling of the conveyor zone switch"},
             # L2 (fleet_mgmt) <-> L1 (agv_zone): Fleet managers to AGV units
             {"id": "fleet_to_agv", "name": "Fleet Management \u2194 AGV Zone",
              "source_zone": "fleet_mgmt", "target_zone": "agv_zone",
@@ -466,9 +475,9 @@ DISTRIBUTION_LOGISTICS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "wms_to_pick", "name": "WMS Core \u2194 Pick Zone",
              "source_zone": "wms_core", "target_zone": "pick_zone",
              "direction": "bidirectional",
-             "allowed_protocols": ["ethernet_ip"],
+             "allowed_protocols": ["ethernet_ip", "snmp"],
              "security_level": "standard",
-             "description": "WCS servers polling pick station PLC and vision systems for order fulfillment status"},
+             "description": "WCS servers polling pick station PLC and vision systems for order fulfillment status; NMS SNMP polling of the pick zone switch"},
             # L3 (wms_core) <-> L4 (external): Remote access and jump server
             {"id": "wms_to_external", "name": "WMS Core \u2194 External",
              "source_zone": "wms_core", "target_zone": "external",

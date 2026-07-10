@@ -1470,6 +1470,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "IE-4000-8GT4G-E",
              "role": "Core Network Switch"},
 
+            # Network Management Station - Paessler PRTG (SNMP monitoring)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "microgrid_control",
+             "name": "Solar_Farm_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
+
             # HMS Flexy 205 - Remote Access
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "microgrid_control",
              "name": "Solar_Farm_Remote_Access", "protocols": ["modbus_tcp", "snmp"],
@@ -1689,6 +1696,13 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["microgrid_control"], "target_zones": ["poi_protection"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
+            # Microgrid controller polling inverter-array feeder protection
+            # relays (Easergy P3) for status/trip data (500ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+             "source_types": ["plc"], "target_types": ["protection_relay"],
+             "source_zones": ["microgrid_control"], "target_zones": ["inverter_field"],
+             "jitter_ms": 50, "jitter_type": "gaussian"},
+
             # Central inverter PLC polling string PLCs (1000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
              "source_types": ["plc"], "target_types": ["plc"],
@@ -1739,11 +1753,11 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["microgrid_control"], "target_zones": ["environmental"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # Microgrid network management — remote gateway acts as NMS
-            # proxy and SNMP-polls every switch in the site for Cyber
-            # Vision discovery (covers core, inverter-field, BESS, WAN).
+            # Microgrid network management — the NMS SNMP-polls every
+            # switch in the site for Cyber Vision discovery (covers core,
+            # inverter-field, BESS, WAN).
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
-             "source_types": ["remote_gateway"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["microgrid_control"],
              "target_zones": ["microgrid_control", "inverter_field",
                               "bess_control", "poi_protection",
@@ -1838,16 +1852,16 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "microgrid_to_inverter", "name": "Microgrid Control \u2194 Inverter Field",
              "source_zone": "microgrid_control", "target_zone": "inverter_field",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "dnp3", "iec61850", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "dnp3", "iec61850", "snmp", "https"],
              "security_level": "high",
-             "description": "Microgrid controller and historian polling inverter string and central PLCs plus Easergy P3 feeder protection"},
+             "description": "Microgrid controller and historian polling inverter string and central PLCs plus Easergy P3 feeder protection; NMS SNMP/web management of field switches"},
             # L3 (microgrid_control) <-> L2 (bess_control): Microgrid to BESS
             {"id": "microgrid_to_bess", "name": "Microgrid Control \u2194 BESS",
              "source_zone": "microgrid_control", "target_zone": "bess_control",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp", "https"],
              "security_level": "high",
-             "description": "Microgrid controller and historian polling BESS rack controllers and master controller"},
+             "description": "Microgrid controller and historian polling BESS rack controllers and master controller; NMS SNMP/web management of the BESS switch"},
             # L3 (microgrid_control) <-> L1 (poi_protection): Microgrid to POI
             {"id": "microgrid_to_poi", "name": "Microgrid Control \u2194 POI Protection",
              "source_zone": "microgrid_control", "target_zone": "poi_protection",
@@ -1866,9 +1880,9 @@ ENERGY_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "wan_to_microgrid", "name": "WAN \u2194 Microgrid Control",
              "source_zone": "wan", "target_zone": "microgrid_control",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp"],
+             "allowed_protocols": ["modbus_tcp", "snmp", "https"],
              "security_level": "critical",
-             "description": "Utility WAN RTU polling plant SCADA gateway RTAC for grid coordination"},
+             "description": "Utility WAN RTU polling plant SCADA gateway RTAC for grid coordination; NMS SNMP/web management of the WAN edge switch"},
             # L2 (bess_control) <-> L1 (poi_protection): BESS protection to POI
             {"id": "bess_to_poi", "name": "BESS Control \u2194 POI Protection",
              "source_zone": "bess_control", "target_zone": "poi_protection",

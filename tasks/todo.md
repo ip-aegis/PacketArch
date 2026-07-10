@@ -1,55 +1,44 @@
-# Studio v2 Overhaul — Execution Tracker
+# Scenario Verify audit + rework (2026-07-09)
 
-Design doc: https://claude.ai/code/artifact/e7e65e37-a46f-474c-9b5d-2e0052bbe524
-(Previous todo content — attack PCAP export — shipped in v1.12.0, see memory/attack_pcap_export_audit.)
+Goal: every live scenario's Studio-v2 **Verify** panel shows **zero critical +
+zero warning** across all 4 sources (readiness, conduit, architecture, AI
+review). Rework rationally — never tear down. Persist to DB **and** backport to
+templates.
 
-## Phase 0 — Stop the bleeding (current studio) — DONE (commit 1a016df)
-- [x] P0.1 Ctrl+S data loss → shared buildScenarioUpdatePayload() for autosave + Ctrl+S
-- [x] P0.2 Device-delete undo cascade → deleteDeviceWithHistory() used by all 4 delete paths
-- [x] P0.3 Marquee selection sync via onSelectionChange; Ctrl+A selects in React Flow too
-- [x] Verified: Docker build (tsc) passed; deployed; committed + pushed
+## Phase 0 — Orient (DONE)
+- [x] Mapped the 4 Verify sources; built a faithful backend verify harness
+      (`scratchpad/verify.py`, `--ai` for the live LLM review).
+- [x] Baseline: 1 scenario clean, 10 warnings, 1 critical (Solar orphans).
+- [x] Found the dominant issue is the comm-matrix (architecture source).
 
-## Phase 1 — v2 core (in progress)
-- [x] /studio2 unadvertised parallel route (src/studio2/Studio2Page.tsx)
-- [x] Design token file (studio2/tokens.ts — surfaces, category accents, protocol edge palette, status)
-- [x] OT glyph set v1 (studio2/glyphs.tsx — 22 glyphs, category + override mapping)
-- [x] Scenario document store + command bus (studio2/document/documentStore.ts — undo by construction, coalesced drags, cascades enumerated in builders)
-- [x] Single zod codec (studio2/document/codec.ts — load/autosave/Ctrl+S one path; definitionExtras round-trips unknown fields)
-- [x] Canvas on new architecture: DeviceNode2 (3 LOD tiers, hover handles), FlowEdge2 (zoom-gated labels), ZoneNode2 (read-only), Studio2Canvas
-- [x] Shell: TopBar (undo/redo, save state, workspace switcher) + BottomStrip (single zoom cluster)
-- [x] Left rail: device palette (search, grouped, drag AND click-to-place, shift-click for rapid placement)
-- [x] Inspector: selection-driven device/flow/scenario forms (sectioned, all edits undoable via command bus)
-- [x] Protocol picker on connect (1 common → immediate; several → inline midpoint menu; none → rejected)
-- [x] IP auto-assign on device add (coalesced into the add-device undo step)
-- [x] Purdue auto-layout for unpositioned scenarios + tidy/layout actions
-- [ ] Remaining Phase 1 polish: bulk edit, vendor/firmware/CVE sections in inspector
+## Phase 1 — Comm matrix completion (DONE, shared code)
+- [x] Added the missing control rail to `comm_matrix/shared.py`. Cleared ~92%
+      of architecture off-rail across all scenarios.
 
-## Phase 2 — zones as containers (in progress)
-- [x] Zones are React Flow parent containers: devices render as children (doc keeps absolute positions — v1/backend shape unchanged)
-- [x] Drag a device in/out of a zone = membership change (undoable setDeviceZone command; smallest containing zone wins)
-- [x] Zone drag moves members (moveZone command shifts member absolute positions in the same undo step)
-- [x] Zone resize via NodeResizer (selected zones show handles; onResizeEnd dispatches updateZone)
-- [x] Draw-zone tool: "Add zone" in rail → click canvas places 480×320 zone (shift-click repeats, Esc cancels)
-- [x] Zone inspector form (name/type/Purdue level/subnet/VLAN + delete-zone-keeps-devices)
-- [x] Zone delete cascade: members leave zone (not deleted), touching conduits removed — undoable
-- [x] Conduit edges rendered (dashed, name/direction/protocol-count label) + read-only conduit inspector + delete
-- [x] Rail/inspector toggle buttons in top bar
-- [x] Conduit tool: click zone A → zone B (dedupe, Esc cancels) + full editor (name/direction/SL/protocol chips)
-- [x] Group-by cluster view: zone/protocol/vendor/purdueLevel/deviceType via shared clusterGrouping utils; ClusterNode2 + AggregateEdge2; double-click expands in place; `g` cycles; bottom-strip select; view-only (position dispatches suppressed)
+## Phase 2 — AI-review context bug (DONE, shared code)
+- [x] Fixed vendor-name mismatch in `_build_review_context` that made the LLM
+      emit a false "catalog gap" CRITICAL on every scenario.
 
-Phase 2 COMPLETE — /studio2 at full Build parity with v1 (minus vendor/firmware/CVE inspector sections, tracked in Phase 1 polish)
+## Phase 3 — Per-scenario DB rework (DONE)
+- [x] All 12 live scenarios reworked to deterministic-clean (readiness 100/ready,
+      conduit 0, architecture 0). Sub-agents + coordinator (Municipal, Commercial,
+      EU-tenant, Urban done directly after agent API stalls).
+- [x] Review skill tuned (telnet/http/CVE = observations; false-positive guardrails).
+- [x] Catalog thin-fingerprint fixes: Honeywell Experion opc_ua, Schneider T300 iec104.
+- [x] Added `nms`/`nms_server` to flow-rationality generic-OK source types.
 
-## Phase 3 — Verify workspace (in progress)
-- [x] Unified health model (studio2/health/health.ts): conduit compliance (ported v1 rules incl. protocol aliases) + architecture rationality (shared rationalityStore/cache) + backend validation + AI review → one HealthFinding list, one severity scale, score
-- [x] Verify workspace: TopBar Build/Verify switcher live; HealthPanel replaces inspector (score header, severity-sorted findings, re-run checks, run AI review, Fix / Fix All via remediate API + scenario reload)
-- [x] Hover finding → spotlight (everything else dims to 8-18%); click → select + zoom to elements
-- [x] Health chip in TopBar (score, colored, opens Verify); Build-mode status: worst-finding dot on device nodes, status-colored label border on flow edges
-- [ ] Phase 3 polish: zone-level findings highlight zones; readiness findings mapped to elements where backend provides ids
+## Phase 4 — Template backport (DONE)
+- [x] All 12 templates edited so FRESH instantiation is deterministic-clean
+      (verified via build_verify against fully-baked code): manufacturing×3,
+      building×3, water, energy, oil_gas, transportation, distribution.
 
-## Phase 4 — Run workspace + copilot (in progress)
-- [x] Run workspace: re-homed v1 DeploymentPanel (with new `phases` prop — its only v1-store dependency) + AttackPanel in a 400px panel with Deploy/Attack tabs; activeDeployment derived from deploymentsStore; liveTrafficEnabled gate (Run tab disabled in PCAP-only builds)
-- [x] AI copilot flyout (Ctrl/Cmd+J or top-bar ✦): reuses ChatInterface/ChatInput + shared session; aiAssistantStore.refreshScenarioCanvas now also reloads the v2 document after AI tool modifications
-- [ ] Phase 4 polish: live canvas annotations during deploy/attack (flow animation, kill-chain stage markers)
+## Phase 5 — Finalize (DONE / in progress)
+- [x] Rebuilt backend + celery_worker (all changes live). No protocol_engines/
+      change → no agent version bump needed.
+- [x] Re-verified all 12 live scenarios + all 12 fresh instantiations: 100/0/0.
+- [ ] Final AI sweep on 12 live scenarios (running). Not committed (dev=prod via
+      rebuild; commit only on request).
 
-## Later phases
-- Phase 5: swap default /studio → v2, keep /studio-legacy one release, delete v1 shell; update onboarding/help copy
+## Notes
+- Backups: container `/tmp/scn_backup`, host `scratchpad/scn_backup.tgz`.
+- Tooling: `scratchpad/{verify.py,fixlib.py,AGENT_PLAYBOOK.md}`.

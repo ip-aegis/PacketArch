@@ -65,6 +65,14 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "fingerprint_model": "IE-4000-8GT4G-E", "firmware_version": "15.2(7)E6",
              "role": "BMS Network Switch"},
 
+            # Network Management Station - Paessler PRTG (SNMP monitoring of
+            # BMS core switches and the remote-access gateway)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "bms_core",
+             "name": "Office_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
+
             # EWON Remote Access Gateway - Talk2M cloud connectivity
             # Fingerprint has: modbus_identity, snmp_identity, external_communications
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "bms_core",
@@ -171,17 +179,25 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 1000, "jitter_type": "uniform"},
 
             # ============================================================
-            # SNMP - Infrastructure Monitoring (30s)
+            # SNMP - NMS Infrastructure Monitoring (30s)
+            # NMS polls core switches + remote-access gateway
             # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["bms_server"], "target_types": ["switch", "controller", "remote_gateway"],
+             "source_types": ["nms"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # SNMP - BMS server health poll of supervisory controllers (30s)
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["bms_server"], "target_types": ["controller"],
              "source_zones": ["bms_core"], "target_zones": ["bms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
 
-            # EWON Modbus polling to HVAC controllers (5s)
+            # EWON Modbus polling to building controllers (5s). The building
+            # controllers, not the EWON, poll the subordinate chillers.
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["remote_gateway"], "target_types": ["chiller_controller", "building_controller"],
+             "source_types": ["remote_gateway"], "target_types": ["building_controller"],
              "source_zones": ["bms_core"], "target_zones": ["hvac_control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
         ],
@@ -847,5 +863,526 @@ BUILDING_AUTOMATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "description": "EWON remote access gateway Talk2M cloud heartbeat for campus remote monitoring"},
         ],
         "total_duration_ms": 600000,  # 10 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 4: TENANT ELECTRICAL SUB-METERING (31 devices)
+    # Multi-tenant office tower billing tenants on actual metered
+    # consumption per EED recast (EU) 2023/1791 Art. 29 (landlord
+    # sub-metering/billing obligation).
+    # ============================================================
+    "tenant_submetering_office": {
+        "name": "Tenant Electrical Sub-Metering & Energy Billing",
+        "description": "Multi-tenant office tower retrofitted for EU EED (2023/1791 "
+                       "Art. 29) tenant billing on actual metered consumption. A "
+                       "Niagara JACE 8000 energy-management head-end polls a "
+                       "main-incomer power quality meter and five tenant-riser "
+                       "sub-metering concentrators, each aggregating four per-tenant "
+                       "electric meters. Each riser is its own isolated subnet — no "
+                       "riser-to-riser traffic — to keep one tenant's billing data "
+                       "from leaking to another. 31 devices across 7 zones.",
+        "vertical": "building_automation",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "bas_compromise", "relevance": "high", "rationale": "BACnet Who-Is discovery and manipulation against the JACE energy-management head-end"},
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "A compromised tenant network segment pivoting into another tenant's VMU-C EM concentrator (CVE-2017-5144 unauthenticated access) to read or tamper with billing data"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Modbus/BACnet service enumeration across tenant riser subnets"}
+        ],
+        "recommended_traffic_schedule": "office_hours",
+        "devices": [
+            # ============================================================
+            # ENERGY CORE ZONE (Level 3) - 6 devices
+            # Landlord energy-management head-end, main-incomer meter,
+            # infrastructure, billing-platform remote-access gateway
+            # ============================================================
+            # Landlord Energy Management Head-End - Honeywell/Tridium JACE 8000
+            # Fingerprint has: modbus_identity, bacnet_identity, snmp_identity
+            {"type": "bms_controller", "vendor": "honeywell", "count": 1, "zone": "energy_core",
+             "name_pattern": "Landlord_Energy_Manager_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
+             "fingerprint_model": "JACE 8000",
+             "role": "Landlord Energy Management Head-End"},
+
+            # Main Incomer Power Quality Meter - Janitza UMG 604-PRO
+            # Fingerprint has: modbus_identity, bacnet_identity, snmp_identity
+            {"type": "power_meter", "vendor": "janitza", "count": 1, "zone": "energy_core",
+             "name_pattern": "Main_Incomer_Power_Meter_{n:02d}", "protocols": ["modbus_tcp", "bacnet", "snmp"],
+             "fingerprint_model": "UMG 604-PRO",
+             "role": "Main Incomer Power Quality Meter"},
+
+            # Industrial Switches with SNMP monitoring
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "energy_core",
+             "name_pattern": "Energy_Core_Switch_{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E", "firmware_version": "15.2(7)E6",
+             "role": "Energy Core Network Switch"},
+
+            # Network Management Station - Paessler PRTG (SNMP monitoring of
+            # the energy-core switches, ESCO gateway, and the main-incomer
+            # power-quality meter, which exposes an SNMP identity)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "energy_core",
+             "name": "Tenant_Energy_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
+
+            # ESCO Billing Platform Remote Access Gateway - EWON Flexy 205
+            # Fingerprint has: modbus_identity, snmp_identity, external_communications
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "energy_core",
+             "name_pattern": "Tenant_Billing_Cloud_Gateway_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "ESCO Billing Platform Remote Access Gateway",
+             "external_comms": True},
+
+            # Engineering Workstation - Honeywell XL Web
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "engineering_station", "vendor": "honeywell", "count": 1, "zone": "energy_core",
+             "name": "Energy_Engineering_Workstation_01", "protocols": ["bacnet"],
+             "fingerprint_model": "XL Web", "firmware_version": "XLWebExe-2-01-00",
+             "role": "Engineering Workstation"},
+
+            # ============================================================
+            # TENANT RISER ZONES (Level 1) - 5 devices each, 5 risers = 25 devices
+            # Each riser is an isolated tenant-billing subnet (no riser-to-riser
+            # conduit) with one Carlo Gavazzi VMU-C EM concentrator aggregating
+            # four Carlo Gavazzi EM24-Ethernet per-tenant meters.
+            # ============================================================
+            # Riser A - Floors 2-5
+            {"type": "meter_data_concentrator", "vendor": "carlo_gavazzi", "count": 1, "zone": "riser_a",
+             "name": "Riser_A_Submetering_Concentrator_01", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "VMU-C EM",
+             "role": "Riser Sub-Metering Concentrator"},
+            {"type": "power_meter", "vendor": "carlo_gavazzi", "count": 4, "zone": "riser_a",
+             "name_pattern": "Riser_A_Tenant_Meter_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EM24DINAV23XE1X",
+             "role": "Tenant Electrical Sub-Meter"},
+
+            # Riser B - Floors 6-9
+            {"type": "meter_data_concentrator", "vendor": "carlo_gavazzi", "count": 1, "zone": "riser_b",
+             "name": "Riser_B_Submetering_Concentrator_01", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "VMU-C EM",
+             "role": "Riser Sub-Metering Concentrator"},
+            {"type": "power_meter", "vendor": "carlo_gavazzi", "count": 4, "zone": "riser_b",
+             "name_pattern": "Riser_B_Tenant_Meter_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EM24DINAV23XE1X",
+             "role": "Tenant Electrical Sub-Meter"},
+
+            # Riser C - Floors 10-13
+            {"type": "meter_data_concentrator", "vendor": "carlo_gavazzi", "count": 1, "zone": "riser_c",
+             "name": "Riser_C_Submetering_Concentrator_01", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "VMU-C EM",
+             "role": "Riser Sub-Metering Concentrator"},
+            {"type": "power_meter", "vendor": "carlo_gavazzi", "count": 4, "zone": "riser_c",
+             "name_pattern": "Riser_C_Tenant_Meter_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EM24DINAV23XE1X",
+             "role": "Tenant Electrical Sub-Meter"},
+
+            # Riser D - Floors 14-17
+            {"type": "meter_data_concentrator", "vendor": "carlo_gavazzi", "count": 1, "zone": "riser_d",
+             "name": "Riser_D_Submetering_Concentrator_01", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "VMU-C EM",
+             "role": "Riser Sub-Metering Concentrator"},
+            {"type": "power_meter", "vendor": "carlo_gavazzi", "count": 4, "zone": "riser_d",
+             "name_pattern": "Riser_D_Tenant_Meter_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EM24DINAV23XE1X",
+             "role": "Tenant Electrical Sub-Meter"},
+
+            # Riser E - Floors 18-21
+            {"type": "meter_data_concentrator", "vendor": "carlo_gavazzi", "count": 1, "zone": "riser_e",
+             "name": "Riser_E_Submetering_Concentrator_01", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "VMU-C EM",
+             "role": "Riser Sub-Metering Concentrator"},
+            {"type": "power_meter", "vendor": "carlo_gavazzi", "count": 4, "zone": "riser_e",
+             "name_pattern": "Riser_E_Tenant_Meter_{n:02d}", "protocols": ["modbus_tcp"],
+             "fingerprint_model": "EM24DINAV23XE1X",
+             "role": "Tenant Electrical Sub-Meter"},
+        ],
+        "flows": [
+            # ============================================================
+            # SNMP - NMS poll of the Main Incomer Power Quality Meter (10s).
+            # The Janitza UMG 604-PRO exposes an SNMP identity; the NMS
+            # collects its operational telemetry here (the tenant-billing
+            # traffic proper is the JACE->riser-concentrator Modbus below).
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["nms"], "target_types": ["power_meter"],
+             "source_zones": ["energy_core"], "target_zones": ["energy_core"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus TCP - JACE to Riser Concentrators (60s billing cadence,
+            # deliberately much slower than HVAC control traffic elsewhere
+            # in this vertical)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["bms_controller"], "target_types": ["meter_data_concentrator"],
+             "source_zones": ["energy_core"],
+             "target_zones": ["riser_a", "riser_b", "riser_c", "riser_d", "riser_e"],
+             "jitter_ms": 5000, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus TCP - Riser Concentrators to Tenant Meters (15s,
+            # riser-internal RS-485-over-Modbus polling). One flow spec per
+            # riser so each concentrator polls ONLY its own riser's meters —
+            # no cross-riser tenant-billing leakage.
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["meter_data_concentrator"], "target_types": ["power_meter"],
+             "source_zones": ["riser_a"], "target_zones": ["riser_a"],
+             "jitter_ms": 1500, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["meter_data_concentrator"], "target_types": ["power_meter"],
+             "source_zones": ["riser_b"], "target_zones": ["riser_b"],
+             "jitter_ms": 1500, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["meter_data_concentrator"], "target_types": ["power_meter"],
+             "source_zones": ["riser_c"], "target_zones": ["riser_c"],
+             "jitter_ms": 1500, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["meter_data_concentrator"], "target_types": ["power_meter"],
+             "source_zones": ["riser_d"], "target_zones": ["riser_d"],
+             "jitter_ms": 1500, "jitter_type": "gaussian"},
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["meter_data_concentrator"], "target_types": ["power_meter"],
+             "source_zones": ["riser_e"], "target_zones": ["riser_e"],
+             "jitter_ms": 1500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet - Engineering Workstation Oversight Poll (5s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["engineering_station"], "target_types": ["bms_controller"],
+             "source_zones": ["energy_core"], "target_zones": ["energy_core"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP - NMS Infrastructure Monitoring (30s)
+            # NMS polls the energy-core switches + ESCO remote gateway
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["nms"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["energy_core"], "target_zones": ["energy_core"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # EWON batch export poll of the JACE head-end (5 min)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 300000,
+             "source_types": ["remote_gateway"], "target_types": ["bms_controller"],
+             "source_zones": ["energy_core"], "target_zones": ["energy_core"],
+             "jitter_ms": 15000, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "energy_core", "name": "Energy Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "riser_a", "name": "Tenant Riser A Network", "level": 1,
+             "subnet_offset": 1, "vlan": 121, "security_level": "high"},
+            {"id": "riser_b", "name": "Tenant Riser B Network", "level": 1,
+             "subnet_offset": 2, "vlan": 122, "security_level": "high"},
+            {"id": "riser_c", "name": "Tenant Riser C Network", "level": 1,
+             "subnet_offset": 3, "vlan": 123, "security_level": "high"},
+            {"id": "riser_d", "name": "Tenant Riser D Network", "level": 1,
+             "subnet_offset": 4, "vlan": 124, "security_level": "high"},
+            {"id": "riser_e", "name": "Tenant Riser E Network", "level": 1,
+             "subnet_offset": 5, "vlan": 125, "security_level": "high"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap"],
+            "protocol": ["modbus_exception", "bacnet_reject"],
+            "sequence": ["out_of_order", "duplicate_invoke_id"],
+            "payload": ["value_spike", "setpoint_change"],
+            "network": ["broadcast_storm"],
+            "security": ["unauthorized_remote_access"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "custom",
+            "cloud_ips": ["203.0.113.40", "203.0.113.41"],  # ESCO billing platform
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "enable_recon": True,
+        },
+        "conduits": [
+            # L3 (energy_core) <-> L1 (riser_a..e): JACE/EWON polling each
+            # tenant riser concentrator. Deliberately no riser-to-riser
+            # conduit — tenant billing data must stay isolated per riser.
+            {"id": "energy_core_to_riser_a", "name": "Energy Core ↔ Tenant Riser A",
+             "source_zone": "energy_core", "target_zone": "riser_a",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "JACE energy manager polling the Riser A sub-metering concentrator"},
+            {"id": "energy_core_to_riser_b", "name": "Energy Core ↔ Tenant Riser B",
+             "source_zone": "energy_core", "target_zone": "riser_b",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "JACE energy manager polling the Riser B sub-metering concentrator"},
+            {"id": "energy_core_to_riser_c", "name": "Energy Core ↔ Tenant Riser C",
+             "source_zone": "energy_core", "target_zone": "riser_c",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "JACE energy manager polling the Riser C sub-metering concentrator"},
+            {"id": "energy_core_to_riser_d", "name": "Energy Core ↔ Tenant Riser D",
+             "source_zone": "energy_core", "target_zone": "riser_d",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "JACE energy manager polling the Riser D sub-metering concentrator"},
+            {"id": "energy_core_to_riser_e", "name": "Energy Core ↔ Tenant Riser E",
+             "source_zone": "energy_core", "target_zone": "riser_e",
+             "direction": "bidirectional",
+             "allowed_protocols": ["modbus_tcp"],
+             "security_level": "high",
+             "description": "JACE energy manager polling the Riser E sub-metering concentrator"},
+            # L3 (energy_core) <-> L4 (external): ESCO billing cloud connectivity
+            {"id": "energy_core_to_external", "name": "Energy Core ↔ External",
+             "source_zone": "energy_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway cloud heartbeat to the ESCO tenant-billing platform"},
+        ],
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 5: HEAT & HOT-WATER COST ALLOCATION RETROFIT (29 devices)
+    # Multi-family/mixed-use residential building retrofitted with
+    # remote-readable heat/water metering per EED recast (EU)
+    # 2023/1791 Art. 29 (non-remotely-readable devices must be
+    # replaced by 1 Jan 2027).
+    # ============================================================
+    "heat_metering_retrofit": {
+        "name": "Heat & Hot-Water Cost Allocation Retrofit",
+        "description": "Multi-family residential building retrofitted ahead of the "
+                       "EU EED (2023/1791 Art. 29) 1 Jan 2027 deadline to replace "
+                       "non-remotely-readable heat/water meters. A Niagara JACE 8000 "
+                       "building energy-manager polls eight wing-level Elvaco CMe3100 "
+                       "M-Bus metering gateways (aggregating each wing's heat-cost "
+                       "allocators and water meters, which stay on M-Bus and are not "
+                       "individually IP-addressable) over BACnet/IP, and eight wings' "
+                       "worth of Danfoss ECL Comfort 310 district-heating substation "
+                       "controllers over Modbus TCP. 29 devices across 10 zones.",
+        "vertical": "building_automation",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "bas_compromise", "relevance": "high", "rationale": "BACnet Who-Is discovery and manipulation against the JACE building energy-manager and Elvaco metering gateways"},
+            {"playbook_id": "insider_threat", "relevance": "high", "rationale": "The Elvaco CMe3100's unrestricted file upload flaw (CVE-2024-49398, RCE) makes a vendor-remote-access-exposed metering gateway a credible foothold for tampering with billed heat/water consumption"},
+            {"playbook_id": "network_recon", "relevance": "medium", "rationale": "Modbus/BACnet service enumeration across energy-center wing subnets"}
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "devices": [
+            # ============================================================
+            # BMS CORE ZONE (Level 3) - 5 devices
+            # Building energy-manager head-end, infrastructure, ESCO
+            # remote-meter-reading gateway
+            # ============================================================
+            # Building Energy Manager Head-End - Honeywell/Tridium JACE 8000
+            # Fingerprint has: modbus_identity, bacnet_identity, snmp_identity
+            {"type": "bms_controller", "vendor": "honeywell", "count": 1, "zone": "bms_core",
+             "name_pattern": "Building_Energy_Manager_{n:02d}", "protocols": ["modbus_tcp", "bacnet"],
+             "fingerprint_model": "JACE 8000",
+             "role": "Building Energy Manager Head-End"},
+
+            # Industrial Switches with SNMP monitoring
+            {"type": "switch", "vendor": "cisco", "count": 2, "zone": "bms_core",
+             "name_pattern": "BMS_Core_Switch_{n:02d}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-4000-8GT4G-E", "firmware_version": "15.2(7)E6",
+             "role": "BMS Network Switch"},
+
+            # Network Management Station - Paessler PRTG (SNMP monitoring of
+            # the BMS core switches and the ESCO remote-reading gateway)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "bms_core",
+             "name": "Building_Energy_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
+
+            # ESCO Remote Meter-Reading Gateway - EWON Flexy 205
+            # Fingerprint has: modbus_identity, snmp_identity, external_communications
+            {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "bms_core",
+             "name_pattern": "ESCO_Remote_Reading_Gateway_{n:02d}", "protocols": ["modbus_tcp", "snmp"],
+             "fingerprint_model": "Flexy 205",
+             "role": "ESCO Remote Meter-Reading Gateway",
+             "external_comms": True},
+
+            # Engineering Workstation - Honeywell XL Web
+            # Fingerprint has: bacnet_identity ONLY
+            {"type": "engineering_station", "vendor": "honeywell", "count": 1, "zone": "bms_core",
+             "name": "Heat_Engineering_Workstation_01", "protocols": ["bacnet"],
+             "fingerprint_model": "XL Web", "firmware_version": "XLWebExe-2-01-00",
+             "role": "Engineering Workstation"},
+
+            # ============================================================
+            # ENERGY-CENTER WING ZONES (Level 2) - 3 devices each,
+            # 8 wings = 24 devices. Each wing has two Danfoss ECL Comfort
+            # 310 substation controllers (space heating + domestic hot
+            # water circuits) and one Elvaco CMe3100 metering gateway
+            # (the wing's heat-cost-allocators and water meters live
+            # behind it on M-Bus, not modeled as separate IP devices).
+            # ============================================================
+        ] + [
+            device
+            for wing in "ABCDEFGH"
+            for device in [
+                {"type": "heat_substation_controller", "vendor": "danfoss", "count": 1,
+                 "zone": f"energy_center_wing_{wing.lower()}",
+                 "name": f"Wing_{wing}_Heating_Substation_Controller_01", "protocols": ["modbus_tcp"],
+                 "fingerprint_model": "ECL Comfort 310",
+                 "role": "Space-Heating Substation Controller"},
+                {"type": "heat_substation_controller", "vendor": "danfoss", "count": 1,
+                 "zone": f"energy_center_wing_{wing.lower()}",
+                 "name": f"Wing_{wing}_DHW_Substation_Controller_01", "protocols": ["modbus_tcp"],
+                 "fingerprint_model": "ECL Comfort 310",
+                 "role": "Domestic Hot Water Substation Controller"},
+                {"type": "meter_data_concentrator", "vendor": "elvaco", "count": 1,
+                 "zone": f"energy_center_wing_{wing.lower()}",
+                 "name": f"Wing_{wing}_Heat_Water_Meter_Gateway_01", "protocols": ["modbus_tcp", "bacnet"],
+                 "fingerprint_model": "CMe3100",
+                 "role": "Heat & Water Meter Data Concentrator"},
+            ]
+        ],
+        "flows": [
+            # ============================================================
+            # BACnet - JACE to Elvaco Metering Gateways (60s billing cadence)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 60000,
+             "source_types": ["bms_controller"], "target_types": ["meter_data_concentrator"],
+             "source_zones": ["bms_core"],
+             "target_zones": ["energy_center_wing_a", "energy_center_wing_b", "energy_center_wing_c",
+                               "energy_center_wing_d", "energy_center_wing_e", "energy_center_wing_f",
+                               "energy_center_wing_g", "energy_center_wing_h"],
+             "jitter_ms": 5000, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # Modbus TCP - JACE to Danfoss ECL Substation Controllers (10s,
+            # live weather-compensation control loop, faster than the
+            # metering poll above)
+            # ============================================================
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 10000,
+             "source_types": ["bms_controller"], "target_types": ["heat_substation_controller"],
+             "source_zones": ["bms_core"],
+             "target_zones": ["energy_center_wing_a", "energy_center_wing_b", "energy_center_wing_c",
+                               "energy_center_wing_d", "energy_center_wing_e", "energy_center_wing_f",
+                               "energy_center_wing_g", "energy_center_wing_h"],
+             "jitter_ms": 1000, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # BACnet - Engineering Workstation Oversight Poll (5s)
+            # ============================================================
+            {"protocol": "bacnet", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["engineering_station"], "target_types": ["bms_controller"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # ============================================================
+            # SNMP - NMS Infrastructure Monitoring (30s)
+            # NMS polls the BMS core switches + ESCO remote-reading gateway
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["nms"], "target_types": ["switch", "remote_gateway"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # EWON batch export poll of the JACE head-end (5 min)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 300000,
+             "source_types": ["remote_gateway"], "target_types": ["bms_controller"],
+             "source_zones": ["bms_core"], "target_zones": ["bms_core"],
+             "jitter_ms": 15000, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "bms_core", "name": "BMS Core Network", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "high"},
+            {"id": "energy_center_wing_a", "name": "Energy Center Wing A", "level": 2,
+             "subnet_offset": 1, "vlan": 211, "security_level": "high"},
+            {"id": "energy_center_wing_b", "name": "Energy Center Wing B", "level": 2,
+             "subnet_offset": 2, "vlan": 212, "security_level": "high"},
+            {"id": "energy_center_wing_c", "name": "Energy Center Wing C", "level": 2,
+             "subnet_offset": 3, "vlan": 213, "security_level": "high"},
+            {"id": "energy_center_wing_d", "name": "Energy Center Wing D", "level": 2,
+             "subnet_offset": 4, "vlan": 214, "security_level": "high"},
+            {"id": "energy_center_wing_e", "name": "Energy Center Wing E", "level": 2,
+             "subnet_offset": 5, "vlan": 215, "security_level": "high"},
+            {"id": "energy_center_wing_f", "name": "Energy Center Wing F", "level": 2,
+             "subnet_offset": 6, "vlan": 216, "security_level": "high"},
+            {"id": "energy_center_wing_g", "name": "Energy Center Wing G", "level": 2,
+             "subnet_offset": 7, "vlan": 217, "security_level": "high"},
+            {"id": "energy_center_wing_h", "name": "Energy Center Wing H", "level": 2,
+             "subnet_offset": 8, "vlan": 218, "security_level": "high"},
+            {"id": "external", "name": "External/Internet", "level": 4,
+             "subnet_offset": 99, "vlan": 999, "security_level": "external",
+             "is_external": True},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap"],
+            "protocol": ["modbus_exception", "bacnet_reject"],
+            "sequence": ["out_of_order", "duplicate_invoke_id"],
+            "payload": ["value_spike", "setpoint_change"],
+            "network": ["broadcast_storm"],
+            "security": ["unauthorized_remote_access"],
+        },
+        "external_comms": {
+            "enable_remote_access": True,
+            "remote_access_gateway": "ewon",
+            "cloud_service": "custom",
+            "cloud_ips": ["203.0.113.60", "203.0.113.61"],  # ESCO remote-meter-reading platform
+            "enable_c2": True,
+            "enable_exfil": False,
+            "enable_exploits": True,
+            "enable_recon": True,
+        },
+        "conduits": [
+            {"id": "bms_core_to_wing_a", "name": "BMS Core ↔ Energy Center Wing A",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_a",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing A's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_b", "name": "BMS Core ↔ Energy Center Wing B",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_b",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing B's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_c", "name": "BMS Core ↔ Energy Center Wing C",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_c",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing C's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_d", "name": "BMS Core ↔ Energy Center Wing D",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_d",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing D's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_e", "name": "BMS Core ↔ Energy Center Wing E",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_e",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing E's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_f", "name": "BMS Core ↔ Energy Center Wing F",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_f",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing F's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_g", "name": "BMS Core ↔ Energy Center Wing G",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_g",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing G's Danfoss substation controllers and Elvaco metering gateway"},
+            {"id": "bms_core_to_wing_h", "name": "BMS Core ↔ Energy Center Wing H",
+             "source_zone": "bms_core", "target_zone": "energy_center_wing_h",
+             "direction": "bidirectional", "allowed_protocols": ["modbus_tcp", "bacnet"],
+             "security_level": "high",
+             "description": "JACE energy manager polling Wing H's Danfoss substation controllers and Elvaco metering gateway"},
+            # L3 (bms_core) <-> L4 (external): ESCO remote-meter-reading cloud connectivity
+            {"id": "bms_core_to_external", "name": "BMS Core ↔ External",
+             "source_zone": "bms_core", "target_zone": "external",
+             "direction": "bidirectional",
+             "allowed_protocols": ["https"],
+             "security_level": "critical",
+             "description": "EWON remote access gateway cloud heartbeat to the ESCO remote-meter-reading platform"},
+        ],
+        "total_duration_ms": 300000,  # 5 minutes
     },
 }

@@ -288,6 +288,17 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "EXPERI-PKS-001",
             "sys_location": "Industrial Network",
         },
+
+        opc_ua_identity={
+            "application_name": "Honeywell Experion PKS OPC UA Server",
+            "application_uri": "urn:Honeywell:ExperionPKS:Server",
+            "product_uri": "http://www.honeywell.com/experion-pks/opcua-server",
+            "product_name": "Experion PKS Server",
+            "manufacturer_name": "Honeywell International Inc.",
+            "software_version": "R520.2",
+            "build_number": "520200",
+            "build_date": "2024-02-15T12:00:00Z",
+        },
     ),
     DeviceTemplate(
         id="honeywell/experion-pks/safety-manager",

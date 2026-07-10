@@ -203,6 +203,9 @@ _GENERIC_OK_SOURCE_TYPES: frozenset[str] = frozenset({
     # Data-center infrastructure management — DCIM servers monitor PDUs,
     # UPSes, switches via SNMP as their primary protocol.
     "dcim_server",
+    # Network management stations — SNMP is their operational protocol for
+    # polling switches, routers, gateways and any field asset for health.
+    "nms", "nms_server",
     # Building automation supervisor / NMS variants
     "bms_supervisor", "bms_server", "ems_server",
     # Substation / energy NMS

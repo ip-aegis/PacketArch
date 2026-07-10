@@ -257,7 +257,8 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "description": "Urban intersection ATMS with 10 signalized intersection cabinets "
                        "supervised by a Centracs-class master at the TMC. Each cabinet has "
                        "traffic controller + CCTV + PTZ + DMS + cabinet aux. NTCIP-over-SNMP "
-                       "polling throughout. 69 devices across 12 zones.",
+                       "polling throughout. TMC core adds standby master + NMS. "
+                       "37 devices across 6 zones.",
         "vertical": "transportation",
         "phase_preset": "with_maintenance",
         "recommended_attack_playbooks": [
@@ -292,8 +293,30 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "remote_gateway", "vendor": "hms", "count": 1, "zone": "atms_core",
              "name": "ATMS_Remote_Access_Gateway", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Flexy 205",
+             "architectural_role": "remote_access_gateway",
              "role": "Remote Access Gateway",
              "external_comms": True},
+
+            # Standby Coordination Master - Siemens CP-8000 (hot standby;
+            # scada_standby role, mirrors the primary and takes over on
+            # failover). Catalog-known type distinct from the primary's
+            # master_station so the primary->standby sync flow resolves
+            # against it in the template builder (same-type same-zone pairs
+            # are self-skipped by the zip-by-index flow expansion).
+            {"type": "scada_server", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
+             "name": "ATMS_Standby_Coordination_Master", "protocols": ["snmp"],
+             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+             "architectural_role": "scada_standby",
+             "role": "ATMS Standby Coordination Master"},
+
+            # Network Management Station - Paessler PRTG (SNMP monitoring of
+            # switches and remote-access gateway; satisfies the infrastructure
+            # role requirement)
+            {"type": "server", "vendor": "Paessler", "count": 1, "zone": "atms_core",
+             "name": "ATMS_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
 
             # ============================================================
             # MAIN INTERSECTION ZONE (Level 2) - 12 devices
@@ -395,12 +418,21 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
             # ============================================================
-            # SNMP Infrastructure Monitoring (30s)
+            # SNMP Infrastructure Monitoring (30s) - from the NMS, not the master
             # ============================================================
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["master_station"], "target_types": ["switch", "remote_gateway"],
+             "source_types": ["server"], "target_types": ["switch", "remote_gateway"],
              "source_zones": ["atms_core"], "target_zones": ["atms_core"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # ============================================================
+            # SNMP Standby Sync - Coordination Master to Standby (2s)
+            # Hot-standby state replication / health check
+            # ============================================================
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["master_station"], "target_types": ["scada_server"],
+             "source_zones": ["atms_core"], "target_zones": ["atms_core"],
+             "jitter_ms": 200, "jitter_type": "gaussian", "auto_repair_skip": True},
 
                     ],
         "zones": [

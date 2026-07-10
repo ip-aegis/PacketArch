@@ -2091,10 +2091,18 @@ def _build_review_context(definition: dict) -> dict[str, Any]:
 
     compact_devices = []
     for did, d in devices.items():
-        fp = d.get("vendorFingerprint") or {}
+        fp = d.get("vendorFingerprint") or d.get("vendor_fingerprint") or {}
         network = d.get("network", {})
         ip = network.get("ipAddress") or network.get("ip_address") or ""
         cve_ids = d.get("cve_ids") or []
+        # Tell the reviewer which protocol identity blocks are actually
+        # populated, so it doesn't hallucinate "device speaks X but has no
+        # X_identity" gaps for fingerprints that in fact carry them (the
+        # deterministic readiness check sees these; the reviewer must too).
+        populated_identity = sorted(
+            k for k in fp
+            if k.endswith("_identity") and fp.get(k)
+        )
         compact_devices.append({
             "id": did,
             "name": d.get("name", did),
@@ -2104,16 +2112,21 @@ def _build_review_context(definition: dict) -> dict[str, Any]:
             "zone_id": d.get("zoneId") or d.get("zone_id") or d.get("zone") or "",
             "role": d.get("role", ""),
             "has_fingerprint": bool(fp.get("vendor")),
+            "populated_identity_blocks": populated_identity,
             "has_ip": bool(ip),
-            "mac_prefix": (network.get("macAddress") or network.get("mac_address") or "")[:8],
+            "mac": (network.get("macAddress") or network.get("mac_address") or ""),
             "cve_count": len(cve_ids),
         })
 
     compact_flows = []
     flow_items = list(flows.items())
     truncated = False
-    if len(flow_items) > 80:
-        flow_items = flow_items[:80]
+    # Cap high enough that realistic scenarios (the review itself asks for a
+    # 2:1+ flow:device ratio, so a 60-device scenario legitimately has 120+
+    # flows) are not reported as "truncated" — that warning was firing as a
+    # direct side effect of satisfying the coverage guidance.
+    if len(flow_items) > 400:
+        flow_items = flow_items[:400]
         truncated = True
     for fid, f in flow_items:
         src_id = f.get("sourceDeviceId") or f.get("source_device_id") or ""
@@ -2154,15 +2167,39 @@ def _build_review_context(definition: dict) -> dict[str, Any]:
     device_count = len(devices)
     flow_count = len(flows)
 
-    # Collect vendors present in this scenario for fingerprint suggestions
+    # Collect vendors present in this scenario for fingerprint suggestions.
+    # Scenario devices carry short/lowercase vendor names (e.g. "schneider",
+    # "kepware", "hms") while the catalog is keyed by full brand names
+    # ("Schneider Electric", "Kepware", "HMS Networks"). Match on a
+    # normalized brand so the scenario's real vendors are recognised —
+    # otherwise the reviewer sees them absent from available_fingerprints
+    # and (wrongly) reports a "catalog gap" for devices that are in fact
+    # fully fingerprinted.
+    from app.protocol_engines.canonical_identity import normalize_vendor
+
     scenario_vendors = {d.get("vendor", "") for d in devices.values() if d.get("vendor")}
     available_fps = _get_available_fingerprints()
-    # Include fingerprints for scenario vendors + a few common ones
+
+    def _vkey(v: str) -> str:
+        # Normalize + collapse to the leading brand token so short scenario
+        # names ("rockwell", "hms") match full catalog names ("Rockwell
+        # Automation", "HMS Networks").
+        return normalize_vendor(v).replace("+", " ").split()[0] if v else ""
+
+    # Index the catalog by normalized brand for fuzzy vendor matching.
+    avail_by_norm: dict[str, tuple[str, list[str]]] = {}
+    for cat_vendor, models in available_fps.items():
+        avail_by_norm.setdefault(_vkey(cat_vendor), (cat_vendor, models))
+    always_include = {"Siemens", "Rockwell Automation", "Schneider Electric",
+                      "GE", "Honeywell", "ABB", "Cisco"}
     relevant_fps: dict[str, list[str]] = {}
-    always_include = {"Siemens", "Rockwell Automation", "Schneider Electric", "GE", "Honeywell", "ABB", "Cisco"}
     for vendor in scenario_vendors | always_include:
         if vendor in available_fps:
             relevant_fps[vendor] = available_fps[vendor]
+            continue
+        match = avail_by_norm.get(_vkey(vendor))
+        if match:
+            relevant_fps[match[0]] = match[1]
 
     return {
         "devices": compact_devices,

@@ -1164,14 +1164,21 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "devices": [
             # ============================================================
-            # OPERATIONS (Level 3) - 5 devices
-            # Experion server, historian, OPC gateway, switch, remote access
+            # OPERATIONS (Level 3) - 6 devices
+            # Experion server, historian, OPC gateway, switch, remote access, NMS
             # ============================================================
             # Honeywell Experion Server
             {"type": "scada_server", "vendor": "honeywell", "count": 1, "zone": "operations",
              "name": "LNG_Experion_Server", "protocols": ["modbus_tcp", "snmp"],
              "fingerprint_model": "Experion Server",
              "role": "SCADA/DCS Server"},
+
+            # Network Management Station - Paessler PRTG (SNMP monitoring)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "operations",
+             "name": "LNG_Terminal_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
 
             # GE Proficy Historian
             {"type": "historian", "vendor": "ge", "count": 1, "zone": "operations",
@@ -1366,15 +1373,15 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["regasification"],
              "jitter_ms": 200, "jitter_type": "gaussian"},
 
-            # Safety Managers polling safety instruments (250ms - SIL)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 250,
+            # Safety Managers polling safety instruments (100ms - SIL safety timing)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["safety_plc"],
              "target_types": ["analyzer", "instrument"],
              "source_zones": ["safety"], "target_zones": ["safety"],
              "jitter_ms": 25, "jitter_type": "gaussian"},
 
-            # Safety Manager interlock to C300 (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+            # Safety Manager interlock to C300 (100ms - safety timing)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["safety_plc"], "target_types": ["dcs_controller"],
              "source_zones": ["safety"], "target_zones": ["control"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
@@ -1403,9 +1410,9 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["operations"], "target_zones": ["control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # SNMP monitoring switches (30s)
+            # SNMP monitoring of switches (30s) — from the NMS, not SCADA
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["operations"],
              "target_zones": ["operations", "control"]},
 
@@ -1415,11 +1422,16 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["control"], "target_zones": ["control"],
              "jitter_ms": 50, "jitter_type": "gaussian"},
 
-            # SCADA polling OPC gateway (5000ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
-             "source_types": ["scada_server"], "target_types": ["gateway"],
+            # NMS SNMP health-poll of the OPC gateway appliance (5000ms) —
+            # the gateway defaults to wan_edge_router role; SNMP management
+            # of it belongs to the NMS, not the SCADA server. Pinned to snmp
+            # (auto_repair_skip) since the gateway shares no non-generic
+            # protocol with the NMS — this is a legitimate appliance health poll.
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["nms"], "target_types": ["gateway"],
              "source_zones": ["operations"], "target_zones": ["operations"],
-             "jitter_ms": 500, "jitter_type": "gaussian"},
+             "jitter_ms": 500, "jitter_type": "gaussian",
+             "auto_repair_skip": True},
 
             # Remote gateway polling DCS controllers (5000ms)
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 5000,
@@ -1478,9 +1490,9 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "operations_to_control", "name": "Operations \u2194 Experion Control",
              "source_zone": "operations", "target_zone": "control",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp", "https"],
              "security_level": "critical",
-             "description": "Experion server, historian, and OPC gateway polling C300/C200 controllers and SNMP monitoring switches"},
+             "description": "Experion server, historian, and OPC gateway polling C300/C200 controllers; NMS SNMP/web management of control-zone switches"},
             # L2 (control) <-> L1 (tank_farm): Experion controllers to tank farm instruments
             {"id": "control_to_tank_farm", "name": "Experion Control \u2194 Tank Farm",
              "source_zone": "control", "target_zone": "tank_farm",

@@ -66,11 +66,20 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "firmware_version": "8.0",
              "role": "Process Historian"},
 
-            # OPC UA Gateway - Kepware KEPServerEX
+            # OPC UA Gateway - Kepware KEPServerEX (aggregates PLC tags —
+            # opc_ua_aggregator role, NOT a WAN router)
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "scada",
              "name": "WTP_OPC_Gateway", "protocols": ["modbus_tcp", "ethernet_ip"],
              "fingerprint_model": "KEPServerEX",
+             "architectural_role": "opc_ua_aggregator",
              "role": "OPC UA Gateway"},
+
+            # Network Management Station - Paessler PRTG (SNMP monitoring)
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "scada",
+             "name": "WTP_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
 
             # Core Switch - Cisco IE-4000
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "scada",
@@ -284,9 +293,9 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["scada"], "target_zones": ["control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # SNMP monitoring of switches (30s)
+            # SNMP monitoring of switches (30s) — from the NMS, not SCADA
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["scada"], "target_zones": ["scada", "control"]},
 
             # EWON polling PLCs for remote monitoring (5s)
@@ -295,11 +304,11 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["scada"], "target_zones": ["control"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # Safety PLC polling main PLCs (500ms)
-            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 500,
+            # Safety PLC interlock exchange with main PLCs (safety timing 100ms)
+            {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 100,
              "source_types": ["safety_plc"], "target_types": ["plc"],
              "source_zones": ["control"], "target_zones": ["control"],
-             "jitter_ms": 50, "jitter_type": "gaussian"},
+             "jitter_ms": 10, "jitter_type": "gaussian"},
         ],
         "zones": [
             {"id": "scada", "name": "SCADA Network", "level": 3,
@@ -349,9 +358,9 @@ WATER_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "scada_to_control", "name": "SCADA \u2194 Control",
              "source_zone": "scada", "target_zone": "control",
              "direction": "bidirectional",
-             "allowed_protocols": ["modbus_tcp", "snmp"],
+             "allowed_protocols": ["modbus_tcp", "snmp", "https"],
              "security_level": "critical",
-             "description": "SCADA server, OPC gateway, historian, and remote access gateway polling main PLCs and safety controller"},
+             "description": "SCADA server, OPC gateway, historian, remote access gateway polling main PLCs/safety controller; NMS SNMP/web management of control-zone switches"},
             # L2 (control) <-> L1 (intake): PLCs to intake field devices
             {"id": "control_to_intake", "name": "Control \u2194 Intake",
              "source_zone": "control", "target_zone": "intake",

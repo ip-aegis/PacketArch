@@ -23,13 +23,17 @@ def _register_all() -> None:
         abb,
         beckwith,
         building_automation,
+        carlo_gavazzi,
         cisco,
+        danfoss,
+        elvaco,
         emerson,
         fieldbus_networking,
         ge,
         hms,
         honeywell,
         it_ot_boundary,
+        janitza,
         japanese_plc,
         process_instruments,
         robotics_logistics,
@@ -46,14 +50,14 @@ def _register_all() -> None:
         cisco, emerson, ge, sel, hms, beckwith,
         building_automation, transportation, process_instruments,
         robotics_logistics, fieldbus_networking, it_ot_boundary,
-        japanese_plc,
+        japanese_plc, carlo_gavazzi, janitza, elvaco, danfoss,
     ]
     for mod in all_modules:
         for template in mod.TEMPLATES:
             _register_template(template)
 
     _count = len(DEVICE_TEMPLATES)
-    if _count < 284:  # 295 - 11 non-Cisco switch templates removed
+    if _count < 332:  # 284 + 5 EU energy-metering templates (Carlo Gavazzi x2, Janitza, Elvaco, Danfoss)
         raise RuntimeError(f"Expected at least 284 templates, got {_count}")
 
 

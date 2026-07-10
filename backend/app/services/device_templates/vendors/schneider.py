@@ -3105,6 +3105,14 @@ TEMPLATES: list[DeviceTemplate] = [
             "device_name": "Easergy T300 Feeder RTU",
             "hardware_version": "T300",
         },
+
+        iec104_identity={
+            "vendor_name": "Schneider Electric",
+            "device_name": "Easergy T300 Feeder RTU",
+            "common_address": 1,
+            "originator_address": 0,
+            "firmware_version": "V3.6.0",
+        },
     ),
     DeviceTemplate(
         id="schneider/powerlogic/ion9000",

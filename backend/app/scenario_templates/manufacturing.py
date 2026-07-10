@@ -2308,15 +2308,15 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "ops_bay_etch", "name": "Operations ↔ Bay 2 Etch",
              "source_zone": "operations", "target_zone": "bay_etch",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "ethernet_ip", "snmp"],
+             "allowed_protocols": ["opc_ua", "ethernet_ip", "modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "MES/historian OPC UA subscriptions to the etch cluster-tool PLC, central HMI and engineering EtherNet/IP access, SNMP monitoring"},
+             "description": "MES/historian OPC UA subscriptions to the etch cluster-tool PLC, central HMI and engineering EtherNet/IP access, analyzer engineering workstation Modbus access to the RGA/mass-spec analyzer, SNMP monitoring"},
             {"id": "ops_bay_depo", "name": "Operations ↔ Bay 3 Deposition",
              "source_zone": "operations", "target_zone": "bay_depo",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "allowed_protocols": ["opc_ua", "s7comm", "modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "MES/historian OPC UA subscriptions to the deposition cluster-tool PLC, central HMI and engineering S7comm access, SNMP monitoring"},
+             "description": "MES/historian OPC UA subscriptions to the deposition cluster-tool PLC, central HMI and engineering S7comm access, analyzer engineering workstation Modbus access to the gas chromatograph, SNMP monitoring"},
             {"id": "ops_bay_cmp", "name": "Operations ↔ Bay 4 CMP",
              "source_zone": "operations", "target_zone": "bay_cmp",
              "direction": "bidirectional",
@@ -2332,9 +2332,9 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "ops_bay_diff", "name": "Operations ↔ Bay 6 Diffusion",
              "source_zone": "operations", "target_zone": "bay_diff",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "s7comm", "snmp"],
+             "allowed_protocols": ["opc_ua", "s7comm", "modbus_tcp", "snmp"],
              "security_level": "critical",
-             "description": "MES/historian OPC UA subscriptions to the diffusion furnace cluster-tool PLC, central HMI and engineering S7comm access, SNMP monitoring"},
+             "description": "MES/historian OPC UA subscriptions to the diffusion furnace cluster-tool PLC, central HMI and engineering S7comm access, analyzer engineering workstation Modbus access to the furnace O2 analyzer, SNMP monitoring"},
             {"id": "ops_amhs", "name": "Operations ↔ AMHS",
              "source_zone": "operations", "target_zone": "amhs",
              "direction": "bidirectional",
@@ -2807,7 +2807,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_types": ["plc"], "target_types": ["io_module"],
              "source_zones": ["bay_diff"], "target_zones": ["bay_diff"],
              "jitter_ms": 1, "jitter_type": "gaussian"},
-            {"protocol": "profisafe", "pattern": "safety", "interval_ms": 8,
+            # PROFIsafe rides the PROFINET black channel; authored as "profinet"
+            # (both endpoints support it) so the safety I/O connection stays
+            # on-rail instead of snapping to snmp (profisafe is L2-only and not
+            # in the flow-repair priority list).
+            {"protocol": "profinet", "pattern": "safety", "interval_ms": 8,
              "source_types": ["safety_plc"], "target_types": ["io_module"],
              "source_zones": ["bay_diff"], "target_zones": ["bay_diff"]},
             {"protocol": "modbus_tcp", "pattern": "poll", "interval_ms": 1000,
@@ -3553,10 +3557,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"id": "ops_idmz", "name": "Operations ↔ IDMZ",
              "source_zone": "operations", "target_zone": "idmz",
              "direction": "bidirectional",
-             "allowed_protocols": ["opc_ua", "snmp", "rdp", "https"],
+             "allowed_protocols": ["opc_ua", "snmp", "ssh", "rdp", "https"],
              "security_level": "critical",
-             "description": "Historian forwarding to the IDMZ reverse-proxy broker, WSUS patch "
-                            "distribution to the engineering workstation, jump-server RDP pivot, "
+             "description": "Reverse-proxy broker pulling historian data, WSUS patch "
+                            "distribution to the engineering workstation, jump-server RDP pivot "
+                            "and SSH health checks of the operations core switch, "
                             "NMS SNMP polling of the IDMZ switch"},
             # L3.5 IDMZ <-> Cell 4 Battery: eWON remote-monitoring SNMP poll of the
             # battery-line ControlLogix for offsite vendor support.
@@ -3978,7 +3983,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["operations"],
              "target_zones": ["operations", "idmz", "cell_stamping", "cell_injection",
                               "cell_subassembly", "cell_battery"],
-             "jitter_ms": 500, "jitter_type": "gaussian"},
+             "jitter_ms": 500, "jitter_type": "gaussian",
+             # Pin to SNMP: the cell switches also expose an https web UI, so
+             # flow-repair would otherwise upgrade snmp->https and break the
+             # snmp-only cell conduits. NMS management is SNMP by intent.
+             "auto_repair_skip": True},
 
             # ============================================================
             # INDUSTRIAL DMZ (L3.5) — boundary + external comms
@@ -3989,12 +3998,18 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 60000,
              "source_types": ["remote_gateway"], "target_types": ["plc"],
              "source_zones": ["idmz"], "target_zones": ["cell_battery"],
-             "jitter_ms": 5000, "jitter_type": "uniform"},
-            # FactoryTalk historian forwards plant data UP to the IDMZ
-            # reverse-proxy data broker over HTTPS (10s).
+             "jitter_ms": 5000, "jitter_type": "uniform",
+             # Pin to SNMP: the L85E also speaks modbus_tcp, which flow-repair
+             # would otherwise pick over snmp and break the snmp-only
+             # idmz_cell_battery conduit. eWON remote monitoring is SNMP here.
+             "auto_repair_skip": True},
+            # IDMZ reverse-proxy data broker pulls plant data from the
+            # FactoryTalk historian over HTTPS (10s). Modeled broker-initiated
+            # (reverse_proxy -> historian) per the IEC 62443 data-broker
+            # pattern, which is the on-rail direction.
             {"protocol": "https", "pattern": "poll", "interval_ms": 10000,
-             "source_types": ["historian"], "target_types": ["reverse_proxy"],
-             "source_zones": ["operations"], "target_zones": ["idmz"],
+             "source_types": ["reverse_proxy"], "target_types": ["historian"],
+             "source_zones": ["idmz"], "target_zones": ["operations"],
              "jitter_ms": 1000, "jitter_type": "gaussian"},
             # WSUS patch server distributes updates DOWN to the engineering
             # workstation over HTTPS (hourly).
@@ -4163,6 +4178,11 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "protocols": ["modbus_tcp", "opc_ua", "snmp"],
              "fingerprint_model": "EcoStruxure Control Expert 16",
              "role": "OT Engineering Workstation"},
+            {"type": "nms", "vendor": "paessler", "count": 1, "zone": "operations",
+             "name": "Plant_Network_Management_Server",
+             "protocols": ["snmp", "https"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "role": "Network Management Server"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "operations",
              "name": "Ops_Core_Switch",
              "protocols": ["snmp"],
@@ -4627,18 +4647,21 @@ MANUFACTURING_TEMPLATES: dict[str, dict[str, Any]] = {
              "jitter_ms": 5000, "jitter_type": "uniform"},
 
             # ---------------------------------------------------------------------
-            # SNMP INFRASTRUCTURE MONITORING (L3 operations → cell switches)
+            # SNMP INFRASTRUCTURE MONITORING (L3 operations NMS → cell switches)
+            # The network management server is the canonical SNMP source. Pinned
+            # to snmp (auto_repair_skip) so flow-repair won't upgrade snmp->https
+            # and break the snmp-only conduits.
             # ---------------------------------------------------------------------
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["operations"], "target_zones": ["fill_finish"],
-             "jitter_ms": 3000, "jitter_type": "uniform"},
+             "jitter_ms": 3000, "jitter_type": "uniform", "auto_repair_skip": True},
             # Intra-operations SNMP health poll of the core switch (so no L3 device
             # is left without a flow for CV fingerprinting).
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["scada_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["operations"], "target_zones": ["operations"],
-             "jitter_ms": 3000, "jitter_type": "uniform"},
+             "jitter_ms": 3000, "jitter_type": "uniform", "auto_repair_skip": True},
         ],
     },
 }
