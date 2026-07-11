@@ -68,6 +68,16 @@ class GenerationRequest(BaseModel):
             "they reach the orchestrator."
         ),
     )
+    topology_mode: bool = Field(
+        False,
+        description=(
+            "Multi-sensor topology mode. When True, the run derives the L1 "
+            "topology (per-zone IE3500 + core) and fans out into one PCAP per "
+            "SPAN with gateway-rewritten per-segment framing. Cell isolation "
+            "is forced off (cross-zone flows are routed, not dropped). Fails "
+            "if the topology plan is invalid."
+        ),
+    )
 
 
 class GenerationJobResponse(BaseModel):

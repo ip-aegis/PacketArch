@@ -303,6 +303,7 @@ def generate_traffic(
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
     export_attack_pcap: bool = False,
+    topology_mode: bool = False,
 ):
     """Generate traffic for a scenario.
 
@@ -345,6 +346,7 @@ def generate_traffic(
                 adaptive_config=adaptive_config,
                 cell_isolation_override=cell_isolation_override,
                 export_attack_pcap=export_attack_pcap,
+                topology_mode=topology_mode,
             )
         )
         return result
@@ -361,6 +363,7 @@ async def _generate_traffic_async(
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
     export_attack_pcap: bool = False,
+    topology_mode: bool = False,
 ) -> dict[str, Any]:
     """Async function to generate traffic.
 
@@ -451,6 +454,32 @@ async def _generate_traffic_async(
             effective_definition = await ensure_device_flow_coverage(
                 effective_definition
             )
+
+            # Multi-sensor topology: derive the plan on the enriched definition
+            # (so every generated flow gets a segment plan) and force cell
+            # isolation OFF — cross-zone flows are ROUTED per the plan, never
+            # dropped. Invalid plans fail the job with the planner's messages.
+            if topology_mode:
+                from app.services import topology_planner
+
+                effective_definition = {
+                    **effective_definition,
+                    "cell_isolation": {"mode": "off"},
+                }
+                plan = topology_planner.preview(
+                    effective_definition, seed=str(scenario.id)
+                )
+                if not plan.get("valid"):
+                    errs = "; ".join(
+                        e["message"] for e in plan.get("errors", [])
+                    )
+                    raise ValueError(f"Topology plan invalid: {errs}")
+                config.topology_plan = plan
+                logger.info(
+                    "Topology mode: %d spans, %d flow plans",
+                    len(plan.get("spans", [])),
+                    len(plan.get("flow_plans", {})),
+                )
 
             flow_contexts = _build_flow_contexts(
                 effective_definition, str(scenario.id), vertical=scenario.vertical

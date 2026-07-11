@@ -58,6 +58,11 @@ class TopologyPlan:
     links: list[dict[str, Any]] = field(default_factory=list)
     spans: list[dict[str, Any]] = field(default_factory=list)
     flow_plans: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Endpoint → zone index for routing frames that carry no flow_id plan
+    # (ambient ARP/LLDP, unplanned/attack packets). Keyed by lowercased IP/MAC.
+    endpoint_index: dict[str, dict[str, str]] = field(
+        default_factory=lambda: {"ip_to_zone": {}, "mac_to_zone": {}}
+    )
 
     @property
     def valid(self) -> bool:
@@ -73,6 +78,7 @@ class TopologyPlan:
             "links": self.links,
             "spans": self.spans,
             "flow_plans": self.flow_plans,
+            "endpoint_index": self.endpoint_index,
         }
 
 
@@ -317,6 +323,13 @@ def plan_segments(definition: dict[str, Any], plan: TopologyPlan) -> TopologyPla
         claimed = _device_zone(device_id, device, zones)
         if len(claimed) == 1:
             device_zone[device_id] = claimed[0]
+            net = device.get("network") or {}
+            ip = (net.get("ipAddress") or "").lower()
+            mac = (net.get("macAddress") or "").lower()
+            if ip:
+                plan.endpoint_index["ip_to_zone"][ip] = claimed[0]
+            if mac:
+                plan.endpoint_index["mac_to_zone"][mac] = claimed[0]
 
     for flow_id, flow in flows.items():
         src_id = flow.get("sourceDeviceId") or flow.get("source_device_id")
@@ -331,8 +344,11 @@ def plan_segments(definition: dict[str, Any], plan: TopologyPlan) -> TopologyPla
                 PlanIssue("UNKNOWN_FLOW_ENDPOINT", f"Flow '{flow_name}' references a missing device; skipped.", flow_id)
             )
             continue
-        src_mac = ((src.get("network") or {}).get("macAddress") or "").lower()
-        dst_mac = ((dst.get("network") or {}).get("macAddress") or "").lower()
+        src_net, dst_net = src.get("network") or {}, dst.get("network") or {}
+        src_mac = (src_net.get("macAddress") or "").lower()
+        dst_mac = (dst_net.get("macAddress") or "").lower()
+        src_ip = (src_net.get("ipAddress") or "").lower()
+        dst_ip = (dst_net.get("ipAddress") or "").lower()
         if not src_mac or not dst_mac:
             plan.warnings.append(
                 PlanIssue("DEVICE_MISSING_NET", f"Flow '{flow_name}' endpoint lacks a MAC; skipped.", flow_id)
@@ -351,6 +367,8 @@ def plan_segments(definition: dict[str, Any], plan: TopologyPlan) -> TopologyPla
                 "kind": "intra",
                 "source_zone": src_zone,
                 "target_zone": dst_zone,
+                "source_ip": src_ip,
+                "target_ip": dst_ip,
                 "segments_forward": forward,
                 "segments_reverse": reverse,
             }
@@ -385,6 +403,8 @@ def plan_segments(definition: dict[str, Any], plan: TopologyPlan) -> TopologyPla
             "kind": "cross",
             "source_zone": src_zone,
             "target_zone": dst_zone,
+            "source_ip": src_ip,
+            "target_ip": dst_ip,
             "segments_forward": forward,
             "segments_reverse": reverse,
         }

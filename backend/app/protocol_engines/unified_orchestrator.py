@@ -362,6 +362,7 @@ class UnifiedOrchestrator:
                             event.packet_bytes,
                             timestamp_ms,
                             is_attack=event.flow_id.startswith("__attack__"),
+                            flow_id=event.flow_id,
                         )
                     except Exception as e:
                         # A single packet failing to inject (e.g. kernel
@@ -405,6 +406,7 @@ class UnifiedOrchestrator:
                         event.packet_bytes,
                         timestamp_ms,
                         is_attack=event.flow_id.startswith("__attack__"),
+                        flow_id=event.flow_id,
                     )
                     packets += 1
                     if not event.flow_id.startswith(("ambient_", "__attack__")):

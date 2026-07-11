@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from app.protocol_engines.output import PcapOutput, SplitPcapOutput
+from app.protocol_engines.output import PcapOutput, SpanPcapOutput, SplitPcapOutput
 from app.protocol_engines.types import FlowContext
 from app.protocol_engines.unified_orchestrator import UnifiedOrchestrator
 from app.traffic_generator.models import GenerationResult, JobStatus
@@ -57,6 +57,11 @@ class GenerationConfig:
     # PCAPs — the regular combined file plus a baseline-only and an
     # attack-only file — via SplitPcapOutput, instead of a single file.
     export_attack_pcap: bool = False
+    # Multi-sensor topology mode. When set, the run fans out into one PCAP per
+    # topology SPAN (per-zone + core) via SpanPcapOutput: each canonical frame
+    # is reframed per the plan's segments. ``topology_plan`` is the validated
+    # dict from ``topology_planner.preview()``.
+    topology_plan: dict[str, Any] | None = None
 
 
 class TrafficOrchestrator:
@@ -107,7 +112,11 @@ class TrafficOrchestrator:
             )
             combined_path = Path(self.config.output_path)
             attack_path = baseline_path = None
-            if split_export:
+            if self.config.topology_plan is not None:
+                # Multi-sensor topology: one PCAP per SPAN. Takes precedence —
+                # attack split isn't composed with per-SPAN fan-out in v1.
+                output = SpanPcapOutput(str(combined_path), self.config.topology_plan)
+            elif split_export:
                 stem = str(combined_path.with_suffix(""))
                 attack_path = f"{stem}_attack.pcap"
                 baseline_path = f"{stem}_baseline.pcap"
@@ -297,7 +306,26 @@ class TrafficOrchestrator:
 
             # Assemble the artifact list + combined file size. SplitPcapOutput
             # and PcapOutput expose file_size differently (method vs property).
-            if split_export:
+            if self.config.topology_plan is not None:
+                combined_size = output.bytes_sent
+                artifacts = [
+                    {
+                        "kind": "combined",
+                        "filename": combined_path.name,
+                        "packets": output.packet_count,
+                        "size_bytes": combined_size,
+                    }
+                ]
+                for span_id, path in output.span_paths().items():
+                    artifacts.append(
+                        {
+                            "kind": f"span:{span_id}",
+                            "filename": Path(path).name,
+                            "packets": output.span_packet_counts.get(span_id, 0),
+                            "size_bytes": 0,
+                        }
+                    )
+            elif split_export:
                 combined_size = output.file_size("combined")
                 artifacts = [
                     {

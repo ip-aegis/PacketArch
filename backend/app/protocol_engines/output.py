@@ -26,6 +26,7 @@ class PacketOutput(Protocol):
         packet_bytes: bytes,
         timestamp_ms: float,
         is_attack: bool = False,
+        flow_id: str | None = None,
     ) -> None:
         """Write/inject a packet.
 
@@ -36,6 +37,9 @@ class PacketOutput(Protocol):
                 orchestrator (``flow_id`` prefixed ``__attack__``). Single-file
                 outputs ignore it; :class:`SplitPcapOutput` uses it to route
                 the packet into the attack-only / baseline PCAPs.
+            flow_id: Owning flow identifier. Ignored by single-file/live
+                outputs; :class:`SpanPcapOutput` (and the live conductor) use
+                it to look up the packet's per-SPAN segment plan.
         """
         ...
 
@@ -72,6 +76,7 @@ class PcapOutput:
         packet_bytes: bytes,
         timestamp_ms: float,
         is_attack: bool = False,
+        flow_id: str | None = None,
     ) -> None:
         self._writer.write_packet(packet_bytes, timestamp_ms)
 
@@ -120,6 +125,7 @@ class SplitPcapOutput:
         packet_bytes: bytes,
         timestamp_ms: float,
         is_attack: bool = False,
+        flow_id: str | None = None,
     ) -> None:
         if self._combined is not None:
             self._combined.write_packet(packet_bytes, timestamp_ms)
@@ -181,6 +187,7 @@ class LiveOutput:
         packet_bytes: bytes,
         timestamp_ms: float,
         is_attack: bool = False,
+        flow_id: str | None = None,
     ) -> None:
         from scapy.packet import Raw
         from scapy.sendrecv import sendp
@@ -212,3 +219,81 @@ class LiveOutput:
             f"Live output closed: {self.packet_count} packets "
             f"injected on {self.interface}"
         )
+
+
+def span_to_filename(span_id: str) -> str:
+    """'zone:z-cell' -> 'zone_z-cell', 'core' -> 'core' (safe file stem part)."""
+    return span_id.replace(":", "_")
+
+
+class SpanPcapOutput:
+    """Fan one generation run out into one PCAP per topology SPAN.
+
+    The generate-once/render-many PCAP sink: each canonical frame is routed
+    through a :class:`TopologyRouter` into its per-segment reframed copies,
+    and each copy is written to that segment's SPAN file. Proves cross-sensor
+    coherence with zero live infrastructure (Phase 1).
+
+    ``base_path`` is the combined-run path; per-span files are written
+    alongside it as ``<stem>_<span>.pcap``. A ``combined`` file (every
+    canonical frame, unreframed) is always written too, so the run stays a
+    drop-in for the normal PCAP path.
+    """
+
+    def __init__(self, base_path: str, plan: dict) -> None:
+        from pathlib import Path
+
+        from app.protocol_engines.topology_router import TopologyRouter
+        from app.traffic_generator.pcap_writer import PcapWriter
+
+        self._router = TopologyRouter(plan)
+        self.packet_count = 0
+        self.bytes_sent = 0
+        self.span_packet_counts: dict[str, int] = {}
+
+        stem = str(Path(base_path).with_suffix(""))
+        self._combined = PcapWriter(base_path)
+        self._span_paths: dict[str, str] = {}
+        self._span_writers: dict[str, "PcapWriter"] = {}
+        for span_id in self._router.span_ids:
+            path = f"{stem}_{span_to_filename(span_id)}.pcap"
+            self._span_paths[span_id] = path
+            self._span_writers[span_id] = PcapWriter(path)
+            self.span_packet_counts[span_id] = 0
+
+    def write_packet(
+        self,
+        packet_bytes: bytes,
+        timestamp_ms: float,
+        is_attack: bool = False,
+        flow_id: str | None = None,
+    ) -> None:
+        self._combined.write_packet(packet_bytes, timestamp_ms)
+        self.packet_count += 1
+        self.bytes_sent += len(packet_bytes)
+        for span_id, reframed in self._router.route(packet_bytes, flow_id):
+            writer = self._span_writers.get(span_id)
+            if writer is None:  # a span the plan didn't declare — create lazily
+                from pathlib import Path
+
+                from app.traffic_generator.pcap_writer import PcapWriter
+
+                stem = str(Path(self._combined_path()).with_suffix(""))
+                path = f"{stem}_{span_to_filename(span_id)}.pcap"
+                writer = PcapWriter(path)
+                self._span_writers[span_id] = writer
+                self._span_paths[span_id] = path
+                self.span_packet_counts[span_id] = 0
+            writer.write_packet(reframed, timestamp_ms)
+            self.span_packet_counts[span_id] += 1
+
+    def _combined_path(self) -> str:
+        return self._combined.output_path if hasattr(self._combined, "output_path") else ""
+
+    def span_paths(self) -> dict[str, str]:
+        return dict(self._span_paths)
+
+    def close(self) -> None:
+        self._combined.close()
+        for writer in self._span_writers.values():
+            writer.close()

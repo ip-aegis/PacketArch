@@ -7,9 +7,17 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 
 # Version history:
+# 2.4.0 - Multi-sensor topology groundwork staged into the agent (protocol_engines/ is
+#   staged into the agent build). New protocol_engines/topology_router.py (TopologyRouter:
+#   pure generate-once/render-many segment reframer) + PacketOutput.write_packet gains an
+#   optional flow_id param (all impls + both UnifiedOrchestrator call sites updated) so the
+#   per-SPAN PCAP sink (SpanPcapOutput) and the future live conductor can look up a packet's
+#   segment plan. NO live on-wire behavior change yet: the agent still uses LiveOutput on one
+#   interface; flow_id is accepted-and-ignored there. MINOR (new staged capability, backward
+#   compatible). The live multi-span conductor lands in the Phase 3 provisioning work.
 # 2.3.0 - New vendor device fingerprints (Carlo Gavazzi, Danfoss, Elvaco, Janitza) added
 #   matching entries to protocol_engines/_vendor_ouis_generated.py, which is staged into the
 #   agent build — no on-wire/behavior change, MINOR bump per the protocol_engines staging rule.
