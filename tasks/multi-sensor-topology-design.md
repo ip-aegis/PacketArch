@@ -32,6 +32,30 @@ tests; live-validated on a real 3-sensor Cyber Vision deployment.
   persisted on the scenario. Full canvas-editing UI intentionally NOT built —
   the derive-from-zones model matches the "one switch per zone" requirement.
 
+## Integration rewire (2026-07-11, commit 08296ee)
+
+The advanced deploy was initially a parallel silo (its own Agents-hub tab, no
+AgentDeployment, no CV provisioning → scenario never showed active, no live
+traffic). Rewired to go THROUGH the normal pipeline:
+- **Entry point moved to the canvas Deploy panel** as a third mode
+  (`existing` | `new_lab` | **`multi_sensor`**); the Agents-hub tab was retired.
+  `MultiSensorDeploySection` = preflight → deploy → live status → teardown.
+- **`execute_deployment` gained `topology_plan`/`span_interface_map`/
+  `definition_override`.** The single-conductor deploy now creates the
+  AgentDeployment (→ active status + live-traffic heartbeat) AND runs
+  `provision_preset` + `provision_cyber_vision` (CV preset + zone groups + org
+  hierarchy) — identical to a normal deploy, plus the multi-sensor injection.
+- **`topology_provisioning_service.deploy()`**: provision N+1 sensors, then a
+  **backend asyncio task** (execute_deployment sends agent WS commands, which
+  only work in the backend process — NOT celery) waits for all labs running +
+  core agent online and routes the conductor through execute_deployment.
+  `build_runtime` mirrors the full normal-deploy enrichment; `teardown` stops
+  the conductor + drops the deployment row + tears down labs; `status()`
+  reports phase (provisioning/deploying/active). Removed start/stop_injection.
+- Live-validated: deploy → 3 sensors → auto-deploy → scenario `running` in
+  /deployments, dashboard counts 7758+ pkts, CV preset + OH + 2 zone groups
+  created, conductor injecting per-segment.
+
 ## Remaining follow-ups (documented, not blocking)
 
 1. ~~Agent live-streaming integration~~ — **DONE (agent 2.5.0, commit e0e85b2).**
