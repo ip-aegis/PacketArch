@@ -1087,7 +1087,10 @@ async def provision_groups(
         # task re-arms itself so this becomes eventually consistent as CV's
         # aggregation catches up — no operator re-click needed.
         if total_matched == 0 and not groups_state:
-            state.update({"status": "polling", "groups": {}, "device_count": 0, "error": None})
+            state.update({
+                "status": "polling", "groups": {}, "device_count": 0,
+                "expected_devices": len(scenario_macs), "error": None,
+            })
             await _save_cv_state(db, scenario, state)
             logger.info(f"CV group provisioning for scenario {scenario_id}: no devices in CV yet — will retry")
             return state
@@ -1101,10 +1104,14 @@ async def provision_groups(
             "status": "groups_created",
             "groups": groups_state,
             "device_count": total_matched,
+            "expected_devices": len(scenario_macs),
             "error": None,
         })
         await _save_cv_state(db, scenario, state)
-        logger.info(f"CV group provisioning complete for scenario {scenario_id}: {len(groups_state)} group(s)")
+        logger.info(
+            f"CV group provisioning for scenario {scenario_id}: {len(groups_state)} group(s), "
+            f"{total_matched}/{len(scenario_macs)} devices grouped"
+        )
         return state
     except Exception as e:
         logger.exception(f"CV group provisioning failed for scenario {scenario_id}")

@@ -825,7 +825,7 @@ def provision_cyber_vision(
     max_polls: int = 15,
     interval_seconds: int = 60,
     attempt: int = 1,
-    max_attempts: int = 8,
+    max_attempts: int = 12,
     retry_countdown: int = 300,
 ):
     """Poll Cyber Vision and create one group per scenario zone.
@@ -867,16 +867,18 @@ def provision_cyber_vision(
     asyncio.set_event_loop(loop)
     try:
         result = loop.run_until_complete(_run())
-        # Re-arm if CV hasn't discovered any devices yet (status stayed "polling").
-        if (
-            isinstance(result, dict)
-            and result.get("status") == "polling"
-            and int(result.get("device_count") or 0) == 0
-            and attempt < max_attempts
-        ):
+        # Re-arm while NOT ALL of the scenario's devices are grouped yet — CV's
+        # aggregation surfaces devices in a staggered trickle (worse with many
+        # sensors / after a CV data wipe), so a single pass that grouped a
+        # partial set must keep reconciling as late arrivals appear. Each pass
+        # is idempotent (groups are reused; membership is re-set). Bounded by
+        # max_attempts.
+        grouped = int(result.get("device_count") or 0) if isinstance(result, dict) else 0
+        expected = int(result.get("expected_devices") or 0) if isinstance(result, dict) else 0
+        if isinstance(result, dict) and attempt < max_attempts and grouped < expected:
             logger.info(
-                f"CV provisioning scenario {scenario_id}: no devices yet "
-                f"(attempt {attempt}/{max_attempts}) — re-arming in {retry_countdown}s"
+                f"CV provisioning scenario {scenario_id}: {grouped}/{expected} devices "
+                f"grouped (attempt {attempt}/{max_attempts}) — re-arming in {retry_countdown}s"
             )
             provision_cyber_vision.apply_async(
                 kwargs={

@@ -345,6 +345,27 @@ async def teardown(db, scenario_id: str) -> dict[str, Any]:
     except Exception:
         logger.exception("topology teardown: stop_scenario failed for %s", scenario_id)
 
+    # 1b) Reset the scenario's CV provisioning state so a REDEPLOY re-provisions
+    #     from scratch. Otherwise the stale `cyber_vision` block (preset/group
+    #     ids from the torn-down run, marked groups_created) makes the next
+    #     deploy look already-provisioned and never re-assigns freshly-
+    #     discovered devices to groups.
+    try:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from app.models.scenario import Scenario
+
+        scn = await db.get(Scenario, uuid.UUID(scenario_id))
+        if scn and (scn.definition or {}).get("cyber_vision"):
+            definition = dict(scn.definition)
+            definition.pop("cyber_vision", None)
+            scn.definition = definition
+            flag_modified(scn, "definition")
+            await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("topology teardown: resetting CV state failed for %s", scenario_id)
+
     # 2) Drop the AgentDeployment row(s) BEFORE deleting the agents (FK), so the
     #    scenario stops showing as active.
     try:
