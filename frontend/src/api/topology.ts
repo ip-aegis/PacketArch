@@ -80,6 +80,12 @@ export const topologyApi = {
 
   teardown: async (scenarioId: string): Promise<TopologyDeployment> =>
     (await apiClient.post(`${base(scenarioId)}/teardown`)).data,
+
+  start: async (scenarioId: string): Promise<Record<string, unknown>> =>
+    (await apiClient.post(`${base(scenarioId)}/start`)).data,
+
+  stop: async (scenarioId: string): Promise<Record<string, unknown>> =>
+    (await apiClient.post(`${base(scenarioId)}/stop`)).data,
 };
 
 export default topologyApi;

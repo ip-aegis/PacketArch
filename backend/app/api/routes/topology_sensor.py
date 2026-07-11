@@ -85,6 +85,28 @@ async def deployment_status(
     return TopologyDeploymentResponse(**data)
 
 
+@router.post("/start")
+async def start_injection(
+    scenario_id: str,
+    db: DBSession,
+    admin: AdminUser,
+) -> dict:
+    """Start live traffic — the core lab's agent (single conductor) injects
+    each frame's per-segment copies onto every SPAN's veth. Requires the member
+    labs to be running."""
+    return await topology_provisioning_service.start_injection(db, scenario_id)
+
+
+@router.post("/stop")
+async def stop_injection(
+    scenario_id: str,
+    db: DBSession,
+    admin: AdminUser,
+) -> dict:
+    """Stop the conductor's live injection."""
+    return await topology_provisioning_service.stop_injection(db, scenario_id)
+
+
 @router.post("/teardown", response_model=TopologyDeploymentResponse)
 async def teardown(
     scenario_id: str,

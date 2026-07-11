@@ -51,6 +51,12 @@ class ScenarioContext:
     scenario_id: str
     definition: dict[str, Any]
     interface: str
+    # Multi-sensor topology (single-conductor): when set, the agent injects each
+    # canonical frame's per-segment reframed copies onto the veth serving each
+    # SPAN (from span_interface_map) via LiveTopologyOutput, instead of a single
+    # LiveOutput on `interface`. Cross-zone flows are ROUTED, never isolation-dropped.
+    topology_plan: dict[str, Any] | None = None
+    span_interface_map: dict[str, str] | None = None
     status: ScenarioStatus = field(default_factory=lambda: ScenarioStatus("", ScenarioState.STARTING))
     thread: threading.Thread | None = None
     output: Any = None  # LiveOutput — tracks packet_count
@@ -175,6 +181,8 @@ class OrchestratorPool:
         scenario_id: str,
         definition: dict[str, Any],
         interface: str,
+        topology_plan: dict[str, Any] | None = None,
+        span_interface_map: dict[str, str] | None = None,
     ) -> bool:
         """Start a new scenario.
 
@@ -182,6 +190,10 @@ class OrchestratorPool:
             scenario_id: Unique scenario identifier
             definition: Scenario definition dict with devices and flows
             interface: Network interface for packet injection
+            topology_plan: Optional multi-sensor topology plan. When set, this
+                agent acts as the single conductor — injecting each frame's
+                per-segment copies onto every SPAN's veth.
+            span_interface_map: span_id -> veth for topology injection.
 
         Returns:
             True if started successfully, False if already running
@@ -198,6 +210,8 @@ class OrchestratorPool:
                 scenario_id=scenario_id,
                 definition=definition,
                 interface=interface,
+                topology_plan=topology_plan,
+                span_interface_map=span_interface_map,
             )
             self._scenarios[scenario_id] = ctx
 
@@ -330,6 +344,12 @@ class OrchestratorPool:
             zones = ctx.definition.get("zones", {})
             conduits = ctx.definition.get("conduits", {})
             isolation = parse_isolation_config(ctx.definition)
+            # Topology (single-conductor) mode: cross-zone flows are the whole
+            # point — force cell isolation OFF so they are routed per the plan,
+            # never dropped.
+            topology_mode = ctx.topology_plan is not None
+            if topology_mode:
+                isolation = {"mode": "off"}
 
             # Handle both dict and list formats
             if isinstance(devices, list):
@@ -340,8 +360,22 @@ class OrchestratorPool:
             if not flows:
                 raise ValueError("No flows defined in scenario")
 
-            # Create LiveOutput and UnifiedOrchestrator (perpetual mode)
-            output = LiveOutput(interface=ctx.interface)
+            # Create the output. In topology mode, the single conductor injects
+            # each canonical frame's per-segment reframed copies onto every
+            # SPAN's veth (LiveTopologyOutput); otherwise a single LiveOutput.
+            if topology_mode:
+                from app.protocol_engines.output import LiveTopologyOutput
+
+                output = LiveTopologyOutput(
+                    ctx.topology_plan, ctx.span_interface_map or {}
+                )
+                logger.info(
+                    "Topology conductor: injecting across %d SPANs %s",
+                    len(ctx.span_interface_map or {}),
+                    list((ctx.span_interface_map or {}).values()),
+                )
+            else:
+                output = LiveOutput(interface=ctx.interface)
             ctx.output = output
             orchestrator = UnifiedOrchestrator(output=output, duration_ms=None)
             ctx.orchestrator = orchestrator

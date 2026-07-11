@@ -321,6 +321,9 @@ class PacketArchAgent:
         scenario_id = command.get("scenario_id")
         definition = command.get("definition", {})
         interface = command.get("interface") or self.config.default_interface
+        # Multi-sensor topology (single-conductor): the plan + span->veth map.
+        topology_plan = command.get("topology_plan")
+        span_interface_map = command.get("span_interface_map") or {}
 
         if not scenario_id:
             await self.ws.send_error(None, "Missing scenario_id", "INVALID_COMMAND")
@@ -330,18 +333,36 @@ class PacketArchAgent:
             await self.ws.send_error(scenario_id, "Missing definition", "INVALID_COMMAND")
             return
 
-        # Validate interface exists
         available = list(psutil.net_if_addrs().keys())
-        if interface not in available:
+        if topology_plan:
+            # Conductor must see every SPAN's veth (network_mode: host).
+            missing = [i for i in span_interface_map.values() if i not in available]
+            if missing:
+                await self.ws.send_error(
+                    scenario_id,
+                    f"Topology injection interfaces not found: {missing}. Available: {available}",
+                    "INTERFACE_NOT_FOUND",
+                )
+                return
+            logger.info(
+                f"Starting topology scenario {scenario_id} as conductor across "
+                f"{len(span_interface_map)} SPANs"
+            )
+        elif interface not in available:
             await self.ws.send_error(
                 scenario_id,
                 f"Interface '{interface}' not found. Available: {available}",
                 "INTERFACE_NOT_FOUND",
             )
             return
+        else:
+            logger.info(f"Starting scenario {scenario_id} on interface {interface}")
 
-        logger.info(f"Starting scenario {scenario_id} on interface {interface}")
-        success = self.pool.start(scenario_id, definition, interface)
+        success = self.pool.start(
+            scenario_id, definition, interface,
+            topology_plan=topology_plan,
+            span_interface_map=span_interface_map,
+        )
 
         if not success:
             await self.ws.send_status(

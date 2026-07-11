@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 
 # Version history:
+# 2.5.0 - Multi-sensor topology LIVE conductor. START_SCENARIO now accepts optional
+#   topology_plan + span_interface_map: when present the agent acts as the single
+#   conductor (network_mode: host, so it sees every lab's pa-gen veth) and injects each
+#   canonical frame's per-segment reframed copies onto the veth serving each SPAN via
+#   LiveTopologyOutput, instead of one LiveOutput on a single interface. Cell isolation is
+#   forced OFF in topology mode (cross-zone flows are routed per the plan, not dropped).
+#   Backward compatible: without topology_plan the agent behaves exactly as before. MINOR.
 # 2.4.0 - Multi-sensor topology groundwork staged into the agent (protocol_engines/ is
 #   staged into the agent build). New protocol_engines/topology_router.py (TopologyRouter:
 #   pure generate-once/render-many segment reframer) + PacketOutput.write_packet gains an

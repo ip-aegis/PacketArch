@@ -138,6 +138,92 @@ async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None
     }
 
 
+async def build_runtime(db, scenario_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(augmented_definition, plan) for a topology run — switches injected,
+    SNMP coverage wired, isolation off. Shared by live injection and mirrors
+    the PCAP path so live == PCAP."""
+    from app.services import topology_definition_builder
+    from app.services.scenario_enrichment import ensure_device_flow_coverage
+
+    scn = await _load_scenario(db, scenario_id)
+    definition = {**(scn.definition or {}), "cell_isolation": {"mode": "off"}}
+    seed = str(scn.id)
+    plan0 = topology_planner.derive_topology(definition, seed=seed).as_dict()
+    if not plan0.get("valid"):
+        errs = "; ".join(e["message"] for e in plan0.get("errors", []))
+        raise ValidationError(f"Topology plan is invalid: {errs}")
+    augmented = topology_definition_builder.build_topology_definition(definition, plan0)
+    augmented = await ensure_device_flow_coverage(augmented)
+    plan = topology_planner.preview(augmented, seed=seed)
+    return augmented, plan
+
+
+async def start_injection(db, scenario_id: str) -> dict[str, Any]:
+    """Start live traffic: the core lab's agent (single conductor) injects each
+    frame's per-segment copies onto every member SPAN's veth."""
+    from app.services.agent_manager import agent_manager
+
+    st = await status(db, scenario_id)
+    members = st["members"]
+    if not members:
+        raise ValidationError("No topology deployment to start. Deploy first.")
+    not_running = [m["name"] for m in members if m.get("state") != "running"]
+    if not_running:
+        raise ValidationError(
+            f"Not all sensor labs are running yet: {not_running}. Wait for provisioning."
+        )
+
+    core = next((m for m in members if str(m.get("name", "")).endswith("-core")), None)
+    if not core or not core.get("agent_id"):
+        raise ValidationError("Core conductor lab not found in this deployment.")
+
+    augmented, plan = await build_runtime(db, scenario_id)
+
+    # Map each SPAN to its member lab's veth by sanitizing the span id FORWARD
+    # (span -> expected lab name), never reversing the lossy sanitizer.
+    prefix = group_prefix(scenario_id)
+    by_name = {m["name"]: m for m in members}
+    span_interface_map: dict[str, str] = {}
+    for span in plan.get("spans", []):
+        span_id = span["id"]
+        lab = by_name.get(f"{prefix}{_span_label(span_id)}")
+        if lab and lab.get("gen_if"):
+            span_interface_map[span_id] = lab["gen_if"]
+    missing = [s["id"] for s in plan.get("spans", []) if s["id"] not in span_interface_map]
+    if missing:
+        raise ValidationError(f"No provisioned lab for SPANs: {missing}. Re-deploy.")
+
+    import uuid as _uuid
+
+    ok = await agent_manager.deploy_scenario(
+        _uuid.UUID(core["agent_id"]),
+        scenario_id,
+        augmented,
+        interface=core.get("gen_if"),
+        topology_plan=plan,
+        span_interface_map=span_interface_map,
+    )
+    if not ok:
+        raise ValidationError(
+            "Conductor agent is not connected. Check the core lab's agent is online."
+        )
+    return {
+        "scenario_id": scenario_id,
+        "conductor_agent_id": core["agent_id"],
+        "span_interface_map": span_interface_map,
+        "flow_plans": len(plan.get("flow_plans", {})),
+        "started": True,
+    }
+
+
+async def stop_injection(db, scenario_id: str) -> dict[str, Any]:
+    """Stop the conductor's live injection (STOP_SCENARIO to the core agent)."""
+    from app.services.agent_manager import agent_manager
+
+    ok = await agent_manager.stop_scenario(scenario_id)
+    return {"scenario_id": scenario_id, "stopped": bool(ok)}
+
+
 async def status(db, scenario_id: str) -> dict[str, Any]:
     """List the member labs of this scenario's topology deployment (live state)."""
     prefix = group_prefix(scenario_id)

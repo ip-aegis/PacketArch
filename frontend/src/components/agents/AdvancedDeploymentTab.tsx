@@ -116,7 +116,28 @@ const AdvancedDeploymentTab: React.FC = () => {
     }
   };
 
+  const onStart = async () => {
+    if (!scenarioId) return;
+    try {
+      await topologyApi.start(scenarioId);
+      message.success('Live injection started — the conductor is driving all sensors.');
+    } catch (e) {
+      message.error(extractErrorMessage(e, 'Start failed'));
+    }
+  };
+
+  const onStop = async () => {
+    if (!scenarioId) return;
+    try {
+      await topologyApi.stop(scenarioId);
+      message.success('Live injection stopped.');
+    } catch (e) {
+      message.error(extractErrorMessage(e, 'Stop failed'));
+    }
+  };
+
   const deployed = members.length > 0;
+  const allRunning = deployed && members.every((m) => m.state === 'running');
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -220,14 +241,20 @@ const AdvancedDeploymentTab: React.FC = () => {
                   </Button>
                 </Popconfirm>
                 {deployed && (
-                  <Popconfirm
-                    title="Tear down all sensor labs for this scenario?"
-                    onConfirm={onTeardown}
-                    okText="Tear down"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button danger>Tear down</Button>
-                  </Popconfirm>
+                  <>
+                    <Button type="primary" ghost disabled={!allRunning} onClick={onStart}>
+                      Start traffic
+                    </Button>
+                    <Button onClick={onStop}>Stop traffic</Button>
+                    <Popconfirm
+                      title="Tear down all sensor labs for this scenario?"
+                      onConfirm={onTeardown}
+                      okText="Tear down"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button danger>Tear down</Button>
+                    </Popconfirm>
+                  </>
                 )}
               </Space>
             </div>

@@ -192,6 +192,8 @@ class AgentManager:
         scenario_id: str,
         definition: dict[str, Any],
         interface: str | None = None,
+        topology_plan: dict[str, Any] | None = None,
+        span_interface_map: dict[str, str] | None = None,
     ) -> bool:
         """Deploy a scenario to an agent.
 
@@ -200,6 +202,10 @@ class AgentManager:
             scenario_id: Scenario UUID
             definition: Scenario definition dict
             interface: Optional interface override
+            topology_plan: Optional multi-sensor topology plan. When set, the
+                target agent acts as the single conductor and injects each
+                frame's per-segment copies onto every SPAN's veth.
+            span_interface_map: span_id -> veth for topology injection.
 
         Returns:
             True if deployment command sent successfully
@@ -217,6 +223,9 @@ class AgentManager:
         }
         if interface:
             command["interface"] = interface
+        if topology_plan is not None:
+            command["topology_plan"] = topology_plan
+            command["span_interface_map"] = span_interface_map or {}
 
         success = await self.send_command(agent_id, command)
         if success:
