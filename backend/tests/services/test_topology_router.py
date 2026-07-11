@@ -132,6 +132,49 @@ class TestUnplanned:
         assert {s for s, _ in out} == {"zone:z-cell"}
 
 
+class TestEtherTypePreservation:
+    """Regression: reframing must NOT drop the EtherType of non-IP L2 protocols
+    (PROFINET/GOOSE/SV/LLDP). The old scapy-rebuild path lost it and fell back
+    to scapy's 0x9000 default, which Cyber Vision decodes as EthernetCTP →
+    'Decode failure'."""
+
+    def _profinet_flow_def(self):
+        d = _def()
+        # intra-zone PROFINET between the two cell PLCs (L2, no IP)
+        d["flows"]["f-pn"] = {
+            "id": "f-pn", "sourceDeviceId": "plc1", "targetDeviceId": "plc2",
+            "protocol": "profinet",
+        }
+        return d
+
+    def test_profinet_intra_zone_keeps_ethertype(self):
+        from app.protocol_engines.topology_router import _reframe
+
+        # Ether(type=0x8892)/raw — a PROFINET RT frame, no IP.
+        pn = bytes(Ether(src=PLC1_MAC, dst=PLC2_MAC, type=0x8892) / (b"\x80\x01" + b"\xab" * 36))
+        out = _reframe(pn, {"src_mac": PLC1_MAC, "dst_mac": PLC2_MAC, "vlan": None, "ttl_delta": 0})
+        assert Ether(out).type == 0x8892  # not 0x9000
+        assert out[14:] == pn[14:]  # payload verbatim
+
+    def test_l2_protocol_ethertype_preserved_under_vlan(self):
+        from app.protocol_engines.topology_router import _reframe
+
+        goose = bytes(Ether(src=PLC1_MAC, dst="01:0c:cd:01:00:01", type=0x88B8) / (b"\x00" * 40))
+        out = _reframe(goose, {"src_mac": "aa:bb:cc:00:00:01", "dst_mac": "01:0c:cd:01:00:01", "vlan": 250, "ttl_delta": 0})
+        p = Ether(out)
+        assert p.type == 0x8100 and p[Dot1Q].type == 0x88B8  # GOOSE preserved
+
+    def test_ip_frame_checksum_valid_after_ttl(self):
+        from app.protocol_engines.topology_router import _reframe
+        from scapy.layers.inet import IP, TCP
+
+        f = bytes(Ether(src=PLC1_MAC, dst=PLC2_MAC) / IP(src="10.5.1.10", dst="10.5.2.10", ttl=64) / TCP())
+        out = _reframe(f, {"src_mac": PLC1_MAC, "dst_mac": "00:00:0c:aa:bb:cc", "vlan": 101, "ttl_delta": -1})
+        p = Ether(out)
+        assert p[IP].ttl == 63
+        assert p[IP].chksum == IP(bytes(p[IP])).chksum  # recomputed correctly
+
+
 class TestSpanIds:
     def test_span_ids_exposed(self):
         router, _ = _router()

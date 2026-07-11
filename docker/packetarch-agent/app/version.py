@@ -7,9 +7,20 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 
 # Version history:
+# 2.6.0 - Fix topology reframing dropping the EtherType of non-IP L2 protocols. The
+#   TopologyRouter's _reframe (protocol_engines/topology_router.py, staged into the agent)
+#   rebuilt each per-segment frame via scapy (Ether()/payload). For any protocol scapy renders
+#   as Raw (PROFINET 0x8892, GOOSE 0x88B8, SV 0x88BA, LLDP 0x88CC, …) that DROPPED the EtherType,
+#   falling back to scapy's 0x9000 default — so the conductor injected malformed frames that
+#   Cyber Vision decoded as EthernetCTP ("Decode failure: Unknown EthernetCTP function type"),
+#   e.g. every intra-zone PROFINET RT frame between Siemens PLCs. _reframe now rewrites the L2
+#   header at the byte level, carrying the original inner EtherType through unchanged and
+#   preserving the L3+ payload verbatim (IPv4 TTL + header checksum still patched across the
+#   core hop). Only affects topology (multi-sensor) injection; normal single-agent output is
+#   unaffected. MINOR (bug fix in staged code; version bump per the staging rule).
 # 2.5.0 - Multi-sensor topology LIVE conductor. START_SCENARIO now accepts optional
 #   topology_plan + span_interface_map: when present the agent acts as the single
 #   conductor (network_mode: host, so it sees every lab's pa-gen veth) and injects each

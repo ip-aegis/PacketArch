@@ -127,31 +127,71 @@ class TopologyRouter:
         return bytes(l3)
 
 
-def _reframe(packet_bytes: bytes, seg: dict[str, Any]) -> bytes | None:
-    """Rewrite L2 (MAC + optional 802.1Q) and adjust IP TTL for one segment."""
-    from scapy.layers.inet import IP
-    from scapy.layers.l2 import Dot1Q, Ether
+_ETH_P_IP = 0x0800
+_ETH_P_8021Q = 0x8100
 
-    try:
-        eth = Ether(packet_bytes)
-    except Exception:
+
+def _mac_bytes(mac: str) -> bytes:
+    return bytes(int(x, 16) for x in mac.split(":"))
+
+
+def _ip_checksum(header: bytes) -> int:
+    total = 0
+    for i in range(0, len(header) - 1, 2):
+        total += (header[i] << 8) + header[i + 1]
+    if len(header) % 2:
+        total += header[-1] << 8
+    total = (total >> 16) + (total & 0xFFFF)
+    total += total >> 16
+    return ~total & 0xFFFF
+
+
+def _reframe(packet_bytes: bytes, seg: dict[str, Any]) -> bytes | None:
+    """Rewrite the L2 header (MAC + optional 802.1Q) and adjust IPv4 TTL for one
+    segment, at the BYTE level.
+
+    Byte-level rather than scapy rebuild because the payload must be preserved
+    verbatim — including its original EtherType. Rebuilding via scapy
+    (``Ether()/payload``) loses the EtherType for any protocol scapy renders as
+    ``Raw`` (PROFINET 0x8892, GOOSE 0x88B8, SV 0x88BA, LLDP 0x88CC, …), falling
+    back to scapy's 0x9000 default and producing frames Cyber Vision can't
+    decode. Here the inner EtherType is read from the original frame and carried
+    through unchanged.
+    """
+    import struct
+
+    if len(packet_bytes) < 14:
         return None
 
-    # Descend to the real L3 payload, dropping any pre-existing VLAN tag.
-    l3 = eth.payload
-    while isinstance(l3, Dot1Q):
-        l3 = l3.payload
+    # Inner EtherType + L3 offset (past Ether + any stacked 802.1Q tags).
+    etype = struct.unpack("!H", packet_bytes[12:14])[0]
+    off = 14
+    while etype == _ETH_P_8021Q and len(packet_bytes) >= off + 4:
+        etype = struct.unpack("!H", packet_bytes[off + 2 : off + 4])[0]
+        off += 4
+    l3 = bytearray(packet_bytes[off:])
 
-    if l3.haslayer(IP):
-        ip = l3[IP]
-        delta = int(seg.get("ttl_delta") or 0)
-        if delta:
-            ip.ttl = max(1, int(ip.ttl) + delta)
-        # Force checksum recompute (TTL changed) on serialize.
-        if hasattr(ip, "chksum"):
-            del ip.chksum
+    # IPv4 TTL adjustment across the routed core hop (+ IP-header checksum).
+    delta = int(seg.get("ttl_delta") or 0)
+    if etype == _ETH_P_IP and delta and len(l3) >= 20:
+        ihl = (l3[0] & 0x0F) * 4
+        if 20 <= ihl <= len(l3):
+            l3[8] = max(1, l3[8] + delta) & 0xFF
+            l3[10] = 0
+            l3[11] = 0
+            ck = _ip_checksum(bytes(l3[:ihl]))
+            l3[10] = (ck >> 8) & 0xFF
+            l3[11] = ck & 0xFF
 
-    new_eth = Ether(src=seg["src_mac"], dst=seg["dst_mac"])
+    dst = _mac_bytes(seg["dst_mac"])
+    src = _mac_bytes(seg["src_mac"])
     vlan = seg.get("vlan")
-    frame = new_eth / Dot1Q(vlan=int(vlan)) / l3 if vlan is not None else new_eth / l3
-    return bytes(frame)
+    if vlan is not None:
+        header = (
+            dst + src + struct.pack("!H", _ETH_P_8021Q)
+            + struct.pack("!H", int(vlan) & 0x0FFF)
+            + struct.pack("!H", etype)
+        )
+    else:
+        header = dst + src + struct.pack("!H", etype)
+    return bytes(header) + bytes(l3)
