@@ -12,9 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, feedback, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, local_sensor, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, users
+from app.api.routes import about, acknowledgments, adaptation, admin, agent_install, agents, ai, ai_usage, anomalies, architecture as architecture_routes, attacks, auth, cloud_services, cml, cve, cyber_vision, dashboard, deployments, downloads, feedback, fingerprints, generation, health, health_monitor as health_monitor_routes, ip_management, ldap, local_sensor, protocols, scenario_versions, scenarios, setup as setup_routes, site_config, stats, system as system_routes, templates, topology_sensor, users
 from app.api.websocket import agent_hub
-from app.api.deps import RequireLiveTrafficEnabled, RequireSetupComplete, get_current_user
+from app.api.deps import RequireLiveTrafficEnabled, RequireMultiSensorTopology, RequireSetupComplete, get_current_user
 from app.mcp_server.transport import http_sse
 from app.core.config import settings
 from app.core.database import async_session_maker, close_db, init_db
@@ -203,6 +203,9 @@ app.include_router(cyber_vision.router, prefix=settings.api_prefix, dependencies
 # install bundle), so gate it like the agents router.
 app.include_router(cml.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
 app.include_router(local_sensor.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled])
+# Multi-sensor topology ("Advanced Deployment") — experimental, default-off
+# flag on top of the live-traffic gate; existing deploy flows are untouched.
+app.include_router(topology_sensor.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete, RequireLiveTrafficEnabled, RequireMultiSensorTopology])
 app.include_router(ldap.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 app.include_router(users.router, prefix=settings.api_prefix, dependencies=[RequireSetupComplete])
 # Unauthenticated agent-image download (for agent self-update) — must be

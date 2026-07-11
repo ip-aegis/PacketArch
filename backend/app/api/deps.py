@@ -106,6 +106,24 @@ async def require_live_traffic_enabled() -> None:
         )
 
 
+async def require_multi_sensor_topology() -> None:
+    """Guard that 503s when the multi-sensor topology workflow is disabled.
+
+    Applied to the /scenarios/*/topology router. The feature is experimental
+    ("Advanced Deployment") and ships default-off; enabling it requires
+    MULTI_SENSOR_TOPOLOGY_ENABLED=true.
+    """
+    if not get_features().multi_sensor_topology_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Multi-sensor topology deployment is disabled in this "
+                "deployment. Set MULTI_SENSOR_TOPOLOGY_ENABLED=true to enable "
+                "this experimental workflow."
+            ),
+        )
+
+
 async def require_setup_complete(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
@@ -138,4 +156,5 @@ AdminUser = Annotated[User, Depends(get_current_admin_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 RequireAIEnabled = Depends(require_ai_enabled)
 RequireLiveTrafficEnabled = Depends(require_live_traffic_enabled)
+RequireMultiSensorTopology = Depends(require_multi_sensor_topology)
 RequireSetupComplete = Depends(require_setup_complete)

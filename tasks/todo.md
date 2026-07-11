@@ -1,44 +1,29 @@
-# Scenario Verify audit + rework (2026-07-09)
+# Multi-Sensor Topology — Implementation (design: multi-sensor-topology-design.md)
 
-Goal: every live scenario's Studio-v2 **Verify** panel shows **zero critical +
-zero warning** across all 4 sources (readiness, conduit, architecture, AI
-review). Rework rationally — never tear down. Persist to DB **and** backport to
-templates.
+(Previous content: Scenario Verify audit 2026-07-09 — completed, recorded in
+memory `scenario_verify_audit` and git history.)
 
-## Phase 0 — Orient (DONE)
-- [x] Mapped the 4 Verify sources; built a faithful backend verify harness
-      (`scratchpad/verify.py`, `--ai` for the live LLM review).
-- [x] Baseline: 1 scenario clean, 10 warnings, 1 critical (Solar orphans).
-- [x] Found the dominant issue is the comm-matrix (architecture source).
+## Phase 0 — Topology planner (pure) + preview endpoint
+- [x] Research: definition JSON schema as backend consumes it
+- [ ] `backend/app/services/topology_planner.py` — derive_topology() + plan_segments()
+      (planner input rules §3.2, segment table §3.3, L2-scope rules §3.4a)
+- [ ] Unit tests (3-zone scenario: MAC/VLAN table, intra/cross-zone segments,
+      validation errors: unzoned device, missing network, single-zone, L2-only cross-zone)
+- [ ] `POST /api/v1/scenarios/{id}/topology/preview` route (no side effects)
+      + `MULTI_SENSOR_TOPOLOGY_ENABLED` flag (default OFF) + RequireX dep
+- [ ] Deploy (`docker compose up -d --build backend`) + verify endpoint live
 
-## Phase 1 — Comm matrix completion (DONE, shared code)
-- [x] Added the missing control rail to `comm_matrix/shared.py`. Cleared ~92%
-      of architecture off-rail across all scenarios.
+## Phase 0a — CV cross-sensor correlation check (live Center)
+- [x] Inventory: CV connected; 2 sensors ENROLLED+CONNECTED
+      (docker sensor c186cf78 = local lab ce269fd7; hardware IE-3500-01)
+- [ ] Craft segment-framed PCAPs of one synthetic conversation (scapy), framed
+      BY the new planner's output — clearly-synthetic IPs for later cleanup
+- [ ] Inject ZA view into local lab veth (pa-gen-ce269fd7) — isolated, safe
+- [ ] BLOCKED-ON-OPERATOR: second sensor path — host has one physical NIC
+      (enp1s0); reaching IE-3500-01 means sending frames on the real network.
+      Ask Rocky how IE-3500-01's capture is wired before sending anything.
+- [ ] Query CV devices/flows: one conversation or two? core merged or split?
+- [ ] Write findings into design doc §5 Phase 0a
 
-## Phase 2 — AI-review context bug (DONE, shared code)
-- [x] Fixed vendor-name mismatch in `_build_review_context` that made the LLM
-      emit a false "catalog gap" CRITICAL on every scenario.
-
-## Phase 3 — Per-scenario DB rework (DONE)
-- [x] All 12 live scenarios reworked to deterministic-clean (readiness 100/ready,
-      conduit 0, architecture 0). Sub-agents + coordinator (Municipal, Commercial,
-      EU-tenant, Urban done directly after agent API stalls).
-- [x] Review skill tuned (telnet/http/CVE = observations; false-positive guardrails).
-- [x] Catalog thin-fingerprint fixes: Honeywell Experion opc_ua, Schneider T300 iec104.
-- [x] Added `nms`/`nms_server` to flow-rationality generic-OK source types.
-
-## Phase 4 — Template backport (DONE)
-- [x] All 12 templates edited so FRESH instantiation is deterministic-clean
-      (verified via build_verify against fully-baked code): manufacturing×3,
-      building×3, water, energy, oil_gas, transportation, distribution.
-
-## Phase 5 — Finalize (DONE / in progress)
-- [x] Rebuilt backend + celery_worker (all changes live). No protocol_engines/
-      change → no agent version bump needed.
-- [x] Re-verified all 12 live scenarios + all 12 fresh instantiations: 100/0/0.
-- [ ] Final AI sweep on 12 live scenarios (running). Not committed (dev=prod via
-      rebuild; commit only on request).
-
-## Notes
-- Backups: container `/tmp/scn_backup`, host `scratchpad/scn_backup.tgz`.
-- Tooling: `scratchpad/{verify.py,fixlib.py,AGENT_PLAYBOOK.md}`.
+## Review
+- (fill after)

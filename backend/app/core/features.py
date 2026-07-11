@@ -23,6 +23,7 @@ class Features(BaseModel):
 
     ai_enabled: bool
     live_traffic_enabled: bool
+    multi_sensor_topology_enabled: bool
 
 
 def get_features() -> Features:
@@ -30,4 +31,5 @@ def get_features() -> Features:
     return Features(
         ai_enabled=settings.ai_enabled,
         live_traffic_enabled=settings.live_traffic_enabled,
+        multi_sensor_topology_enabled=settings.multi_sensor_topology_enabled,
     )

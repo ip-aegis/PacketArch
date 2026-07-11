@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     # PCAP generation, scenario authoring, AI, fingerprints, and Cyber Vision
     # remain available. Default true preserves full-build behavior.
     live_traffic_enabled: bool = True
+    # Multi-sensor topology ("Advanced Deployment"): per-zone switch + sensor
+    # with L1-aware, per-segment traffic injection. Experimental — default off
+    # until the workflow matures; gates /api/v1/scenarios/*/topology routes.
+    multi_sensor_topology_enabled: bool = False
 
     # WebEx feedback bot — set both to enable the /feedback endpoint.
     # WEBEX_BOT_TOKEN: bot token from developer.webex.com
