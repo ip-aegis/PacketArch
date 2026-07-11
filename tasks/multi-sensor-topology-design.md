@@ -456,7 +456,16 @@ identity work is confirmed as the mechanism that turns per-sensor views into a
 unified inventory. Provisioning cost of the eventual feature: ~1 min per
 sensor, fully hands-free.
 
-**Phase 1 — Generate-once/render-many in PCAP first.**
+**Phase 1 — Generate-once/render-many in PCAP first. ✅ DONE (commit b4bb725).**
+`TopologyRouter` (`protocol_engines/topology_router.py`, staged to agent) +
+`SpanPcapOutput`; `topology_mode` on GenerationRequest→celery forces isolation
+off. Live 6-zone run validated **31/31 per-SPAN invariants**: per-zone VLAN
+purity, untagged true-MAC intra-zone frames, gateway-rewritten arrivals all
+TTL-decremented (relative — preserves OS TTL fingerprint), **core TTL
+differential ingress=egress+1** (direct proof of the single routed hop),
+cross-flow present on both endpoint zones + core. Regression: topology OFF =
+one combined PCAP, no spans. 22 unit tests.
+Original plan:
 `TopologyOutputRouter` wired to emit **one PCAP per SPAN**. Verify with tshark:
 intra-zone flow appears only in its zone PCAP with true MACs; cross-zone flow
 appears in ZA/ZB/core PCAPs with the exact per-segment framing of §3.3; TCP

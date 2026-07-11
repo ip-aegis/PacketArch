@@ -455,30 +455,47 @@ async def _generate_traffic_async(
                 effective_definition
             )
 
-            # Multi-sensor topology: derive the plan on the enriched definition
-            # (so every generated flow gets a segment plan) and force cell
-            # isolation OFF — cross-zone flows are ROUTED per the plan, never
+            # Multi-sensor topology: (1) derive switches/core from zones,
+            # (2) inject them as real Cisco switch devices so CV fingerprints
+            # them, (3) re-run flow coverage so the switches get SNMP polls,
+            # (4) plan segments on the augmented definition. Cell isolation is
+            # forced OFF — cross-zone flows are ROUTED per the plan, not
             # dropped. Invalid plans fail the job with the planner's messages.
             if topology_mode:
-                from app.services import topology_planner
+                from app.services import (
+                    topology_definition_builder,
+                    topology_planner,
+                )
 
                 effective_definition = {
                     **effective_definition,
                     "cell_isolation": {"mode": "off"},
                 }
-                plan = topology_planner.preview(
-                    effective_definition, seed=str(scenario.id)
-                )
-                if not plan.get("valid"):
-                    errs = "; ".join(
-                        e["message"] for e in plan.get("errors", [])
+                seed = str(scenario.id)
+                plan0 = topology_planner.derive_topology(
+                    effective_definition, seed=seed
+                ).as_dict()
+                if not plan0.get("valid"):
+                    errs = "; ".join(e["message"] for e in plan0.get("errors", []))
+                    raise ValueError(f"Topology plan invalid: {errs}")
+                effective_definition = (
+                    topology_definition_builder.build_topology_definition(
+                        effective_definition, plan0
                     )
+                )
+                effective_definition = await ensure_device_flow_coverage(
+                    effective_definition
+                )
+                plan = topology_planner.preview(effective_definition, seed=seed)
+                if not plan.get("valid"):
+                    errs = "; ".join(e["message"] for e in plan.get("errors", []))
                     raise ValueError(f"Topology plan invalid: {errs}")
                 config.topology_plan = plan
                 logger.info(
-                    "Topology mode: %d spans, %d flow plans",
+                    "Topology mode: %d spans, %d flow plans, %d devices",
                     len(plan.get("spans", [])),
                     len(plan.get("flow_plans", {})),
+                    len(effective_definition.get("devices", {})),
                 )
 
             flow_contexts = _build_flow_contexts(

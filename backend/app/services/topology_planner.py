@@ -200,8 +200,14 @@ def derive_topology(definition: dict[str, Any], seed: str = "") -> TopologyPlan:
         return plan
 
     # --- Device membership validation -------------------------------------
+    # Synthetic topology infra (the switches/core THIS planner materializes on
+    # a prior pass) is skipped here — it is not an endpoint that needs a switch,
+    # and it must not self-link. It still flows through plan_segments +
+    # endpoint_index so its own management traffic is routed.
     zone_members: dict[str, list[str]] = {zid: [] for zid in zones}
     for device_id, device in devices.items():
+        if device.get("_topology_synthetic"):
+            continue
         claimed = _device_zone(device_id, device, zones)
         name = device.get("name", device_id)
         if not claimed:
