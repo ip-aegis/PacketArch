@@ -859,15 +859,26 @@ class AgentManager:
         attack_playbook: dict | None,
         cell_isolation_override: dict | None,
         provision_cyber_vision: bool,
+        topology_plan: dict | None = None,
+        span_interface_map: dict | None = None,
+        definition_override: dict | None = None,
     ) -> AgentDeployment:
         """Create an AgentDeployment row, repair+merge the scenario definition,
         and send the deploy command to the agent.
 
-        Shared by the HTTP `/agents/{agent_id}/deploy` route and the
+        Shared by the HTTP `/agents/{agent_id}/deploy` route, the
         auto-fire-on-connect path for scenarios deployed to a brand-new Local
-        Lab. Callers own their own pre-checks (agent active/connected,
-        existing-deployment dedup, naming completion) — this always creates a
-        fresh deployment.
+        Lab, AND the multi-sensor topology deploy (single conductor). Callers
+        own their own pre-checks (agent active/connected, existing-deployment
+        dedup, naming completion) — this always creates a fresh deployment.
+
+        Topology mode: pass ``topology_plan`` + ``span_interface_map`` (the
+        agent becomes the single conductor, injecting each frame's per-segment
+        copies onto every SPAN's veth) and ``definition_override`` (the
+        switch-augmented, already-enriched definition from
+        ``topology_provisioning_service.build_runtime``). CV provisioning +
+        the AgentDeployment row (→ active status, live traffic) happen exactly
+        as for a normal deploy, so the whole thing ties together.
         """
         interface = interface or agent.default_interface
         agent_deployment = AgentDeployment(
@@ -879,41 +890,49 @@ class AgentManager:
         await db.commit()
         await db.refresh(agent_deployment)
 
-        definition = scenario.definition
-        if adaptive_config:
-            definition = {**definition}
-            existing_adaptive = definition.get("adaptive_config", {})
-            definition["adaptive_config"] = {**existing_adaptive, **adaptive_config}
-        if attack_playbook:
-            definition = {**definition} if definition is scenario.definition else definition
-            definition["attack_playbook"] = attack_playbook
-        if cell_isolation_override:
-            definition = {**definition} if definition is scenario.definition else definition
-            existing_iso = definition.get("cell_isolation", {})
-            definition["cell_isolation"] = {**existing_iso, **cell_isolation_override}
+        if definition_override is not None:
+            # Topology: the definition is already switch-augmented and fully
+            # enriched (build_runtime mirrors the chain below); use it as-is so
+            # the conductor's plan and the injected definition stay consistent.
+            definition = definition_override
+        else:
+            definition = scenario.definition
+            if adaptive_config:
+                definition = {**definition}
+                existing_adaptive = definition.get("adaptive_config", {})
+                definition["adaptive_config"] = {**existing_adaptive, **adaptive_config}
+            if attack_playbook:
+                definition = {**definition} if definition is scenario.definition else definition
+                definition["attack_playbook"] = attack_playbook
+            if cell_isolation_override:
+                definition = {**definition} if definition is scenario.definition else definition
+                existing_iso = definition.get("cell_isolation", {})
+                definition["cell_isolation"] = {**existing_iso, **cell_isolation_override}
 
-        # Defense-in-depth: even if the scenario was created by an older code
-        # path that didn't apply the protocol-mismatch repair, fix it here so
-        # the agent never sees a device declaring protocols its fingerprint
-        # can't actually serve. Flow-protocol snap immediately after so any
-        # flow whose protocol no longer matches an endpoint gets healed.
-        definition = auto_repair_protocols(definition)
-        definition = repair_flow_protocols(definition)
+            # Defense-in-depth: even if the scenario was created by an older code
+            # path that didn't apply the protocol-mismatch repair, fix it here so
+            # the agent never sees a device declaring protocols its fingerprint
+            # can't actually serve. Flow-protocol snap immediately after so any
+            # flow whose protocol no longer matches an endpoint gets healed.
+            definition = auto_repair_protocols(definition)
+            definition = repair_flow_protocols(definition)
 
-        # Guarantee remote-access devices (EWON, jump server, etc.) emit
-        # external heartbeat traffic even when the scenario forgot to wire a
-        # cloud link.
-        definition = await ensure_remote_access_cloud_links(db, definition)
+            # Guarantee remote-access devices (EWON, jump server, etc.) emit
+            # external heartbeat traffic even when the scenario forgot to wire a
+            # cloud link.
+            definition = await ensure_remote_access_cloud_links(db, definition)
 
-        # Guarantee no orphan devices — every device gets at least one flow
-        # with a rational partner so CV can fingerprint it. Cell-isolation aware.
-        definition = await ensure_device_flow_coverage(definition)
+            # Guarantee no orphan devices — every device gets at least one flow
+            # with a rational partner so CV can fingerprint it. Cell-isolation aware.
+            definition = await ensure_device_flow_coverage(definition)
 
         success = await self.deploy_scenario(
             agent_id=agent.id,
             scenario_id=str(scenario.id),
             definition=definition,
             interface=interface,
+            topology_plan=topology_plan,
+            span_interface_map=span_interface_map,
         )
 
         if not success:

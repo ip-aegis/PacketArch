@@ -479,6 +479,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
         agentInterfaces={agentInterfaces}
         onAgentChange={handleAgentChange}
         phases={scenarioPhases}
+        scenarioId={scenarioId}
         scenarioName={scenarioName}
         cvConfigured={cvConfigured}
         loadingInterfaces={loadingInterfaces}

@@ -64,11 +64,30 @@ def patched(monkeypatch):
         torn.append(lab_id)
         return {"success": True}
 
+    # status() reads the conductor AgentDeployment state; teardown() stops the
+    # conductor + removes the deployment row. Mock those infra deps out.
+    async def fake_deployment_state(db, scenario_id):
+        return None
+
     monkeypatch.setattr(tps, "_load_scenario", fake_load)
+    monkeypatch.setattr(tps, "_deployment_state", fake_deployment_state)
     monkeypatch.setattr(local_sensor_service, "build_lab", fake_build_lab)
     monkeypatch.setattr(local_sensor_service, "list_labs", fake_list_labs)
     monkeypatch.setattr(local_sensor_service, "teardown_lab", fake_teardown_lab)
     return sid, built, torn
+
+
+class _FakeDB:
+    """Minimal async db stub for teardown's stop + AgentDeployment delete."""
+
+    async def execute(self, *_a, **_k):
+        return None
+
+    async def commit(self):
+        return None
+
+    async def rollback(self):
+        return None
 
 
 class TestProvisioning:
@@ -110,10 +129,16 @@ class TestProvisioning:
         st = await tps.status(None, sid)
         assert st["sensor_count"] == 3
 
-    async def test_teardown_tears_down_all_members(self, patched):
+    async def test_teardown_tears_down_all_members(self, patched, monkeypatch):
         sid, _, torn = patched
+        from app.services.agent_manager import agent_manager
+
+        async def fake_stop(scenario_id):
+            return True
+
+        monkeypatch.setattr(agent_manager, "stop_scenario", fake_stop)
         await tps.provision(None, sid)
-        res = await tps.teardown(None, sid)
+        res = await tps.teardown(_FakeDB(), sid)
         assert len(res["torn_down"]) == 3
         assert all(r["ok"] for r in res["torn_down"])
         assert len(torn) == 3

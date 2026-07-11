@@ -75,12 +75,22 @@ class TopologyProvisionResponse(BaseModel):
     ram_estimate_gb: float
     members: list[TopologyMember]
     span_interface_map: dict[str, str] = Field(description="span_id -> injection interface")
+    deploy_pending: bool = Field(
+        default=False,
+        description="True when the conductor deploy will auto-fire once all labs are ready",
+    )
 
 
 class TopologyDeploymentResponse(BaseModel):
-    """Live status of a topology deployment's member labs."""
+    """Live status of a topology deployment's member labs + conductor phase."""
 
     scenario_id: str
     sensor_count: int
     members: list[dict[str, Any]]
+    deployment_state: str | None = Field(
+        default=None, description="Conductor AgentDeployment state (running/starting/…)"
+    )
+    phase: str | None = Field(
+        default=None, description="provisioning | deploying | active | none"
+    )
     torn_down: list[dict[str, Any]] | None = None

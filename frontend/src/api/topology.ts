@@ -60,6 +60,8 @@ export interface TopologyDeployment {
   scenario_id: string;
   sensor_count: number;
   members: Array<Record<string, unknown>>;
+  deployment_state?: string | null;
+  phase?: string | null;
   torn_down?: Array<Record<string, unknown>> | null;
 }
 
@@ -72,20 +74,21 @@ export const topologyApi = {
   preflight: async (scenarioId: string): Promise<TopologyPreflight> =>
     (await apiClient.get(`${base(scenarioId)}/preflight`)).data,
 
-  deploy: async (scenarioId: string): Promise<TopologyProvisionResult> =>
-    (await apiClient.post(`${base(scenarioId)}/deploy`)).data,
+  deploy: async (
+    scenarioId: string,
+    provisionCyberVision = true,
+  ): Promise<TopologyProvisionResult> =>
+    (
+      await apiClient.post(
+        `${base(scenarioId)}/deploy?provision_cyber_vision=${provisionCyberVision}`,
+      )
+    ).data,
 
   deployment: async (scenarioId: string): Promise<TopologyDeployment> =>
     (await apiClient.get(`${base(scenarioId)}/deployment`)).data,
 
   teardown: async (scenarioId: string): Promise<TopologyDeployment> =>
     (await apiClient.post(`${base(scenarioId)}/teardown`)).data,
-
-  start: async (scenarioId: string): Promise<Record<string, unknown>> =>
-    (await apiClient.post(`${base(scenarioId)}/start`)).data,
-
-  stop: async (scenarioId: string): Promise<Record<string, unknown>> =>
-    (await apiClient.post(`${base(scenarioId)}/stop`)).data,
 };
 
 export default topologyApi;

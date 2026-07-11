@@ -62,14 +62,17 @@ async def deploy(
     scenario_id: str,
     db: DBSession,
     admin: AdminUser,
+    provision_cyber_vision: bool = True,
 ) -> TopologyProvisionResponse:
-    """Provision one Local Sensor Lab per SPAN (zones + core).
-
-    Reuses the Local Sensor Lab auto-provisioning (reusable CV deployment
-    token) N+1 times. Agent tokens are returned once, per member lab.
+    """Provision one Local Sensor Lab per SPAN (zones + core), then auto-deploy
+    the scenario to the core lab's agent as the single conductor once all labs
+    are ready — through the normal deploy pipeline, so it gets an
+    AgentDeployment (active status + live traffic) and full CV provisioning
+    (preset + zone groups + org hierarchy). Agent tokens are returned once.
     """
-    data = await topology_provisioning_service.provision(
-        db, scenario_id, created_by_id=admin.id
+    data = await topology_provisioning_service.deploy(
+        db, scenario_id, provision_cyber_vision=provision_cyber_vision,
+        created_by_id=admin.id,
     )
     return TopologyProvisionResponse(**data)
 
@@ -80,31 +83,10 @@ async def deployment_status(
     db: DBSession,
     current_user: CurrentUser,
 ) -> TopologyDeploymentResponse:
-    """Live status of this scenario's topology deployment member labs."""
+    """Live status: member labs + conductor deployment phase (provisioning /
+    deploying / active / none)."""
     data = await topology_provisioning_service.status(db, scenario_id)
     return TopologyDeploymentResponse(**data)
-
-
-@router.post("/start")
-async def start_injection(
-    scenario_id: str,
-    db: DBSession,
-    admin: AdminUser,
-) -> dict:
-    """Start live traffic — the core lab's agent (single conductor) injects
-    each frame's per-segment copies onto every SPAN's veth. Requires the member
-    labs to be running."""
-    return await topology_provisioning_service.start_injection(db, scenario_id)
-
-
-@router.post("/stop")
-async def stop_injection(
-    scenario_id: str,
-    db: DBSession,
-    admin: AdminUser,
-) -> dict:
-    """Stop the conductor's live injection."""
-    return await topology_provisioning_service.stop_injection(db, scenario_id)
 
 
 @router.post("/teardown", response_model=TopologyDeploymentResponse)

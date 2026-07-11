@@ -27,18 +27,15 @@ import {
   ClusterOutlined,
   WifiOutlined,
   PartitionOutlined,
-  DeploymentUnitOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 
 import AgentsTab from '../components/admin/AgentsTab';
 import AgentTopology from '../components/agents/AgentTopology';
 import LocalLabsTab from '../components/agents/LocalLabsTab';
-import AdvancedDeploymentTab from '../components/agents/AdvancedDeploymentTab';
 import CmlTab from '../components/admin/CmlTab';
 import { agentsApi } from '../api/agents';
 import { localSensorApi } from '../api/localSensor';
-import { useFeatures } from '../hooks/useFeatures';
 
 const { Title } = Typography;
 
@@ -112,8 +109,6 @@ const AgentsHubPage: React.FC = () => {
   const initialTab = searchParams.get('tab') || 'agents';
   const [activeKey, setActiveKey] = useState(initialTab);
 
-  const { multiSensorTopologyEnabled } = useFeatures();
-
   const onChange = (key: string) => {
     setActiveKey(key);
     setSearchParams((prev) => {
@@ -151,19 +146,6 @@ const AgentsHubPage: React.FC = () => {
       ),
       children: <LocalLabsTab />,
     },
-    ...(multiSensorTopologyEnabled
-      ? [
-          {
-            key: 'advanced-deployment',
-            label: (
-              <span>
-                <DeploymentUnitOutlined /> Advanced Deployment
-              </span>
-            ),
-            children: <AdvancedDeploymentTab />,
-          },
-        ]
-      : []),
     {
       key: 'cml',
       label: (

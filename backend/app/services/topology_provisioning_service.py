@@ -140,14 +140,33 @@ async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None
 
 async def build_runtime(db, scenario_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """(augmented_definition, plan) for a topology run — switches injected,
-    SNMP coverage wired, isolation off. Shared by live injection and mirrors
-    the PCAP path so live == PCAP."""
+    SNMP coverage wired, isolation off, fully enriched.
+
+    Mirrors both the PCAP path (so live == PCAP) and the normal deploy
+    enrichment chain in agent_manager.execute_deployment (so the conductor's
+    definition is exactly what a normal deploy would send, plus the injected
+    switches). ``execute_deployment`` uses this as its ``definition_override``.
+    """
     from app.services import topology_definition_builder
-    from app.services.scenario_enrichment import ensure_device_flow_coverage
+    from app.services.scenario_enrichment import (
+        auto_repair_protocols,
+        ensure_device_flow_coverage,
+        ensure_remote_access_cloud_links,
+        repair_flow_protocols,
+    )
 
     scn = await _load_scenario(db, scenario_id)
     definition = {**(scn.definition or {}), "cell_isolation": {"mode": "off"}}
     seed = str(scn.id)
+
+    # Full normal-deploy enrichment first, on the real devices.
+    definition = auto_repair_protocols(definition)
+    definition = repair_flow_protocols(definition)
+    definition = await ensure_remote_access_cloud_links(db, definition)
+    definition = await ensure_device_flow_coverage(definition)
+
+    # Derive the topology + inject the IE3500/IE9320 switches, then re-run
+    # coverage so the injected switches get their SNMP monitoring flows.
     plan0 = topology_planner.derive_topology(definition, seed=seed).as_dict()
     if not plan0.get("valid"):
         errs = "; ".join(e["message"] for e in plan0.get("errors", []))
@@ -158,86 +177,186 @@ async def build_runtime(db, scenario_id: str) -> tuple[dict[str, Any], dict[str,
     return augmented, plan
 
 
-async def start_injection(db, scenario_id: str) -> dict[str, Any]:
-    """Start live traffic: the core lab's agent (single conductor) injects each
-    frame's per-segment copies onto every member SPAN's veth."""
+# Background deploy-when-ready tasks, held so the event loop doesn't GC them.
+_bg_deploys: set = set()
+
+
+def _core_member(members: list[dict[str, Any]]) -> dict[str, Any] | None:
+    return next((m for m in members if str(m.get("name", "")).endswith("-core")), None)
+
+
+def _build_span_map(scenario_id: str, members: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, str]:
+    """span_id -> member lab veth, matching each SPAN to its lab by sanitizing
+    the span id FORWARD (never reversing the lossy sanitizer)."""
+    prefix = group_prefix(scenario_id)
+    by_name = {m["name"]: m for m in members}
+    out: dict[str, str] = {}
+    for span in plan.get("spans", []):
+        lab = by_name.get(f"{prefix}{_span_label(span['id'])}")
+        if lab and lab.get("gen_if"):
+            out[span["id"]] = lab["gen_if"]
+    return out
+
+
+async def deploy(
+    db, scenario_id: str, *, provision_cyber_vision: bool = True,
+    created_by_id: uuid.UUID | None = None,
+) -> dict[str, Any]:
+    """Provision N+1 sensor labs, then (when all are ready) deploy the scenario
+    to the core lab's agent as the single conductor THROUGH the normal
+    ``execute_deployment`` path — so it gets an AgentDeployment (→ active
+    status + live traffic) and full CV provisioning (preset + zone groups + org
+    hierarchy), exactly like a normal deploy, plus the multi-sensor injection.
+    """
+    result = await provision(db, scenario_id, created_by_id=created_by_id)
+    # The conductor deploy must run in THIS (backend) process — execute_deployment
+    # sends agent WebSocket commands, and those connections live here, not in
+    # celery. Fire a background task on the backend loop and hold a ref.
+    import asyncio
+
+    task = asyncio.create_task(_deploy_when_ready(scenario_id, provision_cyber_vision))
+    _bg_deploys.add(task)
+    task.add_done_callback(_bg_deploys.discard)
+    result["deploy_pending"] = True
+    return result
+
+
+async def _deploy_when_ready(
+    scenario_id: str, provision_cyber_vision: bool,
+    *, timeout_s: float = 420.0, poll_s: float = 8.0,
+) -> None:
+    """Wait for all member labs running + the core agent online, then deploy the
+    conductor. Own DB session; never raises (background task)."""
+    import asyncio
+    import time
+
+    from app.core.database import async_session_maker
+
+    start = time.monotonic()
+    while time.monotonic() - start < timeout_s:
+        try:
+            async with async_session_maker() as db:
+                members = (await status(db, scenario_id))["members"]
+                core = _core_member(members)
+                ready = (
+                    members
+                    and all(m.get("state") == "running" for m in members)
+                    and core is not None
+                    and core.get("agent_status") == "online"
+                )
+                if ready:
+                    await _conductor_deploy(db, scenario_id, members, provision_cyber_vision)
+                    logger.info("topology deploy %s: conductor deployed live", scenario_id)
+                    return
+        except Exception:
+            logger.exception("topology deploy %s: deploy-when-ready iteration failed", scenario_id)
+        await asyncio.sleep(poll_s)
+    logger.error(
+        "topology deploy %s: timed out after %ss waiting for labs to be ready",
+        scenario_id, timeout_s,
+    )
+
+
+async def _conductor_deploy(
+    db, scenario_id: str, members: list[dict[str, Any]], provision_cyber_vision: bool,
+) -> None:
+    """Route the single-conductor deploy through the normal execute_deployment."""
+    from app.models.traffic_agent import TrafficAgent
     from app.services.agent_manager import agent_manager
 
-    st = await status(db, scenario_id)
-    members = st["members"]
-    if not members:
-        raise ValidationError("No topology deployment to start. Deploy first.")
-    not_running = [m["name"] for m in members if m.get("state") != "running"]
-    if not_running:
-        raise ValidationError(
-            f"Not all sensor labs are running yet: {not_running}. Wait for provisioning."
-        )
-
-    core = next((m for m in members if str(m.get("name", "")).endswith("-core")), None)
+    core = _core_member(members)
     if not core or not core.get("agent_id"):
         raise ValidationError("Core conductor lab not found in this deployment.")
 
     augmented, plan = await build_runtime(db, scenario_id)
-
-    # Map each SPAN to its member lab's veth by sanitizing the span id FORWARD
-    # (span -> expected lab name), never reversing the lossy sanitizer.
-    prefix = group_prefix(scenario_id)
-    by_name = {m["name"]: m for m in members}
-    span_interface_map: dict[str, str] = {}
-    for span in plan.get("spans", []):
-        span_id = span["id"]
-        lab = by_name.get(f"{prefix}{_span_label(span_id)}")
-        if lab and lab.get("gen_if"):
-            span_interface_map[span_id] = lab["gen_if"]
-    missing = [s["id"] for s in plan.get("spans", []) if s["id"] not in span_interface_map]
+    span_map = _build_span_map(scenario_id, members, plan)
+    missing = [s["id"] for s in plan.get("spans", []) if s["id"] not in span_map]
     if missing:
-        raise ValidationError(f"No provisioned lab for SPANs: {missing}. Re-deploy.")
+        raise ValidationError(f"No provisioned lab for SPANs: {missing}.")
 
-    import uuid as _uuid
-
-    ok = await agent_manager.deploy_scenario(
-        _uuid.UUID(core["agent_id"]),
-        scenario_id,
-        augmented,
+    core_agent = await db.get(TrafficAgent, uuid.UUID(core["agent_id"]))
+    scenario = await _load_scenario(db, scenario_id)
+    await agent_manager.execute_deployment(
+        db,
+        agent=core_agent,
+        scenario=scenario,
         interface=core.get("gen_if"),
+        adaptive_config=None,
+        attack_playbook=None,
+        cell_isolation_override=None,
+        provision_cyber_vision=provision_cyber_vision,
         topology_plan=plan,
-        span_interface_map=span_interface_map,
+        span_interface_map=span_map,
+        definition_override=augmented,
     )
-    if not ok:
-        raise ValidationError(
-            "Conductor agent is not connected. Check the core lab's agent is online."
-        )
-    return {
-        "scenario_id": scenario_id,
-        "conductor_agent_id": core["agent_id"],
-        "span_interface_map": span_interface_map,
-        "flow_plans": len(plan.get("flow_plans", {})),
-        "started": True,
-    }
 
 
-async def stop_injection(db, scenario_id: str) -> dict[str, Any]:
-    """Stop the conductor's live injection (STOP_SCENARIO to the core agent)."""
-    from app.services.agent_manager import agent_manager
+async def _deployment_state(db, scenario_id: str) -> str | None:
+    """State of the conductor's AgentDeployment for this scenario, if any."""
+    from sqlalchemy import select
 
-    ok = await agent_manager.stop_scenario(scenario_id)
-    return {"scenario_id": scenario_id, "stopped": bool(ok)}
+    from app.models.traffic_agent import AgentDeployment
+
+    r = await db.execute(
+        select(AgentDeployment.state)
+        .where(AgentDeployment.scenario_id == uuid.UUID(scenario_id))
+        .order_by(AgentDeployment.started_at.desc())
+        .limit(1)
+    )
+    return r.scalar_one_or_none()
 
 
 async def status(db, scenario_id: str) -> dict[str, Any]:
-    """List the member labs of this scenario's topology deployment (live state)."""
+    """List the member labs of this scenario's topology deployment (live state),
+    plus the conductor deployment state so the UI can show deploying/active."""
     prefix = group_prefix(scenario_id)
     labs = await local_sensor_service.list_labs(db)
     members = [lab for lab in labs if (lab.get("name") or "").startswith(prefix)]
+    all_running = bool(members) and all(m.get("state") == "running" for m in members)
+    deployment_state = await _deployment_state(db, scenario_id)
+    if deployment_state in ("running", "starting"):
+        phase = "active"
+    elif members and not all_running:
+        phase = "provisioning"
+    elif all_running:
+        phase = "deploying"  # labs up, conductor deploy pending/settling
+    else:
+        phase = "none"
     return {
         "scenario_id": scenario_id,
         "sensor_count": len(members),
         "members": members,
+        "deployment_state": deployment_state,
+        "phase": phase,
     }
 
 
 async def teardown(db, scenario_id: str) -> dict[str, Any]:
-    """Tear down every member lab of this scenario's topology deployment."""
+    """Full teardown: stop the conductor, drop its deployment row, remove every
+    member lab (containers + veths + sensors + agent rows)."""
+    from sqlalchemy import delete
+
+    from app.models.traffic_agent import AgentDeployment
+    from app.services.agent_manager import agent_manager
+
+    # 1) Stop the conductor's live injection (best-effort — agent may be gone).
+    try:
+        await agent_manager.stop_scenario(scenario_id)
+    except Exception:
+        logger.exception("topology teardown: stop_scenario failed for %s", scenario_id)
+
+    # 2) Drop the AgentDeployment row(s) BEFORE deleting the agents (FK), so the
+    #    scenario stops showing as active.
+    try:
+        await db.execute(
+            delete(AgentDeployment).where(AgentDeployment.scenario_id == uuid.UUID(scenario_id))
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("topology teardown: removing AgentDeployment failed for %s", scenario_id)
+
+    # 3) Tear down every member lab.
     prefix = group_prefix(scenario_id)
     labs = await local_sensor_service.list_labs(db)
     members = [lab for lab in labs if (lab.get("name") or "").startswith(prefix)]

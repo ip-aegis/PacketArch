@@ -34,6 +34,8 @@ import type { RunMode } from '../../types/docker';
 import type { AgentInterface, TrafficAgent } from '../../types/agent';
 import type { Phase } from '../../types';
 import { PHASE_NAME_MAP, DEFAULT_LIVE_DURATIONS } from '../../constants/phases';
+import { useFeatures } from '../../hooks/useFeatures';
+import MultiSensorDeploySection from './MultiSensorDeploySection';
 
 const { Text } = Typography;
 
@@ -61,7 +63,9 @@ export interface DeploymentFormProps {
   // Scenario phases
   phases?: Phase[];
 
-  // Scenario name — defaults the "New Local Lab" name field.
+  // Scenario id + name — id enables the multi-sensor advanced deploy section;
+  // name defaults the "New Local Lab" name field.
+  scenarioId?: string | null;
   scenarioName?: string;
 
   // Whether Cyber Vision is configured (enables the provisioning checkbox)
@@ -92,6 +96,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   agentInterfaces,
   onAgentChange,
   phases,
+  scenarioId,
   scenarioName,
   cvConfigured,
   loadingInterfaces,
@@ -100,7 +105,8 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   deployDisabled,
   onFinish,
 }) => {
-  const [mode, setMode] = useState<'existing' | 'new_lab'>('existing');
+  const { multiSensorTopologyEnabled } = useFeatures();
+  const [mode, setMode] = useState<'existing' | 'new_lab' | 'multi_sensor'>('existing');
   const hasTargets = onlineAgents.length > 0;
   const [showAllInterfaces, setShowAllInterfaces] = useState(false);
 
@@ -196,14 +202,20 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
       <Segmented
         block
         value={mode}
-        onChange={(v) => setMode(v as 'existing' | 'new_lab')}
+        onChange={(v) => setMode(v as 'existing' | 'new_lab' | 'multi_sensor')}
         options={[
           { label: 'Existing agent', value: 'existing' },
           { label: 'New Local Lab', value: 'new_lab' },
+          ...(multiSensorTopologyEnabled && scenarioId
+            ? [{ label: 'Multi-sensor', value: 'multi_sensor' }]
+            : []),
         ]}
         style={{ marginBottom: 12 }}
       />
 
+      {mode === 'multi_sensor' && scenarioId ? (
+        <MultiSensorDeploySection scenarioId={scenarioId} cvConfigured={cvConfigured} />
+      ) : (
       <Form
         form={form}
         layout="vertical"
@@ -512,6 +524,7 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
             </Tooltip>
           </Form.Item>
       </Form>
+      )}
     </Card>
   );
 });
