@@ -297,3 +297,83 @@ class SpanPcapOutput:
         self._combined.close()
         for writer in self._span_writers.values():
             writer.close()
+
+
+class LiveTopologyOutput:
+    """Live conductor: inject each canonical frame onto its per-SPAN veth.
+
+    The generate-once/render-many LIVE sink. Each canonical frame is routed
+    through a :class:`TopologyRouter` into its per-segment reframed copies, and
+    each copy is injected on the veth that serves that segment's SPAN, using a
+    persistent L2 socket per interface (opened once, reused) so per-segment
+    fan-out doesn't pay a socket-setup cost per packet. Real-time paced like
+    :class:`LiveOutput`.
+
+    ``span_interface_map`` maps span ids ('zone:<id>' / 'core') to the local
+    ``pa-gen-<slug>`` veth serving that SPAN's sensor.
+    """
+
+    def __init__(self, plan: dict, span_interface_map: dict[str, str]) -> None:
+        from app.protocol_engines.topology_router import TopologyRouter
+
+        self._router = TopologyRouter(plan)
+        self._ifmap = dict(span_interface_map)
+        self._sockets: dict[str, Any] = {}
+        self.packet_count = 0
+        self.bytes_sent = 0
+        self.span_packet_counts: dict[str, int] = {s: 0 for s in self._ifmap}
+        self._start_time: float | None = None
+        self._first_event_ms: float | None = None
+        self._dropped_spans: set[str] = set()
+
+    def _socket(self, iface: str):
+        sock = self._sockets.get(iface)
+        if sock is None:
+            from scapy.arch import L2Socket
+
+            sock = L2Socket(iface=iface)
+            self._sockets[iface] = sock
+        return sock
+
+    def write_packet(
+        self,
+        packet_bytes: bytes,
+        timestamp_ms: float,
+        is_attack: bool = False,
+        flow_id: str | None = None,
+    ) -> None:
+        now = time.monotonic()
+        if self._start_time is None:
+            self._start_time = now
+            self._first_event_ms = timestamp_ms
+        # Real-time pacing (shared clock across all spans → coherent timing).
+        wait_ms = (timestamp_ms - self._first_event_ms) - (now - self._start_time) * 1000.0
+        if wait_ms > 1.0:
+            time.sleep(wait_ms / 1000.0)
+
+        for span_id, reframed in self._router.route(packet_bytes, flow_id):
+            iface = self._ifmap.get(span_id)
+            if iface is None:
+                if span_id not in self._dropped_spans:
+                    logger.warning("LiveTopologyOutput: no interface for span %s", span_id)
+                    self._dropped_spans.add(span_id)
+                continue
+            try:
+                self._socket(iface).send(reframed)
+            except Exception as e:
+                logger.error("LiveTopologyOutput: send failed on %s: %s", iface, e)
+                continue
+            self.packet_count += 1
+            self.bytes_sent += len(reframed)
+            self.span_packet_counts[span_id] = self.span_packet_counts.get(span_id, 0) + 1
+
+    def close(self) -> None:
+        for sock in self._sockets.values():
+            try:
+                sock.close()
+            except Exception:
+                pass
+        logger.info(
+            "LiveTopologyOutput closed: %d frames across %d spans",
+            self.packet_count, len(self.span_packet_counts),
+        )

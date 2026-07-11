@@ -12,11 +12,16 @@ phase. Gated by RequireMultiSensorTopology (+ live-traffic) at mount.
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DBSession
+from app.api.deps import AdminUser, CurrentUser, DBSession
 from app.core.exceptions import NotFoundError
 from app.models.scenario import Scenario
-from app.schemas.topology import TopologyPreviewResponse
-from app.services import topology_planner
+from app.schemas.topology import (
+    TopologyDeploymentResponse,
+    TopologyPreflightResponse,
+    TopologyPreviewResponse,
+    TopologyProvisionResponse,
+)
+from app.services import topology_planner, topology_provisioning_service
 
 router = APIRouter(prefix="/scenarios/{scenario_id}/topology", tags=["Multi-Sensor Topology"])
 
@@ -39,3 +44,56 @@ async def preview_topology(
 
     plan = topology_planner.preview(scenario.definition or {}, seed=str(scenario.id))
     return TopologyPreviewResponse(**plan)
+
+
+@router.get("/preflight", response_model=TopologyPreflightResponse)
+async def preflight(
+    scenario_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> TopologyPreflightResponse:
+    """Non-destructive pre-deploy summary: sensor count, RAM estimate, spans."""
+    data = await topology_provisioning_service.preflight(db, scenario_id)
+    return TopologyPreflightResponse(**data)
+
+
+@router.post("/deploy", response_model=TopologyProvisionResponse, status_code=201)
+async def deploy(
+    scenario_id: str,
+    db: DBSession,
+    admin: AdminUser,
+) -> TopologyProvisionResponse:
+    """Provision one Local Sensor Lab per SPAN (zones + core).
+
+    Reuses the Local Sensor Lab auto-provisioning (reusable CV deployment
+    token) N+1 times. Agent tokens are returned once, per member lab.
+    """
+    data = await topology_provisioning_service.provision(
+        db, scenario_id, created_by_id=admin.id
+    )
+    return TopologyProvisionResponse(**data)
+
+
+@router.get("/deployment", response_model=TopologyDeploymentResponse)
+async def deployment_status(
+    scenario_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> TopologyDeploymentResponse:
+    """Live status of this scenario's topology deployment member labs."""
+    data = await topology_provisioning_service.status(db, scenario_id)
+    return TopologyDeploymentResponse(**data)
+
+
+@router.post("/teardown", response_model=TopologyDeploymentResponse)
+async def teardown(
+    scenario_id: str,
+    db: DBSession,
+    admin: AdminUser,
+) -> TopologyDeploymentResponse:
+    """Tear down every member lab of this scenario's topology deployment."""
+    result = await topology_provisioning_service.teardown(db, scenario_id)
+    # Return the post-teardown status so the UI reconciles.
+    return TopologyDeploymentResponse(
+        scenario_id=scenario_id, sensor_count=0, members=[], torn_down=result["torn_down"]
+    )
