@@ -56,6 +56,20 @@ traffic). Rewired to go THROUGH the normal pipeline:
   /deployments, dashboard counts 7758+ pkts, CV preset + OH + 2 zone groups
   created, conductor injecting per-segment.
 
+## Bug fixes found in live use
+
+- **CV "Decode failure: Unknown EthernetCTP function type" (2026-07-11, agent
+  2.6.0, commit 57b134a).** `TopologyRouter._reframe` rebuilt each per-segment
+  frame via scapy (`Ether()/payload`), which DROPPED the EtherType of any
+  protocol scapy renders as `Raw` — PROFINET (0x8892), GOOSE (0x88B8), SV
+  (0x88BA), LLDP (0x88CC) — falling back to scapy's 0x9000 default. The
+  conductor then injected malformed frames CV decoded as EthernetCTP.
+  Reproduced as 175 identical 52-byte Siemens→Siemens PROFINET RT frames at
+  0x9000 on a cell sensor. Fix: byte-level L2 rewrite that carries the original
+  inner EtherType through unchanged (payload verbatim; IPv4 TTL + checksum
+  still patched). **Applying to a running deployment requires a redeploy** so
+  the conductor picks up the 2.6.0 agent.
+
 ## Remaining follow-ups (documented, not blocking)
 
 1. ~~Agent live-streaming integration~~ — **DONE (agent 2.5.0, commit e0e85b2).**
