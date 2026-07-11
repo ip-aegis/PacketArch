@@ -286,8 +286,22 @@ def ensure_agent_image(spec: dict) -> None:
     log.info("agent image %s — downloading %s", reason, url)
     curl = ["curl", "-fsSL"] + (["-k"] if insecure else []) + ["-o", "/tmp/pa-agent.tar.gz", url]
     _run(curl, timeout=300)
-    _run(["sh", "-c", "gunzip -c /tmp/pa-agent.tar.gz | docker load"], timeout=300)
-    _run(["docker", "tag", "ghcr.io/ip-aegis/packetarch-agent:latest", "packetarch-agent:latest"], check=False)
+    loaded = _run(["sh", "-c", "gunzip -c /tmp/pa-agent.tar.gz | docker load"], timeout=300)
+    # Tag whatever was actually loaded as packetarch-agent:latest (compose uses
+    # that ref). The served tarball may be the GHCR image OR a source-built
+    # `packetarch-agent:latest` (dev/git installs). Hardcoding the GHCR ref
+    # reverted a source-built serve to a stale image — parse the load output.
+    ref = None
+    for line in (loaded.stdout or "").splitlines():
+        if "Loaded image:" in line:
+            ref = line.split("Loaded image:", 1)[1].strip()
+            break
+    if ref and ref != "packetarch-agent:latest":
+        _run(["docker", "tag", ref, "packetarch-agent:latest"], check=False)
+    elif ref is None:
+        # ID-only load line (no repo tag in the tarball) — best-effort legacy
+        # behavior so a GHCR-shaped tarball still lands on the compose ref.
+        _run(["docker", "tag", "ghcr.io/ip-aegis/packetarch-agent:latest", "packetarch-agent:latest"], check=False)
     if remote_sum:
         _AGENT_IMAGE_MARKER.parent.mkdir(parents=True, exist_ok=True)
         _AGENT_IMAGE_MARKER.write_text(remote_sum)
