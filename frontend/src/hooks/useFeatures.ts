@@ -21,6 +21,10 @@ export function useFeatures() {
   return {
     aiEnabled: features === null ? true : features.ai_enabled,
     liveTrafficEnabled: features === null ? true : features.live_traffic_enabled,
+    // Experimental — fail CLOSED (default off) so the Advanced Deployment UI
+    // stays hidden unless the backend explicitly enables it.
+    multiSensorTopologyEnabled:
+      features === null ? false : features.multi_sensor_topology_enabled,
     loaded: useFeaturesStore((s) => s.loaded),
   };
 }
