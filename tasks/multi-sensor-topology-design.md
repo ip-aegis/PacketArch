@@ -47,11 +47,13 @@ regression check. This is a separate opt-in "Multi-Sensor Topology" mode.
 
 ### Costs on the record
 
-- **CV provisioning tokens are single-use and Center-issued** → an N-zone
-  scenario needs **N+1 CV sensor composes pasted by the operator** (one per zone
-  + core). These are distinct from PacketArch agent tokens and cannot be minted
-  by us, so "one-click" is honestly **one guided flow with N+1 paste steps**
-  (§4.2). Real operator burden; surface in UI.
+- **CV sensor auto-provisioning is already solved** (corrected 2026-07-11):
+  `local_sensor_service.build_lab()` creates a **reusable CV deployment token**
+  via the Center API (`create_deployment_token`, rotated near its usage cap),
+  mints per-sensor JWTs, and synthesizes the compose — **no operator paste
+  steps**. The topology provisioning service reuses this machinery N+1 times,
+  so "one-click" is genuinely one click (CV settings must be configured, and
+  the deployment token's usage headroom must cover N+1 enrollments).
 - **RAM**: each sensor holds a ~1.26 GB capture ring buffer
   (`local_sensor_lab_memory_sizing` memory) → a 5-zone scenario is **~7.5 GB
   before any traffic**. Belongs in host-sizing docs + a pre-flight check.
@@ -330,13 +332,15 @@ route.
   → topology + MAC/VLAN table + per-flow segment lists. Reuses
   `conduit_service`/`conduit_compliance` to know which zone pairs are legal
   conduits.
-- `topology_provisioning_service.py` — the guided deploy flow: derive topology,
+- `topology_provisioning_service.py` — the one-click deploy: derive topology,
   build the derived definition (inject switches/core + management flows), mint
-  the **one** conductor agent token, collect **N+1 operator-pasted CV sensor
-  composes** (single-use Center-issued tokens — we cannot mint these; the
-  wizard walks one paste step per sensor, same paste UX as Local Labs), write
-  N+1 sensor specs to the host-agent file-queue (reusing `host_agent_client`),
-  start the conductor. Mirrors zones→CV OH via the shipped provisioning path.
+  the **one** conductor agent token, and **auto-provision N+1 CV sensors**
+  exactly the way `local_sensor_service.build_lab()` does (reusable deployment
+  token → per-sensor JWT → synthesized compose; reuse
+  `_resolve_cv_deployment_name`/`_synthesize_sensor_compose` or extract them
+  into a shared helper), write N+1 sensor specs to the host-agent file-queue
+  (reusing `host_agent_client`), start the conductor. Mirrors zones→CV OH via
+  the shipped provisioning path.
   **Registry-trust refcount**: the "drop insecure-registry trust if unused"
   teardown logic is shared with Local Labs — teardown must refcount across
   BOTH features' labs before dropping trust.
@@ -408,6 +412,49 @@ router interfaces? Cheap, and it calibrates Phase 2's identity design and
 Phase 4's acceptance criteria. Either outcome keeps the feature valid (duplicate
 views ARE real multi-sensor behavior) — this refines expectations, not the
 design.
+
+*Interim findings (2026-07-11, single-sensor half done):* injected the zone-A
+segment view (VLAN-101-tagged Modbus conversation 10.199.1.10↔10.199.2.10,
+gateway-rewritten per §3.3) into the live local lab's SPAN. Results:
+(1) **Dot1Q survives veth→macvlan capture** — sensor-side sniff saw tags
+intact (risk 4's tag question retired; MTU-1504 for full-size frames still
+pending). (2) CV created components exactly as the design predicts: the local
+device with its **true MAC**, the **SVI as a Cisco device** at the gateway IP,
+and the remote device's IP attributed to the **gateway MAC** — the classic
+behind-a-router view. (3) Constraint from operator: the test bed is
+**docker-only** — the hardware IE-3500 sensor on the Center is a real switch
+and must NOT be used for injection. (4) ~~No CV API to mint sensors~~ —
+**corrected by operator**: `local_sensor_service.build_lab()` auto-provisions
+sensors via a reusable CV deployment token (v1.15.0); the N+1-paste claim was
+wrong and §4.2 now reuses that machinery (see tasks/lessons.md).
+
+*FINAL RESULTS (2026-07-11, two sensors, same conversation injected as za- and
+zb-framed views simultaneously):*
+
+1. **Components are keyed by (MAC, IP) per sensor view — CV does NOT merge by
+   IP alone.** 6 components: each sensor sees its local device with its TRUE
+   MAC, its gateway SVI as a Cisco device, and the remote endpoint attributed
+   to the gateway MAC. `10.199.2.10` exists twice (SVI-A MAC via sensor A;
+   true MAC via sensor B).
+2. **DPI classification is solid across both sensors**: both views produced
+   Modbus "Read Var" flow records on port 502, ARP tagged correctly, and the
+   true-MAC endpoints vendor-classified by OUI (Siemens icon) — the
+   VLAN-tagged, gateway-rewritten framing parses cleanly end-to-end.
+3. **The conversation appears as TWO flow records** (one per sensor) with the
+   same IP-pair labels — authentic routed multi-sensor behavior, exactly the
+   caveat the design anticipated. Cross-sensor unification happens at
+   device-aggregation level, not automatically at component level.
+4. **No devices were aggregated** from the components — anonymous Modbus
+   carries no protocol identity. Experimentally confirms Phase 2 is
+   load-bearing: protocol identities (S7 names, SNMP sysName, PROFINET
+   station names) drive CV's component→device aggregation, and the core's
+   SVIs (separate MACs = separate components today) need the shared chassis
+   identity (LLDP chassis-id + SNMP sysName) to merge into ONE core device.
+
+Verdict: the design's frame semantics are validated on a live Center; Phase 2
+identity work is confirmed as the mechanism that turns per-sensor views into a
+unified inventory. Provisioning cost of the eventual feature: ~1 min per
+sensor, fully hands-free.
 
 **Phase 1 — Generate-once/render-many in PCAP first.**
 `TopologyOutputRouter` wired to emit **one PCAP per SPAN**. Verify with tshark:
