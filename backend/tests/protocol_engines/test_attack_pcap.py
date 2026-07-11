@@ -30,7 +30,7 @@ class _CountingOutput:
         self.attack_packets = 0
 
     def write_packet(self, packet_bytes: bytes, timestamp_ms: float,
-                     is_attack: bool = False) -> None:
+                     is_attack: bool = False, flow_id: str | None = None) -> None:
         self.packet_count += 1
         self.bytes_sent += len(packet_bytes)
         if is_attack:

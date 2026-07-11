@@ -190,10 +190,20 @@ def derive_topology(definition: dict[str, Any], seed: str = "") -> TopologyPlan:
     Pure function; ``seed`` (normally the scenario id) makes every generated
     MAC deterministic. Validation problems land in plan.errors/warnings —
     preview-time feedback, never silent defaults.
+
+    Editable overrides (persisted on the scenario as ``topology_overrides``):
+      - ``zone_switch_template``   — default switch model for every zone
+      - ``zone_switch_templates``  — {zone_id: template_id} per-zone override
+      - ``core_template``          — core aggregation switch model
+    Absent keys fall back to the IE3500 / IE9320 defaults.
     """
     plan = TopologyPlan()
     zones = _as_dict(definition.get("zones"))
     devices = _as_dict(definition.get("devices"))
+    overrides = definition.get("topology_overrides") or {}
+    default_sw_tpl = overrides.get("zone_switch_template") or ZONE_SWITCH_TEMPLATE
+    per_zone_sw_tpl = overrides.get("zone_switch_templates") or {}
+    core_tpl = overrides.get("core_template") or CORE_SWITCH_TEMPLATE
 
     if not zones:
         plan.errors.append(PlanIssue("NO_ZONES", "Scenario has no zones; topology mode needs at least one."))
@@ -241,10 +251,12 @@ def derive_topology(definition: dict[str, Any], seed: str = "") -> TopologyPlan:
         subnet, gateway = network
         vlan = _zone_vlan(zone, fallback=100 + index)
         switch_id = f"topo-sw-{zone_id}"
+        sw_template = per_zone_sw_tpl.get(zone_id) or default_sw_tpl
+        sw_short = sw_template.split("/")[1].upper() if "/" in sw_template else "SW"
         plan.switches[zone_id] = {
             "id": switch_id,
-            "name": f"{_safe_name(zone_name)}_SW_IE3500",
-            "template_id": ZONE_SWITCH_TEMPLATE,
+            "name": f"{_safe_name(zone_name)}_SW_{sw_short}",
+            "template_id": sw_template,
             "zone_id": zone_id,
             "mgmt_ip": _host_ip(subnet, SWITCH_MGMT_HOST),
             "mac": _deterministic_mac(seed, f"switch:{zone_id}"),
@@ -286,10 +298,11 @@ def derive_topology(definition: dict[str, Any], seed: str = "") -> TopologyPlan:
             return 0.0
 
     mgmt_zone = max(ordered_zone_ids, key=_level)
+    core_short = core_tpl.split("/")[1].upper() if "/" in core_tpl else "SW"
     plan.core = {
         "id": "topo-core",
-        "name": "Core_SW_IE9320",
-        "template_id": CORE_SWITCH_TEMPLATE,
+        "name": f"Core_SW_{core_short}",
+        "template_id": core_tpl,
         "mgmt_ip": svis[mgmt_zone]["ip"],
         "mac": _deterministic_mac(seed, "core"),
         "svis": svis,

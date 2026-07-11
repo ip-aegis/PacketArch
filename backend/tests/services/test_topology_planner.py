@@ -152,6 +152,38 @@ class TestDeriveTopology:
         assert plan.valid
 
 
+class TestOverrides:
+    def test_default_templates(self):
+        plan = derive_topology(_three_zone_definition(), seed="s")
+        assert plan.switches["z-cell"]["template_id"] == "cisco/ie3500/8p3s"
+        assert plan.core["template_id"] == "cisco/ie9320/26s2c"
+
+    def test_zone_switch_template_override(self):
+        definition = _three_zone_definition()
+        definition["topology_overrides"] = {"zone_switch_template": "cisco/ie3300/8t2x"}
+        plan = derive_topology(definition, seed="s")
+        for sw in plan.switches.values():
+            assert sw["template_id"] == "cisco/ie3300/8t2x"
+            assert "IE3300" in sw["name"]
+
+    def test_per_zone_switch_template_override(self):
+        definition = _three_zone_definition()
+        definition["topology_overrides"] = {
+            "zone_switch_templates": {"z-cell": "cisco/ie4000/16gt4g"}
+        }
+        plan = derive_topology(definition, seed="s")
+        assert plan.switches["z-cell"]["template_id"] == "cisco/ie4000/16gt4g"
+        # other zones keep the default
+        assert plan.switches["z-sup"]["template_id"] == "cisco/ie3500/8p3s"
+
+    def test_core_template_override(self):
+        definition = _three_zone_definition()
+        definition["topology_overrides"] = {"core_template": "cisco/ie9310/26s2c"}
+        plan = derive_topology(definition, seed="s")
+        assert plan.core["template_id"] == "cisco/ie9310/26s2c"
+        assert "IE9310" in plan.core["name"]
+
+
 class TestPlanSegments:
     def test_intra_zone_single_span_true_macs(self):
         definition = _three_zone_definition()
