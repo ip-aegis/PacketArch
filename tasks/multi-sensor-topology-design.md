@@ -34,15 +34,19 @@ tests; live-validated on a real 3-sensor Cyber Vision deployment.
 
 ## Remaining follow-ups (documented, not blocking)
 
-1. **Agent live-streaming integration** — wire `LiveTopologyOutput` into
-   `orchestrator_pool` so a running deployment streams live (vs. the validated
-   per-span PCAP replay). Needs the agent-image rebuild + a deploy-payload
-   carrying the plan + span→interface map.
+1. ~~Agent live-streaming integration~~ — **DONE (agent 2.5.0, commit e0e85b2).**
+   `START_SCENARIO` carries `topology_plan` + `span_interface_map`; the core
+   lab's agent (network_mode host) is the single conductor and injects each
+   frame's per-segment copies onto every SPAN's veth via `LiveTopologyOutput`.
+   **Live-validated through the product UI: Deploy → Start on a 2-zone demo →
+   conductor injects on all 3 veths (correct VLAN/gateway framing on the wire
+   AND on the sensor pa-mon side) → CV shows the 9-component multi-sensor
+   picture (each device with true-MAC on home sensor + gateway-MAC on remote).**
 2. **Per-link LLDP/CDP** for CV topology-map reconstruction + **SVI identity
    merge** (shared chassis-id/sysName) so the core's per-zone gateway
    components collapse into one CV device.
-3. **Synthetic CV cleanup** — the Center has leftover 10.199.* and 10.77.*
-   components from validation (no component-delete API); prune from the CV UI.
+3. **Synthetic CV cleanup** — leftover components from validation
+   (no component-delete API); prune from the CV UI when convenient.
 
 ## 1. Goal
 
