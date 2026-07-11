@@ -42,11 +42,23 @@ tests; live-validated on a real 3-sensor Cyber Vision deployment.
    conductor injects on all 3 veths (correct VLAN/gateway framing on the wire
    AND on the sensor pa-mon side) → CV shows the 9-component multi-sensor
    picture (each device with true-MAC on home sensor + gateway-MAC on remote).**
-2. **Per-link LLDP/CDP** for CV topology-map reconstruction + **SVI identity
+2. **⚠️ PUBLISH-TIME ACTION — release agent 2.5.0 to GHCR.** The live conductor
+   needs agent **2.5.0** (`docker/packetarch-agent/app/version.py`), but it was
+   only built LOCALLY on the dev box (`packetarch-agent:latest` + a local
+   `ghcr…:latest` tag so the host-agent's reconcile doesn't revert it — see the
+   host-agent fix in commit 69d48de). It is **NOT pushed to GHCR**. Until the
+   release workflow builds + pushes `ghcr.io/ip-aegis/packetarch-agent:2.5.0`,
+   fresh installs / real `docker pull`s still get 2.2.1 (no conductor). Do this
+   when cutting the next release.
+3. **Per-link LLDP/CDP** for CV topology-map reconstruction + **SVI identity
    merge** (shared chassis-id/sysName) so the core's per-zone gateway
    components collapse into one CV device.
-3. **Synthetic CV cleanup** — leftover components from validation
+4. **Synthetic CV cleanup** — leftover components from validation
    (no component-delete API); prune from the CV UI when convenient.
+5. **Restart robustness** — a backend restart during an active topology
+   deployment re-deploys it as a plain single-interface scenario (the reconcile
+   path doesn't carry the topology payload); re-run Start to restore conductor
+   mode. Worth wiring the topology payload into the deploy reconcile later.
 
 ## 1. Goal
 
