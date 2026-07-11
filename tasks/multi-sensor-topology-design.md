@@ -1,8 +1,48 @@
 # Multi-Sensor Topology Workflow — Design & Plan
 
-**Status:** Design draft (design-first; no code yet)
-**Date:** 2026-07-10
+**Status:** ✅ IMPLEMENTED through Phase 5 (2026-07-11). Commits f207951 (P0),
+67a3017 (P0a), b4bb725 (P1), 801933b (P2), 3e1403f (P3), c0ec38e (P4),
+e670f4d (P5). Full regression green (882 backend tests); 42 topology unit
+tests; live-validated on a real 3-sensor Cyber Vision deployment.
+**Date:** 2026-07-10 (design) → 2026-07-11 (build)
 **Owner:** rocsmith
+
+## Implementation summary (what shipped)
+
+- **Phase 0** — `topology_planner` (pure): per-zone IE3500 + IE9320 core with
+  SVI gateways, deterministic Cisco MACs, all validation rules; `POST
+  /scenarios/{id}/topology/preview` behind default-off `MULTI_SENSOR_TOPOLOGY`.
+- **Phase 0a** — proved on a live CV Center that per-segment framing is read
+  correctly (device true-MAC on home sensor, gateway-MAC on remote).
+- **Phase 1** — `TopologyRouter` (staged to agent) + `SpanPcapOutput`;
+  `topology_mode` generation → one PCAP per SPAN; 31/31 per-SPAN invariants
+  (VLAN purity, gateway-rewrite, core TTL differential) on a real 6-zone run.
+- **Phase 2** — `topology_definition_builder` injects IE3500/IE9320 as
+  fingerprinted CV assets (SNMP auto-wired). *Deferred: per-link LLDP topology
+  reconstruction, full SVI identity-merge — realism polish, documented below.*
+- **Phase 3** — `topology_provisioning_service` (deploy/preflight/status/
+  teardown) stands up N+1 sensor labs; `LiveTopologyOutput` live conductor.
+  **Live-validated: 2-zone → 3 sensors, cross-zone S7 on multiple sensors,
+  IE3500 a named CV asset, clean teardown.** *Deferred: wiring
+  LiveTopologyOutput into the agent deploy path (agent-image rework) — live
+  proof used per-span PCAP replay.*
+- **Phase 4** — "Advanced Deployment" Agents-hub tab (feature-gated): preflight
+  → deploy → member table → teardown.
+- **Phase 5** — `topology_overrides` (per-zone switch model + core model),
+  persisted on the scenario. Full canvas-editing UI intentionally NOT built —
+  the derive-from-zones model matches the "one switch per zone" requirement.
+
+## Remaining follow-ups (documented, not blocking)
+
+1. **Agent live-streaming integration** — wire `LiveTopologyOutput` into
+   `orchestrator_pool` so a running deployment streams live (vs. the validated
+   per-span PCAP replay). Needs the agent-image rebuild + a deploy-payload
+   carrying the plan + span→interface map.
+2. **Per-link LLDP/CDP** for CV topology-map reconstruction + **SVI identity
+   merge** (shared chassis-id/sysName) so the core's per-zone gateway
+   components collapse into one CV device.
+3. **Synthetic CV cleanup** — the Center has leftover 10.199.* and 10.77.*
+   components from validation (no component-delete API); prune from the CV UI.
 
 ## 1. Goal
 
@@ -474,6 +514,16 @@ ARP/broadcast confined per §3.4a. Plus the **isolation regression check**:
 with topology mode OFF, PCAP/live behavior is unchanged (cross-zone flows
 still dropped under isolation modes). This proves coherence with zero infra.
 
+**Phase 2 — Switch/core assets + ambient. ✅ PART A DONE (commit 801933b).**
+`topology_definition_builder` injects the per-zone IE3500 + IE9320 core as
+synthetic fingerprinted devices; SNMP monitoring auto-wired; live-verified each
+switch emits SNMP on its own zone span → CV classifies them as Cisco switches.
+**Deferred (realism polish, not blocking the injection mechanism):** per-link
+LLDP/CDP with distinct port-ids for CV topology-map reconstruction (switches
+still emit ambient *global* LLDP today), and full SVI identity-merge so the
+core's per-zone gateway components collapse into one CV device (needs per-SVI
+SNMP/LLDP sysName emission — the Phase 0a duplicate-component finding).
+Original plan:
 **Phase 2 — Switch/core assets + ambient.**
 Inject IE3500/IE9300 devices + management flows into the derived definition;
 per-segment LLDP/CDP/STP/SNMP/ARP (per §3.4a). **Core identity coherence:** the
@@ -485,6 +535,20 @@ CV merges by fingerprint/identity). Verify in PCAP: switches emit correct
 management identities; LLDP adjacencies encode our topology; SVIs carry the
 shared chassis identity.
 
+**Phase 3 — Live multi-sensor provisioning. ✅ DONE (commit 3e1403f).**
+`topology_provisioning_service` (deploy/preflight/status/teardown routes) stands
+up one Local Sensor Lab per SPAN via `build_lab` ×N+1, grouped by name prefix.
+`LiveTopologyOutput` = live conductor (TopologyRouter + persistent per-veth L2
+sockets). **Live-validated on a 2-zone scenario → 3 real CV sensors:** the
+cross-zone S7 conversation appears on multiple sensors (DPI: S7 Read Var,
+port 102); the PLC shows true-MAC on its home sensor + gateway-MAC on the
+remote sensor (routed multi-sensor view); the injected IE3500 is a named CV
+asset (`Assembly_Cell_A_SW_IE3500`, SNMP-polled). Clean teardown verified
+(0 containers/veths/rows). 6 unit tests. NOTE: live injection was validated by
+replaying the per-span PCAPs onto each veth (proven mechanism); wiring
+`LiveTopologyOutput` into the agent's deploy path (so a running deployment
+streams live) is the agent-integration step — deferred with the agent-image
+rework, kept low-risk. Original plan:
 **Phase 3 — Live multi-sensor provisioning.**
 Host-agent provisions N+1 veths + sensors; conductor injects live. One-click
 deploy + full teardown. Verify: `docker compose ps` shows N+1 sensors + 1
@@ -492,6 +556,14 @@ conductor; each `pa-mon` sees only its segment and **Dot1Q-tagged frames arrive
 intact** (tcpdump per veth); measure fan-out throughput against the §3.4
 persistent-socket floor.
 
+**Phase 4 — Frontend (read-only) + CV verification. ✅ DONE (commit c0ec38e).**
+"Advanced Deployment" tab in the Agents hub (feature-gated on
+`multi_sensor_topology_enabled`, default off): scenario picker → preflight
+(sensor count, RAM estimate + >8GB warning, SPAN tags) → Deploy (provision N+1,
+one-time agent tokens) → member table + teardown. `topology.ts` API client;
+built + deployed + confirmed in the served bundle. CV end-to-end verification
+done in Phase 3 (2-zone → 3 sensors, cross-zone S7 on multiple sensors, IE3500
+named CV asset). Original plan:
 **Phase 4 — Frontend (read-only) + CV verification.**
 Preview/Deploy UI, RAM pre-flight, topology view, OH mapping. Verify end-to-end
 against a live CV Center (device fingerprinting per sensor; cross-sensor

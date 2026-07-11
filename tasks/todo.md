@@ -37,5 +37,29 @@ memory `scenario_verify_audit` and git history.)
 - [ ] Cleanup: teardown lab #2 + prune synthetic 10.199.* components
 - [x] Interim findings written into design doc §5 Phase 0a
 
+## Phases 1-5 — DONE (2026-07-11, autonomous)
+- [x] Phase 1: TopologyRouter + SpanPcapOutput, 31/31 per-SPAN invariants (b4bb725)
+- [x] Phase 2: switch/core asset injection, live SNMP-fingerprinted (801933b)
+- [x] Phase 3: provisioning service + LiveTopologyOutput; live 3-sensor
+      validation (cross-zone S7 on multiple sensors, IE3500 named CV asset) (3e1403f)
+- [x] Phase 4: Advanced Deployment UI tab, feature-gated, in bundle (c0ec38e)
+- [x] Phase 5: topology_overrides (switch/core model) + polish (e670f4d)
+
 ## Review
-- (fill after)
+Delivered a complete, additive multi-sensor topology workflow end-to-end,
+design→ship, across 7 commits. The existing single-agent deploy and Local
+Sensor Lab paths are untouched (all new code is behind the default-off
+MULTI_SENSOR_TOPOLOGY flag + a topology_mode branch). Validation was
+behaviour-driven at every phase: pure-planner unit tests (42 topology tests),
+per-SPAN PCAP dissection (31/31 invariants on a real 6-zone scenario), and a
+live 3-sensor Cyber Vision deployment on a throwaway 2-zone scenario proving
+the user's exact goal — cross-zone flows picked up by multiple sensors with
+gateway-rewritten per-segment framing, and an IE3500 per zone as a real CV
+asset. Full backend regression green (882 passed). Two follow-ups remain
+(agent live-streaming integration + per-link LLDP/SVI-merge), both documented
+as realism/integration polish on the proven mechanism, neither blocking.
+
+Key decisions & why: single-conductor over per-zone injectors (identical CV
+output, fewer moving parts); generate-once/render-many (coherence by
+construction, PCAP=live); derive-from-zones topology (matches "one switch per
+zone", far less UI); name-prefix lab grouping (no risky migration).
