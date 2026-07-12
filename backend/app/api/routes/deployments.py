@@ -272,3 +272,19 @@ async def remove_deployment(
 
     await db.delete(agent_deployment)
     await db.commit()
+
+
+@router.post("/scenario/{scenario_id}/teardown")
+async def teardown_scenario(
+    scenario_id: str,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> dict:
+    """One-shot teardown of a scenario's ENTIRE deployment, whatever it was:
+    stop the run, remove the AgentDeployment rows, tear down the sensor labs it
+    owns, and delete the Cyber Vision objects PacketArch created for it (preset,
+    zone groups, networks, org hierarchy). Idempotent; safe on a scenario that
+    isn't deployed."""
+    from app.services.deployment_teardown import teardown_scenario_deployment
+
+    return await teardown_scenario_deployment(db, scenario_id)

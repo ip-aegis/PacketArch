@@ -39,6 +39,18 @@ export const deploymentsApi = {
     });
     return response.data;
   },
+
+  /**
+   * One-shot teardown of a scenario's ENTIRE deployment (any type): stops the
+   * run, removes deployments, tears down the sensor labs it owns, and deletes
+   * the Cyber Vision preset / zone groups / networks / org-hierarchy.
+   */
+  async teardownScenario(scenarioId: string): Promise<Record<string, unknown>> {
+    const response = await apiClient.post<Record<string, unknown>>(
+      `${PREFIX}/scenario/${scenarioId}/teardown`,
+    );
+    return response.data;
+  },
 };
 
 export default deploymentsApi;

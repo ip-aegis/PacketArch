@@ -32,6 +32,7 @@ import {
   type TopologyPreflight,
   type TopologyDeployment,
 } from '../../api/topology';
+import { deploymentsApi } from '../../api/deployments';
 import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text, Paragraph } = Typography;
@@ -116,8 +117,11 @@ const MultiSensorDeploySection: React.FC<Props> = ({ scenarioId, cvConfigured })
   const onTeardown = async () => {
     setBusy(true);
     try {
-      await topologyApi.teardown(scenarioId);
-      message.success('Multi-sensor deployment torn down.');
+      // Unified teardown: tears down the labs AND deletes the Cyber Vision
+      // preset/groups/networks/org-hierarchy (topologyApi.teardown alone does
+      // not clean the CV objects).
+      await deploymentsApi.teardownScenario(scenarioId);
+      message.success('Multi-sensor deployment torn down and Cyber Vision cleaned up.');
       await loadStatus();
     } catch (e) {
       message.error(extractErrorMessage(e, 'Teardown failed'));

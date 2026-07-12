@@ -18,9 +18,11 @@ import {
   Button,
   Tag,
   Tooltip,
+  Popconfirm,
   message,
 } from 'antd';
-import { CloudServerOutlined, ApiOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, ApiOutlined, LoadingOutlined, DeleteOutlined } from '@ant-design/icons';
+import { deploymentsApi } from '../../api/deployments';
 import type { CVProvisionStatus } from '../../api/cyberVision';
 import { useDeploymentsStore } from '../../stores/deploymentsStore';
 import { useAgentsStore } from '../../stores/agentsStore';
@@ -439,6 +441,27 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     }
   };
 
+  // ── Unified teardown (stops run, removes labs, cleans Cyber Vision) ──
+  const [tearingDown, setTearingDown] = useState(false);
+  const handleTeardownScenario = async () => {
+    if (!scenarioId) return;
+    setTearingDown(true);
+    try {
+      const res = await deploymentsApi.teardownScenario(scenarioId);
+      const labs = Array.isArray(res.labs_torn_down) ? res.labs_torn_down.length : 0;
+      message.success(
+        labs > 0
+          ? `Deployment torn down — ${labs} sensor lab(s) removed and Cyber Vision cleaned up.`
+          : 'Deployment torn down and Cyber Vision cleaned up.',
+      );
+      await fetchDeployments({ scenario_id: scenarioId });
+    } catch (err: unknown) {
+      message.error(extractErrorMessage(err, 'Teardown failed'));
+    } finally {
+      setTearingDown(false);
+    }
+  };
+
   const storePhases = useScenarioStore((s) => s.phases);
   const scenarioPhases = phases ?? storePhases;
   const storeScenarioName = useScenarioStore((s) => s.name);
@@ -615,6 +638,30 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
                 />
               ))}
             </Space>
+
+            <Popconfirm
+              title="Tear down this deployment?"
+              description={
+                <span style={{ maxWidth: 260, display: 'inline-block' }}>
+                  Stops the run, removes any sensor labs it owns, and deletes the
+                  Cyber Vision preset, zone groups, networks, and org hierarchy
+                  for this scenario. This can&apos;t be undone.
+                </span>
+              }
+              okText="Tear down"
+              okButtonProps={{ danger: true }}
+              onConfirm={handleTeardownScenario}
+            >
+              <Button
+                danger
+                block
+                icon={<DeleteOutlined />}
+                loading={tearingDown}
+                style={{ marginTop: 12 }}
+              >
+                Tear down deployment
+              </Button>
+            </Popconfirm>
           </div>
         </>
       )}
