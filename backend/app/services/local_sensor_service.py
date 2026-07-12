@@ -177,7 +177,8 @@ def _spec_from_lab(lab: LocalLab, *, agent_token: str, agent_name: str,
 
 
 async def build_lab(db, *, name: str,
-                    agent_name: str | None, created_by_id: uuid.UUID | None) -> dict:
+                    agent_name: str | None, created_by_id: uuid.UUID | None,
+                    sensor_label: str | None = None) -> dict:
     """Create a local sensor lab: auto-provision a CV sensor, persist desired
     state, and queue host provisioning.
 
@@ -215,7 +216,11 @@ async def build_lab(db, *, name: str,
     # Mint the CV provisioning JWT as late as possible (right before persist +
     # queueing the host-agent build) to minimize the window between minting
     # and the host-agent actually running `compose up`.
-    serial = local_lab_naming.sensor_serial(name, slug)
+    # The CV sensor serial is what shows in the Center; derive it from a
+    # human-readable label when the caller supplies one (topology deploys pass
+    # the zone name so the sensor reads e.g. "cell1-cnc-<slug>" instead of the
+    # lab name truncated to "topo-<scn>-c-<slug>").
+    serial = local_lab_naming.sensor_serial(sensor_label or name, slug)
     try:
         deployment_name = await _resolve_cv_deployment_name(db, cv)
         jwt = await cv.mint_sensor_jwt(deployment_name, serial)

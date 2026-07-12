@@ -107,13 +107,27 @@ async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None
             f"({len(existing['members'])} labs). Tear it down first."
         )
 
+    # Readable sensor labels from the zone names (so the CV Center shows
+    # "cell1-cnc-<slug>" etc. instead of the lab name truncated to
+    # "topo-<scn>-c-<slug>"). Lab NAMES keep the group_prefix scheme (needed for
+    # member grouping); only the CV sensor serial uses the zone name.
+    scn = await _load_scenario(db, scenario_id)
+    zones = topology_planner._as_dict((scn.definition or {}).get("zones"))
+
+    def _sensor_label(span_id: str) -> str:
+        if span_id == topology_planner.CORE_SPAN:
+            return "Core"
+        zid = span_id.split(":", 1)[1] if ":" in span_id else span_id
+        return (zones.get(zid, {}) or {}).get("name") or zid
+
     prefix = group_prefix(scenario_id)
     members: list[dict[str, Any]] = []
     for span_id in spans:
         role = "core" if span_id == topology_planner.CORE_SPAN else "zone"
         lab_name = f"{prefix}{_span_label(span_id)}"
         built = await local_sensor_service.build_lab(
-            db, name=lab_name, agent_name=None, created_by_id=created_by_id
+            db, name=lab_name, agent_name=None, created_by_id=created_by_id,
+            sensor_label=_sensor_label(span_id),
         )
         members.append(
             {
