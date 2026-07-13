@@ -407,6 +407,44 @@ async def reconcile_local_labs(db: AsyncSession) -> str:
     return f"requested reconcile of {len(pending)} local lab(s)"
 
 
+async def resume_pending_topology_deploys(db: AsyncSession) -> str:
+    """Re-arm conductor deploys whose persisted intent never completed.
+
+    A topology deploy's conductor phase runs as an in-process asyncio task
+    (agent WebSockets live in the backend), so a backend restart kills it. The
+    operator's intent is persisted in system_settings until the conductor goes
+    live or the deployment is torn down — re-arm each one here so a restart
+    (or a degraded-lab window) never leaves a deployment permanently headless.
+    """
+    import json as _json
+
+    from app.services import topology_provisioning_service
+
+    rows = (
+        await db.execute(
+            select(SystemSetting).where(
+                SystemSetting.key.like(
+                    topology_provisioning_service._PENDING_KEY_PREFIX + "%"
+                )
+            )
+        )
+    ).scalars().all()
+    for row in rows:
+        scenario_id = row.key.rsplit(".", 1)[-1]
+        try:
+            cfg = _json.loads(row.value or "{}")
+        except ValueError:
+            cfg = {}
+        topology_provisioning_service._arm_deploy(
+            scenario_id, bool(cfg.get("provision_cyber_vision", True))
+        )
+        logger.info("re-armed pending topology deploy for scenario %s", scenario_id)
+    return (
+        f"re-armed {len(rows)} pending topology deploy(s)" if rows
+        else "no pending topology deploys"
+    )
+
+
 async def reconcile_pending_naming(db: AsyncSession) -> str:
     """Re-enqueue background device-naming for scenarios caught mid-naming.
 
@@ -525,6 +563,12 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
         except Exception as e:  # never let lab reconcile block startup
             logger.warning("reconcile_local_labs failed: %s", e)
             results["local_labs"] = f"reconcile failed: {e}"
+        # Re-arm conductor deploys that were pending when the backend went down.
+        try:
+            results["topology_deploys"] = await resume_pending_topology_deploys(db)
+        except Exception as e:  # never let deploy re-arm block startup
+            logger.warning("resume_pending_topology_deploys failed: %s", e)
+            results["topology_deploys"] = f"re-arm failed: {e}"
     else:
         results["agent_reconcile"] = "skipped (live_traffic_enabled=false)"
 

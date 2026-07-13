@@ -93,4 +93,8 @@ class TopologyDeploymentResponse(BaseModel):
     phase: str | None = Field(
         default=None, description="provisioning | deploying | active | none"
     )
+    deploy_pending: bool = Field(
+        default=False,
+        description="A conductor deploy is armed and will fire once all labs are ready",
+    )
     torn_down: list[dict[str, Any]] | None = None

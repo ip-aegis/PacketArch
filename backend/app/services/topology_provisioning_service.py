@@ -17,6 +17,7 @@ each lab's ``pa-gen`` veth so every sensor sees its correctly-framed segment.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from typing import Any
@@ -191,8 +192,91 @@ async def build_runtime(db, scenario_id: str) -> tuple[dict[str, Any], dict[str,
     return augmented, plan
 
 
-# Background deploy-when-ready tasks, held so the event loop doesn't GC them.
-_bg_deploys: set = set()
+# Background deploy-when-ready tasks, one live task per scenario, held so the
+# event loop doesn't GC them.
+_pending_tasks: dict[str, Any] = {}
+
+# The operator's deploy intent is PERSISTED (system_settings row) until the
+# conductor actually goes live or the deployment is torn down. This is what
+# makes the conductor deploy survive both degraded-lab windows longer than any
+# in-memory wait and backend restarts: startup re-arms every persisted intent.
+_PENDING_KEY_PREFIX = "topology.pending_deploy."
+
+
+async def _get_pending(db, scenario_id: str) -> dict[str, Any] | None:
+    from sqlalchemy import select
+
+    from app.models.settings import SystemSetting
+
+    row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == _PENDING_KEY_PREFIX + scenario_id)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    try:
+        return json.loads(row.value or "{}")
+    except ValueError:
+        return {}
+
+
+async def _set_pending(db, scenario_id: str, provision_cyber_vision: bool) -> None:
+    from sqlalchemy import select
+
+    from app.models.settings import SystemSetting
+
+    payload = json.dumps({"provision_cyber_vision": provision_cyber_vision})
+    row = (
+        await db.execute(
+            select(SystemSetting).where(SystemSetting.key == _PENDING_KEY_PREFIX + scenario_id)
+        )
+    ).scalar_one_or_none()
+    if row:
+        row.value = payload
+    else:
+        db.add(
+            SystemSetting(
+                key=_PENDING_KEY_PREFIX + scenario_id,
+                value=payload,
+                category="topology",
+                description="Pending conductor deploy — cleared on success or teardown",
+            )
+        )
+    await db.commit()
+
+
+async def _clear_pending(db, scenario_id: str) -> None:
+    from sqlalchemy import delete
+
+    from app.models.settings import SystemSetting
+
+    await db.execute(
+        delete(SystemSetting).where(SystemSetting.key == _PENDING_KEY_PREFIX + scenario_id)
+    )
+    await db.commit()
+
+
+def _arm_deploy(scenario_id: str, provision_cyber_vision: bool) -> None:
+    """Start the background deploy-when-ready task for a scenario unless one is
+    already live. Must run on the backend event loop — execute_deployment sends
+    agent WebSocket commands, and those connections live here, not in celery."""
+    import asyncio
+
+    existing = _pending_tasks.get(scenario_id)
+    if existing is not None and not existing.done():
+        return
+    task = asyncio.create_task(_deploy_when_ready(scenario_id, provision_cyber_vision))
+    _pending_tasks[scenario_id] = task
+    task.add_done_callback(
+        lambda t: _pending_tasks.pop(scenario_id, None) if _pending_tasks.get(scenario_id) is t else None
+    )
+
+
+def _cancel_pending_task(scenario_id: str) -> None:
+    task = _pending_tasks.pop(scenario_id, None)
+    if task is not None and not task.done():
+        task.cancel()
 
 
 def _core_member(members: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -221,54 +305,123 @@ async def deploy(
     ``execute_deployment`` path — so it gets an AgentDeployment (→ active
     status + live traffic) and full CV provisioning (preset + zone groups + org
     hierarchy), exactly like a normal deploy, plus the multi-sensor injection.
-    """
-    result = await provision(db, scenario_id, created_by_id=created_by_id)
-    # The conductor deploy must run in THIS (backend) process — execute_deployment
-    # sends agent WebSocket commands, and those connections live here, not in
-    # celery. Fire a background task on the backend loop and hold a ref.
-    import asyncio
 
-    task = asyncio.create_task(_deploy_when_ready(scenario_id, provision_cyber_vision))
-    _bg_deploys.add(task)
-    task.add_done_callback(_bg_deploys.discard)
+    Re-entrant: when the labs are already provisioned but the conductor never
+    went live (labs were degraded past the wait window, or the backend
+    restarted), this resumes the conductor deploy instead of refusing. Only a
+    LIVE conductor makes it refuse — tear down first to redeploy from scratch.
+    """
+    existing = await status(db, scenario_id)
+    if existing["members"]:
+        if existing["deployment_state"] in ("running", "starting"):
+            raise ValidationError(
+                "This topology deployment is already live. Tear it down first to redeploy."
+            )
+        plan = await plan_for(db, scenario_id)
+        members = _members_from_labs(scenario_id, existing["members"], plan)
+        result = {
+            "scenario_id": scenario_id,
+            "sensor_count": len(members),
+            "ram_estimate_gb": ram_estimate_gb(plan),
+            "members": members,
+            "span_interface_map": {m["span_id"]: m["gen_if"] for m in members if m.get("gen_if")},
+        }
+        logger.info(
+            "topology deploy %s: %d labs already provisioned — resuming conductor deploy",
+            scenario_id, len(members),
+        )
+    else:
+        result = await provision(db, scenario_id, created_by_id=created_by_id)
+    await _set_pending(db, scenario_id, provision_cyber_vision)
+    _arm_deploy(scenario_id, provision_cyber_vision)
     result["deploy_pending"] = True
     return result
 
 
+def _members_from_labs(
+    scenario_id: str, labs: list[dict[str, Any]], plan: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Rebuild provision-shaped members from live lab status (the resume path).
+    Agent tokens are shown once at provisioning and never re-surfaced."""
+    prefix = group_prefix(scenario_id)
+    by_name = {lab.get("name"): lab for lab in labs}
+    members: list[dict[str, Any]] = []
+    for span in plan.get("spans", []):
+        lab = by_name.get(f"{prefix}{_span_label(span['id'])}")
+        if not lab:
+            continue
+        members.append(
+            {
+                "span_id": span["id"],
+                "role": "core" if span["id"] == topology_planner.CORE_SPAN else "zone",
+                "lab_id": lab["lab_id"],
+                "slug": lab.get("slug"),
+                "agent_id": lab.get("agent_id"),
+                "agent_token": None,
+                "gen_if": lab.get("gen_if"),
+                "sensor_serial": lab.get("sensor_serial"),
+            }
+        )
+    return members
+
+
 async def _deploy_when_ready(
-    scenario_id: str, provision_cyber_vision: bool,
-    *, timeout_s: float = 420.0, poll_s: float = 8.0,
+    scenario_id: str, provision_cyber_vision: bool, *, poll_s: float = 8.0,
 ) -> None:
     """Wait for all member labs running + the core agent online, then deploy the
-    conductor. Own DB session; never raises (background task)."""
+    conductor. Own DB session; never raises (background task).
+
+    No overall timeout: this keeps retrying until the conductor goes live or
+    the persisted deploy intent disappears (teardown, or labs removed). The old
+    420s give-up left the deployment permanently headless when labs recovered
+    late — degraded labs self-heal on the host-agent's 30s reconcile, so the
+    right behavior is to still be waiting when they do."""
     import asyncio
     import time
 
     from app.core.database import async_session_maker
 
     start = time.monotonic()
-    while time.monotonic() - start < timeout_s:
+    last_note = start
+    while True:
         try:
             async with async_session_maker() as db:
+                if await _get_pending(db, scenario_id) is None:
+                    logger.info(
+                        "topology deploy %s: pending intent cleared — stopping wait",
+                        scenario_id,
+                    )
+                    return
                 members = (await status(db, scenario_id))["members"]
+                if not members:
+                    logger.warning(
+                        "topology deploy %s: no member labs remain — clearing pending deploy",
+                        scenario_id,
+                    )
+                    await _clear_pending(db, scenario_id)
+                    return
                 core = _core_member(members)
                 ready = (
-                    members
-                    and all(m.get("state") == "running" for m in members)
+                    all(m.get("state") == "running" for m in members)
                     and core is not None
                     and core.get("agent_status") == "online"
                 )
                 if ready:
                     await _conductor_deploy(db, scenario_id, members, provision_cyber_vision)
+                    await _clear_pending(db, scenario_id)
                     logger.info("topology deploy %s: conductor deployed live", scenario_id)
                     return
         except Exception:
             logger.exception("topology deploy %s: deploy-when-ready iteration failed", scenario_id)
+        now = time.monotonic()
+        if now - last_note >= 300:
+            last_note = now
+            logger.warning(
+                "topology deploy %s: still waiting for labs after %.0fs — will keep "
+                "retrying until they are ready or the deployment is torn down",
+                scenario_id, now - start,
+            )
         await asyncio.sleep(poll_s)
-    logger.error(
-        "topology deploy %s: timed out after %ss waiting for labs to be ready",
-        scenario_id, timeout_s,
-    )
 
 
 async def _conductor_deploy(
@@ -328,6 +481,7 @@ async def status(db, scenario_id: str) -> dict[str, Any]:
     members = [lab for lab in labs if (lab.get("name") or "").startswith(prefix)]
     all_running = bool(members) and all(m.get("state") == "running" for m in members)
     deployment_state = await _deployment_state(db, scenario_id)
+    deploy_pending = (await _get_pending(db, scenario_id)) is not None
     if deployment_state in ("running", "starting"):
         phase = "active"
     elif members and not all_running:
@@ -342,6 +496,7 @@ async def status(db, scenario_id: str) -> dict[str, Any]:
         "members": members,
         "deployment_state": deployment_state,
         "phase": phase,
+        "deploy_pending": deploy_pending,
     }
 
 
@@ -352,6 +507,15 @@ async def teardown(db, scenario_id: str) -> dict[str, Any]:
 
     from app.models.traffic_agent import AgentDeployment
     from app.services.agent_manager import agent_manager
+
+    # 0) Retire the deploy intent FIRST so the deploy-when-ready loop can't race
+    #    the teardown and deploy the conductor onto labs we're about to remove.
+    _cancel_pending_task(scenario_id)
+    try:
+        await _clear_pending(db, scenario_id)
+    except Exception:
+        await db.rollback()
+        logger.exception("topology teardown: clearing pending deploy failed for %s", scenario_id)
 
     # 1) Stop the conductor's live injection (best-effort — agent may be gone).
     try:
