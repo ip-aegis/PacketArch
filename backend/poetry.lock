@@ -366,6 +366,41 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
+name = "c104"
+version = "2.2.1"
+description = "A Python module to simulate SCADA and RTU communication over protocol 60870-5-104 to research ICT behavior in power grids."
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "c104-2.2.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:844cadea6d1c319bce3e271df28864ba33903b6d54fc5d90f6deadc0b12fca55"},
+    {file = "c104-2.2.1-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:58d557a620773977c00e3ed3f41a5d759379f50363bb244124ea0ee03fba3c69"},
+    {file = "c104-2.2.1-cp310-cp310-win_amd64.whl", hash = "sha256:a7e8b26f0c2303d8c9a4ba93de7ebccb76e545f5dfd1141ddedf8bd22f974c04"},
+    {file = "c104-2.2.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0dd076ca5fff56261026a155266cd74998ac9a83d79b9f6a6ef7e6802913644a"},
+    {file = "c104-2.2.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:afbe7698e75368bc83c8a476464f922403807eb3a259d9e074d4ce30738106b6"},
+    {file = "c104-2.2.1-cp311-cp311-win_amd64.whl", hash = "sha256:7bda72543cc196bb90798fac6ab6f0bf4441b7b6d1ec0b7e76c271da3c548b67"},
+    {file = "c104-2.2.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0b61171fbb8b672def2193cf0e728af7809b9684ddd3d3b062de7760aed9c947"},
+    {file = "c104-2.2.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0a91df4a1d746898a2ebb035da7e2d0a816a1446e4d6822f0a8b962aecc556a3"},
+    {file = "c104-2.2.1-cp312-cp312-win_amd64.whl", hash = "sha256:115fb71c90701feaa9695e1fd16eda5940a7cd629e0add77376ae9e8b4e7abf1"},
+    {file = "c104-2.2.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:85f2abfa2f82d5287512a4aa04cfa59eb605ea67fca1aace0d0d8cdb50469f88"},
+    {file = "c104-2.2.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1d7c19d8462af153f5b6a4896d2ef824d4d724902e02f545ccb1de8de4831a4d"},
+    {file = "c104-2.2.1-cp313-cp313-win_amd64.whl", hash = "sha256:8ead38d5d9fcdd29e2114780f3a4d549608d671f759978d72826bb3248fc3211"},
+    {file = "c104-2.2.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fbbf53652e97283da1679bfb8f06ecf279ff0eb117ba8b67f95cf31a8016a31a"},
+    {file = "c104-2.2.1-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7618cbdc43c1af596cb5413cc3430f41d7e833f94e1245fcd73781e1410c7c34"},
+    {file = "c104-2.2.1-cp313-cp313t-win_amd64.whl", hash = "sha256:74ab55f32593f47f497696e566d5023538ddf15e2455e6290744c409335569dc"},
+    {file = "c104-2.2.1-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:364e2fe1f8d2d7c72d36576889409469e6cd4d550280ac7a4f156fc4626b966c"},
+    {file = "c104-2.2.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ee569b34ff8e150ab7cf7af292a0d66fabbd4f52829077e5a4997eea8f741019"},
+    {file = "c104-2.2.1-cp37-cp37m-win_amd64.whl", hash = "sha256:2cee69f602a105ebf9b46c1306e06f6edaf4295b2ce967e3f0719814bc1ecf65"},
+    {file = "c104-2.2.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4694b1632803e75e3a20b6d71883d5da18b99767b7d886f78f6e01b8a0c802f9"},
+    {file = "c104-2.2.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85ad306935d174927296039a8eb5e5adf3a72a9ff6cf7a01152df33ec32fcdc6"},
+    {file = "c104-2.2.1-cp38-cp38-win_amd64.whl", hash = "sha256:4f3c3caa86ccee085ac4d8c4304e48dac5d37c14b627e1cbf6768c2266312d89"},
+    {file = "c104-2.2.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cd3f4412859c44aa39dc2fbbe02068dc0dd5203e4bd1ea7829197bc74f3346f4"},
+    {file = "c104-2.2.1-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:71e2eed666dde24d736a8dba5f261ef1966b58afe5b4ac8c80a9af83fd9c8d97"},
+    {file = "c104-2.2.1-cp39-cp39-win_amd64.whl", hash = "sha256:05483a6f6bc5dac007b3b2393af59c6579fdbe712f9ec240922c7bf8082ed88f"},
+    {file = "c104-2.2.1.tar.gz", hash = "sha256:d1b427f94cd0eeef376020a250ea0e7deb97ac33df5ee4908c7b20452cc8bb23"},
+]
+
+[[package]]
 name = "celery"
 version = "5.6.0"
 description = "Distributed Task Queue."
@@ -3515,4 +3550,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "20113b8f5eed4b70c39be24be7a2fb80f9a9289fe0f99a5883750b6f3a322933"
+content-hash = "df0692c97eb63f9c1e7546bf9392f9bf60d935d90b91e7fbb839ee047077815d"

@@ -117,6 +117,18 @@ class DevicePersona:
                         },
                     )
                 )
+            elif binding.protocol == "iec104":
+                from .servers.iec104_server import Iec104PersonaServer
+
+                projection = NamedPointProjection(self._model, binding.points)
+                self._servers.append(
+                    Iec104PersonaServer(
+                        bind_ip=self.transport.bind_ip,
+                        port=binding.port,
+                        common_address=binding.unit_id,
+                        projection=projection,
+                    )
+                )
             elif binding.protocol == "bacnet":
                 from .servers.bacnet_server import BacnetPersonaServer
 

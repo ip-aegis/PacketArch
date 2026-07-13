@@ -238,6 +238,17 @@ on loopback is flaky; wire+CV ride the deploy path). `bacpypes3` pinned `>=0.0.1
 protocols across three verticals: Modbus (Schneider PLC), OPC UA (Siemens PLC), BACnet
 (Siemens building automation).**
 
+**IEC 60870-5-104 added (c104, 4th protocol, DONE 2026-07-13):** `servers/iec104_server.py`
+(c104 controlled station; M_ME_NC_1 measurements pushed live, C_SC_NA_1 single-command
+write-back via event `on_receive`). IOA-addressed → reuses `NamedPointProjection`. Gate
+`test_iec104_breadth.py` PASSES with a FULL WIRE round-trip (real c104 client interrogates
++ reads drift + sends a command; c104 client uses an ephemeral port so no loopback clash).
+`c104` pinned `>=2.2.1,<2.3.0`. Two lib gotchas: c104 validates the `on_receive` callback
+signature against REAL annotations (so this module omits `from __future__ import
+annotations`); `interrogation(common_address=...)` not station. **FOUR protocols / four
+verticals: Modbus (process PLC), OPC UA (Siemens PLC), BACnet (building automation),
+IEC-104 (power/substation telecontrol).** All 4 gates green.
+
 - [ ] Follow-ups (non-blocking): frontend Mimic surface (P3 — the Studio canvas); a
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
       = backend image + pymodbus); persona-process liveness re-heal (container-up-but-

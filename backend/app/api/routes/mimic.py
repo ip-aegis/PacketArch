@@ -53,7 +53,7 @@ async def status(_user: CurrentUser) -> MimicStatusResponse:
 
 
 # Protocols Mimic can currently emulate (server side).
-_MIMIC_PROTOCOLS = frozenset({"modbus_tcp", "opc_ua", "bacnet_ip"})
+_MIMIC_PROTOCOLS = frozenset({"modbus_tcp", "opc_ua", "bacnet_ip", "iec104"})
 
 
 @router.get("/templates", response_model=TemplateListResponse)
