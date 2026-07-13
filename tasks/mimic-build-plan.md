@@ -161,13 +161,45 @@ binary). Backend stays unprivileged (memo + Local Lab pattern).
 - [x] pymodbus added to backend `pyproject.toml`.
 
 **Sub-phase 2 — deployment + real-CV verification (needs the lab):**
-- [ ] `NamespaceKernelStack` Transport: add netns primitive to host-agent
-      `hostops.py` (netns + veth/macvlan onto `pa-mon`, MAC/IP, `tcp_stack` sysctls
-      incl. TTL); host-agent `emulate` action; `run.py` launched inside the netns.
-- [ ] Deployment: backend route → host-agent spec (persona spec on shared volume);
-      agent `EMULATE_DEVICES` + `DeviceEmulatorPool`; bump agent `version.py`.
-- [ ] Verify remaining B.6 gate on real CV + `nmap modbus-discover` + wire TTL; demo.
+
+*Networking validated (2026-07-13):*
+- [x] **L2 capture path proven in isolation** — the SPAN only works because the
+      generator raw-injects on `pa-gen`; a real bound-socket persona is invisible
+      to the passive `pa-mon` sensor through a plain bridge (MAC learning) or
+      macvlan-bridge (sibling short-circuit). **Fix proven: hub-mode bridge**
+      (`stp off`, per-port `learning off flood on`) with `pa-gen` enslaved + persona
+      and poller in netns veth'd to it. Throwaway `tmm*` test captured the full
+      bidirectional TCP conversation on the far crossover end.
+- [x] **No CV token needed** — confirmed in code: token-mint is only in the
+      new-sensor path (and even that auto-mints from the stored deployment token).
+      Built a dedicated `Mimic-P0` lab (slug `07d51972`) via `build_lab()` — CV
+      sensor + agent token minted with zero operator input.
+- [x] **Live persona on the real lab SPAN** — Schneider M580 persona (`10.50.0.10`,
+      Schneider OUI MAC, TTL 64) + a Modbus poller (`10.50.0.20`), both in netns on
+      the hub-bridge over the lab's `pa-gen`. Poller pulls FC43 identity (Schneider /
+      M580 / V4.10) and live tank registers over real TCP. **29 Modbus frames/8s
+      captured on `pa-mon-07d51972`** — the CV sensor is seeing it.
+- [x] **CV Center classified the persona** (real CV at 10.10.20.115): component
+      `10.50.0.10` → icon `library/schneider.png`, **model-name `BMEP584040`**,
+      **fw-version `V4.10`**, Schneider-OUI MAC. CV read the Modbus FC43 identity and
+      fingerprinted the fake device as a genuine Modicon M580. **P0 GATE GREEN.**
+      (Note: CV shows this at the COMPONENT layer with `device:null` before promoting
+      to a device — `search_device_by_ip/mac` returns None initially; use
+      `get_components_raw`.)
+- [ ] `nmap modbus-discover` against the persona (confirmatory — FC43 already proven
+      on the wire + via CV DPI); wire TTL = 64 matches M580 template.
+
+*Codify (not yet started — validated recipe → permanent code):*
+- [ ] `NamespaceKernelStack` Transport: add netns + hub-bridge primitive to
+      host-agent `hostops.py` (learning-off/flood-on bridge on `gen_if`, per-persona
+      netns, MAC/IP, `tcp_stack` sysctls incl. TTL); persona launched inside the netns.
+- [ ] Deployment: backend route → host-agent persona spec (shared volume); host-agent
+      `emulate` action + reconcile; agent `EMULATE_DEVICES`/`DeviceEmulatorPool` OR
+      direct `app.mimic.run` container; bump agent `version.py`. Persona image =
+      a slim mimic-runtime image (NOT the DB-waiting backend entrypoint).
 - [ ] Review section + lessons; rebuild backend image (pymodbus baked in).
+
+*Manual validation harness (throwaway): scratchpad `live/attach.sh` + `teardown`.*
 
 *Commit checkpoint: sub-phase 1 committed on `mimic`.*
 
