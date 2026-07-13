@@ -189,15 +189,27 @@ binary). Backend stays unprivileged (memo + Local Lab pattern).
 - [ ] `nmap modbus-discover` against the persona (confirmatory — FC43 already proven
       on the wire + via CV DPI); wire TTL = 64 matches M580 template.
 
-*Codify (not yet started — validated recipe → permanent code):*
-- [ ] `NamespaceKernelStack` Transport: add netns + hub-bridge primitive to
-      host-agent `hostops.py` (learning-off/flood-on bridge on `gen_if`, per-persona
-      netns, MAC/IP, `tcp_stack` sysctls incl. TTL); persona launched inside the netns.
-- [ ] Deployment: backend route → host-agent persona spec (shared volume); host-agent
-      `emulate` action + reconcile; agent `EMULATE_DEVICES`/`DeviceEmulatorPool` OR
-      direct `app.mimic.run` container; bump agent `version.py`. Persona image =
-      a slim mimic-runtime image (NOT the DB-waiting backend entrypoint).
-- [ ] Review section + lessons; rebuild backend image (pymodbus baked in).
+*Codify (DONE 2026-07-13 — recipe → permanent code, verified via the codified path):*
+- [x] host-agent `hostops.py`: `ensure_persona_bridge` (hub-mode: stp off, per-port
+      learning-off/flood-on, `gen_if` enslaved), `ensure_persona` (per-persona netns
+      container, MAC/IP/TTL sysctls, wire-before-bind, optional poller command),
+      `delete_persona*`. Bridge name ≤15 chars (`mmbr-<slug>`).
+- [x] host-agent `watcher.py`: `emulate` / `teardown_mimic` actions +
+      `_provision_mimic`/`_deprovision_mimic`; reconcile routes by `kind` (personas
+      survive reboot too). `state.py` docstring documents the mimic spec.
+- [x] backend `host_agent_client.submit_emulate`/`submit_teardown_mimic`;
+      `app.mimic.deploy` (builds the mimic cell — IP/vendor-MAC/veth allocation from
+      the shared substrate, optional poller) ; `app.mimic.poll` (active poller / P1
+      client-loop seed).
+- [x] **Verified end-to-end via the codified path**: `deploy.deploy_cell(...)` →
+      file-queue → host-agent provisioned "2/2 personas" → persona answers M580 FC43 +
+      live registers → 29 frames/6s on `pa-mon` → **CV classified `10.60.0.10` as
+      Schneider BMEP584040 / V4.10**. No agent-version bump (host-agent, not the
+      traffic agent, was touched).
+- [ ] Follow-ups (non-blocking): REST route + `RequireMimicEnabled` + frontend
+      (thin plumbing); a **slim** mimic-runtime image baked in CI (P0 uses a committed
+      `mimic-persona:p0` = backend image + pymodbus); persona-process liveness
+      re-heal (container-up-but-process-died); rebuild backend image (pymodbus baked).
 
 *Manual validation harness (throwaway): scratchpad `live/attach.sh` + `teardown`.*
 

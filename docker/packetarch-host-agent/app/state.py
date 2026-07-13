@@ -38,11 +38,27 @@ Spec schema (specs/<slug>.json and the `lab` field of a build request):
       "insecure": true
     }
 
+Mimic cell spec (kind="mimic" — device personas attached to an EXISTING lab's
+SPAN; no sensor, no CV token). Stored in the same specs/ dir, own slug space:
+    {
+      "kind": "mimic",
+      "slug": "mm-ab12cd34",              # mimic cell id (distinct from lab slug)
+      "name": "Mimic Cell",
+      "lab_slug": "07d51972",             # existing lab whose SPAN to attach to
+      "gen_if": "pa-gen-07d51972",        # that lab's inject side (hub-bridged)
+      "devices": [                        # one entry per persona / poller
+        {"container": "pa-mm-...-plc", "mac": "00:00:54:..", "ip": "10.50.0.10/24",
+         "ttl": 64, "veth_br": "...", "veth_ns": "...", "spec": {<PersonaSpec>}}
+      ]
+    }
+
 Request schema (requests/<request_id>.json):
-    { "id": "<uuid>", "action": "build"|"teardown"|"reconcile", "lab": {<spec>} }
-    - build:     persist spec then provision
-    - teardown:  deprovision + delete spec/status/work for lab["slug"]
-    - reconcile: re-converge ALL specs (lab may be omitted)
+    { "id": "<uuid>", "action": <action>, "lab": {<spec>} }
+    - build:          persist lab spec then provision (kind=lab)
+    - teardown:       deprovision + delete spec/status/work for lab["slug"]
+    - emulate:        persist mimic spec then provision personas (kind=mimic)
+    - teardown_mimic: stop personas + hub-bridge, delete the mimic spec
+    - reconcile:      re-converge ALL specs (routes by kind; lab may be omitted)
 
 Status schema (status/<slug>.json):
     {

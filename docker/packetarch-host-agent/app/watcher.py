@@ -135,6 +135,50 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
         raise
 
 
+def _provision_mimic(spec: dict, *, fast: bool = False) -> None:
+    """Make the host match one Mimic cell spec (device personas on an existing
+    lab's SPAN). Idempotent — reconcile recreates any stopped persona. A Mimic
+    cell attaches to an already-provisioned lab; it never touches the sensor or
+    CV, so no CV token is involved."""
+    slug = spec["slug"]
+    name = spec.get("name", slug)
+    try:
+        hostops.ensure_persona_bridge(spec["gen_if"], spec["lab_slug"])
+        work = state.work_dir(slug)
+        devices = spec.get("devices", [])
+        for dev in devices:
+            hostops.ensure_persona(lab_slug=spec["lab_slug"], device=dev, spec_dir=work)
+        up = sum(hostops.container_running(d["container"]) for d in devices)
+        all_ok = up == len(devices) and devices
+        state.write_status(
+            slug, name=name, state="running" if all_ok else "degraded",
+            stage="done", percent=100 if all_ok else 95,
+            message=f"{up}/{len(devices)} personas up",
+            resources={"personas_up": up, "personas_total": len(devices)},
+        )
+        log.info("provisioned mimic cell %s: %d/%d personas", slug, up, len(devices))
+    except Exception as e:  # noqa: BLE001
+        log.exception("mimic provision failed for %s", slug)
+        state.write_status(slug, name=name, state="error", stage="error",
+                           percent=0, message=str(e))
+        raise
+
+
+def _deprovision_mimic(spec: dict) -> None:
+    """Tear a Mimic cell down: stop its personas, remove the hub-bridge (leaving
+    the underlying lab + sensor untouched), and delete its spec/status."""
+    slug = spec["slug"]
+    name = spec.get("name", slug)
+    state.write_status(slug, name=name, state="stopped", stage="teardown",
+                       percent=0, message="tearing down personas")
+    for dev in spec.get("devices", []):
+        hostops.delete_persona(dev)
+    hostops.delete_persona_bridge(spec["gen_if"], spec["lab_slug"])
+    state.delete_spec(slug)
+    state.delete_status(slug)
+    log.info("deprovisioned mimic cell %s", slug)
+
+
 def _deprovision(spec: dict, all_specs_after: list[dict]) -> None:
     """Tear a lab fully down (full delete = UX↔backend in sync): stop both
     compose projects, delete the veth, drop the registry trust if now unused,
@@ -171,6 +215,14 @@ def _handle_request(req: dict) -> None:
             state.write_spec(lab)            # persist desired state FIRST
             _provision(lab)
             state.write_result(rid, True, "lab provisioned", extra={"slug": lab.get("slug")})
+        elif action == "emulate":
+            state.write_spec(lab)            # persist desired state FIRST (kind=mimic)
+            _provision_mimic(lab)
+            state.write_result(rid, True, "mimic cell provisioned", extra={"slug": lab.get("slug")})
+        elif action == "teardown_mimic":
+            spec = state.read_spec(lab.get("slug", "")) or lab
+            _deprovision_mimic(spec)
+            state.write_result(rid, True, "mimic cell torn down", extra={"slug": spec.get("slug")})
         elif action == "teardown":
             spec = state.read_spec(lab.get("slug", "")) or lab
             # specs remaining AFTER this slug is removed (for registry-unused check)
@@ -191,11 +243,14 @@ def _reconcile_all() -> None:
     specs = state.list_specs()
     if not specs:
         return
-    log.info("reconciling %d lab(s)", len(specs))
+    log.info("reconciling %d spec(s)", len(specs))
     for spec in specs:
         try:
-            _provision(spec, fast=True)
-        except Exception:  # noqa: BLE001 — one bad lab shouldn't stop the rest
+            if spec.get("kind") == "mimic":
+                _provision_mimic(spec, fast=True)
+            else:
+                _provision(spec, fast=True)
+        except Exception:  # noqa: BLE001 — one bad spec shouldn't stop the rest
             continue
 
 

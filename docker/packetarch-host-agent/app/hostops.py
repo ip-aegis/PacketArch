@@ -486,3 +486,116 @@ def container_running(name: str) -> bool:
 
 def sensor_compose_path(work: Path) -> Path:
     return work / "sensor-compose.yml"
+
+
+# --- Mimic persona cell (interactive device emulation on a lab SPAN) ---------
+#
+# Attaches real bound-socket device personas to an EXISTING lab's SPAN so its CV
+# sensor classifies them. The passive `pa-mon` sensor only sees what EGRESSES
+# `pa-gen`; the generator gets there by raw-injecting frames, but a persona uses
+# a real socket. A plain bridge learns MACs and hides the reply direction from
+# the passive tap; macvlan-bridge short-circuits sibling traffic. The only wiring
+# a passive SPAN sees in full is a HUB-mode bridge (STP off, per-port learning
+# off / flood on) with `pa-gen` enslaved — proven on real CV (see the
+# local_sensor_lab / emulator-agent-design notes). Personas run one-per-container
+# in their own netns, veth'd into that bridge.
+
+MIMIC_IMAGE = os.environ.get("MIMIC_PERSONA_IMAGE", "packetarch-backend:latest")
+
+
+def _mimic_bridge(lab_slug: str) -> str:
+    # Linux IFNAMSIZ caps interface names at 15 chars: "mmbr-" + 8-char slug = 13.
+    return f"mmbr-{lab_slug}"
+
+
+def _hub_port(ifc: str) -> None:
+    """Make a bridge port behave like a hub port: never learn, always flood."""
+    _run(["ip", "link", "set", "dev", ifc, "type", "bridge_slave",
+          "learning", "off", "flood", "on"], check=False)
+
+
+def _nsx(pid: str, cmd: list[str]) -> None:
+    _run(["nsenter", "-t", pid, "-n", *cmd])
+
+
+def _container_pid(name: str) -> str:
+    return _run(["docker", "inspect", "-f", "{{.State.Pid}}", name]).stdout.strip()
+
+
+def ensure_persona_bridge(gen_if: str, lab_slug: str) -> None:
+    """Create (idempotent) the hub-mode bridge for a lab and enslave `gen_if`,
+    so real bidirectional persona traffic floods onto gen_if -> crossover ->
+    mon_if where the passthru CV sensor captures it."""
+    br = _mimic_bridge(lab_slug)
+    if not _link_exists(br):
+        log.info("creating mimic hub-bridge %s on %s", br, gen_if)
+        _run(["ip", "link", "add", br, "type", "bridge"])
+    _run(["ip", "link", "set", br, "type", "bridge", "stp_state", "0"], check=False)
+    _run(["ip", "link", "set", br, "up"])
+    _run(["ip", "link", "set", gen_if, "master", br])
+    _run(["ip", "link", "set", gen_if, "up"])
+    _hub_port(gen_if)
+
+
+def delete_persona_bridge(gen_if: str, lab_slug: str) -> None:
+    """Un-enslave gen_if and delete the hub-bridge. Only call when no persona
+    remains on this lab (P0 = one cell per lab). Idempotent."""
+    br = _mimic_bridge(lab_slug)
+    _run(["ip", "link", "set", gen_if, "nomaster"], check=False)
+    if _link_exists(br):
+        log.info("deleting mimic hub-bridge %s", br)
+        _run(["ip", "link", "del", br], check=False)
+
+
+def ensure_persona(*, lab_slug: str, device: dict, spec_dir: Path) -> None:
+    """Launch (idempotent) one device persona in its own netns on the lab's hub
+    bridge, then start the persona runtime inside it.
+
+    `device` keys: container, image (opt), mac, ip (cidr), ttl, veth_br, veth_ns,
+    spec (PersonaSpec dict — optional; a poller device has none), command (opt —
+    the process to exec; defaults to the persona runtime). No restart policy —
+    the reconcile loop recreates a stopped persona (reboot survival), matching the
+    lab-container model.
+
+    The container is started paused on `sleep` so the netns is wired (MAC/IP/TTL)
+    BEFORE the process binds/connects; then the command is exec'd.
+    """
+    name = device["container"]
+    if container_running(name):
+        return  # already up — reconcile no-op
+    image = device.get("image") or MIMIC_IMAGE
+    br = _mimic_bridge(lab_slug)
+    vb, vc = device["veth_br"], device["veth_ns"]
+
+    _run(["docker", "rm", "-f", name], check=False)
+    # Bypass any DB-waiting image entrypoint; hold on sleep so we can wire first.
+    _run(["docker", "run", "-d", "--user", "0", "--network", "none",
+          "--entrypoint", "sleep", "--name", name, image, "infinity"], timeout=180)
+    pid = _container_pid(name)
+
+    _run(["ip", "link", "del", vb], check=False)
+    _run(["ip", "link", "add", vb, "type", "veth", "peer", "name", vc])
+    _run(["ip", "link", "set", vb, "master", br])
+    _run(["ip", "link", "set", vb, "up"])
+    _hub_port(vb)
+    _run(["ip", "link", "set", vc, "netns", pid])
+    _nsx(pid, ["ip", "link", "set", vc, "address", device["mac"]])
+    _nsx(pid, ["ip", "addr", "add", device["ip"], "dev", vc])
+    _nsx(pid, ["ip", "link", "set", vc, "up"])
+    _nsx(pid, ["ip", "link", "set", "lo", "up"])
+    _nsx(pid, ["sysctl", "-qw", f"net.ipv4.ip_default_ttl={int(device.get('ttl', 64))}"])
+
+    if device.get("spec") is not None:
+        spec_file = spec_dir / f"{name}.json"
+        spec_file.write_text(json.dumps(device["spec"]))
+        _run(["docker", "cp", str(spec_file), f"{name}:/persona.json"])
+    cmd = device.get("command") or ["python", "-m", "app.mimic.run", "/persona.json"]
+    _run(["docker", "exec", "-d", name, *cmd])
+    log.info("persona %s up: ip=%s mac=%s ttl=%s cmd=%s",
+             name, device["ip"], device["mac"], device.get("ttl", 64), cmd[-1])
+
+
+def delete_persona(device: dict) -> None:
+    """Remove a persona container and its bridge-side veth. Idempotent."""
+    _run(["docker", "rm", "-f", device["container"]], check=False)
+    _run(["ip", "link", "del", device["veth_br"]], check=False)
