@@ -260,6 +260,22 @@ extended for `'mimic'`, `/mimic` route + nav entry, all gated by `mimicEnabled`
 (fail-closed). TypeScript: my files clean (project-wide `tsc -b` has pre-existing
 unrelated errors). Full per-device visual authoring remains the Studio canvas (P3).
 
+## Realism — closed-loop process control (DONE 2026-07-13)
+
+Static/random-walk register values are a documented fingerprinting tell (SOTA
+survey's unfilled frontier). Mimic's flagship values are now CONTROLLED — held at a
+setpoint, rejecting disturbances, like a real process.
+- `process_library/control.py`: reusable PI-control framework in pure `process_sim`
+  Equation primitives (integral ODE + algebraic output, anti-windup via the integral
+  variable clamp) + clock/diurnal helpers for periodic disturbances. No substrate change.
+- `tank_level_control` (PI level, writable setpoint) + `heat_exchanger` (PI temp) —
+  two controlled models across domains; framework generalizes.
+- "Controlled PLC — Level Setpoint" preset (write the setpoint register → process
+  tracks it — realistic operator interaction, not a raw pump toggle).
+- Gate `test_process_control.py` PASSES end-to-end over Modbus: setpoint tracking
+  (→70%, →40%) + disturbance rejection (tight band across the demand cycle). 5/5 gates green.
+- Gotcha: `process_sim.set_value` doesn't set the target — use `set_target` for inputs.
+
 - [ ] Follow-ups (non-blocking): the Mimic Studio canvas (P3 — visual per-device
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
       = backend image + pymodbus); persona-process liveness re-heal (container-up-but-
