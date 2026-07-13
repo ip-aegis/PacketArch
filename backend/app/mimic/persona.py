@@ -26,7 +26,9 @@ from .client import modbus_client_loop
 from .interfaces import PersonaSpec, ProtocolServer, Transport
 from .process_library import build_process_model
 from .projections.modbus_projection import ModbusProjection
+from .projections.opcua_projection import OpcUaProjection
 from .servers.modbus_server import ModbusPersonaServer
+from .servers.opcua_server import OpcUaPersonaServer
 from .transport import NamespaceKernelStack
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,8 @@ class DevicePersona:
         self._firmware_version: str | None = (
             fingerprint.get("firmware_version") or spec.firmware_version
         )
+        self._vendor: str = fingerprint.get("vendor") or ""
+        self._model_name: str = fingerprint.get("model") or fingerprint.get("vendor_family") or ""
         # The applicator is the device "personality" (TTL/window, response
         # timing, error injection, deterministic serial). P0 uses it for the
         # stack fingerprint the netns transport will apply; later phases route
@@ -95,9 +99,27 @@ class DevicePersona:
                         firmware_version=self._firmware_version,
                     )
                 )
+            elif binding.protocol == "opcua":
+                projection = OpcUaProjection(self._model, binding.points)
+                opcua_identity = self._fingerprint.get("opc_ua_identity") or {}
+                self._servers.append(
+                    OpcUaPersonaServer(
+                        bind_ip=self.transport.bind_ip,
+                        port=binding.port,
+                        projection=projection,
+                        identity={
+                            "vendor": self._vendor,
+                            "model_name": self._model_name or self.spec.name,
+                            "firmware": self._firmware_version or "",
+                            "device_name": self.spec.name,
+                            "application_uri": opcua_identity.get("application_uri"),
+                            "product_uri": opcua_identity.get("product_uri"),
+                        },
+                    )
+                )
             else:
                 raise ValueError(
-                    f"protocol {binding.protocol!r} not yet supported by Mimic (P0 = modbus)"
+                    f"protocol {binding.protocol!r} not yet supported by Mimic"
                 )
         self._built = True
 

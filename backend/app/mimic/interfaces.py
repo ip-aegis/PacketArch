@@ -42,6 +42,7 @@ class PointBinding:
     address: int
     source: str = "variable"  # "variable" | "static" | "counter"
     variable: str | None = None
+    name: str | None = None  # browse-name for named-node protocols (OPC UA); Modbus ignores
     scale: float = 1.0
     offset: float = 0.0
     static_value: int = 0

@@ -72,3 +72,17 @@ DISAGREE for reassigned prefixes — `00:03:74` is "Schneider Electric" in our b
 "Control Microsystems" (the pre-acquisition registrant) in this CV. So don't trust any
 registry-matched prefix blindly; prefer the vendor's canonical PRIMARY OUI (templates
 list it first — here `00:00:54`), which is stable across data versions.
+
+## Poll-based vs event-based write-back differ across protocols (2026-07-13, Mimic OPC UA)
+
+Adding OPC UA (asyncua) as the 2nd protocol: Modbus write-back fires on the
+server's setValues EVENT (only when a client writes). OPC UA nodes are POLLED by a
+sync loop, so applying the actuator node's value every cycle continuously forced
+the model input to the resting-state mapping (pump-off → inflow 0), draining the
+tank before any client touched it. Fix: apply write-back only on CHANGE (track
+last-applied per node), which matches Modbus semantics — at rest the model keeps
+its nominal input. **Rule:** when a projection is poll-based, gate write-back on
+value change, not on every poll, or the resting node value overrides the model.
+
+Also: asyncua 2.0 `set_build_info()` is a no-op — write the composite BuildInfo
+node (ns=0;i=2260) directly after `start()` so clients/CV read the real manufacturer.

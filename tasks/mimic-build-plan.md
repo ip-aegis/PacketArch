@@ -212,6 +212,21 @@ binary). Backend stays unprivileged (memo + Local Lab pattern).
       `deploy.list_cells/cell_status`. Verified: routes mount, read handlers return the
       live cell, gate 503s when off, HTTP input → PersonaSpec → cell spec (directory +
       OUI alignment) all correct.
+## Protocol breadth — OPC UA (first additional protocol, DONE 2026-07-13)
+
+Proved the runtime generalizes past Modbus: OPC UA (asyncua, asyncio-native) behind
+the SAME `Projection`/`ProtocolServer` seams + SAME process model.
+- `projections/opcua_projection.py` (named nodes ↔ model), `servers/opcua_server.py`
+  (asyncua Server, BuildInfo identity, sensor nodes pushed live, writable actuator
+  nodes fed back), `PointBinding.name` for named nodes, persona `opcua` wiring.
+- Gate (`tests/mimic/test_opcua_breadth.py`) PASSES on a Siemens S7-1500 OPC UA
+  persona: server identity (manufacturer Siemens via BuildInfo node), live node
+  drift, and pump-node write-back (fill/drain). Both mimic gates green (Modbus + OPC UA).
+- `asyncua` pinned `>=2.0.1,<2.1.0`. Two lessons captured (poll-based write-back must
+  gate on change; asyncua `set_build_info` is a no-op — write node i=2260).
+- Remaining protocols (ENIP/S7/BACnet/104/SNMP) slot in the same way; ENIP via cpppo
+  is thread-based (more friction than asyncua).
+
 - [ ] Follow-ups (non-blocking): frontend Mimic surface (P3 — the Studio canvas); a
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
       = backend image + pymodbus); persona-process liveness re-heal (container-up-but-
