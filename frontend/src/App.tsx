@@ -25,6 +25,7 @@ import ArchitectureReferencePage from './pages/ArchitectureReferencePage';
 import AttackPlaybookDetailPage from './pages/AttackPlaybookDetailPage';
 import AgentsHubPage from './pages/AgentsHubPage';
 import LiveTrafficPage from './pages/LiveTrafficPage';
+import MimicPage from './pages/MimicPage';
 
 // Preserve the playbook id when redirecting the old attack-library detail route.
 function LegacyAttackDetailRedirect() {
@@ -89,6 +90,14 @@ function App() {
           element={
             <FeatureGate feature="liveTraffic" fallback="/scenarios">
               <LiveTrafficPage />
+            </FeatureGate>
+          }
+        />
+        <Route
+          path="mimic"
+          element={
+            <FeatureGate feature="mimic" fallback="/">
+              <MimicPage />
             </FeatureGate>
           }
         />

@@ -15,7 +15,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useFeatures } from '../hooks/useFeatures';
 
-type FeatureName = 'ai' | 'liveTraffic';
+type FeatureName = 'ai' | 'liveTraffic' | 'mimic';
 
 interface FeatureGateProps {
   feature: FeatureName;
@@ -28,12 +28,18 @@ const FeatureGate: React.FC<FeatureGateProps> = ({
   fallback = '/',
   children,
 }) => {
-  const { aiEnabled, liveTrafficEnabled, loaded } = useFeatures();
+  const { aiEnabled, liveTrafficEnabled, mimicEnabled, loaded } = useFeatures();
 
   if (!loaded) return <>{children}</>;
 
   const enabled =
-    feature === 'ai' ? aiEnabled : feature === 'liveTraffic' ? liveTrafficEnabled : true;
+    feature === 'ai'
+      ? aiEnabled
+      : feature === 'liveTraffic'
+        ? liveTrafficEnabled
+        : feature === 'mimic'
+          ? mimicEnabled
+          : true;
 
   if (!enabled) {
     return <Navigate to={fallback} replace />;

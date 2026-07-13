@@ -19,7 +19,7 @@ from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser
 from app.core.exceptions import NotFoundError, ValidationError
-from app.mimic import deploy
+from app.mimic import deploy, presets
 from app.mimic.interfaces import PersonaSpec
 from app.services import host_agent_client
 from app.services.device_templates import get_all_templates
@@ -31,6 +31,7 @@ from app.schemas.mimic import (
     DeployCellRequest,
     DeployCellResponse,
     MimicStatusResponse,
+    PresetListResponse,
     ProcessModelListResponse,
     TeardownResponse,
     TemplateItem,
@@ -74,6 +75,12 @@ async def list_templates(_user: CurrentUser) -> TemplateListResponse:
 async def list_process_models(_user: CurrentUser) -> ProcessModelListResponse:
     """Process models available to back a persona's registers."""
     return ProcessModelListResponse(models=available_models())
+
+
+@router.get("/presets", response_model=PresetListResponse)
+async def list_presets(_user: CurrentUser) -> PresetListResponse:
+    """One-click deployable device presets (full authoring is the Studio canvas)."""
+    return PresetListResponse(items=presets.list_presets())
 
 
 @router.get("/cells", response_model=CellListResponse)

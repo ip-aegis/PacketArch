@@ -101,3 +101,14 @@ class TemplateListResponse(BaseModel):
 
 class ProcessModelListResponse(BaseModel):
     models: list[str] = Field(default_factory=list)
+
+
+class PresetItem(BaseModel):
+    key: str
+    name: str
+    description: str
+    personas: list[PersonaInput] = Field(default_factory=list)
+
+
+class PresetListResponse(BaseModel):
+    items: list[PresetItem] = Field(default_factory=list)

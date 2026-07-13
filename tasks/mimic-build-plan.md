@@ -249,7 +249,18 @@ annotations`); `interrogation(common_address=...)` not station. **FOUR protocols
 verticals: Modbus (process PLC), OPC UA (Siemens PLC), BACnet (building automation),
 IEC-104 (power/substation telecontrol).** All 4 gates green.
 
-- [ ] Follow-ups (non-blocking): frontend Mimic surface (P3 — the Studio canvas); a
+## Frontend surface (operator UI, DONE 2026-07-13)
+
+A real `/mimic` page (not the full Studio canvas yet): list/monitor/teardown cells +
+one-click preset deploy. Backend `app/mimic/presets.py` + `GET /mimic/presets`
+(5 presets: Modbus/OPC UA/BACnet/IEC-104 PLCs + an HMI↔PLC pair). Frontend
+`api/mimic.ts`, `stores/mimicStore.ts`, `pages/MimicPage.tsx` (status banner, cells
+table with state tags + teardown, deploy modal: pick lab + preset), `FeatureGate`
+extended for `'mimic'`, `/mimic` route + nav entry, all gated by `mimicEnabled`
+(fail-closed). TypeScript: my files clean (project-wide `tsc -b` has pre-existing
+unrelated errors). Full per-device visual authoring remains the Studio canvas (P3).
+
+- [ ] Follow-ups (non-blocking): the Mimic Studio canvas (P3 — visual per-device
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
       = backend image + pymodbus); persona-process liveness re-heal (container-up-but-
       process-died); rebuild backend image (pymodbus baked).
