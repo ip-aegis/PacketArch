@@ -19,7 +19,7 @@ from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser
 from app.core.exceptions import NotFoundError, ValidationError
-from app.mimic import deploy, presets
+from app.mimic import deploy, presets, scaffold
 from app.mimic.interfaces import PersonaSpec
 from app.services import host_agent_client
 from app.services.device_templates import get_all_templates
@@ -30,6 +30,7 @@ from app.schemas.mimic import (
     CellListResponse,
     DeployCellRequest,
     DeployCellResponse,
+    AuthorCellRequest,
     MimicStatusResponse,
     PresetListResponse,
     ProcessModelListResponse,
@@ -109,6 +110,21 @@ async def deploy_cell(req: DeployCellRequest, _admin: AdminUser) -> DeployCellRe
         gen_if=gen_if_for(req.lab_slug),
         cell_name=req.cell_name,
         personas=personas,
+    )
+    return DeployCellResponse(**result)
+
+
+@router.post("/cells/author", response_model=DeployCellResponse)
+async def author_cell(req: AuthorCellRequest, _admin: AdminUser) -> DeployCellResponse:
+    """Deploy a cell authored in the Studio canvas (device graph → scaffolded personas)."""
+    if not host_agent_client.is_available():
+        raise ValidationError("Host-agent not available — Mimic needs the on-box host-agent.")
+    result = scaffold.author_cell(
+        lab_slug=req.lab_slug,
+        gen_if=gen_if_for(req.lab_slug),
+        cell_name=req.cell_name,
+        devices=[d.model_dump() for d in req.devices],
+        relationships=[r.model_dump() for r in req.relationships],
     )
     return DeployCellResponse(**result)
 

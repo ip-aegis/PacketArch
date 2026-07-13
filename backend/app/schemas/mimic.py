@@ -70,6 +70,26 @@ class DeployCellResponse(BaseModel):
     containers: list[str]
 
 
+class AuthorDeviceInput(BaseModel):
+    key: str
+    name: str
+    template_id: str
+    protocol: str | None = None  # server protocol; None = client-only device
+    process_model_id: str | None = None
+
+
+class AuthorRelationship(BaseModel):
+    source: str  # device key that polls
+    target: str  # device key being polled
+
+
+class AuthorCellRequest(BaseModel):
+    lab_slug: str = Field(..., description="Existing Local Lab whose SPAN to attach to")
+    cell_name: str = "Mimic Cell"
+    devices: list[AuthorDeviceInput] = Field(..., min_length=1)
+    relationships: list[AuthorRelationship] = Field(default_factory=list)
+
+
 class CellItem(BaseModel):
     cell_slug: str
     name: str

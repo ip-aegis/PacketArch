@@ -63,6 +63,34 @@ export interface DeployCellResponse {
   containers: string[];
 }
 
+export interface MimicTemplate {
+  id: string;
+  vendor: string;
+  model_name: string;
+  device_type: string;
+  protocols: string[];
+}
+
+export interface AuthorDevice {
+  key: string;
+  name: string;
+  template_id: string;
+  protocol: string | null;
+  process_model_id: string | null;
+}
+
+export interface AuthorRelationship {
+  source: string;
+  target: string;
+}
+
+export interface AuthorCellRequest {
+  lab_slug: string;
+  cell_name: string;
+  devices: AuthorDevice[];
+  relationships: AuthorRelationship[];
+}
+
 export const mimicApi = {
   getStatus: async (): Promise<MimicStatus> => {
     const response = await apiClient.get<MimicStatus>('/api/v1/mimic/status');
@@ -76,8 +104,20 @@ export const mimicApi = {
     const response = await apiClient.get<{ items: MimicPreset[] }>('/api/v1/mimic/presets');
     return response.data;
   },
+  getTemplates: async (): Promise<{ items: MimicTemplate[] }> => {
+    const response = await apiClient.get<{ items: MimicTemplate[] }>('/api/v1/mimic/templates');
+    return response.data;
+  },
+  getProcessModels: async (): Promise<{ models: string[] }> => {
+    const response = await apiClient.get<{ models: string[] }>('/api/v1/mimic/process-models');
+    return response.data;
+  },
   deploy: async (request: DeployCellRequest): Promise<DeployCellResponse> => {
     const response = await apiClient.post<DeployCellResponse>('/api/v1/mimic/cells', request);
+    return response.data;
+  },
+  author: async (request: AuthorCellRequest): Promise<DeployCellResponse> => {
+    const response = await apiClient.post<DeployCellResponse>('/api/v1/mimic/cells/author', request);
     return response.data;
   },
   teardown: async (cellSlug: string): Promise<{ request_id: string }> => {

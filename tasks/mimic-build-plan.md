@@ -276,7 +276,25 @@ setpoint, rejecting disturbances, like a real process.
   (→70%, →40%) + disturbance rejection (tight band across the demand cycle). 5/5 gates green.
 - Gotcha: `process_sim.set_value` doesn't set the target — use `set_target` for inputs.
 
-- [ ] Follow-ups (non-blocking): the Mimic Studio canvas (P3 — visual per-device
+## Mimic Studio canvas (P3, DONE 2026-07-13)
+
+Visual authoring: a React Flow (@xyflow/react 12.6) canvas where nodes are device
+personas (template + server protocol + process model) and edges are poll
+relationships (HMI→PLC). Deploy sends the graph to the backend, which scaffolds
+each device's data model and resolves edges into client bindings.
+- Backend: `app/mimic/scaffold.py` (`scaffold_persona` — default point map from a
+  process model per protocol: read points for public vars + a writable setpoint on
+  Modbus/IEC-104; `author_cell` — graph → personas → deploy) + `POST /mimic/cells/author`.
+  Verified: controlled PLC scaffolds 5 points (setpoint writable), HMI edge resolves
+  to the PLC IP via the device directory, OPC UA scaffolds named nodes.
+- Frontend: `pages/MimicStudioPage.tsx` (ReactFlow canvas — custom PersonaNode with
+  vendor/protocol badges, add-device palette, connect edges, lab+cell-name deploy
+  toolbar), `api/mimic.ts`/`mimicStore.ts` author+templates+process-models, `/mimic/studio`
+  route, "Open Studio" link from the Mimic page. My files TypeScript-clean (RF12
+  `Node<Data,'persona'>`/`NodeProps` typing). Full point-level editing (data-model /
+  behavior / process-tuning panels) is the next Studio iteration.
+
+- [ ] Follow-ups (non-blocking): deeper Studio (per-point data-model editor, behavior/
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
       = backend image + pymodbus); persona-process liveness re-heal (container-up-but-
       process-died); rebuild backend image (pymodbus baked).

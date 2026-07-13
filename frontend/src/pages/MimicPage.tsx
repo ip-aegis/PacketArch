@@ -4,8 +4,9 @@
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App, Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
-import { ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlusOutlined, DeleteOutlined, ApartmentOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
@@ -45,6 +46,7 @@ function uniquify(personas: MimicPersona[]): MimicPersona[] {
 
 const MimicPage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const navigate = useNavigate();
   const {
     status, cells, presets, isLoading, isDeploying, error,
     fetchStatus, fetchCells, fetchPresets, deploy, teardown, clearError,
@@ -147,6 +149,9 @@ const MimicPage: React.FC = () => {
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={fetchCells}>Refresh</Button>
+            <Button icon={<ApartmentOutlined />} onClick={() => navigate('/mimic/studio')}>
+              Open Studio
+            </Button>
             <Button
               type="primary" icon={<PlusOutlined />}
               onClick={() => setModalOpen(true)}

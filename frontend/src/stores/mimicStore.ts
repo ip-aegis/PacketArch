@@ -9,8 +9,10 @@ import {
   type MimicStatus,
   type MimicCell,
   type MimicPreset,
+  type MimicTemplate,
   type DeployCellRequest,
   type DeployCellResponse,
+  type AuthorCellRequest,
 } from '../api/mimic';
 import { extractErrorMessage } from '../utils/errorUtils';
 
@@ -18,13 +20,18 @@ interface MimicState {
   status: MimicStatus | null;
   cells: MimicCell[];
   presets: MimicPreset[];
+  templates: MimicTemplate[];
+  processModels: string[];
   isLoading: boolean;
   isDeploying: boolean;
   error: string | null;
   fetchStatus: () => Promise<void>;
   fetchCells: () => Promise<void>;
   fetchPresets: () => Promise<void>;
+  fetchTemplates: () => Promise<void>;
+  fetchProcessModels: () => Promise<void>;
   deploy: (request: DeployCellRequest) => Promise<DeployCellResponse | null>;
+  author: (request: AuthorCellRequest) => Promise<DeployCellResponse | null>;
   teardown: (cellSlug: string) => Promise<boolean>;
   clearError: () => void;
 }
@@ -33,6 +40,8 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
   status: null,
   cells: [],
   presets: [],
+  templates: [],
+  processModels: [],
   isLoading: false,
   isDeploying: false,
   error: null,
@@ -65,6 +74,24 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
     }
   },
 
+  fetchTemplates: async () => {
+    try {
+      const response = await mimicApi.getTemplates();
+      set({ templates: response.items });
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Failed to fetch Mimic templates') });
+    }
+  },
+
+  fetchProcessModels: async () => {
+    try {
+      const response = await mimicApi.getProcessModels();
+      set({ processModels: response.models });
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Failed to fetch process models') });
+    }
+  },
+
   deploy: async (request: DeployCellRequest) => {
     set({ isDeploying: true, error: null });
     try {
@@ -74,6 +101,19 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
       return result;
     } catch (error: unknown) {
       set({ error: extractErrorMessage(error, 'Mimic deploy failed'), isDeploying: false });
+      return null;
+    }
+  },
+
+  author: async (request: AuthorCellRequest) => {
+    set({ isDeploying: true, error: null });
+    try {
+      const result = await mimicApi.author(request);
+      set({ isDeploying: false });
+      get().fetchCells();
+      return result;
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Mimic author failed'), isDeploying: false });
       return null;
     }
   },
