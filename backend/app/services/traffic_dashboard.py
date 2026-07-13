@@ -270,6 +270,7 @@ class TrafficDashboardService:
                     "active_deployments": agent_active,
                     "total_packets_per_second": round(agent_pps, 1),
                     "total_bytes_per_second": round(agent_bps, 1),
+                    "kind": conn.get("kind", "manual"),
                 })
 
         return {

@@ -82,6 +82,17 @@ export interface DashboardAgent {
   active_deployments: number;
   total_packets_per_second: number;
   total_bytes_per_second: number;
+  /** 'local' = local sensor lab on the PacketArch host; 'cml'/'manual' = remote. */
+  kind?: 'local' | 'cml' | 'manual';
+}
+
+/** Host-wide CPU/RAM — one gauge shared by every local agent. */
+export interface DashboardHostStats {
+  cpu_percent: number;
+  memory_percent: number;
+  memory_used_gb: number;
+  memory_total_gb: number;
+  cores: number;
 }
 
 export interface DashboardAggregate {
@@ -115,6 +126,7 @@ export interface LiveDashboardData {
   agents: DashboardAgent[];
   deployments: DashboardDeployment[];
   health?: DashboardHealthData;
+  host?: DashboardHostStats | null;
 }
 
 const DASHBOARD_PREFIX = '/api/v1/dashboard';

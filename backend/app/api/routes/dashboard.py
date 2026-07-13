@@ -31,21 +31,29 @@ async def get_live_dashboard() -> dict[str, Any]:
     agent_connections = []
 
     if connections:
-        # Fetch agent names from DB
+        # Fetch agent names + kind linkage from DB. Kind drives the dashboard's
+        # local-vs-remote split: LOCAL agents (local sensor labs) all run on
+        # the PacketArch host and share its CPU/RAM, so the UI shows one host
+        # gauge for them; CML/manual agents run elsewhere and keep their own.
         agent_ids = [conn.agent_id for conn in connections]
         agent_names: dict[str, str] = {}
+        agent_kinds: dict[str, str] = {}
 
         try:
             from sqlalchemy import select
 
             async with async_session_maker() as db:
                 result = await db.execute(
-                    select(TrafficAgent.id, TrafficAgent.name).where(
-                        TrafficAgent.id.in_(agent_ids)
-                    )
+                    select(
+                        TrafficAgent.id, TrafficAgent.name,
+                        TrafficAgent.local_lab_id, TrafficAgent.cml_lab_id,
+                    ).where(TrafficAgent.id.in_(agent_ids))
                 )
                 for row in result.all():
                     agent_names[str(row[0])] = row[1]
+                    agent_kinds[str(row[0])] = (
+                        "local" if row[2] else "cml" if row[3] else "manual"
+                    )
         except Exception as e:
             logger.error(f"Failed to fetch agent names: {e}")
 
@@ -58,11 +66,18 @@ async def get_live_dashboard() -> dict[str, Any]:
                 "memory_percent": conn.memory_percent,
                 "is_online": True,
                 "running_scenarios": list(conn.running_scenarios),
+                "kind": agent_kinds.get(str(conn.agent_id), "manual"),
             })
 
     snapshot = traffic_dashboard.get_dashboard_snapshot(
         agent_connections=agent_connections,
     )
+
+    # Host-level CPU/RAM for the dashboard's local-agents section (all local
+    # agents share the PacketArch host, so one gauge covers them all).
+    from app.services.host_stats import get_host_stats
+
+    snapshot["host"] = get_host_stats()
 
     # Enrich deployments with scenario names + mode flags from DB. The mode
     # flags drive the badges shown on each Live Traffic deployment card.

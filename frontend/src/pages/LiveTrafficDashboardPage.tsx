@@ -93,6 +93,7 @@ const LiveTrafficDashboardPage: React.FC = () => {
                 <AgentStatusCards
                   agents={data.agents}
                   healthStatuses={data.health?.agent_statuses}
+                  host={data.host}
                 />
               </div>
             )}
