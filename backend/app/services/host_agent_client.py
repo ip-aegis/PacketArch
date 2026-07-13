@@ -115,6 +115,18 @@ def submit_reconcile() -> str:
     return rid
 
 
+def list_specs() -> list[dict]:
+    """All desired specs the host-agent is reconciling (labs and mimic cells)."""
+    if not SPECS_DIR.exists():
+        return []
+    out: list[dict] = []
+    for p in sorted(SPECS_DIR.glob("*.json")):
+        s = _read_json(p)
+        if s:
+            out.append(s)
+    return out
+
+
 def read_status(slug: str) -> dict | None:
     """Live per-lab status the host-agent writes (state/stage/percent/resources)."""
     return _read_json(STATUS_DIR / f"{slug}.json")

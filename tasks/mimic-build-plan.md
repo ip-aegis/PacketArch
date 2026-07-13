@@ -206,10 +206,16 @@ binary). Backend stays unprivileged (memo + Local Lab pattern).
       live registers → 29 frames/6s on `pa-mon` → **CV classified `10.60.0.10` as
       Schneider BMEP584040 / V4.10**. No agent-version bump (host-agent, not the
       traffic agent, was touched).
-- [ ] Follow-ups (non-blocking): REST route + `RequireMimicEnabled` + frontend
-      (thin plumbing); a **slim** mimic-runtime image baked in CI (P0 uses a committed
-      `mimic-persona:p0` = backend image + pymodbus); persona-process liveness
-      re-heal (container-up-but-process-died); rebuild backend image (pymodbus baked).
+- [x] REST API (2026-07-13): `RequireMimicEnabled` dep (503 while off) + `/api/v1/mimic/*`
+      router (status, templates, process-models, cells CRUD) gated MIMIC_ENABLED, admin
+      on mutations. `schemas/mimic.py`, `routes/mimic.py`, `host_agent_client.list_specs`,
+      `deploy.list_cells/cell_status`. Verified: routes mount, read handlers return the
+      live cell, gate 503s when off, HTTP input → PersonaSpec → cell spec (directory +
+      OUI alignment) all correct.
+- [ ] Follow-ups (non-blocking): frontend Mimic surface (P3 — the Studio canvas); a
+      **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`
+      = backend image + pymodbus); persona-process liveness re-heal (container-up-but-
+      process-died); rebuild backend image (pymodbus baked).
 
 *Manual validation harness (throwaway): scratchpad `live/attach.sh` + `teardown`.*
 

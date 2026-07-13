@@ -151,3 +151,26 @@ def deploy_cell(
 def teardown_cell(cell_slug: str) -> str:
     """Tear down a Mimic cell (personas + hub-bridge; lab untouched)."""
     return host_agent_client.submit_teardown_mimic(cell_slug)
+
+
+def list_cells() -> list[dict]:
+    """All Mimic cells the host-agent is reconciling, with live status."""
+    cells = []
+    for spec in host_agent_client.list_specs():
+        if spec.get("kind") != "mimic":
+            continue
+        status = host_agent_client.read_status(spec["slug"]) or {}
+        cells.append({
+            "cell_slug": spec["slug"],
+            "name": spec.get("name", spec["slug"]),
+            "lab_slug": spec.get("lab_slug"),
+            "devices": [d["container"] for d in spec.get("devices", [])],
+            "state": status.get("state", "unknown"),
+            "message": status.get("message", ""),
+        })
+    return cells
+
+
+def cell_status(cell_slug: str) -> dict | None:
+    """Live status of one Mimic cell (None if unknown)."""
+    return host_agent_client.read_status(cell_slug)
