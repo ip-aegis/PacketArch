@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.18.0,
+      Feature releases and patches from v1.10.0 through v1.18.1,
       covering June 17 &ndash; July 13, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">12</div>
+        <div class="cover-stat-value">13</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.18.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.18.1</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -651,6 +651,11 @@ code {
         <tr>
           <td>v1.18.0</td>
           <td>Multi-sensor topology deployments, lab scale fixes, live dashboard rework</td>
+          <td>Jul 13, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.18.1</td>
+          <td>Multi-sensor topology enabled by default</td>
           <td>Jul 13, 2026</td>
         </tr>
       </tbody>
@@ -1318,6 +1323,38 @@ code {
             v2.5.0) and the EtherType-preserving reframing fix (v2.6.0). Agent v2.5.0+ is required
             for multi-sensor topology deployments; local-lab agents update automatically on
             reconcile.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.18.1
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.18.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.18.1</div>
+        <div class="release-date">2026-07-13</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Multi-Sensor Topology</div>
+        <div class="release-headline">Multi-sensor topology enabled by default</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fix</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Feature flag flipped on.</strong> v1.18.0 shipped multi-sensor topology
+            deployments still gated behind <code>MULTI_SENSOR_TOPOLOGY_ENABLED</code> defaulting to
+            <em>false</em> (a leftover from its experimental phase), so upgraded installs didn't
+            show the Multi-sensor deploy option. The flag now defaults to <em>true</em>; set
+            <code>MULTI_SENSOR_TOPOLOGY_ENABLED=false</code> in <code>.env</code> to hide the
+            feature. On v1.18.0, add <code>MULTI_SENSOR_TOPOLOGY_ENABLED=true</code> to
+            <code>.env</code> and restart the backend as a workaround.
           </li>
         </ul>
       </div>

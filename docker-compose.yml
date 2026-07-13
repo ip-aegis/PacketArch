@@ -55,7 +55,7 @@ services:
       FIRST_USER_PASSWORD: ${ADMIN_PASSWORD:-}
       DEBUG: ${DEBUG:-false}
       # Multi-sensor topology ("Advanced Deployment") — experimental, default off.
-      MULTI_SENSOR_TOPOLOGY_ENABLED: ${MULTI_SENSOR_TOPOLOGY_ENABLED:-false}
+      MULTI_SENSOR_TOPOLOGY_ENABLED: ${MULTI_SENSOR_TOPOLOGY_ENABLED:-true}
       # Entrypoint applies alembic deltas before uvicorn (create_all stays the
       # baseline). ONLY set on backend (celery_worker must not migrate).
       RUN_MIGRATIONS: "true"
