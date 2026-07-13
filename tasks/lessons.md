@@ -32,3 +32,18 @@ cutting a release, a green master CI is a pre-tag gate, same as alembic heads.
 will silently ship default-off to every other install. Before tagging a
 release whose headline is flag-gated, grep `.env` for overrides and confirm
 the config.py default matches what the release notes promise.
+
+## Pin native-protocol libs to the version you VALIDATED, not the range you typed (2026-07-13)
+
+Adding `pymodbus = "^3.6.0"` for Mimic P0, I pip-installed 3.8.6 into the
+container to introspect and validate the persona server. But `poetry lock`
+resolved the caret range to **3.14.0** — and pymodbus 3.9+ made breaking datastore
+changes (`ModbusSlaveContext`→`ModbusDeviceContext`, the custom-datablock
+`getValues/setValues/validate` override pattern removed). The gate would have
+passed in my probe env and then broken in the built image.
+
+**Rule:** when you validate against a specific version of a native/protocol lib,
+pin the constraint to THAT line (`>=3.8.0,<3.9.0`), and after `poetry lock` grep
+the lock for the resolved version to confirm it matches what you tested. A caret
+range on a fast-moving lib silently upgrades under you. Treat a major-version
+migration as its own re-validated task, never an unpinned bump.
