@@ -17,6 +17,7 @@ Runs inside the privileged, host-networked (`network_mode: host`), host-pid
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
@@ -202,6 +203,97 @@ def rewrite_sensor_compose(compose_text: str, *, slug: str, mon_if: str, sensor_
             opts["parent"] = mon_if
             net["driver_opts"] = opts
 
+    return yaml.safe_dump(doc, sort_keys=False)
+
+
+# Explicit lab subnets are carved from here — the one RFC1918 block dockerd's
+# default-address-pools never touch (defaults: 172.17-172.31.0.0/16 + 192.168.0.0/16
+# as /20s = 31 subnets total, exhausted around lab #14 at 2 networks per lab).
+_LAB_SUBNET_BLOCK = ipaddress.ip_network("172.16.0.0/16")
+
+
+def _in_use_subnets() -> list[ipaddress.IPv4Network]:
+    """Every IPv4 subnet currently claimed by a docker network or a host route
+    (host routes are visible because we run with network_mode: host)."""
+    nets: list[ipaddress.IPv4Network] = []
+    ids = _run(["docker", "network", "ls", "-q"], check=False).stdout.split()
+    if ids:
+        p = _run(["docker", "network", "inspect", "--format",
+                  '{{range .IPAM.Config}}{{.Subnet}} {{end}}'] + ids, check=False)
+        for tok in p.stdout.split():
+            try:
+                net = ipaddress.ip_network(tok, strict=False)
+            except ValueError:
+                continue
+            if net.version == 4:
+                nets.append(net)
+    for line in _run(["ip", "-4", "route"], check=False).stdout.splitlines():
+        first = line.split()[0] if line.split() else ""
+        if "/" in first:
+            try:
+                nets.append(ipaddress.ip_network(first, strict=False))
+            except ValueError:
+                continue
+    return nets
+
+
+def _existing_network_subnet(name: str) -> str | None:
+    p = _run(["docker", "network", "inspect", name, "--format",
+              '{{range .IPAM.Config}}{{.Subnet}} {{end}}'], check=False)
+    if p.returncode != 0:
+        return None
+    for tok in p.stdout.split():
+        try:
+            if ipaddress.ip_network(tok, strict=False).version == 4:
+                return tok
+        except ValueError:
+            continue
+    return None
+
+
+def pin_network_subnets(compose_text: str, *, slug: str) -> str:
+    """Give every lab network an EXPLICIT subnet so `docker compose up` never
+    draws from dockerd's default-address-pools. Docker ships only 31 allocatable
+    default subnets; at 2 networks per lab, lab #15+ fails with 'all predefined
+    address pools have been fully subnetted'. An explicit ipam subnet bypasses
+    the pool allocator entirely, so labs scale until 172.16.0.0/16 (256 /24s)
+    runs out instead.
+
+    Networks that already exist get their LIVE subnet pinned — truthful, and it
+    lets the not-running self-heal path (compose down → up) recreate them
+    identically instead of going back to the exhausted pool. Missing networks
+    get the first /24 in 172.16.0.0/16 that overlaps no docker network and no
+    host route. Idempotent."""
+    doc = yaml.safe_load(compose_text)
+    if not isinstance(doc, dict) or not isinstance(doc.get("networks"), dict):
+        return compose_text
+    project = _project(slug, "sensor")
+    used: list[ipaddress.IPv4Network] | None = None  # lazy — one docker sweep
+    for key, net in doc["networks"].items():
+        if not isinstance(net, dict):
+            net = {}
+            doc["networks"][key] = net
+        ipam = net.get("ipam") or {}
+        configs = [c for c in (ipam.get("config") or []) if isinstance(c, dict)]
+        if any(c.get("subnet") for c in configs):
+            continue  # operator pinned one explicitly — respect it
+        subnet = _existing_network_subnet(f"{project}_{key}")
+        if subnet is None:
+            if used is None:
+                used = _in_use_subnets()
+            for cand in _LAB_SUBNET_BLOCK.subnets(new_prefix=24):
+                if not any(cand.overlaps(u) for u in used):
+                    subnet = str(cand)
+                    used.append(cand)
+                    break
+            if subnet is None:
+                raise HostOpError(
+                    f"no free /24 left in {_LAB_SUBNET_BLOCK} for lab network "
+                    f"{project}_{key} — tear down unused labs or free the range"
+                )
+            log.info("allocated subnet %s for network %s_%s", subnet, project, key)
+        ipam["config"] = configs + [{"subnet": subnet}]
+        net["ipam"] = ipam
     return yaml.safe_dump(doc, sort_keys=False)
 
 

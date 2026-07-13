@@ -56,6 +56,7 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
             spec["sensor_compose"], slug=slug, mon_if=spec["mon_if"],
             sensor_container=spec["sensor_container"],
         )
+        sensor_yaml = hostops.pin_network_subnets(sensor_yaml, slug=slug)
         hostops.sensor_compose_path(work).write_text(sensor_yaml)
         agent_compose = hostops.write_agent_compose(work, spec)
 
