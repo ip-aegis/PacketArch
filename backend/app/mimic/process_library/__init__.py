@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from app.protocol_engines.process_sim import ProcessModel
 
-from . import tank
+from . import heat_exchanger, tank, tank_control
 
 _BUILDERS: dict[str, callable] = {
     tank.MODEL_ID: tank.build_model,
+    tank_control.MODEL_ID: tank_control.build_model,
+    heat_exchanger.MODEL_ID: heat_exchanger.build_model,
 }
 
 

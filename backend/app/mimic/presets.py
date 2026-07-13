@@ -47,6 +47,26 @@ def _tank_iec104_points() -> list[PointBinding]:
     ]
 
 
+def _tank_control_points() -> list[PointBinding]:
+    # Holding register 3 is the writable LEVEL SETPOINT — writing it moves the
+    # PI-controlled process, as an operator would (not a raw pump toggle).
+    return [
+        PointBinding(space="holding", address=0, source="variable", variable="level", scale=100.0),
+        PointBinding(space="holding", address=1, source="variable", variable="temperature", scale=100.0),
+        PointBinding(space="holding", address=2, source="variable", variable="inflow", scale=100.0),
+        PointBinding(space="holding", address=3, source="variable", variable="setpoint", scale=100.0,
+                     writable=True, write_target="setpoint"),
+    ]
+
+
+def _controlled_plc() -> PersonaSpec:
+    return PersonaSpec(
+        device_id="ctrl-plc", scenario_id="mimic", name="Level_Control_PLC",
+        template_id="schneider/modicon-m580/bmep584040", process_model_id="tank_level_control",
+        protocols=[ProtocolBinding(protocol="modbus", port=502, points=_tank_control_points())],
+    )
+
+
 def _modbus_plc() -> PersonaSpec:
     return PersonaSpec(
         device_id="modbus-plc", scenario_id="mimic", name="Tank_Farm_PLC",
@@ -92,6 +112,7 @@ def _hmi_plc_pair() -> list[PersonaSpec]:
 
 # key -> (name, description, personas)
 _PRESETS: dict[str, tuple[str, str, list[PersonaSpec]]] = {
+    "controlled-plc": ("Controlled PLC — Level Setpoint", "Schneider M580 running a PI level-control loop; write the setpoint register to move the process, which tracks it and rejects disturbances.", [_controlled_plc()]),
     "modbus-plc": ("Modbus PLC — Tank Loop", "Schneider Modicon M580 answering Modbus TCP, live tank process.", [_modbus_plc()]),
     "opcua-plc": ("OPC UA PLC — Tank Loop", "Siemens S7-1500 OPC UA server, live tank process.", [_opcua_plc()]),
     "bacnet-controller": ("BACnet Controller — Tank Loop", "Siemens Desigo DXR2 room controller on BACnet/IP.", [_bacnet_controller()]),

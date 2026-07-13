@@ -86,3 +86,14 @@ value change, not on every poll, or the resting node value overrides the model.
 
 Also: asyncua 2.0 `set_build_info()` is a no-op — write the composite BuildInfo
 node (ns=0;i=2260) directly after `start()` so clients/CV read the real manufacturer.
+
+## process_sim set_value doesn't set the target — use set_target for inputs (2026-07-13)
+
+Building the PI-controlled process models, my test wrote a new setpoint with
+`ProcessVariable.set_value(70)` and the value snapped back to 50 next step. Reason:
+`set_value` forces the current value but NOT the target, so a variable with
+`time_constant_s=0` re-snaps to its (unchanged) target on the next `step()`. The
+real write-back path (`NamedPointProjection.apply_write`) correctly uses
+`set_target`. **Rule:** to inject an external input/setpoint into a running
+process model, call `set_target(x)` (persists), not `set_value(x)` (transient
+unless the caller also re-targets).
