@@ -229,10 +229,14 @@ itself a device (own identity/OUI) and runs client loops polling its peers.
   HMI (`10.60.0.20`); the HMI actively polls the PLC (real bidirectional Modbus,
   client reconnects per scan). Both surface in CV as distinct components — PLC as
   Schneider M580 BMEP584040 (FC43), HMI classified by OUI.
-- **Realism finding**: the HMI classified as "Control Microsystems" (OUI `00:03:74`),
-  not Schneider — a client-only persona has no protocol identity, so OUI is the whole
-  fingerprint (see lessons.md). Follow-up: lead persona-template `oui_prefixes` with a
-  vendor-correct OUI so active-master personas read as the intended manufacturer.
+- **Realism finding + FIX (done)**: the HMI first classified as "Control Microsystems"
+  (OUI `00:03:74`), not Schneider — a client-only persona has no protocol identity, so
+  OUI is the whole fingerprint. Fixed with `vendor_oui.pick_vendor_oui()` (picks the
+  vendor-aligned OUI from the template list); Mimic deploy pins each persona's MAC to it.
+  Re-verified live: HMI now MAC `00:00:54:*` → **CV vendor "Schneider Electric"**. Also
+  surfaced a data nuance: the bundled IEEE registry labels `00:03:74` "Schneider Electric"
+  while this CV Center shows "Control Microsystems" (reassigned/acquired prefix) — so
+  prefer the canonical primary OUI, not just any registry-matched one. See lessons.md.
 
 *Commit checkpoint: sub-phase 1 committed on `mimic`.*
 

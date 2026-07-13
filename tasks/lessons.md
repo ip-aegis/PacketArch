@@ -62,3 +62,13 @@ dimension #5) is the ONLY lever — there's no protocol identity to override a w
 OUI. A persona template's `oui_prefixes[0]` must map to the INTENDED vendor label in
 IEEE/CV's OUI DB, or client-only devices will surface the wrong manufacturer.
 Server personas are forgiving here (FC43/CIP/SZL identity wins); clients are not.
+
+**Fix shipped:** `vendor_oui.pick_vendor_oui(vendor, oui_prefixes)` returns the first
+prefix whose IEEE registrant matches the vendor; Mimic deploy pins each persona MAC to
+it. HMI now reads "Schneider Electric" in CV.
+
+**Data-version gotcha:** the bundled `ieee_oui.csv` and a given CV Center's OUI DB can
+DISAGREE for reassigned prefixes — `00:03:74` is "Schneider Electric" in our bundle but
+"Control Microsystems" (the pre-acquisition registrant) in this CV. So don't trust any
+registry-matched prefix blindly; prefer the vendor's canonical PRIMARY OUI (templates
+list it first — here `00:00:54`), which is stable across data versions.

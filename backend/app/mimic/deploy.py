@@ -19,6 +19,7 @@ import hashlib
 import logging
 
 from app.protocol_engines.canonical_identity import canonical_mac
+from app.protocol_engines.vendor_oui import pick_vendor_oui
 from app.services import host_agent_client
 from app.services.device_templates import get_fingerprint_from_template
 
@@ -69,8 +70,13 @@ def build_cell_spec(
             if cb.target_device and not cb.target_ip:
                 cb.target_ip = directory.get(cb.target_device, "")
         fp = get_fingerprint_from_template(ps.template_id, firmware_version=ps.firmware_version) or {}
+        vendor = fp.get("vendor", "")
         ouis = fp.get("oui_prefixes") or ["02:00:00"]
-        mac = canonical_mac(ps.device_id, ps.scenario_id, fp.get("vendor", ""), ouis)
+        # Pin the MAC to a vendor-aligned OUI so the device reads as the intended
+        # manufacturer in CV — essential for client-only personas (OUI is their
+        # whole fingerprint). Falls back to the raw list if none maps cleanly.
+        aligned = pick_vendor_oui(vendor, ouis)
+        mac = canonical_mac(ps.device_id, ps.scenario_id, vendor, [aligned] if aligned else ouis)
         ttl = int((fp.get("tcp_stack") or {}).get("ttl", 64))
         tag = _short(ps.device_id, 6)
         dev = {

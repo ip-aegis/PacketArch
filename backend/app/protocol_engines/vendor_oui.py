@@ -484,6 +484,28 @@ def get_vendor_for_oui(oui: str, human_readable: bool = True) -> Optional[str]:
     return None
 
 
+def pick_vendor_oui(vendor: str, oui_prefixes: list[str]) -> Optional[str]:
+    """Return the first OUI in ``oui_prefixes`` whose IEEE registrant (the label
+    Cyber Vision shows) is consistent with ``vendor``.
+
+    A device's MAC should read as its intended manufacturer. This matters most for
+    client-only personas (an HMI polling a PLC): with no protocol identity to
+    override it, the OUI is the ENTIRE fingerprint, so a MAC drawn from a
+    sub-brand OUI (e.g. a Schneider template's Control-Microsystems prefix) mislabels
+    the device. Preferring the earliest vendor-matching prefix keeps the MAC on the
+    vendor's canonical OUI (templates list it first). Returns None when nothing
+    matches, so callers can fall back to the raw list.
+    """
+    if not vendor or not oui_prefixes:
+        return None
+    key = vendor.strip().lower().split()[0]  # "Schneider Electric" -> "schneider"
+    for oui in oui_prefixes:
+        registrant = get_vendor_for_oui(oui)
+        if registrant and key in registrant.lower():
+            return oui
+    return None
+
+
 # ---------------------------------------------------------------------------
 # SNMP Enterprise OIDs (IANA Private Enterprise Numbers)
 # Used for sysObjectID synthesis when a device template lacks explicit
