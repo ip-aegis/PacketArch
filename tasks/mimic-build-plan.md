@@ -224,8 +224,19 @@ the SAME `Projection`/`ProtocolServer` seams + SAME process model.
   drift, and pump-node write-back (fill/drain). Both mimic gates green (Modbus + OPC UA).
 - `asyncua` pinned `>=2.0.1,<2.1.0`. Two lessons captured (poll-based write-back must
   gate on change; asyncua `set_build_info` is a no-op — write node i=2260).
-- Remaining protocols (ENIP/S7/BACnet/104/SNMP) slot in the same way; ENIP via cpppo
+- Remaining protocols (ENIP/S7/104/SNMP) slot in the same way; ENIP via cpppo
   is thread-based (more friction than asyncua).
+
+**BACnet/IP added (bacpypes3, 3rd protocol, DONE 2026-07-13):** refactored the OPC UA
+projection into a shared `NamedPointProjection` (OPC UA + BACnet both address by name);
+`servers/bacnet_server.py` (bacpypes3 `NormalApplication` + `DeviceObject` identity,
+Analog Value sensors pushed live, Binary Value actuator write-back on change). Gate
+`test_bacnet_breadth.py` PASSES on a Siemens Desigo DXR2 room controller (device
+vendor-id 7 / model DXR2.E12, drift, write-back) — object-level (a 2nd BACnet/IP stack
+on loopback is flaky; wire+CV ride the deploy path). `bacpypes3` pinned `>=0.0.106,<0.1.0`
+(pre-1.0). `/mimic/templates` now lists modbus_tcp/opc_ua/bacnet_ip devices. **Three
+protocols across three verticals: Modbus (Schneider PLC), OPC UA (Siemens PLC), BACnet
+(Siemens building automation).**
 
 - [ ] Follow-ups (non-blocking): frontend Mimic surface (P3 — the Studio canvas); a
       **slim** mimic-runtime image baked in CI (P0 uses a committed `mimic-persona:p0`

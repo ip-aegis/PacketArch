@@ -52,16 +52,20 @@ async def status(_user: CurrentUser) -> MimicStatusResponse:
     return MimicStatusResponse(enabled=True, host_agent_available=available, message=msg)
 
 
+# Protocols Mimic can currently emulate (server side).
+_MIMIC_PROTOCOLS = frozenset({"modbus_tcp", "opc_ua", "bacnet_ip"})
+
+
 @router.get("/templates", response_model=TemplateListResponse)
 async def list_templates(_user: CurrentUser) -> TemplateListResponse:
-    """Device templates usable as Mimic personas (Modbus-capable in P0/P1)."""
+    """Device templates usable as Mimic personas (support an emulated protocol)."""
     items = [
         TemplateItem(
             id=t.id, vendor=t.vendor, model_name=t.model_name,
             device_type=t.device_type, protocols=t.supported_protocols or [],
         )
         for t in get_all_templates()
-        if "modbus_tcp" in (t.supported_protocols or [])
+        if _MIMIC_PROTOCOLS.intersection(t.supported_protocols or [])
     ]
     return TemplateListResponse(items=items)
 

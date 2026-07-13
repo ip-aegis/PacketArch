@@ -26,7 +26,7 @@ from .client import modbus_client_loop
 from .interfaces import PersonaSpec, ProtocolServer, Transport
 from .process_library import build_process_model
 from .projections.modbus_projection import ModbusProjection
-from .projections.opcua_projection import OpcUaProjection
+from .projections.named_point import NamedPointProjection
 from .servers.modbus_server import ModbusPersonaServer
 from .servers.opcua_server import OpcUaPersonaServer
 from .transport import NamespaceKernelStack
@@ -100,7 +100,7 @@ class DevicePersona:
                     )
                 )
             elif binding.protocol == "opcua":
-                projection = OpcUaProjection(self._model, binding.points)
+                projection = NamedPointProjection(self._model, binding.points)
                 opcua_identity = self._fingerprint.get("opc_ua_identity") or {}
                 self._servers.append(
                     OpcUaPersonaServer(
@@ -114,6 +114,26 @@ class DevicePersona:
                             "device_name": self.spec.name,
                             "application_uri": opcua_identity.get("application_uri"),
                             "product_uri": opcua_identity.get("product_uri"),
+                        },
+                    )
+                )
+            elif binding.protocol == "bacnet":
+                from .servers.bacnet_server import BacnetPersonaServer
+
+                projection = NamedPointProjection(self._model, binding.points)
+                bacnet_identity = self._fingerprint.get("bacnet_identity") or {}
+                self._servers.append(
+                    BacnetPersonaServer(
+                        bind_ip=self.transport.bind_ip,
+                        port=binding.port,
+                        projection=projection,
+                        device_id=self.spec.device_id,
+                        identity={
+                            "vendor_id": bacnet_identity.get("vendor_id", 0),
+                            "object_name": bacnet_identity.get("object_name"),
+                            "model_name": bacnet_identity.get("model_name") or self._model_name,
+                            "device_name": self.spec.name,
+                            "firmware": self._firmware_version or "",
                         },
                     )
                 )

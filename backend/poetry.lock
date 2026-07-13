@@ -213,6 +213,25 @@ wait-for2 = {version = "*", markers = "python_version < \"3.12\""}
 profile = ["pytest-profiling"]
 
 [[package]]
+name = "bacpypes3"
+version = "0.0.106"
+description = "BACnet Communications Library"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "bacpypes3-0.0.106-py3-none-any.whl", hash = "sha256:5831ad139f5466fbbb64e8eb768034cfbea66a987a9df280185c39a44ffd0fec"},
+    {file = "bacpypes3-0.0.106.tar.gz", hash = "sha256:01fdd7497bf93e6b61b153636cb736b87af0723cbab25fb30d419deb1620a95b"},
+]
+
+[package.extras]
+ifaddr = ["ifaddr"]
+pylibpcap = ["python-libpcap"]
+rdflib = ["rdflib"]
+websockets = ["websockets"]
+yaml = ["pyyaml"]
+
+[[package]]
 name = "bcrypt"
 version = "5.0.0"
 description = "Modern password hashing for your software and your servers"
@@ -3496,4 +3515,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "451ce0ca2d7bff3d0eaace719396dd8002526b5d34388bd141c045c8f36998f0"
+content-hash = "20113b8f5eed4b70c39be24be7a2fb80f9a9289fe0f99a5883750b6f3a322933"
