@@ -45,16 +45,29 @@ def build_cell_spec(
 
     Assigns each persona an IP (``subnet.10``, ``.20``, …), a vendor-aligned MAC
     (deterministic from the shared identity substrate), TTL from the template
-    ``tcp_stack``, and short veth names. When ``add_poller`` and there's a Modbus
-    persona, appends a poller that drives FC43 + register reads at the first one.
+    ``tcp_stack``, and short veth names. Builds the cell **device directory** and
+    resolves each persona's client bindings (``target_device`` → the peer's IP),
+    so an HMI persona polls the real PLC persona. The standalone poller is only
+    appended when NO persona actively polls (i.e. no client bindings), as a
+    fallback so a lone server persona still generates classifiable traffic.
     """
     cell_slug = "mm-" + _short(lab_slug + cell_name)
-    devices: list[dict] = []
-    first_modbus: tuple[str, int] | None = None
 
+    # Pass 1 — allocate addresses and build the device directory.
+    directory: dict[str, str] = {}  # device_id -> ip
     for i, ps in enumerate(personas):
-        ip = f"{subnet}.{10 + i * 10}"
-        ps.bind_ip = ip
+        ps.bind_ip = f"{subnet}.{10 + i * 10}"
+        directory[ps.device_id] = ps.bind_ip
+
+    # Pass 2 — resolve client targets against the directory, then build devices.
+    devices: list[dict] = []
+    any_client = False
+    first_modbus: tuple[str, int] | None = None
+    for ps in personas:
+        for cb in ps.clients:
+            any_client = True
+            if cb.target_device and not cb.target_ip:
+                cb.target_ip = directory.get(cb.target_device, "")
         fp = get_fingerprint_from_template(ps.template_id, firmware_version=ps.firmware_version) or {}
         ouis = fp.get("oui_prefixes") or ["02:00:00"]
         mac = canonical_mac(ps.device_id, ps.scenario_id, fp.get("vendor", ""), ouis)
@@ -63,7 +76,7 @@ def build_cell_spec(
         dev = {
             "container": f"pa-mm-{cell_slug[3:]}-{tag}",
             "mac": mac,
-            "ip": f"{ip}/24",
+            "ip": f"{ps.bind_ip}/24",
             "ttl": ttl,
             "veth_br": f"mmb-{tag}",
             "veth_ns": f"mmc-{tag}",
@@ -75,10 +88,10 @@ def build_cell_spec(
         if first_modbus is None:
             for pb in ps.protocols:
                 if pb.protocol == "modbus":
-                    first_modbus = (ip, pb.port)
+                    first_modbus = (ps.bind_ip, pb.port)
                     break
 
-    if add_poller and first_modbus is not None:
+    if add_poller and not any_client and first_modbus is not None:
         tip, tport = first_modbus
         ptag = _short(cell_slug + "poller", 6)
         poller = {

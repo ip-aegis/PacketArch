@@ -213,6 +213,27 @@ binary). Backend stays unprivileged (memo + Local Lab pattern).
 
 *Manual validation harness (throwaway): scratchpad `live/attach.sh` + `teardown`.*
 
+---
+
+## P1 — active-master persona (DONE 2026-07-13)
+
+Replaced the P0 test poller with a real **active-master persona**: an HMI that is
+itself a device (own identity/OUI) and runs client loops polling its peers.
+
+- `ClientBinding` on `PersonaSpec` (peer `target_device` → resolved to `target_ip`
+  via the cell **device directory** in `deploy.build_cell_spec`); `app.mimic.client`
+  runs the loops; `DevicePersona` launches them alongside servers and supports
+  **client-only** personas (an HMI has no server). Standalone poller suppressed when
+  any persona actively polls.
+- **Verified live on real CV**: deployed M580 PLC (`10.60.0.10`) + Schneider Magelis
+  HMI (`10.60.0.20`); the HMI actively polls the PLC (real bidirectional Modbus,
+  client reconnects per scan). Both surface in CV as distinct components — PLC as
+  Schneider M580 BMEP584040 (FC43), HMI classified by OUI.
+- **Realism finding**: the HMI classified as "Control Microsystems" (OUI `00:03:74`),
+  not Schneider — a client-only persona has no protocol identity, so OUI is the whole
+  fingerprint (see lessons.md). Follow-up: lead persona-template `oui_prefixes` with a
+  vendor-correct OUI so active-master personas read as the intended manufacturer.
+
 *Commit checkpoint: sub-phase 1 committed on `mimic`.*
 
 **Tracked follow-ups (not P0-blocking):**

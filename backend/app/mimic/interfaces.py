@@ -76,6 +76,30 @@ class ProtocolBinding:
 
 
 @dataclass
+class ClientBinding:
+    """One peer this persona actively polls (the active-master / HMI side).
+
+    ``target_device`` names a peer persona; the deploy layer resolves it to
+    ``target_ip`` via the cell's device directory. A persona with client bindings
+    but no ``protocols`` is a pure master (an HMI polling PLCs).
+    """
+
+    protocol: str = "modbus"
+    target_device: str | None = None  # peer device_id — resolved to target_ip at deploy
+    target_ip: str = ""
+    port: int = 502
+    unit_id: int = 1
+    interval_s: float = 3.0
+    read_holding: int = 4  # count of holding registers to read each cycle
+    read_coils: int = 1
+    identity: bool = True  # issue an FC43 read each cycle
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "ClientBinding":
+        return cls(**{k: d[k] for k in d if k in cls.__dataclass_fields__})
+
+
+@dataclass
 class PersonaSpec:
     """Everything needed to bring one device persona to life.
 
@@ -93,6 +117,7 @@ class PersonaSpec:
     bind_ip: str = "127.0.0.1"
     process_model_id: str | None = None
     protocols: list[ProtocolBinding] = field(default_factory=list)
+    clients: list[ClientBinding] = field(default_factory=list)
     step_interval_ms: float = 100.0
 
     @classmethod
@@ -106,6 +131,7 @@ class PersonaSpec:
             bind_ip=d.get("bind_ip", "127.0.0.1"),
             process_model_id=d.get("process_model_id"),
             protocols=[ProtocolBinding.from_dict(p) for p in d.get("protocols", [])],
+            clients=[ClientBinding.from_dict(c) for c in d.get("clients", [])],
             step_interval_ms=float(d.get("step_interval_ms", 100.0)),
         )
 
@@ -128,6 +154,7 @@ class PersonaSpec:
                 }
                 for pb in self.protocols
             ],
+            "clients": [vars(c) for c in self.clients],
         }
 
 

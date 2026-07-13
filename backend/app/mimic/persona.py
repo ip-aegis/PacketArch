@@ -22,6 +22,7 @@ from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
 from app.protocol_engines.process_sim import ProcessModel
 from app.services.device_templates import get_fingerprint_from_template
 
+from .client import modbus_client_loop
 from .interfaces import PersonaSpec, ProtocolServer, Transport
 from .process_library import build_process_model
 from .projections.modbus_projection import ModbusProjection
@@ -61,7 +62,9 @@ class DevicePersona:
 
         self._model: ProcessModel | None = None
         self._servers: list[ProtocolServer] = []
+        self._client_tasks: list[asyncio.Task] = []
         self._step_task: asyncio.Task | None = None
+        self._built = False
         self._running = False
 
     @property
@@ -70,6 +73,12 @@ class DevicePersona:
 
     def build(self) -> None:
         """Instantiate the process model and protocol servers (no binding yet)."""
+        if self._built:
+            return
+        if not self.spec.protocols and not self.spec.clients:
+            raise ValueError(
+                f"persona {self.spec.name!r} has neither servers nor client loops"
+            )
         if self.spec.process_model_id:
             self._model = build_process_model(self.spec.process_model_id)
 
@@ -90,24 +99,35 @@ class DevicePersona:
                 raise ValueError(
                     f"protocol {binding.protocol!r} not yet supported by Mimic (P0 = modbus)"
                 )
+        self._built = True
 
     async def start(self) -> None:
-        """Bring the persona online: start the model tick, then bind servers."""
-        if not self._servers:
-            self.build()
+        """Bring the persona online: model tick, bind servers, run client loops."""
+        self.build()
+        self._running = True
         if self._model is not None:
-            self._running = True
             self._step_task = asyncio.create_task(
                 self._step_loop(), name=f"persona-step-{self.spec.device_id[:8]}"
             )
         for server in self._servers:
             await server.start()
+        for i, cb in enumerate(self.spec.clients):
+            if cb.protocol == "modbus":
+                self._client_tasks.append(
+                    asyncio.create_task(
+                        modbus_client_loop(cb, label=f"{self.spec.name}->{cb.target_ip}"),
+                        name=f"persona-client-{self.spec.device_id[:8]}-{i}",
+                    )
+                )
+            else:
+                logger.warning("client protocol %r not supported (P1 = modbus)", cb.protocol)
         logger.info(
-            "persona '%s' (%s) online at %s: %d server(s)",
+            "persona '%s' (%s) online at %s: %d server(s), %d client loop(s)",
             self.spec.name,
             self.spec.template_id,
             self.transport.bind_ip,
             len(self._servers),
+            len(self._client_tasks),
         )
 
     async def _step_loop(self) -> None:
@@ -123,10 +143,11 @@ class DevicePersona:
         self._running = False
         for server in self._servers:
             await server.stop()
-        if self._step_task is not None:
-            self._step_task.cancel()
-            try:
-                await self._step_task
-            except asyncio.CancelledError:
-                pass
+        for task in (*self._client_tasks, self._step_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         logger.info("persona '%s' stopped", self.spec.name)

@@ -47,3 +47,18 @@ pin the constraint to THAT line (`>=3.8.0,<3.9.0`), and after `poetry lock` grep
 the lock for the resolved version to confirm it matches what you tested. A caret
 range on a fast-moving lib silently upgrades under you. Treat a major-version
 migration as its own re-validated task, never an unpinned bump.
+
+## A client-only persona's vendor is its MAC OUI — nothing else (2026-07-13, Mimic P1)
+
+P1 stood up an HMI persona (Modbus client) polling a PLC persona (Modbus server).
+CV classified the PLC as Schneider M580 (from FC43 device identification) but the
+HMI as "Control Microsystems" — because a pure Modbus *client* exposes no protocol
+identity, so CV falls back to the MAC OUI, and the OUI it drew (`00:03:74`) is
+IEEE-registered to Control Microsystems (a Schneider sub), not "Schneider Electric".
+The PLC drew the same OUI but FC43 overrode it.
+
+**Rule:** for active-master / client-only personas, OUI-vendor alignment (realism
+dimension #5) is the ONLY lever — there's no protocol identity to override a wrong
+OUI. A persona template's `oui_prefixes[0]` must map to the INTENDED vendor label in
+IEEE/CV's OUI DB, or client-only devices will surface the wrong manufacturer.
+Server personas are forgiving here (FC43/CIP/SZL identity wins); clients are not.
