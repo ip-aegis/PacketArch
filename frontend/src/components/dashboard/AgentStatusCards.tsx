@@ -26,8 +26,14 @@ const HEALTH_TAG_CONFIG: Record<string, { color: string; label: string }> = {
   offline: { color: 'default', label: 'Offline' },
 };
 
-const CARD_STYLE: React.CSSProperties = {
+const OUTER_CARD_STYLE: React.CSSProperties = {
   background: '#1a1a2e',
+  border: '1px solid #2d2d52',
+};
+
+// Nested inside the host card — slightly darker so the grouping reads.
+const INNER_CARD_STYLE: React.CSSProperties = {
+  background: '#12122b',
   border: '1px solid #2d2d52',
   flex: '0 0 auto',
 };
@@ -46,59 +52,31 @@ const healthTag = (agent: DashboardAgent, healthStatuses?: Record<string, Health
   );
 };
 
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-    {children}
-  </Text>
-);
-
-/** One gauge for the PacketArch host — every local agent shares its CPU/RAM. */
-const HostPanelCard: React.FC<{ host: DashboardHostStats; agentCount: number }> = ({
-  host,
-  agentCount,
-}) => (
-  <Card size="small" style={{ ...CARD_STYLE, minWidth: 240 }}>
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <DesktopOutlined style={{ color: '#1890ff' }} />
-        <Text strong style={{ color: '#fff' }}>PacketArch Host</Text>
-        <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
-          {host.cores} cores
-        </Text>
-      </div>
-      <div>
-        <Text type="secondary" style={{ fontSize: 12 }}>System CPU</Text>
-        <Progress
-          percent={Math.round(host.cpu_percent)}
-          size="small"
-          strokeColor={host.cpu_percent > 80 ? '#ff4d4f' : '#1890ff'}
-          trailColor="#2d2d52"
-        />
-      </div>
-      <div>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          System Memory · {host.memory_used_gb} / {host.memory_total_gb} GB
-        </Text>
-        <Progress
-          percent={Math.round(host.memory_percent)}
-          size="small"
-          strokeColor={host.memory_percent > 80 ? '#ff4d4f' : '#722ed1'}
-          trailColor="#2d2d52"
-        />
-      </div>
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        shared by {agentCount} local agent{agentCount !== 1 ? 's' : ''}
+/** Per-agent activity line. Zone agents in a multi-sensor topology carry the
+ * lab (veth + sensor) while the single core conductor does all injection, so
+ * an agent with no deployment is healthy-idle, not broken — say "standby". */
+const activityLine = (agent: DashboardAgent) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+    <Text type="secondary" style={{ fontSize: 12 }}>
+      {agent.active_deployments > 0
+        ? `${agent.active_deployments} deployment${agent.active_deployments !== 1 ? 's' : ''}`
+        : 'standby'}
+    </Text>
+    {agent.active_deployments > 0 && (
+      <Text style={{ fontSize: 12, color: '#1890ff' }}>
+        {formatPacketRate(agent.total_packets_per_second)} pkt/s
       </Text>
-    </Space>
-  </Card>
+    )}
+  </div>
 );
 
-/** Compact card for a local-lab agent — no CPU/RAM bars (see HostPanelCard). */
+/** Compact card for a local-lab agent — no CPU/RAM bars; the host gauge above
+ * covers all of them (they share the PacketArch host). */
 const LocalAgentCard: React.FC<{
   agent: DashboardAgent;
   healthStatuses?: Record<string, HealthStatus>;
 }> = ({ agent, healthStatuses }) => (
-  <Card size="small" style={{ ...CARD_STYLE, minWidth: 170 }}>
+  <Card size="small" style={{ ...INNER_CARD_STYLE, width: 230 }}>
     <Space direction="vertical" size={6} style={{ width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <CloudServerOutlined style={{ color: agent.is_online ? '#52c41a' : '#ff4d4f' }} />
@@ -111,13 +89,58 @@ const LocalAgentCard: React.FC<{
         </Text>
         {healthTag(agent, healthStatuses)}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+      {activityLine(agent)}
+    </Space>
+  </Card>
+);
+
+/** The local section: one host-wide CPU/RAM gauge with every local agent's
+ * card nested inside it — they all run on (and share) the PacketArch host. */
+const LocalHostSection: React.FC<{
+  agents: DashboardAgent[];
+  healthStatuses?: Record<string, HealthStatus>;
+  host?: DashboardHostStats | null;
+}> = ({ agents, healthStatuses, host }) => (
+  <Card size="small" style={OUTER_CARD_STYLE}>
+    <Space direction="vertical" size={10} style={{ width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <DesktopOutlined style={{ color: '#1890ff' }} />
+        <Text strong style={{ color: '#fff' }}>PacketArch Host</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {agent.active_deployments} deployment{agent.active_deployments !== 1 ? 's' : ''}
+          {agents.length} local agent{agents.length !== 1 ? 's' : ''}
+          {host ? ` · ${host.cores} cores` : ''}
         </Text>
-        <Text style={{ fontSize: 12, color: '#1890ff' }}>
-          {formatPacketRate(agent.total_packets_per_second)} pkt/s
-        </Text>
+      </div>
+
+      {host && (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>System CPU</Text>
+            <Progress
+              percent={Math.round(host.cpu_percent)}
+              size="small"
+              strokeColor={host.cpu_percent > 80 ? '#ff4d4f' : '#1890ff'}
+              trailColor="#2d2d52"
+            />
+          </div>
+          <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              System Memory · {host.memory_used_gb} / {host.memory_total_gb} GB
+            </Text>
+            <Progress
+              percent={Math.round(host.memory_percent)}
+              size="small"
+              strokeColor={host.memory_percent > 80 ? '#ff4d4f' : '#722ed1'}
+              trailColor="#2d2d52"
+            />
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {agents.map((agent) => (
+          <LocalAgentCard key={agent.agent_id} agent={agent} healthStatuses={healthStatuses} />
+        ))}
       </div>
     </Space>
   </Card>
@@ -128,18 +151,26 @@ const RemoteAgentCard: React.FC<{
   agent: DashboardAgent;
   healthStatuses?: Record<string, HealthStatus>;
 }> = ({ agent, healthStatuses }) => (
-  <Card size="small" style={{ ...CARD_STYLE, minWidth: 220 }}>
+  <Card size="small" style={{ ...OUTER_CARD_STYLE, width: 260, flex: '0 0 auto' }}>
     <Space direction="vertical" size={8} style={{ width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <CloudServerOutlined style={{ color: agent.is_online ? '#52c41a' : '#ff4d4f' }} />
-        <Text strong style={{ color: '#fff' }}>{agent.agent_name}</Text>
+        <Text
+          strong
+          style={{ color: '#fff', flex: 1, minWidth: 0 }}
+          ellipsis={{ tooltip: agent.agent_name }}
+        >
+          {agent.agent_name}
+        </Text>
         {healthTag(agent, healthStatuses)}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Tag style={{ marginRight: 0 }}>{agent.kind === 'cml' ? 'CML' : 'Remote'}</Tag>
         {agent.hostname && (
-          <Text type="secondary" style={{ fontSize: 12 }}>{agent.hostname}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: agent.hostname }}>
+            {agent.hostname}
+          </Text>
         )}
       </div>
 
@@ -163,14 +194,7 @@ const RemoteAgentCard: React.FC<{
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {agent.active_deployments} deployment{agent.active_deployments !== 1 ? 's' : ''}
-        </Text>
-        <Text style={{ fontSize: 12, color: '#1890ff' }}>
-          {formatPacketRate(agent.total_packets_per_second)} pkt/s
-        </Text>
-      </div>
+      {activityLine(agent)}
     </Space>
   </Card>
 );
@@ -178,30 +202,21 @@ const RemoteAgentCard: React.FC<{
 const AgentStatusCards: React.FC<AgentStatusCardsProps> = ({ agents, healthStatuses, host }) => {
   if (agents.length === 0) return null;
 
-  // Local (local sensor lab) agents all run on the PacketArch host and share
-  // its CPU/RAM, so they get one host gauge + compact per-agent health cards.
-  // Remote (CML/manual) agents keep the full per-agent card.
   const local = agents.filter((a) => a.kind === 'local');
   const remote = agents.filter((a) => a.kind !== 'local');
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
       {local.length > 0 && (
-        <div>
-          <SectionLabel>Local Agents — this host</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-            {host && <HostPanelCard host={host} agentCount={local.length} />}
-            {local.map((agent) => (
-              <LocalAgentCard key={agent.agent_id} agent={agent} healthStatuses={healthStatuses} />
-            ))}
-          </div>
-        </div>
+        <LocalHostSection agents={local} healthStatuses={healthStatuses} host={host} />
       )}
 
       {remote.length > 0 && (
         <div>
-          <SectionLabel>Remote Agents</SectionLabel>
-          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+            Remote Agents
+          </Text>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
             {remote.map((agent) => (
               <RemoteAgentCard key={agent.agent_id} agent={agent} healthStatuses={healthStatuses} />
             ))}
