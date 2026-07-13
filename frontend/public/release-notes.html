@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.17</title>
+  <title>PacketArch Release Notes — v1.10 through v1.18</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,25 +565,25 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.17.0,
-      covering June 17 &ndash; July 10, 2026.
+      Feature releases and patches from v1.10.0 through v1.18.0,
+      covering June 17 &ndash; July 13, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">11</div>
+        <div class="cover-stat-value">12</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.17.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.18.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
-        <div class="cover-stat-value">2.1.4 &rarr; 2.3.0</div>
+        <div class="cover-stat-value">2.1.4 &rarr; 2.6.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-07-10</div>
+        <div class="cover-stat-value">2026-07-13</div>
       </div>
     </div>
   </header>
@@ -647,6 +647,11 @@ code {
           <td>v1.17.0</td>
           <td>Cyber Vision new-UI Organization Hierarchy provisioning</td>
           <td>Jul 10, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.18.0</td>
+          <td>Multi-sensor topology deployments, lab scale fixes, live dashboard rework</td>
+          <td>Jul 13, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1228,10 +1233,101 @@ code {
     </div>
   </section>
 
+  <!-- ════════════════════════════════════════════════════
+       v1.18.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.18.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.18.0</div>
+        <div class="release-date">2026-07-13</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Multi-Sensor Topology</div>
+        <div class="release-headline">Multi-sensor topology deployments &mdash; one scenario fanned out across per-zone sensors with a single live conductor</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Multi-sensor topology deployments.</strong> The Advanced Deployment wizard's new
+            Topology tab derives a realistic network from the scenario &mdash; one IE3500 access
+            switch per zone plus an IE9320 core, all injected as fully fingerprinted CV assets &mdash;
+            and deploys one Local Sensor Lab per SPAN (every zone + core) in a single click. Traffic
+            is generated once and rendered per-SPAN, so each Cyber Vision sensor sees exactly the
+            slice of traffic its capture point would see in a real plant.
+          </li>
+          <li class="change-item">
+            <strong>Single live conductor.</strong> The core lab's agent conducts the entire
+            topology live: one deployment drives per-SPAN injection across every zone's virtual SPAN
+            veth simultaneously, through the normal deploy pipeline (agent deployment record, CV
+            preset/zone-group/Organization-Hierarchy provisioning included). Sensor serials are
+            zone-named (e.g. <code>bay-litho-&lt;slug&gt;</code>) so the CV Center reads cleanly.
+          </li>
+          <li class="change-item">
+            <strong>Deploy resiliency.</strong> The conductor deploy is now a persisted intent that
+            survives backend restarts and degraded-lab windows: it retries until every lab is ready
+            (instead of silently giving up after 7 minutes), re-arms itself on backend boot, and
+            <code>POST /topology/deploy</code> is re-entrant &mdash; it resumes a headless deployment
+            instead of refusing. Teardown remains a single button that removes the deployment, the
+            labs, and the CV provisioning together.
+          </li>
+          <li class="change-item">
+            <strong>Live dashboard: local vs remote agents.</strong> Local-lab agents now nest inside
+            a "PacketArch Host" panel with one system-wide CPU/RAM gauge (they all share the host
+            &mdash; per-agent bars were the same number repeated), grouped by topology with the
+            conductor badged in gold and idle zone agents shown as <em>standby</em>. Remote (CML /
+            manual) agents keep full per-agent gauges in their own section. Cards wrap instead of
+            scrolling horizontally.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Lab scale: Docker address-pool exhaustion.</strong> Docker ships only 31
+            allocatable default subnets; at two networks per lab, lab #15+ failed to provision
+            (<code>all predefined address pools have been fully subnetted</code>). The host-agent now
+            pins an explicit <code>/24</code> from <code>172.16.0.0/16</code> on every lab network,
+            bypassing the pool entirely &mdash; ~128 labs per host, no daemon.json changes, no dockerd
+            restart. Existing labs' sensors restart once on first reconcile after upgrade.
+          </li>
+          <li class="change-item">
+            <strong>CV decode failure on non-IP L2 protocols.</strong> Per-SPAN reframing now
+            preserves the original EtherType, so PROFINET-RT/GOOSE/SV frames decode correctly on
+            zone sensors.
+          </li>
+          <li class="change-item">
+            <strong>CV zone-group assignment after redeploy.</strong> Re-deploys no longer leave
+            freshly-discovered devices unassigned to their zone groups.
+          </li>
+          <li class="change-item">
+            <strong>Host-agent image reverts.</strong> A source-built agent image served by the
+            backend is no longer clobbered back to a stale GHCR tag during lab reconcile.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="infra">
+        <div class="change-type-label">Agent</div>
+        <ul class="change-list">
+          <li class="change-item">
+            Agent bumped to <strong>v2.6.0</strong>: live-conductor support (multi-SPAN injection,
+            v2.5.0) and the EtherType-preserving reframing fix (v2.6.0). Agent v2.5.0+ is required
+            for multi-sensor topology deployments; local-lab agents update automatically on
+            reconcile.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-10</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-13</div>
   </footer>
 
 </div>
