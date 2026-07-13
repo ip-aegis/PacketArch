@@ -84,6 +84,14 @@ export interface DashboardAgent {
   total_bytes_per_second: number;
   /** 'local' = local sensor lab on the PacketArch host; 'cml'/'manual' = remote. */
   kind?: 'local' | 'cml' | 'manual';
+  /** Local-lab agents only: the lab's name (e.g. topo-824d17b0-core). */
+  lab_name?: string | null;
+  /** Topology group (scenario short-id) this lab belongs to, if any. */
+  group_key?: string | null;
+  /** Scenario name for the topology group, for the group header. */
+  group_label?: string | null;
+  /** True for the core lab's agent — the single injector for its topology. */
+  is_conductor?: boolean;
 }
 
 /** Host-wide CPU/RAM — one gauge shared by every local agent. */

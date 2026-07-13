@@ -38,9 +38,15 @@ async def get_live_dashboard() -> dict[str, Any]:
         agent_ids = [conn.agent_id for conn in connections]
         agent_names: dict[str, str] = {}
         agent_kinds: dict[str, str] = {}
+        agent_labs: dict[str, str] = {}   # agent_id -> local lab name
+        group_labels: dict[str, str] = {}  # scenario short-id -> scenario name
 
         try:
-            from sqlalchemy import select
+            import re
+
+            from sqlalchemy import String, cast, func, select
+
+            from app.models.local_lab import LocalLab
 
             async with async_session_maker() as db:
                 result = await db.execute(
@@ -54,19 +60,59 @@ async def get_live_dashboard() -> dict[str, Any]:
                     agent_kinds[str(row[0])] = (
                         "local" if row[2] else "cml" if row[3] else "manual"
                     )
+
+                # Topology grouping: labs named `topo-<scn8>-<span>` group by
+                # scenario (the `-core` lab's agent is that group's conductor).
+                result = await db.execute(
+                    select(LocalLab.agent_id, LocalLab.name).where(
+                        LocalLab.agent_id.in_(agent_ids)
+                    )
+                )
+                for aid, lab_name in result.all():
+                    agent_labs[str(aid)] = lab_name
+                short_ids = {
+                    m.group(1)
+                    for name in agent_labs.values()
+                    if (m := re.match(r"^topo-([0-9a-f]{8})-", name))
+                }
+                if short_ids:
+                    result = await db.execute(
+                        select(Scenario.id, Scenario.name).where(
+                            func.left(cast(Scenario.id, String), 8).in_(short_ids)
+                        )
+                    )
+                    for sid, sname in result.all():
+                        group_labels[str(sid)[:8]] = sname
         except Exception as e:
             logger.error(f"Failed to fetch agent names: {e}")
 
+        import re
+
         for conn in connections:
+            aid = str(conn.agent_id)
+            lab_name = agent_labs.get(aid)
+            group_key = None
+            group_label = None
+            is_conductor = False
+            if lab_name:
+                m = re.match(r"^topo-([0-9a-f]{8})-(.+)$", lab_name)
+                if m:
+                    group_key = m.group(1)
+                    group_label = group_labels.get(group_key)
+                    is_conductor = m.group(2) == "core"
             agent_connections.append({
-                "agent_id": str(conn.agent_id),
-                "agent_name": agent_names.get(str(conn.agent_id), "Unknown"),
+                "agent_id": aid,
+                "agent_name": agent_names.get(aid, "Unknown"),
                 "hostname": conn.hostname,
                 "cpu_percent": conn.cpu_percent,
                 "memory_percent": conn.memory_percent,
                 "is_online": True,
                 "running_scenarios": list(conn.running_scenarios),
-                "kind": agent_kinds.get(str(conn.agent_id), "manual"),
+                "kind": agent_kinds.get(aid, "manual"),
+                "lab_name": lab_name,
+                "group_key": group_key,
+                "group_label": group_label,
+                "is_conductor": is_conductor,
             })
 
     snapshot = traffic_dashboard.get_dashboard_snapshot(

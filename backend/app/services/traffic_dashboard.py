@@ -271,6 +271,10 @@ class TrafficDashboardService:
                     "total_packets_per_second": round(agent_pps, 1),
                     "total_bytes_per_second": round(agent_bps, 1),
                     "kind": conn.get("kind", "manual"),
+                    "lab_name": conn.get("lab_name"),
+                    "group_key": conn.get("group_key"),
+                    "group_label": conn.get("group_label"),
+                    "is_conductor": conn.get("is_conductor", False),
                 })
 
         return {

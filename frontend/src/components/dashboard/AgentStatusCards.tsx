@@ -76,7 +76,14 @@ const LocalAgentCard: React.FC<{
   agent: DashboardAgent;
   healthStatuses?: Record<string, HealthStatus>;
 }> = ({ agent, healthStatuses }) => (
-  <Card size="small" style={{ ...INNER_CARD_STYLE, width: 230 }}>
+  <Card
+    size="small"
+    style={{
+      ...INNER_CARD_STYLE,
+      width: 230,
+      ...(agent.is_conductor ? { borderColor: '#d4a017' } : {}),
+    }}
+  >
     <Space direction="vertical" size={6} style={{ width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <CloudServerOutlined style={{ color: agent.is_online ? '#52c41a' : '#ff4d4f' }} />
@@ -89,10 +96,39 @@ const LocalAgentCard: React.FC<{
         </Text>
         {healthTag(agent, healthStatuses)}
       </div>
+      {agent.is_conductor && (
+        <Tag color="gold" style={{ marginRight: 0, alignSelf: 'flex-start' }}>
+          Conductor
+        </Tag>
+      )}
       {activityLine(agent)}
     </Space>
   </Card>
 );
+
+/** Local agents grouped by topology: the conductor leads its group, zone
+ * agents follow; non-topology labs land in a "Standalone" bucket. */
+const groupLocalAgents = (agents: DashboardAgent[]) => {
+  const groups = new Map<string, { label: string; agents: DashboardAgent[] }>();
+  for (const agent of agents) {
+    const key = agent.group_key ?? '_standalone';
+    const label = agent.group_label
+      ?? (agent.group_key ? `Topology ${agent.group_key}` : 'Standalone Labs');
+    const g = groups.get(key) ?? { label, agents: [] };
+    g.agents.push(agent);
+    groups.set(key, g);
+  }
+  const sorted = [...groups.entries()].sort(([a], [b]) =>
+    a === '_standalone' ? 1 : b === '_standalone' ? -1 : a.localeCompare(b),
+  );
+  for (const [, g] of sorted) {
+    g.agents.sort((x, y) =>
+      Number(y.is_conductor ?? false) - Number(x.is_conductor ?? false)
+      || x.agent_name.localeCompare(y.agent_name),
+    );
+  }
+  return sorted;
+};
 
 /** The local section: one host-wide CPU/RAM gauge with every local agent's
  * card nested inside it — they all run on (and share) the PacketArch host. */
@@ -137,11 +173,21 @@ const LocalHostSection: React.FC<{
         </div>
       )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        {agents.map((agent) => (
-          <LocalAgentCard key={agent.agent_id} agent={agent} healthStatuses={healthStatuses} />
-        ))}
-      </div>
+      {groupLocalAgents(agents).map(([key, group]) => (
+        <div key={key}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>{group.label}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              · {group.agents.length} agent{group.agents.length !== 1 ? 's' : ''}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {group.agents.map((agent) => (
+              <LocalAgentCard key={agent.agent_id} agent={agent} healthStatuses={healthStatuses} />
+            ))}
+          </div>
+        </div>
+      ))}
     </Space>
   </Card>
 );
