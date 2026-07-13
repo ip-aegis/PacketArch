@@ -12,7 +12,8 @@
 import React from 'react';
 import { Handle, Position, useStore } from '@xyflow/react';
 import type { NodeProps } from '@xyflow/react';
-import { DeviceGlyph, accentForType } from '../glyphs';
+import { DeviceGlyph } from '../glyphs';
+import { accentForType } from '../glyphMeta';
 import { getDeviceTypeMeta } from '../../constants/deviceTypeRegistry';
 import { useStudio2UI } from '../uiState';
 import { SURFACE, TEXT, ACCENT, STATUS, NODE, FONT, type StatusLevel } from '../tokens';

@@ -1188,8 +1188,10 @@ OIL_GAS_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Process Historian"},
 
             # Kepware KEPServerEX OPC Gateway
+            # snmp: the NMS health-polls this appliance (see the pinned
+            # nms->gateway snmp flow below) — the host answers as a managed node.
             {"type": "gateway", "vendor": "kepware", "count": 1, "zone": "operations",
-             "name": "LNG_OPC_Gateway", "protocols": ["modbus_tcp", "ethernet_ip"],
+             "name": "LNG_OPC_Gateway", "protocols": ["modbus_tcp", "ethernet_ip", "snmp"],
              "fingerprint_model": "KEPServerEX",
              "role": "OPC UA Gateway"},
 

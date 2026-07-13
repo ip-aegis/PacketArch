@@ -6,7 +6,7 @@
 import copy
 
 from app.services import topology_definition_builder as tdb
-from app.services.topology_planner import derive_topology, plan_segments, preview
+from app.services.topology_planner import derive_topology, preview
 
 
 def _def() -> dict:
@@ -75,7 +75,7 @@ def test_synthetic_devices_replanned_not_double_derived():
     plan1 = derive_topology(out, seed="s").as_dict()
     assert plan1["valid"]
     assert set(plan1["switches"]) == {"z-cell", "z-ops"}
-    self_links = [l for l in plan1["links"] if l["a"] == l["b"]]
+    self_links = [lnk for lnk in plan1["links"] if lnk["a"] == lnk["b"]]
     assert not self_links
 
 

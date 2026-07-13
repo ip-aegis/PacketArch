@@ -60,7 +60,7 @@ async def teardown_scenario_deployment(db, scenario_id: str) -> dict[str, Any]:
     #    tears down every member lab, and resets the CV state.
     prefix = topology_provisioning_service.group_prefix(scenario_id)
     labs = await local_sensor_service.list_labs(db)
-    topo_members = [l for l in labs if (l.get("name") or "").startswith(prefix)]
+    topo_members = [lab for lab in labs if (lab.get("name") or "").startswith(prefix)]
 
     if topo_members:
         summary["type"] = "topology"

@@ -237,6 +237,8 @@ export const scenarioStudioArticle: HelpArticle = {
   summary: 'The visual scenario editor: canvas, device palette, AI assistant, deploy, attack, timeline phases, and keyboard shortcuts.',
   content: ScenarioStudioContent,
   relatedArticles: ['scenarios', 'scenario-versions', 'attack-simulation', 'deployments'],
-  relatedPages: ['/studio'],
+  // /studio-legacy is the v1 canvas this article documents (Studio v2 owns
+  // /studio); both routes belong to this article until v1 is removed.
+  relatedPages: ['/studio', '/studio-legacy'],
   order: 2,
 };

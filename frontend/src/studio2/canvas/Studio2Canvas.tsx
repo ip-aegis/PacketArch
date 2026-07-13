@@ -248,7 +248,6 @@ const Studio2Canvas: React.FC = () => {
     groupBy,
     expandedClusterIds,
   );
-  const clusterViewActive = groupBy !== 'none';
 
   // Local mirror for smooth dragging; document remains the source of truth.
   // Selection flags live in the mirror — carry them across doc rebuilds so

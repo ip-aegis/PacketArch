@@ -14,8 +14,11 @@
  */
 
 import React from 'react';
-import { DeviceCategory, getDeviceTypeMeta } from '../constants/deviceTypeRegistry';
-import { CATEGORY_ACCENTS } from './tokens';
+import { accentForType, glyphNameForType, type GlyphName } from './glyphMeta';
+
+// Type-only re-export for back-compat (safe for react-refresh). Value helpers
+// (glyphNameForType/accentForType) moved to ./glyphMeta — import from there.
+export type { GlyphName } from './glyphMeta';
 
 const svgProps = (size: number): React.SVGProps<SVGSVGElement> => ({
   viewBox: '0 0 24 24',
@@ -28,30 +31,6 @@ const svgProps = (size: number): React.SVGProps<SVGSVGElement> => ({
   strokeLinejoin: 'round',
   'aria-hidden': true,
 });
-
-export type GlyphName =
-  | 'plc'
-  | 'rtu'
-  | 'hmi'
-  | 'instrument'
-  | 'valve'
-  | 'vfd'
-  | 'motor'
-  | 'io'
-  | 'safety'
-  | 'switch'
-  | 'router'
-  | 'firewall'
-  | 'gateway'
-  | 'server'
-  | 'historian'
-  | 'ahu'
-  | 'thermostat'
-  | 'camera'
-  | 'robot'
-  | 'meter'
-  | 'sign'
-  | 'generic';
 
 const GLYPH_PATHS: Record<GlyphName, React.ReactNode> = {
   plc: (
@@ -249,58 +228,6 @@ const GLYPH_PATHS: Record<GlyphName, React.ReactNode> = {
 // ---------------------------------------------------------------------------
 // Resolution: specific type → glyph overrides, else category default
 // ---------------------------------------------------------------------------
-
-const CATEGORY_GLYPHS: Record<DeviceCategory, GlyphName> = {
-  [DeviceCategory.CONTROLLER]: 'plc',
-  [DeviceCategory.HMI_WORKSTATION]: 'hmi',
-  [DeviceCategory.DRIVE_ACTUATOR]: 'vfd',
-  [DeviceCategory.SENSOR]: 'instrument',
-  [DeviceCategory.FIELD_DEVICE]: 'io',
-  [DeviceCategory.SAFETY]: 'safety',
-  [DeviceCategory.NETWORK]: 'switch',
-  [DeviceCategory.SERVER]: 'server',
-  [DeviceCategory.BUILDING_HVAC]: 'ahu',
-  [DeviceCategory.TRANSPORTATION]: 'sign',
-  [DeviceCategory.LOGISTICS]: 'robot',
-  [DeviceCategory.CAMERA]: 'camera',
-  [DeviceCategory.OTHER]: 'generic',
-};
-
-const TYPE_GLYPH_OVERRIDES: Record<string, GlyphName> = {
-  rtu: 'rtu',
-  valve: 'valve',
-  valve_positioner: 'valve',
-  actuator: 'valve',
-  motor: 'motor',
-  servo: 'motor',
-  scada_server: 'server',
-  scada: 'server',
-  historian: 'historian',
-  router: 'router',
-  firewall: 'firewall',
-  gateway: 'gateway',
-  remote_gateway: 'gateway',
-  remote_access: 'gateway',
-  thermostat: 'thermostat',
-  meter: 'meter',
-  power_meter: 'meter',
-  energy_meter: 'meter',
-  custody_meter: 'meter',
-  flow_meter: 'meter',
-  weigh_scale: 'meter',
-};
-
-export function glyphNameForType(deviceType: string): GlyphName {
-  const override = TYPE_GLYPH_OVERRIDES[deviceType];
-  if (override) return override;
-  const meta = getDeviceTypeMeta(deviceType);
-  return CATEGORY_GLYPHS[meta.category] ?? 'generic';
-}
-
-export function accentForType(deviceType: string): string {
-  const meta = getDeviceTypeMeta(deviceType);
-  return CATEGORY_ACCENTS[meta.category];
-}
 
 export interface DeviceGlyphProps {
   deviceType: string;

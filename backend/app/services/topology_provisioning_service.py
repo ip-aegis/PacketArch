@@ -24,7 +24,6 @@ from typing import Any
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.services import local_sensor_service, topology_planner
-from app.services.local_lab_naming import make_slug
 
 logger = logging.getLogger(__name__)
 

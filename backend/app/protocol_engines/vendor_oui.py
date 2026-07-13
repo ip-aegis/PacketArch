@@ -274,6 +274,8 @@ BACNET_VENDOR_IDS: dict[int, str] = {
     245: "Contemporary Controls",  # was 489
     115: "Lutron",  # Lutron Electronics
     188: "Notifier",  # Notifier (Honeywell fire) — template-sourced, verify vs assigned-vendor-ids
+    316: "Janitza",  # Janitza electronics GmbH (EU energy metering)
+    1473: "Elvaco",  # Elvaco AB (M-Bus metering gateways)
 }
 
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to

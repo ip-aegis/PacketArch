@@ -43,7 +43,7 @@ def patched(monkeypatch):
     built = []
     labs_store = []
 
-    async def fake_build_lab(db, *, name, agent_name, created_by_id):
+    async def fake_build_lab(db, *, name, agent_name, created_by_id, sensor_label=None):
         slug = f"slug{len(built)}"
         rec = {
             "lab_id": f"lab-{len(built)}", "slug": slug,
@@ -66,15 +66,44 @@ def patched(monkeypatch):
 
     # status() reads the conductor AgentDeployment state; teardown() stops the
     # conductor + removes the deployment row. Mock those infra deps out.
+    state = {"deployment_state": None}
+
     async def fake_deployment_state(db, scenario_id):
-        return None
+        return state["deployment_state"]
+
+    # Pending-intent persistence (system_settings rows) + task arming: an
+    # in-memory stand-in so deploy()/status()/teardown() logic runs for real.
+    pending: dict[str, dict] = {}
+    armed: list[str] = []
+
+    async def fake_get_pending(db, scenario_id):
+        return pending.get(scenario_id)
+
+    async def fake_set_pending(db, scenario_id, provision_cyber_vision):
+        pending[scenario_id] = {"provision_cyber_vision": provision_cyber_vision}
+
+    async def fake_clear_pending(db, scenario_id):
+        pending.pop(scenario_id, None)
+
+    def fake_arm_deploy(scenario_id, provision_cyber_vision):
+        armed.append(scenario_id)
 
     monkeypatch.setattr(tps, "_load_scenario", fake_load)
     monkeypatch.setattr(tps, "_deployment_state", fake_deployment_state)
+    monkeypatch.setattr(tps, "_get_pending", fake_get_pending)
+    monkeypatch.setattr(tps, "_set_pending", fake_set_pending)
+    monkeypatch.setattr(tps, "_clear_pending", fake_clear_pending)
+    monkeypatch.setattr(tps, "_arm_deploy", fake_arm_deploy)
     monkeypatch.setattr(local_sensor_service, "build_lab", fake_build_lab)
     monkeypatch.setattr(local_sensor_service, "list_labs", fake_list_labs)
     monkeypatch.setattr(local_sensor_service, "teardown_lab", fake_teardown_lab)
-    return sid, built, torn
+
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        sid=sid, built=built, torn=torn,
+        pending=pending, armed=armed, state=state,
+    )
 
 
 class _FakeDB:
@@ -92,7 +121,7 @@ class _FakeDB:
 
 class TestProvisioning:
     async def test_preflight_counts(self, patched):
-        sid, _, _ = patched
+        sid = patched.sid
         pf = await tps.preflight(None, sid)
         assert pf["sensor_count"] == 3  # 2 zones + core
         assert pf["ram_estimate_gb"] == round(3 * 1.26, 2)
@@ -100,7 +129,7 @@ class TestProvisioning:
         assert pf["has_core"] is True
 
     async def test_provision_builds_one_lab_per_span(self, patched):
-        sid, built, _ = patched
+        sid, built = patched.sid, patched.built
         res = await tps.provision(None, sid)
         assert res["sensor_count"] == 3
         assert len(built) == 3
@@ -117,20 +146,20 @@ class TestProvisioning:
         assert all(name.startswith(prefix) for name, _ in built)
 
     async def test_provision_refuses_duplicate(self, patched):
-        sid, _, _ = patched
+        sid = patched.sid
         await tps.provision(None, sid)
         with pytest.raises(Exception) as ei:
             await tps.provision(None, sid)
         assert "already exists" in str(ei.value)
 
     async def test_status_filters_by_prefix(self, patched):
-        sid, _, _ = patched
+        sid = patched.sid
         await tps.provision(None, sid)
         st = await tps.status(None, sid)
         assert st["sensor_count"] == 3
 
     async def test_teardown_tears_down_all_members(self, patched, monkeypatch):
-        sid, _, torn = patched
+        sid, torn = patched.sid, patched.torn
         from app.services.agent_manager import agent_manager
 
         async def fake_stop(scenario_id):
@@ -142,6 +171,49 @@ class TestProvisioning:
         assert len(res["torn_down"]) == 3
         assert all(r["ok"] for r in res["torn_down"])
         assert len(torn) == 3
+
+    async def test_deploy_provisions_persists_intent_and_arms(self, patched):
+        p = patched
+        res = await tps.deploy(None, p.sid)
+        assert res["deploy_pending"] is True
+        assert res["sensor_count"] == 3
+        assert len(p.built) == 3
+        assert p.sid in p.pending
+        assert p.armed == [p.sid]
+
+    async def test_deploy_resumes_when_labs_exist_without_conductor(self, patched):
+        """Labs provisioned but conductor never went live (old give-up timeout,
+        or backend restart) — deploy() must resume, not refuse."""
+        p = patched
+        await tps.provision(None, p.sid)
+        res = await tps.deploy(None, p.sid)
+        assert res["deploy_pending"] is True
+        assert res["sensor_count"] == 3
+        assert len(p.built) == 3  # no second provisioning pass
+        assert set(res["span_interface_map"]) == {"zone:z-cell", "zone:z-ops", "core"}
+        assert p.sid in p.pending
+        assert p.armed == [p.sid]
+
+    async def test_deploy_refuses_when_conductor_live(self, patched):
+        p = patched
+        await tps.provision(None, p.sid)
+        p.state["deployment_state"] = "running"
+        with pytest.raises(Exception) as ei:
+            await tps.deploy(None, p.sid)
+        assert "already live" in str(ei.value)
+
+    async def test_teardown_clears_pending_intent(self, patched, monkeypatch):
+        p = patched
+        from app.services.agent_manager import agent_manager
+
+        async def fake_stop(scenario_id):
+            return True
+
+        monkeypatch.setattr(agent_manager, "stop_scenario", fake_stop)
+        await tps.deploy(None, p.sid)
+        assert p.sid in p.pending
+        await tps.teardown(_FakeDB(), p.sid)
+        assert p.sid not in p.pending
 
 
 class TestLiveTopologyOutput:

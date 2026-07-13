@@ -7,9 +7,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.6.0"
+VERSION = "2.6.1"
 
 # Version history:
+# 2.6.1 - Data/lint-only: register Janitza (316) and Elvaco (1473) in
+#   BACNET_VENDOR_IDS (vendor_oui.py) so the new EU energy-metering templates'
+#   BACnet vendor_ids resolve, and add the missing `Any` typing import in
+#   output.py (LiveTopologyOutput annotation). No protocol or behavioral changes.
 # 2.6.0 - Fix topology reframing dropping the EtherType of non-IP L2 protocols. The
 #   TopologyRouter's _reframe (protocol_engines/topology_router.py, staged into the agent)
 #   rebuilt each per-segment frame via scapy (Ether()/payload). For any protocol scapy renders

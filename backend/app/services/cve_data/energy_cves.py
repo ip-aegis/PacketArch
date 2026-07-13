@@ -403,4 +403,384 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
+# ==================== EU Energy-Metering CVEs (Janitza / Elvaco / Carlo Gavazzi) ====================
+# Verified 2026-07-13 against ICSA-15-265-03, ICSA-24-291-01 and ICSA-17-012-03.
+
+    # CVE-2015-3968 - Janitza UMG default FTP password
+    {
+        "cve_id": "CVE-2015-3968",
+        "title": "Janitza UMG Undocumented Default FTP Password",
+        "description": (
+            "The FTP service on Janitza UMG 508, 509, 511, 604, and 605 power "
+            "quality analyzers is protected only by an undocumented default "
+            "password. A remote attacker who logs in can upload and download "
+            "arbitrary files on the device."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Janitza",
+        "product_family": "UMG",
+        "affected_models": ["UMG 604-PRO", "UMG 508", "UMG 509", "UMG 511", "UMG 605"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "3.4",
+        "fixed_firmware_version": "4.0",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-15-265-03",
+        "references": [],
+        "mitre_techniques": ["T0812", "T0859"],
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2015, 9, 22),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "3.4",
+                "display_name": "Janitza UMG 604-PRO (CVE-2015-3968)",
+                "snmp_sys_descr_template": "Janitza UMG 604-PRO Power Quality Analyzer v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Janitza electronics GmbH",
+                    "product_code": "UMG604-PRO",
+                    "major_minor_revision": "3.4",
+                    "product_name": "UMG 604-PRO Power Quality Analyzer",
+                },
+            },
+        ],
+    },
+
+    # CVE-2015-3971 - Janitza UMG unauthenticated debug interface (JASIC code exec)
+    {
+        "cve_id": "CVE-2015-3971",
+        "title": "Janitza UMG Unauthenticated Debug Interface Code Execution",
+        "description": (
+            "The debug interface on Janitza UMG 508, 509, 511, 604, and 605 "
+            "devices listens on TCP port 1239 without authentication, allowing "
+            "remote attackers to read or write files and execute arbitrary "
+            "JASIC code on the meter."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Janitza",
+        "product_family": "UMG",
+        "affected_models": ["UMG 604-PRO", "UMG 508", "UMG 509", "UMG 511", "UMG 605"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "3.4",
+        "fixed_firmware_version": "4.0",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-15-265-03",
+        "references": [],
+        "mitre_techniques": ["T0821", "T0858"],
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2015, 9, 22),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "3.4",
+                "display_name": "Janitza UMG 604-PRO (CVE-2015-3971)",
+                "snmp_sys_descr_template": "Janitza UMG 604-PRO Power Quality Analyzer v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Janitza electronics GmbH",
+                    "product_code": "UMG604-PRO",
+                    "major_minor_revision": "3.4",
+                    "product_name": "UMG 604-PRO Power Quality Analyzer",
+                },
+            },
+        ],
+    },
+
+    # CVE-2015-3972 - Janitza UMG brute-forceable short web-UI PIN
+    {
+        "cve_id": "CVE-2015-3972",
+        "title": "Janitza UMG Web Interface Weak PIN Authentication",
+        "description": (
+            "The embedded web interface on Janitza UMG 508, 509, 511, 604, and "
+            "605 devices supports only short numeric PIN values for "
+            "authentication, making remote brute-force attacks practical and "
+            "allowing parameter and measurement manipulation."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Janitza",
+        "product_family": "UMG",
+        "affected_models": ["UMG 604-PRO", "UMG 508", "UMG 509", "UMG 511", "UMG 605"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "3.4",
+        "fixed_firmware_version": "4.0",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-15-265-03",
+        "references": [],
+        "mitre_techniques": ["T0812"],
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2015, 9, 22),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "3.4",
+                "display_name": "Janitza UMG 604-PRO (CVE-2015-3972)",
+                "snmp_sys_descr_template": "Janitza UMG 604-PRO Power Quality Analyzer v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Janitza electronics GmbH",
+                    "product_code": "UMG604-PRO",
+                    "major_minor_revision": "3.4",
+                    "product_name": "UMG 604-PRO Power Quality Analyzer",
+                },
+            },
+        ],
+    },
+
+    # CVE-2015-3973 - Janitza UMG weak session-token generation
+    {
+        "cve_id": "CVE-2015-3973",
+        "title": "Janitza UMG Weak Session Token Generation",
+        "description": (
+            "Janitza UMG 508, 509, 511, 604, and 605 devices improperly "
+            "generate web session tokens, allowing remote attackers to derive "
+            "the authentication PIN from computations on captured session-token "
+            "values."
+        ),
+        "severity": "medium",
+        "cvss_score": 5.3,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+        "vendor": "Janitza",
+        "product_family": "UMG",
+        "affected_models": ["UMG 604-PRO", "UMG 508", "UMG 509", "UMG 511", "UMG 605"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "3.4",
+        "fixed_firmware_version": "4.0",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-15-265-03",
+        "references": [],
+        "mitre_techniques": ["T0859"],
+        "exploit_available": False,
+        "exploit_complexity": "medium",
+        "published_date": datetime(2015, 9, 22),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "3.4",
+                "display_name": "Janitza UMG 604-PRO (CVE-2015-3973)",
+                "snmp_sys_descr_template": "Janitza UMG 604-PRO Power Quality Analyzer v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Janitza electronics GmbH",
+                    "product_code": "UMG604-PRO",
+                    "major_minor_revision": "3.4",
+                    "product_name": "UMG 604-PRO Power Quality Analyzer",
+                },
+            },
+        ],
+    },
+
+    # CVE-2024-49396 - Elvaco CMe3100 XSS -> admin account takeover
+    {
+        "cve_id": "CVE-2024-49396",
+        "title": "Elvaco CMe3100 Cross-Site Scripting Admin Takeover",
+        "description": (
+            "The Elvaco CMe3100 M-Bus metering gateway (version 1.12.1 and "
+            "prior) is vulnerable to a cross-site scripting attack that can be "
+            "used to bypass authentication and take over administrator "
+            "accounts."
+        ),
+        "severity": "high",
+        "cvss_score": 8.7,
+        "cvss_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
+        "vendor": "Elvaco",
+        "product_family": "CMe",
+        "affected_models": ["CMe3100"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "1.12.1",
+        "fixed_firmware_version": "1.13.3",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-24-291-01",
+        "references": [],
+        "mitre_techniques": ["T0859"],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2024, 10, 17),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "1.12.0",
+                "display_name": "Elvaco CMe3100 (CVE-2024-49396)",
+                "snmp_sys_descr_template": "Elvaco CMe3100 M-Bus Metering Gateway v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Elvaco AB",
+                    "product_code": "CMe3100",
+                    "major_minor_revision": "1.12.0",
+                    "product_name": "CMe3100 M-Bus Metering Gateway",
+                },
+            },
+        ],
+    },
+
+    # CVE-2024-49397 - Elvaco CMe3100 authentication bypass
+    {
+        "cve_id": "CVE-2024-49397",
+        "title": "Elvaco CMe3100 Authentication Bypass",
+        "description": (
+            "The Elvaco CMe3100 M-Bus metering gateway (version 1.12.1 and "
+            "prior) allows an attacker who can reach the device to bypass the "
+            "authentication process and gain access, fully compromising "
+            "confidentiality, integrity, and availability of the gateway."
+        ),
+        "severity": "high",
+        "cvss_score": 8.1,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Elvaco",
+        "product_family": "CMe",
+        "affected_models": ["CMe3100"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "1.12.1",
+        "fixed_firmware_version": "1.13.3",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-24-291-01",
+        "references": [],
+        "mitre_techniques": ["T0812"],
+        "exploit_available": False,
+        "exploit_complexity": "high",
+        "published_date": datetime(2024, 10, 17),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "1.12.0",
+                "display_name": "Elvaco CMe3100 (CVE-2024-49397)",
+                "snmp_sys_descr_template": "Elvaco CMe3100 M-Bus Metering Gateway v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Elvaco AB",
+                    "product_code": "CMe3100",
+                    "major_minor_revision": "1.12.0",
+                    "product_name": "CMe3100 M-Bus Metering Gateway",
+                },
+            },
+        ],
+    },
+
+    # CVE-2024-49398 - Elvaco CMe3100 unrestricted file upload (RCE)
+    {
+        "cve_id": "CVE-2024-49398",
+        "title": "Elvaco CMe3100 Unrestricted Upload of Dangerous File Types",
+        "description": (
+            "The Elvaco CMe3100 M-Bus metering gateway (version 1.12.1 and "
+            "prior) permits unrestricted upload of files with dangerous types, "
+            "which an attacker can use to execute code on the gateway."
+        ),
+        "severity": "high",
+        "cvss_score": 8.8,
+        "cvss_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:H/SC:N/SI:N/SA:N",
+        "vendor": "Elvaco",
+        "product_family": "CMe",
+        "affected_models": ["CMe3100"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "1.12.1",
+        "fixed_firmware_version": "1.13.3",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-24-291-01",
+        "references": [],
+        "mitre_techniques": ["T0821"],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2024, 10, 17),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "1.12.0",
+                "display_name": "Elvaco CMe3100 (CVE-2024-49398)",
+                "snmp_sys_descr_template": "Elvaco CMe3100 M-Bus Metering Gateway v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Elvaco AB",
+                    "product_code": "CMe3100",
+                    "major_minor_revision": "1.12.0",
+                    "product_name": "CMe3100 M-Bus Metering Gateway",
+                },
+            },
+        ],
+    },
+
+    # CVE-2024-49399 - Elvaco CMe3100 unauthenticated command use / info leak
+    {
+        "cve_id": "CVE-2024-49399",
+        "title": "Elvaco CMe3100 Unauthenticated Command Use",
+        "description": (
+            "The Elvaco CMe3100 M-Bus metering gateway (version 1.12.1 and "
+            "prior) allows an attacker to invoke commands without providing a "
+            "password, which can be used to leak information from the device."
+        ),
+        "severity": "high",
+        "cvss_score": 8.7,
+        "cvss_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
+        "vendor": "Elvaco",
+        "product_family": "CMe",
+        "affected_models": ["CMe3100"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "1.12.1",
+        "fixed_firmware_version": "1.13.3",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-24-291-01",
+        "references": [],
+        "mitre_techniques": ["T0812"],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2024, 10, 17),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "1.12.0",
+                "display_name": "Elvaco CMe3100 (CVE-2024-49399)",
+                "snmp_sys_descr_template": "Elvaco CMe3100 M-Bus Metering Gateway v{firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Elvaco AB",
+                    "product_code": "CMe3100",
+                    "major_minor_revision": "1.12.0",
+                    "product_name": "CMe3100 M-Bus Metering Gateway",
+                },
+            },
+        ],
+    },
+
+    # CVE-2017-5144 - Carlo Gavazzi VMU-C improper access control
+    {
+        "cve_id": "CVE-2017-5144",
+        "title": "Carlo Gavazzi VMU-C Improper Access Control",
+        "description": (
+            "Carlo Gavazzi VMU-C EM (prior to firmware A11_U05) and VMU-C PV "
+            "(prior to A17) energy monitoring gateways expose most application "
+            "functions without authentication. A remote attacker can change "
+            "configuration parameters, save modified configuration, and dump "
+            "the EWplant.db database containing energy and revenue data."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Carlo Gavazzi",
+        "product_family": "VMU-C",
+        "affected_models": ["VMU-C EM", "VMU-C PV"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "A11_U04",
+        "fixed_firmware_version": "A11_U05",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-17-012-03",
+        "references": [],
+        "mitre_techniques": ["T0812", "T0882"],
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2017, 1, 12),
+        "vulnerable_variants": [
+            {
+                "firmware_version": "A11_U04",
+                "display_name": "Carlo Gavazzi VMU-C EM (CVE-2017-5144)",
+                "snmp_sys_descr_template": "Carlo Gavazzi VMU-C EM Data Concentrator {firmware_version}",
+                "modbus_identity_override": {
+                    "vendor_name": "Carlo Gavazzi",
+                    "product_code": "VMU-C EM",
+                    "major_minor_revision": "A11_U04",
+                    "product_name": "VMU-C EM Data Concentrator",
+                },
+            },
+        ],
+    },
+
 ]

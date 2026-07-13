@@ -80,8 +80,8 @@ class TestDeriveTopology:
         # Core mgmt rides the highest-level zone's SVI
         assert plan.core["mgmt_ip"] == "10.5.3.1"
         # Links: 4 access (device->switch) + 3 trunk (switch->core)
-        access = [l for l in plan.links if l["kind"] == "access"]
-        trunk = [l for l in plan.links if l["kind"] == "trunk"]
+        access = [lnk for lnk in plan.links if lnk["kind"] == "access"]
+        trunk = [lnk for lnk in plan.links if lnk["kind"] == "trunk"]
         assert len(access) == 4 and len(trunk) == 3
         # Spans: one per zone + core
         assert {s["id"] for s in plan.spans} == {"zone:z-cell", "zone:z-sup", "zone:z-ops", CORE_SPAN}
