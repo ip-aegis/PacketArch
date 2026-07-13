@@ -25,6 +25,9 @@ export function useFeatures() {
     // stays hidden unless the backend explicitly enables it.
     multiSensorTopologyEnabled:
       features === null ? false : features.multi_sensor_topology_enabled,
+    // PacketArch Mimic (device emulation) — experimental; fail CLOSED so the
+    // Mimic UI stays hidden unless the backend explicitly enables it.
+    mimicEnabled: features === null ? false : features.mimic_enabled,
     loaded: useFeaturesStore((s) => s.loaded),
   };
 }

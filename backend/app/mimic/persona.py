@@ -1,0 +1,132 @@
+# PacketArch — OT Traffic Simulation Platform
+# Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
+# Licensed under GPL-3.0. See LICENSE at the repo root.
+"""DevicePersona — the composition root of the Mimic runtime.
+
+Binds a persona's identity (shared fingerprint substrate) + transport + process
+model + per-protocol projections + protocol servers into one running device, and
+drives the process model forward on a wall-clock tick (personas are reactive, so
+they live on wall time, never a virtual-time heap).
+
+P0 wires Modbus only; the ``for binding in spec.protocols`` dispatch is the seam
+where ENIP/S7/OPC-UA/etc. servers slot in behind the same interfaces.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import Any
+
+from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
+from app.protocol_engines.process_sim import ProcessModel
+from app.services.device_templates import get_fingerprint_from_template
+
+from .interfaces import PersonaSpec, ProtocolServer, Transport
+from .process_library import build_process_model
+from .projections.modbus_projection import ModbusProjection
+from .servers.modbus_server import ModbusPersonaServer
+from .transport import NamespaceKernelStack
+
+logger = logging.getLogger(__name__)
+
+
+class DevicePersona:
+    """One live, bound industrial device."""
+
+    def __init__(self, spec: PersonaSpec, transport: Transport | None = None) -> None:
+        self.spec = spec
+        self.transport = transport or NamespaceKernelStack(spec.bind_ip)
+
+        fingerprint = get_fingerprint_from_template(
+            spec.template_id, firmware_version=spec.firmware_version
+        )
+        if fingerprint is None:
+            raise ValueError(f"unknown device template: {spec.template_id!r}")
+        self._fingerprint: dict[str, Any] = fingerprint
+        self._modbus_identity: dict[str, Any] = fingerprint.get("modbus_identity") or {}
+        self._firmware_version: str | None = (
+            fingerprint.get("firmware_version") or spec.firmware_version
+        )
+        # The applicator is the device "personality" (TTL/window, response
+        # timing, error injection, deterministic serial). P0 uses it for the
+        # stack fingerprint the netns transport will apply; later phases route
+        # server response delay + error injection through it.
+        self.applicator = FingerprintApplicator(
+            fingerprint=fingerprint,
+            device_id=spec.device_id,
+            scenario_id=spec.scenario_id,
+            device_name=spec.name,
+        )
+
+        self._model: ProcessModel | None = None
+        self._servers: list[ProtocolServer] = []
+        self._step_task: asyncio.Task | None = None
+        self._running = False
+
+    @property
+    def model(self) -> ProcessModel | None:
+        return self._model
+
+    def build(self) -> None:
+        """Instantiate the process model and protocol servers (no binding yet)."""
+        if self.spec.process_model_id:
+            self._model = build_process_model(self.spec.process_model_id)
+
+        for binding in self.spec.protocols:
+            if binding.protocol == "modbus":
+                projection = ModbusProjection(self._model, binding.points)
+                self._servers.append(
+                    ModbusPersonaServer(
+                        bind_ip=self.transport.bind_ip,
+                        port=binding.port,
+                        unit_id=binding.unit_id,
+                        projection=projection,
+                        modbus_identity=self._modbus_identity,
+                        firmware_version=self._firmware_version,
+                    )
+                )
+            else:
+                raise ValueError(
+                    f"protocol {binding.protocol!r} not yet supported by Mimic (P0 = modbus)"
+                )
+
+    async def start(self) -> None:
+        """Bring the persona online: start the model tick, then bind servers."""
+        if not self._servers:
+            self.build()
+        if self._model is not None:
+            self._running = True
+            self._step_task = asyncio.create_task(
+                self._step_loop(), name=f"persona-step-{self.spec.device_id[:8]}"
+            )
+        for server in self._servers:
+            await server.start()
+        logger.info(
+            "persona '%s' (%s) online at %s: %d server(s)",
+            self.spec.name,
+            self.spec.template_id,
+            self.transport.bind_ip,
+            len(self._servers),
+        )
+
+    async def _step_loop(self) -> None:
+        dt_s = self.spec.step_interval_ms / 1000.0
+        while self._running:
+            try:
+                self._model.step(dt_s)
+            except Exception:  # noqa: BLE001 - a model error must not kill the servers
+                logger.exception("process model step failed")
+            await asyncio.sleep(dt_s)
+
+    async def stop(self) -> None:
+        self._running = False
+        for server in self._servers:
+            await server.stop()
+        if self._step_task is not None:
+            self._step_task.cancel()
+            try:
+                await self._step_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("persona '%s' stopped", self.spec.name)

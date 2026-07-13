@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     # v1.18; default on. Gates /api/v1/scenarios/*/topology routes — set false
     # to hide the Multi-sensor deploy option entirely.
     multi_sensor_topology_enabled: bool = True
+    # PacketArch Mimic — interactive device-emulation path (bound protocol
+    # servers that answer as real devices, on their own canvas → deploy → agent
+    # flow, separate from the traffic generator). Off by default; dark until the
+    # P0 go/no-go gate proves out. See tasks/emulator-agent-design.md.
+    mimic_enabled: bool = False
 
     # WebEx feedback bot — set both to enable the /feedback endpoint.
     # WEBEX_BOT_TOKEN: bot token from developer.webex.com

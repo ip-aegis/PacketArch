@@ -33,6 +33,7 @@ export interface Features {
   ai_enabled: boolean;
   live_traffic_enabled: boolean;
   multi_sensor_topology_enabled: boolean;
+  mimic_enabled: boolean;
 }
 
 export interface AboutResponse {
