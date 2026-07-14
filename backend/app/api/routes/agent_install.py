@@ -70,13 +70,14 @@ MIMIC_IMAGE_PATH = STATIC_DIR / "dist" / "mimic-persona.tar.gz"
 _MIMIC_CHECKINS: dict[str, dict] = {}
 
 
-@router.post("/mimic-checkin")
+@router.api_route("/mimic-checkin", methods=["GET", "POST"])
 async def mimic_checkin(request: Request):
     """A CML persona node reports its name + management IP + liveness once it's up.
 
-    Accepts arbitrary query fields (ip, modbus_listening, running, fc43, …) so a
-    node can self-report that the persona bound its protocol port, without the
-    backend needing inbound reachability to a NAT'd node.
+    GET *and* POST — a node self-reports via busybox ``wget`` (a GET), so the
+    endpoint must accept GET. Arbitrary query fields (ip, modbus_listening,
+    running, fc43, …) let a node report that the persona bound its protocol port,
+    without the backend needing inbound reachability to a NAT'd node.
     """
     from datetime import datetime, timezone
     params = dict(request.query_params)
