@@ -110,6 +110,80 @@ def _hmi_plc_pair() -> list[PersonaSpec]:
     return [plc, hmi]
 
 
+# --------------------------------------------------------------------------- #
+# Example scenarios — small, realistic multi-device cells across the verticals,
+# each backed by a process model so the values are live + controllable. Servers
+# use responder templates; the polling client is an HMI/SCADA (software) role.
+# Point maps are scaffolded from the process model (same as the Studio canvas).
+# --------------------------------------------------------------------------- #
+
+from .scaffold import _PORTS, _scaffold_points  # noqa: E402
+
+
+def _srv(device_id: str, name: str, template_id: str, model_id: str, protocol: str) -> PersonaSpec:
+    return PersonaSpec(
+        device_id=device_id, scenario_id="mimic", name=name,
+        template_id=template_id, process_model_id=model_id,
+        protocols=[ProtocolBinding(protocol=protocol, port=_PORTS[protocol],
+                                   points=_scaffold_points(protocol, model_id))],
+    )
+
+
+def _cli(device_id: str, name: str, template_id: str, target_device_id: str) -> PersonaSpec:
+    # Poll loops are Modbus (the active-master protocol); the client polls a
+    # Modbus server peer. Other-protocol servers still answer scanners / CV.
+    return PersonaSpec(
+        device_id=device_id, scenario_id="mimic", name=name, template_id=template_id,
+        clients=[ClientBinding(protocol="modbus", target_device=target_device_id, port=502, interval_s=2.0)],
+    )
+
+
+def _sc_water() -> list[PersonaSpec]:
+    return [
+        _srv("wp-plc", "Pump_Station_PLC", "schneider/modicon-m580/bmep584040", "pump_station", "modbus"),
+        _cli("wp-hmi", "Pump_Operator_HMI", "schneider/magelis/hmigto5310", "wp-plc"),
+    ]
+
+
+def _sc_reactor() -> list[PersonaSpec]:
+    return [
+        _srv("rx-plc", "Reactor_Control_PLC", "siemens/s7-1500/cpu-1516-3", "chemical_reactor", "opcua"),
+        _srv("rx-flow", "Reactor_Feed_FlowMeter", "emerson/micromotion/5700", "chemical_reactor", "modbus"),
+        _cli("rx-hmi", "Reactor_HMI", "siemens/hmi/tp1200-comfort", "rx-flow"),
+    ]
+
+
+def _sc_compressor() -> list[PersonaSpec]:
+    return [
+        _srv("cs-plc", "Compressor_Unit_PLC", "schneider/modicon-m580/bmep584040", "compressor_station", "modbus"),
+        _cli("cs-scada", "Pipeline_SCADA", "siemens/wincc/professional", "cs-plc"),
+    ]
+
+
+def _sc_substation() -> list[PersonaSpec]:
+    return [
+        _srv("sub-bay", "Feeder_Bay_Controller", "schneider/micom/c264", "power_feeder", "iec104"),
+        _srv("sub-relay", "Feeder_Protection_Relay", "siemens/siprotec/7sj85", "power_feeder", "modbus"),
+        _cli("sub-scada", "Substation_SCADA", "siemens/wincc/professional", "sub-relay"),
+    ]
+
+
+def _sc_building() -> list[PersonaSpec]:
+    return [
+        _srv("ahu-ctrl", "AHU_Room_Controller", "siemens/desigo/dxr2", "heat_exchanger", "bacnet"),
+        _srv("ahu-meter", "AHU_Power_Meter", "schneider/power/pm8000", "heat_exchanger", "modbus"),
+        _cli("ahu-hmi", "Building_HMI", "siemens/hmi/tp1200-comfort", "ahu-meter"),
+    ]
+
+
+def _sc_manufacturing() -> list[PersonaSpec]:
+    return [
+        _srv("mf-plc", "Assembly_Line_PLC", "siemens/s7-1500/cpu-1516-3", "tank_level_control", "opcua"),
+        _srv("mf-drive", "Conveyor_VFD_Drive", "siemens/drives/g120c", "pump_station", "modbus"),
+        _cli("mf-hmi", "Line_Operator_HMI", "schneider/magelis/hmigto5310", "mf-drive"),
+    ]
+
+
 # key -> (name, description, personas)
 _PRESETS: dict[str, tuple[str, str, list[PersonaSpec]]] = {
     "controlled-plc": ("Controlled PLC — Level Setpoint", "Schneider M580 running a PI level-control loop; write the setpoint register to move the process, which tracks it and rejects disturbances.", [_controlled_plc()]),
@@ -118,6 +192,13 @@ _PRESETS: dict[str, tuple[str, str, list[PersonaSpec]]] = {
     "bacnet-controller": ("BACnet Controller — Tank Loop", "Siemens Desigo DXR2 room controller on BACnet/IP.", [_bacnet_controller()]),
     "iec104-rtu": ("IEC-104 RTU — Tank Loop", "Substation RTU answering IEC 60870-5-104 telecontrol.", [_iec104_rtu()]),
     "hmi-plc-pair": ("HMI + PLC pair", "A Modbus PLC and a Magelis HMI that actively polls it — a live conversation.", _hmi_plc_pair()),
+    # --- Example scenarios (multi-device cells) ---
+    "scenario-water-pump": ("Scenario: Water Pump Station", "Water/wastewater — a Schneider M580 pump-station PLC running a PI discharge-pressure loop (VFD holds header pressure vs a diurnal demand), with a Magelis HMI polling it.", _sc_water()),
+    "scenario-reactor": ("Scenario: Exothermic Reactor Unit", "Chemical/oil & gas — a Siemens S7-1500 OPC UA reactor controller (reverse-acting PI cools an exothermic reaction) plus an Emerson Modbus feed flow-meter, watched by a Siemens HMI.", _sc_reactor()),
+    "scenario-compressor": ("Scenario: Gas Compressor Station", "Oil & gas pipeline — a Schneider M580 compressor PLC holding discharge pressure via speed, monitored by a WinCC SCADA client.", _sc_compressor()),
+    "scenario-substation": ("Scenario: Substation Feeder Bay", "Energy — a Schneider MiCOM bay controller on IEC-104 and a Siemens SIPROTEC protection relay on Modbus (PI voltage regulation via LTC tap), with a WinCC SCADA polling the relay.", _sc_substation()),
+    "scenario-building": ("Scenario: Building AHU Zone", "Building automation — a Siemens Desigo BACnet AHU/room controller and a Schneider PM8000 Modbus power meter, with a Siemens HMI.", _sc_building()),
+    "scenario-manufacturing": ("Scenario: Manufacturing Line Cell", "Manufacturing — a Siemens S7-1500 OPC UA line PLC and a Siemens G120C Modbus VFD drive, with a Magelis HMI polling the drive.", _sc_manufacturing()),
 }
 
 

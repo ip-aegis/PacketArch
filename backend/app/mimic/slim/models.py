@@ -29,10 +29,12 @@ def _diurnal(base: float, amplitude: float, period_s: float, clock_name: str = "
 
 
 def _pi_loop(*, measured: str, setpoint: str, output: str, kp: float, ki: float,
-             feedforward: str | None = None, integral_limit: float = 100.0):
+             feedforward: str | None = None, integral_limit: float = 100.0,
+             initial_output: float = 0.0):
     integ = f"_{output}_integ"
+    seed = max(-integral_limit, min(integral_limit, (initial_output / ki) if ki else 0.0))
     variables = [ProcessVariable(name=integ, role=VariableRole.SETPOINT, unit="",
-                                 initial_value=0.0, min_value=-integral_limit,
+                                 initial_value=seed, min_value=-integral_limit,
                                  max_value=integral_limit, time_constant_s=0.0)]
 
     def _integrate(v: dict) -> float:
@@ -126,10 +128,143 @@ def _heat_exchanger() -> ProcessModel:
                         initial_state=ProcessState.STEADY_STATE)
 
 
+def _pump_station() -> ProcessModel:
+    clk, clk_eq = _clock()
+    variables = [
+        clk,
+        ProcessVariable(name="setpoint", role=VariableRole.SETPOINT, unit="bar", initial_value=4.0,
+                        min_value=1.0, max_value=8.0, time_constant_s=0.0),
+        ProcessVariable(name="pressure", role=VariableRole.PRESSURE, unit="bar", initial_value=4.0,
+                        min_value=0.0, max_value=10.0, noise_std=0.02, time_constant_s=0.0),
+        ProcessVariable(name="demand", role=VariableRole.FLOW_RATE, unit="m3/h", initial_value=120.0,
+                        min_value=0.0, max_value=300.0, noise_std=1.0, time_constant_s=0.0),
+        ProcessVariable(name="pump_speed", role=VariableRole.SPEED, unit="%", initial_value=60.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.1, time_constant_s=1.5),
+        ProcessVariable(name="well_level", role=VariableRole.LEVEL, unit="%", initial_value=70.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.1, time_constant_s=20.0),
+    ]
+    equations = [
+        clk_eq,
+        Equation(target="demand", kind="algebraic", func=_diurnal(120.0, 45.0, 120.0), description="demand"),
+        Equation(target="pressure", kind="ode",
+                 func=lambda v: (v["pump_speed"] * 0.08) - (v["demand"] * 0.04), description="dP/dt"),
+        Equation(target="well_level", kind="algebraic",
+                 func=lambda v: 70.0 - 0.15 * (v["demand"] - 120.0), description="well level"),
+    ]
+    pv, pe = _pi_loop(measured="pressure", setpoint="setpoint", output="pump_speed",
+                      kp=8.0, ki=1.2, integral_limit=100.0, initial_output=60.0)
+    return ProcessModel(model_id="pump_station", name="Water Pump Station — Pressure Control",
+                        variables=variables + pv, equations=equations + pe, transitions=[],
+                        initial_state=ProcessState.STEADY_STATE)
+
+
+def _chemical_reactor() -> ProcessModel:
+    clk, clk_eq = _clock()
+    variables = [
+        clk,
+        ProcessVariable(name="setpoint", role=VariableRole.SETPOINT, unit="degC", initial_value=85.0,
+                        min_value=40.0, max_value=120.0, time_constant_s=0.0),
+        ProcessVariable(name="reactor_temp", role=VariableRole.TEMPERATURE, unit="degC", initial_value=85.0,
+                        min_value=0.0, max_value=200.0, noise_std=0.1, time_constant_s=0.0),
+        ProcessVariable(name="feed_rate", role=VariableRole.FLOW_RATE, unit="kg/h", initial_value=50.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.4, time_constant_s=0.0),
+        ProcessVariable(name="coolant_valve", role=VariableRole.VALVE_POSITION, unit="%", initial_value=60.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.1, time_constant_s=1.0),
+        ProcessVariable(name="pressure", role=VariableRole.PRESSURE, unit="bar", initial_value=2.0,
+                        min_value=0.0, max_value=10.0, noise_std=0.02, time_constant_s=5.0),
+        ProcessVariable(name="concentration", role=VariableRole.CONCENTRATION, unit="%", initial_value=45.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.1, time_constant_s=10.0),
+    ]
+    equations = [
+        clk_eq,
+        Equation(target="feed_rate", kind="algebraic", func=_diurnal(50.0, 15.0, 100.0), description="feed"),
+        Equation(target="reactor_temp", kind="ode",
+                 func=lambda v: v["feed_rate"] * 0.6 - v["coolant_valve"] * 0.5, description="dT/dt"),
+        Equation(target="pressure", kind="algebraic",
+                 func=lambda v: 2.0 + 0.03 * (v["reactor_temp"] - 85.0), description="pressure"),
+        Equation(target="concentration", kind="algebraic",
+                 func=lambda v: 45.0 - 0.25 * (v["reactor_temp"] - 85.0), description="concentration"),
+    ]
+    pv, pe = _pi_loop(measured="reactor_temp", setpoint="setpoint", output="coolant_valve",
+                      kp=-4.0, ki=-0.6, integral_limit=150.0, initial_output=60.0)  # reverse-acting (cooling)
+    return ProcessModel(model_id="chemical_reactor", name="Exothermic Reactor — Temperature Control",
+                        variables=variables + pv, equations=equations + pe, transitions=[],
+                        initial_state=ProcessState.STEADY_STATE)
+
+
+def _compressor_station() -> ProcessModel:
+    clk, clk_eq = _clock()
+    variables = [
+        clk,
+        ProcessVariable(name="setpoint", role=VariableRole.SETPOINT, unit="bar", initial_value=60.0,
+                        min_value=30.0, max_value=90.0, time_constant_s=0.0),
+        ProcessVariable(name="discharge_pressure", role=VariableRole.PRESSURE, unit="bar", initial_value=60.0,
+                        min_value=0.0, max_value=120.0, noise_std=0.15, time_constant_s=0.0),
+        ProcessVariable(name="throughput", role=VariableRole.FLOW_RATE, unit="MMSCFD", initial_value=200.0,
+                        min_value=0.0, max_value=400.0, noise_std=1.5, time_constant_s=0.0),
+        ProcessVariable(name="speed", role=VariableRole.SPEED, unit="%", initial_value=65.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.1, time_constant_s=2.0),
+        ProcessVariable(name="suction_pressure", role=VariableRole.PRESSURE, unit="bar", initial_value=20.0,
+                        min_value=0.0, max_value=60.0, noise_std=0.05, time_constant_s=8.0),
+        ProcessVariable(name="shaft_power", role=VariableRole.POWER, unit="MW", initial_value=13.0,
+                        min_value=0.0, max_value=30.0, noise_std=0.05, time_constant_s=2.0),
+    ]
+    equations = [
+        clk_eq,
+        Equation(target="throughput", kind="algebraic", func=_diurnal(200.0, 60.0, 150.0), description="demand"),
+        Equation(target="discharge_pressure", kind="ode",
+                 func=lambda v: (v["speed"] * 0.18) - (v["throughput"] * 0.06), description="dP/dt"),
+        Equation(target="suction_pressure", kind="algebraic",
+                 func=lambda v: 20.0 - 0.03 * (v["throughput"] - 200.0), description="suction"),
+        Equation(target="shaft_power", kind="algebraic", func=lambda v: 0.2 * v["speed"], description="power"),
+    ]
+    pv, pe = _pi_loop(measured="discharge_pressure", setpoint="setpoint", output="speed",
+                      kp=5.0, ki=1.5, integral_limit=100.0, initial_output=66.0)
+    return ProcessModel(model_id="compressor_station", name="Gas Compressor — Discharge Pressure Control",
+                        variables=variables + pv, equations=equations + pe, transitions=[],
+                        initial_state=ProcessState.STEADY_STATE)
+
+
+def _power_feeder() -> ProcessModel:
+    clk, clk_eq = _clock()
+    variables = [
+        clk,
+        ProcessVariable(name="setpoint", role=VariableRole.SETPOINT, unit="%", initial_value=100.0,
+                        min_value=95.0, max_value=105.0, time_constant_s=0.0),
+        ProcessVariable(name="voltage", role=VariableRole.LEVEL, unit="%", initial_value=100.0,
+                        min_value=90.0, max_value=110.0, noise_std=0.05, time_constant_s=0.0),
+        ProcessVariable(name="load", role=VariableRole.LOAD, unit="%", initial_value=55.0,
+                        min_value=0.0, max_value=100.0, noise_std=0.4, time_constant_s=0.0),
+        ProcessVariable(name="tap", role=VariableRole.POSITION, unit="step", initial_value=3.0,
+                        min_value=-16.0, max_value=16.0, noise_std=0.0, time_constant_s=3.0),
+        ProcessVariable(name="current", role=VariableRole.FLOW_RATE, unit="A", initial_value=275.0,
+                        min_value=0.0, max_value=600.0, noise_std=1.0, time_constant_s=1.0),
+        ProcessVariable(name="active_power", role=VariableRole.POWER, unit="MW", initial_value=5.5,
+                        min_value=0.0, max_value=15.0, noise_std=0.03, time_constant_s=1.0),
+    ]
+    equations = [
+        clk_eq,
+        Equation(target="load", kind="algebraic", func=_diurnal(55.0, 25.0, 140.0), description="load"),
+        Equation(target="voltage", kind="ode",
+                 func=lambda v: (v["tap"] * 0.06) - (v["load"] - 55.0) * 0.02, description="dV/dt"),
+        Equation(target="current", kind="algebraic", func=lambda v: 5.0 * v["load"], description="current"),
+        Equation(target="active_power", kind="algebraic", func=lambda v: 0.1 * v["load"], description="power"),
+    ]
+    pv, pe = _pi_loop(measured="voltage", setpoint="setpoint", output="tap",
+                      kp=2.0, ki=0.4, integral_limit=16.0, initial_output=3.0)
+    return ProcessModel(model_id="power_feeder", name="Distribution Feeder — Voltage Regulation",
+                        variables=variables + pv, equations=equations + pe, transitions=[],
+                        initial_state=ProcessState.STEADY_STATE)
+
+
 _BUILDERS = {
     "tank_level": _tank,
     "tank_level_control": _tank_control,
     "heat_exchanger": _heat_exchanger,
+    "pump_station": _pump_station,
+    "chemical_reactor": _chemical_reactor,
+    "compressor_station": _compressor_station,
+    "power_feeder": _power_feeder,
 }
 
 

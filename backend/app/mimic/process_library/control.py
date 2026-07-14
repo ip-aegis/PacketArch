@@ -49,6 +49,7 @@ def pi_loop(
     ki: float,
     feedforward: str | None = None,
     integral_limit: float = 100.0,
+    initial_output: float = 0.0,
 ) -> tuple[list[ProcessVariable], list[Equation]]:
     """Build a PI controller that drives ``output`` to hold ``measured`` at
     ``setpoint``.
@@ -61,10 +62,13 @@ def pi_loop(
     integral and plant state (standard discrete PI).
     """
     integ = f"_{output}_integ"
+    # Seed the integral so the loop STARTS at its steady output (output = ki·integ
+    # at zero error) — avoids a cold-start transient where the actuator snaps to 0.
+    seed = max(-integral_limit, min(integral_limit, (initial_output / ki) if ki else 0.0))
     variables = [
         ProcessVariable(
             name=integ, role=VariableRole.SETPOINT, unit="",
-            initial_value=0.0, min_value=-integral_limit, max_value=integral_limit,
+            initial_value=seed, min_value=-integral_limit, max_value=integral_limit,
             time_constant_s=0.0,
         )
     ]
