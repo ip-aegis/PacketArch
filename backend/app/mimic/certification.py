@@ -33,7 +33,9 @@ PROTO_MAP: dict[str, str] = {
 }
 
 # Deploy targets each protocol has a working SERVER runtime for. iec104 (c104) has
-# no musllinux wheel, so it can't run on the slim off-box Alpine node.
+# no musllinux wheel; a prebuilt one is served (agent_install /agent/c104-musl.whl +
+# slim_deploy PROTOCOL_DEPS) but the off-box node bootstrap isn't reliable yet, so
+# iec104 stays on-box only until that's cracked (WIP — needs node-side diagnostics).
 RUNTIME_SUPPORT: dict[str, frozenset[str]] = {
     "modbus": frozenset({"onbox", "offbox"}),
     "opcua": frozenset({"onbox", "offbox"}),

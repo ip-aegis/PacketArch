@@ -90,6 +90,21 @@ def _build_slim_tarball() -> bytes:
     return data
 
 
+C104_WHEEL_PATH = STATIC_DIR / "wheels" / "c104-2.2.1-cp312-cp312-musllinux_1_2_x86_64.whl"
+
+
+@router.api_route("/c104-musl.whl", methods=["GET", "HEAD"])
+async def get_c104_wheel():
+    """Serve a prebuilt musllinux c104 wheel so a slim off-box (Alpine) IEC-104
+    persona can pip-install it instead of source-compiling (c104 ships no musl
+    wheel; the source build LTO-fails / OOMs on the node). Built for cp312 /
+    musllinux_1_2 — matches the alpine-base-3-20-3 node's python3."""
+    if C104_WHEEL_PATH.exists():
+        return FileResponse(path=C104_WHEEL_PATH, media_type="application/octet-stream",
+                            filename=C104_WHEEL_PATH.name)
+    return PlainTextResponse(content="ERROR: c104 wheel not found on server\n", status_code=404)
+
+
 @router.api_route("/mimic-slim.tar.gz", methods=["GET", "HEAD"])
 async def get_mimic_slim():
     """Serve the slim persona runtime (the `mimic_slim` package, tarred from

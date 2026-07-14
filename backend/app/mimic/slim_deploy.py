@@ -32,24 +32,22 @@ _CHECKIN_PATH = "/agent/mimic-checkin"
 # Per-protocol: default port, the pinned pip dep, and any apk build deps the node
 # needs. c104 (IEC-104) has no musllinux wheel, so it builds from source on Alpine
 # — hence the toolchain. pymodbus/asyncua/bacpypes3 install from wheels.
+# Per protocol: default port, pip dep, apk deps, and an optional prebuilt WHEEL URL
+# served by the backend. c104 (IEC-104) has no musl wheel and its source build
+# LTO-fails / OOMs on the node, so we serve a prebuilt musllinux c104 wheel and
+# pip-install that instead — keeping iec104 nodes slim (512 MB, no build toolchain).
 PROTOCOL_DEPS: dict[str, dict[str, str]] = {
-    "modbus": {"port": "502", "pip": "pymodbus>=3.8.0,<3.9.0", "apk": ""},
-    "opcua": {"port": "4840", "pip": "asyncua>=2.0.1,<2.1.0", "apk": ""},
-    "bacnet": {"port": "47808", "pip": "bacpypes3>=0.0.106,<0.1.0", "apk": ""},
-    "iec104": {"port": "2404", "pip": "c104>=2.2.1,<2.3.0", "apk": "build-base cmake python3-dev linux-headers"},
+    "modbus": {"port": "502", "pip": "pymodbus>=3.8.0,<3.9.0", "apk": "", "wheel": ""},
+    "opcua": {"port": "4840", "pip": "asyncua>=2.0.1,<2.1.0", "apk": "", "wheel": ""},
+    "bacnet": {"port": "47808", "pip": "bacpypes3>=0.0.106,<0.1.0", "apk": "", "wheel": ""},
+    # libstdc++ is the C++ runtime the prebuilt c104 extension links against.
+    "iec104": {"port": "2404", "pip": "", "apk": "libstdc++", "wheel": "/agent/c104-musl.whl"},
 }
 
-# Protocols whose dep must COMPILE on the node (no musl wheel) need a bigger node —
-# a pybind11/C++ build OOMs the 512 MB slim default. FOLLOW-UP: serve a prebuilt
-# musllinux c104 wheel so iec104 nodes can stay slim + skip the multi-minute build.
-_COMPILE_PROTOCOLS = {"iec104"}
 _SLIM_RAM_MB, _SLIM_CPUS = 512, 1
-_COMPILE_RAM_MB, _COMPILE_CPUS = 2048, 2
 
 
 def _node_resources(protocols: list[str]) -> tuple[int, int]:
-    if any(p in _COMPILE_PROTOCOLS for p in protocols):
-        return _COMPILE_RAM_MB, _COMPILE_CPUS
     return _SLIM_RAM_MB, _SLIM_CPUS
 
 
@@ -111,15 +109,28 @@ def build_alpine_boot_config(*, resolved_spec: dict, server: str) -> str:
     protos = [p["protocol"] for p in resolved_spec.get("protocols", [])]
     clients = resolved_spec.get("clients", [])
     port = resolved_spec["protocols"][0]["port"] if resolved_spec.get("protocols") else default_port("modbus")
-    # Collect the pip + apk deps for exactly the protocol(s) this persona serves —
-    # each pinned (a fresh pip grabs the latest, e.g. pymodbus 3.14 breaks the
-    # datastore API). c104/iec104 pulls the build toolchain (no musl wheel). A
-    # client-only persona (HMI, no servers) still needs pymodbus for its poll loop.
-    dep_protos = list(protos)
-    if any(c.get("protocol", "modbus") == "modbus" for c in clients):
+    # Collect the pip install targets for exactly the protocol(s) this persona
+    # serves — a pinned PyPI spec, or a backend-served prebuilt wheel URL (iec104's
+    # c104, which has no musl wheel). Each pinned (a fresh pip grabs the latest,
+    # e.g. pymodbus 3.14 breaks the datastore API). A client-only persona (HMI, no
+    # servers) still needs pymodbus for its poll loop.
+    dep_protos = list(dict.fromkeys(protos))
+    if any(c.get("protocol", "modbus") == "modbus" for c in clients) and "modbus" not in dep_protos:
         dep_protos.append("modbus")
-    pips = " ".join(dict.fromkeys(
-        f"'{PROTOCOL_DEPS[p]['pip']}'" for p in dep_protos if p in PROTOCOL_DEPS))
+    # Served wheels must be fetched with wget --no-check-certificate FIRST (the
+    # backend cert is self-signed; `pip install <https-url>` would fail cert
+    # verification), then pip-installed from the local file.
+    wheel_dl = ""
+    pip_targets: list[str] = []
+    for i, p in enumerate(dep_protos):
+        d = PROTOCOL_DEPS.get(p, {})
+        if d.get("wheel"):
+            path = f"/tmp/mimicwheel{i}.whl"
+            wheel_dl += f"wget --no-check-certificate -qO {path} {server}{d['wheel']}\n"
+            pip_targets.append(path)
+        elif d.get("pip"):
+            pip_targets.append(f"'{d['pip']}'")
+    pips = " ".join(pip_targets)
     apks = " ".join(dict.fromkeys(
         d for p in dep_protos for d in PROTOCOL_DEPS.get(p, {}).get("apk", "").split() if d))
     # Static data-segment IP (eth1) for the OT plane — the mgmt path (eth0) stays
@@ -143,7 +154,7 @@ fi
     setup = f"""#!/bin/sh
 for i in $(seq 1 60); do ip -4 -o addr show eth0 2>/dev/null | grep -q 'inet ' && break; sleep 2; done
 {eth1}apk add --no-cache python3 py3-pip {apks} >/dev/null 2>&1
-pip3 install --break-system-packages {pips} >/dev/null 2>&1 || pip3 install {pips} >/dev/null 2>&1
+{wheel_dl}pip3 install --break-system-packages {pips} >/dev/null 2>&1 || pip3 install {pips} >/dev/null 2>&1
 cd /opt/mimic && wget --no-check-certificate -qO slim.tar.gz {server}{_IMAGE_SLIM_PATH} && tar xzf slim.tar.gz
 start-stop-daemon --start --background --stdout /opt/mimic/persona.log --stderr /opt/mimic/persona.log \\
   --make-pidfile --pidfile /run/mimic.pid --chdir /opt/mimic \\
