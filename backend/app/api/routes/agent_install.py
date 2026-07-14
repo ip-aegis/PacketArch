@@ -63,6 +63,43 @@ async def get_docker_compose():
 
 
 MIMIC_IMAGE_PATH = STATIC_DIR / "dist" / "mimic-persona.tar.gz"
+# The slim runtime is packaged straight from source (app/mimic/slim) at request
+# time, so it's never stale and needs no build/copy step. The package must be
+# importable as `mimic_slim` on the Alpine node, so it's tarred under that name.
+MIMIC_SLIM_SRC = Path(__file__).parent.parent.parent / "mimic" / "slim"
+_slim_cache: dict[str, object] = {}
+
+
+def _build_slim_tarball() -> bytes:
+    import io
+    import tarfile
+
+    def _mtime(p: Path) -> float:
+        return max((f.stat().st_mtime for f in p.rglob("*") if f.is_file()), default=0.0)
+
+    stamp = _mtime(MIMIC_SLIM_SRC)
+    if _slim_cache.get("stamp") == stamp and "data" in _slim_cache:
+        return _slim_cache["data"]  # type: ignore[return-value]
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for f in sorted(MIMIC_SLIM_SRC.rglob("*")):
+            if f.is_file() and "__pycache__" not in f.parts:
+                tar.add(f, arcname=f"mimic_slim/{f.relative_to(MIMIC_SLIM_SRC)}")
+    data = buf.getvalue()
+    _slim_cache.update(stamp=stamp, data=data)
+    return data
+
+
+@router.api_route("/mimic-slim.tar.gz", methods=["GET", "HEAD"])
+async def get_mimic_slim():
+    """Serve the slim persona runtime (the `mimic_slim` package, tarred from
+    source), unauthenticated, so an Alpine node can curl + extract + run it
+    natively with only python3 + a pinned pymodbus."""
+    from fastapi.responses import Response
+    if not MIMIC_SLIM_SRC.is_dir():
+        return PlainTextResponse(content="ERROR: slim runtime source not found\n", status_code=404)
+    return Response(content=_build_slim_tarball(), media_type="application/gzip",
+                    headers={"Content-Disposition": "attachment; filename=mimic_slim.tar.gz"})
 
 # In-memory persona check-in registry (off-box CML nodes report their own IP on
 # startup, since CML doesn't surface a stock-Ubuntu node's DHCP address — this is

@@ -24,8 +24,14 @@ logger = logging.getLogger(__name__)
 
 
 def _checkin(url: str, name: str) -> None:
+    # The backend serves a self-signed cert; urllib would reject it, so use an
+    # unverified context (this is a liveness ping, not a trust boundary).
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
     try:
-        urllib.request.urlopen(f"{url}?name={name}&slim=1&up=1", timeout=5)
+        urllib.request.urlopen(f"{url}?name={name}&slim=1&up=1&modbus_listening=1", timeout=5, context=ctx)
     except Exception:  # noqa: BLE001
         pass
 
