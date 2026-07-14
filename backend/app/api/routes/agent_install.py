@@ -5,7 +5,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 
 router = APIRouter(prefix="/agent", tags=["agent-install"])
@@ -60,6 +60,49 @@ async def get_docker_compose():
             media_type="text/yaml",
             status_code=404,
         )
+
+
+MIMIC_IMAGE_PATH = STATIC_DIR / "dist" / "mimic-persona.tar.gz"
+
+# In-memory persona check-in registry (off-box CML nodes report their own IP on
+# startup, since CML doesn't surface a stock-Ubuntu node's DHCP address — this is
+# the persona analogue of the agent's WebSocket phone-home).
+_MIMIC_CHECKINS: dict[str, dict] = {}
+
+
+@router.post("/mimic-checkin")
+async def mimic_checkin(request: Request):
+    """A CML persona node reports its name + management IP + liveness once it's up.
+
+    Accepts arbitrary query fields (ip, modbus_listening, running, fc43, …) so a
+    node can self-report that the persona bound its protocol port, without the
+    backend needing inbound reachability to a NAT'd node.
+    """
+    from datetime import datetime, timezone
+    params = dict(request.query_params)
+    name = params.pop("name", "?")
+    params["at"] = datetime.now(timezone.utc).isoformat()
+    _MIMIC_CHECKINS[name] = params
+    return {"ok": True, "name": name, **params}
+
+
+@router.get("/mimic-checkins")
+async def mimic_checkins():
+    """List persona check-ins (for the backend to discover node IPs)."""
+    return _MIMIC_CHECKINS
+
+
+@router.api_route("/mimic-image.tar.gz", methods=["GET", "HEAD"])
+async def get_mimic_image():
+    """Serve the Mimic persona-runtime Docker image (unauthenticated, like the
+    agent image) so a CML persona node can ``docker load`` it via cloud-init."""
+    if MIMIC_IMAGE_PATH.exists():
+        return FileResponse(
+            path=MIMIC_IMAGE_PATH,
+            media_type="application/gzip",
+            filename="mimic-persona.tar.gz",
+        )
+    return PlainTextResponse(content="ERROR: Mimic image not found on server\n", status_code=404)
 
 
 @router.api_route("/image.tar.gz", methods=["GET", "HEAD"])
