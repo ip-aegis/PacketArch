@@ -377,3 +377,22 @@ check-in needs an unverified SSL context (self-signed backend). Diagnosis used s
 - Multi-node HMI↔PLC + a SPAN + a real CV docker sensor on CML (off-box CV proof).
 - Wire `deploy_slim_alpine` into the Mimic REST/Studio deploy path (currently a
   standalone deploy helper; the cell-author flow still targets on-box).
+
+### P2.1 — slim protocol breadth off-box (3/4 DONE 2026-07-14, commit e03ca1a)
+
+Ported the on-box OPC UA / BACnet / IEC-104 servers into `mimic_slim` (slim twins
+sharing a substrate-free `NamedPointProjection`; identity resolved per-protocol at
+deploy in `_resolve_identity`). A persona node installs only its protocol's pip dep,
+so `SlimPersona.build()` imports every protocol lib LAZILY per branch.
+
+- **OPC UA** (Siemens S7-1500) — VALIDATED off-box: browsed from the dev box, got
+  BuildInfo `Siemens / 6ES7 516-3AN02-0AB0 / V3.0.3` + live Level/Setpoint/PumpCmd.
+- **BACnet** (Siemens Desigo DXR2) — binds UDP 47808, reports up+listening. Full wire
+  proof is CV Who-Is on-segment (the backend container is NAT'd off the lab subnet).
+- **IEC-104** — slim server is a validated port (binds in-process), but `c104` has no
+  musllinux wheel; its source build OOMs a 512 MB node. Node bumped to 2 GB for the
+  compile. FOLLOW-UP: **serve a prebuilt musl `c104` wheel** so iec104 nodes stay slim.
+
+`PROTOCOL_DEPS` carries each protocol's pinned pip dep, apk build-deps, and default
+port; the bootstrap installs exactly what the persona serves and bind-checks with
+`netstat -ln` (UDP-aware). Lessons in `lessons.md`.

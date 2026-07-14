@@ -132,3 +132,31 @@ script `wget` a check-in endpoint with progress markers (`&stage=net&ip=...`,
 `&stage=pip&rc=...`, `&stage=final&pymodbus=$ver&listen502=$n&err=$logtail`). The
 staged check-ins pinpointed the pymodbus-3.14 ImportError without any shell access.
 Keep a *failure-only* variant in production (ping back only if the port didn't bind).
+
+## Slim off-box protocol breadth: lazy imports + the c104/musl wall (2026-07-14)
+
+Porting OPC UA / BACnet / IEC-104 into the slim (off-box Alpine) runtime surfaced
+two things worth keeping:
+
+1. **A multi-protocol runtime whose deps are installed PER NODE must import every
+   protocol lib lazily.** Each slim node installs only its own protocol's pip dep
+   (pymodbus OR asyncua OR bacpypes3 OR c104). `persona.py` had `from .modbus import
+   ...` at module top — so an OPC UA node (no pymodbus) ImportError'd on load, before
+   any dispatch, and reported a useless `err=/run.py`. Fix: import the server/
+   projection INSIDE each protocol branch of `build()`. Verify with: import the
+   entrypoint and assert none of the protocol libs landed in `sys.modules`.
+
+2. **`c104` (IEC-104) has no musllinux wheel — it can't go on a slim Alpine node.**
+   pymodbus/asyncua/bacpypes3 install from wheels (asyncua's `cryptography` has musl
+   wheels); c104 is a pybind11/C++ extension that builds from source, and that build
+   OOMs a 1-CPU/512 MB node (and takes many minutes even at 2 GB). So `netstat`-based
+   liveness never fires. Options: bump the node (done — 2 GB/2 CPU for compile
+   protocols) or, better, **serve a prebuilt musl c104 wheel** so the node just
+   `pip install`s it. Rule: before committing to "install dep X on a slim musl node,"
+   check it ships a `musllinux_*` wheel — a C extension without one silently turns a
+   fast deploy into a multi-minute (or OOM-ing) source build.
+
+Also: a UDP protocol's bind is invisible to `netstat -ltn` (TCP-only) — use
+`netstat -ln` so BACnet (UDP/47808) doesn't false-alarm as bootstrap-failed. And a
+BACnet Who-Is probe from the NAT'd backend container can't reach a lab-subnet node
+(broadcast + return traffic don't survive NAT) — BACnet's real proof is CV on-segment.
