@@ -105,16 +105,17 @@ function newKey(): string {
 }
 
 const StudioInner: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const {
-    status, templates, processModels, isDeploying, error, cmlStatus,
-    fetchStatus, fetchTemplates, fetchProcessModels, author, deployCml, fetchCmlStatus, clearError,
+    status, templates, processModels, presets, isDeploying, error, cmlStatus,
+    fetchStatus, fetchTemplates, fetchProcessModels, fetchPresets, author, deployCml, fetchCmlStatus, clearError,
   } = useMimicStore();
   const { labs, fetchLabs } = useLocalSensorStore();
   const [nodes, setNodes, onNodesChange] = useNodesState<PersonaNodeT>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [labSlug, setLabSlug] = React.useState<string | undefined>(undefined);
   const [cellName, setCellName] = React.useState('Authored Cell');
+  const [scenarioKey, setScenarioKey] = React.useState<string | undefined>(undefined);
   const [target, setTarget] = React.useState<'onbox' | 'offbox'>('onbox');
   const [withSensor, setWithSensor] = React.useState(false);
   const [form] = Form.useForm();
@@ -162,9 +163,67 @@ const StudioInner: React.FC = () => {
     fetchStatus();
     fetchTemplates();
     fetchProcessModels();
+    fetchPresets();
     fetchLabs();
     fetchCmlStatus();
-  }, [fetchStatus, fetchTemplates, fetchProcessModels, fetchLabs, fetchCmlStatus]);
+  }, [fetchStatus, fetchTemplates, fetchProcessModels, fetchPresets, fetchLabs, fetchCmlStatus]);
+
+  // Drop an example scenario's devices + poll edges onto the canvas, ready to edit
+  // and deploy (on-box or off-box).
+  const loadScenario = (key: string) => {
+    const preset = presets.find((p) => p.key === key);
+    if (!preset) return;
+    const build = () => {
+      const cols = 3;
+      const newNodes: PersonaNodeT[] = preset.personas.map((p, i) => {
+        const tpl = templates.find((t) => t.id === p.template_id);
+        const proto = (p.protocols?.[0] as { protocol?: string } | undefined)?.protocol ?? null;
+        return {
+          id: p.device_id,
+          type: 'persona',
+          position: { x: 70 + (i % cols) * 240, y: 60 + Math.floor(i / cols) * 170 },
+          data: {
+            name: p.name,
+            templateId: p.template_id,
+            vendor: tpl?.vendor || '',
+            role: tpl?.device_type || '',
+            protocol: proto,
+            processModelId: p.process_model_id ?? null,
+          },
+        };
+      });
+      const newEdges: Edge[] = preset.personas.flatMap((p) =>
+        (p.clients || [])
+          .filter((c) => c.target_device)
+          .map((c) => ({
+            id: `e-${p.device_id}-${c.target_device}`,
+            source: p.device_id,
+            target: c.target_device as string,
+            animated: true,
+            label: `${PROTO_LABEL[c.protocol] || c.protocol} poll`,
+            labelStyle: { fill: '#ddd', fontSize: 10 },
+            labelBgStyle: { fill: '#1f1f1f', fillOpacity: 0.85 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#1677ff' },
+            style: { stroke: '#1677ff' },
+          })),
+      );
+      setNodes(newNodes);
+      setEdges(newEdges);
+      setCellName(preset.name.replace(/^Scenario:\s*/, ''));
+      setScenarioKey(preset.key);
+      message.success(`Loaded "${preset.name}" — ${newNodes.length} device(s). Edit, then Deploy.`);
+    };
+    if (nodes.length > 0) {
+      modal.confirm({
+        title: 'Replace the canvas?',
+        content: `Loading "${preset.name}" clears the current ${nodes.length} device(s).`,
+        okText: 'Load scenario',
+        onOk: build,
+      });
+    } else {
+      build();
+    }
+  };
 
   useEffect(() => {
     if (!error) return;
@@ -277,7 +336,15 @@ const StudioInner: React.FC = () => {
         <Background />
         <Controls />
         <Panel position="top-left">
-          <Card size="small" title="Add device" style={{ width: 290 }}>
+          <Card size="small" title="Build cell" style={{ width: 290 }}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="⚡ Load an example scenario…"
+              value={scenarioKey}
+              onChange={loadScenario}
+              options={presets.map((p) => ({ value: p.key, label: p.name }))}
+            />
+            <Divider style={{ margin: '10px 0' }}>or add a device</Divider>
             <Form form={form} layout="vertical" size="small" onValuesChange={onFormChange}>
               <Form.Item name="name" rules={[{ required: true, message: 'Name the device' }]}>
                 <Input placeholder="Device name, e.g. Reactor_PLC" />
