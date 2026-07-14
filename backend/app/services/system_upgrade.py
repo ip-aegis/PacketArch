@@ -157,9 +157,16 @@ def launch_updater(target: str) -> None:
         ],
         detach=True,
         remove=True,
-        working_dir="/repo",
+        # The install dir MUST be mounted at its host path (not an alias like
+        # /repo): `docker compose up` inside the updater resolves the compose
+        # file's relative bind mounts (./backend/app/static/agent, ./docker/...)
+        # against the updater's cwd, but the HOST daemon creates the mounts.
+        # An aliased path makes the daemon bind-mount empty auto-created host
+        # dirs — the backend then serves an empty static/agent (404 on
+        # /agent/install.sh) and loses the other source binds.
+        working_dir=settings.host_install_dir,
         volumes={
-            settings.host_install_dir: {"bind": "/repo", "mode": "rw"},
+            settings.host_install_dir: {"bind": settings.host_install_dir, "mode": "rw"},
             "/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
             state_volume: {"bind": "/state", "mode": "rw"},
         },

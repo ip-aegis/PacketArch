@@ -14,11 +14,13 @@ FROM docker:27-cli
 # project so it doesn't silently skip the PCAP volumes.
 RUN apk add --no-cache git bash curl tar coreutils python3
 
-# The bind-mounted /repo is owned by the host user but this container runs as
-# root; without this git refuses every command with "dubious ownership".
+# The bind-mounted install dir is owned by the host user but this container
+# runs as root; without this git refuses every command with "dubious ownership".
 RUN git config --global --add safe.directory '*'
 
-WORKDIR /repo
+# No WORKDIR: the backend mounts the host install dir at its REAL host path and
+# sets working_dir to match (see services/system_upgrade.py) — compose's
+# relative bind mounts only resolve correctly when container path == host path.
 
 # No CMD: the backend supplies the command
 # (scripts/upgrade.sh --to <tag> --status-file /state/upgrade_status.json).
