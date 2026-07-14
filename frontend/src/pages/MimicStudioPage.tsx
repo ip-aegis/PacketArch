@@ -24,11 +24,12 @@ import {
   useEdgesState,
   Handle,
   Position,
+  MarkerType,
 } from '@xyflow/react';
 import type { Node, Edge, Connection, NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Alert, App, Button, Card, Checkbox, Form, Input, Segmented, Select, Space, Tag, Typography } from 'antd';
-import { PlusOutlined, RocketOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Card, Checkbox, Divider, Form, Input, Segmented, Select, Space, Tag, Typography } from 'antd';
+import { PlusOutlined, RocketOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
 
@@ -171,10 +172,41 @@ const StudioInner: React.FC = () => {
     clearError();
   }, [error, message, clearError]);
 
+  // A connector = a POLL relationship: the source device polls the target's server.
   const onConnect = useCallback(
-    (c: Connection) => setEdges((eds) => addEdge({ ...c, animated: true }, eds)),
-    [setEdges],
+    (c: Connection) => {
+      const targetNode = nodes.find((n) => n.id === c.target);
+      const proto = targetNode?.data.protocol;
+      if (!proto) {
+        message.warning('A connector is a poll — draw it TO a device that runs a server (has a protocol).');
+        return;
+      }
+      setEdges((eds) => addEdge({
+        ...c,
+        animated: true,
+        label: `${PROTO_LABEL[proto] || proto} poll`,
+        labelStyle: { fill: '#ddd', fontSize: 10 },
+        labelBgStyle: { fill: '#1f1f1f', fillOpacity: 0.85 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#1677ff' },
+        style: { stroke: '#1677ff' },
+      }, eds));
+    },
+    [nodes, setEdges, message],
   );
+
+  // Delete the selected device(s) / connector(s) (and any edge orphaned by a
+  // removed device). Backspace/Delete keys also work via the canvas.
+  const deleteSelected = useCallback(() => {
+    const selNodes = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    const selEdges = new Set(edges.filter((e) => e.selected).map((e) => e.id));
+    if (!selNodes.size && !selEdges.size) {
+      message.info('Select a device or connector on the canvas first (click it), then delete.');
+      return;
+    }
+    setNodes((ns) => ns.filter((n) => !selNodes.has(n.id)));
+    setEdges((es) => es.filter(
+      (e) => !selEdges.has(e.id) && !selNodes.has(e.source) && !selNodes.has(e.target)));
+  }, [nodes, edges, setNodes, setEdges, message]);
 
   const addDevice = async () => {
     const v = await form.validateFields();
@@ -239,6 +271,7 @@ const StudioInner: React.FC = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        deleteKeyCode={['Backspace', 'Delete']}
         fitView
       >
         <Background />
@@ -302,6 +335,16 @@ const StudioInner: React.FC = () => {
                 Add to canvas
               </Button>
             </Form>
+            <Divider style={{ margin: '10px 0' }} />
+            <Button block danger icon={<DeleteOutlined />} onClick={deleteSelected}>
+              Delete selected
+            </Button>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+              <b>Connectors = poll relationships.</b> Drag from a device&apos;s right handle to
+              another device&apos;s left handle to make the first <i>poll</i> the second (e.g.
+              an HMI → a PLC). The edge is labelled with the poll protocol. Select any device or
+              connector and press <b>Delete</b> / <b>Backspace</b> (or the button above) to remove it.
+            </Text>
           </Card>
         </Panel>
         <Panel position="top-right">
