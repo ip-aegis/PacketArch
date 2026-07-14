@@ -18,7 +18,6 @@ from scapy.layers.l2 import Ether
 
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.atcs.codeline import (
-    ATCS_FLAG,
     atcs_address_subfields,
     build_atcs_address_5series,
     build_atcs_address_7series,
@@ -27,6 +26,7 @@ from app.protocol_engines.atcs.codeline import (
     crc16_x25,
     decode_bcd_address,
     encode_bcd_address,
+    vital_crc32,
 )
 from app.protocol_engines.atcs.engine import (
     ATCS_RELAY_TCP_PORT,
@@ -35,6 +35,10 @@ from app.protocol_engines.atcs.engine import (
 )
 from app.protocol_engines.protocols import get_default_port, get_identity_key_for_protocol
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
+
+
+def by_field(fields, name):
+    return next(f for f in fields if f["field"] == name)
 
 
 def _dev(did, mac, ip, port, name):
@@ -93,53 +97,87 @@ class TestCrc16X25:
         assert crc16_x25(b"123456789") == 0x906E
 
 
-class TestCodelineFrame:
-    def test_frame_structure_and_fcs(self):
-        usr = build_indication_usrdata(signal_aspect=3, switch_normal=True, occupancy=0)
-        frame, fields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001", usrdata=usr,
-            gfi=2, group=5, sseq=77, rseq=45, beacon=False, vital=False, frame_counter=34,
-        )
-        # framed by HDLC flags
-        assert frame[0] == ATCS_FLAG and frame[-1] == ATCS_FLAG
-        # FCS (little-endian) over the body validates
-        body = frame[1:-3]
-        fcs = struct.unpack("<H", frame[-3:-1])[0]
-        assert crc16_x25(body) == fcs
+def _validate_frame_crcs(frame: bytes, fields: list[dict]) -> None:
+    """Validate the FCS-16 (and 32-bit vital CRC if present) using the field map."""
+    by_name = {f["field"]: f for f in fields}
+    fcs_off = by_name["atcs.fcs16"]["off"]
+    assert crc16_x25(frame[:fcs_off]) == struct.unpack("<H", frame[fcs_off:fcs_off + 2])[0]
+    if "atcs.vital_crc32" in by_name:
+        vc = by_name["atcs.vital_crc32"]["off"]
+        assert vital_crc32(frame[:vc]) == struct.unpack(">I", frame[vc:vc + 4])[0]
 
-    def test_field_map_offsets_and_confidence(self):
-        usr = build_indication_usrdata(2, False, 5)
+
+class TestCodelineFrame:
+    def test_rf_frame_has_no_wireline_lapb_or_flags(self):
+        # RF path (relay feed): no HDLC 0x7E flags, no LAPB address/control byte.
         frame, fields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001", usrdata=usr,
-            sseq=1, rseq=2, frame_counter=3,
+            src_addr="71253230040202", dst_addr="21250000010000",
+            usrdata=b"\x02\x04", gfi=2, group=5, sseq=77, rseq=45, frame_counter=34,
+        )
+        names = {f["field"] for f in fields}
+        assert "atcs.lapb_address" not in names and "atcs.lapb_control" not in names
+        assert "atcs.flag_open" not in names and "atcs.flag_close" not in names
+        # first byte is the radio-link frame counter, not a 0x7E flag
+        assert frame[0] == 34 and frame[0] != 0x7E
+        assert by_field(fields, "atcs.frame_counter")["off"] == 0
+
+    def test_fcs_and_vital_crc(self):
+        # non-vital: 16-bit FCS only
+        frame, fields = build_codeline_frame(
+            src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
+            sseq=1, rseq=2, frame_counter=3, vital=False,
+        )
+        assert "atcs.vital_crc32" not in {f["field"] for f in fields}
+        _validate_frame_crcs(frame, fields)
+        # vital: 16-bit FCS + trailing 32-bit vital CRC
+        vframe, vfields = build_codeline_frame(
+            src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
+            sseq=1, rseq=2, frame_counter=3, vital=True,
+        )
+        assert by_field(vfields, "atcs.vital_crc32")["len"] == 4
+        _validate_frame_crcs(vframe, vfields)
+        assert len(vframe) == len(frame) + 4
+
+    def test_address_order_is_destination_first(self):
+        # Appendix D: address-length octet, then DESTINATION address, then SOURCE.
+        frame, fields = build_codeline_frame(
+            src_addr="71253230040202", dst_addr="5125013826", usrdata=b"\x00",
+            sseq=1, rseq=2,
+        )
+        alo = by_field(fields, "atcs.addr_len")
+        # src has 14 digits, dst has 10 -> high nibble 14, low nibble 10
+        assert frame[alo["off"]] == ((14 << 4) | 10)
+        dst_f = by_field(fields, "atcs.dst_addr")
+        src_f = by_field(fields, "atcs.src_addr")
+        assert dst_f["off"] < src_f["off"]                     # destination first
+        assert frame[dst_f["off"]:dst_f["off"] + dst_f["len"]] == encode_bcd_address("5125013826")
+        assert frame[src_f["off"]:src_f["off"] + src_f["len"]] == encode_bcd_address("71253230040202")
+
+    def test_field_map_confidence_tiers(self):
+        frame, fields = build_codeline_frame(
+            src_addr="5125013826", dst_addr="2125000001",
+            usrdata=build_indication_usrdata(2, False, 5), sseq=1, rseq=2,
         )
         for f in fields:
             assert 0 <= f["off"] < len(frame)
             assert f["off"] + f["len"] <= len(frame)
             assert f["confidence"] in {"spec", "provisional", "synthetic"}
         by_name = {f["field"]: f for f in fields}
-        # spec-tier: flags and addresses are byte-accurate
-        assert by_name["atcs.flag_open"]["confidence"] == "spec"
-        assert frame[by_name["atcs.src_addr"]["off"]:by_name["atcs.src_addr"]["off"] + 5] == encode_bcd_address("5125013826")
-        # provisional-tier: network header packing
-        assert by_name["atcs.gfi_group"]["confidence"] == "provisional"
-        # synthetic-tier: usrdata
-        assert by_name["atcs.usrdata"]["confidence"] == "synthetic"
+        assert by_name["atcs.addr_len"]["confidence"] == "spec"          # from Appendix D
+        assert by_name["atcs.dst_addr"]["confidence"] == "spec"
+        assert by_name["atcs.gfi_group"]["confidence"] == "provisional"  # Appendix G unread
+        assert by_name["atcs.frame_counter"]["confidence"] == "provisional"
         assert by_name["atcs.usrdata"]["synthetic"] is True
 
-    def test_network_header_reproduces_sample_values(self):
-        # provisional packing must at least reproduce the field VALUES
+    def test_datagram_header_reproduces_sample_values(self):
         frame, fields = build_codeline_frame(
             src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x00",
-            gfi=2, group=5, sseq=77, rseq=45, beacon=False, vital=False,
+            gfi=2, group=5, sseq=77, rseq=45, vital=False,
         )
         by_name = {f["field"]: f for f in fields}
-        gg = by_name["atcs.gfi_group"]
-        assert frame[gg["off"]] == ((2 << 4) | 5)      # GFI=2, Group=5
-        sb = by_name["atcs.sseq_beacon"]
-        assert frame[sb["off"]] >> 1 == 77              # SSeq=77
-        rv = by_name["atcs.rseq_vital"]
-        assert frame[rv["off"]] >> 1 == 45              # RSeq=45
+        assert frame[by_name["atcs.gfi_group"]["off"]] == ((2 << 4) | 5)  # GFI=2, Group=5
+        assert frame[by_name["atcs.sseq"]["off"]] >> 1 == 77             # SSeq=77
+        assert frame[by_name["atcs.rseq_vital"]["off"]] >> 1 == 45       # RSeq=45
 
 
 class TestAtcsEngine:
@@ -174,12 +212,11 @@ class TestAtcsEngine:
             if ev.metadata.get("type", "").startswith("atcs_codeline"):
                 udp_codeline += 1
                 assert UDP in pkt
-                # UDP payload is ASCII-hex; decode and validate the codeline FCS
+                # UDP payload is ASCII-hex; decode and validate the codeline CRCs
                 hex_txt = bytes(pkt[UDP].payload).strip()
                 frame = bytes.fromhex(hex_txt.decode("ascii"))
-                assert frame[0] == ATCS_FLAG and frame[-1] == ATCS_FLAG
-                assert crc16_x25(frame[1:-3]) == struct.unpack("<H", frame[-3:-1])[0]
                 assert frame.hex().upper() == ev.metadata["codeline_frame_hex"]
+                _validate_frame_crcs(frame, ev.metadata["codeline_fields"])
             elif ev.metadata.get("type") == "atcs_keepalive":
                 udp_keepalive += 1
                 assert UDP in pkt

@@ -1,48 +1,69 @@
 # PacketArch — OT Traffic Simulation Platform
 # Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
 # Licensed under GPL-3.0. See LICENSE at the repo root.
-"""ATCS (Advanced Train Control System) codeline frame building — AAR Spec 200.
+"""ATCS (Advanced Train Control System) codeline frame building.
 
-ATCS is a legacy radio-code-line train-control system. Its native transport is
-a 900 MHz FSK radio link, NOT IP — Layer 2 is X.25 LAPB for ground users and
-HDLC balanced procedure for mobile/wayside users (AAR Spec 200). The only
-IP-observable form of ATCS is the **ATCS Monitor relay** (see ``engine.py``),
-which streams decoded codeline frames as ASCII-hex over UDP. This module builds
-the inner codeline frame that rides inside that relay feed.
+ATCS is a legacy radio-code-line train-control system whose native transport is
+a 900 MHz FSK radio link, NOT IP. Its layering (AAR MSRP Section K-II, formerly
+ATCS Spec 200 = S-5800) has TWO distinct Layer-2s: X.25 **LAPB** on the ground
+point-to-point wireline interfaces, and an **HDLC-balanced radio link** for the
+mobile/wayside RF path. The only IP-observable form of ATCS is the **ATCS
+Monitor relay** (see ``engine.py``), which streams *decoded* codeline frames as
+ASCII-hex over UDP.
 
-FIDELITY — three confidence tiers, carried per-field in the label map so a
-downstream Cyber Vision dissector-training pipeline knows which bytes to trust
-(CV has no rail DPI today; this generates labeled corpora to build one):
+The relay feed carries the **RF path**, so this module models the decoded RF
+logical frame — a radio datagram (Appendix G, Layer 3) over the radio link
+(Appendix L, Layer 2) — and deliberately does NOT emit the wireline-LAPB
+address/control bytes or HDLC 0x7E flags (those belong to the ground wireline
+path). The physical FEC / 85-bit-block encoding (Appendix W) is stripped by the
+receiver before the relay sees it, so it is out of scope.
 
-- ``spec``        — derivable to byte accuracy from public standards:
-                    HDLC framing (0x7E flags), the 10-BCD-digit ATCS address
-                    encoding, and the FCS (CRC-16/X.25). These are the ITU-T
-                    X.25/HDLC standard and the confirmed ATCS address format.
-- ``provisional`` — the exact bit-packing of the X.25-derived network header
-                    fields (GFI, Group, SSeq, RSeq, Beacon, Vital) is defined by
-                    AAR Spec 200 (paywalled) / the ATCSMon "RF Codeline Protocol
-                    Reference" wiki (DNS-down at build time). The layout in
-                    ``_build_network_header`` reproduces the known sample-frame
-                    field *values* but its byte positions are RECONSTRUCTED and
-                    must be certified against Spec 200 before this is called
-                    byte-authoritative. It is isolated in one function for exactly
-                    that correction.
-- ``synthetic``   — UsrData payload content. Per-territory codeline bit semantics
-                    live in private railroad ``.mcp`` databases; the bytes here
-                    are plausible but invented.
+Frame model (decoded RF logical frame)::
 
-Reference sample frame (sigidwiki), reproduced by this builder's field values::
+    radio-link frame counter (1B)        Appendix L   — the ATCSMon "Frame=NN"
+    radio datagram header (3B)           Appendix G   — GFI/Group, SSeq, RSeq/Vital
+    address-length octet (1B)            Appendix D   — src digits (hi nibble) | dst (lo)
+    destination ATCS address (BCD)       Appendix D   — destination FIRST
+    source ATCS address (BCD)            Appendix D
+    packet label / UsrData length (1B)   Spec 250
+    UsrData (NB)                         Spec 250     — application payload
+    FCS-16 (2B, CRC-16/X.25)             Layer 2      — on every message
+    vital CRC (4B)                       Appendix Y   — vital messages ONLY (32-bit)
 
-    Wayside 5125013826  Frame=34 GFI=2 Group=5 SSeq=77 RSeq=45
-    Beacon=0 Vital=0  UsrData=02 04 05 00 00 00
+FIDELITY — three confidence tiers, per-field in the label map so a downstream
+Cyber Vision dissector-training pipeline knows which bytes to trust (CV has no
+rail DPI today; this generates labeled corpora to build one):
+
+- ``spec``        — derivable/confirmed: the ATCS address decimal structure and
+                    BCD packing, destination-first ordering + address-length
+                    octet (K-II Appendix D §2.3-2.4), CRC-16/X.25 FCS, and the
+                    presence + position of the 32-bit vital CRC (Appendix Y).
+- ``provisional`` — NOT yet read from the primary source: the exact bit widths
+                    of the radio-datagram header (GFI/Group/SSeq/RSeq/Vital,
+                    Appendix G, ~K-II-57) and the radio-link frame counter
+                    (Appendix L, ~K-II-70), plus the vital-CRC polynomial
+                    (Spec 250 §3.2.1.1). Reproduces the known sample values;
+                    byte positions are best-effort pending a direct read of those
+                    appendices. Isolated in ``_build_radio_datagram_header`` for
+                    exactly that correction. See ``SPEC_NEEDS.md``.
+- ``synthetic``   — UsrData payload content (per-territory codeline bit semantics
+                    live in private railroad ``.mcp`` databases).
+
+NOTE: this layering was corrected from an earlier LAPB-based model per K-II
+findings; the exact Appendix G/L byte tables were unreachable from the build
+host and remain the one open item. There are TWO distinct "vital" concepts — a
+transport vital bit (Appendix D §2.11) and the radio-datagram Vital flag; both
+are modeled.
+
+Reference sample (sigidwiki) whose field VALUES this builder reproduces::
+
+    Wayside 5125013826  Frame=34 GFI=2 Group=5 SSeq=77 RSeq=45  Vital=0
 """
 
 from __future__ import annotations
 
 import struct
-
-ATCS_FLAG = 0x7E                 # HDLC opening/closing flag (spec)
-ATCS_LAPB_ADDR = 0x03            # LAPB command address, ground users (spec-typical)
+from binascii import crc32
 
 # ATCS address Type digit (first digit of the address).
 ATCS_TYPE_LOCOMOTIVE = 1
@@ -82,6 +103,19 @@ def crc16_x25(data: bytes) -> int:
             else:
                 crc >>= 1
     return crc ^ 0xFFFF
+
+
+def vital_crc32(data: bytes) -> int:
+    """32-bit vital/presentation CRC appended to VITAL messages (last 4 octets).
+
+    Per K-II, vital messages carry additional (Layer 4 / Layer 6) redundancy
+    checks beyond the Layer-2 FCS; the vital CRC is 32 bits. The exact
+    polynomial and bit/byte order are defined in ATCS Spec 250 §3.2.1.1, which
+    was not reachable from the build host — so the CRC's PRESENCE and 4-octet
+    POSITION are spec-derived but its VALUE (computed here as a standard CRC-32)
+    is provisional until the Spec 250 polynomial is confirmed. See SPEC_NEEDS.md.
+    """
+    return crc32(data) & 0xFFFFFFFF
 
 
 def build_atcs_address_7series(
@@ -168,32 +202,32 @@ def decode_bcd_address(b: bytes) -> str:
     return "".join(f"{(x >> 4) & 0xF}{x & 0xF}" for x in b)
 
 
-def _build_network_header(
-    gfi: int, group: int, sseq: int, beacon: bool, rseq: int, vital: bool,
+def _build_radio_datagram_header(
+    gfi: int, group: int, sseq: int, rseq: int, vital: bool,
 ) -> tuple[bytes, list[dict]]:
-    """X.25-derived ATCS network header — PROVISIONAL bit-packing.
+    """ATCS radio-datagram (Appendix G, Layer 3) header — PROVISIONAL bit-packing.
 
-    Reproduces the confirmed field set (GFI, Group, SSeq, RSeq, Beacon, Vital)
-    with the sample frame's value ranges (SSeq/RSeq are modulo-128, matching the
-    sample's 77/45). Byte positions are RECONSTRUCTED, not certified — see the
-    module docstring. Correct this one function against AAR Spec 200 to make the
-    header byte-authoritative.
+    Reproduces the confirmed field set (GFI, Group, SSeq, RSeq, datagram Vital
+    flag) with the sample frame's value ranges (SSeq/RSeq modulo-128, matching
+    the sample's 77/45). The exact bit widths/positions live in K-II Appendix G
+    (~K-II-57) which was not reachable from the build host — so byte positions
+    are best-effort. Correct THIS function once Appendix G is read.
 
     Layout (provisional)::
 
-        byte 0: GFI (bits 7-4) | Group (bits 3-0)
-        byte 1: SSeq (bits 7-1) | Beacon (bit 0)
-        byte 2: RSeq (bits 7-1) | Vital (bit 0)
+        byte 0: GFI (bits 7-4) | Group (bits 3-0)   [X.25-derived: 4-bit GFI + 4-bit group]
+        byte 1: SSeq (bits 7-1) | flag (bit 0)
+        byte 2: RSeq (bits 7-1) | datagram Vital (bit 0)
     """
     b0 = ((gfi & 0x0F) << 4) | (group & 0x0F)
-    b1 = ((sseq & 0x7F) << 1) | (1 if beacon else 0)
+    b1 = ((sseq & 0x7F) << 1)
     b2 = ((rseq & 0x7F) << 1) | (1 if vital else 0)
     header = bytes([b0, b1, b2])
     fields = [
         {"off": 0, "len": 1, "field": "atcs.gfi_group",
          "value": {"gfi": gfi, "group": group}, "synthetic": False, "confidence": "provisional"},
-        {"off": 1, "len": 1, "field": "atcs.sseq_beacon",
-         "value": {"sseq": sseq, "beacon": int(beacon)}, "synthetic": False, "confidence": "provisional"},
+        {"off": 1, "len": 1, "field": "atcs.sseq",
+         "value": {"sseq": sseq}, "synthetic": False, "confidence": "provisional"},
         {"off": 2, "len": 1, "field": "atcs.rseq_vital",
          "value": {"rseq": rseq, "vital": int(vital)}, "synthetic": False, "confidence": "provisional"},
     ]
@@ -209,82 +243,92 @@ def build_codeline_frame(
     group: int = 5,
     sseq: int = 0,
     rseq: int = 0,
-    beacon: bool = False,
     vital: bool = False,
+    transport_vital: bool = False,
     frame_counter: int = 0,
 ) -> tuple[bytes, list[dict]]:
-    """Build a complete ATCS codeline (HDLC) frame and its ground-truth field map.
+    """Build a decoded ATCS RF codeline frame (relay-feed form) + field map.
 
-    Frame structure::
+    This models the RF path the ATCS Monitor relay decodes (radio datagram over
+    radio link), NOT the wireline LAPB path — so there is no LAPB address/control
+    byte and no HDLC 0x7E flags (those are wireline artifacts). See the module
+    docstring for the layer references and confidence tiers.
 
-        0x7E                 flag                     (spec)
-        LAPB address (1B)                             (spec-typical)
-        LAPB control (1B)    frame counter / I-frame  (provisional)
-        --- X.25 network header (3B) ---              (provisional bit-packing)
-        GFI|Group | SSeq|Beacon | RSeq|Vital
-        src ATCS addr (5B/7B BCD)                     (spec structure; BCD assumed)
-        dst ATCS addr (5B/7B BCD)                     (spec structure; BCD assumed)
-        UsrData length (1B)                           (provisional)
-        UsrData (NB)                                  (synthetic)
-        --- ---
-        FCS-16 (2B, little-endian)                    (spec algorithm, CRC-16/X.25)
-        0x7E                 flag                     (spec)
+    Frame model::
 
-    Returns ``(frame_bytes, field_map)``. Offsets in the field map are absolute
-    within ``frame_bytes``. No HDLC bit-stuffing is applied: the ATCS Monitor
-    relay delivers de-stuffed logical frames, which is what this represents.
+        radio-link frame counter (1B)         Appendix L   (provisional)
+        radio datagram header (3B)            Appendix G   (provisional widths)
+        address-length octet (1B)             Appendix D   src digits<<4 | dst digits
+        destination ATCS address (BCD)        Appendix D   (spec; destination FIRST)
+        source ATCS address (BCD)             Appendix D   (spec)
+        packet label / UsrData length (1B)    Spec 250     (provisional)
+        UsrData (NB)                          Spec 250     (synthetic)
+        FCS-16 (2B, CRC-16/X.25, LE)          Layer 2      (spec algorithm)
+        vital CRC (4B)                        Appendix Y   (vital msgs only; value provisional)
+
+    ``vital`` sets the radio-datagram Vital flag AND triggers the trailing 32-bit
+    vital CRC. ``transport_vital`` is the separate transport-layer vital bit
+    (Appendix D §2.11), carried in the packet-label octet. Returns
+    ``(frame_bytes, field_map)`` with absolute offsets.
     """
     src_bcd = encode_bcd_address(src_addr)
     dst_bcd = encode_bcd_address(dst_addr)
-    net_hdr, net_fields = _build_network_header(gfi, group, sseq, beacon, rseq, vital)
+    dgram_hdr, dgram_fields = _build_radio_datagram_header(gfi, group, sseq, rseq, vital)
 
-    # LAPB control byte carries an I-frame send counter (provisional mapping of
-    # the sample's "Frame=NN").
-    lapb_control = (frame_counter & 0x7F) << 1
+    # Address-length octet: source digit count (high nibble) | dest digit count
+    # (low nibble), in units of BCD digits (Appendix D §2.3-2.4).
+    addr_len_octet = ((len(src_addr) & 0x0F) << 4) | (len(dst_addr) & 0x0F)
+    # Packet label / UsrData length octet (Spec 250). Bit 0 carries the transport
+    # vital bit (Appendix D §2.11); the remaining bits are the user-data length.
+    packet_label = ((len(usrdata) & 0x7F) << 1) | (1 if transport_vital else 0)
 
     body = bytearray()
-    body.append(ATCS_LAPB_ADDR)
-    body.append(lapb_control)
-    body += net_hdr
+    body.append(frame_counter & 0xFF)          # radio-link frame counter
+    body += dgram_hdr                           # radio datagram header
+    body.append(addr_len_octet)
+    body += dst_bcd                             # destination FIRST
     body += src_bcd
-    body += dst_bcd
-    body.append(len(usrdata) & 0xFF)
+    body.append(packet_label)
     body += usrdata
     fcs = crc16_x25(bytes(body))
 
-    frame = bytearray()
-    frame.append(ATCS_FLAG)
-    frame += body
-    frame += struct.pack("<H", fcs)          # FCS little-endian
-    frame.append(ATCS_FLAG)
+    frame = bytearray(body)
+    frame += struct.pack("<H", fcs)             # 16-bit FCS, little-endian
+    if vital:
+        frame += struct.pack(">I", vital_crc32(bytes(frame)))  # 32-bit vital CRC
 
-    # Build the absolute-offset field map. body starts at offset 1 (after flag).
-    base = 1
+    # Absolute-offset field map.
     fields: list[dict] = [
-        {"off": 0, "len": 1, "field": "atcs.flag_open", "value": 0x7E, "synthetic": False, "confidence": "spec"},
-        {"off": base, "len": 1, "field": "atcs.lapb_address", "value": ATCS_LAPB_ADDR, "synthetic": False, "confidence": "spec"},
-        {"off": base + 1, "len": 1, "field": "atcs.lapb_control", "value": frame_counter, "synthetic": False, "confidence": "provisional"},
+        {"off": 0, "len": 1, "field": "atcs.frame_counter",
+         "value": frame_counter, "synthetic": False, "confidence": "provisional"},
     ]
-    for f in net_fields:
-        fields.append({**f, "off": base + 2 + f["off"]})
-    addr_off = base + 2 + len(net_hdr)
-    fields.append({"off": addr_off, "len": len(src_bcd), "field": "atcs.src_addr",
-                   "value": src_addr, "subfields": atcs_address_subfields(src_addr),
+    for f in dgram_fields:
+        fields.append({**f, "off": 1 + f["off"]})
+    alo = 1 + len(dgram_hdr)
+    fields.append({"off": alo, "len": 1, "field": "atcs.addr_len",
+                   "value": {"src_digits": len(src_addr), "dst_digits": len(dst_addr)},
                    "synthetic": False, "confidence": "spec"})
-    dst_off = addr_off + len(src_bcd)
+    dst_off = alo + 1
     fields.append({"off": dst_off, "len": len(dst_bcd), "field": "atcs.dst_addr",
                    "value": dst_addr, "subfields": atcs_address_subfields(dst_addr),
                    "synthetic": False, "confidence": "spec"})
-    len_off = dst_off + len(dst_bcd)
-    fields.append({"off": len_off, "len": 1, "field": "atcs.usrdata_len",
-                   "value": len(usrdata), "synthetic": False, "confidence": "provisional"})
-    fields.append({"off": len_off + 1, "len": len(usrdata), "field": "atcs.usrdata",
+    src_off = dst_off + len(dst_bcd)
+    fields.append({"off": src_off, "len": len(src_bcd), "field": "atcs.src_addr",
+                   "value": src_addr, "subfields": atcs_address_subfields(src_addr),
+                   "synthetic": False, "confidence": "spec"})
+    label_off = src_off + len(src_bcd)
+    fields.append({"off": label_off, "len": 1, "field": "atcs.packet_label",
+                   "value": {"usrdata_len": len(usrdata), "transport_vital": int(transport_vital)},
+                   "synthetic": False, "confidence": "provisional"})
+    ud_off = label_off + 1
+    fields.append({"off": ud_off, "len": len(usrdata), "field": "atcs.usrdata",
                    "value": usrdata.hex(), "synthetic": True, "confidence": "synthetic"})
-    fcs_off = len_off + 1 + len(usrdata)
+    fcs_off = ud_off + len(usrdata)
     fields.append({"off": fcs_off, "len": 2, "field": "atcs.fcs16",
                    "value": fcs, "synthetic": False, "confidence": "spec"})
-    fields.append({"off": fcs_off + 2, "len": 1, "field": "atcs.flag_close",
-                   "value": 0x7E, "synthetic": False, "confidence": "spec"})
+    if vital:
+        fields.append({"off": fcs_off + 2, "len": 4, "field": "atcs.vital_crc32",
+                       "value": "crc32", "synthetic": False, "confidence": "provisional"})
     return bytes(frame), fields
 
 

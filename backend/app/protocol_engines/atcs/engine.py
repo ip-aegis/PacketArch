@@ -253,7 +253,7 @@ class AtcsEngine(ProtocolEngine):
         frame, fields = build_codeline_frame(
             src_addr=wayside_ind_addr, dst_addr=office_addr, usrdata=ind,
             gfi=2, group=5, sseq=cd["sseq"], rseq=cd["rseq"],
-            beacon=False, vital=random.random() > 0.5, frame_counter=cd["frame_counter"],
+            vital=random.random() > 0.5, frame_counter=cd["frame_counter"],
         )
         # Accumulate time across sub-events so per-cycle timestamps stay monotonic.
         t = cycle_time_ms
@@ -276,7 +276,7 @@ class AtcsEngine(ProtocolEngine):
             cframe, cfields = build_codeline_frame(
                 src_addr=office_addr, dst_addr=wayside_ctl_addr, usrdata=ctl,
                 gfi=2, group=5, sseq=cd["rseq"], rseq=cd["sseq"],
-                beacon=False, vital=True, frame_counter=cd["frame_counter"],
+                vital=True, transport_vital=True, frame_counter=cd["frame_counter"],
             )
             t += random.uniform(20.0, 90.0)
             yield self._codeline_udp_event(

@@ -10,15 +10,18 @@
 VERSION = "2.8.0"
 
 # Version history:
-# 2.8.0 - New protocol engine: ATCS (Advanced Train Control System, AAR Spec 200)
-#   for the transportation vertical. Adds protocol_engines/atcs/ — the ATCS
-#   Monitor relay feed (TCP control on 4802 + UDP codeline-frame stream on
-#   30000+, ASCII-hex frames + version keep-alive). Inner codeline frame carries
-#   a three-tier per-field confidence label (spec / provisional / synthetic):
-#   HDLC framing, 10-BCD-digit ATCS addresses, and CRC-16/X.25 FCS are byte-
-#   accurate; the X.25 network-header bit-packing is provisional (AAR Spec 200 is
-#   paywalled) and isolated for certification. Registers ProtocolType.ATCS,
-#   default TCP port 4802, atcs_identity key, rail-vendor affinities.
+# 2.8.0 - New protocol engine: ATCS (Advanced Train Control System, AAR MSRP
+#   Section K-II / formerly Spec 200) for the transportation vertical. Adds
+#   protocol_engines/atcs/ — the ATCS Monitor relay feed (TCP control on 4802 +
+#   UDP codeline-frame stream on 30000+, ASCII-hex frames + version keep-alive).
+#   The inner codeline frame models the decoded RF path (radio datagram/Appendix G
+#   over radio link/Appendix L) — NOT wireline LAPB — with three-tier per-field
+#   confidence labels (spec / provisional / synthetic): the ATCS address encoding
+#   (dest-first + length octet), CRC-16/X.25 FCS, and the 32-bit vital CRC are
+#   spec-derived; the radio-datagram header bit-packing (Appendix G) is provisional
+#   and isolated in _build_radio_datagram_header for certification (see
+#   atcs/SPEC_NEEDS.md). Registers ProtocolType.ATCS, default TCP port 4802,
+#   atcs_identity key, rail-vendor affinities.
 # 2.7.0 - New protocol engine: EMP (Edge Message Protocol) for AAR Interoperable
 #   Train Control (ITC/PTC). Adds protocol_engines/emp/ (byte-accurate EMP v4
 #   envelope over a TCP session; Class D modelled as session behaviour, app
