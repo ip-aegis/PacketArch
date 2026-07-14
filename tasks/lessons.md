@@ -192,3 +192,33 @@ Bonus: the CV docker-sensor auto-provisioning API (deployment token -> per-senso
 JWT via cyber_vision_service) works headless against a real Center — no operator
 compose paste needed. The Center's registry (`{host}:443/sensor`) must be in the
 node's daemon.json `insecure-registries` for the anonymous image pull.
+
+## Mimic changes span backend + host-agent — rebuild BOTH (2026-07-14)
+
+A Mimic cell ("P1b") was stuck: `state: error, message: 'mon_if'`, and clicking
+Tear Down did nothing. Root cause was a STALE host-agent image, not a code bug —
+the repo code was correct, but the running `packetarch-host-agent:latest` predated
+the Mimic feature. Two symptoms, one cause:
+
+- **Teardown silently no-ops.** The backend submits a `teardown_mimic` action to
+  the host-agent file-queue; the old host-agent's `_handle_request` only knew
+  `build`/`teardown`/`reconcile`, so it returned "unknown action" and never removed
+  the cell. The backend's `teardown_cell` returns the request-id without checking
+  the result, so the UI shows success while nothing happens.
+- **Reconcile stamps `error: 'mon_if'` every cycle.** The old `_reconcile_all` had
+  no `kind == "mimic"` dispatch, so it routed the mimic spec (which has `gen_if`
+  but no `mon_if`) into the local-sensor `_provision` → `ensure_veth(spec["gen_if"],
+  spec["mon_if"])` → `KeyError('mon_if')`.
+
+**Fix:** `docker compose up -d --build host-agent`. After that, reconcile routed
+the spec to `_provision_mimic` (2/2 personas up) and `teardown_mimic` removed the
+cell + hub-bridge cleanly.
+
+**Rule:** the Mimic feature lives in BOTH `backend/app/mimic/` AND
+`docker/packetarch-host-agent/` (emulate / teardown_mimic / kind dispatch). A
+`docker compose up -d --build backend frontend` does NOT rebuild the host-agent, so
+deploying Mimic changes needs the host-agent rebuilt too — otherwise the backend
+speaks a protocol (mimic actions) the running host-agent doesn't understand, and
+failures are SILENT. When touching Mimic, rebuild `host-agent` alongside `backend`.
+Possible hardening (not done): surface a non-success host-agent result from
+`teardown_cell` instead of returning the request-id blindly.
