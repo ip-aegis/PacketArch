@@ -128,6 +128,24 @@ export interface CmlLabItem {
   title: string;
   state: string;
   node_count: number;
+  cml_url: string;
+}
+
+export interface CmlLabNode {
+  name: string;
+  node_definition: string;
+  state: string;
+  ip: string | null;
+  up: boolean;
+  listening: boolean;
+}
+
+export interface CmlLabDetail {
+  lab_id: string;
+  title: string;
+  state: string;
+  cml_url: string;
+  nodes: CmlLabNode[];
 }
 
 export const mimicApi = {
@@ -173,6 +191,10 @@ export const mimicApi = {
   },
   getCmlLabs: async (): Promise<{ items: CmlLabItem[] }> => {
     const response = await apiClient.get<{ items: CmlLabItem[] }>('/api/v1/mimic/cml/labs');
+    return response.data;
+  },
+  getCmlLabDetail: async (labId: string): Promise<CmlLabDetail> => {
+    const response = await apiClient.get<CmlLabDetail>(`/api/v1/mimic/cml/labs/${labId}`);
     return response.data;
   },
   teardownCmlLab: async (labId: string): Promise<{ lab_id: string; message: string }> => {

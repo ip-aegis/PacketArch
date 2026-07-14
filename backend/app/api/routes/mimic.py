@@ -32,8 +32,10 @@ from app.schemas.mimic import (
     CellListResponse,
     CmlDeployRequest,
     CmlDeployResponse,
+    CmlLabDetail,
     CmlLabItem,
     CmlLabListResponse,
+    CmlLabNode,
     CmlMimicStatusResponse,
     CmlPersonaResult,
     CmlTeardownResponse,
@@ -264,14 +266,48 @@ async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) ->
                              sensor_serial=sensor_serial, message=msg)
 
 
+async def _cml_base_url(db) -> str:
+    from app.api.routes.cml import get_cml_settings
+    return (await get_cml_settings(db))[0] or ""
+
+
 @router.get("/cml/labs", response_model=CmlLabListResponse)
 async def cml_labs(db: DBSession, _user: CurrentUser) -> CmlLabListResponse:
     """List off-box (CML) Mimic labs (titled 'Mimic: …')."""
     svc, _ = await _cml_service(db)
+    base = (await _cml_base_url(db)).rstrip("/")
     labs = await svc.list_labs()
-    items = [CmlLabItem(lab_id=l.id, title=l.title, state=l.state, node_count=l.node_count)
+    items = [CmlLabItem(lab_id=l.id, title=l.title, state=l.state, node_count=l.node_count,
+                        cml_url=f"{base}/lab/{l.id}" if base else "")
              for l in labs if l.title.startswith(_CML_LAB_PREFIX)]
     return CmlLabListResponse(items=items)
+
+
+@router.get("/cml/labs/{lab_id}", response_model=CmlLabDetail)
+async def cml_lab_detail(lab_id: str, db: DBSession, _user: CurrentUser) -> CmlLabDetail:
+    """One off-box lab's personas + live status — so you can pull it up in-app
+    (and open it in CML). Persona liveness comes from the check-in registry."""
+    from app.api.routes.agent_install import _MIMIC_CHECKINS
+    svc, _ = await _cml_service(db)
+    base = (await _cml_base_url(db)).rstrip("/")
+    lab = await svc.get_lab(lab_id)
+    nodes_raw = await svc._request("GET", f"/labs/{lab_id}/nodes", params={"data": "true"})  # noqa: SLF001
+    # Persona check-ins are keyed by the original name; match by slug to the CML
+    # node label (which the deploy set to the persona's slug).
+    ci_by_slug = {scaffold_slug(k): v for k, v in _MIMIC_CHECKINS.items()}
+    infra = {"unmanaged_switch", "external_connector", "iosvl2"}
+    nodes = []
+    for n in nodes_raw or []:
+        if not isinstance(n, dict) or n.get("node_definition") in infra:
+            continue
+        ci = ci_by_slug.get(n.get("label", ""), {})
+        nodes.append(CmlLabNode(
+            name=n.get("label", ""), node_definition=n.get("node_definition", ""),
+            state=n.get("state", "UNKNOWN"),
+            up=ci.get("up") == "1", listening=ci.get("listening") == "1"))
+    return CmlLabDetail(
+        lab_id=lab_id, title=lab.title if lab else "", state=lab.state if lab else "UNKNOWN",
+        cml_url=f"{base}/lab/{lab_id}" if base else "", nodes=nodes)
 
 
 @router.delete("/cml/labs/{lab_id}", response_model=CmlTeardownResponse)

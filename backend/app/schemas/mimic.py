@@ -140,10 +140,28 @@ class CmlLabItem(BaseModel):
     title: str
     state: str = "UNKNOWN"
     node_count: int = 0
+    cml_url: str = ""  # deep link to open the lab in CML's own web UI
 
 
 class CmlLabListResponse(BaseModel):
     items: list[CmlLabItem] = Field(default_factory=list)
+
+
+class CmlLabNode(BaseModel):
+    name: str
+    node_definition: str = ""
+    state: str = "UNKNOWN"
+    ip: str | None = None      # management IP CML discovered (if any)
+    up: bool = False           # persona reported itself up (check-in registry)
+    listening: bool = False    # persona bound its protocol port
+
+
+class CmlLabDetail(BaseModel):
+    lab_id: str
+    title: str
+    state: str = "UNKNOWN"
+    cml_url: str = ""
+    nodes: list[CmlLabNode] = Field(default_factory=list)
 
 
 class CmlTeardownResponse(BaseModel):

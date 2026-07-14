@@ -17,6 +17,7 @@ import {
   type CmlDeployRequest,
   type CmlDeployResponse,
   type CmlLabItem,
+  type CmlLabDetail,
 } from '../api/mimic';
 import { extractErrorMessage } from '../utils/errorUtils';
 
@@ -28,6 +29,7 @@ interface MimicState {
   processModels: string[];
   cmlStatus: CmlMimicStatus | null;
   cmlLabs: CmlLabItem[];
+  cmlLabDetails: Record<string, CmlLabDetail>;
   isLoading: boolean;
   isDeploying: boolean;
   error: string | null;
@@ -41,6 +43,7 @@ interface MimicState {
   teardown: (cellSlug: string) => Promise<boolean>;
   fetchCmlStatus: () => Promise<void>;
   fetchCmlLabs: () => Promise<void>;
+  fetchCmlLabDetail: (labId: string) => Promise<void>;
   deployCml: (request: CmlDeployRequest) => Promise<CmlDeployResponse | null>;
   teardownCmlLab: (labId: string) => Promise<boolean>;
   clearError: () => void;
@@ -54,6 +57,7 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
   processModels: [],
   cmlStatus: null,
   cmlLabs: [],
+  cmlLabDetails: {},
   isLoading: false,
   isDeploying: false,
   error: null,
@@ -157,6 +161,15 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
       set({ cmlLabs: response.items });
     } catch (error: unknown) {
       set({ error: extractErrorMessage(error, 'Failed to fetch off-box labs') });
+    }
+  },
+
+  fetchCmlLabDetail: async (labId: string) => {
+    try {
+      const detail = await mimicApi.getCmlLabDetail(labId);
+      set((s) => ({ cmlLabDetails: { ...s.cmlLabDetails, [labId]: detail } }));
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Failed to fetch lab detail') });
     }
   },
 

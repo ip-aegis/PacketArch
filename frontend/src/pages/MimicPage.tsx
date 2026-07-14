@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
-import { ReloadOutlined, PlusOutlined, DeleteOutlined, ApartmentOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlusOutlined, DeleteOutlined, ApartmentOutlined, CloudServerOutlined, ExportOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
@@ -48,9 +48,9 @@ const MimicPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const {
-    status, cells, presets, isLoading, isDeploying, error, cmlStatus, cmlLabs,
+    status, cells, presets, isLoading, isDeploying, error, cmlStatus, cmlLabs, cmlLabDetails,
     fetchStatus, fetchCells, fetchPresets, deploy, teardown, clearError,
-    fetchCmlStatus, fetchCmlLabs, teardownCmlLab,
+    fetchCmlStatus, fetchCmlLabs, fetchCmlLabDetail, teardownCmlLab,
   } = useMimicStore();
   const { labs, fetchLabs } = useLocalSensorStore();
   const [modalOpen, setModalOpen] = useState(false);
@@ -142,11 +142,42 @@ const MimicPage: React.FC = () => {
       <Tag color={cmlStateColor[s] || 'default'}>{s}</Tag>
     ) },
     { title: '', key: 'actions', align: 'right', render: (_v, row) => (
-      <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmTeardownCml(row)}>
-        Tear down
-      </Button>
+      <Space>
+        <Button
+          size="small" icon={<ExportOutlined />} disabled={!row.cml_url}
+          onClick={() => window.open(row.cml_url, '_blank', 'noopener')}
+        >
+          Open in CML
+        </Button>
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmTeardownCml(row)}>
+          Tear down
+        </Button>
+      </Space>
     ) },
   ];
+
+  // Expanded row: the lab's personas with live status.
+  const renderCmlDetail = (row: CmlLabItem) => {
+    const detail = cmlLabDetails[row.lab_id];
+    if (!detail) return <Text type="secondary">Loading personas…</Text>;
+    if (detail.nodes.length === 0) return <Text type="secondary">No persona nodes yet.</Text>;
+    return (
+      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        {detail.nodes.map((n) => (
+          <Space key={n.name} size={8}>
+            <Text strong style={{ minWidth: 160, display: 'inline-block' }}>{n.name}</Text>
+            <Tag color={cmlStateColor[n.state] || 'default'}>{n.state}</Tag>
+            {n.listening && <Tag color="green">persona listening</Tag>}
+            {n.up && !n.listening && <Tag color="green">persona online</Tag>}
+          </Space>
+        ))}
+        <Text type="secondary" style={{ fontSize: 11 }}>
+          Node state is from CML; the “persona” tag appears once the device reports in.
+          Open in CML for consoles and the live topology.
+        </Text>
+      </Space>
+    );
+  };
 
   const columns: ColumnsType<MimicCell> = [
     { title: 'Cell', dataIndex: 'name', key: 'name', render: (name: string, row) => (
@@ -239,6 +270,10 @@ const MimicPage: React.FC = () => {
           <Table<CmlLabItem>
             rowKey="lab_id" size="small"
             columns={cmlColumns} dataSource={cmlLabs} pagination={false}
+            expandable={{
+              expandedRowRender: renderCmlDetail,
+              onExpand: (expanded, row) => { if (expanded) fetchCmlLabDetail(row.lab_id); },
+            }}
             locale={{ emptyText: 'No off-box labs. Author a cell in Studio and choose "Off-box (CML)".' }}
           />
         )}

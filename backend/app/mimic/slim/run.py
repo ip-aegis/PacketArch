@@ -36,11 +36,23 @@ def _checkin(url: str, name: str) -> None:
         pass
 
 
+async def _heartbeat(checkin_url: str, name: str, interval: float = 30.0) -> None:
+    """Re-report liveness periodically so the backend's (in-memory) status survives
+    a backend restart and stays current. Runs the blocking check-in in a thread so
+    it never stalls the persona's protocol servers."""
+    loop = asyncio.get_running_loop()
+    while True:
+        await asyncio.sleep(interval)
+        await loop.run_in_executor(None, _checkin, checkin_url, name)
+
+
 async def _run(spec: ResolvedPersonaSpec, checkin_url: str | None) -> None:
     persona = SlimPersona(spec, checkin_url=checkin_url)
     await persona.start()
+    hb: asyncio.Task | None = None
     if checkin_url:
         _checkin(checkin_url, spec.name)
+        hb = asyncio.create_task(_heartbeat(checkin_url, spec.name), name="slim-heartbeat")
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -51,6 +63,8 @@ async def _run(spec: ResolvedPersonaSpec, checkin_url: str | None) -> None:
     try:
         await stop.wait()
     finally:
+        if hb is not None:
+            hb.cancel()
         await persona.stop()
 
 
