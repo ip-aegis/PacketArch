@@ -44,9 +44,11 @@ from scapy.packet import Raw
 
 from app.protocol_engines import register_engine
 from app.protocol_engines.atcs.codeline import (
+    ATCS_EXT7_CONTROL,
+    ATCS_EXT7_INDICATION,
     ATCS_TYPE_OFFICE,
-    ATCS_TYPE_WAYSIDE,
-    build_atcs_address,
+    ATCS_TYPE_WAYSIDE_7,
+    build_atcs_address_7series,
     build_codeline_frame,
     build_control_usrdata,
     build_indication_usrdata,
@@ -95,13 +97,22 @@ class AtcsEngine(ProtocolEngine):
 
     # -- helpers ----------------------------------------------------------
 
-    def _addresses(self, flow: FlowContext) -> tuple[str, str]:
-        """Return (wayside_addr, office_addr) 10-digit ATCS addresses for this flow."""
+    def _addresses(self, flow: FlowContext) -> tuple[str, str, str]:
+        """Return (wayside_indication_addr, wayside_control_addr, office_addr).
+
+        7-series ATCS addresses (T-RRR-CCC-AAA-XXXX). The wayside MCP carries two
+        extensions per the RF Codeline Protocol Reference: 0202 for field
+        indications (what it transmits) and 0101 for command & control (what the
+        office targets). The office/BCP is modelled as a type-2 7-series address.
+        """
         rr = flow.config.get("railroad_num", 125)
-        cl = flow.config.get("codeline_num", 13)
-        wayside = build_atcs_address(ATCS_TYPE_WAYSIDE, rr, cl, flow.config.get("wayside_serial", 826))
-        office = build_atcs_address(ATCS_TYPE_OFFICE, rr, cl, flow.config.get("office_serial", 1))
-        return wayside, office
+        cl = flow.config.get("codeline_num", 323)
+        serial = flow.config.get("wayside_serial", 4)
+        office_serial = flow.config.get("office_serial", 1)
+        wayside_ind = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_INDICATION, ATCS_TYPE_WAYSIDE_7)
+        wayside_ctl = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_CONTROL, ATCS_TYPE_WAYSIDE_7)
+        office = build_atcs_address_7series(rr, cl, office_serial, 0, ATCS_TYPE_OFFICE)
+        return wayside_ind, wayside_ctl, office
 
     def _udp_ports(self, flow: FlowContext, state: ConversationState) -> tuple[int, int]:
         """(relay_data_port, client_data_port)."""
@@ -225,7 +236,7 @@ class AtcsEngine(ProtocolEngine):
     ) -> Iterator[PacketEvent]:
         """Relay streams a codeline indication (+ periodic control / keep-alive)."""
         cd = state.custom_data
-        wayside_addr, office_addr = self._addresses(flow)
+        wayside_ind_addr, wayside_ctl_addr, office_addr = self._addresses(flow)
         relay_udp, client_udp = self._udp_ports(flow, state)
 
         # Evolve wayside state and sequence numbers (modulo-128, like the sample).
@@ -240,7 +251,7 @@ class AtcsEngine(ProtocolEngine):
             occupancy=random.getrandbits(8),
         )
         frame, fields = build_codeline_frame(
-            src_addr=wayside_addr, dst_addr=office_addr, usrdata=ind,
+            src_addr=wayside_ind_addr, dst_addr=office_addr, usrdata=ind,
             gfi=2, group=5, sseq=cd["sseq"], rseq=cd["rseq"],
             beacon=False, vital=random.random() > 0.5, frame_counter=cd["frame_counter"],
         )
@@ -263,7 +274,7 @@ class AtcsEngine(ProtocolEngine):
                 target=random.randint(1, 64), value=random.randint(0, 3),
             )
             cframe, cfields = build_codeline_frame(
-                src_addr=office_addr, dst_addr=wayside_addr, usrdata=ctl,
+                src_addr=office_addr, dst_addr=wayside_ctl_addr, usrdata=ctl,
                 gfi=2, group=5, sseq=cd["rseq"], rseq=cd["sseq"],
                 beacon=False, vital=True, frame_counter=cd["frame_counter"],
             )

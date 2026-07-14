@@ -44,11 +44,12 @@ import struct
 ATCS_FLAG = 0x7E                 # HDLC opening/closing flag (spec)
 ATCS_LAPB_ADDR = 0x03            # LAPB command address, ground users (spec-typical)
 
-# ATCS address Type digit (first of the 10 BCD digits).
+# ATCS address Type digit (first digit of the address).
 ATCS_TYPE_LOCOMOTIVE = 1
 ATCS_TYPE_OFFICE = 2
 ATCS_TYPE_BASE = 3
-ATCS_TYPE_WAYSIDE = 5            # 5/7 seen for wayside/MCP
+ATCS_TYPE_WAYSIDE_5 = 5         # 5-series MCP (10-digit address)
+ATCS_TYPE_WAYSIDE_7 = 7         # 7-series MCP (14-digit address)
 ATCS_TYPE_NAMES = {
     1: "locomotive",
     2: "office",
@@ -56,6 +57,14 @@ ATCS_TYPE_NAMES = {
     5: "wayside",
     7: "wayside",
 }
+
+# Extension (rightmost digits) semantics, per the ATCSMon "RF Codeline Protocol
+# Reference" (NS 7-series / CSX 5-series conventions). Used to make synthetic
+# indication vs control frames address realistic MCP logic partitions.
+ATCS_EXT7_INDICATION = 202     # 0202: native ATCS VLC, field indication packets
+ATCS_EXT7_CONTROL = 101        # 0101: diagnostic / MCP command & control
+ATCS_EXT5_CONTROL = 1          # 01: command & control (5-series)
+ATCS_EXT5_INDICATION = 2       # 02: field control & indication (5-series)
 
 
 def crc16_x25(data: bytes) -> int:
@@ -75,27 +84,82 @@ def crc16_x25(data: bytes) -> int:
     return crc ^ 0xFFFF
 
 
-def build_atcs_address(type_digit: int, railroad: int, codeline: int, serial: int) -> str:
-    """Compose a 10-digit ATCS address string: Type(1) Railroad(3) Codeline(3) Serial(3).
+def build_atcs_address_7series(
+    railroad: int, codeline: int, serial: int, extension: int, type_digit: int = 7,
+) -> str:
+    """Compose a 14-digit 7-series ATCS address: T-RRR-CCC-AAA-XXXX.
 
-    e.g. ``build_atcs_address(5, 125, 13, 826) -> "5125013826"`` (the sample
-    wayside device). A separate 4-digit eXtension may follow in real addressing;
-    it is out of scope for the base MCP address modelled here.
+    Per the ATCSMon RF Codeline Protocol Reference: Type(1) Railroad(3)
+    Codeline(3) Address(3) eXtension(4). e.g.
+    ``build_atcs_address_7series(125, 323, 4, 202) -> "71253230040202"``.
     """
     if not 0 <= type_digit <= 9:
         raise ValueError("type_digit must be a single digit")
     for name, val in (("railroad", railroad), ("codeline", codeline), ("serial", serial)):
         if not 0 <= val <= 999:
             raise ValueError(f"{name} must be 0-999 (3 digits)")
-    return f"{type_digit:01d}{railroad:03d}{codeline:03d}{serial:03d}"
+    if not 0 <= extension <= 9999:
+        raise ValueError("extension must be 0-9999 (4 digits)")
+    return f"{type_digit:01d}{railroad:03d}{codeline:03d}{serial:03d}{extension:04d}"
 
 
-def encode_bcd_address(addr10: str) -> bytes:
-    """Pack a 10-digit ATCS address into 5 BCD bytes (high nibble = first digit)."""
-    if len(addr10) != 10 or not addr10.isdigit():
-        raise ValueError("ATCS address must be exactly 10 decimal digits")
+def build_atcs_address_5series(
+    railroad: int, extension: int, serial: int, type_digit: int = 5,
+) -> str:
+    """Compose a 10-digit 5-series ATCS address: T-RRR-XX-AAAA.
+
+    Per the ATCSMon RF Codeline Protocol Reference: Type(1) Railroad(3)
+    eXtension(2) Address(4). e.g. the sample wayside device
+    ``build_atcs_address_5series(125, 1, 3826) -> "5125013826"`` (ext 01 =
+    command & control).
+    """
+    if not 0 <= type_digit <= 9:
+        raise ValueError("type_digit must be a single digit")
+    if not 0 <= railroad <= 999:
+        raise ValueError("railroad must be 0-999 (3 digits)")
+    if not 0 <= extension <= 99:
+        raise ValueError("extension must be 0-99 (2 digits)")
+    if not 0 <= serial <= 9999:
+        raise ValueError("serial must be 0-9999 (4 digits)")
+    return f"{type_digit:01d}{railroad:03d}{extension:02d}{serial:04d}"
+
+
+def atcs_address_subfields(addr: str) -> list[dict]:
+    """Decompose an ATCS address into labelled decimal sub-fields.
+
+    Handles 10-digit (5-series: T-RRR-XX-AAAA) and 14-digit (7-series:
+    T-RRR-CCC-AAA-XXXX) addresses per the RF Codeline Protocol Reference.
+    Returns ``{name, digits}`` entries — the digit *structure* is spec-confirmed;
+    the on-wire byte packing (modelled as BCD) is the assumed encoding.
+    """
+    if len(addr) == 14:
+        return [
+            {"name": "type", "digits": addr[0:1], "meaning": ATCS_TYPE_NAMES.get(int(addr[0]), "unknown")},
+            {"name": "railroad", "digits": addr[1:4]},
+            {"name": "codeline", "digits": addr[4:7]},
+            {"name": "address", "digits": addr[7:10]},
+            {"name": "extension", "digits": addr[10:14]},
+        ]
+    if len(addr) == 10:
+        return [
+            {"name": "type", "digits": addr[0:1], "meaning": ATCS_TYPE_NAMES.get(int(addr[0]), "unknown")},
+            {"name": "railroad", "digits": addr[1:4]},
+            {"name": "extension", "digits": addr[4:6]},
+            {"name": "address", "digits": addr[6:10]},
+        ]
+    raise ValueError("ATCS address must be 10 (5-series) or 14 (7-series) digits")
+
+
+def encode_bcd_address(addr: str) -> bytes:
+    """Pack a 10- or 14-digit ATCS address into BCD bytes (high nibble first).
+
+    On-wire encoding is modelled as packed BCD (2 digits/byte); AAR Spec 200
+    defines the authoritative encoding.
+    """
+    if len(addr) not in (10, 14) or not addr.isdigit():
+        raise ValueError("ATCS address must be 10 (5-series) or 14 (7-series) digits")
     return bytes(
-        (int(addr10[i]) << 4) | int(addr10[i + 1]) for i in range(0, 10, 2)
+        (int(addr[i]) << 4) | int(addr[i + 1]) for i in range(0, len(addr), 2)
     )
 
 
@@ -158,8 +222,8 @@ def build_codeline_frame(
         LAPB control (1B)    frame counter / I-frame  (provisional)
         --- X.25 network header (3B) ---              (provisional bit-packing)
         GFI|Group | SSeq|Beacon | RSeq|Vital
-        src ATCS addr (5B BCD)                        (spec encoding)
-        dst ATCS addr (5B BCD)                        (spec encoding)
+        src ATCS addr (5B/7B BCD)                     (spec structure; BCD assumed)
+        dst ATCS addr (5B/7B BCD)                     (spec structure; BCD assumed)
         UsrData length (1B)                           (provisional)
         UsrData (NB)                                  (synthetic)
         --- ---
@@ -204,11 +268,14 @@ def build_codeline_frame(
     for f in net_fields:
         fields.append({**f, "off": base + 2 + f["off"]})
     addr_off = base + 2 + len(net_hdr)
-    fields.append({"off": addr_off, "len": 5, "field": "atcs.src_addr",
-                   "value": src_addr, "synthetic": False, "confidence": "spec"})
-    fields.append({"off": addr_off + 5, "len": 5, "field": "atcs.dst_addr",
-                   "value": dst_addr, "synthetic": False, "confidence": "spec"})
-    len_off = addr_off + 10
+    fields.append({"off": addr_off, "len": len(src_bcd), "field": "atcs.src_addr",
+                   "value": src_addr, "subfields": atcs_address_subfields(src_addr),
+                   "synthetic": False, "confidence": "spec"})
+    dst_off = addr_off + len(src_bcd)
+    fields.append({"off": dst_off, "len": len(dst_bcd), "field": "atcs.dst_addr",
+                   "value": dst_addr, "subfields": atcs_address_subfields(dst_addr),
+                   "synthetic": False, "confidence": "spec"})
+    len_off = dst_off + len(dst_bcd)
     fields.append({"off": len_off, "len": 1, "field": "atcs.usrdata_len",
                    "value": len(usrdata), "synthetic": False, "confidence": "provisional"})
     fields.append({"off": len_off + 1, "len": len(usrdata), "field": "atcs.usrdata",

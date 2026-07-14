@@ -19,7 +19,9 @@ from scapy.layers.l2 import Ether
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.atcs.codeline import (
     ATCS_FLAG,
-    build_atcs_address,
+    atcs_address_subfields,
+    build_atcs_address_5series,
+    build_atcs_address_7series,
     build_codeline_frame,
     build_indication_usrdata,
     crc16_x25,
@@ -51,22 +53,38 @@ def _flow(config=None):
 
 
 class TestAtcsAddressing:
-    def test_build_address_matches_sample(self):
-        # sigidwiki sample wayside device 5125013826
-        assert build_atcs_address(5, 125, 13, 826) == "5125013826"
+    def test_5series_matches_sample(self):
+        # RF Codeline Protocol Reference: 5-series = T-RRR-XX-AAAA.
+        # sample wayside device 5125013826 = type5, rr125, ext01, addr3826
+        assert build_atcs_address_5series(125, 1, 3826) == "5125013826"
 
-    def test_bcd_round_trip(self):
-        addr = "5125013826"
-        b = encode_bcd_address(addr)
-        assert len(b) == 5
-        assert b[0] == 0x51 and b[1] == 0x25
-        assert decode_bcd_address(b) == addr
+    def test_7series_matches_sample(self):
+        # 7-series = T-RRR-CCC-AAA-XXXX, e.g. 71253230040202
+        assert build_atcs_address_7series(125, 323, 4, 202) == "71253230040202"
+
+    def test_subfields_5series(self):
+        sf = {f["name"]: f["digits"] for f in atcs_address_subfields("5125013826")}
+        assert sf == {"type": "5", "railroad": "125", "extension": "01", "address": "3826"}
+
+    def test_subfields_7series(self):
+        sf = {f["name"]: f["digits"] for f in atcs_address_subfields("71253230040202")}
+        assert sf == {"type": "7", "railroad": "125", "codeline": "323",
+                      "address": "004", "extension": "0202"}
+
+    def test_bcd_round_trip_both_series(self):
+        for addr, nbytes in (("5125013826", 5), ("71253230040202", 7)):
+            b = encode_bcd_address(addr)
+            assert len(b) == nbytes
+            assert decode_bcd_address(b) == addr
+        assert encode_bcd_address("5125013826")[0] == 0x51
 
     def test_bad_address_rejected(self):
         with pytest.raises(ValueError):
-            encode_bcd_address("123")          # too short
+            encode_bcd_address("123")               # wrong length
         with pytest.raises(ValueError):
-            build_atcs_address(5, 1000, 13, 826)  # railroad > 999
+            build_atcs_address_5series(1000, 1, 3826)  # railroad > 999
+        with pytest.raises(ValueError):
+            build_atcs_address_7series(125, 323, 4, 99999)  # extension > 4 digits
 
 
 class TestCrc16X25:
