@@ -542,6 +542,19 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     fp_count = len(cache.index.all_fingerprints)
     results["fingerprint_cache"] = f"Pre-warmed fingerprint cache with {fp_count} fingerprints"
 
+    # Repair bind mounts broken by a pre-v1.18.2 in-app self-upgrade (the
+    # updater's /repo alias emptied every relative bind). Runs regardless of
+    # LIVE_TRAFFIC_ENABLED — the ./docker build-context binds matter to any
+    # future upgrade, not just to agent installs.
+    import asyncio as _asyncio
+
+    from app.services import system_upgrade
+    try:
+        results["mount_heal"] = await _asyncio.to_thread(system_upgrade.heal_aliased_bind_mounts)
+    except Exception as e:  # never let the heal check block startup
+        logger.warning("heal_aliased_bind_mounts failed: %s", e)
+        results["mount_heal"] = f"check failed: {e}"
+
     # Reconcile agent statuses (reset all to offline since no agents connected at startup)
     # Skipped in PCAP-only deployments — no agents will ever connect.
     from app.core.config import settings
