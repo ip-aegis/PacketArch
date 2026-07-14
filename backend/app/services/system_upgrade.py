@@ -36,6 +36,19 @@ UPDATER_IMAGE = "packetarch-updater:latest"
 UPDATER_BUILD_CONTEXT = "/docker/packetarch-updater"  # mounted into the backend
 GITHUB_TAGS_URL = "https://api.github.com/repos/ip-aegis/PacketArch/tags"
 
+# Canary bind mount for detecting the pre-v1.18.2 self-upgrade breakage: the
+# compose file binds this host dir into the backend; if our own container's
+# Source for it doesn't live under HOST_INSTALL_DIR, the updater resolved the
+# compose file's relative binds against its /repo alias and the daemon mounted
+# empty auto-created host dirs (404 on /agent/install.sh, empty agent build
+# context). See heal_aliased_bind_mounts().
+CANARY_BIND_DEST = "/app/app/static/agent"
+CANARY_BIND_SUBPATH = "backend/app/static/agent"
+HEALER_NAME = "packetarch-mount-heal"
+# Recreate AFTER the in-flight updater's verify loop (60 x 5s poll) has had
+# time to see a healthy backend — the heal itself bounces the backend.
+HEALER_DELAY_SECONDS = 120
+
 TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 TERMINAL = {"success", "failed", "rolled_back"}
 
@@ -189,3 +202,98 @@ async def start_upgrade(target: str, current_version: str) -> dict:
         clear_status()
         raise
     return status
+
+
+def heal_aliased_bind_mounts() -> str:
+    """Boot-time repair for installs broken by the pre-v1.18.2 self-upgrade.
+
+    Older backends launched the updater with the install dir mounted at the
+    ``/repo`` alias; ``docker compose up`` inside it resolved the compose
+    file's relative bind mounts against that alias, so the HOST daemon
+    silently bind-mounted empty auto-created directories over
+    ``static/agent`` and the ``./docker`` build contexts.
+
+    Detection: inspect our OWN container's canary bind — its Source must be
+    ``<HOST_INSTALL_DIR>/backend/app/static/agent``. If not, launch a
+    detached healer container mounted at the REAL host path that re-runs
+    ``docker compose up -d`` there: the corrected bind sources change the
+    service config hash, so compose recreates the affected containers (this
+    backend included) with good mounts. The healer sleeps first so an
+    in-flight updater's health verify isn't disturbed. Blocking — call via
+    ``asyncio.to_thread``.
+    """
+    if not settings.host_install_dir:
+        return "skipped (HOST_INSTALL_DIR unset)"
+
+    import socket
+
+    import docker  # lazy, mirrors launch_updater
+
+    try:
+        client = docker.from_env()
+        me = client.containers.get(socket.gethostname())
+    except Exception as e:  # not in a container / no socket (dev uvicorn)
+        return f"skipped (no docker introspection: {e})"
+
+    canary = next(
+        (
+            m
+            for m in me.attrs.get("Mounts", [])
+            if m.get("Type") == "bind" and m.get("Destination") == CANARY_BIND_DEST
+        ),
+        None,
+    )
+    if canary is None:
+        # Offline-bundle compose has no static/agent bind — nothing to heal.
+        return "skipped (no static/agent bind mount)"
+
+    expected = str(Path(settings.host_install_dir) / CANARY_BIND_SUBPATH)
+    actual = canary.get("Source", "")
+    if actual == expected:
+        return "ok"
+
+    logger.warning(
+        "aliased bind mounts detected (static/agent bound from %s, expected %s) "
+        "— launching healer to recreate the stack from %s",
+        actual,
+        expected,
+        settings.host_install_dir,
+    )
+    group_add = [settings.docker_gid] if settings.docker_gid else []
+    try:
+        client.containers.run(
+            image=UPDATER_IMAGE,
+            name=HEALER_NAME,
+            command=[
+                "sh",
+                "-c",
+                f"sleep {HEALER_DELAY_SECONDS} && exec docker compose up -d",
+            ],
+            detach=True,
+            remove=True,
+            working_dir=settings.host_install_dir,
+            volumes={
+                settings.host_install_dir: {"bind": settings.host_install_dir, "mode": "rw"},
+                "/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},
+            },
+            environment={
+                "COMPOSE_PROJECT_NAME": settings.compose_project_name,
+                "DOCKER_GID": settings.docker_gid or "",
+            },
+            group_add=group_add,
+            security_opt=["label:disable"],
+        )
+    except docker.errors.APIError as e:
+        if "Conflict" in str(e):
+            return "healer already running"
+        logger.warning(
+            "mount healer launch failed (%s) — repair manually: "
+            "cd %s && docker compose up -d --force-recreate",
+            e,
+            settings.host_install_dir,
+        )
+        return f"healer launch failed: {e}"
+    return (
+        f"aliased mounts detected — healer launched (recreates stack from "
+        f"{settings.host_install_dir} in {HEALER_DELAY_SECONDS}s)"
+    )

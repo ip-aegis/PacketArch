@@ -565,7 +565,7 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.18.1,
+      Feature releases and patches from v1.10.0 through v1.18.2,
       covering June 17 &ndash; July 13, 2026.
     </p>
     <div class="cover-stats">
@@ -657,6 +657,11 @@ code {
           <td>v1.18.1</td>
           <td>Multi-sensor topology enabled by default</td>
           <td>Jul 13, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.18.2</td>
+          <td>Self-upgrade repair: agent installer 404 after in-app upgrade</td>
+          <td>Jul 14, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1361,10 +1366,56 @@ code {
     </div>
   </section>
 
+  <!-- ════════════════════════════════════════════════════
+       v1.18.2
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.18.2">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.18.2</div>
+        <div class="release-date">2026-07-14</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Platform Self-Upgrade</div>
+        <div class="release-headline">Self-upgrade repair: agent installer 404 after in-app upgrade</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>In-app self-upgrade broke every relative bind mount.</strong> The updater
+            container mounted the install dir at the alias <code>/repo</code>, so
+            <code>docker compose up</code> inside it resolved the compose file's relative bind
+            mounts (<code>./backend/app/static/agent</code>, <code>./docker/&hellip;</code>,
+            <code>./dist</code>, <code>./certs</code>) to <code>/repo/&hellip;</code> — paths that
+            don't exist on the host. Docker silently created empty directories and mounted those,
+            so after any one-button upgrade the backend served an empty <code>static/agent</code>:
+            <code>GET /agent/install.sh</code> returned 404 and remote agent installs failed. The
+            updater now mounts the install dir at its real host path, so relative binds resolve
+            correctly.
+          </li>
+          <li class="change-item">
+            <strong>Boot-time self-heal for already-broken installs.</strong> The fixed launcher
+            only protects upgrades <em>started</em> by a fixed backend — upgrading from an older
+            version still breaks the mounts one last time. On every boot the backend now inspects
+            its own bind mounts; if they don't live under <code>HOST_INSTALL_DIR</code>, it
+            launches a one-off healer container that re-runs <code>docker compose up -d</code>
+            from the real install dir, recreating the stack with correct mounts. Net effect:
+            installs broken by a previous upgrade repair themselves by simply upgrading to
+            v1.18.2 — no SSH needed. (Manual equivalent: <code>cd &lt;install dir&gt; &amp;&amp;
+            docker compose up -d --force-recreate</code>.)
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-13</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-14</div>
   </footer>
 
 </div>
