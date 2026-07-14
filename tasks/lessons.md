@@ -97,3 +97,38 @@ real write-back path (`NamedPointProjection.apply_write`) correctly uses
 `set_target`. **Rule:** to inject an external input/setpoint into a running
 process model, call `set_target(x)` (persists), not `set_value(x)` (transient
 unless the caller also re-targets).
+
+## Off-box Alpine persona deploy on CML: 3 gotchas (2026-07-14, Mimic slim)
+
+Shipping the slim persona to a bare Alpine CML node surfaced three traps, each of
+which produced a *silent* failure (node boots, hostname sets, but nothing listens):
+
+1. **Backgrounded processes don't survive the sourced boot config, and
+   `rc-service local start` is a no-op.** CML sources the node "configuration" as a
+   shell at boot. A `cmd &` / `setsid` child dies with the shell. And by the time
+   the config runs, Alpine's `local` service (which runs `/etc/local.d/*.start`)
+   has ALREADY executed — so writing `mimic.start` + `rc-service local start`
+   silently does nothing (service already "started"). **Fix:** launch the long
+   setup script with `start-stop-daemon --start --background --exec /bin/sh -- setup.sh`
+   — it double-forks and reparents to init, surviving the boot shell. The persona
+   itself is launched the same way (with `--stdout/--stderr` to a log for diag).
+
+2. **`pip install <pkg>` grabs the LATEST version — pin it, same as locally.** A
+   fresh node has no lockfile; `pip install pymodbus` pulled 3.14.0, whose
+   datastore/device API the slim runtime doesn't build against → ImportError, no
+   bind. The local pin (`pymodbus>=3.8.0,<3.9.0`) MUST be repeated in the remote
+   install command. **Rule:** any dep the code pins locally must be pinned in the
+   node bootstrap too — the node doesn't inherit poetry/lock constraints.
+
+3. **A stdlib `urllib` check-in against the self-signed backend fails verification.**
+   `urllib.request.urlopen('https://<backend>/...')` raises CERTIFICATE_VERIFY_FAILED
+   (backend cert is self-signed) and a bare `except` swallows it → persona runs but
+   never reports. **Fix:** pass an unverified `ssl` context for liveness pings.
+   (busybox `wget --no-check-certificate` from shell already handles this.)
+
+**Diagnosis technique that worked:** CML's API console is READ-only (`console_logs`),
+and a daemon's stderr goes nowhere. To see inside a headless node, have the bootstrap
+script `wget` a check-in endpoint with progress markers (`&stage=net&ip=...`,
+`&stage=pip&rc=...`, `&stage=final&pymodbus=$ver&listen502=$n&err=$logtail`). The
+staged check-ins pinpointed the pymodbus-3.14 ImportError without any shell access.
+Keep a *failure-only* variant in production (ping back only if the port didn't bind).

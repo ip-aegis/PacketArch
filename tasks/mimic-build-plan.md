@@ -337,3 +337,43 @@ itself a device (own identity/OUI) and runs client loops polling its peers.
 - Response-delay + error-injection through `FingerprintApplicator`
   (`get_response_delay`/`should_inject_error`) at the Modbus layer — realism
   refinement deferred from the P0 core.
+
+---
+
+## P2 — off-box slim persona on CML (DONE 2026-07-14)
+
+A persona running on its **own bare host** (not an on-box netns), memory-efficient
+enough to run many. Target: a 512 MB Alpine CML node running the persona natively —
+python3 + a pinned pymodbus, **no Docker** — so RAM per persona is minimal.
+
+**Design: resolve-at-deploy + tiny self-contained runtime.**
+- `app/mimic/slim/` — the `mimic_slim` package: a dependency-free persona runtime
+  (vendored process-sim core in `slim/psim/`, `models.py`, `spec.py`, `modbus.py`,
+  `persona.py`, `run.py`). Imports pull ZERO heavy deps (no scapy/numpy) — stdlib +
+  pymodbus only. Served from source on demand at `/agent/mimic-slim.tar.gz` (~11 KB,
+  built + mtime-cached by `agent_install._build_slim_tarball`, never stale).
+- `app/mimic/slim_deploy.py` — `resolve_persona()` bakes the device identity
+  (from `get_fingerprint_from_template`) into a self-contained spec JSON at deploy
+  time, so the node needs no substrate. `build_alpine_boot_config()` emits the boot
+  script; `deploy_slim_alpine()` provisions the Alpine node + egress + starts the lab.
+
+**Verified live on CML (10.10.20.230), end-to-end:** a bare Alpine node fetched the
+runtime, installed pymodbus 3.8.6, and ran a Schneider M580 persona. From the dev box:
+Modbus FC03 read (level/setpoint), FC06 write of a new setpoint drove the **off-box
+closed-loop PI process** (level tracked 50→75→68 across tests), and FC43 Read Device
+ID returned the resolved identity (**Schneider Electric / BMEP584040 / V4.10**). This
+supersedes the Ubuntu+Docker `cml_deploy.py` path for the memory-efficient target.
+
+Three deploy gotchas (all silent failures) captured in `lessons.md`: (1) launch the
+setup script via `start-stop-daemon --background` — a `&` child dies with the sourced
+boot shell and `rc-service local start` is a no-op by then; (2) **pin pymodbus in the
+node bootstrap** (fresh pip grabbed 3.14 → ImportError); (3) the persona's `urllib`
+check-in needs an unverified SSL context (self-signed backend). Diagnosis used staged
+`wget` progress check-ins since CML's API console is read-only.
+
+**Tracked follow-ups (not P2-blocking):**
+- Extend the slim runtime past Modbus (OPC UA / BACnet / IEC-104) — the on-box
+  servers exist; port them into `mimic_slim` with the same pinned-dep discipline.
+- Multi-node HMI↔PLC + a SPAN + a real CV docker sensor on CML (off-box CV proof).
+- Wire `deploy_slim_alpine` into the Mimic REST/Studio deploy path (currently a
+  standalone deploy helper; the cell-author flow still targets on-box).
