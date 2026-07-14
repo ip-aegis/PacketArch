@@ -12,7 +12,7 @@
  * process model and resolves the edges into client bindings.
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -38,6 +38,7 @@ interface PersonaData extends Record<string, unknown> {
   name: string;
   templateId: string;
   vendor: string;
+  role: string; // device_type, e.g. "plc" | "hmi"
   protocol: string | null; // null = client-only (an HMI)
   processModelId: string | null;
 }
@@ -49,6 +50,41 @@ const protoColor: Record<string, string> = {
   bacnet: 'green',
   iec104: 'volcano',
 };
+
+// Acronyms that should stay upper-case in a friendly role label.
+const ROLE_ACRONYMS = new Set([
+  'plc', 'hmi', 'rtu', 'dcs', 'io', 'ups', 'pdu', 'agv', 'cnc', 'bms', 'hvac',
+  'vav', 'ahu', 'crac', 'ied', 'scada', 'rfid',
+]);
+
+function friendlyRole(deviceType: string): string {
+  return deviceType
+    .split('_')
+    .map((w) => (ROLE_ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+// Map a template's backend protocol names to the protocols the Mimic runtime can
+// emulate as a SERVER (enforces the "only protocols the fingerprint supports" rule).
+const PROTO_BACKEND_TO_STUDIO: Record<string, string> = {
+  modbus_tcp: 'modbus',
+  opc_ua: 'opcua',
+  bacnet: 'bacnet',
+  bacnet_ip: 'bacnet',
+  iec104: 'iec104',
+};
+const PROTO_LABEL: Record<string, string> = {
+  modbus: 'Modbus TCP', opcua: 'OPC UA', bacnet: 'BACnet/IP', iec104: 'IEC-104',
+};
+
+function emulableProtocols(protocols: string[]): string[] {
+  const out: string[] = [];
+  for (const p of protocols) {
+    const s = PROTO_BACKEND_TO_STUDIO[p];
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out;
+}
 
 const PersonaNode: React.FC<NodeProps<PersonaNodeT>> = ({ data, selected }) => (
   <div
@@ -62,7 +98,9 @@ const PersonaNode: React.FC<NodeProps<PersonaNodeT>> = ({ data, selected }) => (
   >
     <Handle type="target" position={Position.Left} />
     <div style={{ fontWeight: 600, color: '#fff' }}>{data.name}</div>
-    <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>{data.vendor}</div>
+    <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>
+      {data.role ? `${friendlyRole(data.role)} · ` : ''}{data.vendor}
+    </div>
     <Space size={4}>
       {data.protocol ? (
         <Tag color={protoColor[data.protocol] || 'default'} style={{ margin: 0 }}>
@@ -97,6 +135,39 @@ const StudioInner: React.FC = () => {
   const [target, setTarget] = React.useState<'onbox' | 'offbox'>('onbox');
   const [withSensor, setWithSensor] = React.useState(false);
   const [form] = Form.useForm();
+  const role = Form.useWatch('role', form) as string | undefined;
+  const templateId = Form.useWatch('template_id', form) as string | undefined;
+
+  // Roles (device_type) present in the catalog, sorted by frequency so the common
+  // ones (PLC, Protection Relay, HMI, …) surface first.
+  const roleOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    templates.forEach((t) => counts.set(t.device_type, (counts.get(t.device_type) || 0) + 1));
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([dt, n]) => ({ value: dt, label: `${friendlyRole(dt)} (${n})` }));
+  }, [templates]);
+
+  // Devices that fill the selected role.
+  const deviceOptions = useMemo(
+    () => templates
+      .filter((t) => t.device_type === role)
+      .map((t) => ({ value: t.id, label: `${t.vendor} ${t.model_name}` }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [templates, role],
+  );
+
+  // Server protocols the selected device actually supports (blank = client-only).
+  const protocolOptions = useMemo(() => {
+    const tpl = templates.find((t) => t.id === templateId);
+    return tpl ? emulableProtocols(tpl.protocols).map((p) => ({ value: p, label: PROTO_LABEL[p] || p })) : [];
+  }, [templates, templateId]);
+
+  const onFormChange = (changed: Record<string, unknown>) => {
+    // Reset dependent fields so a stale device/protocol can't outlive its parent.
+    if ('role' in changed) form.setFieldsValue({ template_id: undefined, protocol: undefined });
+    else if ('template_id' in changed) form.setFieldsValue({ protocol: undefined });
+  };
 
   useEffect(() => {
     fetchStatus();
@@ -128,6 +199,7 @@ const StudioInner: React.FC = () => {
         name: v.name,
         templateId: v.template_id,
         vendor: tpl?.vendor || '',
+        role: tpl?.device_type || v.role || '',
         protocol: v.protocol || null,
         processModelId: v.process_model_id || null,
       },
@@ -185,30 +257,38 @@ const StudioInner: React.FC = () => {
         <Controls />
         <Panel position="top-left">
           <Card size="small" title="Add device" style={{ width: 290 }}>
-            <Form form={form} layout="vertical" size="small">
+            <Form form={form} layout="vertical" size="small" onValuesChange={onFormChange}>
               <Form.Item name="name" rules={[{ required: true, message: 'Name the device' }]}>
                 <Input placeholder="Device name, e.g. Reactor_PLC" />
               </Form.Item>
-              <Form.Item name="template_id" rules={[{ required: true, message: 'Pick a template' }]}>
+              <Form.Item name="role" rules={[{ required: true, message: 'Pick a role' }]}>
                 <Select
                   showSearch
-                  placeholder="Device template"
-                  options={templates.map((t) => ({ value: t.id, label: `${t.vendor} ${t.model_name}` }))}
+                  placeholder="Role (PLC, HMI, RTU, …)"
+                  options={roleOptions}
                   filterOption={(input, option) =>
                     String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                   }
                 />
               </Form.Item>
-              <Form.Item name="protocol" tooltip="Leave blank for a client-only device (an HMI)">
+              <Form.Item name="template_id" rules={[{ required: true, message: 'Pick a device' }]}>
+                <Select
+                  showSearch
+                  disabled={!role}
+                  placeholder={role ? `Device (${deviceOptions.length})` : 'Pick a role first'}
+                  options={deviceOptions}
+                  filterOption={(input, option) =>
+                    String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
+              </Form.Item>
+              <Form.Item name="protocol" tooltip="Blank = a client-only device (an HMI that polls its peers)">
                 <Select
                   allowClear
-                  placeholder="Server protocol (blank = client)"
-                  options={[
-                    { value: 'modbus', label: 'Modbus TCP' },
-                    { value: 'opcua', label: 'OPC UA' },
-                    { value: 'bacnet', label: 'BACnet/IP' },
-                    { value: 'iec104', label: 'IEC-104' },
-                  ]}
+                  disabled={!templateId}
+                  placeholder={templateId ? 'Server protocol (blank = client)' : 'Pick a device first'}
+                  options={protocolOptions}
+                  notFoundContent="This device supports no emulable server protocol — use it as a client."
                 />
               </Form.Item>
               <Form.Item name="process_model_id">
