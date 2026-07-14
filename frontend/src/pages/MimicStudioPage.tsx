@@ -27,7 +27,7 @@ import {
 } from '@xyflow/react';
 import type { Node, Edge, Connection, NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { App, Button, Card, Form, Input, Select, Space, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Checkbox, Form, Input, Segmented, Select, Space, Tag, Typography } from 'antd';
 import { PlusOutlined, RocketOutlined } from '@ant-design/icons';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
@@ -86,14 +86,16 @@ function newKey(): string {
 const StudioInner: React.FC = () => {
   const { message } = App.useApp();
   const {
-    status, templates, processModels, isDeploying, error,
-    fetchStatus, fetchTemplates, fetchProcessModels, author, clearError,
+    status, templates, processModels, isDeploying, error, cmlStatus,
+    fetchStatus, fetchTemplates, fetchProcessModels, author, deployCml, fetchCmlStatus, clearError,
   } = useMimicStore();
   const { labs, fetchLabs } = useLocalSensorStore();
   const [nodes, setNodes, onNodesChange] = useNodesState<PersonaNodeT>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [labSlug, setLabSlug] = React.useState<string | undefined>(undefined);
   const [cellName, setCellName] = React.useState('Authored Cell');
+  const [target, setTarget] = React.useState<'onbox' | 'offbox'>('onbox');
+  const [withSensor, setWithSensor] = React.useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -101,7 +103,8 @@ const StudioInner: React.FC = () => {
     fetchTemplates();
     fetchProcessModels();
     fetchLabs();
-  }, [fetchStatus, fetchTemplates, fetchProcessModels, fetchLabs]);
+    fetchCmlStatus();
+  }, [fetchStatus, fetchTemplates, fetchProcessModels, fetchLabs, fetchCmlStatus]);
 
   useEffect(() => {
     if (!error) return;
@@ -134,10 +137,6 @@ const StudioInner: React.FC = () => {
   };
 
   const deployCell = async () => {
-    if (!labSlug) {
-      message.warning('Pick a target lab.');
-      return;
-    }
     if (nodes.length === 0) {
       message.warning('Add at least one device to the canvas.');
       return;
@@ -150,9 +149,26 @@ const StudioInner: React.FC = () => {
       process_model_id: n.data.processModelId,
     }));
     const relationships = edges.map((e) => ({ source: e.source, target: e.target }));
+    if (target === 'offbox') {
+      const res = await deployCml({ cell_name: cellName, devices, relationships, with_sensor: withSensor });
+      if (res) {
+        message.success(
+          `Off-box lab "${res.lab_title}" launching — ${res.personas.length} persona node(s)` +
+          (res.sensor_serial ? ` + CV sensor "${res.sensor_serial}"` : '') + '. Nodes take a few minutes to boot.',
+        );
+      }
+      return;
+    }
+    if (!labSlug) {
+      message.warning('Pick a target lab.');
+      return;
+    }
     const res = await author({ lab_slug: labSlug, cell_name: cellName, devices, relationships });
     if (res) message.success(`Cell "${cellName}" deployed — ${res.containers.length} device(s) provisioning.`);
   };
+
+  const offbox = target === 'offbox';
+  const deployDisabled = offbox ? !cmlStatus?.cml_connected : !status?.host_agent_available;
 
   return (
     <div style={{ height: 'calc(100vh - 160px)', width: '100%', border: '1px solid #303030', borderRadius: 8 }}>
@@ -211,28 +227,60 @@ const StudioInner: React.FC = () => {
         <Panel position="top-right">
           <Card size="small" title="Deploy" style={{ width: 290 }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Select
-                placeholder="Target Local Lab"
-                style={{ width: '100%' }}
-                value={labSlug}
-                onChange={setLabSlug}
-                options={labs.map((l) => ({ value: l.slug, label: `${l.name} (${l.slug})` }))}
+              <Segmented
+                block
+                value={target}
+                onChange={(v) => setTarget(v as 'onbox' | 'offbox')}
+                options={[
+                  { label: 'On-box', value: 'onbox' },
+                  { label: 'Off-box (CML)', value: 'offbox' },
+                ]}
               />
+              {offbox ? (
+                <>
+                  {!cmlStatus?.cml_connected && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="CML not reachable"
+                      description="Configure + connect CML (Agents → CML) to deploy off-box."
+                    />
+                  )}
+                  <Checkbox
+                    checked={withSensor}
+                    disabled={!cmlStatus?.cv_configured}
+                    onChange={(e) => setWithSensor(e.target.checked)}
+                  >
+                    With CV sensor (IOSvL2 SPAN)
+                    {!cmlStatus?.cv_configured && (
+                      <Text type="secondary" style={{ fontSize: 11 }}> — Cyber Vision not configured</Text>
+                    )}
+                  </Checkbox>
+                </>
+              ) : (
+                <Select
+                  placeholder="Target Local Lab"
+                  style={{ width: '100%' }}
+                  value={labSlug}
+                  onChange={setLabSlug}
+                  options={labs.map((l) => ({ value: l.slug, label: `${l.name} (${l.slug})` }))}
+                />
+              )}
               <Input placeholder="Cell name" value={cellName} onChange={(e) => setCellName(e.target.value)} />
               <Button
                 type="primary"
                 block
                 icon={<RocketOutlined />}
                 loading={isDeploying}
-                disabled={!status?.host_agent_available}
+                disabled={deployDisabled}
                 onClick={deployCell}
               >
-                Deploy Cell
+                {offbox ? 'Deploy Off-box' : 'Deploy Cell'}
               </Button>
               <Text type="secondary" style={{ fontSize: 11 }}>
-                Nodes are devices. Draw an edge from an HMI (no protocol) to a PLC to make it poll.
-                Data models are scaffolded from each device&apos;s process model. Select a node and
-                press Delete to remove it.
+                {offbox
+                  ? 'Each persona becomes its own bare CML node running the slim native runtime. With the CV sensor, an IOSvL2 SPAN mirrors the OT segment to an auto-provisioned Cyber Vision sensor.'
+                  : 'Nodes are devices. Draw an edge from an HMI (no protocol) to a PLC to make it poll. Data models are scaffolded from each device’s process model. Select a node and press Delete to remove it.'}
               </Text>
             </Space>
           </Card>

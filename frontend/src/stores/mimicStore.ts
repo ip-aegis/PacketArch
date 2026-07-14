@@ -13,6 +13,10 @@ import {
   type DeployCellRequest,
   type DeployCellResponse,
   type AuthorCellRequest,
+  type CmlMimicStatus,
+  type CmlDeployRequest,
+  type CmlDeployResponse,
+  type CmlLabItem,
 } from '../api/mimic';
 import { extractErrorMessage } from '../utils/errorUtils';
 
@@ -22,6 +26,8 @@ interface MimicState {
   presets: MimicPreset[];
   templates: MimicTemplate[];
   processModels: string[];
+  cmlStatus: CmlMimicStatus | null;
+  cmlLabs: CmlLabItem[];
   isLoading: boolean;
   isDeploying: boolean;
   error: string | null;
@@ -33,6 +39,10 @@ interface MimicState {
   deploy: (request: DeployCellRequest) => Promise<DeployCellResponse | null>;
   author: (request: AuthorCellRequest) => Promise<DeployCellResponse | null>;
   teardown: (cellSlug: string) => Promise<boolean>;
+  fetchCmlStatus: () => Promise<void>;
+  fetchCmlLabs: () => Promise<void>;
+  deployCml: (request: CmlDeployRequest) => Promise<CmlDeployResponse | null>;
+  teardownCmlLab: (labId: string) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -42,6 +52,8 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
   presets: [],
   templates: [],
   processModels: [],
+  cmlStatus: null,
+  cmlLabs: [],
   isLoading: false,
   isDeploying: false,
   error: null,
@@ -126,6 +138,49 @@ export const useMimicStore = create<MimicState>()((set, get) => ({
       return true;
     } catch (error: unknown) {
       set({ error: extractErrorMessage(error, 'Mimic teardown failed') });
+      return false;
+    }
+  },
+
+  fetchCmlStatus: async () => {
+    try {
+      const cmlStatus = await mimicApi.getCmlStatus();
+      set({ cmlStatus });
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Failed to fetch CML status') });
+    }
+  },
+
+  fetchCmlLabs: async () => {
+    try {
+      const response = await mimicApi.getCmlLabs();
+      set({ cmlLabs: response.items });
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Failed to fetch off-box labs') });
+    }
+  },
+
+  deployCml: async (request: CmlDeployRequest) => {
+    set({ isDeploying: true, error: null });
+    try {
+      const result = await mimicApi.deployCml(request);
+      set({ isDeploying: false });
+      get().fetchCmlLabs();
+      return result;
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Off-box deploy failed'), isDeploying: false });
+      return null;
+    }
+  },
+
+  teardownCmlLab: async (labId: string) => {
+    set({ error: null });
+    try {
+      await mimicApi.teardownCmlLab(labId);
+      get().fetchCmlLabs();
+      return true;
+    } catch (error: unknown) {
+      set({ error: extractErrorMessage(error, 'Off-box teardown failed') });
       return false;
     }
   },

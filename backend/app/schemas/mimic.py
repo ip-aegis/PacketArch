@@ -107,6 +107,50 @@ class TeardownResponse(BaseModel):
     request_id: str
 
 
+class CmlMimicStatusResponse(BaseModel):
+    """Whether the off-box (CML) Mimic path is usable here."""
+    cml_connected: bool
+    cv_configured: bool
+    message: str = ""
+
+
+class CmlDeployRequest(BaseModel):
+    cell_name: str = "Mimic Cell"
+    devices: list[AuthorDeviceInput] = Field(..., min_length=1)
+    relationships: list[AuthorRelationship] = Field(default_factory=list)
+    with_sensor: bool = False  # add an IOSvL2 SPAN + auto-provisioned CV sensor node
+
+
+class CmlPersonaResult(BaseModel):
+    name: str
+    data_ip: str | None = None
+    node_id: str | None = None
+
+
+class CmlDeployResponse(BaseModel):
+    lab_id: str
+    lab_title: str
+    personas: list[CmlPersonaResult] = Field(default_factory=list)
+    sensor_serial: str | None = None
+    message: str = ""
+
+
+class CmlLabItem(BaseModel):
+    lab_id: str
+    title: str
+    state: str = "UNKNOWN"
+    node_count: int = 0
+
+
+class CmlLabListResponse(BaseModel):
+    items: list[CmlLabItem] = Field(default_factory=list)
+
+
+class CmlTeardownResponse(BaseModel):
+    lab_id: str
+    message: str = ""
+
+
 class TemplateItem(BaseModel):
     id: str
     vendor: str

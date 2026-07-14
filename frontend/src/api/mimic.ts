@@ -91,6 +91,41 @@ export interface AuthorCellRequest {
   relationships: AuthorRelationship[];
 }
 
+// --- Off-box (CML) ---------------------------------------------------------
+export interface CmlMimicStatus {
+  cml_connected: boolean;
+  cv_configured: boolean;
+  message: string;
+}
+
+export interface CmlDeployRequest {
+  cell_name: string;
+  devices: AuthorDevice[];
+  relationships: AuthorRelationship[];
+  with_sensor: boolean;
+}
+
+export interface CmlPersonaResult {
+  name: string;
+  data_ip: string | null;
+  node_id: string | null;
+}
+
+export interface CmlDeployResponse {
+  lab_id: string;
+  lab_title: string;
+  personas: CmlPersonaResult[];
+  sensor_serial: string | null;
+  message: string;
+}
+
+export interface CmlLabItem {
+  lab_id: string;
+  title: string;
+  state: string;
+  node_count: number;
+}
+
 export const mimicApi = {
   getStatus: async (): Promise<MimicStatus> => {
     const response = await apiClient.get<MimicStatus>('/api/v1/mimic/status');
@@ -122,6 +157,22 @@ export const mimicApi = {
   },
   teardown: async (cellSlug: string): Promise<{ request_id: string }> => {
     const response = await apiClient.delete<{ request_id: string }>(`/api/v1/mimic/cells/${cellSlug}`);
+    return response.data;
+  },
+  getCmlStatus: async (): Promise<CmlMimicStatus> => {
+    const response = await apiClient.get<CmlMimicStatus>('/api/v1/mimic/cml/status');
+    return response.data;
+  },
+  deployCml: async (request: CmlDeployRequest): Promise<CmlDeployResponse> => {
+    const response = await apiClient.post<CmlDeployResponse>('/api/v1/mimic/cml/deploy', request);
+    return response.data;
+  },
+  getCmlLabs: async (): Promise<{ items: CmlLabItem[] }> => {
+    const response = await apiClient.get<{ items: CmlLabItem[] }>('/api/v1/mimic/cml/labs');
+    return response.data;
+  },
+  teardownCmlLab: async (labId: string): Promise<{ lab_id: string; message: string }> => {
+    const response = await apiClient.delete<{ lab_id: string; message: string }>(`/api/v1/mimic/cml/labs/${labId}`);
     return response.data;
   },
 };

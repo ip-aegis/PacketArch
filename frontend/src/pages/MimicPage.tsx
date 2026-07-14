@@ -6,11 +6,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
-import { ReloadOutlined, PlusOutlined, DeleteOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlusOutlined, DeleteOutlined, ApartmentOutlined, CloudServerOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
-import type { MimicCell, MimicPersona } from '../api/mimic';
+import type { MimicCell, MimicPersona, CmlLabItem } from '../api/mimic';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -48,8 +48,9 @@ const MimicPage: React.FC = () => {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const {
-    status, cells, presets, isLoading, isDeploying, error,
+    status, cells, presets, isLoading, isDeploying, error, cmlStatus, cmlLabs,
     fetchStatus, fetchCells, fetchPresets, deploy, teardown, clearError,
+    fetchCmlStatus, fetchCmlLabs, teardownCmlLab,
   } = useMimicStore();
   const { labs, fetchLabs } = useLocalSensorStore();
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,7 +61,9 @@ const MimicPage: React.FC = () => {
     fetchCells();
     fetchPresets();
     fetchLabs();
-  }, [fetchStatus, fetchCells, fetchPresets, fetchLabs]);
+    fetchCmlStatus();
+    fetchCmlLabs();
+  }, [fetchStatus, fetchCells, fetchPresets, fetchLabs, fetchCmlStatus, fetchCmlLabs]);
 
   const anyTransient = cells.some((c) => c.state === 'provisioning' || c.state === 'pending' || c.state === 'degraded');
   useEffect(() => {
@@ -68,6 +71,14 @@ const MimicPage: React.FC = () => {
     const t = setInterval(fetchCells, 3000);
     return () => clearInterval(t);
   }, [anyTransient, fetchCells]);
+
+  // Poll off-box labs while any is still coming up (nodes boot over minutes).
+  const anyCmlTransient = cmlLabs.some((l) => l.state !== 'STARTED' && l.state !== 'STOPPED');
+  useEffect(() => {
+    if (cmlLabs.length === 0) return;
+    const t = setInterval(fetchCmlLabs, anyCmlTransient ? 5000 : 15000);
+    return () => clearInterval(t);
+  }, [cmlLabs.length, anyCmlTransient, fetchCmlLabs]);
 
   useEffect(() => {
     if (!error) return;
@@ -103,6 +114,39 @@ const MimicPage: React.FC = () => {
       },
     });
   };
+
+  const confirmTeardownCml = (lab: CmlLabItem) => {
+    modal.confirm({
+      title: `Tear down "${lab.title}"?`,
+      content: 'Stops, wipes, and deletes the CML lab (all persona nodes) and removes its Cyber Vision sensor object.',
+      okText: 'Tear down',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const ok = await teardownCmlLab(lab.lab_id);
+        if (ok) message.success(`Off-box lab "${lab.title}" torn down.`);
+      },
+    });
+  };
+
+  const cmlStateColor: Record<string, string> = {
+    STARTED: 'green', BOOTED: 'green', QUEUED: 'processing',
+    STOPPED: 'default', DEFINED_ON_CORE: 'default',
+  };
+
+  const cmlColumns: ColumnsType<CmlLabItem> = [
+    { title: 'Lab', dataIndex: 'title', key: 'title', render: (t: string) => (
+      <Text strong>{t.replace(/^Mimic: /, '')}</Text>
+    ) },
+    { title: 'Nodes', dataIndex: 'node_count', key: 'node_count', render: (n: number) => <Tag>{n}</Tag> },
+    { title: 'State', dataIndex: 'state', key: 'state', render: (s: string) => (
+      <Tag color={cmlStateColor[s] || 'default'}>{s}</Tag>
+    ) },
+    { title: '', key: 'actions', align: 'right', render: (_v, row) => (
+      <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmTeardownCml(row)}>
+        Tear down
+      </Button>
+    ) },
+  ];
 
   const columns: ColumnsType<MimicCell> = [
     { title: 'Cell', dataIndex: 'name', key: 'name', render: (name: string, row) => (
@@ -167,6 +211,37 @@ const MimicPage: React.FC = () => {
           columns={columns} dataSource={cells} pagination={false}
           locale={{ emptyText: 'No Mimic cells running. Click "Deploy Cell" to add one.' }}
         />
+      </Card>
+
+      <Card
+        title={
+          <Space>
+            <CloudServerOutlined />
+            Off-box (CML) Labs
+          </Space>
+        }
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchCmlLabs}>Refresh</Button>
+            <Button icon={<ApartmentOutlined />} onClick={() => navigate('/mimic/studio')}>
+              Author in Studio
+            </Button>
+          </Space>
+        }
+      >
+        {cmlStatus && !cmlStatus.cml_connected ? (
+          <Alert
+            type="info" showIcon
+            message="CML not connected"
+            description="Configure and connect CML (Agents → CML) to deploy personas off-box. Off-box personas run on their own bare CML nodes; with a CV sensor an IOSvL2 SPAN mirrors their traffic to Cyber Vision."
+          />
+        ) : (
+          <Table<CmlLabItem>
+            rowKey="lab_id" size="small"
+            columns={cmlColumns} dataSource={cmlLabs} pagination={false}
+            locale={{ emptyText: 'No off-box labs. Author a cell in Studio and choose "Off-box (CML)".' }}
+          />
+        )}
       </Card>
 
       <Modal
