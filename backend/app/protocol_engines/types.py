@@ -38,6 +38,7 @@ class ProtocolType(str, Enum):
     DCS = "dcs"  # DCS protocols (DeltaV, Experion, Vnet/IP, Triconex)
     CLOUD_SERVICE = "cloud_service"  # Cloud service TLS heartbeats (Talk2M, TeamViewer, etc.)
     EMP = "emp"  # Edge Message Protocol — AAR Interoperable Train Control (ITC/PTC) messaging
+    ATCS = "atcs"  # Advanced Train Control System (AAR Spec 200) — ATCS Monitor relay feed
     # Remote access / management protocols — useful for jump servers,
     # admin workstations, and any device shown as "the type of work they
     # might do" in CV. They reuse the CloudServiceEngine for now (TCP
