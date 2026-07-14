@@ -207,6 +207,31 @@ async def _cv_service(db):
     return CyberVisionService(url, token, verify_ssl=verify)
 
 
+async def _allocate_data_subnet(svc) -> int:
+    """Pick a free /24 index N (cell uses 10.99.N.0/24) so no two live Mimic cells
+    share data-plane IPs — otherwise Cyber Vision merges/conflicts components across
+    deploys. The index is recorded in the lab description ('net:N') and freed when
+    the lab is deleted."""
+    import re
+    used = set()
+    for lab in await svc.list_labs():
+        if not lab.title.startswith(_CML_LAB_PREFIX):
+            continue
+        try:
+            raw = await svc._request("GET", f"/labs/{lab.id}")  # noqa: SLF001
+            # CML returns the description under 'lab_description' (not 'description').
+            desc = (raw.get("lab_description") or raw.get("description") or "") if isinstance(raw, dict) else ""
+            m = re.search(r"net:(\d+)", desc)
+            if m:
+                used.add(int(m.group(1)))
+        except Exception:  # noqa: BLE001
+            pass
+    for n in range(1, 255):
+        if n not in used:
+            return n
+    raise ValidationError("No free Mimic data subnet (254 concurrent cells reached).")
+
+
 @router.get("/cml/status", response_model=CmlMimicStatusResponse)
 async def cml_status(db: DBSession, _user: CurrentUser) -> CmlMimicStatusResponse:
     """Whether the off-box (CML) path is usable: CML reachable + CV configured."""
@@ -242,16 +267,18 @@ async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) ->
             "CML integration has no PacketArch server URL configured — the CML nodes "
             "need a URL to phone home to for the runtime image + check-in.")
     _certify_or_raise(req.devices, "offbox")
+    net_idx = await _allocate_data_subnet(svc)  # unique /24 → no CV IP collisions
     personas = build_cell_personas(devices=[d.model_dump() for d in req.devices],
-                                   relationships=[r.model_dump() for r in req.relationships])
+                                   relationships=[r.model_dump() for r in req.relationships],
+                                   data_net=f"10.99.{net_idx}")
     title = f"{_CML_LAB_PREFIX}{req.cell_name}"
     sensor_serial = None
-    description = ""
+    description = f"net:{net_idx}"
     if req.with_sensor:
         cv = await _cv_service(db)
         await cv.create_deployment_token(_CV_DEPLOYMENT)
         sensor_serial = f"mimic-{scaffold_slug(req.cell_name)}-{uuid.uuid4().hex[:6]}"
-        description = f"sensor:{sensor_serial}"
+        description += f" sensor:{sensor_serial}"
     lab_id = await svc.create_lab(title, description)
     if req.with_sensor:
         result = await deploy_docker_cell_with_sensor(
@@ -319,7 +346,7 @@ async def cml_teardown(lab_id: str, db: DBSession, _admin: AdminUser) -> CmlTear
     serial = None
     try:
         lab = await svc._request("GET", f"/labs/{lab_id}")  # noqa: SLF001
-        desc = (lab or {}).get("description", "") if isinstance(lab, dict) else ""
+        desc = (lab.get("lab_description") or lab.get("description") or "") if isinstance(lab, dict) else ""
         if "sensor:" in desc:
             serial = desc.split("sensor:", 1)[1].split()[0]
     except Exception:  # noqa: BLE001

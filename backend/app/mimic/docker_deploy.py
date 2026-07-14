@@ -35,9 +35,12 @@ _IMAGE_TAG = "mimic-persona:p0"
 _DATA_NET = "10.99.0"
 
 
-def build_cell_personas(*, devices: list[dict], relationships: list[dict]) -> list[tuple[PersonaSpec, str]]:
+def build_cell_personas(*, devices: list[dict], relationships: list[dict],
+                        data_net: str = _DATA_NET) -> list[tuple[PersonaSpec, str]]:
     """Device graph → (PersonaSpec, data_ip) list. Full PersonaSpecs (identity is
-    resolved inside the container); poll edges are baked to the peer's data IP."""
+    resolved inside the container); poll edges are baked to the peer's data IP.
+    ``data_net`` is the cell's /24 base (e.g. '10.99.7') — a UNIQUE one per deploy
+    so Cyber Vision never sees IPs colliding with a prior/other cell."""
     by_key: dict[str, PersonaSpec] = {}
     proto_by_key: dict[str, str | None] = {}
     for d in devices:
@@ -46,7 +49,7 @@ def build_cell_personas(*, devices: list[dict], relationships: list[dict]) -> li
             key=d["key"], name=d.get("name", d["key"]), template_id=d["template_id"],
             protocol=proto, process_model_id=d.get("process_model_id"))
         proto_by_key[d["key"]] = proto
-    data_ip = {k: f"{_DATA_NET}.{10 + i * 10}" for i, k in enumerate(by_key)}
+    data_ip = {k: f"{data_net}.{10 + i * 10}" for i, k in enumerate(by_key)}
     for rel in relationships:
         src, dst = rel.get("source"), rel.get("target")
         if src not in by_key or dst not in by_key:
