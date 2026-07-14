@@ -18,17 +18,25 @@ address/control bytes or HDLC 0x7E flags (those belong to the ground wireline
 path). The physical FEC / 85-bit-block encoding (Appendix W) is stripped by the
 receiver before the relay sees it, so it is out of scope.
 
-Frame model (decoded RF logical frame)::
+Frame model (decoded RF logical frame — octet order per K-II Appendix D)::
 
     radio-link frame counter (1B)        Appendix L   — the ATCSMon "Frame=NN"
     radio datagram header (3B)           Appendix G   — GFI/Group, SSeq, RSeq/Vital
-    address-length octet (1B)            Appendix D   — src digits (hi nibble) | dst (lo)
-    destination ATCS address (BCD)       Appendix D   — destination FIRST
-    source ATCS address (BCD)            Appendix D
-    packet label / UsrData length (1B)   Spec 250
+    packet prefix (4B)                   §2.x         — QD10PPPA + 3 zero octets
+    address-length octet (1B)            §2.3-2.4     — src digits (hi) | dst (lo)
+    destination ATCS address (BCD)       §2.3-2.4     — destination FIRST
+    source ATCS address (BCD)            §2.3-2.4
+    facility-length octet (1B)           §2.x
+    transport header (3B)                §2.11-2.13   — msg#, part#, len | vital bit
+    packet label (2B)                    Spec 250
     UsrData (NB)                         Spec 250     — application payload
-    FCS-16 (2B, CRC-16/X.25)             Layer 2      — on every message
-    vital CRC (4B)                       Appendix Y   — vital messages ONLY (32-bit)
+    vital CRC (4B, internal)             Appendix Y   — vital msgs ONLY; last 4 octets
+
+There is NO explicit UsrData-length octet (ATCSMon's UsrData=N is derived) and
+NO wireline HDLC FCS / 0x7E flags on the RF path (integrity there is FEC/85-bit
+blocks, Appendix W, stripped before the relay). The vital CRC is internal to the
+packet (last 4 octets, over address-length octet .. end of UsrData) and is
+FILLER — the real polynomial (Spec 250 §3.2.1.1) was unread.
 
 FIDELITY — three confidence tiers, per-field in the label map so a downstream
 Cyber Vision dissector-training pipeline knows which bytes to trust (CV has no
@@ -106,14 +114,16 @@ def crc16_x25(data: bytes) -> int:
 
 
 def vital_crc32(data: bytes) -> int:
-    """32-bit vital/presentation CRC appended to VITAL messages (last 4 octets).
+    """FILLER for the 32-bit vital CRC — NOT the real ATCS vital CRC.
 
-    Per K-II, vital messages carry additional (Layer 4 / Layer 6) redundancy
-    checks beyond the Layer-2 FCS; the vital CRC is 32 bits. The exact
-    polynomial and bit/byte order are defined in ATCS Spec 250 §3.2.1.1, which
-    was not reachable from the build host — so the CRC's PRESENCE and 4-octet
-    POSITION are spec-derived but its VALUE (computed here as a standard CRC-32)
-    is provisional until the Spec 250 polynomial is confirmed. See SPEC_NEEDS.md.
+    Per K-II, vital messages carry a 32-bit vital/presentation CRC as the last
+    4 octets of the packet (over the address-length octet .. end of Layer-7
+    data). Its PRESENCE, WIDTH, and POSITION are spec-derived, but the real
+    polynomial/init/reflection live in ATCS Spec 250 §3.2.1.1 (unread). Emitting
+    an algorithmically-"valid" checksum over synthetic safety payloads would be
+    misleading, so this returns a deterministic FILLER (standard CRC-32) that the
+    field map labels ``provisional`` / ``filler``. Swap for the real recipe once
+    Spec 250 §3.2.1.1 is available. See SPEC_NEEDS.md.
     """
     return crc32(data) & 0xFFFFFFFF
 
@@ -249,53 +259,73 @@ def build_codeline_frame(
 ) -> tuple[bytes, list[dict]]:
     """Build a decoded ATCS RF codeline frame (relay-feed form) + field map.
 
-    This models the RF path the ATCS Monitor relay decodes (radio datagram over
-    radio link), NOT the wireline LAPB path — so there is no LAPB address/control
-    byte and no HDLC 0x7E flags (those are wireline artifacts). See the module
-    docstring for the layer references and confidence tiers.
+    Models the RF path the ATCS Monitor relay decodes: a radio datagram
+    (Appendix G/L) carrying an Appendix-D transport packet. NOT the wireline
+    LAPB path — no LAPB address/control byte, no HDLC 0x7E flags, and no wireline
+    HDLC FCS (the RF link's integrity is FEC/85-bit blocks, stripped before the
+    relay; a per-message L2 CRC is out of scope for the decoded feed). See the
+    module docstring for confidence tiers.
 
-    Frame model::
+    Frame model (octet ORDER per K-II Appendix D Confirmation; intra-octet bit
+    layout of the datagram header + transport header is PROVISIONAL)::
 
-        radio-link frame counter (1B)         Appendix L   (provisional)
-        radio datagram header (3B)            Appendix G   (provisional widths)
-        address-length octet (1B)             Appendix D   src digits<<4 | dst digits
-        destination ATCS address (BCD)        Appendix D   (spec; destination FIRST)
-        source ATCS address (BCD)             Appendix D   (spec)
-        packet label / UsrData length (1B)    Spec 250     (provisional)
-        UsrData (NB)                          Spec 250     (synthetic)
-        FCS-16 (2B, CRC-16/X.25, LE)          Layer 2      (spec algorithm)
-        vital CRC (4B)                        Appendix Y   (vital msgs only; value provisional)
+        radio-link frame counter (1B)        Appendix L   (provisional)
+        radio datagram header (3B)           Appendix G   (provisional widths)
+        --- Appendix-D transport packet ---
+        packet prefix octet 1  (QD10PPPA)    §2.x         (provisional bits)
+        packet prefix octets 2-4 (0x00)      §2.x         (spec: zero on originate)
+        address-length octet (1B)            §2.3-2.4     (spec) src digits<<4 | dst
+        destination ATCS address (BCD)       §2.3-2.4     (spec; destination FIRST)
+        source ATCS address (BCD)            §2.3-2.4     (spec)
+        facility-length octet (1B)           §2.x         (provisional)
+        transport header (3B)                §2.11-2.13   (provisional; vital bit = LSB of 3rd)
+        packet label (2B)                    Spec 250     (provisional)
+        UsrData (NB)                         Spec 250     (synthetic)
+        vital CRC (4B)                       Appendix Y   (vital only; FILLER value)
 
-    ``vital`` sets the radio-datagram Vital flag AND triggers the trailing 32-bit
-    vital CRC. ``transport_vital`` is the separate transport-layer vital bit
-    (Appendix D §2.11), carried in the packet-label octet. Returns
-    ``(frame_bytes, field_map)`` with absolute offsets.
+    There is NO explicit user-data length octet on the wire (ATCSMon's UsrData=N
+    is derived). The 32-bit vital CRC is INTERNAL — the last 4 octets of the
+    packet, over the address-length octet through the end of UsrData — and is
+    populated with clearly-labelled FILLER: the real polynomial is in Spec 250
+    §3.2.1.1 (unread), so emitting an algorithmically-"valid" checksum over
+    synthetic safety data would be misleading. ``vital`` sets the datagram Vital
+    flag and adds the vital CRC; ``transport_vital`` is the separate transport
+    vital bit (Appendix D §2.11). See SPEC_NEEDS.md for the open items.
     """
     src_bcd = encode_bcd_address(src_addr)
     dst_bcd = encode_bcd_address(dst_addr)
     dgram_hdr, dgram_fields = _build_radio_datagram_header(gfi, group, sseq, rseq, vital)
 
-    # Address-length octet: source digit count (high nibble) | dest digit count
-    # (low nibble), in units of BCD digits (Appendix D §2.3-2.4).
+    # Appendix-D address-length octet: source digit count (high nibble) | dest
+    # digit count (low nibble), in units of BCD digits. NOTE the asymmetry —
+    # destination LENGTH is the low nibble, but destination ADDRESS comes FIRST.
     addr_len_octet = ((len(src_addr) & 0x0F) << 4) | (len(dst_addr) & 0x0F)
-    # Packet label / UsrData length octet (Spec 250). Bit 0 carries the transport
-    # vital bit (Appendix D §2.11); the remaining bits are the user-data length.
-    packet_label = ((len(usrdata) & 0x7F) << 1) | (1 if transport_vital else 0)
+    # Transport header 3rd octet: message-length (top 7 bits) | transport vital
+    # bit (LSB, Appendix D §2.11).
+    tx_len_vital = ((len(usrdata) & 0x7F) << 1) | (1 if transport_vital else 0)
 
     body = bytearray()
-    body.append(frame_counter & 0xFF)          # radio-link frame counter
-    body += dgram_hdr                           # radio datagram header
-    body.append(addr_len_octet)
-    body += dst_bcd                             # destination FIRST
-    body += src_bcd
-    body.append(packet_label)
+    body.append(frame_counter & 0xFF)          # radio-link frame counter (App L)
+    body += dgram_hdr                           # radio datagram header (App G)
+    packet_start = len(body)
+    body.append(0x20)                           # octet 1: QD10PPPA (provisional)
+    body += b"\x00\x00\x00"                     # octets 2-4: zero on originate
+    vcrc_start = len(body)                      # vital CRC covers from here (addr-len)
+    body.append(addr_len_octet)                 # octet 5: address-length
+    body += dst_bcd                             # destination address FIRST
+    body += src_bcd                             # source address
+    body.append(0x00)                           # facility-length (provisional; none)
+    body.append(frame_counter & 0xFF)           # tx hdr: message# | more (provisional)
+    body.append(0x01)                           # tx hdr: part# | e2e-ack (provisional)
+    body.append(tx_len_vital)                   # tx hdr: msg-length | transport vital
+    body += b"\x00\x00"                          # packet label (2B, provisional)
+    ud_off = len(body)
     body += usrdata
-    fcs = crc16_x25(bytes(body))
-
-    frame = bytearray(body)
-    frame += struct.pack("<H", fcs)             # 16-bit FCS, little-endian
     if vital:
-        frame += struct.pack(">I", vital_crc32(bytes(frame)))  # 32-bit vital CRC
+        # INTERNAL 32-bit vital CRC over addr-len..end-of-UsrData. FILLER value.
+        body += struct.pack(">I", vital_crc32(bytes(body[vcrc_start:])))
+
+    frame = bytes(body)
 
     # Absolute-offset field map.
     fields: list[dict] = [
@@ -304,11 +334,14 @@ def build_codeline_frame(
     ]
     for f in dgram_fields:
         fields.append({**f, "off": 1 + f["off"]})
-    alo = 1 + len(dgram_hdr)
-    fields.append({"off": alo, "len": 1, "field": "atcs.addr_len",
+    fields.append({"off": packet_start, "len": 1, "field": "atcs.packet_prefix",
+                   "value": "QD10PPPA", "synthetic": False, "confidence": "provisional"})
+    fields.append({"off": packet_start + 1, "len": 3, "field": "atcs.prefix_zero",
+                   "value": 0, "synthetic": False, "confidence": "spec"})
+    fields.append({"off": vcrc_start, "len": 1, "field": "atcs.addr_len",
                    "value": {"src_digits": len(src_addr), "dst_digits": len(dst_addr)},
                    "synthetic": False, "confidence": "spec"})
-    dst_off = alo + 1
+    dst_off = vcrc_start + 1
     fields.append({"off": dst_off, "len": len(dst_bcd), "field": "atcs.dst_addr",
                    "value": dst_addr, "subfields": atcs_address_subfields(dst_addr),
                    "synthetic": False, "confidence": "spec"})
@@ -316,20 +349,21 @@ def build_codeline_frame(
     fields.append({"off": src_off, "len": len(src_bcd), "field": "atcs.src_addr",
                    "value": src_addr, "subfields": atcs_address_subfields(src_addr),
                    "synthetic": False, "confidence": "spec"})
-    label_off = src_off + len(src_bcd)
-    fields.append({"off": label_off, "len": 1, "field": "atcs.packet_label",
+    fac_off = src_off + len(src_bcd)
+    fields.append({"off": fac_off, "len": 1, "field": "atcs.facility_len",
+                   "value": 0, "synthetic": False, "confidence": "provisional"})
+    fields.append({"off": fac_off + 1, "len": 3, "field": "atcs.transport_header",
                    "value": {"usrdata_len": len(usrdata), "transport_vital": int(transport_vital)},
                    "synthetic": False, "confidence": "provisional"})
-    ud_off = label_off + 1
+    fields.append({"off": fac_off + 4, "len": 2, "field": "atcs.packet_label",
+                   "value": 0, "synthetic": False, "confidence": "provisional"})
     fields.append({"off": ud_off, "len": len(usrdata), "field": "atcs.usrdata",
                    "value": usrdata.hex(), "synthetic": True, "confidence": "synthetic"})
-    fcs_off = ud_off + len(usrdata)
-    fields.append({"off": fcs_off, "len": 2, "field": "atcs.fcs16",
-                   "value": fcs, "synthetic": False, "confidence": "spec"})
     if vital:
-        fields.append({"off": fcs_off + 2, "len": 4, "field": "atcs.vital_crc32",
-                       "value": "crc32", "synthetic": False, "confidence": "provisional"})
-    return bytes(frame), fields
+        fields.append({"off": ud_off + len(usrdata), "len": 4, "field": "atcs.vital_crc32",
+                       "value": "filler", "note": "real poly in Spec 250 §3.2.1.1 (unread)",
+                       "synthetic": False, "confidence": "provisional"})
+    return frame, fields
 
 
 # ---------------------------------------------------------------------------

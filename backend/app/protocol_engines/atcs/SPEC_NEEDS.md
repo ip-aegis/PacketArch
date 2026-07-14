@@ -18,11 +18,38 @@ added for vital messages. **The build host cannot reach the scan directly**
 (Cloudflare returns HTTP 521 to datacenter IPs; the ATCSMon wiki host SERVFAILs
 even at public DNS resolvers), so the re-layering encodes RELAYED findings.
 
-**REMAINING open item (narrow):** the exact bit widths/positions of the
-radio-datagram header (GFI/Group/SSeq/RSeq/Vital, **Appendix G ~K-II-57**) and
-the radio-link frame counter (**Appendix L ~K-II-70**) — these pages were past
-where the scan text was successfully extracted — plus the vital-CRC polynomial
-(**Spec 250 §3.2.1.1**). Everything else is now resolved.
+**Appendix-D transport-packet structure now applied** (from a second, deeper
+read of the K-II scan): the packet octet ORDER is modeled — 4-octet prefix
+(QD10PPPA + 3 zero octets), address-length octet, **destination address before
+source**, facility-length octet, 3-octet transport header (with the transport
+vital bit as the LSB of its 3rd octet, §2.11), 2-octet label, UsrData, then the
+**internal** 32-bit vital CRC as the last 4 octets (over the address-length
+octet .. end of UsrData). Corrections applied: removed the spurious literal
+UsrData-length octet (ATCSMon's UsrData=N is derived, not on-wire); removed the
+wireline HDLC FCS/0x7E flags (RF integrity is FEC/85-bit blocks, Appendix W,
+stripped before the relay); the vital CRC is now INTERNAL and populated with
+labelled FILLER (not a fake-valid checksum).
+
+**Wire-format target (DECISION):** the engine emits the **ATCS Monitor server
+feed** — an IP monitoring stream (TCP control on 4802 + UDP ASCII-hex frames on
+30000+), which is what a Cyber Vision sensor could actually observe. CV never
+sees the raw 900 MHz RF. The inner hex is the decoded RF logical frame above.
+
+**REMAINING open items (narrow):**
+1. Exact bit widths/positions of the **radio-datagram header** (GFI/Group/SSeq/
+   RSeq/Vital, **Appendix G ~K-II-57**) and the **radio-link frame counter**
+   (**Appendix L ~K-II-70**) — pages past the extracted scan text. Intra-octet
+   packing is provisional; octet order is set.
+2. The **vital-CRC polynomial/init/reflection** (**Spec 250 §3.2.1.1 /
+   Appendix Y ~K-II-321**) — currently filler.
+3. The exact intra-octet layout of the **transport header** octets
+   (message#/more, part#/e2e, length) — octet positions set, bit fields provisional.
+4. Confirmation of the **ATCS Monitor server-feed container** framing (its own
+   normalized protocol) vs. the assumed ASCII-hex-over-UDP model.
+
+The single artifact that resolves 1-3 at once: **one real ATCS Monitor
+Capture-To-File (.log) frame — raw hex + the ATCSMon decode of that same frame**
+(the Packet Display window). Reverse the bit positions from the byte↔value map.
 
 ---
 

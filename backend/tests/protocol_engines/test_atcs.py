@@ -26,7 +26,6 @@ from app.protocol_engines.atcs.codeline import (
     crc16_x25,
     decode_bcd_address,
     encode_bcd_address,
-    vital_crc32,
 )
 from app.protocol_engines.atcs.engine import (
     ATCS_RELAY_TCP_PORT,
@@ -97,46 +96,48 @@ class TestCrc16X25:
         assert crc16_x25(b"123456789") == 0x906E
 
 
-def _validate_frame_crcs(frame: bytes, fields: list[dict]) -> None:
-    """Validate the FCS-16 (and 32-bit vital CRC if present) using the field map."""
+def _check_frame_layout(frame: bytes, fields: list[dict]) -> None:
+    """Structural checks: every field is in-bounds; no wireline FCS; vital CRC
+    (when present) is the internal last-4-octets field. Values are NOT validated
+    for provisional fields (e.g. the vital CRC is deliberately filler)."""
     by_name = {f["field"]: f for f in fields}
-    fcs_off = by_name["atcs.fcs16"]["off"]
-    assert crc16_x25(frame[:fcs_off]) == struct.unpack("<H", frame[fcs_off:fcs_off + 2])[0]
+    for f in fields:
+        assert 0 <= f["off"] and f["off"] + f["len"] <= len(frame)
+    assert "atcs.fcs16" not in by_name          # RF path: no wireline HDLC FCS
     if "atcs.vital_crc32" in by_name:
-        vc = by_name["atcs.vital_crc32"]["off"]
-        assert vital_crc32(frame[:vc]) == struct.unpack(">I", frame[vc:vc + 4])[0]
+        vc = by_name["atcs.vital_crc32"]
+        assert vc["len"] == 4 and vc["off"] + 4 == len(frame)   # last 4 octets
 
 
 class TestCodelineFrame:
-    def test_rf_frame_has_no_wireline_lapb_or_flags(self):
-        # RF path (relay feed): no HDLC 0x7E flags, no LAPB address/control byte.
+    def test_rf_frame_has_no_wireline_lapb_flags_or_fcs(self):
+        # RF path (relay feed): no HDLC 0x7E flags, no LAPB byte, no wireline FCS.
         frame, fields = build_codeline_frame(
             src_addr="71253230040202", dst_addr="21250000010000",
             usrdata=b"\x02\x04", gfi=2, group=5, sseq=77, rseq=45, frame_counter=34,
         )
         names = {f["field"] for f in fields}
-        assert "atcs.lapb_address" not in names and "atcs.lapb_control" not in names
-        assert "atcs.flag_open" not in names and "atcs.flag_close" not in names
+        assert not ({"atcs.lapb_address", "atcs.lapb_control",
+                     "atcs.flag_open", "atcs.flag_close", "atcs.fcs16"} & names)
         # first byte is the radio-link frame counter, not a 0x7E flag
         assert frame[0] == 34 and frame[0] != 0x7E
         assert by_field(fields, "atcs.frame_counter")["off"] == 0
 
-    def test_fcs_and_vital_crc(self):
-        # non-vital: 16-bit FCS only
+    def test_vital_crc_present_only_for_vital_and_is_filler(self):
         frame, fields = build_codeline_frame(
             src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
             sseq=1, rseq=2, frame_counter=3, vital=False,
         )
         assert "atcs.vital_crc32" not in {f["field"] for f in fields}
-        _validate_frame_crcs(frame, fields)
-        # vital: 16-bit FCS + trailing 32-bit vital CRC
+        _check_frame_layout(frame, fields)
         vframe, vfields = build_codeline_frame(
             src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
             sseq=1, rseq=2, frame_counter=3, vital=True,
         )
-        assert by_field(vfields, "atcs.vital_crc32")["len"] == 4
-        _validate_frame_crcs(vframe, vfields)
-        assert len(vframe) == len(frame) + 4
+        vc = by_field(vfields, "atcs.vital_crc32")
+        assert vc["len"] == 4 and vc["confidence"] == "provisional"  # filler, labeled
+        _check_frame_layout(vframe, vfields)
+        assert len(vframe) == len(frame) + 4         # only the internal vital CRC added
 
     def test_address_order_is_destination_first(self):
         # Appendix D: address-length octet, then DESTINATION address, then SOURCE.
@@ -212,11 +213,11 @@ class TestAtcsEngine:
             if ev.metadata.get("type", "").startswith("atcs_codeline"):
                 udp_codeline += 1
                 assert UDP in pkt
-                # UDP payload is ASCII-hex; decode and validate the codeline CRCs
+                # UDP payload is ASCII-hex; decode and structurally validate
                 hex_txt = bytes(pkt[UDP].payload).strip()
                 frame = bytes.fromhex(hex_txt.decode("ascii"))
                 assert frame.hex().upper() == ev.metadata["codeline_frame_hex"]
-                _validate_frame_crcs(frame, ev.metadata["codeline_fields"])
+                _check_frame_layout(frame, ev.metadata["codeline_fields"])
             elif ev.metadata.get("type") == "atcs_keepalive":
                 udp_keepalive += 1
                 assert UDP in pkt
