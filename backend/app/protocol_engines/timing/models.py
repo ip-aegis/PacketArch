@@ -16,7 +16,6 @@ Supported models:
 """
 
 import logging
-import random
 from typing import Any
 
 import numpy as np
@@ -60,7 +59,9 @@ class BaseTimingModel:
         """
         if self._config.timeout_probability <= 0:
             return False
-        return random.random() < self._config.timeout_probability
+        # Roll on the instance RNG, not the global random module — a seeded
+        # model must be fully reproducible (timeouts included).
+        return self._rng.random() < self._config.timeout_probability
 
     def get_delay_ms(self, context: dict[str, Any] | None = None) -> float:
         """Get delay value from sample.
@@ -83,7 +84,8 @@ class BaseTimingModel:
         Returns:
             Tuple of (adjusted_delay, is_outlier)
         """
-        is_outlier = random.random() < self._config.outlier_probability
+        # Instance RNG (see should_timeout) — outlier rolls must honor the seed.
+        is_outlier = self._rng.random() < self._config.outlier_probability
         if is_outlier:
             delay *= self._config.outlier_multiplier
         return delay, is_outlier

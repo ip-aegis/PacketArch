@@ -7,7 +7,7 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.6.1"
+VERSION = "2.6.2"
 
 # Version history:
 # 2.6.1 - Data/lint-only: register Janitza (316) and Elvaco (1473) in
