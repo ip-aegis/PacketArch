@@ -157,6 +157,11 @@ class TemplateItem(BaseModel):
     model_name: str
     device_type: str
     protocols: list[str] = Field(default_factory=list)
+    # Mimic certification (see app.mimic.certification):
+    role_class: str = "responder"  # "responder" (server persona) | "client"
+    client_capable: bool = False
+    # deploy target -> the server protocols this device is certified to emulate there
+    server_protocols: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class TemplateListResponse(BaseModel):

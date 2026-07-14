@@ -69,6 +69,10 @@ export interface MimicTemplate {
   model_name: string;
   device_type: string;
   protocols: string[];
+  // Mimic certification
+  role_class: 'responder' | 'client';
+  client_capable: boolean;
+  server_protocols: Record<string, string[]>; // deploy target -> certified protocols
 }
 
 export interface AuthorDevice {

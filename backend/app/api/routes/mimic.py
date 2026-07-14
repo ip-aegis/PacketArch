@@ -69,15 +69,27 @@ _MIMIC_PROTOCOLS = frozenset({"modbus_tcp", "opc_ua", "bacnet_ip", "iec104"})
 
 @router.get("/templates", response_model=TemplateListResponse)
 async def list_templates(_user: CurrentUser) -> TemplateListResponse:
-    """Device templates usable as Mimic personas (support an emulated protocol)."""
-    items = [
-        TemplateItem(
+    """Device templates usable as Mimic personas, each with its certification: which
+    server protocols it can convincingly emulate per deploy target, and whether it's
+    a responder (server persona) or a client/software role (client-only persona)."""
+    from app.mimic.certification import certify_template
+    from app.services.device_templates import get_fingerprint_from_template
+
+    items = []
+    for t in get_all_templates():
+        if not _MIMIC_PROTOCOLS.intersection(t.supported_protocols or []):
+            continue
+        fp = get_fingerprint_from_template(t.id) or {}
+        cert = certify_template(fp, t.device_type, t.supported_protocols)
+        # Present a device only if it can be a server SOMEWHERE or is a valid client.
+        if not cert.client_capable and not any(cert.server_protocols.values()):
+            continue
+        items.append(TemplateItem(
             id=t.id, vendor=t.vendor, model_name=t.model_name,
             device_type=t.device_type, protocols=t.supported_protocols or [],
-        )
-        for t in get_all_templates()
-        if _MIMIC_PROTOCOLS.intersection(t.supported_protocols or [])
-    ]
+            role_class=cert.role_class, client_capable=cert.client_capable,
+            server_protocols=cert.server_protocols,
+        ))
     return TemplateListResponse(items=items)
 
 
@@ -123,11 +135,33 @@ async def deploy_cell(req: DeployCellRequest, _admin: AdminUser) -> DeployCellRe
     return DeployCellResponse(**result)
 
 
+def _certify_or_raise(devices: list, target: str) -> None:
+    """Reject any authored persona that isn't certified to emulate its protocol
+    convincingly on ``target`` — the deploy-time realism guardrail."""
+    from app.mimic.certification import check_devices
+    from app.services.device_templates import get_fingerprint_from_template
+    by_id = {t.id: t for t in get_all_templates()}
+    items = []
+    for d in devices:
+        tid = d.template_id if hasattr(d, "template_id") else d["template_id"]
+        proto = d.protocol if hasattr(d, "protocol") else d.get("protocol")
+        name = getattr(d, "name", None) or (d.get("name") if isinstance(d, dict) else None) or tid
+        t = by_id.get(tid)
+        if t is None:
+            raise ValidationError(f"{name}: unknown device template {tid!r}")
+        fp = get_fingerprint_from_template(tid) or {}
+        items.append((name, t.device_type, fp, proto))
+    errors = check_devices(items, target)
+    if errors:
+        raise ValidationError("Not certified for realistic emulation — " + "; ".join(errors))
+
+
 @router.post("/cells/author", response_model=DeployCellResponse)
 async def author_cell(req: AuthorCellRequest, _admin: AdminUser) -> DeployCellResponse:
     """Deploy a cell authored in the Studio canvas (device graph → scaffolded personas)."""
     if not host_agent_client.is_available():
         raise ValidationError("Host-agent not available — Mimic needs the on-box host-agent.")
+    _certify_or_raise(req.devices, "onbox")
     result = scaffold.author_cell(
         lab_slug=req.lab_slug,
         gen_if=gen_if_for(req.lab_slug),
@@ -204,6 +238,7 @@ async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) ->
         raise ValidationError(
             "CML integration has no PacketArch server URL configured — the CML nodes "
             "need a URL to phone home to for the slim runtime + check-in.")
+    _certify_or_raise(req.devices, "offbox")
     specs = resolve_cml_cell(devices=[d.model_dump() for d in req.devices],
                              relationships=[r.model_dump() for r in req.relationships])
     title = f"{_CML_LAB_PREFIX}{req.cell_name}"

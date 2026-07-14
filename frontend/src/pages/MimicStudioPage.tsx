@@ -64,27 +64,9 @@ function friendlyRole(deviceType: string): string {
     .join(' ');
 }
 
-// Map a template's backend protocol names to the protocols the Mimic runtime can
-// emulate as a SERVER (enforces the "only protocols the fingerprint supports" rule).
-const PROTO_BACKEND_TO_STUDIO: Record<string, string> = {
-  modbus_tcp: 'modbus',
-  opc_ua: 'opcua',
-  bacnet: 'bacnet',
-  bacnet_ip: 'bacnet',
-  iec104: 'iec104',
-};
 const PROTO_LABEL: Record<string, string> = {
   modbus: 'Modbus TCP', opcua: 'OPC UA', bacnet: 'BACnet/IP', iec104: 'IEC-104',
 };
-
-function emulableProtocols(protocols: string[]): string[] {
-  const out: string[] = [];
-  for (const p of protocols) {
-    const s = PROTO_BACKEND_TO_STUDIO[p];
-    if (s && !out.includes(s)) out.push(s);
-  }
-  return out;
-}
 
 const PersonaNode: React.FC<NodeProps<PersonaNodeT>> = ({ data, selected }) => (
   <div
@@ -157,11 +139,17 @@ const StudioInner: React.FC = () => {
     [templates, role],
   );
 
-  // Server protocols the selected device actually supports (blank = client-only).
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === templateId), [templates, templateId]);
+  const isClientRole = selectedTemplate?.role_class === 'client';
+
+  // Server protocols the selected device is CERTIFIED to emulate for this deploy
+  // target — identity-backed + runtime-supported. Client-role devices get none.
   const protocolOptions = useMemo(() => {
-    const tpl = templates.find((t) => t.id === templateId);
-    return tpl ? emulableProtocols(tpl.protocols).map((p) => ({ value: p, label: PROTO_LABEL[p] || p })) : [];
-  }, [templates, templateId]);
+    if (!selectedTemplate || selectedTemplate.role_class === 'client') return [];
+    return (selectedTemplate.server_protocols?.[target] ?? [])
+      .map((p) => ({ value: p, label: PROTO_LABEL[p] || p }));
+  }, [selectedTemplate, target]);
 
   const onFormChange = (changed: Record<string, unknown>) => {
     // Reset dependent fields so a stale device/protocol can't outlive its parent.
@@ -282,19 +270,31 @@ const StudioInner: React.FC = () => {
                   }
                 />
               </Form.Item>
+              {selectedTemplate && (
+                <div style={{ marginTop: -8, marginBottom: 8 }}>
+                  {isClientRole ? (
+                    <Tag color="purple">Client persona — this role polls its peers (no server)</Tag>
+                  ) : protocolOptions.length ? (
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      ✓ Certified server: {protocolOptions.map((o) => o.label).join(', ')} ({target === 'offbox' ? 'off-box' : 'on-box'})
+                    </Text>
+                  ) : (
+                    <Tag color="orange">Not certified as a server {target === 'offbox' ? 'off-box' : 'on-box'} — use as a client</Tag>
+                  )}
+                </div>
+              )}
               <Form.Item name="protocol" tooltip="Blank = a client-only device (an HMI that polls its peers)">
                 <Select
                   allowClear
-                  disabled={!templateId}
-                  placeholder={templateId ? 'Server protocol (blank = client)' : 'Pick a device first'}
+                  disabled={!templateId || isClientRole || protocolOptions.length === 0}
+                  placeholder={isClientRole ? 'Client-only (this role polls)' : (templateId ? 'Server protocol (blank = client)' : 'Pick a device first')}
                   options={protocolOptions}
-                  notFoundContent="This device supports no emulable server protocol — use it as a client."
                 />
               </Form.Item>
-              <Form.Item name="process_model_id">
+              <Form.Item name="process_model_id" tooltip="Adds live, drifting process values — without one the device answers its identity but reads flat">
                 <Select
                   allowClear
-                  placeholder="Process model"
+                  placeholder="Process model (for live values)"
                   options={processModels.map((m) => ({ value: m, label: m }))}
                 />
               </Form.Item>
