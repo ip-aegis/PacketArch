@@ -22,7 +22,7 @@ from app.protocol_engines.fingerprint_applicator import FingerprintApplicator
 from app.protocol_engines.process_sim import ProcessModel
 from app.services.device_templates import get_fingerprint_from_template
 
-from .client import modbus_client_loop
+from .client import CLIENT_LOOPS
 from .interfaces import PersonaSpec, ProtocolServer, Transport
 from .process_library import build_process_model
 from .projections.modbus_projection import ModbusProjection
@@ -166,15 +166,16 @@ class DevicePersona:
         for server in self._servers:
             await server.start()
         for i, cb in enumerate(self.spec.clients):
-            if cb.protocol == "modbus":
-                self._client_tasks.append(
-                    asyncio.create_task(
-                        modbus_client_loop(cb, label=f"{self.spec.name}->{cb.target_ip}"),
-                        name=f"persona-client-{self.spec.device_id[:8]}-{i}",
-                    )
+            loop = CLIENT_LOOPS.get(cb.protocol)
+            if loop is None:
+                logger.warning("client protocol %r not supported", cb.protocol)
+                continue
+            self._client_tasks.append(
+                asyncio.create_task(
+                    loop(cb, label=f"{self.spec.name}->{cb.target_ip}"),
+                    name=f"persona-client-{self.spec.device_id[:8]}-{i}",
                 )
-            else:
-                logger.warning("client protocol %r not supported (P1 = modbus)", cb.protocol)
+            )
         logger.info(
             "persona '%s' (%s) online at %s: %d server(s), %d client loop(s)",
             self.spec.name,
