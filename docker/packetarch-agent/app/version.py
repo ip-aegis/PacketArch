@@ -7,9 +7,18 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.8.0"
+VERSION = "2.9.0"
 
 # Version history:
+# 2.9.0 - Rail device templates + IEEE-grounded OUIs for the transportation
+#   vertical (Phase 3). Adds device_templates/vendors/rail.py (7 templates:
+#   Wabtec I-ETMS BOS/WIU/TMC + GE Transportation ITCS = EMP/PTC; Alstom /
+#   Siemens Mobility / Hitachi Rail = ATCS codeline), emp_identity/atcs_identity
+#   template fields, rail vendor OUIs (Wabtec 00:22:E2, GE Transportation
+#   00:1F:44, Alstom 00:16:9B, Siemens Mobility 70:38:11, Hitachi Rail 4C:30:89,
+#   Bombardier 00:11:BD — all IEEE-verified via generate_vendor_ouis.py), plus
+#   DEVICE_TYPE_VENDORS / VENDOR_NATIVE_PROTOCOLS / PROTOCOL_TO_TEMPLATE_IDENTITY
+#   wiring. Regenerated _vendor_ouis_generated.py (100 vendors).
 # 2.8.0 - New protocol engine: ATCS (Advanced Train Control System, AAR MSRP
 #   Section K-II / formerly Spec 200) for the transportation vertical. Adds
 #   protocol_engines/atcs/ — the ATCS Monitor relay feed (TCP control on 4802 +

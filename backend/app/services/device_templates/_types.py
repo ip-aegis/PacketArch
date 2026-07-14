@@ -101,6 +101,8 @@ class DeviceTemplate:
     iec104_identity: dict[str, Any] | None = None  # IEC 60870-5-104 identity
     iec61850_identity: dict[str, Any] | None = None  # IEC 61850 MMS/GOOSE/SV (IED name, logical devices, ICD file)
     c37118_identity: dict[str, Any] | None = None    # IEEE C37.118 PMU/PDC identity (station name, IDCODE, channels)
+    emp_identity: dict[str, Any] | None = None       # EMP / Interoperable Train Control (ITC/PTC) messaging identity
+    atcs_identity: dict[str, Any] | None = None      # ATCS (AAR Spec 200) codeline identity
 
     # Protocol-specific quirks
     protocol_quirks: dict[str, Any] = field(default_factory=dict)
