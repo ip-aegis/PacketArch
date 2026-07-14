@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.6.2"
+VERSION = "2.7.0"
 
 # Version history:
+# 2.7.0 - New protocol engine: EMP (Edge Message Protocol) for AAR Interoperable
+#   Train Control (ITC/PTC). Adds protocol_engines/emp/ (byte-accurate EMP v4
+#   envelope over a TCP session; Class D modelled as session behaviour, app
+#   payloads synthetic + labelled). Registers ProtocolType.EMP, default TCP port
+#   5361 (non-authoritative; Class D links are per-connection), itc/ptc aliases,
+#   emp_identity key, and rail-vendor affinities (Meteorcomm/Wabtec/etc.).
+
 # 2.6.1 - Data/lint-only: register Janitza (316) and Elvaco (1473) in
 #   BACNET_VENDOR_IDS (vendor_oui.py) so the new EU energy-metering templates'
 #   BACnet vendor_ids resolve, and add the missing `Any` typing import in
