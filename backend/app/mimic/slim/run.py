@@ -37,7 +37,7 @@ def _checkin(url: str, name: str) -> None:
 
 
 async def _run(spec: ResolvedPersonaSpec, checkin_url: str | None) -> None:
-    persona = SlimPersona(spec)
+    persona = SlimPersona(spec, checkin_url=checkin_url)
     await persona.start()
     if checkin_url:
         _checkin(checkin_url, spec.name)

@@ -17,11 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 class SlimPersona:
-    def __init__(self, spec: ResolvedPersonaSpec) -> None:
+    def __init__(self, spec: ResolvedPersonaSpec, checkin_url: str | None = None) -> None:
         self.spec = spec
+        self._checkin_url = checkin_url
         self._model = build_process_model(spec.process_model_id) if spec.process_model_id else None
         self._servers: list = []
+        self._client_tasks: list[asyncio.Task] = []
         self._step_task: asyncio.Task | None = None
+        self._built = False
         self._running = False
 
     @property
@@ -66,17 +69,28 @@ class SlimPersona:
                 ))
             else:
                 logger.warning("slim runtime: protocol %r not supported", binding.protocol)
+        self._built = True
 
     async def start(self) -> None:
-        if not self._servers:
+        if not self._built:
             self.build()
         self._running = True
         if self._model is not None:
             self._step_task = asyncio.create_task(self._step_loop(), name="slim-step")
         for server in self._servers:
             await server.start()
-        logger.info("slim persona '%s' online at %s: %d server(s)",
-                    self.spec.name, self.spec.bind_ip, len(self._servers))
+        # Active-master client loops (e.g. an HMI polling PLC peers). A persona may
+        # be client-only (no servers) — a pure master.
+        for i, cb in enumerate(self.spec.clients):
+            if cb.protocol == "modbus":
+                from .client import modbus_client_loop
+                self._client_tasks.append(asyncio.create_task(
+                    modbus_client_loop(cb, name=self.spec.name, checkin_url=self._checkin_url),
+                    name=f"slim-client-{i}"))
+            else:
+                logger.warning("slim client protocol %r not supported (modbus only)", cb.protocol)
+        logger.info("slim persona '%s' online at %s: %d server(s), %d client loop(s)",
+                    self.spec.name, self.spec.bind_ip, len(self._servers), len(self._client_tasks))
 
     async def _step_loop(self) -> None:
         dt = self.spec.step_interval_ms / 1000.0
@@ -89,6 +103,8 @@ class SlimPersona:
 
     async def stop(self) -> None:
         self._running = False
+        for task in self._client_tasks:
+            task.cancel()
         for server in self._servers:
             await server.stop()
         if self._step_task is not None:

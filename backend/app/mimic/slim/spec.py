@@ -55,12 +55,32 @@ class ProtocolBinding:
 
 
 @dataclass
+class ClientBinding:
+    """One peer this persona actively polls (the HMI / active-master side). The
+    target_ip is resolved (baked) at deploy time from the cell's device directory."""
+
+    protocol: str = "modbus"
+    target_ip: str = ""
+    port: int = 502
+    unit_id: int = 1
+    interval_s: float = 3.0
+    read_holding: int = 4
+    read_coils: int = 1
+    identity: bool = True
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "ClientBinding":
+        return cls(**{k: d[k] for k in d if k in cls.__dataclass_fields__})
+
+
+@dataclass
 class ResolvedPersonaSpec:
     name: str
     bind_ip: str = "0.0.0.0"
     firmware_version: str = ""
     process_model_id: str | None = None
     protocols: list[ProtocolBinding] = field(default_factory=list)
+    clients: list[ClientBinding] = field(default_factory=list)
     step_interval_ms: float = 100.0
 
     @classmethod
@@ -71,5 +91,6 @@ class ResolvedPersonaSpec:
             firmware_version=d.get("firmware_version", "") or "",
             process_model_id=d.get("process_model_id"),
             protocols=[ProtocolBinding.from_dict(p) for p in d.get("protocols", [])],
+            clients=[ClientBinding.from_dict(c) for c in d.get("clients", [])],
             step_interval_ms=float(d.get("step_interval_ms", 100.0)),
         )

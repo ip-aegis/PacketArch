@@ -109,31 +109,46 @@ def build_alpine_boot_config(*, resolved_spec: dict, server: str) -> str:
 
     name = _slug(str(resolved_spec.get("name", "persona")))
     protos = [p["protocol"] for p in resolved_spec.get("protocols", [])]
-    port = resolved_spec["protocols"][0]["port"]
+    clients = resolved_spec.get("clients", [])
+    port = resolved_spec["protocols"][0]["port"] if resolved_spec.get("protocols") else default_port("modbus")
     # Collect the pip + apk deps for exactly the protocol(s) this persona serves —
     # each pinned (a fresh pip grabs the latest, e.g. pymodbus 3.14 breaks the
-    # datastore API). c104/iec104 pulls the build toolchain (no musl wheel).
-    pips = " ".join(f"'{PROTOCOL_DEPS[p]['pip']}'" for p in protos if p in PROTOCOL_DEPS)
+    # datastore API). c104/iec104 pulls the build toolchain (no musl wheel). A
+    # client-only persona (HMI, no servers) still needs pymodbus for its poll loop.
+    dep_protos = list(protos)
+    if any(c.get("protocol", "modbus") == "modbus" for c in clients):
+        dep_protos.append("modbus")
+    pips = " ".join(dict.fromkeys(
+        f"'{PROTOCOL_DEPS[p]['pip']}'" for p in dep_protos if p in PROTOCOL_DEPS))
     apks = " ".join(dict.fromkeys(
-        d for p in protos for d in PROTOCOL_DEPS.get(p, {}).get("apk", "").split() if d))
+        d for p in dep_protos for d in PROTOCOL_DEPS.get(p, {}).get("apk", "").split() if d))
+    # Static data-segment IP (eth1) for the OT plane — the mgmt path (eth0) stays
+    # DHCP for tarball fetch + check-in. A client-only HMI has no server to bind,
+    # so skip the netstat check for it.
+    data_ip = resolved_spec.get("data_ip")
+    data_pfx = resolved_spec.get("data_prefix", 24)
+    eth1 = (f"ip addr add {data_ip}/{data_pfx} dev eth1 2>/dev/null; ip link set eth1 up 2>/dev/null\n"
+            if data_ip else "")
+    bind_check = bool(resolved_spec.get("protocols"))
     ci = f"wget -q --no-check-certificate -O /dev/null '{server}{_CHECKIN_PATH}?name={name}"
     # The persona reports its own liveness via run.py's check-in; setup.sh pings
     # back ONLY if it fails to bind, with a scrubbed log tail so a stuck deploy is
     # diagnosable (CML's API console is read-only).
+    fail_check = (f"""sleep 6
+if ! netstat -ln 2>/dev/null | grep -q ':{port} '; then
+  ERR=$(tail -c 400 /opt/mimic/persona.log 2>/dev/null | tr '\\n' '~' | tr -cd 'A-Za-z0-9 :~._/-')
+  {ci}&stage=bootstrap-failed&err='$ERR 2>/dev/null
+fi
+""" if bind_check else "")
     setup = f"""#!/bin/sh
 for i in $(seq 1 60); do ip -4 -o addr show eth0 2>/dev/null | grep -q 'inet ' && break; sleep 2; done
-apk add --no-cache python3 py3-pip {apks} >/dev/null 2>&1
+{eth1}apk add --no-cache python3 py3-pip {apks} >/dev/null 2>&1
 pip3 install --break-system-packages {pips} >/dev/null 2>&1 || pip3 install {pips} >/dev/null 2>&1
 cd /opt/mimic && wget --no-check-certificate -qO slim.tar.gz {server}{_IMAGE_SLIM_PATH} && tar xzf slim.tar.gz
 start-stop-daemon --start --background --stdout /opt/mimic/persona.log --stderr /opt/mimic/persona.log \\
   --make-pidfile --pidfile /run/mimic.pid --chdir /opt/mimic \\
   --exec /usr/bin/python3 -- -m mimic_slim.run /opt/mimic/spec.json {server}{_CHECKIN_PATH}
-sleep 6
-if ! netstat -ln 2>/dev/null | grep -q ':{port} '; then
-  ERR=$(tail -c 400 /opt/mimic/persona.log 2>/dev/null | tr '\\n' '~' | tr -cd 'A-Za-z0-9 :~._/-')
-  {ci}&stage=bootstrap-failed&err='$ERR 2>/dev/null
-fi
-"""
+{fail_check}"""
     b64_setup = base64.b64encode(setup.encode()).decode()
 
     # Launch setup.sh via start-stop-daemon --background so it double-forks and
@@ -168,3 +183,37 @@ async def deploy_slim_alpine(service, *, lab_id: str, resolved_spec: dict, serve
     await service._request("PUT", f"/labs/{lab_id}/start")  # noqa: SLF001 — start ALL nodes
     logger.info("provisioned slim Alpine persona %s in lab %s", node_id, lab_id)
     return {"node_id": node_id}
+
+
+async def deploy_slim_cell(service, *, lab_id: str, resolved_specs: list[dict], server: str) -> dict:
+    """Provision a CELL of slim personas that talk over a shared OT data segment.
+
+    Each node gets eth0 → management egress (DHCP: tarball fetch + check-in) and
+    eth1 → a shared unmanaged data switch, statically addressed via ``data_ip`` in
+    the spec. An HMI's client bindings target a peer's ``data_ip`` — so the poll
+    traffic rides the isolated data segment, where a CV sensor can later capture it.
+    """
+    # Shared OT data-plane switch.
+    data_sw = await service._create_node(  # noqa: SLF001
+        lab_id, label="pa-ot-switch", node_definition="unmanaged_switch",
+        image_definition="", ram_mb=0, cpus=0, configuration="", x=0, y=200)
+    results = []
+    for i, spec in enumerate(resolved_specs):
+        cfg = build_alpine_boot_config(resolved_spec=spec, server=server)
+        ram_mb, cpus = _node_resources([p["protocol"] for p in spec.get("protocols", [])])
+        node_id = await service._create_node(  # noqa: SLF001
+            lab_id, label=_slug(str(spec.get("name", "persona"))),
+            node_definition="alpine", image_definition="alpine-base-3-20-3",
+            ram_mb=ram_mb, cpus=cpus, configuration=cfg, x=i * 200 - 100, y=-40)
+        eth0 = await service._create_interface(lab_id, node_id, 0)  # noqa: SLF001
+        eth1 = await service._create_interface(lab_id, node_id, 1)  # noqa: SLF001
+        nodes = await service._request("GET", f"/labs/{lab_id}/nodes", params={"data": "true"})  # noqa: SLF001
+        mgmt_port, _ = await service._ensure_management_egress(  # noqa: SLF001
+            lab_id, [n for n in (nodes or []) if isinstance(n, dict) and n.get("id") != node_id])
+        await service._link(lab_id, eth0, mgmt_port)  # noqa: SLF001
+        data_port = await service._next_switch_port(lab_id, data_sw)  # noqa: SLF001
+        await service._link(lab_id, eth1, data_port)  # noqa: SLF001
+        results.append({"name": spec.get("name"), "node_id": node_id, "data_ip": spec.get("data_ip")})
+    await service._request("PUT", f"/labs/{lab_id}/start")  # noqa: SLF001 — start ALL nodes
+    logger.info("provisioned slim cell of %d personas in lab %s", len(results), lab_id)
+    return {"data_switch": data_sw, "personas": results}
