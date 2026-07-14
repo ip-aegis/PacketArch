@@ -31,7 +31,7 @@ def _checkin(url: str, name: str) -> None:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        urllib.request.urlopen(f"{url}?name={name}&slim=1&up=1&modbus_listening=1", timeout=5, context=ctx)
+        urllib.request.urlopen(f"{url}?name={name}&slim=1&up=1&listening=1", timeout=5, context=ctx)
     except Exception:  # noqa: BLE001
         pass
 

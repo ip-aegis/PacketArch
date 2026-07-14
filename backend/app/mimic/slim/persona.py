@@ -11,7 +11,6 @@ import asyncio
 import logging
 
 from .models import build_process_model
-from .modbus import ModbusProjection, SlimModbusServer
 from .spec import ResolvedPersonaSpec
 
 logger = logging.getLogger(__name__)
@@ -30,16 +29,43 @@ class SlimPersona:
         return self._model
 
     def build(self) -> None:
+        # Protocol libs are imported LAZILY per branch: a node only has the pip dep
+        # for the protocol(s) it actually serves (pymodbus / asyncua / bacpypes3 /
+        # c104), so importing the others at module load would crash it.
         for binding in self.spec.protocols:
             if binding.protocol == "modbus":
+                from .modbus import ModbusProjection, SlimModbusServer
                 projection = ModbusProjection(self._model, binding.points)
                 self._servers.append(SlimModbusServer(
                     bind_ip=self.spec.bind_ip, port=binding.port, unit_id=binding.unit_id,
                     projection=projection, modbus_identity=binding.identity,
                     firmware=self.spec.firmware_version,
                 ))
+            elif binding.protocol == "opcua":
+                from .named_point import NamedPointProjection
+                from .opcua import SlimOpcUaServer
+                self._servers.append(SlimOpcUaServer(
+                    bind_ip=self.spec.bind_ip, port=binding.port,
+                    projection=NamedPointProjection(self._model, binding.points),
+                    identity=binding.identity,
+                ))
+            elif binding.protocol == "bacnet":
+                from .bacnet import SlimBacnetServer
+                from .named_point import NamedPointProjection
+                self._servers.append(SlimBacnetServer(
+                    bind_ip=self.spec.bind_ip, port=binding.port,
+                    projection=NamedPointProjection(self._model, binding.points),
+                    identity=binding.identity, device_id=self.spec.name,
+                ))
+            elif binding.protocol == "iec104":
+                from .iec104 import SlimIec104Server
+                from .named_point import NamedPointProjection
+                self._servers.append(SlimIec104Server(
+                    bind_ip=self.spec.bind_ip, port=binding.port, common_address=binding.unit_id,
+                    projection=NamedPointProjection(self._model, binding.points),
+                ))
             else:
-                logger.warning("slim runtime: protocol %r not supported (modbus only)", binding.protocol)
+                logger.warning("slim runtime: protocol %r not supported", binding.protocol)
 
     async def start(self) -> None:
         if not self._servers:

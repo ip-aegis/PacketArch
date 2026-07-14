@@ -29,24 +29,74 @@ logger = logging.getLogger(__name__)
 _IMAGE_SLIM_PATH = "/agent/mimic-slim.tar.gz"
 _CHECKIN_PATH = "/agent/mimic-checkin"
 
+# Per-protocol: default port, the pinned pip dep, and any apk build deps the node
+# needs. c104 (IEC-104) has no musllinux wheel, so it builds from source on Alpine
+# — hence the toolchain. pymodbus/asyncua/bacpypes3 install from wheels.
+PROTOCOL_DEPS: dict[str, dict[str, str]] = {
+    "modbus": {"port": "502", "pip": "pymodbus>=3.8.0,<3.9.0", "apk": ""},
+    "opcua": {"port": "4840", "pip": "asyncua>=2.0.1,<2.1.0", "apk": ""},
+    "bacnet": {"port": "47808", "pip": "bacpypes3>=0.0.106,<0.1.0", "apk": ""},
+    "iec104": {"port": "2404", "pip": "c104>=2.2.1,<2.3.0", "apk": "build-base cmake python3-dev linux-headers"},
+}
+
+# Protocols whose dep must COMPILE on the node (no musl wheel) need a bigger node —
+# a pybind11/C++ build OOMs the 512 MB slim default. FOLLOW-UP: serve a prebuilt
+# musllinux c104 wheel so iec104 nodes can stay slim + skip the multi-minute build.
+_COMPILE_PROTOCOLS = {"iec104"}
+_SLIM_RAM_MB, _SLIM_CPUS = 512, 1
+_COMPILE_RAM_MB, _COMPILE_CPUS = 2048, 2
+
+
+def _node_resources(protocols: list[str]) -> tuple[int, int]:
+    if any(p in _COMPILE_PROTOCOLS for p in protocols):
+        return _COMPILE_RAM_MB, _COMPILE_CPUS
+    return _SLIM_RAM_MB, _SLIM_CPUS
+
 
 def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9-]", "-", name.lower()).strip("-") or "mimic-persona"
 
 
+def default_port(protocol: str) -> int:
+    return int(PROTOCOL_DEPS.get(protocol, {}).get("port", "502"))
+
+
+def _resolve_identity(fp: dict, protocol: str, name: str, firmware: str) -> dict:
+    """Build the wire-identity dict for one protocol from the fingerprint — the
+    slim (deploy-time) twin of what DevicePersona.build() assembles on-box."""
+    vendor = fp.get("vendor") or ""
+    model = fp.get("model") or fp.get("vendor_family") or name
+    if protocol == "modbus":
+        return fp.get("modbus_identity") or {}
+    if protocol == "opcua":
+        oi = fp.get("opc_ua_identity") or {}
+        return {"vendor": vendor, "model_name": model, "firmware": firmware,
+                "device_name": name, "application_uri": oi.get("application_uri"),
+                "product_uri": oi.get("product_uri")}
+    if protocol == "bacnet":
+        bi = fp.get("bacnet_identity") or {}
+        return {"vendor_id": bi.get("vendor_id", 0), "object_name": bi.get("object_name"),
+                "model_name": bi.get("model_name") or model, "device_name": name,
+                "firmware": firmware}
+    return {}  # iec104 carries no identity dict
+
+
 def resolve_persona(*, name: str, template_id: str, firmware_version: str | None,
-                    process_model_id: str | None, protocol: str, port: int, unit_id: int,
+                    process_model_id: str | None, protocol: str, port: int | None, unit_id: int,
                     points: list[dict]) -> dict:
-    """Resolve a persona into a self-contained spec (identity baked in)."""
+    """Resolve a persona into a self-contained spec (identity baked in at deploy
+    time, so the node needs no substrate)."""
     fp = get_fingerprint_from_template(template_id, firmware_version=firmware_version) or {}
-    identity = fp.get(f"{protocol}_identity") or fp.get("modbus_identity") or {}
+    firmware = fp.get("firmware_version") or firmware_version or ""
     return {
         "name": name,
         "bind_ip": "0.0.0.0",
-        "firmware_version": fp.get("firmware_version") or firmware_version or "",
+        "firmware_version": firmware,
         "process_model_id": process_model_id,
-        "protocols": [{"protocol": protocol, "port": port, "unit_id": unit_id,
-                       "identity": identity, "points": points}],
+        "protocols": [{"protocol": protocol, "port": port or default_port(protocol),
+                       "unit_id": unit_id,
+                       "identity": _resolve_identity(fp, protocol, name, firmware),
+                       "points": points}],
     }
 
 
@@ -58,22 +108,28 @@ def build_alpine_boot_config(*, resolved_spec: dict, server: str) -> str:
     b64_spec = base64.b64encode(json.dumps(resolved_spec).encode()).decode()
 
     name = _slug(str(resolved_spec.get("name", "persona")))
+    protos = [p["protocol"] for p in resolved_spec.get("protocols", [])]
     port = resolved_spec["protocols"][0]["port"]
+    # Collect the pip + apk deps for exactly the protocol(s) this persona serves —
+    # each pinned (a fresh pip grabs the latest, e.g. pymodbus 3.14 breaks the
+    # datastore API). c104/iec104 pulls the build toolchain (no musl wheel).
+    pips = " ".join(f"'{PROTOCOL_DEPS[p]['pip']}'" for p in protos if p in PROTOCOL_DEPS)
+    apks = " ".join(dict.fromkeys(
+        d for p in protos for d in PROTOCOL_DEPS.get(p, {}).get("apk", "").split() if d))
     ci = f"wget -q --no-check-certificate -O /dev/null '{server}{_CHECKIN_PATH}?name={name}"
-    # pymodbus is pinned to 3.8.x — 3.9+ changed the datastore/device API the slim
-    # runtime builds against (would ImportError on 3.14). The persona reports its
-    # own liveness via run.py's check-in; setup.sh pings back ONLY if the persona
-    # fails to bind, with a scrubbed log tail so a stuck deploy is diagnosable.
+    # The persona reports its own liveness via run.py's check-in; setup.sh pings
+    # back ONLY if it fails to bind, with a scrubbed log tail so a stuck deploy is
+    # diagnosable (CML's API console is read-only).
     setup = f"""#!/bin/sh
 for i in $(seq 1 60); do ip -4 -o addr show eth0 2>/dev/null | grep -q 'inet ' && break; sleep 2; done
-apk add --no-cache python3 py3-pip >/dev/null 2>&1
-pip3 install --break-system-packages 'pymodbus>=3.8.0,<3.9.0' >/dev/null 2>&1 || pip3 install 'pymodbus>=3.8.0,<3.9.0' >/dev/null 2>&1
+apk add --no-cache python3 py3-pip {apks} >/dev/null 2>&1
+pip3 install --break-system-packages {pips} >/dev/null 2>&1 || pip3 install {pips} >/dev/null 2>&1
 cd /opt/mimic && wget --no-check-certificate -qO slim.tar.gz {server}{_IMAGE_SLIM_PATH} && tar xzf slim.tar.gz
 start-stop-daemon --start --background --stdout /opt/mimic/persona.log --stderr /opt/mimic/persona.log \\
   --make-pidfile --pidfile /run/mimic.pid --chdir /opt/mimic \\
   --exec /usr/bin/python3 -- -m mimic_slim.run /opt/mimic/spec.json {server}{_CHECKIN_PATH}
 sleep 6
-if ! netstat -ltn 2>/dev/null | grep -q ':{port}'; then
+if ! netstat -ln 2>/dev/null | grep -q ':{port} '; then
   ERR=$(tail -c 400 /opt/mimic/persona.log 2>/dev/null | tr '\\n' '~' | tr -cd 'A-Za-z0-9 :~._/-')
   {ci}&stage=bootstrap-failed&err='$ERR 2>/dev/null
 fi
@@ -98,10 +154,11 @@ async def deploy_slim_alpine(service, *, lab_id: str, resolved_spec: dict, serve
                              x: int = 0, y: int = 0) -> dict:
     """Provision one slim persona as an Alpine node and start the whole lab."""
     cfg = build_alpine_boot_config(resolved_spec=resolved_spec, server=server)
+    ram_mb, cpus = _node_resources([p["protocol"] for p in resolved_spec.get("protocols", [])])
     node_id = await service._create_node(  # noqa: SLF001
         lab_id, label=_slug(str(resolved_spec.get("name", "persona"))),
         node_definition="alpine", image_definition="alpine-base-3-20-3",
-        ram_mb=512, cpus=1, configuration=cfg, x=x, y=y,
+        ram_mb=ram_mb, cpus=cpus, configuration=cfg, x=x, y=y,
     )
     eth0 = await service._create_interface(lab_id, node_id, 0)  # noqa: SLF001
     nodes = await service._request("GET", f"/labs/{lab_id}/nodes", params={"data": "true"})  # noqa: SLF001
