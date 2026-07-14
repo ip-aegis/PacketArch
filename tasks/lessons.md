@@ -160,3 +160,35 @@ Also: a UDP protocol's bind is invisible to `netstat -ltn` (TCP-only) — use
 `netstat -ln` so BACnet (UDP/47808) doesn't false-alarm as bootstrap-failed. And a
 BACnet Who-Is probe from the NAT'd backend container can't reach a lab-subnet node
 (broadcast + return traffic don't survive NAT) — BACnet's real proof is CV on-segment.
+
+## Off-box CV sensor on CML: capture NIC + vendor MAC (2026-07-14, Mimic capstone)
+
+The full off-box proof — a slim persona cell whose OT segment is SPAN'd to a CV
+docker sensor running on a CML Ubuntu node — worked end to end (CV classified the
+PLC as Schneider Modicon M580 from the captured FC43). Two things that mattered:
+
+1. **The SPAN-destination NIC has no DHCP, so netplan leaves it DOWN — bring it up
+   or you capture nothing.** The sensor's capture interface (ens3) connects to the
+   IOSvL2 monitor-session destination; it never gets an address, so cloud-init's
+   default netplan never brings it up, and the macvlan-passthru capture sees zero
+   frames. Fix in the sensor cloud-init: `ip link set ens3 up && ip link set ens3
+   promisc on` BEFORE `docker compose up`. (The on-box Local Sensor Lab already
+   brings its capture parent up in hostops; the CML node needs the same.) Symptom
+   was: sensor ENROLLED+CONNECTED but no components appeared for the OT IPs. Once
+   ens3 was up, components appeared in ~2 min.
+
+2. **Off-box persona MACs are CML's (`52:54:00:*` = "Virtual Machine"), not vendor
+   OUIs — a server persona still classifies via protocol identity, but a client-only
+   one doesn't.** CV tagged the PLC (10.99.0.10) as Schneider M580 from its Modbus
+   FC43 (FC43 overrides the local MAC — same as the on-box P1 finding), but the
+   client-only HMI (10.99.0.20) has no protocol identity, so CV read its CML MAC as
+   vendor "Virtual Machine" (it still correctly inferred "Engineering Station" from
+   the polling behavior). FOLLOW-UP: the off-box deploy should set the persona's
+   eth1 (data-seg) MAC to a vendor-aligned OUI at boot (`ip link set eth1 address
+   <oui>` before bringing it up), mirroring `vendor_oui.pick_vendor_oui` on-box, so
+   client-only personas classify by vendor too and the LOCAL_MAC tag clears.
+
+Bonus: the CV docker-sensor auto-provisioning API (deployment token -> per-sensor
+JWT via cyber_vision_service) works headless against a real Center — no operator
+compose paste needed. The Center's registry (`{host}:443/sensor`) must be in the
+node's daemon.json `insecure-registries` for the anonymous image pull.

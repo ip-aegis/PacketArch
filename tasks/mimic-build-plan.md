@@ -396,3 +396,31 @@ so `SlimPersona.build()` imports every protocol lib LAZILY per branch.
 `PROTOCOL_DEPS` carries each protocol's pinned pip dep, apk build-deps, and default
 port; the bootstrap installs exactly what the persona serves and bind-checks with
 `netstat -ln` (UDP-aware). Lessons in `lessons.md`.
+
+### P2.2 — off-box CV sensor + SPAN (DONE 2026-07-14, commits 5c38a7b + docs)
+
+The capstone: a slim persona cell whose OT segment is captured by a real Cisco
+Cyber Vision sensor, all off-box on CML — and CV classifies the personas.
+
+Topology (`slim_sensor.deploy_cell_with_sensor`): personas' eth1 → IOSvL2 monitor
+session (SPAN, both directions) → the sensor's capture NIC; sensor collection
+network → Center. The CV docker sensor is AUTO-PROVISIONED via the CV API
+(deployment token → per-sensor JWT; reuses `local_sensor_service._synthesize_
+sensor_compose`) — no operator paste. Runs on a docker-capable CML Ubuntu node
+(cloud-init: trust the Center registry, install docker, bring the capture NIC
+up+promisc, `docker compose up`).
+
+**VALIDATED on real CV, end to end:**
+- Sensor enrolled + CONNECTED (auto-provisioned).
+- CV classified **10.99.0.10 → PLC / Controller, Schneider Electric, Modicon M580
+  ePAC (BMEP584040), fw V4.10** — from the Modbus FC43 the HMI's polling elicited,
+  over the SPAN (despite the CML local MAC: FC43 overrides OUI, per P1).
+- CV classified **10.99.0.20 → Engineering Station** (client-only HMI, inferred
+  from polling; vendor read as "Virtual Machine" = CML MAC).
+
+FOLLOW-UP: set the persona's data-seg (eth1) MAC to a vendor-aligned OUI at boot so
+client-only personas classify by vendor too (mirrors on-box `pick_vendor_oui`);
+serve a prebuilt musl c104 wheel for slim IEC-104 nodes. See `lessons.md`.
+
+**P2 (off-box) is COMPLETE** — single-persona (4 protocols), multi-node cell, and
+the CV-sensor capstone are all validated off-box on CML.
