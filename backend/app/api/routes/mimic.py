@@ -229,20 +229,21 @@ async def cml_status(db: DBSession, _user: CurrentUser) -> CmlMimicStatusRespons
 
 @router.post("/cml/deploy", response_model=CmlDeployResponse)
 async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) -> CmlDeployResponse:
-    """Deploy an authored device graph OFF-BOX as slim personas on CML (optionally
-    with an IOSvL2 SPAN + auto-provisioned CV sensor)."""
-    from app.mimic.slim_author import resolve_cml_cell
-    from app.mimic.slim_deploy import deploy_slim_cell
-    from app.mimic.slim_sensor import deploy_cell_with_sensor
+    """Deploy an authored device graph OFF-BOX on CML — each persona is an Ubuntu
+    node running the full on-box Mimic Docker runtime (all protocols incl. IEC-104),
+    optionally with an IOSvL2 SPAN + auto-provisioned CV sensor."""
+    from app.mimic.docker_deploy import (
+        build_cell_personas, deploy_docker_cell, deploy_docker_cell_with_sensor,
+    )
 
     svc, server_url = await _cml_service(db)
     if not server_url:
         raise ValidationError(
             "CML integration has no PacketArch server URL configured — the CML nodes "
-            "need a URL to phone home to for the slim runtime + check-in.")
+            "need a URL to phone home to for the runtime image + check-in.")
     _certify_or_raise(req.devices, "offbox")
-    specs = resolve_cml_cell(devices=[d.model_dump() for d in req.devices],
-                             relationships=[r.model_dump() for r in req.relationships])
+    personas = build_cell_personas(devices=[d.model_dump() for d in req.devices],
+                                   relationships=[r.model_dump() for r in req.relationships])
     title = f"{_CML_LAB_PREFIX}{req.cell_name}"
     sensor_serial = None
     description = ""
@@ -253,11 +254,11 @@ async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) ->
         description = f"sensor:{sensor_serial}"
     lab_id = await svc.create_lab(title, description)
     if req.with_sensor:
-        result = await deploy_cell_with_sensor(
-            svc, cv, lab_id=lab_id, resolved_specs=specs, deployment_name=_CV_DEPLOYMENT,
+        result = await deploy_docker_cell_with_sensor(
+            svc, cv, lab_id=lab_id, personas=personas, deployment_name=_CV_DEPLOYMENT,
             serial=sensor_serial, server=server_url)
     else:
-        result = await deploy_slim_cell(svc, lab_id=lab_id, resolved_specs=specs, server=server_url)
+        result = await deploy_docker_cell(svc, lab_id=lab_id, personas=personas, server=server_url)
     personas = [CmlPersonaResult(name=p.get("name"), data_ip=p.get("data_ip"), node_id=p.get("node_id"))
                 for p in result.get("personas", [])]
     msg = ("Deploying off-box — nodes take a few minutes to boot, install the runtime, "

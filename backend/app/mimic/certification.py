@@ -32,15 +32,14 @@ PROTO_MAP: dict[str, str] = {
     "iec104": "iec104",
 }
 
-# Deploy targets each protocol has a working SERVER runtime for. iec104 (c104) has
-# no musllinux wheel; a prebuilt one is served (agent_install /agent/c104-musl.whl +
-# slim_deploy PROTOCOL_DEPS) but the off-box node bootstrap isn't reliable yet, so
-# iec104 stays on-box only until that's cracked (WIP — needs node-side diagnostics).
+# Deploy targets each protocol has a working SERVER runtime for. Off-box now runs
+# the FULL Mimic Docker image on Ubuntu/glibc (docker_deploy), so every protocol —
+# including IEC-104 (c104 installs from a manylinux wheel there) — works both ways.
 RUNTIME_SUPPORT: dict[str, frozenset[str]] = {
     "modbus": frozenset({"onbox", "offbox"}),
     "opcua": frozenset({"onbox", "offbox"}),
     "bacnet": frozenset({"onbox", "offbox"}),
-    "iec104": frozenset({"onbox"}),
+    "iec104": frozenset({"onbox", "offbox"}),
 }
 
 # Roles that are software / operator / workstation — a real instance is a CLIENT
