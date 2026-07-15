@@ -125,7 +125,7 @@ class TestLabeledCorpusExportWiring:
         return FlowContext(
             flow_id="emp-1",
             source=dev("wiu", "02:00:00:00:00:07", "10.20.0.7", 51000, "Wayside_IU_07"),
-            destination=dev("bos", "02:00:00:00:00:01", "10.20.0.1", 5361, "Back_Office_Server_01"),
+            destination=dev("bos", "02:00:00:00:00:01", "10.20.0.1", 3001, "Back_Office_Server_01"),
             protocol=ProtocolType.EMP,
             config={},
             timing_model={"poll_interval_ms": 1000.0},

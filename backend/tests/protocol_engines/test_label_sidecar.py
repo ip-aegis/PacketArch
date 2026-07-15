@@ -33,7 +33,7 @@ def _run(tmp_path):
     emp = FlowContext(
         flow_id="emp-1",
         source=_dev("wiu-7", "02:00:00:00:00:07", "10.20.0.7", 51000, "Wayside_IU_07"),
-        destination=_dev("bos-1", "02:00:00:00:00:01", "10.20.0.1", 5361, "Back_Office_Server_01"),
+        destination=_dev("bos-1", "02:00:00:00:00:01", "10.20.0.1", 3001, "Back_Office_Server_01"),
         protocol=ProtocolType.EMP,
         config={"railroad": "bnsf"},
         timing_model={"poll_interval_ms": 1000.0},
@@ -91,18 +91,25 @@ def test_labeled_field_offsets_land_on_real_bytes(corpus):
         raw = bytes(packets[rec["pkt"]])
         l7 = rec["l7_offset"]
         if rec["encoding"] == "binary":
-            # EMP: packet byte at l7_offset+off
+            # EMP rides inside Class D: offsets are Class-D-relative, so the
+            # Class D STX is at l7_offset and EMP begins 12 octets later.
             for f in fields:
                 assert l7 + f["off"] + f["len"] <= len(raw), f"{f['field']} out of bounds"
+            stx = next(f for f in fields if f["field"] == "classd.stx")
+            assert raw[l7 + stx["off"]] == 0x02        # Class D STX really there
             ver = next(f for f in fields if f["field"] == "emp.version")
-            assert raw[l7 + ver["off"]] == 4          # EMP v4 marker really there
+            assert ver["off"] == 12, "EMP must start at Class-D offset 12"
+            assert raw[l7 + ver["off"]] == 4           # EMP v4 marker really there
             checked_binary += 1
         elif rec["encoding"] == "ascii_hex":
             # ATCS: L7 payload is hex text; fields index the DECODED frame
             frame = bytes.fromhex(raw[l7:].decode("ascii").strip())
             for f in fields:
                 assert f["off"] + f["len"] <= len(frame), f"{f['field']} out of bounds"
-            fc = next(f for f in fields if f["field"] == "atcs.frame_counter")
+            # The frame counter belongs to the ATCSMon relay container, NOT the
+            # ATCS datagram — it must be labelled as such.
+            fc = next(f for f in fields if f["field"] == "relay.frame_counter")
+            assert "atcs.frame_counter" not in {f["field"] for f in fields}
             assert frame[fc["off"]] == f_value(fc)     # frame counter really there
             checked_hex += 1
     assert checked_binary > 0, "no EMP-labeled packets checked"
