@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "3.0.0"
+VERSION = "3.0.1"
 
 # Version history:
+# 3.0.1 - Fix: live-deploy EMP flows landed on TCP 44818 (EtherNet/IP) instead of
+#   3001. The agent's local PROTOCOL_PORTS map (orchestrator_pool.py) omitted emp,
+#   so the destination port fell through to the 44818 default — the payload was
+#   correct Class D + EMP v4, but on the wrong port (a dissector-training corpus
+#   would mislabel it as EtherNet/IP). Added emp/atcs/c37118 and the ssh/telnet/rdp
+#   remote-access shapes to the map. ATCS was unaffected (its engine drives its own
+#   UDP 30000+ relay-feed ports). No wire-format change; PATCH.
 # 3.0.0 - BREAKING wire-format corrections for the rail engines, from primary
 #   sources (AAR S-9356 Class D draft 2010; AAR MSRP Section K-II v4.0). Any
 #   previously generated EMP/ATCS corpus is INVALID and must be re-exported.
