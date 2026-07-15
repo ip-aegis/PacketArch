@@ -7,9 +7,28 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.11.0"
+VERSION = "3.0.0"
 
 # Version history:
+# 3.0.0 - BREAKING wire-format corrections for the rail engines, from primary
+#   sources (AAR S-9356 Class D draft 2010; AAR MSRP Section K-II v4.0). Any
+#   previously generated EMP/ATCS corpus is INVALID and must be re-exported.
+#   EMP: adds the MANDATORY Class D transport (protocol_engines/emp/class_d.py) —
+#     TCP payload is now `Class D hdr(12B) + EMP + ETX`; EMP starts at offset 12.
+#     Previously EMP rode bare on TCP, which would have taught a dissector the
+#     wrong framing. Adds COMMID (starts 1, per-link, rolls 0xFFFFFFFF->1), and
+#     ACK/NAK/keep-alive builders. Default port 5361 (invented) -> 3001 (a real
+#     documented Siemens wayside default; no universal port exists).
+#   ATCS: replaces the reconstructed header with the K-II 5-octet network header
+#     (QD10PPPA | logical_channel | send_seq<<1 | recv_seq<<1 | srclen<<4|dstlen);
+#     drops the invented gfi_group (an ATCSMon display artifact, not a wire field);
+#     real 5-octet transport header with the VITAL flag in transport octet 2;
+#     BCD zero digit is nibble 0xA (not 0x0); vital CRC is now the real 31-bit
+#     K-II CRC (verified against the mandatory vector 01 02 -> 25 ED BD 70 and the
+#     self-check residue) instead of filler; the relay frame counter is relabelled
+#     relay.frame_counter (ATCSMon container, not ATCS).
+#   Adds the `spec_legacy` confidence tier (spec-derived from a legacy/draft
+#   revision) so corpus consumers can distinguish it from current-source `spec`.
 # 2.11.0 - Rail scenarios + labeled-corpus export option (Phase 5). Adds two
 #   transportation-vertical scenarios (ptc_freight_corridor = EMP back office /
 #   wayside / locomotive; atcs_signaling_territory = ATCS Monitor relay feed) and

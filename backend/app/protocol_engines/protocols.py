@@ -162,10 +162,12 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "iec_104":      2404,
     "iec104":       2404,   # canonical name (matches ProtocolType.IEC104)
     "c37118":       4712,   # IEEE C37.118 PDC TCP (4713 used for UDP/multicast)
-    # Edge Message Protocol (ITC/PTC). No official IANA port — Class D links are
-    # assigned per-connection at setup — so this is a NON-AUTHORITATIVE default
-    # kept in sync with emp.packets.EMP_DEFAULT_PORT. Override per-flow as needed.
-    "emp":          5361,
+    # Edge Message Protocol (ITC/PTC). There is NO universal port — Class D links
+    # are installation-configured and assigned per connection. 3001 is a REAL
+    # documented vendor default (Siemens wayside, configurable), used as the
+    # platform default and kept in sync with emp.packets.EMP_DEFAULT_PORT.
+    # It is a vendor profile, not a protocol constant — override per-flow.
+    "emp":          3001,
     # ATCS Monitor relay control listener (TCP). The relay then streams codeline
     # frames over UDP 30000+ (see atcs.engine); this is the discovery port.
     "atcs":         4802,

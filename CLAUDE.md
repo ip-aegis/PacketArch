@@ -360,7 +360,7 @@ All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_po
 | IEC 61850 (MMS/GOOSE/SV) | 102 (TCP) / L2 | Production |
 | C37.118 (synchrophasor) | 4712 (TCP), 4713 (UDP) | Production |
 | OPC UA | 4840 (TCP) | Production |
-| EMP (ITC/PTC train control) | 5361 (TCP, configurable) | Production |
+| EMP (ITC/PTC train control) | 3001 (TCP, installation-configured) | Production |
 | ATCS (AAR Spec 200 codeline) | 4802 (TCP) + 30000+ (UDP) | Production |
 
 Additional engines exist for FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
@@ -373,11 +373,14 @@ has no rail DPI today, so the goal is spec-conformant traffic Cisco can train a
 dissector on (see `--export-labeled-corpus` below).
 
 - **EMP** (`protocol_engines/emp/`) — the AAR Interoperable Train Control message
-  envelope (I-ETMS / PTC), carried over a TCP session. The **EMP v4 envelope is
-  byte-accurate** (verified by round-trip). Class D header bytes and the ITC
-  application-message catalog are paywalled, so Class D is modelled as TCP
-  session behaviour and app payloads are synthetic. No official IANA port exists
-  (Class D links are assigned per-connection) — 5361 is a configurable default.
+  envelope (I-ETMS / PTC). **EMP never rides bare on TCP**: AAR S-9356 **Class D**
+  (`protocol_engines/emp/class_d.py`) is the mandatory transport, so the TCP
+  payload is `Class D header (12B) + EMP + ETX` and EMP begins at Class-D offset
+  12. Both the EMP v4 envelope and the Class D framing are byte-accurate. The ITC
+  application-message catalog is still unavailable, so message-type IDs and
+  payloads are synthetic. There is **no universal port** (Class D links are
+  installation-configured); 3001 is a documented Siemens wayside default used as
+  the platform's vendor profile.
 - **ATCS** (`protocol_engines/atcs/`) — legacy radio codeline (AAR MSRP Section
   K-II, formerly Spec 200), emitted as the **ATCS Monitor relay feed** (the only
   IP-observable form; CV never sees the 900 MHz RF). Models the decoded RF path —
@@ -385,9 +388,21 @@ dissector on (see `--export-labeled-corpus` below).
 
 Both engines publish a **per-field confidence tier** in their label maps so a
 training corpus never misrepresents an assumed byte as authoritative:
-`spec` (derivable/verified) / `provisional` (reconstructed, pending a primary
-source) / `synthetic` (plausible but invented). ATCS's open items are tracked in
+`spec` (verified against a current source) / `spec_legacy` (spec-derived from a
+legacy/draft revision — the 2010 S-9356 Class D draft, AAR MSRP K-II v4.0 2005) /
+`provisional` (reconstructed) / `synthetic` (invented). Open items are tracked in
 `protocol_engines/atcs/SPEC_NEEDS.md`.
+
+**ATCS gotchas** (all learned the hard way, all spec-confirmed): a zero address
+digit is BCD nibble **0xA**, not 0x0; the **vital flag lives in transport octet 2**,
+not the network header; the **destination address precedes the source** even though
+the length octet carries source length in the *high* nibble; the vital CRC is a
+**31-bit** CRC (poly low-mask `0x520D8A81`, LSB-first data, register emitted
+LSB-octet-first) covering the address-length octet through end of L7 data —
+verified against the K-II vector `01 02 -> 25 ED BD 70`. `gfi_group` was an
+ATCSMon *display* artifact and is not a wire field. The relay frame counter is
+labelled `relay.frame_counter`, not `atcs.*`, because it belongs to the ATCSMon
+container rather than the protocol.
 
 **Gotcha:** never hardcode an L7 offset. Fingerprinted TCP carries options
 (timestamps/MSS), so a frame's payload rarely starts at Eth14+IP20+TCP20=54.

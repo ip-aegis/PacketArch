@@ -45,10 +45,16 @@ EMP_MESSAGE_VERSION = 1
 EMP_DEFAULT_TTL_S = 120
 EMP_DEFAULT_QOS = 0
 
-# No official IANA port exists for ITC Class D (per-link assigned). This is a
-# configurable, NON-AUTHORITATIVE default so flows do not fall back to TCP/502
-# (Modbus) and get mis-dissected. Override per-flow via the flow's port.
-EMP_DEFAULT_PORT = 5361
+# There is NO universal port for ITC Class D — it is installation-configured and
+# assigned per link at setup. Do NOT present any value as "the EMP port".
+#
+# 3001 is used here as the platform default because it is a REAL documented
+# vendor default (Siemens wayside implementation, configurable), which makes
+# generated traffic land on a port a rail engineer would recognise — unlike the
+# previously invented 5361. It remains a vendor profile, not a protocol constant;
+# override per-flow for any other installation.
+EMP_SIEMENS_WAYSIDE_PORT = 3001
+EMP_DEFAULT_PORT = EMP_SIEMENS_WAYSIDE_PORT
 
 # Illustrative ITC/EMP message type IDs. The authoritative ITC message catalog
 # is proprietary/paywalled; these IDs are plausible placeholders used to give a

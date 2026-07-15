@@ -160,6 +160,7 @@ class AtcsEngine(ProtocolEngine):
                 "sseq": random.randint(0, 127),
                 "rseq": random.randint(0, 127),
                 "frame_counter": random.randint(0, 127),
+                "message_number": random.randint(0, 127),
                 "signal_aspect": random.randint(0, 3),
                 "cycle": 0,
             },
@@ -243,7 +244,8 @@ class AtcsEngine(ProtocolEngine):
         # Evolve wayside state and sequence numbers (modulo-128, like the sample).
         cd["signal_aspect"] = max(0, min(3, cd["signal_aspect"] + random.choice([-1, 0, 0, 1])))
         cd["sseq"] = (cd["sseq"] + 1) & 0x7F
-        cd["frame_counter"] = (cd["frame_counter"] + 1) & 0x7F
+        cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
+        cd["message_number"] = (cd["message_number"] + 1) & 0x7F
 
         # Wayside -> office indication, streamed by the relay.
         ind = build_indication_usrdata(
@@ -253,8 +255,10 @@ class AtcsEngine(ProtocolEngine):
         )
         frame, fields = build_codeline_frame(
             src_addr=wayside_ind_addr, dst_addr=office_addr, usrdata=ind,
-            gfi=2, group=5, sseq=cd["sseq"], rseq=cd["rseq"],
-            vital=random.random() > 0.5, frame_counter=cd["frame_counter"],
+            sseq=cd["sseq"], rseq=cd["rseq"],
+            vital=random.random() > 0.5,
+            message_number=cd["message_number"],
+            relay_frame_counter=cd["frame_counter"],
         )
         # Accumulate time across sub-events so per-cycle timestamps stay monotonic.
         t = cycle_time_ms
@@ -269,15 +273,18 @@ class AtcsEngine(ProtocolEngine):
         control_every = flow.config.get("control_every", 6)
         if control_every and cd["cycle"] % control_every == 0:
             cd["rseq"] = (cd["rseq"] + 1) & 0x7F
-            cd["frame_counter"] = (cd["frame_counter"] + 1) & 0x7F
+            cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
+            cd["message_number"] = (cd["message_number"] + 1) & 0x7F
             ctl = build_control_usrdata(
                 command=random.choice([1, 2, 3]),
                 target=random.randint(1, 64), value=random.randint(0, 3),
             )
             cframe, cfields = build_codeline_frame(
                 src_addr=office_addr, dst_addr=wayside_ctl_addr, usrdata=ctl,
-                gfi=2, group=5, sseq=cd["rseq"], rseq=cd["sseq"],
-                vital=True, transport_vital=True, frame_counter=cd["frame_counter"],
+                sseq=cd["rseq"], rseq=cd["sseq"],
+                vital=True,
+                message_number=cd["message_number"],
+                relay_frame_counter=cd["frame_counter"],
             )
             t += random.uniform(20.0, 90.0)
             yield self._codeline_udp_event(

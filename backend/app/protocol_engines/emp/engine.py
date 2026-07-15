@@ -33,6 +33,14 @@ from collections.abc import Iterator
 
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
+from app.protocol_engines.emp.class_d import (
+    CLASS_D_DATA,
+    CLASS_D_HEADER_LEN,
+    CLASS_D_OVERHEAD,
+    build_class_d,
+    class_d_field_map,
+    next_commid,
+)
 from app.protocol_engines.emp.packets import (
     EMP_MSG_ACK,
     EMP_MSG_NAMES,
@@ -65,6 +73,11 @@ from app.protocol_engines.types import (
 DEFAULT_BASE_EPOCH = 1_700_000_000
 
 
+def _classd_len(emp: bytes) -> int:
+    """TCP bytes consumed by an EMP envelope once Class D wraps it (+12 hdr, +1 ETX)."""
+    return len(emp) + CLASS_D_OVERHEAD
+
+
 @register_engine(ProtocolType.EMP)
 class EmpEngine(ProtocolEngine):
     """Edge Message Protocol (ITC/PTC) engine."""
@@ -90,6 +103,7 @@ class EmpEngine(ProtocolEngine):
     def _emp_event(
         self,
         flow: FlowContext,
+        state: ConversationState,
         timestamp_ms: float,
         src,
         dst,
@@ -102,16 +116,32 @@ class EmpEngine(ProtocolEngine):
         payload_fields: list[dict],
         direction: str,
     ) -> PacketEvent:
-        """Build one EMP-over-TCP PacketEvent with ground-truth label metadata."""
-        frame = build_emp_message(msg_type, sender_addr, dest_addr, payload)
+        """Build one EMP-in-Class-D-over-TCP PacketEvent with ground-truth labels.
+
+        EMP never rides bare on TCP: S-9356 Class D is the mandatory transport,
+        so the TCP payload is ``Class D header (12B) + EMP + ETX`` and EMP begins
+        at Class-D-relative offset 12.
+        """
+        emp = build_emp_message(msg_type, sender_addr, dest_addr, payload)
+        commid = state.custom_data["commid"]
+        frame = build_class_d(emp, commid, CLASS_D_DATA)
+        state.custom_data["commid"] = next_commid(commid)
+
         packet = build_tcp_packet(
             src, dst, payload=frame, seq=seq, ack=ack, flags="PA",
             tcp_options=src.fingerprint_applicator.get_tcp_options(),
         )
-        # Where EMP begins in the frame — DERIVED from the built packet, never
-        # assumed. The fingerprinted TCP header carries options (timestamps,
-        # MSS, ...), so L4 is frequently longer than 20 bytes; a hardcoded 54
-        # would silently misalign every label offset in the corpus.
+        # Where the L7 (Class D) unit begins — DERIVED from the built packet,
+        # never assumed. Fingerprinted TCP carries options (timestamps, MSS, ...),
+        # so L4 is frequently longer than 20 bytes; a hardcoded 54 would silently
+        # misalign every label offset in the corpus.
+        l7_offset = len(packet) - len(frame)
+        # Class D fields are frame-relative; EMP fields are nested at +12.
+        fields = class_d_field_map(commid, CLASS_D_DATA, len(emp))
+        fields += [
+            {**f, "off": CLASS_D_HEADER_LEN + f["off"]}
+            for f in emp_field_map(msg_type, sender_addr, dest_addr, payload, payload_fields)
+        ]
         return PacketEvent(
             timestamp_ms=timestamp_ms,
             flow_id=flow.flow_id,
@@ -123,10 +153,11 @@ class EmpEngine(ProtocolEngine):
                 "emp_msg_type": msg_type,
                 "emp_src": sender_addr,
                 "emp_dst": dest_addr,
-                "l7_offset": len(packet) - len(frame),
-                "emp_fields": emp_field_map(
-                    msg_type, sender_addr, dest_addr, payload, payload_fields
-                ),
+                "classd_commid": commid,
+                "classd_message_type": CLASS_D_DATA,
+                "emp_offset": CLASS_D_HEADER_LEN,
+                "l7_offset": l7_offset,
+                "emp_fields": fields,
             },
         )
 
@@ -139,6 +170,7 @@ class EmpEngine(ProtocolEngine):
             transaction_id=0,
             sequence_number=0,
             custom_data={
+                "commid": 1,  # Class D COMMID: starts at 1, increments per link
                 "tcp_seq_client": random.randint(1000, 900000),
                 "tcp_seq_server": random.randint(1000, 900000),
                 "app_seq": 0,
@@ -202,11 +234,11 @@ class EmpEngine(ProtocolEngine):
             node_id=cd["wiu_id"], role=1
         )
         yield self._emp_event(
-            flow, t, flow.source, flow.destination, client_seq, server_seq,
+            flow, state, t, flow.source, flow.destination, client_seq, server_seq,
             EMP_MSG_REGISTRATION, src_addr, dst_addr, reg_payload, reg_fields,
             "request",
         )
-        client_seq += len(build_emp_message(
+        client_seq += _classd_len(build_emp_message(
             EMP_MSG_REGISTRATION, src_addr, dst_addr, reg_payload
         ))
 
@@ -214,11 +246,11 @@ class EmpEngine(ProtocolEngine):
         t += random.uniform(5.0, 20.0)
         ack_payload, ack_fields = build_ack_payload(ack_seq=cd["app_seq"])
         yield self._emp_event(
-            flow, t, flow.destination, flow.source, server_seq, client_seq,
+            flow, state, t, flow.destination, flow.source, server_seq, client_seq,
             EMP_MSG_ACK, dst_addr, src_addr, ack_payload, ack_fields,
             "response",
         )
-        server_seq += len(build_emp_message(
+        server_seq += _classd_len(build_emp_message(
             EMP_MSG_ACK, dst_addr, src_addr, ack_payload
         ))
 
@@ -255,12 +287,12 @@ class EmpEngine(ProtocolEngine):
             epoch_s=epoch_s,
         )
         yield self._emp_event(
-            flow, cycle_time_ms, flow.source, flow.destination,
+            flow, state, cycle_time_ms, flow.source, flow.destination,
             client_seq, server_seq,
             EMP_MSG_WIU_STATUS, src_addr, dst_addr, status_payload, status_fields,
             "request",
         )
-        client_seq += len(build_emp_message(
+        client_seq += _classd_len(build_emp_message(
             EMP_MSG_WIU_STATUS, src_addr, dst_addr, status_payload
         ))
 
@@ -278,23 +310,23 @@ class EmpEngine(ProtocolEngine):
                 seq=cd["app_seq"] & 0xFFFF,
             )
             yield self._emp_event(
-                flow, resp_time, flow.destination, flow.source,
+                flow, state, resp_time, flow.destination, flow.source,
                 server_seq, client_seq,
                 EMP_MSG_WDC_CONTROL, dst_addr, src_addr, ctl_payload, ctl_fields,
                 "response",
             )
-            server_seq += len(build_emp_message(
+            server_seq += _classd_len(build_emp_message(
                 EMP_MSG_WDC_CONTROL, dst_addr, src_addr, ctl_payload
             ))
         else:
             ack_payload, ack_fields = build_ack_payload(ack_seq=cd["app_seq"] & 0xFFFF)
             yield self._emp_event(
-                flow, resp_time, flow.destination, flow.source,
+                flow, state, resp_time, flow.destination, flow.source,
                 server_seq, client_seq,
                 EMP_MSG_ACK, dst_addr, src_addr, ack_payload, ack_fields,
                 "response",
             )
-            server_seq += len(build_emp_message(
+            server_seq += _classd_len(build_emp_message(
                 EMP_MSG_ACK, dst_addr, src_addr, ack_payload
             ))
 
