@@ -36,6 +36,7 @@ def _register_all() -> None:
         janitza,
         japanese_plc,
         process_instruments,
+        rail,
         robotics_logistics,
         rockwell,
         schneider,
@@ -50,7 +51,7 @@ def _register_all() -> None:
         cisco, emerson, ge, sel, hms, beckwith,
         building_automation, transportation, process_instruments,
         robotics_logistics, fieldbus_networking, it_ot_boundary,
-        japanese_plc, carlo_gavazzi, janitza, elvaco, danfoss,
+        japanese_plc, carlo_gavazzi, janitza, elvaco, danfoss, rail,
     ]
     for mod in all_modules:
         for template in mod.TEMPLATES:

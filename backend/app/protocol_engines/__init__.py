@@ -81,6 +81,8 @@ from app.protocol_engines.wmi.engine import WMIEngine  # noqa: E402, F401
 from app.protocol_engines.fanuc.engine import FANUCEngine  # noqa: E402, F401
 from app.protocol_engines.dcs.engine import DCSEngine  # noqa: E402, F401
 from app.protocol_engines.cloud_service.engine import CloudServiceEngine  # noqa: E402, F401
+from app.protocol_engines.emp.engine import EmpEngine  # noqa: E402, F401
+from app.protocol_engines.atcs.engine import AtcsEngine  # noqa: E402, F401
 
 __all__ = [
     "ProtocolEngine",
@@ -111,4 +113,6 @@ __all__ = [
     "FANUCEngine",
     "DCSEngine",
     "CloudServiceEngine",
+    "EmpEngine",
+    "AtcsEngine",
 ]

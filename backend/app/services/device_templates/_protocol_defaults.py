@@ -169,6 +169,13 @@ VENDOR_NATIVE_PROTOCOLS: dict[str, set[str]] = {
     "wavetronix": {"snmp", "ntcip"},
     "q-free": {"snmp", "ntcip"},
     "kapsch": {"snmp", "ntcip"},
+    # Rail / train control — PTC (EMP) vs legacy ATCS codeline
+    "wabtec": {"emp", "snmp"},
+    "ge transportation": {"emp", "snmp"},
+    "alstom": {"atcs", "snmp"},
+    "siemens mobility": {"atcs", "snmp"},
+    "hitachi rail": {"atcs", "snmp"},
+    "bombardier": {"atcs", "snmp"},
     # Cameras / sensors
     "flir": {"snmp", "https", "rtsp"},
     "axis": {"snmp", "https", "rtsp", "onvif"},
@@ -207,6 +214,10 @@ PROTOCOL_TO_TEMPLATE_IDENTITY: dict[str, str] = {
     "sv": "iec61850_identity",
     "c37118": "c37118_identity",
     "synchrophasor": "c37118_identity",
+    "emp": "emp_identity",
+    "itc": "emp_identity",
+    "ptc": "emp_identity",
+    "atcs": "atcs_identity",
 }
 
 

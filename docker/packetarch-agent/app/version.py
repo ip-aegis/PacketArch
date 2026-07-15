@@ -7,9 +7,56 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.6.2"
+VERSION = "2.11.0"
 
 # Version history:
+# 2.11.0 - Rail scenarios + labeled-corpus export option (Phase 5). Adds two
+#   transportation-vertical scenarios (ptc_freight_corridor = EMP back office /
+#   wayside / locomotive; atcs_signaling_territory = ATCS Monitor relay feed) and
+#   an alstom/atcs/office device template (+ atcs_office device type in
+#   vendor_oui.DEVICE_TYPE_VENDORS) so the ATCS relay feed has a dispatch client.
+#   Exposes the Phase-4 sidecar as GenerationRequest.export_labeled_corpus ->
+#   GenerationConfig -> TrafficOrchestrator, emitting <stem>.labels.jsonl +
+#   .meta.json and a "labels" artifact on the result.
+# 2.10.0 - Labeled-corpus sidecar exporter (Phase 4) + an l7_offset correctness
+#   fix. Adds protocol_engines/label_sidecar.py (LabelSidecarWriter): persists
+#   PacketEvent.metadata — previously discarded — as a per-packet ground-truth
+#   JSONL keyed to packet index, aligned 1:1 with the pcap, plus a .meta.json
+#   summary (counts + field vocabulary). UnifiedOrchestrator gains an optional
+#   label sink (set_label_sink), fed only for successfully-written packets so
+#   indices stay in lockstep. This turns a run into dissector-training data.
+#   BUGFIX: the EMP/ATCS engines hardcoded l7_offset (54/42) assuming 20-byte
+#   TCP headers; fingerprinted TCP carries options (timestamps/MSS), so the real
+#   offset is often 66 and every EMP field label was misaligned. Both engines now
+#   derive l7_offset from the built packet (len(packet) - len(payload)).
+# 2.9.0 - Rail device templates + IEEE-grounded OUIs for the transportation
+#   vertical (Phase 3). Adds device_templates/vendors/rail.py (7 templates:
+#   Wabtec I-ETMS BOS/WIU/TMC + GE Transportation ITCS = EMP/PTC; Alstom /
+#   Siemens Mobility / Hitachi Rail = ATCS codeline), emp_identity/atcs_identity
+#   template fields, rail vendor OUIs (Wabtec 00:22:E2, GE Transportation
+#   00:1F:44, Alstom 00:16:9B, Siemens Mobility 70:38:11, Hitachi Rail 4C:30:89,
+#   Bombardier 00:11:BD — all IEEE-verified via generate_vendor_ouis.py), plus
+#   DEVICE_TYPE_VENDORS / VENDOR_NATIVE_PROTOCOLS / PROTOCOL_TO_TEMPLATE_IDENTITY
+#   wiring. Regenerated _vendor_ouis_generated.py (100 vendors).
+# 2.8.0 - New protocol engine: ATCS (Advanced Train Control System, AAR MSRP
+#   Section K-II / formerly Spec 200) for the transportation vertical. Adds
+#   protocol_engines/atcs/ — the ATCS Monitor relay feed (TCP control on 4802 +
+#   UDP codeline-frame stream on 30000+, ASCII-hex frames + version keep-alive).
+#   The inner codeline frame models the decoded RF path (radio datagram/Appendix G
+#   over radio link/Appendix L) — NOT wireline LAPB — with three-tier per-field
+#   confidence labels (spec / provisional / synthetic): the ATCS address encoding
+#   (dest-first + length octet), CRC-16/X.25 FCS, and the 32-bit vital CRC are
+#   spec-derived; the radio-datagram header bit-packing (Appendix G) is provisional
+#   and isolated in _build_radio_datagram_header for certification (see
+#   atcs/SPEC_NEEDS.md). Registers ProtocolType.ATCS, default TCP port 4802,
+#   atcs_identity key, rail-vendor affinities.
+# 2.7.0 - New protocol engine: EMP (Edge Message Protocol) for AAR Interoperable
+#   Train Control (ITC/PTC). Adds protocol_engines/emp/ (byte-accurate EMP v4
+#   envelope over a TCP session; Class D modelled as session behaviour, app
+#   payloads synthetic + labelled). Registers ProtocolType.EMP, default TCP port
+#   5361 (non-authoritative; Class D links are per-connection), itc/ptc aliases,
+#   emp_identity key, and rail-vendor affinities (Meteorcomm/Wabtec/etc.).
+
 # 2.6.1 - Data/lint-only: register Janitza (316) and Elvaco (1473) in
 #   BACNET_VENDOR_IDS (vendor_oui.py) so the new EU energy-metering templates'
 #   BACnet vendor_ids resolve, and add the missing `Any` typing import in

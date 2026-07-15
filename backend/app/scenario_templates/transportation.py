@@ -1023,4 +1023,198 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         ],
         "total_duration_ms": 300000,  # 5 minutes
     },
+
+    # ============================================================
+    # TEMPLATE 5: PTC FREIGHT CORRIDOR (17 devices)
+    # Positive Train Control: back office <-> wayside <-> locomotive
+    # over EMP (the AAR Interoperable Train Control message envelope).
+    # ============================================================
+    "ptc_freight_corridor": {
+        "name": "PTC Freight Corridor",
+        "description": "Positive Train Control (I-ETMS) freight corridor: a back-office server "
+                       "pair exchanging EMP messages with wayside interface units along the "
+                       "subdivision and with locomotive train-management computers. Wayside units "
+                       "report signal/switch status; the back office issues wayside device "
+                       "controls. 17 devices across 4 zones.",
+        "vertical": "transportation",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "PTC back-office networks are reachable from railroad enterprise IT"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "devices": [
+            # BACK OFFICE (Level 3)
+            {"type": "back_office_server", "vendor": "wabtec", "count": 2, "zone": "back_office",
+             "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp"],
+             "fingerprint_model": "I-ETMS Back Office Server", "firmware_version": "I-ETMS 5.2",
+             "role": "I-ETMS Back Office Server"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "back_office",
+             "name_pattern": "PTC_Back_Office_Switch_{n}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24T4X-E",
+             "role": "Back Office Network Switch"},
+
+            # WAYSIDE CORRIDOR (Level 2)
+            {"type": "wayside_interface_unit", "vendor": "wabtec", "count": 8, "zone": "wayside_corridor",
+             "name_pattern": "Wayside_Interface_Unit_{n}", "protocols": ["emp"],
+             "fingerprint_model": "I-ETMS Wayside Interface Unit", "firmware_version": "I-ETMS 5.2",
+             "role": "I-ETMS Wayside Interface Unit"},
+            {"type": "wayside_interface_unit", "vendor": "ge transportation", "count": 2,
+             "zone": "wayside_corridor",
+             "name_pattern": "ITCS_Wayside_Controller_{n}", "protocols": ["emp"],
+             "fingerprint_model": "ITCS Wayside Controller", "firmware_version": "ITCS 3.4",
+             "role": "ITCS Wayside Controller"},
+
+            # LOCOMOTIVE FLEET (Level 2 - mobile assets)
+            {"type": "locomotive_computer", "vendor": "wabtec", "count": 4, "zone": "locomotive_fleet",
+             "name_pattern": "Locomotive_Train_Mgmt_Computer_{n}", "protocols": ["emp"],
+             "fingerprint_model": "I-ETMS Train Management Computer", "firmware_version": "I-ETMS 5.2",
+             "role": "I-ETMS Locomotive Train Management Computer"},
+        ],
+        "flows": [
+            # Wayside status reporting to the back office (EMP)
+            {"protocol": "emp", "pattern": "poll", "interval_ms": 5000,
+             "source_types": ["wayside_interface_unit"], "target_types": ["back_office_server"],
+             "source_zones": ["wayside_corridor"], "target_zones": ["back_office"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Locomotive onboard reporting to the back office (EMP, slower - radio backhaul)
+            {"protocol": "emp", "pattern": "poll", "interval_ms": 15000,
+             "source_types": ["locomotive_computer"], "target_types": ["back_office_server"],
+             "source_zones": ["locomotive_fleet"], "target_zones": ["back_office"],
+             "jitter_ms": 3000, "jitter_type": "uniform"},
+
+            # Back-office switch management
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["back_office_server"], "target_types": ["switch"],
+             "source_zones": ["back_office"], "target_zones": ["back_office"],
+             "jitter_ms": 2000, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "back_office", "name": "PTC Back Office", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "wayside_corridor", "name": "Wayside Corridor", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "locomotive_fleet", "name": "Locomotive Fleet", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+        ],
+        "conduits": [
+            {"id": "wayside_to_back_office", "name": "Wayside Corridor ↔ Back Office",
+             "source_zone": "wayside_corridor", "target_zone": "back_office",
+             "direction": "bidirectional",
+             "allowed_protocols": ["emp"],
+             "security_level": "critical",
+             "description": "Wayside interface units reporting signal/switch status to the back office and receiving wayside device controls over EMP"},
+            {"id": "locomotive_to_back_office", "name": "Locomotive Fleet ↔ Back Office",
+             "source_zone": "locomotive_fleet", "target_zone": "back_office",
+             "direction": "bidirectional",
+             "allowed_protocols": ["emp"],
+             "security_level": "critical",
+             "description": "Locomotive train-management computers exchanging EMP messages with the back office for movement authorities"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap", "timeout"],
+            "sequence": ["out_of_order", "duplicate"],
+            "network": ["broadcast_storm"],
+            "security": ["unauthorized_remote_access"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
+
+    # ============================================================
+    # TEMPLATE 6: ATCS SIGNALING TERRITORY (8 devices)
+    # Legacy ATCS codeline, observed via the ATCS Monitor relay feed.
+    # NOTE: wayside MCPs ride a 900 MHz radio codeline and are NOT IP
+    # endpoints — they appear as ATCS addresses INSIDE the codeline
+    # frames, not as devices on this network. Only the office/dispatch
+    # systems and the base-station relays are IP-visible.
+    # ============================================================
+    "atcs_signaling_territory": {
+        "name": "ATCS Signaling Territory",
+        "description": "Legacy ATCS (AAR Spec 200) codeline territory observed over the ATCS "
+                       "Monitor relay feed: dispatch/CTC office systems subscribe to base-station "
+                       "relays, which stream decoded codeline frames (wayside indications and "
+                       "office controls) as ASCII-hex over UDP. Wayside MCPs are radio-only and "
+                       "appear as ATCS addresses within the frames, not as IP hosts. 8 devices "
+                       "across 3 zones.",
+        "vertical": "transportation",
+        "phase_preset": "with_maintenance",
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "medium",
+             "rationale": "Codeline relay feeds are often carried on flat railroad WAN segments"},
+        ],
+        "recommended_traffic_schedule": "industrial_24h",
+        "devices": [
+            # DISPATCH OFFICE (Level 3)
+            {"type": "atcs_office", "vendor": "alstom", "count": 2, "zone": "dispatch_office",
+             "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs"],
+             "fingerprint_model": "ATCS Office Dispatch System", "firmware_version": "CTC 8.3",
+             "role": "ATCS Office Dispatch System"},
+            {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dispatch_office",
+             "name_pattern": "Dispatch_Office_Switch_{n}", "protocols": ["snmp"],
+             "fingerprint_model": "IE-9320-24T4X-E",
+             "role": "Dispatch Office Network Switch"},
+
+            # CODELINE RELAY (Level 2)
+            {"type": "atcs_base_station", "vendor": "siemens mobility", "count": 4,
+             "zone": "codeline_relay",
+             "name_pattern": "ATCS_Base_Comms_Package_{n}", "protocols": ["atcs"],
+             "fingerprint_model": "ATCS Base Communications Package", "firmware_version": "Safetran 4.2",
+             "role": "ATCS Base Communications Package (codeline relay)"},
+
+            # WAYSIDE SIGNALING (Level 2) - IP-managed signal controller
+            {"type": "wayside_signal_controller", "vendor": "hitachi rail", "count": 1,
+             "zone": "wayside_signaling",
+             "name_pattern": "Wayside_Signal_Controller_{n}", "protocols": ["atcs"],
+             "fingerprint_model": "Wayside Signal Controller", "firmware_version": "MicroLok II 6.0",
+             "role": "Wayside Signal Controller"},
+        ],
+        "flows": [
+            # Office subscribes to the base-station codeline relay feed (ATCS)
+            {"protocol": "atcs", "pattern": "poll", "interval_ms": 2000,
+             "source_types": ["atcs_office"], "target_types": ["atcs_base_station"],
+             "source_zones": ["dispatch_office"], "target_zones": ["codeline_relay"],
+             "jitter_ms": 250, "jitter_type": "gaussian"},
+
+            # Office also pulls the codeline feed covering the wayside controller
+            {"protocol": "atcs", "pattern": "poll", "interval_ms": 4000,
+             "source_types": ["atcs_office"], "target_types": ["wayside_signal_controller"],
+             "source_zones": ["dispatch_office"], "target_zones": ["wayside_signaling"],
+             "jitter_ms": 500, "jitter_type": "gaussian"},
+
+            # Dispatch switch management
+            {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
+             "source_types": ["atcs_office"], "target_types": ["switch"],
+             "source_zones": ["dispatch_office"], "target_zones": ["dispatch_office"],
+             "jitter_ms": 2000, "jitter_type": "gaussian"},
+        ],
+        "zones": [
+            {"id": "dispatch_office", "name": "Dispatch / CTC Office", "level": 3,
+             "subnet_offset": 0, "vlan": 100, "security_level": "critical"},
+            {"id": "codeline_relay", "name": "Codeline Relay Network", "level": 2,
+             "subnet_offset": 1, "vlan": 110, "security_level": "high"},
+            {"id": "wayside_signaling", "name": "Wayside Signaling", "level": 2,
+             "subnet_offset": 2, "vlan": 120, "security_level": "high"},
+        ],
+        "conduits": [
+            {"id": "office_to_relay", "name": "Dispatch Office ↔ Codeline Relay",
+             "source_zone": "dispatch_office", "target_zone": "codeline_relay",
+             "direction": "bidirectional",
+             "allowed_protocols": ["atcs"],
+             "security_level": "high",
+             "description": "Dispatch office systems subscribing to base-station relays streaming decoded ATCS codeline frames"},
+            {"id": "office_to_wayside", "name": "Dispatch Office ↔ Wayside Signaling",
+             "source_zone": "dispatch_office", "target_zone": "wayside_signaling",
+             "direction": "bidirectional",
+             "allowed_protocols": ["atcs"],
+             "security_level": "high",
+             "description": "Dispatch office pulling the codeline feed covering wayside signal controllers"},
+        ],
+        "suggested_anomalies": {
+            "timing": ["delayed_response", "polling_gap", "timeout"],
+            "sequence": ["out_of_order", "duplicate"],
+            "network": ["broadcast_storm"],
+        },
+        "total_duration_ms": 300000,  # 5 minutes
+    },
 }
