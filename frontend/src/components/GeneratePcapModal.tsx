@@ -34,6 +34,7 @@ import {
   LoadingOutlined,
   ThunderboltOutlined,
   LineChartOutlined,
+  TagsOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { generationApi, type GenerationJob } from '../api/generation';
@@ -86,6 +87,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         attack_playbook_id: undefined,
         attack_intensity: 1.0,
         export_attack_pcap: false,
+        export_labeled_corpus: false,
         adaptive_enabled: false,
         cell_isolation_mode: 'inherit',
       });
@@ -128,6 +130,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
       attackPlaybookId?: string;
       attackIntensity?: number;
       exportAttackPcap?: boolean;
+      exportLabeledCorpus?: boolean;
       adaptiveEnabled?: boolean;
       cellIsolationMode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
     }) =>
@@ -139,6 +142,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
           ? { intensity: params.attackIntensity ?? 1.0 }
           : null,
         export_attack_pcap: !!(params.attackPlaybookId && params.exportAttackPcap),
+        export_labeled_corpus: !!params.exportLabeledCorpus,
         adaptive_config: params.adaptiveEnabled ? { enabled: true } : null,
         cell_isolation_override:
           params.cellIsolationMode && params.cellIsolationMode !== 'inherit'
@@ -199,6 +203,7 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
         attackPlaybookId: values.attack_playbook_id,
         attackIntensity: values.attack_intensity,
         exportAttackPcap: values.export_attack_pcap,
+        exportLabeledCorpus: values.export_labeled_corpus,
         adaptiveEnabled: values.adaptive_enabled,
         cellIsolationMode: values.cell_isolation_mode,
       });
@@ -368,6 +373,38 @@ const GeneratePcapModal: React.FC<GeneratePcapModalProps> = ({
                         );
                       }}
                     </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: 'labeled_corpus',
+                label: (
+                  <span style={{ color: '#a8a8c0' }}>
+                    <TagsOutlined style={{ marginRight: 8 }} />
+                    Labeled Corpus (optional)
+                  </span>
+                ),
+                children: (
+                  <>
+                    <Form.Item
+                      name="export_labeled_corpus"
+                      label={
+                        <Text style={{ color: '#a8a8c0' }}>
+                          Also export per-packet ground truth
+                        </Text>
+                      }
+                      valuePropName="checked"
+                      tooltip="Writes <name>.labels.jsonl + .meta.json alongside the PCAP: one record per packet with its protocol, message type, and field-level label map. Training data for a DPI dissector."
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Switch />
+                    </Form.Item>
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="Field-level labels are emitted for protocols that publish them (e.g. EMP, ATCS). Other packets are still recorded so the sidecar stays aligned 1:1 with the PCAP."
+                      style={{ marginTop: 8 }}
+                    />
                   </>
                 ),
               },

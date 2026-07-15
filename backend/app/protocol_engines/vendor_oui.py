@@ -61,6 +61,15 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
     "ptz_camera": ["pelco", "bosch"],
     "anpr_camera": ["hikvision", "bosch"],
 
+    # Rail / train-control Device Types (PTC = EMP; legacy signaling = ATCS)
+    "back_office_server": ["wabtec", "ge transportation"],
+    "wayside_interface_unit": ["wabtec", "ge transportation"],
+    "locomotive_computer": ["wabtec", "ge transportation"],
+    "wayside_mcp": ["alstom", "siemens mobility", "hitachi rail"],
+    "atcs_base_station": ["siemens mobility", "alstom", "hitachi rail"],
+    "wayside_signal_controller": ["hitachi rail", "alstom", "siemens mobility"],
+    "atcs_office": ["alstom", "hitachi rail", "siemens mobility"],
+
     # Additional Transportation/ITS Device Types (tunnel, toll, infrastructure)
     "master_station": ["siemens", "siemens_its"],
     "toll_host": ["kapsch"],
@@ -194,6 +203,12 @@ VENDOR_DISPLAY_NAMES: dict[str, str] = {
     "belden": "Belden",
     "harting": "HARTING",
     "siemens_its": "Siemens ITS",
+    "wabtec": "Wabtec",
+    "ge transportation": "GE Transportation",
+    "alstom": "Alstom",
+    "siemens mobility": "Siemens Mobility",
+    "hitachi rail": "Hitachi Rail",
+    "bombardier": "Bombardier Transportation",
     "econolite": "Econolite",
     "mccain": "McCain",
     "wavetronix": "Wavetronix",

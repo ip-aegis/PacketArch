@@ -97,6 +97,13 @@ PATTERNS: dict[str, list[str]] = {
     "broadcom": [r"\bbroadcom\b"],
     "microsoft": [r"microsoft corporation"],
     # Additional real OT vendors referenced by DEVICE_TYPE_VENDORS / generators.
+    # Rail / train-control vendors (transportation vertical).
+    "wabtec": [r"\bwabtec\b"],
+    "ge transportation": [r"ge transportation"],
+    "alstom": [r"alstom transport"],           # rail division (not Alstom Hydro)
+    "siemens mobility": [r"siemens mobility"],
+    "hitachi rail": [r"hitachi rail"],
+    "bombardier": [r"bombardier transportation"],
     "alerton": [r"alerton technologies"],
     "basler": [r"basler electric"],
     "belden": [r"\bbelden\b"],

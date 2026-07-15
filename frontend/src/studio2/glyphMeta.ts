@@ -73,6 +73,15 @@ const TYPE_GLYPH_OVERRIDES: Record<string, GlyphName> = {
   custody_meter: 'meter',
   flow_meter: 'meter',
   weigh_scale: 'meter',
+  // Rail / train control. The TRANSPORTATION category glyph is 'sign' (a DMS),
+  // which is wrong for these — map each to the glyph that actually fits.
+  back_office_server: 'server',
+  atcs_office: 'server',
+  wayside_interface_unit: 'rtu',
+  wayside_mcp: 'rtu',
+  atcs_base_station: 'gateway',
+  locomotive_computer: 'plc',
+  wayside_signal_controller: 'plc',
 };
 
 export function glyphNameForType(deviceType: string): GlyphName {

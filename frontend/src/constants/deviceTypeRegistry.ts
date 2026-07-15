@@ -282,6 +282,18 @@ export const DEVICE_TYPE_REGISTRY: Record<string, DeviceTypeMeta> = {
   detector_rack:          entry('detector_rack', 'Detector Rack', C.TRANSPORTATION),
   barrier_controller:     entry('barrier_controller', 'Barrier Controller', C.TRANSPORTATION),
 
+  // ---- Rail / Train Control (PTC = EMP, legacy signaling = ATCS) ----
+  // Rail is part of the transportation vertical. Without these entries five of
+  // the seven fall through inferCategory() into OTHER ('base_station' doesn't
+  // match the 'master_station' rule, etc.).
+  back_office_server:     entry('back_office_server', 'PTC Back Office Server', C.TRANSPORTATION),
+  wayside_interface_unit: entry('wayside_interface_unit', 'Wayside Interface Unit', C.TRANSPORTATION),
+  locomotive_computer:    entry('locomotive_computer', 'Locomotive Computer', C.TRANSPORTATION),
+  wayside_mcp:            entry('wayside_mcp', 'Wayside MCP', C.TRANSPORTATION),
+  atcs_base_station:      entry('atcs_base_station', 'ATCS Base Station', C.TRANSPORTATION),
+  wayside_signal_controller: entry('wayside_signal_controller', 'Wayside Signal Controller', C.TRANSPORTATION),
+  atcs_office:            entry('atcs_office', 'ATCS Office System', C.TRANSPORTATION),
+
   // ---- Logistics & Robotics ----
   agv:                    entry('agv', 'AGV', C.LOGISTICS),
   amr:                    entry('amr', 'AMR', C.LOGISTICS),
@@ -356,7 +368,8 @@ function humanize(type: string): string {
       // Keep common acronyms uppercase
       if (['plc', 'hmi', 'rtu', 'ews', 'io', 'dcs', 'bms', 'hvac', 'ahu', 'vav',
            'dms', 'rsu', 'agv', 'amr', 'rfid', 'pdu', 'ups', 'ptz', 'anpr', 'ip',
-           'its', 'scada', 'crac', 'dcim', 'bac'].includes(w.toLowerCase())) {
+           'its', 'scada', 'crac', 'dcim', 'bac',
+           'atcs', 'mcp', 'wiu', 'ptc', 'bos', 'emp'].includes(w.toLowerCase())) {
         return upper;
       }
       return w.charAt(0).toUpperCase() + w.slice(1);

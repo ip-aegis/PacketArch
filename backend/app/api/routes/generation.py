@@ -169,6 +169,7 @@ async def start_generation(
                 "adaptive_config": request.adaptive_config,
                 "cell_isolation_override": request.cell_isolation_override,
                 "export_attack_pcap": request.export_attack_pcap,
+                "export_labeled_corpus": request.export_labeled_corpus,
                 "topology_mode": request.topology_mode,
             }
         )

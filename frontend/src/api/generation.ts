@@ -57,6 +57,13 @@ export interface StartGenerationRequest {
   cell_isolation_override?: Record<string, unknown> | null;
   /** When true (with a playbook set), also emit baseline-only + attack-only PCAPs. */
   export_attack_pcap?: boolean;
+  /**
+   * When true, also emit a per-packet ground-truth sidecar
+   * (<stem>.labels.jsonl + .meta.json) aligned 1:1 with the PCAP — training
+   * data for a deep-packet-inspection dissector. Unlike export_attack_pcap
+   * this is not gated on a playbook.
+   */
+  export_labeled_corpus?: boolean;
 }
 
 export const generationApi = {

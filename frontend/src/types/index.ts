@@ -61,7 +61,9 @@ export type ProtocolType =
   | 'snmp'
   | 'opc_ua'
   | 'dnp3'
-  | 'iec_104';
+  | 'iec_104'
+  | 'emp'
+  | 'atcs';
 
 // Vertical types
 export type VerticalType =

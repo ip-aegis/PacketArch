@@ -37,6 +37,8 @@ class ProtocolType(str, Enum):
     IEC104 = "iec104"
     IEC61850 = "iec61850"  # MMS / GOOSE / Sampled Values (substation automation)
     C37118 = "c37118"      # IEEE C37.118 synchrophasor (PMU/PDC)
+    EMP = "emp"            # Edge Message Protocol — ITC/PTC train control messaging
+    ATCS = "atcs"          # Advanced Train Control System (AAR Spec 200) codeline
 
 
 # Protocol to identity key mapping
@@ -65,6 +67,10 @@ PROTOCOL_TO_IDENTITY_KEY: dict[str, str] = {
     "sv": "iec61850_identity",         # Sampled Values is part of 61850
     "c37118": "c37118_identity",
     "synchrophasor": "c37118_identity",  # Friendly alias
+    "emp": "emp_identity",
+    "itc": "emp_identity",   # ITC/PTC alias for the EMP messaging layer
+    "ptc": "emp_identity",   # Positive Train Control alias
+    "atcs": "atcs_identity",
 }
 
 # Identity key to protocol(s) mapping (reverse lookup)
@@ -81,6 +87,8 @@ IDENTITY_KEY_TO_PROTOCOLS: dict[str, list[str]] = {
     "iec104_identity": ["iec104"],
     "iec61850_identity": ["iec61850"],
     "c37118_identity": ["c37118"],
+    "emp_identity": ["emp"],
+    "atcs_identity": ["atcs"],
 }
 
 # Runtime engine alias map.
@@ -113,6 +121,10 @@ PROTOCOL_ALIASES: dict[str, str] = {
     # Synchrophasor aliases
     "synchrophasor": "c37118",
     "c37_118":     "c37118",
+    # Interoperable Train Control — templates may reference ITC/PTC; the engine
+    # (and runtime ProtocolType value) is "emp".
+    "itc":         "emp",
+    "ptc":         "emp",
 }
 
 
@@ -150,6 +162,13 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "iec_104":      2404,
     "iec104":       2404,   # canonical name (matches ProtocolType.IEC104)
     "c37118":       4712,   # IEEE C37.118 PDC TCP (4713 used for UDP/multicast)
+    # Edge Message Protocol (ITC/PTC). No official IANA port — Class D links are
+    # assigned per-connection at setup — so this is a NON-AUTHORITATIVE default
+    # kept in sync with emp.packets.EMP_DEFAULT_PORT. Override per-flow as needed.
+    "emp":          5361,
+    # ATCS Monitor relay control listener (TCP). The relay then streams codeline
+    # frames over UDP 30000+ (see atcs.engine); this is the discovery port.
+    "atcs":         4802,
 
     "fins":         9600,
     "slmp":         5007,   # MELSOFT/MC Protocol
@@ -217,6 +236,13 @@ VENDOR_PROTOCOL_AFFINITIES: dict[str, list[str]] = {
     "basler": ["modbus", "dnp3"],
     "erlphase": ["modbus", "dnp3", "c37118"],
     "doble": ["modbus", "dnp3"],
+    # Rail / train-control vendors. EMP = Interoperable Train Control messaging
+    # (modern PTC); ATCS = legacy codeline signaling (AAR Spec 200).
+    "meteorcomm": ["emp"],              # ITCnet / EMP messaging originator
+    "wabtec": ["emp", "atcs", "snmp"],  # I-ETMS onboard / back-office (via GE Transportation)
+    "siemens mobility": ["emp", "atcs", "snmp"],
+    "alstom": ["emp", "atcs", "snmp"],
+    "hitachi rail": ["emp", "atcs", "snmp"],
 }
 
 
