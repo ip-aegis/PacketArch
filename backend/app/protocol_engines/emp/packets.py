@@ -148,26 +148,28 @@ def emp_field_map(
     total = payload_off + len(payload) + 4
 
     fields = [
-        {"off": 0, "len": 1, "field": "emp.version", "value": EMP_VERSION, "synthetic": False},
-        {"off": 1, "len": 2, "field": "emp.msg_type", "value": msg_type, "synthetic": False},
-        {"off": 3, "len": 1, "field": "emp.msg_version", "value": EMP_MESSAGE_VERSION, "synthetic": False},
-        {"off": 4, "len": 1, "field": "emp.flags", "value": 0, "synthetic": False},
-        {"off": 5, "len": 3, "field": "emp.body_size", "value": 4 + len(payload), "synthetic": False},
-        {"off": 8, "len": 1, "field": "emp.var_hdr_size", "value": var_hdr_size, "synthetic": False},
-        {"off": 9, "len": 2, "field": "emp.ttl_s", "value": ttl_s, "synthetic": False},
-        {"off": 11, "len": 2, "field": "emp.qos", "value": EMP_DEFAULT_QOS, "synthetic": False},
-        {"off": 13, "len": len(sender_b) + 1, "field": "emp.src_addr", "value": sender, "synthetic": False},
-        {"off": 13 + len(sender_b) + 1, "len": len(dest_b) + 1, "field": "emp.dst_addr", "value": dest, "synthetic": False},
+        {"off": 0, "len": 1, "field": "emp.version", "value": EMP_VERSION, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 1, "len": 2, "field": "emp.msg_type", "value": msg_type, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 3, "len": 1, "field": "emp.msg_version", "value": EMP_MESSAGE_VERSION, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 4, "len": 1, "field": "emp.flags", "value": 0, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 5, "len": 3, "field": "emp.body_size", "value": 4 + len(payload), "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 8, "len": 1, "field": "emp.var_hdr_size", "value": var_hdr_size, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 9, "len": 2, "field": "emp.ttl_s", "value": ttl_s, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 11, "len": 2, "field": "emp.qos", "value": EMP_DEFAULT_QOS, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 13, "len": len(sender_b) + 1, "field": "emp.src_addr", "value": sender, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 13 + len(sender_b) + 1, "len": len(dest_b) + 1, "field": "emp.dst_addr", "value": dest, "synthetic": False, "confidence": "spec_legacy"},
     ]
     for pf in payload_fields or [{"off": 0, "len": len(payload), "field": "emp.payload", "value": payload.hex(), "synthetic": True}]:
+        synthetic = pf.get("synthetic", True)
         fields.append({
             "off": payload_off + pf["off"],
             "len": pf["len"],
             "field": pf["field"],
             "value": pf["value"],
-            "synthetic": pf.get("synthetic", True),
+            "synthetic": synthetic,
+            "confidence": pf.get("confidence", "synthetic" if synthetic else "spec_legacy"),
         })
-    fields.append({"off": total - 4, "len": 4, "field": "emp.crc32", "value": "signed-crc32", "synthetic": False})
+    fields.append({"off": total - 4, "len": 4, "field": "emp.crc32", "value": "signed-crc32", "synthetic": False, "confidence": "spec_legacy"})
     return fields
 
 
