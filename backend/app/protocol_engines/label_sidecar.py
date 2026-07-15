@@ -29,6 +29,18 @@ field's bytes:
 - ``ascii_hex`` — the L7 payload is ASCII-hex text (e.g. the ATCS Monitor relay
   feed); the field's bytes are the 2 hex chars per byte starting at
   ``l7_offset + 2*off``. ``off``/``len`` index the DECODED binary frame.
+
+Confidence tiers carried per field:
+
+- ``spec``        — verified against a current primary source.
+- ``spec_legacy`` — spec-derived, but from a legacy/draft revision (the 2010
+  S-9356 Class D draft; AAR MSRP K-II Version 4.0, 2005). Structurally
+  authoritative; may not reflect current-revision behaviour.
+- ``provisional`` — reconstructed; reproduces known values, positions unconfirmed.
+- ``synthetic``   — plausible but invented (no public source).
+
+Nested protocols publish offsets relative to the outermost L7 unit — e.g. EMP
+rides inside Class D, so ``emp.*`` offsets are Class-D-relative (EMP starts at 12).
 """
 
 from __future__ import annotations

@@ -18,7 +18,14 @@ from scapy.layers.l2 import Ether
 
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.atcs.codeline import (
+    ATCS_BCD_ZERO,
     atcs_address_subfields,
+    build_datagram_octet0,
+    build_network_header,
+    build_transport_header,
+    vital_crc,
+    vital_crc_bytes,
+    vital_crc_check,
     build_atcs_address_5series,
     build_atcs_address_7series,
     build_codeline_frame,
@@ -96,89 +103,136 @@ class TestCrc16X25:
         assert crc16_x25(b"123456789") == 0x906E
 
 
+class TestVitalCrc:
+    """AAR MSRP K-II 31-bit vital CRC — the spec ships a mandatory vector."""
+
+    def test_kii_mandatory_vector(self):
+        # K-II: input 01 02 -> CRC 25 ED BD 70
+        assert vital_crc_bytes(bytes([0x01, 0x02])).hex().upper() == "25EDBD70"
+
+    def test_register_is_31_bit(self):
+        for data in (b"", b"\x01\x02", bytes(range(64)), b"ATCS" * 9):
+            assert vital_crc(data) < (1 << 31), "high bit must always be zero"
+
+    def test_self_check_residue_is_zero(self):
+        """Spec invariant: a message with its CRC appended reduces to zero."""
+        for data in (bytes([0x01, 0x02]), b"\xde\xad\xbe\xef", bytes(range(16)), b"ATCS"):
+            assert vital_crc_check(data + vital_crc_bytes(data))
+
+    def test_detects_corruption(self):
+        data = bytes(range(24))
+        good = data + vital_crc_bytes(data)
+        assert vital_crc_check(good)
+        for i in range(len(good)):
+            bad = bytearray(good)
+            bad[i] ^= 0x01          # single-bit flip anywhere
+            assert not vital_crc_check(bytes(bad)), f"missed corruption at octet {i}"
+
+
 def _check_frame_layout(frame: bytes, fields: list[dict]) -> None:
-    """Structural checks: every field is in-bounds; no wireline FCS; vital CRC
-    (when present) is the internal last-4-octets field. Values are NOT validated
-    for provisional fields (e.g. the vital CRC is deliberately filler)."""
+    """Structural checks: fields in-bounds, no wireline artifacts, valid tiers."""
     by_name = {f["field"]: f for f in fields}
     for f in fields:
         assert 0 <= f["off"] and f["off"] + f["len"] <= len(frame)
-    assert "atcs.fcs16" not in by_name          # RF path: no wireline HDLC FCS
-    if "atcs.vital_crc32" in by_name:
-        vc = by_name["atcs.vital_crc32"]
-        assert vc["len"] == 4 and vc["off"] + 4 == len(frame)   # last 4 octets
+        assert f["confidence"] in {"spec_legacy", "spec", "provisional", "synthetic"}
+    # RF path: none of the wireline-HDLC artifacts belong here
+    assert not ({"atcs.lapb_address", "atcs.lapb_control", "atcs.flag_open",
+                 "atcs.flag_close", "atcs.fcs16", "atcs.gfi_group"} & set(by_name))
 
 
 class TestCodelineFrame:
-    def test_rf_frame_has_no_wireline_lapb_flags_or_fcs(self):
-        # RF path (relay feed): no HDLC 0x7E flags, no LAPB byte, no wireline FCS.
-        frame, fields = build_codeline_frame(
-            src_addr="71253230040202", dst_addr="21250000010000",
-            usrdata=b"\x02\x04", gfi=2, group=5, sseq=77, rseq=45, frame_counter=34,
-        )
-        names = {f["field"] for f in fields}
-        assert not ({"atcs.lapb_address", "atcs.lapb_control",
-                     "atcs.flag_open", "atcs.flag_close", "atcs.fcs16"} & names)
-        # first byte is the radio-link frame counter, not a 0x7E flag
-        assert frame[0] == 34 and frame[0] != 0x7E
-        assert by_field(fields, "atcs.frame_counter")["off"] == 0
+    """Structure per AAR MSRP K-II: 5-octet network header, addresses (dest
+    first), facility length, 5-octet transport header, UsrData, vital CRC."""
 
-    def test_vital_crc_present_only_for_vital_and_is_filler(self):
-        frame, fields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
-            sseq=1, rseq=2, frame_counter=3, vital=False,
-        )
-        assert "atcs.vital_crc32" not in {f["field"] for f in fields}
-        _check_frame_layout(frame, fields)
-        vframe, vfields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x02\x04\x05",
-            sseq=1, rseq=2, frame_counter=3, vital=True,
-        )
-        vc = by_field(vfields, "atcs.vital_crc32")
-        assert vc["len"] == 4 and vc["confidence"] == "provisional"  # filler, labeled
-        _check_frame_layout(vframe, vfields)
-        assert len(vframe) == len(frame) + 4         # only the internal vital CRC added
+    def test_datagram_octet0_layout(self):
+        # Q D 1 0 P P P A — bits 5-4 are the literal '10'; Q=0 for data
+        o = build_datagram_octet0(priority=0)
+        assert o & 0x30 == 0x20, "bits 5-4 must be literal 10"
+        assert o >> 7 == 0, "Q must be 0 for an ordinary data datagram"
+        assert build_datagram_octet0(priority=5) >> 1 & 0x07 == 5
+        assert build_datagram_octet0(q=True) >> 7 == 1
+        assert build_datagram_octet0(delivery_confirmation=True) >> 6 & 1 == 1
+        assert build_datagram_octet0(arq_disable=True) & 1 == 1
 
-    def test_address_order_is_destination_first(self):
-        # Appendix D: address-length octet, then DESTINATION address, then SOURCE.
+    def test_network_header_is_five_octets(self):
+        hdr, fields = build_network_header("71253230040202", "5125013826", sseq=77, rseq=45)
+        assert len(hdr) == 5
+        assert hdr[0] & 0x30 == 0x20            # QD10PPPA
+        assert hdr[1] == 0                       # logical channel
+        assert hdr[2] >> 1 == 77 and hdr[2] & 1 == 0   # send seq, low bit zero
+        assert hdr[3] >> 1 == 45 and hdr[3] & 1 == 0   # recv seq, low bit zero
+        # length octet: SOURCE length high nibble, DESTINATION low nibble
+        assert hdr[4] == ((14 << 4) | 10)
+        assert {f["confidence"] for f in fields} == {"spec_legacy"}
+
+    def test_transport_header_carries_vital_bit(self):
+        hdr, _ = build_transport_header(6, message_number=3, part_number=1,
+                                        vital=True, label=0x1234)
+        assert len(hdr) == 5
+        assert hdr[0] >> 1 == 3                  # message number
+        assert hdr[1] >> 1 == 1                  # part number
+        assert hdr[2] >> 1 == 6                  # message length
+        assert hdr[2] & 1 == 1                   # VITAL lives in transport octet 2
+        assert hdr[3] == 0x12 and hdr[4] == 0x34  # 16-bit label
+
+    def test_bcd_zero_is_nibble_A(self):
+        """K-II: a zero digit is carried as 0xA, not 0x0."""
+        assert ATCS_BCD_ZERO == 0xA
+        b = encode_bcd_address("2125000001")     # lots of zeros
+        assert 0x00 not in b, "plain-BCD zeros would be wrong on the wire"
+        assert (b[2] >> 4) == 0xA                 # a '0' digit -> 0xA
+        assert decode_bcd_address(b) == "2125000001"
+
+    def test_frame_order_dest_before_src(self):
         frame, fields = build_codeline_frame(
-            src_addr="71253230040202", dst_addr="5125013826", usrdata=b"\x00",
-            sseq=1, rseq=2,
+            src_addr="71253230040202", dst_addr="5125013826",
+            usrdata=b"\x02\x04", sseq=1, rseq=2,
         )
-        alo = by_field(fields, "atcs.addr_len")
-        # src has 14 digits, dst has 10 -> high nibble 14, low nibble 10
-        assert frame[alo["off"]] == ((14 << 4) | 10)
         dst_f = by_field(fields, "atcs.dst_addr")
         src_f = by_field(fields, "atcs.src_addr")
-        assert dst_f["off"] < src_f["off"]                     # destination first
+        assert dst_f["off"] < src_f["off"]
         assert frame[dst_f["off"]:dst_f["off"] + dst_f["len"]] == encode_bcd_address("5125013826")
         assert frame[src_f["off"]:src_f["off"] + src_f["len"]] == encode_bcd_address("71253230040202")
+        _check_frame_layout(frame, fields)
 
-    def test_field_map_confidence_tiers(self):
+    def test_vital_crc_real_and_verifiable(self):
+        """Vital CRC is now spec-derived: it must self-check to zero."""
+        plain, pf = build_codeline_frame("5125013826", "2125000001", b"\x02\x04\x05",
+                                         sseq=1, rseq=2, vital=False)
+        assert "atcs.vital_crc" not in {f["field"] for f in pf}
+        vframe, vf = build_codeline_frame("5125013826", "2125000001", b"\x02\x04\x05",
+                                          sseq=1, rseq=2, vital=True)
+        crc_f = by_field(vf, "atcs.vital_crc")
+        assert crc_f["len"] == 4 and crc_f["confidence"] == "spec_legacy"
+        assert crc_f["off"] + 4 == len(vframe)
+        # coverage: address-length octet (network header octet 4) .. end of L7 data
+        alo = by_field(vf, "atcs.addr_len")["off"]
+        assert vital_crc_check(vframe[alo:]), "CRC must reduce the covered span to zero"
+        assert len(vframe) == len(plain) + 4
+
+    def test_relay_counter_is_labelled_as_relay_not_atcs(self):
+        """The frame counter is ATCSMon relay container, not an ATCS field."""
+        _, no_relay = build_codeline_frame("5125013826", "2125000001", b"\x00", sseq=1, rseq=2)
+        assert "relay.frame_counter" not in {f["field"] for f in no_relay}
+        frame, fields = build_codeline_frame("5125013826", "2125000001", b"\x00",
+                                             sseq=1, rseq=2, relay_frame_counter=34)
+        rc = by_field(fields, "relay.frame_counter")
+        assert rc["off"] == 0 and frame[0] == 34
+        assert rc["confidence"] == "provisional"   # relay container still unconfirmed
+        assert "atcs.frame_counter" not in {f["field"] for f in fields}
+
+    def test_confidence_tiers(self):
         frame, fields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001",
-            usrdata=build_indication_usrdata(2, False, 5), sseq=1, rseq=2,
+            "5125013826", "2125000001", build_indication_usrdata(2, False, 5),
+            sseq=1, rseq=2, vital=True,
         )
-        for f in fields:
-            assert 0 <= f["off"] < len(frame)
-            assert f["off"] + f["len"] <= len(frame)
-            assert f["confidence"] in {"spec", "provisional", "synthetic"}
         by_name = {f["field"]: f for f in fields}
-        assert by_name["atcs.addr_len"]["confidence"] == "spec"          # from Appendix D
-        assert by_name["atcs.dst_addr"]["confidence"] == "spec"
-        assert by_name["atcs.gfi_group"]["confidence"] == "provisional"  # Appendix G unread
-        assert by_name["atcs.frame_counter"]["confidence"] == "provisional"
+        assert by_name["atcs.control"]["confidence"] == "spec_legacy"
+        assert by_name["atcs.addr_len"]["confidence"] == "spec_legacy"
+        assert by_name["atcs.dst_addr"]["confidence"] == "spec_legacy"
+        assert by_name["atcs.vital_crc"]["confidence"] == "spec_legacy"
         assert by_name["atcs.usrdata"]["synthetic"] is True
-
-    def test_datagram_header_reproduces_sample_values(self):
-        frame, fields = build_codeline_frame(
-            src_addr="5125013826", dst_addr="2125000001", usrdata=b"\x00",
-            gfi=2, group=5, sseq=77, rseq=45, vital=False,
-        )
-        by_name = {f["field"]: f for f in fields}
-        assert frame[by_name["atcs.gfi_group"]["off"]] == ((2 << 4) | 5)  # GFI=2, Group=5
-        assert frame[by_name["atcs.sseq"]["off"]] >> 1 == 77             # SSeq=77
-        assert frame[by_name["atcs.rseq_vital"]["off"]] >> 1 == 45       # RSeq=45
+        _check_frame_layout(frame, fields)
 
 
 class TestAtcsEngine:
