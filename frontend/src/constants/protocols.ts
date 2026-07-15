@@ -26,6 +26,8 @@ export const PROTOCOL_COLORS: Record<ProtocolType, string> = {
   opc_ua: '#9C27B0',
   dnp3: '#FF5722',
   iec_104: '#E91E63',
+  emp: '#3F51B5',   // rail: PTC / Interoperable Train Control
+  atcs: '#795548',  // rail: legacy ATCS codeline
 };
 
 /**
@@ -70,6 +72,9 @@ export const PROTOCOL_LABELS: Record<string, string> = {
   opc_ua: 'OPC UA',
   dnp3: 'DNP3',
   iec104: 'IEC 60870-5-104',
+  iec_104: 'IEC 60870-5-104',
+  emp: 'EMP (Train Control)',
+  atcs: 'ATCS Codeline',
   cloud_service: 'Cloud/TLS',
   https: 'HTTPS',
   lldp: 'LLDP',
@@ -103,6 +108,8 @@ export const PROTOCOL_SHORT_NAMES: Record<ProtocolType, string> = {
   opc_ua: 'OPC',
   dnp3: 'DNP3',
   iec_104: '104',
+  emp: 'EMP',
+  atcs: 'ATCS',
 };
 
 /** Slightly longer names used for FlowEdge labels. */
@@ -116,6 +123,8 @@ export const PROTOCOL_EDGE_LABELS: Record<ProtocolType, string> = {
   opc_ua: 'OPC UA',
   dnp3: 'DNP3',
   iec_104: 'IEC 104',
+  emp: 'EMP',
+  atcs: 'ATCS',
 };
 
 // ---------------------------------------------------------------------------
@@ -130,6 +139,8 @@ export const PROTOCOL_OPTIONS: { value: ProtocolType; label: string }[] = [
   { value: 'dnp3', label: 'DNP3' },
   { value: 'iec_104', label: 'IEC 60870-5-104' },
   { value: 'bacnet', label: 'BACnet' },
+  { value: 'emp', label: 'EMP (Train Control)' },
+  { value: 'atcs', label: 'ATCS Codeline' },
 ];
 
 // ---------------------------------------------------------------------------

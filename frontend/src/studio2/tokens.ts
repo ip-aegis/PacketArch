@@ -112,6 +112,8 @@ export const PROTOCOL_EDGE_COLORS: Record<string, string> = {
   c37_118: '#B58BB0',
   fins: '#A79A6B',
   slmp: '#8CA6C0',
+  emp: '#5B8FA8',   // rail: modern PTC / Interoperable Train Control
+  atcs: '#8B6B4F',  // rail: legacy ATCS codeline
 };
 
 export const PROTOCOL_EDGE_FALLBACK = '#7E93A8';
