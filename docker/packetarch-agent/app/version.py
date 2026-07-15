@@ -7,9 +7,20 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.9.0"
+VERSION = "2.10.0"
 
 # Version history:
+# 2.10.0 - Labeled-corpus sidecar exporter (Phase 4) + an l7_offset correctness
+#   fix. Adds protocol_engines/label_sidecar.py (LabelSidecarWriter): persists
+#   PacketEvent.metadata — previously discarded — as a per-packet ground-truth
+#   JSONL keyed to packet index, aligned 1:1 with the pcap, plus a .meta.json
+#   summary (counts + field vocabulary). UnifiedOrchestrator gains an optional
+#   label sink (set_label_sink), fed only for successfully-written packets so
+#   indices stay in lockstep. This turns a run into dissector-training data.
+#   BUGFIX: the EMP/ATCS engines hardcoded l7_offset (54/42) assuming 20-byte
+#   TCP headers; fingerprinted TCP carries options (timestamps/MSS), so the real
+#   offset is often 66 and every EMP field label was misaligned. Both engines now
+#   derive l7_offset from the built packet (len(packet) - len(payload)).
 # 2.9.0 - Rail device templates + IEEE-grounded OUIs for the transportation
 #   vertical (Phase 3). Adds device_templates/vendors/rail.py (7 templates:
 #   Wabtec I-ETMS BOS/WIU/TMC + GE Transportation ITCS = EMP/PTC; Alstom /

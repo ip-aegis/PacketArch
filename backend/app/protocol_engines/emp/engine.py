@@ -108,8 +108,10 @@ class EmpEngine(ProtocolEngine):
             src, dst, payload=frame, seq=seq, ack=ack, flags="PA",
             tcp_options=src.fingerprint_applicator.get_tcp_options(),
         )
-        # EMP begins after Ethernet(14) + IP(20) + TCP(20) = 54 bytes. The
-        # corpus exporter shifts EMP-relative offsets by this base.
+        # Where EMP begins in the frame — DERIVED from the built packet, never
+        # assumed. The fingerprinted TCP header carries options (timestamps,
+        # MSS, ...), so L4 is frequently longer than 20 bytes; a hardcoded 54
+        # would silently misalign every label offset in the corpus.
         return PacketEvent(
             timestamp_ms=timestamp_ms,
             flow_id=flow.flow_id,
@@ -121,7 +123,7 @@ class EmpEngine(ProtocolEngine):
                 "emp_msg_type": msg_type,
                 "emp_src": sender_addr,
                 "emp_dst": dest_addr,
-                "l7_offset": 54,
+                "l7_offset": len(packet) - len(frame),
                 "emp_fields": emp_field_map(
                     msg_type, sender_addr, dest_addr, payload, payload_fields
                 ),

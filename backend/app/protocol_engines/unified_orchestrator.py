@@ -102,6 +102,17 @@ class UnifiedOrchestrator:
         # Per-protocol log dedupe so a single injection failure doesn't
         # spam the log every poll cycle.
         self._inject_error_logged: set[str] = set()
+        # Optional labeled-corpus sidecar (ground-truth per packet). Fed in
+        # lockstep with the primary pcap so record N == pcap packet N.
+        self._label_sink: Any | None = None
+
+    def set_label_sink(self, sink: Any) -> None:
+        """Attach a LabelSidecarWriter to persist per-packet ground truth.
+
+        The sink receives each successfully-written packet's event in pcap
+        order; it is closed alongside the output.
+        """
+        self._label_sink = sink
 
     def add_flow(self, flow_context: FlowContext) -> None:
         """Add a flow to be generated.
@@ -382,6 +393,8 @@ class UnifiedOrchestrator:
                             )
                             self._inject_error_logged.add(proto_err)
                         continue
+                    if self._label_sink is not None:
+                        self._label_sink.write(event, timestamp_ms)
                     packets += 1
                     # Ambient/attack packets already recorded stats in their handlers
                     if not event.flow_id.startswith(("ambient_", "__attack__")):
@@ -408,6 +421,8 @@ class UnifiedOrchestrator:
                         is_attack=event.flow_id.startswith("__attack__"),
                         flow_id=event.flow_id,
                     )
+                    if self._label_sink is not None:
+                        self._label_sink.write(event, timestamp_ms)
                     packets += 1
                     if not event.flow_id.startswith(("ambient_", "__attack__")):
                         fs = self._flow_map.get(event.flow_id)
@@ -437,6 +452,8 @@ class UnifiedOrchestrator:
 
         finally:
             self.output.close()
+            if self._label_sink is not None:
+                self._label_sink.close()
 
     # ------------------------------------------------------------------
     # Discovery scheduling

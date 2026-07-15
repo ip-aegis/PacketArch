@@ -136,8 +136,9 @@ class AtcsEngine(ProtocolEngine):
                 "type": f"atcs_{kind}",
                 "protocol": "atcs",
                 "encoding": "ascii_hex",
-                # UDP payload = Eth(14)+IP(20)+UDP(8) = 42; hex text starts there.
-                "l7_offset": 42,
+                # Where the hex text starts — DERIVED from the built packet, not
+                # assumed from header sizes (see the EMP engine's note).
+                "l7_offset": len(packet) - len(hex_payload),
                 "codeline_frame_hex": frame.hex().upper(),
                 # offsets are into the DECODED binary frame (2 hex chars per byte)
                 "codeline_fields": fields,
