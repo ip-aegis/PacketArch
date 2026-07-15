@@ -303,6 +303,7 @@ def generate_traffic(
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
     export_attack_pcap: bool = False,
+    export_labeled_corpus: bool = False,
     topology_mode: bool = False,
 ):
     """Generate traffic for a scenario.
@@ -346,6 +347,7 @@ def generate_traffic(
                 adaptive_config=adaptive_config,
                 cell_isolation_override=cell_isolation_override,
                 export_attack_pcap=export_attack_pcap,
+                export_labeled_corpus=export_labeled_corpus,
                 topology_mode=topology_mode,
             )
         )
@@ -363,6 +365,7 @@ async def _generate_traffic_async(
     adaptive_config: dict[str, Any] | None = None,
     cell_isolation_override: dict[str, Any] | None = None,
     export_attack_pcap: bool = False,
+    export_labeled_corpus: bool = False,
     topology_mode: bool = False,
 ) -> dict[str, Any]:
     """Async function to generate traffic.
@@ -412,6 +415,7 @@ async def _generate_traffic_async(
                     scenario.definition.get("clean_demo_mode", False)
                 ),
                 export_attack_pcap=bool(export_attack_pcap and attack_playbook_id),
+                export_labeled_corpus=bool(export_labeled_corpus),
             )
 
             # Create orchestrator

@@ -360,8 +360,49 @@ All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_po
 | IEC 61850 (MMS/GOOSE/SV) | 102 (TCP) / L2 | Production |
 | C37.118 (synchrophasor) | 4712 (TCP), 4713 (UDP) | Production |
 | OPC UA | 4840 (TCP) | Production |
+| EMP (ITC/PTC train control) | 5361 (TCP, configurable) | Production |
+| ATCS (AAR Spec 200 codeline) | 4802 (TCP) + 30000+ (UDP) | Production |
 
 Additional engines exist for FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
+
+### Rail protocols (transportation vertical)
+
+Two rail engines back the `ptc_freight_corridor` and `atcs_signaling_territory`
+scenarios. Both were built to generate **labeled corpora** — Cisco Cyber Vision
+has no rail DPI today, so the goal is spec-conformant traffic Cisco can train a
+dissector on (see `--export-labeled-corpus` below).
+
+- **EMP** (`protocol_engines/emp/`) — the AAR Interoperable Train Control message
+  envelope (I-ETMS / PTC), carried over a TCP session. The **EMP v4 envelope is
+  byte-accurate** (verified by round-trip). Class D header bytes and the ITC
+  application-message catalog are paywalled, so Class D is modelled as TCP
+  session behaviour and app payloads are synthetic. No official IANA port exists
+  (Class D links are assigned per-connection) — 5361 is a configurable default.
+- **ATCS** (`protocol_engines/atcs/`) — legacy radio codeline (AAR MSRP Section
+  K-II, formerly Spec 200), emitted as the **ATCS Monitor relay feed** (the only
+  IP-observable form; CV never sees the 900 MHz RF). Models the decoded RF path —
+  radio datagram (Appendix G) over radio link (Appendix L) — NOT wireline LAPB.
+
+Both engines publish a **per-field confidence tier** in their label maps so a
+training corpus never misrepresents an assumed byte as authoritative:
+`spec` (derivable/verified) / `provisional` (reconstructed, pending a primary
+source) / `synthetic` (plausible but invented). ATCS's open items are tracked in
+`protocol_engines/atcs/SPEC_NEEDS.md`.
+
+**Gotcha:** never hardcode an L7 offset. Fingerprinted TCP carries options
+(timestamps/MSS), so a frame's payload rarely starts at Eth14+IP20+TCP20=54.
+Derive it: `len(packet) - len(payload)`.
+
+### Labeled corpus export
+
+`GenerationRequest.export_labeled_corpus=true` makes a run emit
+`<stem>.labels.jsonl` + `.meta.json` alongside the PCAP — per-packet ground
+truth (protocol, type, `l7_offset`, `encoding`, and the field map) aligned 1:1
+with the combined PCAP. Two encodings: `binary` (field bytes at
+`l7_offset + off`) and `ascii_hex` (ATCS relay feed — `off`/`len` index the
+DECODED frame; bytes are 2 hex chars at `l7_offset + 2*off`). Implemented by
+`protocol_engines/label_sidecar.py`; engines opt in by publishing a field map on
+`PacketEvent.metadata`.
 
 Frontend protocol types: `frontend/src/types/protocols/` (discriminated union with type guards).
 
@@ -370,6 +411,8 @@ Frontend protocol types: `frontend/src/types/protocols/` (discriminated union wi
 ## Industry Verticals
 
 6 verticals in `backend/app/scenario_templates/`: manufacturing, water, energy, oil_gas, building_automation, transportation. Each has pre-built scenario templates.
+
+Transportation covers both roadway ITS (NTCIP/SNMP) and **rail**: `ptc_freight_corridor` (EMP) and `atcs_signaling_territory` (ATCS). Rail device templates live in `services/device_templates/vendors/rail.py` (Wabtec / GE Transportation for PTC; Alstom / Siemens Mobility / Hitachi Rail for ATCS), with IEEE-verified OUIs.
 
 ---
 

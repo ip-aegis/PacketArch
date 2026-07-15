@@ -7,9 +7,17 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "2.10.0"
+VERSION = "2.11.0"
 
 # Version history:
+# 2.11.0 - Rail scenarios + labeled-corpus export option (Phase 5). Adds two
+#   transportation-vertical scenarios (ptc_freight_corridor = EMP back office /
+#   wayside / locomotive; atcs_signaling_territory = ATCS Monitor relay feed) and
+#   an alstom/atcs/office device template (+ atcs_office device type in
+#   vendor_oui.DEVICE_TYPE_VENDORS) so the ATCS relay feed has a dispatch client.
+#   Exposes the Phase-4 sidecar as GenerationRequest.export_labeled_corpus ->
+#   GenerationConfig -> TrafficOrchestrator, emitting <stem>.labels.jsonl +
+#   .meta.json and a "labels" artifact on the result.
 # 2.10.0 - Labeled-corpus sidecar exporter (Phase 4) + an l7_offset correctness
 #   fix. Adds protocol_engines/label_sidecar.py (LabelSidecarWriter): persists
 #   PacketEvent.metadata — previously discarded — as a per-packet ground-truth

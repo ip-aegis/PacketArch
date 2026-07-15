@@ -62,6 +62,11 @@ class GenerationConfig:
     # is reframed per the plan's segments. ``topology_plan`` is the validated
     # dict from ``topology_planner.preview()``.
     topology_plan: dict[str, Any] | None = None
+    # When True, the run also emits a per-packet ground-truth sidecar
+    # (``<stem>.labels.jsonl`` + ``.meta.json``) aligned 1:1 with the combined
+    # PCAP, from the field-level label maps engines publish on PacketEvent
+    # metadata. Turns a run into DPI-dissector training data.
+    export_labeled_corpus: bool = False
 
 
 class TrafficOrchestrator:
@@ -131,6 +136,15 @@ class TrafficOrchestrator:
                 output=output,
                 duration_ms=self.config.total_duration_ms,
             )
+
+            # Labeled corpus: per-packet ground truth alongside the combined PCAP.
+            label_sidecar = None
+            if self.config.export_labeled_corpus:
+                from app.protocol_engines.label_sidecar import LabelSidecarWriter
+
+                sidecar_path = f"{combined_path.with_suffix('')}.labels.jsonl"
+                label_sidecar = LabelSidecarWriter(sidecar_path)
+                unified.set_label_sink(label_sidecar)
 
             # Add all flows (UnifiedOrchestrator uses get_engine internally)
             for fc in self._flow_contexts:
@@ -350,6 +364,27 @@ class TrafficOrchestrator:
                         "size_bytes": combined_size,
                     }
                 ]
+
+            # The sidecar is closed by UnifiedOrchestrator alongside the output,
+            # so its counts are final here.
+            if label_sidecar is not None:
+                artifacts.append(
+                    {
+                        "kind": "labels",
+                        "filename": Path(label_sidecar.output_path).name,
+                        "packets": label_sidecar.packet_count,
+                        "labeled_packets": label_sidecar.labeled_count,
+                        "size_bytes": (
+                            label_sidecar.output_path.stat().st_size
+                            if label_sidecar.output_path.exists() else 0
+                        ),
+                    }
+                )
+                logger.info(
+                    "Labeled corpus: %d packets (%d with field maps) -> %s",
+                    label_sidecar.packet_count, label_sidecar.labeled_count,
+                    label_sidecar.output_path.name,
+                )
 
             logger.info(f"Generation complete: {result.packets_generated} packets")
             logger.info(f"File size: {combined_size} bytes")

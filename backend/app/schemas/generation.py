@@ -51,6 +51,16 @@ class GenerationRequest(BaseModel):
             "combined file. Ignored without a playbook."
         ),
     )
+    export_labeled_corpus: bool = Field(
+        False,
+        description=(
+            "When True, the run also emits a per-packet ground-truth sidecar "
+            "(<stem>.labels.jsonl + .meta.json) aligned 1:1 with the combined "
+            "PCAP, carrying each packet's protocol, type, and field-level label "
+            "map where the engine publishes one (e.g. EMP, ATCS). Produces "
+            "training data for a deep-packet-inspection dissector."
+        ),
+    )
     adaptive_config: dict[str, Any] | None = Field(
         None,
         description=(

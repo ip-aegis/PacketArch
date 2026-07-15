@@ -68,6 +68,7 @@ DEVICE_TYPE_VENDORS: dict[str, list[str]] = {
     "wayside_mcp": ["alstom", "siemens mobility", "hitachi rail"],
     "atcs_base_station": ["siemens mobility", "alstom", "hitachi rail"],
     "wayside_signal_controller": ["hitachi rail", "alstom", "siemens mobility"],
+    "atcs_office": ["alstom", "hitachi rail", "siemens mobility"],
 
     # Additional Transportation/ITS Device Types (tunnel, toll, infrastructure)
     "master_station": ["siemens", "siemens_its"],
