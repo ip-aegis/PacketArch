@@ -46,6 +46,9 @@ from app.protocol_engines import register_engine
 from app.protocol_engines.atcs.codeline import (
     ATCS_EXT7_CONTROL,
     ATCS_EXT7_INDICATION,
+    ATCS_GFI_DEFAULT,
+    ATCS_GROUP_CONTROL,
+    ATCS_GROUP_INDICATION,
     ATCS_TYPE_OFFICE,
     ATCS_TYPE_WAYSIDE_7,
     build_atcs_address_7series,
@@ -124,9 +127,18 @@ class AtcsEngine(ProtocolEngine):
         self, flow: FlowContext, ts: float, src, dst, sport, dport,
         frame: bytes, fields: list[dict], kind: str,
     ) -> PacketEvent:
-        """Wrap a codeline frame as an ASCII-hex UDP datagram from the relay."""
-        hex_payload = frame.hex().upper().encode("ascii") + b"\n"
-        packet = _build_udp_packet(src, dst, sport, dport, hex_payload)
+        """Wrap a codeline frame as an ATCS-Monitor-feed UDP datagram from the relay.
+
+        The feed carries the codeline as RAW BINARY, one frame per datagram. The
+        frame already begins with its RF address-type octet (0x23 for a ground
+        datagram, which ATCSMon renders with a leading ``#`` in its ASCII gutter),
+        so nothing is prepended here — verified against a real ATCS Monitor
+        decoder, which parses this framing directly. (An earlier reconstruction
+        emitted the frame as ASCII-hex text led by a synthetic ``#``; that was the
+        ATCSMon *display* rendering plus a misread of the RF address-type byte.)
+        """
+        payload = frame
+        packet = _build_udp_packet(src, dst, sport, dport, payload)
         return PacketEvent(
             timestamp_ms=ts,
             flow_id=flow.flow_id,
@@ -135,12 +147,11 @@ class AtcsEngine(ProtocolEngine):
             metadata={
                 "type": f"atcs_{kind}",
                 "protocol": "atcs",
-                "encoding": "ascii_hex",
-                # Where the hex text starts — DERIVED from the built packet, not
-                # assumed from header sizes (see the EMP engine's note).
-                "l7_offset": len(packet) - len(hex_payload),
-                "codeline_frame_hex": frame.hex().upper(),
-                # offsets are into the DECODED binary frame (2 hex chars per byte)
+                "encoding": "binary",
+                # Where the L7 payload (the relay frame) starts — DERIVED from the
+                # built packet, not assumed (see the EMP engine's note).
+                "l7_offset": len(packet) - len(payload),
+                # offsets are into the binary payload: byte at l7_offset + off
                 "codeline_fields": fields,
             },
         )
@@ -159,7 +170,6 @@ class AtcsEngine(ProtocolEngine):
                 "client_udp_port": random.randint(40000, 60000),
                 "sseq": random.randint(0, 127),
                 "rseq": random.randint(0, 127),
-                "frame_counter": random.randint(0, 127),
                 "message_number": random.randint(0, 127),
                 "signal_aspect": random.randint(0, 3),
                 "cycle": 0,
@@ -244,7 +254,6 @@ class AtcsEngine(ProtocolEngine):
         # Evolve wayside state and sequence numbers (modulo-128, like the sample).
         cd["signal_aspect"] = max(0, min(3, cd["signal_aspect"] + random.choice([-1, 0, 0, 1])))
         cd["sseq"] = (cd["sseq"] + 1) & 0x7F
-        cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
         cd["message_number"] = (cd["message_number"] + 1) & 0x7F
 
         # Wayside -> office indication, streamed by the relay.
@@ -257,8 +266,8 @@ class AtcsEngine(ProtocolEngine):
             src_addr=wayside_ind_addr, dst_addr=office_addr, usrdata=ind,
             sseq=cd["sseq"], rseq=cd["rseq"],
             vital=random.random() > 0.5,
+            gfi=ATCS_GFI_DEFAULT, group=ATCS_GROUP_INDICATION,
             message_number=cd["message_number"],
-            relay_frame_counter=cd["frame_counter"],
         )
         # Accumulate time across sub-events so per-cycle timestamps stay monotonic.
         t = cycle_time_ms
@@ -273,7 +282,6 @@ class AtcsEngine(ProtocolEngine):
         control_every = flow.config.get("control_every", 6)
         if control_every and cd["cycle"] % control_every == 0:
             cd["rseq"] = (cd["rseq"] + 1) & 0x7F
-            cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
             cd["message_number"] = (cd["message_number"] + 1) & 0x7F
             ctl = build_control_usrdata(
                 command=random.choice([1, 2, 3]),
@@ -283,8 +291,8 @@ class AtcsEngine(ProtocolEngine):
                 src_addr=office_addr, dst_addr=wayside_ctl_addr, usrdata=ctl,
                 sseq=cd["rseq"], rseq=cd["sseq"],
                 vital=True,
+                gfi=ATCS_GFI_DEFAULT, group=ATCS_GROUP_CONTROL,
                 message_number=cd["message_number"],
-                relay_frame_counter=cd["frame_counter"],
             )
             t += random.uniform(20.0, 90.0)
             yield self._codeline_udp_event(

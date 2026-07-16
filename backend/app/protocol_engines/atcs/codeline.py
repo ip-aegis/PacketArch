@@ -18,54 +18,61 @@ address/control bytes or HDLC 0x7E flags (those belong to the ground wireline
 path). The physical FEC / 85-bit-block encoding (Appendix W) is stripped by the
 receiver before the relay sees it, so it is out of scope.
 
-Frame model (decoded RF logical frame — octet order per K-II Appendix D)::
+Frame model — VERIFIED against a corpus of real ATCSMon-decoded frames (every
+corpus frame round-trips to ATCSMon's reported fields and both CRC-16/X.25
+values reproduce exactly)::
 
-    radio-link frame counter (1B)        Appendix L   — the ATCSMon "Frame=NN"
-    radio datagram header (3B)           Appendix G   — GFI/Group, SSeq, RSeq/Vital
-    packet prefix (4B)                   §2.x         — QD10PPPA + 3 zero octets
-    address-length octet (1B)            §2.3-2.4     — src digits (hi) | dst (lo)
-    destination ATCS address (BCD)       §2.3-2.4     — destination FIRST
-    source ATCS address (BCD)            §2.3-2.4
-    facility-length octet (1B)           §2.x
-    transport header (3B)                §2.11-2.13   — msg#, part#, len | vital bit
-    packet label (2B)                    Spec 250
-    UsrData (NB)                         Spec 250     — application payload
-    vital CRC (4B, internal)             Appendix Y   — vital msgs ONLY; last 4 octets
+    RF header (5B)                       — the relay/RF-link container
+      [0]     RF address type            0x23 ground datagram ('#' in ATCSMon's gutter)
+      [1]     # pad bits in last RS block
+      [2]     # of Reed-Solomon blocks   the RF "length" field
+      [3..4]  header CRC-16/X.25 over [0..2], little-endian
+    --- datagram (frame bytes [5:-2], covered by the datagram CRC) ---
+    network header (5B)
+      [5]     (GFI << 4) | Group
+      [6]     spare
+      [7]     send sequence << 1
+      [8]     receive sequence << 1
+      [9]     source_length << 4 | destination_length   (digit counts; 0xA == 10)
+    destination ATCS address (BCD)       — destination FIRST
+    source ATCS address (BCD)
+    facility-length octet (1B)
+    transport header (5B)                Spec 250 — msg#/part#/len|vital, label
+    UsrData (NB)                         Spec 250 — application payload
+    vital CRC (4B, inner)                — vital msgs only, before the datagram CRC
+    --- end datagram ---
+    datagram CRC (2B)                    CRC-16/X.25 over [5:-2], little-endian
 
-There is NO explicit UsrData-length octet (ATCSMon's UsrData=N is derived) and
-NO wireline HDLC FCS / 0x7E flags on the RF path (integrity there is FEC/85-bit
-blocks, Appendix W, stripped before the relay). The vital CRC is internal to the
-packet (last 4 octets, over address-length octet .. end of UsrData) and is
-FILLER — the real polynomial (Spec 250 §3.2.1.1) was unread.
+ATCSMon has NO explicit UsrData-length octet — it derives UsrData=N from the
+received byte count minus the fixed overhead (RF header + network header +
+addresses + facility + transport + datagram CRC). The two framing CRCs are the
+standard HDLC/X.25 FCS (poly 0x1021, init/xor 0xFFFF, reflected, stored LE).
 
 FIDELITY — three confidence tiers, per-field in the label map so a downstream
 Cyber Vision dissector-training pipeline knows which bytes to trust (CV has no
 rail DPI today; this generates labeled corpora to build one):
 
-- ``spec``        — derivable/confirmed: the ATCS address decimal structure and
-                    BCD packing, destination-first ordering + address-length
-                    octet (K-II Appendix D §2.3-2.4), CRC-16/X.25 FCS, and the
-                    presence + position of the 32-bit vital CRC (Appendix Y).
-- ``provisional`` — NOT yet read from the primary source: the exact bit widths
-                    of the radio-datagram header (GFI/Group/SSeq/RSeq/Vital,
-                    Appendix G, ~K-II-57) and the radio-link frame counter
-                    (Appendix L, ~K-II-70), plus the vital-CRC polynomial
-                    (Spec 250 §3.2.1.1). Reproduces the known sample values;
-                    byte positions are best-effort pending a direct read of those
-                    appendices. Isolated in ``_build_radio_datagram_header`` for
-                    exactly that correction. See ``SPEC_NEEDS.md``.
+- ``spec``        — corpus-verified: the 5-byte RF header (address type / pad
+                    bits / block count / header CRC), both CRC-16/X.25 fields,
+                    the GFI|Group octet, spare, send/recv sequences, the
+                    address-length nibble octet, destination-first BCD addresses
+                    (0xA == 0), and the facility-length octet.
+- ``spec_legacy`` — spec-derived from a legacy source, not corpus-pinned byte for
+                    byte: the transport-header field breakdown (Spec 250) and the
+                    31-bit K-II vital CRC (verified against the mandatory vector
+                    01 02 -> 25 ED BD 70, but its placement in a real *vital*
+                    frame is unconfirmed — the corpus is all Vital=0).
 - ``synthetic``   — UsrData payload content (per-territory codeline bit semantics
                     live in private railroad ``.mcp`` databases).
 
-NOTE: this layering was corrected from an earlier LAPB-based model per K-II
-findings; the exact Appendix G/L byte tables were unreachable from the build
-host and remain the one open item. There are TWO distinct "vital" concepts — a
-transport vital bit (Appendix D §2.11) and the radio-datagram Vital flag; both
-are modeled.
+The RF-header block-count/pad-bits (bytes [1..2]) encode the frame length as
+Reed-Solomon blocks of 60 frame-bits each; ATCSMon rejects a frame whose byte
+count doesn't reconcile with them. The exact formula (``_rf_length_fields``) was
+recovered from the corpus and confirmed live against ATCSMon. See ``SPEC_NEEDS.md``.
 
-Reference sample (sigidwiki) whose field VALUES this builder reproduces::
+Reference corpus frame whose fields this builder reproduces::
 
-    Wayside 5125013826  Frame=34 GFI=2 Group=5 SSeq=77 RSeq=45  Vital=0
+    To Dispatch 2802063007  Frame=32 GFI=6 Group=8 SSeq=35 RSeq=0  Vital=0  UsrData=4
 """
 
 from __future__ import annotations
@@ -269,23 +276,12 @@ def decode_bcd_address(b: bytes) -> str:
     )
 
 
-def build_datagram_octet0(
-    priority: int = 0,
-    q: bool = False,
-    delivery_confirmation: bool = False,
-    arq_disable: bool = False,
-) -> int:
-    """ATCS datagram octet 0 — ``Q D 1 0 P P P A`` (K-II).
-
-    Bits 5-4 are the literal ``10``. ``Q`` is 0 for an ordinary data datagram.
-    """
-    return (
-        ((1 if q else 0) << 7)
-        | ((1 if delivery_confirmation else 0) << 6)
-        | 0x20
-        | ((priority & 0x07) << 1)
-        | (1 if arq_disable else 0)
-    )
+# ATCS datagram octet [5] = (GFI << 4) | Group ("message type & priority").
+# Verified against the relay corpus: 0x68 -> GFI 6 / Group 8, 0x25 -> GFI 2 /
+# Group 5, 0x6C -> GFI 6 / Group 12. GFI = Group Format Identifier.
+ATCS_GFI_DEFAULT = 6
+ATCS_GROUP_INDICATION = 8      # inbound-to-ground indication datagrams (corpus A1/A4)
+ATCS_GROUP_CONTROL = 12        # inbound-to-ground control datagrams (corpus A5-A7)
 
 
 def build_network_header(
@@ -294,46 +290,110 @@ def build_network_header(
     sseq: int,
     rseq: int,
     *,
-    priority: int = 0,
-    q: bool = False,
-    delivery_confirmation: bool = False,
-    arq_disable: bool = False,
-    logical_channel: int = 0,
+    gfi: int = ATCS_GFI_DEFAULT,
+    group: int = ATCS_GROUP_INDICATION,
 ) -> tuple[bytes, list[dict]]:
-    """ATCS 5-octet network (datagram) header, per K-II.
+    """ATCS 5-octet datagram network header — VERIFIED against the relay corpus.
 
-    Layout::
+    Layout (datagram offsets = frame bytes [5..9])::
 
-        0  Q D 1 0 P P P A
-        1  logical channel number            (0 in current deployments)
-        2  send sequence << 1                (low bit zero)
-        3  receive sequence << 1             (low bit zero)
-        4  source_length << 4 | destination_length   (in BCD digits)
+        0  (GFI << 4) | Group        message type & priority
+        1  spare / reserved          (0x00 across the corpus)
+        2  send sequence << 1        P(S); low bit zero
+        3  receive sequence << 1     P(R); low bit zero
+        4  source_length << 4 | destination_length   (digit counts; nibble 0xA == 10)
 
     NOTE the asymmetry: the length octet carries SOURCE length in the high
-    nibble, yet the DESTINATION address is transmitted first.
+    nibble, yet the DESTINATION address is transmitted first (corpus-confirmed).
+    A 10-digit address is length nibble 0xA, a 14-digit address is 0xE.
     """
     header = bytes([
-        build_datagram_octet0(priority, q, delivery_confirmation, arq_disable),
-        logical_channel & 0xFF,
+        ((gfi & 0x0F) << 4) | (group & 0x0F),
+        0x00,
         (sseq & 0x7F) << 1,
         (rseq & 0x7F) << 1,
         ((len(src_addr) & 0x0F) << 4) | (len(dst_addr) & 0x0F),
     ])
     fields = [
-        {"off": 0, "len": 1, "field": "atcs.control",
-         "value": {"q": int(q), "delivery_confirmation": int(delivery_confirmation),
-                   "priority": priority, "arq_disable": int(arq_disable)},
-         "synthetic": False, "confidence": "spec_legacy"},
-        {"off": 1, "len": 1, "field": "atcs.logical_channel",
-         "value": logical_channel, "synthetic": False, "confidence": "spec_legacy"},
+        {"off": 0, "len": 1, "field": "atcs.gfi_group",
+         "value": {"gfi": gfi, "group": group},
+         "synthetic": False, "confidence": "spec"},
+        {"off": 1, "len": 1, "field": "atcs.spare",
+         "value": 0, "synthetic": False, "confidence": "spec"},
         {"off": 2, "len": 1, "field": "atcs.send_sequence",
-         "value": sseq, "synthetic": False, "confidence": "spec_legacy"},
+         "value": sseq, "synthetic": False, "confidence": "spec"},
         {"off": 3, "len": 1, "field": "atcs.receive_sequence",
-         "value": rseq, "synthetic": False, "confidence": "spec_legacy"},
+         "value": rseq, "synthetic": False, "confidence": "spec"},
         {"off": 4, "len": 1, "field": "atcs.addr_len",
          "value": {"src_digits": len(src_addr), "dst_digits": len(dst_addr)},
-         "synthetic": False, "confidence": "spec_legacy"},
+         "synthetic": False, "confidence": "spec"},
+    ]
+    return header, fields
+
+
+# RF-header address-type octet [0]. 0x23 (renders as '#' in ATCSMon's ASCII
+# gutter — which is why it looked like a start flag) is the ground-datagram type
+# on the To-Dispatch corpus (A1/A3-A7); 0xFF broadcast and 0x00 CC_ID also occur.
+ATCS_RF_ADDRTYPE_GROUND = 0x23
+
+# RF-header length field. ATCSMon reconstructs the expected frame length from
+# the RF header's Reed-Solomon block_count + pad_bits and REJECTS any frame whose
+# byte count doesn't match ("Invalid ATCS Packet Length" — confirmed live: a
+# frame with a 1-block-off pad_bits is thrown out). Each RS block carries 60
+# frame-bits, so:
+#     block_count = ceil(8 * total_len / 60)  = ceil(2 * total_len / 15)
+#     pad_bits    = 60 * block_count - 8 * total_len          (always 0..59)
+# Recovered by fitting 8 real corpus frames (32/37/38/42/56/76/109/151 bytes),
+# which the formula reproduces EXACTLY, and confirmed against a live ATCS
+# Monitor 4.1.0 decoder (both replayed-real and generated frames decode with no
+# length error once these bytes are formula-correct).
+# Corpus check: {32:(44,5), 37:(4,5), 38:(56,6), 42:(24,6), 56:(32,8),
+#                76:(52,11), 109:(28,15), 151:(52,21)}  as (pad_bits, block_count).
+def _rf_length_fields(total_len: int) -> tuple[int, int]:
+    """(pad_bits, block_count) that ATCSMon accepts for a ``total_len``-byte frame."""
+    block_count = -(-8 * total_len // 60)          # ceil(8*total_len / 60)
+    pad_bits = 60 * block_count - 8 * total_len     # 0..59
+    return pad_bits, block_count
+
+
+def build_rf_header(
+    total_frame_len: int,
+    *,
+    address_type: int = ATCS_RF_ADDRTYPE_GROUND,
+    pad_bits: int | None = None,
+    block_count: int | None = None,
+) -> tuple[bytes, list[dict]]:
+    """ATCS 5-octet RF header (+ header CRC) — VERIFIED against the relay corpus.
+
+    Layout (frame bytes [0..4])::
+
+        0     RF address type       0x23 ground / 0xFF broadcast / 0x00 CC_ID
+        1     # pad bits in last RS block
+        2     # of Reed-Solomon blocks    (the RF "length" field)
+        3..4  header CRC-16/X.25 over [0..2], little-endian
+
+    ``total_frame_len`` (RF header + datagram + datagram CRC) selects
+    corpus-grounded ``pad_bits``/``block_count`` unless given explicitly.
+    """
+    pb, bc = _rf_length_fields(total_frame_len)
+    if pad_bits is None:
+        pad_bits = pb
+    if block_count is None:
+        block_count = bc
+    head3 = bytes([address_type & 0xFF, pad_bits & 0xFF, block_count & 0xFF])
+    hcrc = crc16_x25(head3)
+    header = head3 + bytes([hcrc & 0xFF, (hcrc >> 8) & 0xFF])
+    fields = [
+        {"off": 0, "len": 1, "field": "relay.rf_address_type",
+         "value": address_type, "synthetic": False, "confidence": "spec"},
+        {"off": 1, "len": 1, "field": "relay.rf_pad_bits",
+         "value": pad_bits, "synthetic": False, "confidence": "spec"},
+        {"off": 2, "len": 1, "field": "relay.rf_block_count",
+         "value": block_count, "synthetic": False, "confidence": "spec",
+         "note": "RF length field: # Reed-Solomon blocks (corpus-grounded)"},
+        {"off": 3, "len": 2, "field": "relay.rf_header_crc",
+         "value": hcrc, "synthetic": False, "confidence": "spec",
+         "note": "CRC-16/X.25 over [0..2], little-endian"},
     ]
     return header, fields
 
@@ -389,106 +449,110 @@ def build_codeline_frame(
     sseq: int = 0,
     rseq: int = 0,
     vital: bool = False,
-    priority: int = 0,
-    logical_channel: int = 0,
+    gfi: int = ATCS_GFI_DEFAULT,
+    group: int = ATCS_GROUP_INDICATION,
     message_number: int = 0,
     part_number: int = 0,
     label: int = 0,
-    relay_frame_counter: int | None = None,
+    address_type: int = ATCS_RF_ADDRTYPE_GROUND,
+    pad_bits: int | None = None,
+    block_count: int | None = None,
 ) -> tuple[bytes, list[dict]]:
-    """Build an ATCS codeline datagram (as the relay decodes it) + field map.
+    """Build an ATCS relay-feed frame (as ATCSMon parses it) + field map.
 
-    Structure per AAR MSRP Section K-II (Version 4.0), which supersedes the
-    earlier reconstructed layout::
+    Layout is VERIFIED against a corpus of real ATCSMon-decoded frames — every
+    corpus frame round-trips to ATCSMon's reported GFI/Group/SSeq/RSeq/addresses/
+    UsrData, and both CRC-16/X.25 fields reproduce exactly::
 
-        network header (5B)                 [spec_legacy]
-          0  Q D 1 0 P P P A
-          1  logical channel number
-          2  send sequence << 1
-          3  receive sequence << 1
-          4  source_length << 4 | destination_length
-        destination ATCS address (BCD)      [spec_legacy]  destination FIRST
-        source ATCS address (BCD)           [spec_legacy]
-        facility length (1B)                [spec_legacy]
-        facility (variable)                 (none emitted)
-        transport header (5B)               [spec_legacy]
-          0  message_number << 1 | more
-          1  part_number    << 1 | end_to_end_ack
-          2  message_length << 1 | vital    <- the VITAL flag lives here
-          3..4 label (16-bit)
+        RF header (5B)                      [spec]
+          [0]     RF address type           0x23 ground datagram
+          [1]     # pad bits in last RS block
+          [2]     # of Reed-Solomon blocks  (the RF length field)
+          [3..4]  header CRC-16/X.25 over [0..2], little-endian
+        --- datagram (bytes [5:-2], covered by the datagram CRC) ---
+        network header (5B)                 [spec]
+          [5]     (GFI << 4) | Group
+          [6]     spare
+          [7]     send sequence << 1
+          [8]     receive sequence << 1
+          [9]     source_length << 4 | destination_length
+        destination ATCS address (BCD)      [spec]  destination FIRST
+        source ATCS address (BCD)           [spec]
+        facility length (1B)                [spec]
+        transport header (5B)               [spec_legacy]  (Spec 250, synthetic values)
         UsrData (NB)                        [synthetic]
         vital CRC (4B)                      [spec_legacy]  present when vital=1
+        --- end datagram ---
+        datagram CRC (2B)                   [spec]  CRC-16/X.25 over [5:-2], LE
 
-    The vital CRC covers the address-length octet (network header octet 4)
-    through the end of the Layer-7 data, and is verified against the K-II
-    mandatory vector (01 02 -> 25 ED BD 70).
-
-    ``relay_frame_counter`` is NOT part of the ATCS datagram — it belongs to the
-    ATCS Monitor relay container, whose framing is still unconfirmed. When set it
-    is prefixed and labelled ``relay.frame_counter`` (confidence ``provisional``)
-    so a consumer can tell relay bytes from protocol bytes.
+    ATCSMon derives UsrData length from the received byte count minus the fixed
+    overhead, so the transport header's message-number is free: unknown numbers
+    display as "Unknown Message Function" and still pass the length gate. The
+    31-bit K-II vital CRC (verified against 01 02 -> 25 ED BD 70) is an inner,
+    L7-region field carried before the datagram CRC when ``vital`` is set; its
+    exact placement in a real vital frame is unconfirmed (corpus is all Vital=0),
+    hence its ``spec_legacy`` tier.
     """
     src_bcd = encode_bcd_address(src_addr)
     dst_bcd = encode_bcd_address(dst_addr)
     net_hdr, net_fields = build_network_header(
-        src_addr, dst_addr, sseq, rseq,
-        priority=priority, logical_channel=logical_channel,
+        src_addr, dst_addr, sseq, rseq, gfi=gfi, group=group,
     )
     tx_hdr, tx_fields = build_transport_header(
         len(usrdata), message_number=message_number, part_number=part_number,
         vital=vital, label=label,
     )
 
-    body = bytearray()
-    relay_len = 0
-    if relay_frame_counter is not None:
-        body.append(relay_frame_counter & 0xFF)
-        relay_len = 1
-    dgram_start = len(body)
-    body += net_hdr
-    # Vital CRC coverage starts at the address-length octet (net header octet 4).
-    vcrc_start = dgram_start + 4
-    body += dst_bcd                       # destination address FIRST
-    body += src_bcd
-    body.append(0x00)                     # facility length (no facility emitted)
-    body += tx_hdr
-    ud_off = len(body)
-    body += usrdata
+    # Datagram = frame bytes [5:-2] (GFI octet through end of L7 data).
+    dgram = bytearray()
+    dgram += net_hdr
+    vcrc_start = 4                         # addr-length octet, within the datagram
+    dgram += dst_bcd                       # destination address FIRST
+    dgram += src_bcd
+    dgram.append(0x00)                     # facility length (no facility emitted)
+    dgram += tx_hdr
+    ud_off_in_dgram = len(dgram)
+    dgram += usrdata
     if vital:
-        body += vital_crc_bytes(bytes(body[vcrc_start:]))
+        dgram += vital_crc_bytes(bytes(dgram[vcrc_start:]))
 
-    frame = bytes(body)
+    dcrc = crc16_x25(bytes(dgram))
+    dgram_crc = bytes([dcrc & 0xFF, (dcrc >> 8) & 0xFF])
+    total_len = 5 + len(dgram) + 2
+    rf_hdr, rf_fields = build_rf_header(
+        total_len, address_type=address_type, pad_bits=pad_bits, block_count=block_count,
+    )
 
-    fields: list[dict] = []
-    if relay_frame_counter is not None:
-        fields.append({
-            "off": 0, "len": 1, "field": "relay.frame_counter",
-            "value": relay_frame_counter, "synthetic": False,
-            "confidence": "provisional",
-            "note": "ATCS Monitor relay container, not part of the ATCS datagram",
-        })
+    frame = bytes(rf_hdr) + bytes(dgram) + dgram_crc
+
+    base = len(rf_hdr)                     # datagram fields start at frame offset 5
+    fields: list[dict] = list(rf_fields)
     for f in net_fields:
-        fields.append({**f, "off": dgram_start + f["off"]})
-    dst_off = dgram_start + len(net_hdr)
+        fields.append({**f, "off": base + f["off"]})
+    dst_off = base + len(net_hdr)
     fields.append({"off": dst_off, "len": len(dst_bcd), "field": "atcs.dst_addr",
                    "value": dst_addr, "subfields": atcs_address_subfields(dst_addr),
-                   "synthetic": False, "confidence": "spec_legacy"})
+                   "synthetic": False, "confidence": "spec"})
     src_off = dst_off + len(dst_bcd)
     fields.append({"off": src_off, "len": len(src_bcd), "field": "atcs.src_addr",
                    "value": src_addr, "subfields": atcs_address_subfields(src_addr),
-                   "synthetic": False, "confidence": "spec_legacy"})
+                   "synthetic": False, "confidence": "spec"})
     fac_off = src_off + len(src_bcd)
     fields.append({"off": fac_off, "len": 1, "field": "atcs.facility_len",
-                   "value": 0, "synthetic": False, "confidence": "spec_legacy"})
+                   "value": 0, "synthetic": False, "confidence": "spec"})
     tx_off = fac_off + 1
     for f in tx_fields:
         fields.append({**f, "off": tx_off + f["off"]})
+    ud_off = base + ud_off_in_dgram
     fields.append({"off": ud_off, "len": len(usrdata), "field": "atcs.usrdata",
                    "value": usrdata.hex(), "synthetic": True, "confidence": "synthetic"})
     if vital:
         fields.append({"off": ud_off + len(usrdata), "len": 4, "field": "atcs.vital_crc",
                        "value": "crc31", "synthetic": False, "confidence": "spec_legacy",
                        "note": "31-bit CRC, K-II; covers addr-len octet .. end of L7 data"})
+    fields.append({"off": 5 + len(dgram), "len": 2, "field": "atcs.datagram_crc",
+                   "value": dcrc, "synthetic": False, "confidence": "spec",
+                   "note": "CRC-16/X.25 over datagram [5:-2], little-endian"})
     return frame, fields
 
 

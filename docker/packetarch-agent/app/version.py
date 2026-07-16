@@ -7,9 +7,43 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "3.0.0"
+VERSION = "4.0.0"
 
 # Version history:
+# 4.0.0 - BREAKING ATCS wire-format correction, VERIFIED against a corpus of real
+#   ATCSMon-decoded frames (every corpus frame now round-trips to ATCSMon's
+#   reported GFI/Group/SSeq/RSeq/addresses/UsrData, and both CRC-16/X.25 checks
+#   reproduce exactly). Any ATCS corpus from 2.8.0-3.0.1 is INVALID — the frame a
+#   real ATCS Monitor decoder accepts is materially different:
+#     * NEW 5-byte RF header prefix: [0] RF address-type (0x23 ground datagram —
+#       this is the byte ATCSMon renders as '#'; the engine no longer prepends a
+#       synthetic '#'), [1] pad-bits, [2] Reed-Solomon block count (the RF length
+#       field), [3..4] header CRC-16/X.25 over [0..2] (little-endian). ATCSMon
+#       reconstructs the expected frame length from block_count/pad_bits and
+#       REJECTS a mismatch ("Invalid ATCS Packet Length"); the exact relation
+#       (60 frame-bits/block: block_count=ceil(8*len/60), pad_bits=60*bc-8*len)
+#       was recovered from the corpus and confirmed live against ATCSMon 4.1.0.
+#     * Datagram octet [5] is (GFI<<4)|Group — NOT the invented QD10PPPA octet;
+#       [6] spare, [7] send-seq<<1, [8] recv-seq<<1, [9] addr-len nibbles. The
+#       dest-first BCD addresses (0xA==0) were already correct and are unchanged.
+#     * The frame trailer is now the real 2-byte DATAGRAM CRC-16/X.25 over [5:-2]
+#       (little-endian) — replacing the 4-byte vital-CRC-as-trailer. The 31-bit
+#       K-II vital CRC stays as an inner L7 field for vital messages only.
+#     * ATCSMon derives UsrData length from the received byte count minus fixed
+#       overhead, so synthetic message numbers still decode ("Unknown Message
+#       Function") and pass the length gate.
+#     * Feed encoding is BINARY (was ASCII-hex, an ATCSMon *display* artifact).
+#   The RF header address-type/pad-bits/block-count/CRCs, GFI|Group octet, spare,
+#   sequences, address-length octet, and addresses are now `spec` (corpus-pinned);
+#   the Spec 250 transport header + vital CRC remain `spec_legacy`. See
+#   protocol_engines/atcs/{codeline.py,SPEC_NEEDS.md}.
+# 3.0.1 - Fix: live-deploy EMP flows landed on TCP 44818 (EtherNet/IP) instead of
+#   3001. The agent's local PROTOCOL_PORTS map (orchestrator_pool.py) omitted emp,
+#   so the destination port fell through to the 44818 default — the payload was
+#   correct Class D + EMP v4, but on the wrong port (a dissector-training corpus
+#   would mislabel it as EtherNet/IP). Added emp/atcs/c37118 and the ssh/telnet/rdp
+#   remote-access shapes to the map. ATCS was unaffected (its engine drives its own
+#   UDP 30000+ relay-feed ports). No wire-format change; PATCH.
 # 3.0.0 - BREAKING wire-format corrections for the rail engines, from primary
 #   sources (AAR S-9356 Class D draft 2010; AAR MSRP Section K-II v4.0). Any
 #   previously generated EMP/ATCS corpus is INVALID and must be re-exported.

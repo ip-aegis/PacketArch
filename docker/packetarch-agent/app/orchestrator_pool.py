@@ -102,6 +102,17 @@ PROTOCOL_PORTS = {
     "fanuc": 8193,
     "dcs": 502,
     "cloud_service": 443,
+    # Rail (transportation vertical). EMP rides Class D over TCP; 3001 is the
+    # platform vendor default (Class D links are installation-configured). ATCS
+    # is the ATCS-Monitor relay feed — its engine drives its own UDP 30000+
+    # ports, so this TCP entry is only a placeholder for completeness.
+    "emp": 3001,
+    "atcs": 4802,
+    "c37118": 4712,
+    # Remote-access shapes (CloudServiceEngine TCP+TLS heartbeats).
+    "ssh": 22,
+    "telnet": 23,
+    "rdp": 3389,
     "https": 443,
 }
 
