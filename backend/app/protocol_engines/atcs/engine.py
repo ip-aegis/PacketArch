@@ -28,6 +28,8 @@ Config keys (all optional):
 - ``railroad_num``     3-digit AAR railroad number for ATCS addresses (default 125 = CSX)
 - ``codeline_num``     3-digit codeline number (default: derived per-relay from the
                        destination device identity, so distinct relays differ)
+- ``office_codeline``  office address codeline (default: derived from the source device,
+                       giving the dispatch office one stable address across all relays)
 - ``office_serial``    office address serial (default: derived from the source device)
 - ``wayside_count``    distinct wayside MCPs this relay reports, rotated per cycle (default 6)
 - ``udp_slot``         relay UDP data-port slot: port = 30000 + slot (default 0)
@@ -109,22 +111,26 @@ class AtcsEngine(ProtocolEngine):
         """Deterministic value in [lo, hi] from a string (stable across runs)."""
         return lo + (zlib.crc32(text.encode()) % (hi - lo + 1))
 
-    def _territory(self, flow: FlowContext) -> tuple[int, int, int]:
-        """(railroad_num, codeline_num, office_serial) for this relay flow.
+    def _territory(self, flow: FlowContext) -> tuple[int, int, int, int]:
+        """(railroad_num, relay_codeline, office_codeline, office_serial).
 
-        A territory is one railroad (default 125 = CSX's ATCS ID). The codeline
-        is derived from the RELAY (flow.destination) device identity so distinct
-        base-station relays cover distinct codelines, and the office serial from
-        the subscribing office (flow.source) — both config-overridable. Without
-        this, an empty flow config made every relay report the same single MCP.
+        A territory is one railroad (default 125 = CSX's ATCS ID). The relay
+        codeline is derived from the RELAY (flow.destination) device identity so
+        distinct base-station relays cover distinct codelines. The OFFICE has its
+        own stable address — codeline + serial derived from the office
+        (flow.source) device, NOT the relay — so one dispatch office resolves to a
+        single ATCS address regardless of how many relays it subscribes to (a
+        rail SME expects one fixed dispatch address, not one per codeline). All
+        components are config-overridable.
         """
         cfg = flow.config
         rr = cfg.get("railroad_num", 125)
         relay_key = str(flow.destination.device_id or flow.destination.device_name or "relay")
         cl = cfg.get("codeline_num") or self._stable_num(relay_key, 1, 999)
         office_key = str(flow.source.device_id or flow.source.device_name or "office")
+        office_cl = cfg.get("office_codeline") or self._stable_num("cl:" + office_key, 1, 999)
         office_serial = cfg.get("office_serial") or self._stable_num(office_key, 1, 998)
-        return rr, cl, office_serial
+        return rr, cl, office_cl, office_serial
 
     def _addresses(self, flow: FlowContext, serial: int) -> tuple[str, str, str]:
         """Return (wayside_indication_addr, wayside_control_addr, office_addr).
@@ -132,14 +138,15 @@ class AtcsEngine(ProtocolEngine):
         7-series ATCS addresses (T-RRR-CCC-AAA-XXXX). The wayside MCP carries two
         extensions per the RF Codeline Protocol Reference: 0202 for field
         indications (what it transmits) and 0101 for command & control (what the
-        office targets). The office/BCP is modelled as a type-2 7-series address.
-        ``serial`` selects which wayside on this relay's codeline (the poll cycle
-        rotates through a pool so the feed carries many distinct MCPs).
+        office targets). The office/dispatch is a type-2 7-series address on its
+        OWN codeline (stable per office). ``serial`` selects which wayside on this
+        relay's codeline (the poll cycle rotates through a pool so the feed carries
+        many distinct MCPs).
         """
-        rr, cl, office_serial = self._territory(flow)
+        rr, cl, office_cl, office_serial = self._territory(flow)
         wayside_ind = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_INDICATION, ATCS_TYPE_WAYSIDE_7)
         wayside_ctl = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_CONTROL, ATCS_TYPE_WAYSIDE_7)
-        office = build_atcs_address_7series(rr, cl, office_serial, 0, ATCS_TYPE_OFFICE)
+        office = build_atcs_address_7series(rr, office_cl, office_serial, 0, ATCS_TYPE_OFFICE)
         return wayside_ind, wayside_ctl, office
 
     def _udp_ports(self, flow: FlowContext, state: ConversationState) -> tuple[int, int]:

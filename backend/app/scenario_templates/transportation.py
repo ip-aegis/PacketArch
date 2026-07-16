@@ -1047,7 +1047,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # BACK OFFICE (Level 3)
             {"type": "back_office_server", "vendor": "wabtec", "count": 2, "zone": "back_office",
              "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Back Office Server", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Back Office Server",
              "role": "I-ETMS Back Office Server"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "back_office",
              "name_pattern": "PTC_Back_Office_Switch_{n}", "protocols": ["snmp"],
@@ -1057,18 +1057,18 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # WAYSIDE CORRIDOR (Level 2)
             {"type": "wayside_interface_unit", "vendor": "wabtec", "count": 8, "zone": "wayside_corridor",
              "name_pattern": "Wayside_Interface_Unit_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Wayside Interface Unit", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Wayside Interface Unit",
              "role": "I-ETMS Wayside Interface Unit"},
             {"type": "wayside_interface_unit", "vendor": "ge transportation", "count": 2,
              "zone": "wayside_corridor",
              "name_pattern": "ITCS_Wayside_Controller_{n}", "protocols": ["emp"],
-             "fingerprint_model": "ITCS Wayside Controller", "firmware_version": "ITCS 3.4",
+             "fingerprint_model": "ITCS Wayside Controller",
              "role": "ITCS Wayside Controller"},
 
             # LOCOMOTIVE FLEET (Level 2 - mobile assets)
             {"type": "locomotive_computer", "vendor": "wabtec", "count": 4, "zone": "locomotive_fleet",
              "name_pattern": "Locomotive_Train_Mgmt_Computer_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Train Management Computer", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Train Management Computer",
              "role": "I-ETMS Locomotive Train Management Computer"},
         ],
         "flows": [
@@ -1148,7 +1148,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # DISPATCH OFFICE (Level 3)
             {"type": "atcs_office", "vendor": "alstom", "count": 2, "zone": "dispatch_office",
              "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "ATCS Office Dispatch System", "firmware_version": "CTC 8.3",
+             "fingerprint_model": "ATCS Office Dispatch System",
              "role": "ATCS Office Dispatch System"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dispatch_office",
              "name_pattern": "Dispatch_Office_Switch_{n}", "protocols": ["snmp"],
@@ -1159,14 +1159,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "atcs_base_station", "vendor": "siemens mobility", "count": 4,
              "zone": "codeline_relay",
              "name_pattern": "ATCS_Base_Comms_Package_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "ATCS Base Communications Package", "firmware_version": "Safetran 4.2",
+             "fingerprint_model": "ATCS Base Communications Package",
              "role": "ATCS Base Communications Package (codeline relay)"},
 
             # WAYSIDE SIGNALING (Level 2) - IP-managed signal controller
             {"type": "wayside_signal_controller", "vendor": "hitachi rail", "count": 1,
              "zone": "wayside_signaling",
              "name_pattern": "Wayside_Signal_Controller_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "Wayside Signal Controller", "firmware_version": "MicroLok II 6.0",
+             "fingerprint_model": "Wayside Signal Controller",
              "role": "Wayside Signal Controller"},
         ],
         "flows": [

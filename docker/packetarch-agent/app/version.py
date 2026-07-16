@@ -7,9 +7,20 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.1.0"
+VERSION = "4.1.1"
 
 # Version history:
+# 4.1.1 - Rail realism polish. (1) ATCS office address stability: the dispatch
+#   office now resolves to ONE stable ATCS address regardless of how many relays
+#   it subscribes to (codeline + serial derived from the office device, not the
+#   relay), instead of appearing once per relay codeline — matching how a rail SME
+#   expects a single fixed dispatch address. `office_codeline` is config-overridable.
+#   (2) Firmware diversity: rail device templates carried firmware variants with no
+#   population_weight, which build_distribution treats as "uncurated" -> every
+#   instance got the default build (a monoculture). Added population_weights (and a
+#   second/third older variant where only one existed) across the rail templates so
+#   a fleet shows a realistic version mix. CVEs left empty (rail CVE data is sparse;
+#   not inventing any). Wire format unchanged. MINOR/patch of the 4.1.0 realism work.
 # 4.1.0 - ATCS address realism: a relay's codeline feed now carries MANY distinct
 #   wayside MCPs, not one. Previously an empty flow config made ATCS _addresses()
 #   read every address component from defaults, so every relay reported the same

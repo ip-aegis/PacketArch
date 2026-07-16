@@ -55,8 +55,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="BOS",
         ),
         firmware_variants=[
-            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[]),
-            FirmwareVariant(version="I-ETMS 5.0", release_date=date(2022, 5, 15), cves=[]),
+            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="I-ETMS 5.0", release_date=date(2022, 5, 15), cves=[], population_weight=0.4),
         ],
         emp_identity={
             "itc_role": "back_office_server",
@@ -85,7 +85,9 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="WIU",
         ),
         firmware_variants=[
-            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[], population_weight=0.55),
+            FirmwareVariant(version="I-ETMS 5.0", release_date=date(2022, 5, 15), cves=[], population_weight=0.3),
+            FirmwareVariant(version="I-ETMS 4.8", release_date=date(2021, 9, 1), cves=[], population_weight=0.15),
         ],
         emp_identity={
             "itc_role": "wayside_interface_unit",
@@ -114,8 +116,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="TMC",
         ),
         firmware_variants=[
-            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[]),
-            FirmwareVariant(version="I-ETMS 4.8", release_date=date(2021, 9, 1), cves=[]),
+            FirmwareVariant(version="I-ETMS 5.2", release_date=date(2024, 3, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="I-ETMS 4.8", release_date=date(2021, 9, 1), cves=[], population_weight=0.4),
         ],
         emp_identity={
             "itc_role": "locomotive",
@@ -145,7 +147,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="ITCS",
         ),
         firmware_variants=[
-            FirmwareVariant(version="ITCS 3.4", release_date=date(2023, 6, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="ITCS 3.4", release_date=date(2023, 6, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="ITCS 3.2", release_date=date(2021, 8, 1), cves=[], population_weight=0.4),
         ],
         emp_identity={
             "itc_role": "wayside_interface_unit",
@@ -175,7 +178,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="MCP",
         ),
         firmware_variants=[
-            FirmwareVariant(version="GEO 6.1", release_date=date(2019, 4, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="GEO 6.1", release_date=date(2019, 4, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="GEO 6.0", release_date=date(2017, 1, 1), cves=[], population_weight=0.4),
         ],
         atcs_identity={
             "atcs_role": "wayside_mcp",
@@ -204,7 +208,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="OFC",
         ),
         firmware_variants=[
-            FirmwareVariant(version="CTC 8.3", release_date=date(2021, 11, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="CTC 8.3", release_date=date(2021, 11, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="CTC 8.1", release_date=date(2019, 6, 1), cves=[], population_weight=0.4),
         ],
         atcs_identity={
             "atcs_role": "office",
@@ -233,7 +238,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="BCP",
         ),
         firmware_variants=[
-            FirmwareVariant(version="Safetran 4.2", release_date=date(2018, 8, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="Safetran 4.2", release_date=date(2018, 8, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="Safetran 4.0", release_date=date(2016, 3, 1), cves=[], population_weight=0.4),
         ],
         atcs_identity={
             "atcs_role": "base_station",
@@ -262,7 +268,8 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="WSC",
         ),
         firmware_variants=[
-            FirmwareVariant(version="MicroLok II 6.0", release_date=date(2020, 2, 1), is_latest=True, is_default=True, cves=[]),
+            FirmwareVariant(version="MicroLok II 6.0", release_date=date(2020, 2, 1), is_latest=True, is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="MicroLok II 5.2", release_date=date(2017, 5, 1), cves=[], population_weight=0.4),
         ],
         atcs_identity={
             "atcs_role": "wayside_mcp",
