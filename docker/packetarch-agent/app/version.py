@@ -7,9 +7,20 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.0.0"
+VERSION = "4.1.0"
 
 # Version history:
+# 4.1.0 - ATCS address realism: a relay's codeline feed now carries MANY distinct
+#   wayside MCPs, not one. Previously an empty flow config made ATCS _addresses()
+#   read every address component from defaults, so every relay reported the same
+#   single MCP (71253230040202) — a rail analyst would spot that instantly in a
+#   multi-relay territory. Now: the codeline is derived per-relay from the
+#   destination device identity (distinct relays -> distinct codelines), the
+#   office serial from the source device, and each relay rotates through a pool of
+#   wayside serials (default 6, `wayside_count`) with per-MCP monotonic send
+#   sequences (so ATCSMon shows no spurious sequence errors). Wire FORMAT is
+#   unchanged (validated against ATCSMon 4.1.0 in 4.0.0); only address VALUES vary,
+#   which is exactly what a real feed does. All config keys stay overridable. MINOR.
 # 4.0.0 - BREAKING ATCS wire-format correction, VERIFIED against a corpus of real
 #   ATCSMon-decoded frames (every corpus frame now round-trips to ATCSMon's
 #   reported GFI/Group/SSeq/RSeq/addresses/UsrData, and both CRC-16/X.25 checks

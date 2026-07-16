@@ -1131,10 +1131,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "atcs_signaling_territory": {
         "name": "ATCS Signaling Territory",
-        "description": "Legacy ATCS (AAR Spec 200) codeline territory observed over the ATCS "
-                       "Monitor relay feed: dispatch/CTC office systems subscribe to base-station "
+        "description": "Legacy ATCS (AAR MSRP Section K-II) codeline territory observed over the "
+                       "ATCS Monitor relay feed: dispatch/CTC office systems subscribe to base-station "
                        "relays, which stream decoded codeline frames (wayside indications and "
-                       "office controls) as ASCII-hex over UDP. Wayside MCPs are radio-only and "
+                       "office controls) as binary records over UDP. Wayside MCPs are radio-only and "
                        "appear as ATCS addresses within the frames, not as IP hosts. 8 devices "
                        "across 3 zones.",
         "vertical": "transportation",

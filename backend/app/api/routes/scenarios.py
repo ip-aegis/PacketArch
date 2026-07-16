@@ -257,6 +257,12 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         "dnp3": "dnp3_identity",
         "iec104": "iec104_identity",
     }
+    # Rail traffic protocols (EMP / ATCS codeline) carry NO served vendor-identity
+    # block — they're the traffic itself, the devices don't answer identity scans,
+    # and Cyber Vision has no rail DPI. So a device that only speaks these (plus,
+    # at most, SNMP in a manager role) is NOT missing anything. Exempt them so the
+    # fingerprint-coverage check doesn't false-flag every rail device.
+    _NO_IDENTITY_PROTOCOLS = {"emp", "itc", "ptc", "atcs"}
 
     devices_without_fp = 0
     devices_thin_fp: list[str] = []
@@ -278,6 +284,10 @@ def compute_scenario_readiness(definition: dict) -> ReadinessSummary:
         ]
         expected = {_PROTOCOL_IDENTITY[p] for p in fp_protocols if p in _PROTOCOL_IDENTITY}
         if not expected:
+            # Rail traffic devices (EMP/ATCS) legitimately have no served identity
+            # block — don't flag them for one they're not supposed to carry.
+            if any(p in _NO_IDENTITY_PROTOCOLS for p in fp_protocols):
+                continue
             # Fingerprint only speaks SNMP-class protocols → snmp_identity covers it.
             if not fp.get("snmp_identity"):
                 devices_without_fp += 1
