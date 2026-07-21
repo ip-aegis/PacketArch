@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
 from app.protocol_engines.cell_isolation import parse_config as parse_isolation_config, should_drop_flow as should_drop_for_isolation
+from app.protocol_engines.cloud_service.packets import gateway_mac_for_subnet
 from app.protocol_engines.protocols import get_default_port, resolve_protocol
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
@@ -797,11 +798,14 @@ def _build_cloud_flow_context(
         ip_address=src_ip,
         port=0,
     )
-    # Cloud endpoint has no scenario MAC; use broadcast MAC as a marker —
-    # the engine routes by IP, MAC is informational here.
+    # Cloud endpoint is off-segment (real internet host, no scenario MAC of
+    # its own) — every packet to/from it actually transits the local
+    # gateway at L2, so its "MAC" here is the gateway's, not a broadcast
+    # marker. A unicast IP conversation addressed to ff:ff:ff:ff:ff:ff is
+    # itself a strong "this traffic is fake" signal to DPI/flow classifiers.
     destination = DeviceContext(
         device_id=f"cloud-{link.get('id', 'unknown')}",
-        mac_address="ff:ff:ff:ff:ff:ff",
+        mac_address=gateway_mac_for_subnet(src_ip),
         ip_address=dst_ip,
         port=dst_port,
     )

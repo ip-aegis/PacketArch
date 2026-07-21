@@ -808,12 +808,21 @@ class OrchestratorPool:
 
             # Build destination DeviceContext
             if is_external_flow:
+                from app.protocol_engines.cloud_service.packets import (
+                    gateway_mac_for_subnet,
+                )
+
                 external_ip = flow_config.get("externalIp", "0.0.0.0")
                 external_port = flow_config.get("externalPort", 443)
 
+                # Off-segment endpoint — every packet to/from it actually
+                # transits the local gateway at L2 (see
+                # gateway_mac_for_subnet docstring), not an all-zero MAC.
                 destination = DeviceContext(
                     device_id="external_cloud",
-                    mac_address="00:00:00:00:00:00",
+                    mac_address=gateway_mac_for_subnet(
+                        src_network.get("ipAddress", "10.0.0.1")
+                    ),
                     ip_address=external_ip,
                     port=external_port,
                 )
@@ -882,6 +891,8 @@ class OrchestratorPool:
         cloud heartbeats deliberately bypass the orchestrator's virtual-time
         heap (see _run_scenario for rationale).
         """
+        from app.protocol_engines.cloud_service.packets import gateway_mac_for_subnet
+
         device_id = link.get("device_id")
         device = devices.get(device_id)
         if not device:
@@ -922,12 +933,19 @@ class OrchestratorPool:
         ):
             tls_profile = "windows_schannel_2016"
 
+        src_ip = network.get("ipAddress", "10.0.0.1")
+
         return {
             "flow_id": f"cloud-{link.get('id', device_id)}",
             "device_id": device_id,
             "src_mac": network.get("macAddress", "00:00:00:00:00:01"),
-            "src_ip": network.get("ipAddress", "10.0.0.1"),
-            "dst_mac": "ff:ff:ff:ff:ff:ff",
+            "src_ip": src_ip,
+            # Cloud endpoint is off-segment; every packet to/from it
+            # actually transits the local gateway at L2 (see
+            # gateway_mac_for_subnet docstring — NOT a broadcast marker,
+            # a unicast IP conversation addressed to ff:ff:ff:ff:ff:ff is
+            # itself a strong "this traffic is fake" signal to CV's DPI).
+            "dst_mac": gateway_mac_for_subnet(src_ip),
             "dst_ip": cloud_svc.get(
                 "primary_ip", link.get("cloud_ip", "0.0.0.0"),
             ),

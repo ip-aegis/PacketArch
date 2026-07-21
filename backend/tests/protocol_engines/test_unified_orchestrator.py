@@ -69,7 +69,9 @@ class TestUnifiedOrchestratorTimedMode:
 
     def test_cloud_service_generates_tls_heartbeats(self):
         src = _make_device("gw-1", "10.1.0.1", "00:1c:06:07:08:09", port=0)
-        dst = _make_device("cloud-1", "52.20.10.1", "ff:ff:ff:ff:ff:ff", port=443)
+        # Off-segment cloud endpoint's MAC is the local gateway's, per
+        # cloud_service.packets.gateway_mac_for_subnet — never broadcast.
+        dst = _make_device("cloud-1", "52.20.10.1", "00:01:43:2b:13:21", port=443)
 
         with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as f:
             pcap_path = f.name
@@ -86,8 +88,10 @@ class TestUnifiedOrchestratorTimedMode:
             result = orch.run()
 
             assert result.error is None
-            # Each poll generates 2 packets (SYN + TLS Hello), plus shutdown FIN
-            assert result.packets_generated >= 3
+            # Each poll is a full bidirectional TCP+TLS mini-session: SYN,
+            # SYN-ACK, ACK, ClientHello, ServerHello flight, ACK, FIN,
+            # FIN-ACK, ACK = 9 packets. startup/shutdown are no-ops.
+            assert result.packets_generated >= 9
         finally:
             os.unlink(pcap_path)
 
@@ -96,7 +100,7 @@ class TestUnifiedOrchestratorTimedMode:
         src = _make_device("plc-1", "10.1.0.10", "00:1c:06:01:02:03")
         dst = _make_device("hmi-1", "10.1.0.20", "00:1c:06:04:05:06")
         cloud_src = _make_device("gw-1", "10.1.0.1", "00:1c:06:07:08:09", port=0)
-        cloud_dst = _make_device("cloud-1", "52.20.10.1", "ff:ff:ff:ff:ff:ff", port=443)
+        cloud_dst = _make_device("cloud-1", "52.20.10.1", "00:01:43:2b:13:21", port=443)
 
         with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as f:
             pcap_path = f.name

@@ -1276,7 +1276,6 @@ class CloudServiceConversationState(ConversationStateBase):
 
     Attributes:
         src_port: Source TCP port (ephemeral, rotated per heartbeat)
-        seq_num: TCP sequence number
         hostname: Server hostname for TLS SNI extension
         tls_enabled: Whether to generate TLS Client Hello
         tls_profile: ClientHello shape preset. Drives the JA3 hash CV
@@ -1291,7 +1290,6 @@ class CloudServiceConversationState(ConversationStateBase):
     """
 
     src_port: int = 49152
-    seq_num: int = 0
     hostname: str = ""
     tls_enabled: bool = True
     tls_profile: str = "embedded_minimal"

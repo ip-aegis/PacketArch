@@ -7,9 +7,37 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.1.1"
+VERSION = "4.1.2"
 
 # Version history:
+# 4.1.2 - CloudServiceEngine external-comms realism fix. cloud_service (and the
+#   SSH/TELNET/RDP/HTTPS remote-access flows it shares) emitted ONLY the client
+#   half of each heartbeat — SYN + TLS ClientHello + a lone shutdown FIN, never
+#   a SYN-ACK/ACK/TLS ServerHello/server FIN — visible in PCAP output as
+#   one-way TCP with no full session, and unrecognizable to Cyber Vision's
+#   flow classifier. Each poll cycle is now a complete, self-contained
+#   TCP+TLS mini-session (SYN->SYN-ACK->ACK->ClientHello->ServerHello
+#   flight->FIN->FIN-ACK->ACK), built via the shared tcp_builder module
+#   (fingerprinted TTL/window/options) instead of hand-rolled Ether/IP/TCP
+#   construction. generate_startup_sequence/generate_shutdown_sequence are now
+#   no-ops BY DESIGN, not oversight: the live agent's v1.41.0 wall-clock
+#   heartbeat thread (_run_cloud_heartbeats) calls ONLY generate_poll_cycle()
+#   for CLOUD_SERVICE, so logic in startup/shutdown would silently never fire
+#   there. Also replaces the cloud/external destination's placeholder MAC
+#   (broadcast ff:ff:ff:ff:ff:ff in _build_cloud_heartbeat_spec, all-zero
+#   00:00:00:00:00:00 in the is_external_flow branch of the generic flow
+#   builder) with a deterministic Cisco-OUI gateway MAC
+#   (cloud_service.packets.gateway_mac_for_subnet, keyed on the source
+#   device's /24) — a unicast IP conversation addressed to L2 broadcast is
+#   itself a strong "this traffic is fake" signal to DPI. NOTE: v1.37.0 tried
+#   a synthetic gateway MAC before and v1.39.0 reverted it after live frames
+#   were silently dropped on the agent's raw-socket path for reasons never
+#   conclusively diagnosed; this fix uses a different (Cisco-OUI, not
+#   locally-administered 02:00:00:xx) MAC scheme and was verified live —
+#   tcpdump on a running local-sensor-lab's pa-mon-<slug> monitor interface
+#   while sendp()-ing a full session out its paired pa-gen-<slug> from
+#   inside the agent container captured all 9 packets intact, not absence
+#   of a scapy exception alone.
 # 4.1.1 - Rail realism polish. (1) ATCS office address stability: the dispatch
 #   office now resolves to ONE stable ATCS address regardless of how many relays
 #   it subscribes to (codeline + serial derived from the office device, not the
