@@ -3,97 +3,80 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Packet builders for cloud service TLS heartbeat traffic.
 
-Generates TCP SYN + TLS 1.2 Client Hello packets that simulate
-cloud service connectivity (EWON Talk2M, TeamViewer, AWS, etc.).
+Generates a complete bidirectional TCP+TLS session (SYN/SYN-ACK/ACK,
+ClientHello/ServerHello flight, FIN/FIN-ACK/ACK) that simulates cloud
+service connectivity (EWON Talk2M, TeamViewer, AWS, etc.).
 
-Ported from docker/packetarch-agent/app/cloud_traffic_scheduler.py.
+TCP framing goes through the shared `tcp_builder` module (fingerprinted
+TTL/window/options) rather than hand-rolled Ether/IP/TCP construction,
+matching every other protocol engine.
 """
 
+from __future__ import annotations
+
+import hashlib
+import ipaddress
 import random
 import struct
 import time
 
-from scapy.layers.inet import IP, TCP
-from scapy.layers.l2 import Ether
-from scapy.packet import Raw
+from app.protocol_engines.tcp_builder import build_tcp_packet
+from app.protocol_engines.types import DeviceContext
+from app.protocol_engines.vendor_oui import VENDOR_OUI_PREFIXES
 
 # TLS constants
 TLS_HANDSHAKE = 0x16
 TLS_CLIENT_HELLO = 0x01
+TLS_SERVER_HELLO = 0x02
+TLS_CERTIFICATE = 0x0B
+TLS_SERVER_HELLO_DONE = 0x0E
 TLS_VERSION_1_2 = (0x03, 0x03)
 
 
-def build_tcp_syn(
-    src_mac: str,
-    dst_mac: str,
-    src_ip: str,
-    dst_ip: str,
-    src_port: int,
-    dst_port: int,
-    seq_num: int,
-    ttl: int = 64,
-) -> bytes:
-    """Build a TCP SYN packet for cloud service connection initiation.
+def gateway_mac_for_subnet(ip_address: str) -> str:
+    """Deterministic Cisco-OUI MAC for the L3 gateway a cloud flow egresses through.
 
-    Args:
-        src_mac: Source MAC address
-        dst_mac: Destination MAC address (typically gateway)
-        src_ip: Source IP address
-        dst_ip: Destination IP address (cloud service)
-        src_port: Source TCP port
-        dst_port: Destination TCP port (typically 443)
-        seq_num: TCP sequence number
-        ttl: IP TTL value
-
-    Returns:
-        Raw packet bytes
+    Every packet on a real cloud/remote-access flow — in either direction —
+    actually transits the local gateway/router at L2; it never carries an
+    Ethernet broadcast destination for a unicast IP conversation. Keyed on
+    the source device's /24 (not the scenario id): each scenario already
+    gets a unique /16 (see CLAUDE.md IP management), so two scenarios never
+    share a /24 and every device behind the same gateway computes the same
+    MAC.
     """
-    packet = (
-        Ether(src=src_mac, dst=dst_mac)
-        / IP(src=src_ip, dst=dst_ip, ttl=ttl)
-        / TCP(
-            sport=src_port,
-            dport=dst_port,
-            seq=seq_num,
-            flags="S",
-            window=65535,
-            options=[
-                ("MSS", 1460),
-                ("NOP", None),
-                ("WScale", 7),
-                ("NOP", None),
-                ("NOP", None),
-                ("SAckOK", b""),
-            ],
-        )
-    )
-    return bytes(packet)
+    try:
+        subnet = str(ipaddress.ip_network(f"{ip_address}/24", strict=False))
+    except ValueError:
+        subnet = ip_address
+
+    ouis = VENDOR_OUI_PREFIXES.get("cisco") or ["00:00:0C"]
+    digest = hashlib.sha256(f"gateway:{subnet}".encode()).digest()
+    oui = ouis[digest[0] % len(ouis)]
+    return f"{oui}:{digest[1]:02X}:{digest[2]:02X}:{digest[3]:02X}".lower()
 
 
-def build_tls_client_hello(
-    src_mac: str,
-    dst_mac: str,
-    src_ip: str,
-    dst_ip: str,
-    src_port: int,
-    dst_port: int,
-    seq_num: int,
-    hostname: str,
-    ttl: int = 64,
-    tls_profile: str = "embedded_minimal",
-) -> bytes:
-    """Build a TLS 1.2 Client Hello packet with SNI extension.
+def build_tcp_syn(src: DeviceContext, dst: DeviceContext, seq: int) -> bytes:
+    """Build TCP SYN packet for connection establishment."""
+    tcp_options = src.fingerprint_applicator.get_tcp_options()
+    return build_tcp_packet(src, dst, b"", seq, 0, "S", tcp_options)
+
+
+def build_tcp_syn_ack(src: DeviceContext, dst: DeviceContext, seq: int, ack: int) -> bytes:
+    """Build TCP SYN-ACK packet for connection establishment."""
+    tcp_options = src.fingerprint_applicator.get_tcp_options()
+    return build_tcp_packet(src, dst, b"", seq, ack, "SA", tcp_options)
+
+
+def build_tcp_ack(src: DeviceContext, dst: DeviceContext, seq: int, ack: int) -> bytes:
+    """Build a bare TCP ACK packet."""
+    tcp_options = src.fingerprint_applicator.get_tcp_options()
+    return build_tcp_packet(src, dst, b"", seq, ack, "A", tcp_options)
+
+
+def build_tls_client_hello_payload(hostname: str, tls_profile: str = "embedded_minimal") -> bytes:
+    """Build the TLS 1.2 Client Hello record bytes (TCP payload only, no framing).
 
     Args:
-        src_mac: Source MAC address
-        dst_mac: Destination MAC address (typically gateway)
-        src_ip: Source IP address
-        dst_ip: Destination IP address (cloud service)
-        src_port: Source TCP port
-        dst_port: Destination TCP port (typically 443)
-        seq_num: TCP sequence number (should be SYN seq + 1)
-        hostname: Server hostname for SNI extension
-        ttl: IP TTL value
         tls_profile: ClientHello shape preset. See
             ``CloudServiceConversationState.tls_profile`` for options.
             The shape drives the JA3 hash CV uses for device-class
@@ -101,67 +84,40 @@ def build_tls_client_hello(
             "Canon printer" icon, while a 25-cipher SChannel ClientHello
             with the full Windows extension set triggers a Windows icon.
 
-    Returns:
-        Raw packet bytes
+    Returns raw bytes (not a packet) so callers can track TCP sequence
+    numbers by `len()` of the actual payload rather than re-deriving it
+    from a built frame.
     """
     if tls_profile == "windows_schannel_2016":
-        tls_payload = _build_tls_client_hello_payload_schannel_2016(hostname)
-    else:
-        tls_payload = _build_tls_client_hello_payload(hostname)
-
-    packet = (
-        Ether(src=src_mac, dst=dst_mac)
-        / IP(src=src_ip, dst=dst_ip, ttl=ttl)
-        / TCP(
-            sport=src_port,
-            dport=dst_port,
-            seq=seq_num + 1,  # After SYN
-            ack=1,
-            flags="PA",
-            window=65535,
-        )
-        / Raw(load=tls_payload)
-    )
-    return bytes(packet)
+        return _build_tls_client_hello_payload_schannel_2016(hostname)
+    return _build_tls_client_hello_payload(hostname)
 
 
-def build_tcp_fin(
-    src_mac: str,
-    dst_mac: str,
-    src_ip: str,
-    dst_ip: str,
-    src_port: int,
-    dst_port: int,
-    seq_num: int,
-    ttl: int = 64,
-) -> bytes:
-    """Build a TCP FIN packet for connection teardown.
+def build_tls_server_hello_payload(tls_profile: str = "embedded_minimal") -> bytes:
+    """Build the server's TLS handshake flight bytes: ServerHello +
+    Certificate + ServerHelloDone (TCP payload only, no framing).
 
-    Args:
-        src_mac: Source MAC address
-        dst_mac: Destination MAC address
-        src_ip: Source IP address
-        dst_ip: Destination IP address
-        src_port: Source TCP port
-        dst_port: Destination TCP port
-        seq_num: TCP sequence number
-        ttl: IP TTL value
-
-    Returns:
-        Raw packet bytes
+    The Certificate message carries a short synthetic filler blob, not a
+    real X.509 chain — nothing decrypts this traffic, so only the wire
+    *shape* (record/handshake framing, JA3S-relevant ServerHello fields)
+    needs to be accurate.
     """
-    packet = (
-        Ether(src=src_mac, dst=dst_mac)
-        / IP(src=src_ip, dst=dst_ip, ttl=ttl)
-        / TCP(
-            sport=src_port,
-            dport=dst_port,
-            seq=seq_num,
-            flags="FA",
-            window=65535,
-        )
+    return _build_tls_server_hello_payload(tls_profile)
+
+
+def build_tcp_fin(src: DeviceContext, dst: DeviceContext, seq: int, ack: int) -> bytes:
+    """Build TCP FIN-ACK packet for connection termination."""
+    tcp_options = src.fingerprint_applicator.get_tcp_options()
+    return build_tcp_packet(src, dst, b"", seq, ack, "FA", tcp_options)
+
+
+def _tls_record(handshake_type: int, body: bytes) -> bytes:
+    handshake = bytes([handshake_type]) + struct.pack(">I", len(body))[1:] + body
+    return (
+        bytes([TLS_HANDSHAKE, TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
+        + struct.pack(">H", len(handshake))
+        + handshake
     )
-    return bytes(packet)
 
 
 def _build_tls_client_hello_payload(hostname: str) -> bytes:
@@ -230,22 +186,7 @@ def _build_tls_client_hello_payload(hostname: str) -> bytes:
         + struct.pack(">H", len(extensions)) + extensions
     )
 
-    # Handshake header
-    handshake = (
-        bytes([TLS_CLIENT_HELLO])
-        + struct.pack(">I", len(client_hello))[1:]
-        + client_hello
-    )
-
-    # TLS Record header
-    tls_record = (
-        bytes([TLS_HANDSHAKE])
-        + bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
-        + struct.pack(">H", len(handshake))
-        + handshake
-    )
-
-    return tls_record
+    return _tls_record(TLS_CLIENT_HELLO, client_hello)
 
 
 def _build_tls_client_hello_payload_schannel_2016(hostname: str) -> bytes:
@@ -356,17 +297,50 @@ def _build_tls_client_hello_payload_schannel_2016(hostname: str) -> bytes:
         + struct.pack(">H", len(extensions)) + extensions
     )
 
-    handshake = (
-        bytes([TLS_CLIENT_HELLO])
-        + struct.pack(">I", len(client_hello))[1:]
-        + client_hello
+    return _tls_record(TLS_CLIENT_HELLO, client_hello)
+
+
+def _build_tls_server_hello_payload(tls_profile: str) -> bytes:
+    """Build the server's handshake flight: ServerHello + Certificate +
+    ServerHelloDone, as three TLS records in one TCP segment.
+
+    Cipher selection mirrors whichever ClientHello profile the client
+    side sent, so the negotiated cipher in the ServerHello is one the
+    client actually offered (JA3S consistency).
+    """
+    random_bytes = struct.pack(">I", int(time.time())) + bytes(
+        random.randint(0, 255) for _ in range(28)
+    )
+    session_id = bytes(random.randint(0, 255) for _ in range(32))
+    selected_cipher = (
+        bytes([0xC0, 0x2C])  # ECDHE-ECDSA-AES256-GCM-SHA384
+        if tls_profile == "windows_schannel_2016"
+        else bytes([0xC0, 0x2F])  # ECDHE-RSA-AES128-GCM-SHA256
+    )
+    compression = bytes([0x00])
+
+    extensions = b""
+    extensions += struct.pack(">HH", 0x0017, 0)  # extended_master_secret
+    extensions += struct.pack(">HH", 0xFF01, 1) + bytes([0x00])  # renegotiation_info
+
+    server_hello = (
+        bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
+        + random_bytes
+        + bytes([len(session_id)]) + session_id
+        + selected_cipher
+        + compression
+        + struct.pack(">H", len(extensions)) + extensions
     )
 
-    tls_record = (
-        bytes([TLS_HANDSHAKE])
-        + bytes([TLS_VERSION_1_2[0], TLS_VERSION_1_2[1]])
-        + struct.pack(">H", len(handshake))
-        + handshake
-    )
+    # Synthetic filler "certificate" — shape-accurate ASN.1-ish blob, not a
+    # real X.509 chain. Nothing in this pipeline decrypts the session, so
+    # only the Certificate handshake message framing needs to be correct.
+    fake_cert = bytes(random.randint(0, 255) for _ in range(400))
+    cert_entry = struct.pack(">I", len(fake_cert))[1:] + fake_cert
+    cert_list = struct.pack(">I", len(cert_entry))[1:] + cert_entry
 
-    return tls_record
+    return (
+        _tls_record(TLS_SERVER_HELLO, server_hello)
+        + _tls_record(TLS_CERTIFICATE, cert_list)
+        + _tls_record(TLS_SERVER_HELLO_DONE, b"")
+    )
