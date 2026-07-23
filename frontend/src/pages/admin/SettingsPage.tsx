@@ -165,6 +165,7 @@ const AIProviderTab: React.FC<{
         ...(settings.api_tokens || []),
         ...(settings.network || []),
         ...(settings.system || []),
+        ...(settings.ai || []),
       ];
 
       const providerSetting = allSettings.find((s: SystemSetting) => s.key === 'ai_provider');
