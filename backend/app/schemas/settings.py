@@ -37,11 +37,27 @@ class SettingResponse(SettingBase):
 
 
 class SettingsResponse(BaseModel):
-    """Schema for grouped settings response."""
+    """Schema for grouped settings response.
 
+    One field per `SystemSetting.category`. ``get_all_settings`` groups by
+    matching a setting's category against these field NAMES, so adding a
+    category is a one-line change here and needs no route edit — and, more to
+    the point, a category with no field is reported rather than dropped on the
+    floor. The route previously grouped with a hardcoded if/elif chain and
+    returned 4 of the 37 settings the app ships.
+    """
+
+    # Categories in DEFAULT_SETTINGS.
+    ai: list[SettingResponse] = []
+    cml: list[SettingResponse] = []
+    cyber_vision: list[SettingResponse] = []
+    ldap: list[SettingResponse] = []
+    setup: list[SettingResponse] = []
+    system: list[SettingResponse] = []
+
+    # No longer in DEFAULT_SETTINGS, kept so existing clients keep their keys.
     api_tokens: list[SettingResponse] = []
     network: list[SettingResponse] = []
-    system: list[SettingResponse] = []
 
 
 class SettingsBulkUpdate(BaseModel):

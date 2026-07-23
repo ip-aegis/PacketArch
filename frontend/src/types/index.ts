@@ -41,10 +41,26 @@ export interface SystemSetting {
   updated_at: string;
 }
 
+// One array per SystemSetting category, mirroring the backend's
+// SettingsResponse. Indexed so callers can flatten every category without
+// naming them -- see flattenSettings() -- because a hardcoded list of
+// categories is what hid the AI provider settings in the first place.
 export interface SettingsResponse {
+  ai: SystemSetting[];
+  cml: SystemSetting[];
+  cyber_vision: SystemSetting[];
+  ldap: SystemSetting[];
+  setup: SystemSetting[];
+  system: SystemSetting[];
   api_tokens: SystemSetting[];
   network: SystemSetting[];
-  system: SystemSetting[];
+  [category: string]: SystemSetting[];
+}
+
+/** Every setting in the response, regardless of category. */
+export function flattenSettings(settings: SettingsResponse | null | undefined): SystemSetting[] {
+  if (!settings) return [];
+  return Object.values(settings).flatMap((group) => (Array.isArray(group) ? group : []));
 }
 
 // Device types — string-based for extensibility.
