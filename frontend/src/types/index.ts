@@ -45,6 +45,7 @@ export interface SettingsResponse {
   api_tokens: SystemSetting[];
   network: SystemSetting[];
   system: SystemSetting[];
+  ai: SystemSetting[];
 }
 
 // Device types — string-based for extensibility.

@@ -68,6 +68,8 @@ async def get_all_settings(
             response.network.append(setting_response)
         elif setting.category == "system":
             response.system.append(setting_response)
+        elif setting.category == "ai":
+            response.ai.append(setting_response)
 
     return response
 

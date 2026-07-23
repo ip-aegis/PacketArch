@@ -42,6 +42,7 @@ class SettingsResponse(BaseModel):
     api_tokens: list[SettingResponse] = []
     network: list[SettingResponse] = []
     system: list[SettingResponse] = []
+    ai: list[SettingResponse] = []
 
 
 class SettingsBulkUpdate(BaseModel):
