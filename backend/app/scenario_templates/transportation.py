@@ -1046,9 +1046,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "devices": [
             # BACK OFFICE (Level 3)
             {"type": "back_office_server", "vendor": "wabtec", "count": 2, "zone": "back_office",
-             "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp", "snmp"],
+             "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp"],
              "fingerprint_model": "I-ETMS Back Office Server",
              "role": "I-ETMS Back Office Server"},
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "back_office",
+             "name": "PTC_Back_Office_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "back_office",
              "name_pattern": "PTC_Back_Office_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24T4X-E",
@@ -1084,9 +1089,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["locomotive_fleet"], "target_zones": ["back_office"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # Back-office switch management
+            # Back-office switch management (from the NMS — the I-ETMS back-office
+            # server speaks EMP only, per the rail fingerprint constraint)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["back_office_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["back_office"], "target_zones": ["back_office"],
              "jitter_ms": 2000, "jitter_type": "gaussian"},
         ],
@@ -1147,9 +1153,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "devices": [
             # DISPATCH OFFICE (Level 3)
             {"type": "atcs_office", "vendor": "alstom", "count": 2, "zone": "dispatch_office",
-             "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs", "snmp"],
+             "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs"],
              "fingerprint_model": "ATCS Office Dispatch System",
              "role": "ATCS Office Dispatch System"},
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "dispatch_office",
+             "name": "ATCS_Dispatch_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dispatch_office",
              "name_pattern": "Dispatch_Office_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24T4X-E",
@@ -1182,9 +1193,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["dispatch_office"], "target_zones": ["wayside_signaling"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # Dispatch switch management
+            # Dispatch switch management (from the NMS — the ATCS office system
+            # speaks ATCS only, per the rail fingerprint constraint)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["atcs_office"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["dispatch_office"], "target_zones": ["dispatch_office"],
              "jitter_ms": 2000, "jitter_type": "gaussian"},
         ],

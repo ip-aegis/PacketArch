@@ -230,6 +230,7 @@ import { scenarioVersionsArticle } from './scenario-versions';
 import { deviceLibraryArticle } from './device-library';
 import { agentsHubArticle } from './agents-hub';
 import { localSensorLabsScalingArticle } from './local-sensor-labs-scaling';
+import { mimicArticle } from './mimic';
 import { attackSimulationArticle } from './attack-simulation';
 
 import { deploymentsArticle } from './deployments';
@@ -254,6 +255,7 @@ registerHelpArticle(scenarioVersionsArticle);
 registerHelpArticle(deviceLibraryArticle);
 registerHelpArticle(agentsHubArticle);
 registerHelpArticle(localSensorLabsScalingArticle);
+registerHelpArticle(mimicArticle);
 registerHelpArticle(attackSimulationArticle);
 
 registerHelpArticle(deploymentsArticle);

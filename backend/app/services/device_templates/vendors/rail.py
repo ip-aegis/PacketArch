@@ -47,10 +47,7 @@ TEMPLATES: list[DeviceTemplate] = [
         oui_prefixes=["00:22:E2"],
         tcp_stack=_TCP,
         response_timing=_EMP_TIMING,
-        # EMP is the application protocol; snmp is the rack-management agent
-        # every back-office server runs (it polls the back-office switch, the
-        # same shape as bms_server / dcim_server / scada_server elsewhere).
-        supported_protocols=["emp", "snmp"],
+        supported_protocols=["emp"],
         instance_rules=InstanceGenerationRules(
             serial_format="WAB{10NUM}",
             station_name_pattern="ptc-bos-{location}-{seq}",
@@ -203,9 +200,7 @@ TEMPLATES: list[DeviceTemplate] = [
         oui_prefixes=["00:16:9B"],
         tcp_stack=_TCP,
         response_timing=_ATCS_TIMING,
-        # atcs is the application protocol; snmp is the rack-management agent
-        # the office system runs to poll the dispatch-office switch.
-        supported_protocols=["atcs", "snmp"],
+        supported_protocols=["atcs"],
         instance_rules=InstanceGenerationRules(
             serial_format="ALS{10NUM}",
             station_name_pattern="atcs-office-{location}-{seq}",
