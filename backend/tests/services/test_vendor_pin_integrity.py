@@ -47,35 +47,40 @@ from app.services.template_definition_builder import (
 
 # Roles that stay single-model until the device catalog gains alternatives.
 # Shrink this list; never grow it.
+# Single-model by DESIGN, not by omission. A DCS ships its own I/O and its own
+# operator console; a Honeywell Series C rack full of Rockwell I/O, or an
+# Experion plant driven from a third-party console, would be LESS realistic
+# than the repetition. These are excluded from the ratchet permanently, and
+# adding models here would be a regression rather than a fix.
+CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
+    ("dcs_honeywell", "distributed_io"),         # Series C I/O
+    ("dcs_honeywell", "area_hmi"),               # Experion Station
+    ("dcs_emerson", "area_hmi"),                 # DeltaV console
+    ("dcs_yokogawa", "distributed_io"),          # DCS-native I/O
+}
+
+# Single-model because the device catalog has nothing else to offer. Each of
+# these needs a NEW device template — a verified IEEE OUI, a real order code,
+# NVD-checked CVEs — which is curation work, not a pinning change.
+#
+# Shrink this list; never grow it. A new entry is a regression.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
-    # Sorted by blast radius — the number is the worst-case instance count in
-    # any one generated scenario. 27 entries, down from 31: the four largest
-    # valve_actuator gaps (dcs_honeywell 32, dcs_emerson 28, dcs_yokogawa 18,
-    # mixed_field 16 — 94 devices) closed by adding the Rotork IQ3 Pro to the
-    # catalog. The rest still need new device templates, which means verified
-    # OUIs, real order codes and NVD-checked CVEs.
     ("multi_vendor", "field_instrument"),        # up to 32
+    # 27 instances. The catalog has NO building-automation sensor type at
+    # all (only controllers and thermostats), so this needs a real BAS
+    # sensor template rather than another supervisory-controller stand-in.
     ("bas_tridium", "field_instrument"),         # up to 27
-    ("dcs_honeywell", "vfd"),                    # up to 20
-    ("bas_tridium", "vfd"),                      # up to 19
     ("dcim_cisco", "field_instrument"),          # up to 19
-    ("dcs_honeywell", "distributed_io"),         # up to 16
     ("dcim_cisco", "pdu"),                       # up to 16
     ("rockwell_shop", "barcode_scanner"),        # up to 16
-    ("dcs_emerson", "vfd"),                      # up to 15
     ("multi_vendor", "valve_actuator"),          # up to 12
-    ("dcs_yokogawa", "vfd"),                     # up to 12
     ("bas_tridium", "room_controller"),          # up to 12
-    ("bas_tridium", "valve_actuator"),           # up to 12
     ("atms_ntcip", "cabinet_controller"),        # up to 10
-    ("dcs_yokogawa", "distributed_io"),          # up to 9
-    ("dcs_honeywell", "area_hmi"),               # up to 8
     ("bas_tridium", "bms_field_controller"),     # up to 8
     ("bas_tridium", "ahu_controller"),           # up to 8
     ("rockwell_shop", "vision_system"),          # up to 8
     ("siemens_shop", "servo"),                   # up to 6
     ("rockwell_shop", "servo"),                  # up to 6
-    ("dcs_emerson", "area_hmi"),                 # up to 5
     ("multi_vendor", "cnc_controller"),          # up to 4
     ("atms_ntcip", "toll_lane_controller"),      # up to 4
     ("atms_ntcip", "toll_rsu"),                  # up to 4
@@ -151,7 +156,7 @@ def test_high_multiplicity_roles_have_more_than_one_model():
     """Ratchet: no NEW role may emit many devices from one fingerprint."""
     offenders = {}
     for (profile, role), n in _high_multiplicity_roles().items():
-        if (profile, role) in KNOWN_SINGLE_MODEL:
+        if (profile, role) in KNOWN_SINGLE_MODEL | CORRECTLY_SINGLE_VENDOR:
             continue
         from app.services.architecture.vendor_pinning import VendorProfile
         candidates = get_pin_candidates(VendorProfile(profile), role)

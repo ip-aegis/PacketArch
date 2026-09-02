@@ -282,8 +282,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("emerson", "DVC6200"),
         ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
+    # Up to 15 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_EMERSON, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_EMERSON, "area_hmi"): (
         # DCS operator station — Continuous Historian is a Windows host
@@ -335,8 +341,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("emerson", "DVC6200"),
         ("rotork", "IQ3 Pro"),
     ),
+    # Up to 20 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_HONEYWELL, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_HONEYWELL, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
@@ -385,8 +397,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("emerson", "DVC6200"),
         ("rotork", "IQ3 Pro"),
     ),
+    # Up to 12 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_YOKOGAWA, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "distributed_io"): (
         ("schneider", "STBNIP2311"),
@@ -546,11 +564,20 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.BAS_TRIDIUM, "field_instrument"): (
         ("honeywell", "JACE 8000"),  # stand-in for BACnet sensors
     ),
+    # Up to 19 HVAC drives per scenario. ABB's ACS580 and Schneider's ATV
+    # range are both ordinary in a plant room.
     (VendorProfile.BAS_TRIDIUM, "vfd"): (
         ("schneider", "ATV930D15N4"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
     ),
+    # Was ("honeywell", "JACE 8000") — a JACE is a BACnet SUPERVISORY
+    # CONTROLLER, not a valve. Belimo's Energy Valve is an actual BAS control
+    # valve with native BACnet/IP, so this is a correctness fix as much as a
+    # diversity one.
     (VendorProfile.BAS_TRIDIUM, "valve_actuator"): (
-        ("honeywell", "JACE 8000"),  # stand-in
+        ("belimo", "EV065F+BAC"),
+        ("emerson", "DVC6200"),
     ),
 
     # ====================================================================

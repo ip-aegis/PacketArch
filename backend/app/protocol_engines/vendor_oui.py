@@ -291,6 +291,12 @@ BACNET_VENDOR_IDS: dict[int, str] = {
     188: "Notifier",  # Notifier (Honeywell fire) — template-sourced, verify vs assigned-vendor-ids
     316: "Janitza",  # Janitza electronics GmbH (EU energy metering)
     1473: "Elvaco",  # Elvaco AB (M-Bus metering gateways)
+    # Verified against bacnet.org's assigned-vendor-ids list, registered as
+    # "BELIMO Automation AG", Brunnenbachstrasse 1, Hinwil CH — the same
+    # address as the IEEE MA-L holder of 6C:65:67, cross-confirming one
+    # company. Belimo holds two IDs (284 and 423); its Energy Valve templates
+    # use 423.
+    423: "Belimo Automation",
 }
 
 # Vendor division OUI aliases — keys not in VENDOR_OUIS that map to

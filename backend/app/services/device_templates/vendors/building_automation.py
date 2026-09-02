@@ -1430,4 +1430,84 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Mechanical Room",
         },
     ),
+    # ------------------------------------------------------------------
+    # Belimo Energy Valve — pressure-independent control valve with an
+    # integrated thermal energy meter and a native IP stack.
+    #
+    # Added to break up bas_tridium emitting up to 12 fingerprint-identical
+    # valve actuators and 27 identical field instruments off single catalog
+    # entries; Cyber Vision merges identically-fingerprinted devices. Belimo is
+    # the natural choice here — it is a building-automation valve vendor, not a
+    # process-industry one, so this is a better fit for a BAS scenario than the
+    # Fisher/Rotork actuators used on the DCS and water profiles.
+    #
+    # Sources, all authoritative:
+    #   OUI 6C:65:67    IEEE MA-L, registrant "BELIMO Automation AG",
+    #                   Brunnenbachstrasse 1, Hinwil CH.
+    #   BACnet vid 423  bacnet.org assigned-vendor-ids list, registered as
+    #                   "BELIMO Automation AG" at the SAME Hinwil address as
+    #                   the IEEE entry — cross-confirming it is one company.
+    #                   Belimo holds two IDs (284 and 423); 423 is used here.
+    #   model EV065F+BAC  belimo.com datasheets — the Energy Valve range is
+    #                   EV<size><body>+BAC, the "+BAC" suffix denoting BACnet.
+    #   protocols       belimo.com: BACnet/IP, BACnet MS/TP, Modbus TCP,
+    #                   Modbus RTU and MP-Bus, over Ethernet 10/100 with an
+    #                   integrated web server and PoE.
+    #
+    # firmware_variants is EMPTY: Belimo does not publish a firmware version
+    # for this range in any citable form, and an invented value would be a
+    # confidently-incorrect fingerprint. cves is empty and correct — no
+    # published CVEs for this product.
+    DeviceTemplate(
+        id="belimo/energy-valve/ev065f",
+        vendor="Belimo",
+        vendor_family="Energy Valve",
+        model="EV065F+BAC",
+        model_name="Belimo Energy Valve EV065F+BAC",
+        device_type="valve_positioner",
+        description=(
+            "Pressure-independent characterised control valve with integrated "
+            "thermal energy meter, native BACnet/IP and Modbus TCP"
+        ),
+
+        oui_prefixes=["6C:65:67"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 5840,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 10.0,
+            "max_ms": 150.0,
+            "mean_ms": 40.0,
+            "std_dev_ms": 22.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="BEL{10NUM}",
+            station_name_pattern="ev-{location}-{seq}",
+            vendor_short="BLM",
+            model_short="EV065",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 423,
+            "device_type": "Energy Valve",
+            "model_name": "EV065F+BAC",
+        },
+
+        modbus_identity={
+            "vendor_name": "BELIMO Automation AG",
+            "product_code": "EV065F+BAC",
+            "product_name": "Belimo Energy Valve",
+        },
+    ),
 ]
