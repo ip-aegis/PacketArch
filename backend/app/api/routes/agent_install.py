@@ -5,7 +5,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 
 router = APIRouter(prefix="/agent", tags=["agent-install"])
@@ -60,6 +60,102 @@ async def get_docker_compose():
             media_type="text/yaml",
             status_code=404,
         )
+
+
+MIMIC_IMAGE_PATH = STATIC_DIR / "dist" / "mimic-persona.tar.gz"
+# The slim runtime is packaged straight from source (app/mimic/slim) at request
+# time, so it's never stale and needs no build/copy step. The package must be
+# importable as `mimic_slim` on the Alpine node, so it's tarred under that name.
+MIMIC_SLIM_SRC = Path(__file__).parent.parent.parent / "mimic" / "slim"
+_slim_cache: dict[str, object] = {}
+
+
+def _build_slim_tarball() -> bytes:
+    import io
+    import tarfile
+
+    def _mtime(p: Path) -> float:
+        return max((f.stat().st_mtime for f in p.rglob("*") if f.is_file()), default=0.0)
+
+    stamp = _mtime(MIMIC_SLIM_SRC)
+    if _slim_cache.get("stamp") == stamp and "data" in _slim_cache:
+        return _slim_cache["data"]  # type: ignore[return-value]
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for f in sorted(MIMIC_SLIM_SRC.rglob("*")):
+            if f.is_file() and "__pycache__" not in f.parts:
+                tar.add(f, arcname=f"mimic_slim/{f.relative_to(MIMIC_SLIM_SRC)}")
+    data = buf.getvalue()
+    _slim_cache.update(stamp=stamp, data=data)
+    return data
+
+
+C104_WHEEL_PATH = STATIC_DIR / "wheels" / "c104-2.2.1-cp312-cp312-musllinux_1_2_x86_64.whl"
+
+
+@router.api_route("/c104-musl.whl", methods=["GET", "HEAD"])
+async def get_c104_wheel():
+    """Serve a prebuilt musllinux c104 wheel so a slim off-box (Alpine) IEC-104
+    persona can pip-install it instead of source-compiling (c104 ships no musl
+    wheel; the source build LTO-fails / OOMs on the node). Built for cp312 /
+    musllinux_1_2 — matches the alpine-base-3-20-3 node's python3."""
+    if C104_WHEEL_PATH.exists():
+        return FileResponse(path=C104_WHEEL_PATH, media_type="application/octet-stream",
+                            filename=C104_WHEEL_PATH.name)
+    return PlainTextResponse(content="ERROR: c104 wheel not found on server\n", status_code=404)
+
+
+@router.api_route("/mimic-slim.tar.gz", methods=["GET", "HEAD"])
+async def get_mimic_slim():
+    """Serve the slim persona runtime (the `mimic_slim` package, tarred from
+    source), unauthenticated, so an Alpine node can curl + extract + run it
+    natively with only python3 + a pinned pymodbus."""
+    from fastapi.responses import Response
+    if not MIMIC_SLIM_SRC.is_dir():
+        return PlainTextResponse(content="ERROR: slim runtime source not found\n", status_code=404)
+    return Response(content=_build_slim_tarball(), media_type="application/gzip",
+                    headers={"Content-Disposition": "attachment; filename=mimic_slim.tar.gz"})
+
+# In-memory persona check-in registry (off-box CML nodes report their own IP on
+# startup, since CML doesn't surface a stock-Ubuntu node's DHCP address — this is
+# the persona analogue of the agent's WebSocket phone-home).
+_MIMIC_CHECKINS: dict[str, dict] = {}
+
+
+@router.api_route("/mimic-checkin", methods=["GET", "POST"])
+async def mimic_checkin(request: Request):
+    """A CML persona node reports its name + management IP + liveness once it's up.
+
+    GET *and* POST — a node self-reports via busybox ``wget`` (a GET), so the
+    endpoint must accept GET. Arbitrary query fields (ip, modbus_listening,
+    running, fc43, …) let a node report that the persona bound its protocol port,
+    without the backend needing inbound reachability to a NAT'd node.
+    """
+    from datetime import datetime, timezone
+    params = dict(request.query_params)
+    name = params.pop("name", "?")
+    params["at"] = datetime.now(timezone.utc).isoformat()
+    _MIMIC_CHECKINS[name] = params
+    return {"ok": True, "name": name, **params}
+
+
+@router.get("/mimic-checkins")
+async def mimic_checkins():
+    """List persona check-ins (for the backend to discover node IPs)."""
+    return _MIMIC_CHECKINS
+
+
+@router.api_route("/mimic-image.tar.gz", methods=["GET", "HEAD"])
+async def get_mimic_image():
+    """Serve the Mimic persona-runtime Docker image (unauthenticated, like the
+    agent image) so a CML persona node can ``docker load`` it via cloud-init."""
+    if MIMIC_IMAGE_PATH.exists():
+        return FileResponse(
+            path=MIMIC_IMAGE_PATH,
+            media_type="application/gzip",
+            filename="mimic-persona.tar.gz",
+        )
+    return PlainTextResponse(content="ERROR: Mimic image not found on server\n", status_code=404)
 
 
 @router.api_route("/image.tar.gz", methods=["GET", "HEAD"])

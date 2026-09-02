@@ -1047,8 +1047,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # BACK OFFICE (Level 3)
             {"type": "back_office_server", "vendor": "wabtec", "count": 2, "zone": "back_office",
              "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Back Office Server", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Back Office Server",
              "role": "I-ETMS Back Office Server"},
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "back_office",
+             "name": "PTC_Back_Office_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "back_office",
              "name_pattern": "PTC_Back_Office_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24T4X-E",
@@ -1057,18 +1062,18 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # WAYSIDE CORRIDOR (Level 2)
             {"type": "wayside_interface_unit", "vendor": "wabtec", "count": 8, "zone": "wayside_corridor",
              "name_pattern": "Wayside_Interface_Unit_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Wayside Interface Unit", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Wayside Interface Unit",
              "role": "I-ETMS Wayside Interface Unit"},
             {"type": "wayside_interface_unit", "vendor": "ge transportation", "count": 2,
              "zone": "wayside_corridor",
              "name_pattern": "ITCS_Wayside_Controller_{n}", "protocols": ["emp"],
-             "fingerprint_model": "ITCS Wayside Controller", "firmware_version": "ITCS 3.4",
+             "fingerprint_model": "ITCS Wayside Controller",
              "role": "ITCS Wayside Controller"},
 
             # LOCOMOTIVE FLEET (Level 2 - mobile assets)
             {"type": "locomotive_computer", "vendor": "wabtec", "count": 4, "zone": "locomotive_fleet",
              "name_pattern": "Locomotive_Train_Mgmt_Computer_{n}", "protocols": ["emp"],
-             "fingerprint_model": "I-ETMS Train Management Computer", "firmware_version": "I-ETMS 5.2",
+             "fingerprint_model": "I-ETMS Train Management Computer",
              "role": "I-ETMS Locomotive Train Management Computer"},
         ],
         "flows": [
@@ -1084,9 +1089,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["locomotive_fleet"], "target_zones": ["back_office"],
              "jitter_ms": 3000, "jitter_type": "uniform"},
 
-            # Back-office switch management
+            # Back-office switch management (from the NMS — the I-ETMS back-office
+            # server speaks EMP only, per the rail fingerprint constraint)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["back_office_server"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["back_office"], "target_zones": ["back_office"],
              "jitter_ms": 2000, "jitter_type": "gaussian"},
         ],
@@ -1131,10 +1137,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
     # ============================================================
     "atcs_signaling_territory": {
         "name": "ATCS Signaling Territory",
-        "description": "Legacy ATCS (AAR Spec 200) codeline territory observed over the ATCS "
-                       "Monitor relay feed: dispatch/CTC office systems subscribe to base-station "
+        "description": "Legacy ATCS (AAR MSRP Section K-II) codeline territory observed over the "
+                       "ATCS Monitor relay feed: dispatch/CTC office systems subscribe to base-station "
                        "relays, which stream decoded codeline frames (wayside indications and "
-                       "office controls) as ASCII-hex over UDP. Wayside MCPs are radio-only and "
+                       "office controls) as binary records over UDP. Wayside MCPs are radio-only and "
                        "appear as ATCS addresses within the frames, not as IP hosts. 8 devices "
                        "across 3 zones.",
         "vertical": "transportation",
@@ -1148,8 +1154,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # DISPATCH OFFICE (Level 3)
             {"type": "atcs_office", "vendor": "alstom", "count": 2, "zone": "dispatch_office",
              "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "ATCS Office Dispatch System", "firmware_version": "CTC 8.3",
+             "fingerprint_model": "ATCS Office Dispatch System",
              "role": "ATCS Office Dispatch System"},
+            {"type": "nms", "vendor": "Paessler", "count": 1, "zone": "dispatch_office",
+             "name": "ATCS_Dispatch_Network_Management_Station", "protocols": ["snmp"],
+             "fingerprint_model": "PRTG Network Monitor 24",
+             "architectural_role": "nms_server",
+             "role": "Network Management Station"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dispatch_office",
              "name_pattern": "Dispatch_Office_Switch_{n}", "protocols": ["snmp"],
              "fingerprint_model": "IE-9320-24T4X-E",
@@ -1159,14 +1170,14 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             {"type": "atcs_base_station", "vendor": "siemens mobility", "count": 4,
              "zone": "codeline_relay",
              "name_pattern": "ATCS_Base_Comms_Package_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "ATCS Base Communications Package", "firmware_version": "Safetran 4.2",
+             "fingerprint_model": "ATCS Base Communications Package",
              "role": "ATCS Base Communications Package (codeline relay)"},
 
             # WAYSIDE SIGNALING (Level 2) - IP-managed signal controller
             {"type": "wayside_signal_controller", "vendor": "hitachi rail", "count": 1,
              "zone": "wayside_signaling",
              "name_pattern": "Wayside_Signal_Controller_{n}", "protocols": ["atcs"],
-             "fingerprint_model": "Wayside Signal Controller", "firmware_version": "MicroLok II 6.0",
+             "fingerprint_model": "Wayside Signal Controller",
              "role": "Wayside Signal Controller"},
         ],
         "flows": [
@@ -1182,9 +1193,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "source_zones": ["dispatch_office"], "target_zones": ["wayside_signaling"],
              "jitter_ms": 500, "jitter_type": "gaussian"},
 
-            # Dispatch switch management
+            # Dispatch switch management (from the NMS — the ATCS office system
+            # speaks ATCS only, per the rail fingerprint constraint)
             {"protocol": "snmp", "pattern": "poll", "interval_ms": 30000,
-             "source_types": ["atcs_office"], "target_types": ["switch"],
+             "source_types": ["nms"], "target_types": ["switch"],
              "source_zones": ["dispatch_office"], "target_zones": ["dispatch_office"],
              "jitter_ms": 2000, "jitter_type": "gaussian"},
         ],

@@ -88,12 +88,43 @@ def submit_teardown(slug: str) -> str:
     return rid
 
 
+def submit_emulate(spec: dict) -> str:
+    """Queue a Mimic-cell provision (device personas on an existing lab's SPAN).
+    `spec` is a kind="mimic" spec (see host-agent state.py). Returns request id."""
+    _ensure_dirs()
+    rid = str(uuid.uuid4())
+    _write_atomic(REQUESTS_DIR / f"{rid}.json", {"id": rid, "action": "emulate", "lab": spec})
+    return rid
+
+
+def submit_teardown_mimic(slug: str) -> str:
+    """Queue teardown of a Mimic cell (stops personas + hub-bridge, keeps the
+    underlying lab). Returns the request id."""
+    _ensure_dirs()
+    rid = str(uuid.uuid4())
+    _write_atomic(REQUESTS_DIR / f"{rid}.json",
+                  {"id": rid, "action": "teardown_mimic", "lab": {"slug": slug}})
+    return rid
+
+
 def submit_reconcile() -> str:
     """Ask the host-agent to re-converge all desired specs (used on boot)."""
     _ensure_dirs()
     rid = str(uuid.uuid4())
     _write_atomic(REQUESTS_DIR / f"{rid}.json", {"id": rid, "action": "reconcile"})
     return rid
+
+
+def list_specs() -> list[dict]:
+    """All desired specs the host-agent is reconciling (labs and mimic cells)."""
+    if not SPECS_DIR.exists():
+        return []
+    out: list[dict] = []
+    for p in sorted(SPECS_DIR.glob("*.json")):
+        s = _read_json(p)
+        if s:
+            out.append(s)
+    return out
 
 
 def read_status(slug: str) -> dict | None:

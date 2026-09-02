@@ -3,14 +3,14 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Unit tests for the ATCS (Advanced Train Control System) engine.
 
-ATCS is emitted as an ATCS Monitor relay feed (TCP control + UDP ASCII-hex
-codeline frames). The inner codeline frame carries three-tier per-field
-confidence labels: spec (HDLC framing, BCD address, CRC-16/X.25 FCS),
-provisional (X.25 network-header bit-packing — AAR Spec 200 paywalled), and
-synthetic (UsrData). Framing accuracy of the spec-tier parts is verified here.
+ATCS is emitted as an ATCS Monitor relay feed (TCP control + UDP binary
+codeline frames, one frame per datagram). The frame layout is VERIFIED against a
+corpus of real ATCSMon-decoded frames — every corpus frame round-trips to
+ATCSMon's reported fields and both CRC-16/X.25 checks (header over [0..2],
+datagram over [5:-2], little-endian) reproduce exactly. Per-field confidence
+tiers: spec (RF header, CRCs, GFI|Group, sequences, addresses), spec_legacy
+(Spec 250 transport header + 31-bit vital CRC), synthetic (UsrData).
 """
-
-import struct
 
 import pytest
 from scapy.layers.inet import IP, TCP, UDP
@@ -19,9 +19,11 @@ from scapy.layers.l2 import Ether
 from app.protocol_engines import get_engine, list_supported_protocols
 from app.protocol_engines.atcs.codeline import (
     ATCS_BCD_ZERO,
+    ATCS_GROUP_CONTROL,
+    ATCS_RF_ADDRTYPE_GROUND,
     atcs_address_subfields,
-    build_datagram_octet0,
     build_network_header,
+    build_rf_header,
     build_transport_header,
     vital_crc,
     vital_crc_bytes,
@@ -130,40 +132,44 @@ class TestVitalCrc:
 
 
 def _check_frame_layout(frame: bytes, fields: list[dict]) -> None:
-    """Structural checks: fields in-bounds, no wireline artifacts, valid tiers."""
+    """Structural checks: fields in-bounds, valid tiers, both framing CRCs valid."""
     by_name = {f["field"]: f for f in fields}
     for f in fields:
         assert 0 <= f["off"] and f["off"] + f["len"] <= len(frame)
         assert f["confidence"] in {"spec_legacy", "spec", "provisional", "synthetic"}
     # RF path: none of the wireline-HDLC artifacts belong here
     assert not ({"atcs.lapb_address", "atcs.lapb_control", "atcs.flag_open",
-                 "atcs.flag_close", "atcs.fcs16", "atcs.gfi_group"} & set(by_name))
+                 "atcs.flag_close", "atcs.fcs16"} & set(by_name))
+    # Both CRC-16/X.25 framing checks must reproduce (ATCSMon-verified spans).
+    assert crc16_x25(frame[0:3]) == (frame[3] | frame[4] << 8)      # header CRC over [0..2]
+    assert crc16_x25(frame[5:-2]) == (frame[-2] | frame[-1] << 8)   # datagram CRC over [5:-2]
 
 
 class TestCodelineFrame:
-    """Structure per AAR MSRP K-II: 5-octet network header, addresses (dest
-    first), facility length, 5-octet transport header, UsrData, vital CRC."""
-
-    def test_datagram_octet0_layout(self):
-        # Q D 1 0 P P P A — bits 5-4 are the literal '10'; Q=0 for data
-        o = build_datagram_octet0(priority=0)
-        assert o & 0x30 == 0x20, "bits 5-4 must be literal 10"
-        assert o >> 7 == 0, "Q must be 0 for an ordinary data datagram"
-        assert build_datagram_octet0(priority=5) >> 1 & 0x07 == 5
-        assert build_datagram_octet0(q=True) >> 7 == 1
-        assert build_datagram_octet0(delivery_confirmation=True) >> 6 & 1 == 1
-        assert build_datagram_octet0(arq_disable=True) & 1 == 1
+    """Structure VERIFIED against the ATCSMon relay corpus: 5-octet RF header,
+    5-octet network header (GFI|Group octet), addresses (dest first), facility
+    length, 5-octet transport header, UsrData, [vital CRC], 2-octet datagram CRC."""
 
     def test_network_header_is_five_octets(self):
-        hdr, fields = build_network_header("71253230040202", "5125013826", sseq=77, rseq=45)
+        hdr, fields = build_network_header("71253230040202", "5125013826",
+                                           sseq=77, rseq=45, gfi=2, group=5)
         assert len(hdr) == 5
-        assert hdr[0] & 0x30 == 0x20            # QD10PPPA
-        assert hdr[1] == 0                       # logical channel
+        assert hdr[0] == (2 << 4) | 5           # (GFI << 4) | Group
+        assert hdr[1] == 0                       # spare
         assert hdr[2] >> 1 == 77 and hdr[2] & 1 == 0   # send seq, low bit zero
         assert hdr[3] >> 1 == 45 and hdr[3] & 1 == 0   # recv seq, low bit zero
-        # length octet: SOURCE length high nibble, DESTINATION low nibble
+        # length octet: SOURCE length high nibble (14 -> 0xE), DESTINATION low (10 -> 0xA)
         assert hdr[4] == ((14 << 4) | 10)
-        assert {f["confidence"] for f in fields} == {"spec_legacy"}
+        assert {f["confidence"] for f in fields} == {"spec"}
+
+    def test_rf_header_matches_corpus(self):
+        # A 32-byte frame's RF header must byte-match the CRC-verified corpus
+        # frame A4 (To Dispatch, 4-byte UsrData): 23 2C 05 AD F7.
+        hdr, fields = build_rf_header(32)
+        assert hdr.hex().upper() == "232C05ADF7"
+        assert hdr[0] == ATCS_RF_ADDRTYPE_GROUND
+        assert crc16_x25(hdr[0:3]) == (hdr[3] | hdr[4] << 8)   # header CRC over [0..2]
+        assert {f["confidence"] for f in fields} == {"spec"}
 
     def test_transport_header_carries_vital_bit(self):
         hdr, _ = build_transport_header(6, message_number=3, part_number=1,
@@ -196,7 +202,7 @@ class TestCodelineFrame:
         _check_frame_layout(frame, fields)
 
     def test_vital_crc_real_and_verifiable(self):
-        """Vital CRC is now spec-derived: it must self-check to zero."""
+        """Vital CRC is an inner L7 field carried before the 2-byte datagram CRC."""
         plain, pf = build_codeline_frame("5125013826", "2125000001", b"\x02\x04\x05",
                                          sseq=1, rseq=2, vital=False)
         assert "atcs.vital_crc" not in {f["field"] for f in pf}
@@ -204,32 +210,35 @@ class TestCodelineFrame:
                                           sseq=1, rseq=2, vital=True)
         crc_f = by_field(vf, "atcs.vital_crc")
         assert crc_f["len"] == 4 and crc_f["confidence"] == "spec_legacy"
-        assert crc_f["off"] + 4 == len(vframe)
-        # coverage: address-length octet (network header octet 4) .. end of L7 data
+        # vital CRC sits just before the 2-byte datagram CRC trailer
+        assert crc_f["off"] + 4 == len(vframe) - 2
+        # coverage: address-length octet .. end of L7 data (before datagram CRC)
         alo = by_field(vf, "atcs.addr_len")["off"]
-        assert vital_crc_check(vframe[alo:]), "CRC must reduce the covered span to zero"
+        assert vital_crc_check(vframe[alo:-2]), "CRC must reduce the covered span to zero"
         assert len(vframe) == len(plain) + 4
 
-    def test_relay_counter_is_labelled_as_relay_not_atcs(self):
-        """The frame counter is ATCSMon relay container, not an ATCS field."""
-        _, no_relay = build_codeline_frame("5125013826", "2125000001", b"\x00", sseq=1, rseq=2)
-        assert "relay.frame_counter" not in {f["field"] for f in no_relay}
+    def test_datagram_crc_is_x25_over_datagram(self):
+        """The 2-byte trailer is CRC-16/X.25 over the datagram [5:-2], LE."""
         frame, fields = build_codeline_frame("5125013826", "2125000001", b"\x00",
-                                             sseq=1, rseq=2, relay_frame_counter=34)
-        rc = by_field(fields, "relay.frame_counter")
-        assert rc["off"] == 0 and frame[0] == 34
-        assert rc["confidence"] == "provisional"   # relay container still unconfirmed
-        assert "atcs.frame_counter" not in {f["field"] for f in fields}
+                                             sseq=1, rseq=2)
+        crc_f = by_field(fields, "atcs.datagram_crc")
+        assert crc_f["len"] == 2 and crc_f["off"] + 2 == len(frame)
+        assert crc_f["confidence"] == "spec"
+        assert crc16_x25(frame[5:-2]) == (frame[-2] | frame[-1] << 8)
+        # RF address-type octet [0] is the '#'-rendered ground datagram, not a prefix
+        assert frame[0] == ATCS_RF_ADDRTYPE_GROUND
 
     def test_confidence_tiers(self):
         frame, fields = build_codeline_frame(
             "5125013826", "2125000001", build_indication_usrdata(2, False, 5),
-            sseq=1, rseq=2, vital=True,
+            sseq=1, rseq=2, vital=True, group=ATCS_GROUP_CONTROL,
         )
         by_name = {f["field"]: f for f in fields}
-        assert by_name["atcs.control"]["confidence"] == "spec_legacy"
-        assert by_name["atcs.addr_len"]["confidence"] == "spec_legacy"
-        assert by_name["atcs.dst_addr"]["confidence"] == "spec_legacy"
+        assert by_name["atcs.gfi_group"]["confidence"] == "spec"
+        assert by_name["atcs.addr_len"]["confidence"] == "spec"
+        assert by_name["atcs.dst_addr"]["confidence"] == "spec"
+        assert by_name["relay.rf_block_count"]["confidence"] == "spec"
+        assert by_name["atcs.datagram_crc"]["confidence"] == "spec"
         assert by_name["atcs.vital_crc"]["confidence"] == "spec_legacy"
         assert by_name["atcs.usrdata"]["synthetic"] is True
         _check_frame_layout(frame, fields)
@@ -267,10 +276,10 @@ class TestAtcsEngine:
             if ev.metadata.get("type", "").startswith("atcs_codeline"):
                 udp_codeline += 1
                 assert UDP in pkt
-                # UDP payload is ASCII-hex; decode and structurally validate
-                hex_txt = bytes(pkt[UDP].payload).strip()
-                frame = bytes.fromhex(hex_txt.decode("ascii"))
-                assert frame.hex().upper() == ev.metadata["codeline_frame_hex"]
+                # UDP payload is the raw relay frame (one frame per datagram).
+                assert ev.metadata["encoding"] == "binary"
+                frame = bytes(pkt[UDP].payload)
+                assert frame[0] == ATCS_RF_ADDRTYPE_GROUND   # RF address-type octet, no synthetic '#'
                 _check_frame_layout(frame, ev.metadata["codeline_fields"])
             elif ev.metadata.get("type") == "atcs_keepalive":
                 udp_keepalive += 1

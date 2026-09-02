@@ -72,25 +72,28 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
         AITask.CHAT: "claude-opus-4-8",
         AITask.SCENARIO_GENERATION: "claude-opus-4-8",
         AITask.SCENARIO_REVIEW: "claude-opus-4-8",
-        # Sonnet 4.6 for medium-complexity prose generation.
-        AITask.DESCRIPTION_GENERATION: "claude-sonnet-4-6",
-        AITask.AI_HELP: "claude-sonnet-4-6",
+        # Sonnet 5 for medium-complexity prose generation (current-gen
+        # balanced tier; adaptive thinking on, manual budget_tokens removed).
+        AITask.DESCRIPTION_GENERATION: "claude-sonnet-5",
+        AITask.AI_HELP: "claude-sonnet-5",
         # Haiku 4.5 for short structured output where Opus would be
         # massive overkill.
         AITask.DEVICE_NAMING: "claude-haiku-4-5",
         AITask.SITE_IDENTITY: "claude-haiku-4-5",
     },
     "openai": {
-        # Flagship GPT-5.5 for the heavy lifters (mirrors the Opus tier).
-        AITask.CHAT: "gpt-5.5",
-        AITask.SCENARIO_GENERATION: "gpt-5.5",
-        AITask.SCENARIO_REVIEW: "gpt-5.5",
-        # GPT-5.4 Mini for medium-complexity prose generation.
-        AITask.DESCRIPTION_GENERATION: "gpt-5.4-mini",
-        AITask.AI_HELP: "gpt-5.4-mini",
-        # GPT-5.4 Nano for short structured output (cheapest current tier).
-        AITask.DEVICE_NAMING: "gpt-5.4-nano",
-        AITask.SITE_IDENTITY: "gpt-5.4-nano",
+        # GPT-5.6 family, mirroring the Anthropic current-gen tiers
+        # (Sol↔Opus, Terra↔Sonnet, Luna↔Haiku).
+        # Sol — frontier flagship for the heavy lifters.
+        AITask.CHAT: "gpt-5.6-sol",
+        AITask.SCENARIO_GENERATION: "gpt-5.6-sol",
+        AITask.SCENARIO_REVIEW: "gpt-5.6-sol",
+        # Terra — balanced intelligence/cost for medium-complexity prose.
+        AITask.DESCRIPTION_GENERATION: "gpt-5.6-terra",
+        AITask.AI_HELP: "gpt-5.6-terra",
+        # Luna — efficient, high-volume tier for short structured output.
+        AITask.DEVICE_NAMING: "gpt-5.6-luna",
+        AITask.SITE_IDENTITY: "gpt-5.6-luna",
     },
     "circuit": {
         # See module docstring — Rocky's dev appkey constrains us to
@@ -112,7 +115,7 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
 # behaviour working when the router can't decide.
 FALLBACK_MODEL: dict[str, str] = {
     "anthropic": "claude-opus-4-8",
-    "openai": "gpt-5.5",
+    "openai": "gpt-5.6-sol",
     "circuit": "gpt-5-nano",
 }
 

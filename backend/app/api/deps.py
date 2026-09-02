@@ -124,6 +124,25 @@ async def require_multi_sensor_topology() -> None:
         )
 
 
+async def require_mimic_enabled() -> None:
+    """Guard that 503s when the Mimic device-emulation path is disabled.
+
+    Applied to the /mimic router. Mimic (interactive device personas that bind
+    real sockets and answer as industrial devices) ships default-off; enabling it
+    requires MIMIC_ENABLED=true. Gated route stays in the OpenAPI spec and returns
+    a clean 503 so the frontend can render an informative state.
+    """
+    if not get_features().mimic_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "PacketArch Mimic (device emulation) is disabled in this "
+                "deployment. Set MIMIC_ENABLED=true to enable this experimental "
+                "workflow."
+            ),
+        )
+
+
 async def require_setup_complete(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
@@ -157,4 +176,5 @@ DBSession = Annotated[AsyncSession, Depends(get_db)]
 RequireAIEnabled = Depends(require_ai_enabled)
 RequireLiveTrafficEnabled = Depends(require_live_traffic_enabled)
 RequireMultiSensorTopology = Depends(require_multi_sensor_topology)
+RequireMimicEnabled = Depends(require_mimic_enabled)
 RequireSetupComplete = Depends(require_setup_complete)

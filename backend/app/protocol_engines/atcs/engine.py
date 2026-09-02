@@ -25,8 +25,13 @@ Flow roles:
 - ``flow.destination`` = ATCS relay / receiver (assigns UDP port, streams frames)
 
 Config keys (all optional):
-- ``railroad_num``     3-digit AAR railroad number for ATCS addresses (default 125)
-- ``codeline_num``     3-digit codeline/territory number (default 13)
+- ``railroad_num``     3-digit AAR railroad number for ATCS addresses (default 125 = CSX)
+- ``codeline_num``     3-digit codeline number (default: derived per-relay from the
+                       destination device identity, so distinct relays differ)
+- ``office_codeline``  office address codeline (default: derived from the source device,
+                       giving the dispatch office one stable address across all relays)
+- ``office_serial``    office address serial (default: derived from the source device)
+- ``wayside_count``    distinct wayside MCPs this relay reports, rotated per cycle (default 6)
 - ``udp_slot``         relay UDP data-port slot: port = 30000 + slot (default 0)
 - ``client_version``   version string the monitor client advertises (default "3.5.2")
 - ``control_every``    emit an office->wayside control every N cycles (default 6; 0 disables)
@@ -36,6 +41,7 @@ Config keys (all optional):
 from __future__ import annotations
 
 import random
+import zlib
 from collections.abc import Iterator
 
 from scapy.layers.inet import IP, UDP
@@ -46,6 +52,9 @@ from app.protocol_engines import register_engine
 from app.protocol_engines.atcs.codeline import (
     ATCS_EXT7_CONTROL,
     ATCS_EXT7_INDICATION,
+    ATCS_GFI_DEFAULT,
+    ATCS_GROUP_CONTROL,
+    ATCS_GROUP_INDICATION,
     ATCS_TYPE_OFFICE,
     ATCS_TYPE_WAYSIDE_7,
     build_atcs_address_7series,
@@ -97,21 +106,47 @@ class AtcsEngine(ProtocolEngine):
 
     # -- helpers ----------------------------------------------------------
 
-    def _addresses(self, flow: FlowContext) -> tuple[str, str, str]:
+    @staticmethod
+    def _stable_num(text: str, lo: int, hi: int) -> int:
+        """Deterministic value in [lo, hi] from a string (stable across runs)."""
+        return lo + (zlib.crc32(text.encode()) % (hi - lo + 1))
+
+    def _territory(self, flow: FlowContext) -> tuple[int, int, int, int]:
+        """(railroad_num, relay_codeline, office_codeline, office_serial).
+
+        A territory is one railroad (default 125 = CSX's ATCS ID). The relay
+        codeline is derived from the RELAY (flow.destination) device identity so
+        distinct base-station relays cover distinct codelines. The OFFICE has its
+        own stable address — codeline + serial derived from the office
+        (flow.source) device, NOT the relay — so one dispatch office resolves to a
+        single ATCS address regardless of how many relays it subscribes to (a
+        rail SME expects one fixed dispatch address, not one per codeline). All
+        components are config-overridable.
+        """
+        cfg = flow.config
+        rr = cfg.get("railroad_num", 125)
+        relay_key = str(flow.destination.device_id or flow.destination.device_name or "relay")
+        cl = cfg.get("codeline_num") or self._stable_num(relay_key, 1, 999)
+        office_key = str(flow.source.device_id or flow.source.device_name or "office")
+        office_cl = cfg.get("office_codeline") or self._stable_num("cl:" + office_key, 1, 999)
+        office_serial = cfg.get("office_serial") or self._stable_num(office_key, 1, 998)
+        return rr, cl, office_cl, office_serial
+
+    def _addresses(self, flow: FlowContext, serial: int) -> tuple[str, str, str]:
         """Return (wayside_indication_addr, wayside_control_addr, office_addr).
 
         7-series ATCS addresses (T-RRR-CCC-AAA-XXXX). The wayside MCP carries two
         extensions per the RF Codeline Protocol Reference: 0202 for field
         indications (what it transmits) and 0101 for command & control (what the
-        office targets). The office/BCP is modelled as a type-2 7-series address.
+        office targets). The office/dispatch is a type-2 7-series address on its
+        OWN codeline (stable per office). ``serial`` selects which wayside on this
+        relay's codeline (the poll cycle rotates through a pool so the feed carries
+        many distinct MCPs).
         """
-        rr = flow.config.get("railroad_num", 125)
-        cl = flow.config.get("codeline_num", 323)
-        serial = flow.config.get("wayside_serial", 4)
-        office_serial = flow.config.get("office_serial", 1)
+        rr, cl, office_cl, office_serial = self._territory(flow)
         wayside_ind = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_INDICATION, ATCS_TYPE_WAYSIDE_7)
         wayside_ctl = build_atcs_address_7series(rr, cl, serial, ATCS_EXT7_CONTROL, ATCS_TYPE_WAYSIDE_7)
-        office = build_atcs_address_7series(rr, cl, office_serial, 0, ATCS_TYPE_OFFICE)
+        office = build_atcs_address_7series(rr, office_cl, office_serial, 0, ATCS_TYPE_OFFICE)
         return wayside_ind, wayside_ctl, office
 
     def _udp_ports(self, flow: FlowContext, state: ConversationState) -> tuple[int, int]:
@@ -124,9 +159,18 @@ class AtcsEngine(ProtocolEngine):
         self, flow: FlowContext, ts: float, src, dst, sport, dport,
         frame: bytes, fields: list[dict], kind: str,
     ) -> PacketEvent:
-        """Wrap a codeline frame as an ASCII-hex UDP datagram from the relay."""
-        hex_payload = frame.hex().upper().encode("ascii") + b"\n"
-        packet = _build_udp_packet(src, dst, sport, dport, hex_payload)
+        """Wrap a codeline frame as an ATCS-Monitor-feed UDP datagram from the relay.
+
+        The feed carries the codeline as RAW BINARY, one frame per datagram. The
+        frame already begins with its RF address-type octet (0x23 for a ground
+        datagram, which ATCSMon renders with a leading ``#`` in its ASCII gutter),
+        so nothing is prepended here — verified against a real ATCS Monitor
+        decoder, which parses this framing directly. (An earlier reconstruction
+        emitted the frame as ASCII-hex text led by a synthetic ``#``; that was the
+        ATCSMon *display* rendering plus a misread of the RF address-type byte.)
+        """
+        payload = frame
+        packet = _build_udp_packet(src, dst, sport, dport, payload)
         return PacketEvent(
             timestamp_ms=ts,
             flow_id=flow.flow_id,
@@ -135,12 +179,11 @@ class AtcsEngine(ProtocolEngine):
             metadata={
                 "type": f"atcs_{kind}",
                 "protocol": "atcs",
-                "encoding": "ascii_hex",
-                # Where the hex text starts — DERIVED from the built packet, not
-                # assumed from header sizes (see the EMP engine's note).
-                "l7_offset": len(packet) - len(hex_payload),
-                "codeline_frame_hex": frame.hex().upper(),
-                # offsets are into the DECODED binary frame (2 hex chars per byte)
+                "encoding": "binary",
+                # Where the L7 payload (the relay frame) starts — DERIVED from the
+                # built packet, not assumed (see the EMP engine's note).
+                "l7_offset": len(packet) - len(payload),
+                # offsets are into the binary payload: byte at l7_offset + off
                 "codeline_fields": fields,
             },
         )
@@ -157,11 +200,14 @@ class AtcsEngine(ProtocolEngine):
                 "tcp_seq_client": random.randint(1000, 900000),
                 "tcp_seq_server": random.randint(1000, 900000),
                 "client_udp_port": random.randint(40000, 60000),
-                "sseq": random.randint(0, 127),
-                "rseq": random.randint(0, 127),
-                "frame_counter": random.randint(0, 127),
+                # The relay covers a pool of wayside MCPs (rotated per cycle so the
+                # feed carries many distinct addresses, like a real territory).
+                "wayside_serials": list(range(1, flow.config.get("wayside_count", 6) + 1)),
+                "wayside_idx": 0,
+                "sseq_by_serial": {},        # per-MCP send sequence (monotonic per MCP)
+                "signal_by_serial": {},      # per-MCP signal-aspect state
+                "office_sseq": random.randint(0, 127),   # office send counter (controls)
                 "message_number": random.randint(0, 127),
-                "signal_aspect": random.randint(0, 3),
                 "cycle": 0,
             },
         )
@@ -238,27 +284,36 @@ class AtcsEngine(ProtocolEngine):
     ) -> Iterator[PacketEvent]:
         """Relay streams a codeline indication (+ periodic control / keep-alive)."""
         cd = state.custom_data
-        wayside_ind_addr, wayside_ctl_addr, office_addr = self._addresses(flow)
         relay_udp, client_udp = self._udp_ports(flow, state)
 
-        # Evolve wayside state and sequence numbers (modulo-128, like the sample).
-        cd["signal_aspect"] = max(0, min(3, cd["signal_aspect"] + random.choice([-1, 0, 0, 1])))
-        cd["sseq"] = (cd["sseq"] + 1) & 0x7F
-        cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
+        # Rotate through the relay's wayside pool so the feed carries many
+        # distinct MCP addresses (a real territory has many waysides per relay).
+        serials = cd["wayside_serials"]
+        serial = serials[cd["wayside_idx"] % len(serials)]
+        cd["wayside_idx"] += 1
+        wayside_ind_addr, wayside_ctl_addr, office_addr = self._addresses(flow, serial)
+
+        # Per-MCP send sequence (monotonic per wayside so ATCSMon doesn't see
+        # spurious sequence errors) + per-MCP signal-aspect state.
+        cd["sseq_by_serial"].setdefault(serial, random.randint(0, 127))
+        cd["sseq_by_serial"][serial] = (cd["sseq_by_serial"][serial] + 1) & 0x7F
+        sseq = cd["sseq_by_serial"][serial]
+        cd["signal_by_serial"].setdefault(serial, random.randint(0, 3))
+        cd["signal_by_serial"][serial] = max(0, min(3, cd["signal_by_serial"][serial] + random.choice([-1, 0, 0, 1])))
         cd["message_number"] = (cd["message_number"] + 1) & 0x7F
 
         # Wayside -> office indication, streamed by the relay.
         ind = build_indication_usrdata(
-            signal_aspect=cd["signal_aspect"],
+            signal_aspect=cd["signal_by_serial"][serial],
             switch_normal=random.random() > 0.15,
             occupancy=random.getrandbits(8),
         )
         frame, fields = build_codeline_frame(
             src_addr=wayside_ind_addr, dst_addr=office_addr, usrdata=ind,
-            sseq=cd["sseq"], rseq=cd["rseq"],
+            sseq=sseq, rseq=cd["office_sseq"],
             vital=random.random() > 0.5,
+            gfi=ATCS_GFI_DEFAULT, group=ATCS_GROUP_INDICATION,
             message_number=cd["message_number"],
-            relay_frame_counter=cd["frame_counter"],
         )
         # Accumulate time across sub-events so per-cycle timestamps stay monotonic.
         t = cycle_time_ms
@@ -272,8 +327,7 @@ class AtcsEngine(ProtocolEngine):
         # Periodic office -> wayside control, also visible on the relay feed.
         control_every = flow.config.get("control_every", 6)
         if control_every and cd["cycle"] % control_every == 0:
-            cd["rseq"] = (cd["rseq"] + 1) & 0x7F
-            cd["frame_counter"] = (cd["frame_counter"] + 1) & 0xFF
+            cd["office_sseq"] = (cd["office_sseq"] + 1) & 0x7F
             cd["message_number"] = (cd["message_number"] + 1) & 0x7F
             ctl = build_control_usrdata(
                 command=random.choice([1, 2, 3]),
@@ -281,10 +335,10 @@ class AtcsEngine(ProtocolEngine):
             )
             cframe, cfields = build_codeline_frame(
                 src_addr=office_addr, dst_addr=wayside_ctl_addr, usrdata=ctl,
-                sseq=cd["rseq"], rseq=cd["sseq"],
+                sseq=cd["office_sseq"], rseq=sseq,
                 vital=True,
+                gfi=ATCS_GFI_DEFAULT, group=ATCS_GROUP_CONTROL,
                 message_number=cd["message_number"],
-                relay_frame_counter=cd["frame_counter"],
             )
             t += random.uniform(20.0, 90.0)
             yield self._codeline_udp_event(

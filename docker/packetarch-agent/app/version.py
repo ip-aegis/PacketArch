@@ -7,10 +7,15 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "3.0.1"
+VERSION = "4.1.3"
 
 # Version history:
-# 3.0.1 - CloudServiceEngine external-comms realism fix. cloud_service (and the
+# 4.1.3 - Lint-only: dropped an unused `from binascii import crc32` in
+#   protocol_engines/atcs/codeline.py (the vital CRC is computed by the
+#   module's own 31-bit routine, never by binascii). protocol_engines/ is
+#   staged into the agent, so the staging rule requires a version bump —
+#   but there is NO change to agent behaviour or to any byte on the wire.
+# 4.1.2 - CloudServiceEngine external-comms realism fix. cloud_service (and the
 #   SSH/TELNET/RDP/HTTPS remote-access flows it shares) emitted ONLY the client
 #   half of each heartbeat — SYN + TLS ClientHello + a lone shutdown FIN, never
 #   a SYN-ACK/ACK/TLS ServerHello/server FIN — visible in PCAP output as
@@ -38,6 +43,67 @@ VERSION = "3.0.1"
 #   while sendp()-ing a full session out its paired pa-gen-<slug> from
 #   inside the agent container captured all 9 packets intact, not absence
 #   of a scapy exception alone.
+# 4.1.1 - Rail realism polish. (1) ATCS office address stability: the dispatch
+#   office now resolves to ONE stable ATCS address regardless of how many relays
+#   it subscribes to (codeline + serial derived from the office device, not the
+#   relay), instead of appearing once per relay codeline — matching how a rail SME
+#   expects a single fixed dispatch address. `office_codeline` is config-overridable.
+#   (2) Firmware diversity: rail device templates carried firmware variants with no
+#   population_weight, which build_distribution treats as "uncurated" -> every
+#   instance got the default build (a monoculture). Added population_weights (and a
+#   second/third older variant where only one existed) across the rail templates so
+#   a fleet shows a realistic version mix. CVEs left empty (rail CVE data is sparse;
+#   not inventing any). Wire format unchanged. MINOR/patch of the 4.1.0 realism work.
+# 4.1.0 - ATCS address realism: a relay's codeline feed now carries MANY distinct
+#   wayside MCPs, not one. Previously an empty flow config made ATCS _addresses()
+#   read every address component from defaults, so every relay reported the same
+#   single MCP (71253230040202) — a rail analyst would spot that instantly in a
+#   multi-relay territory. Now: the codeline is derived per-relay from the
+#   destination device identity (distinct relays -> distinct codelines), the
+#   office serial from the source device, and each relay rotates through a pool of
+#   wayside serials (default 6, `wayside_count`) with per-MCP monotonic send
+#   sequences (so ATCSMon shows no spurious sequence errors). Wire FORMAT is
+#   unchanged (validated against ATCSMon 4.1.0 in 4.0.0); only address VALUES vary,
+#   which is exactly what a real feed does. All config keys stay overridable. MINOR.
+# 4.0.0 - BREAKING ATCS wire-format correction, VERIFIED against a corpus of real
+#   ATCSMon-decoded frames (every corpus frame now round-trips to ATCSMon's
+#   reported GFI/Group/SSeq/RSeq/addresses/UsrData, and both CRC-16/X.25 checks
+#   reproduce exactly). Any ATCS corpus from 2.8.0-3.0.1 is INVALID — the frame a
+#   real ATCS Monitor decoder accepts is materially different:
+#     * NEW 5-byte RF header prefix: [0] RF address-type (0x23 ground datagram —
+#       this is the byte ATCSMon renders as '#'; the engine no longer prepends a
+#       synthetic '#'), [1] pad-bits, [2] Reed-Solomon block count (the RF length
+#       field), [3..4] header CRC-16/X.25 over [0..2] (little-endian). ATCSMon
+#       reconstructs the expected frame length from block_count/pad_bits and
+#       REJECTS a mismatch ("Invalid ATCS Packet Length"); the exact relation
+#       (60 frame-bits/block: block_count=ceil(8*len/60), pad_bits=60*bc-8*len)
+#       was recovered from the corpus and confirmed live against ATCSMon 4.1.0.
+#     * Datagram octet [5] is (GFI<<4)|Group — NOT the invented QD10PPPA octet;
+#       [6] spare, [7] send-seq<<1, [8] recv-seq<<1, [9] addr-len nibbles. The
+#       dest-first BCD addresses (0xA==0) were already correct and are unchanged.
+#     * The frame trailer is now the real 2-byte DATAGRAM CRC-16/X.25 over [5:-2]
+#       (little-endian) — replacing the 4-byte vital-CRC-as-trailer. The 31-bit
+#       K-II vital CRC stays as an inner L7 field for vital messages only.
+#     * ATCSMon derives UsrData length from the received byte count minus fixed
+#       overhead, so synthetic message numbers still decode ("Unknown Message
+#       Function") and pass the length gate.
+#     * Feed encoding is BINARY (was ASCII-hex, an ATCSMon *display* artifact).
+#   The RF header address-type/pad-bits/block-count/CRCs, GFI|Group octet, spare,
+#   sequences, address-length octet, and addresses are now `spec` (corpus-pinned);
+#   the Spec 250 transport header + vital CRC remain `spec_legacy`. See
+#   protocol_engines/atcs/{codeline.py,SPEC_NEEDS.md}.
+# 3.0.1 - NOTE: version collision. This 3.0.1 is the EMP-port fix below. A
+#   SEPARATE 3.0.1 shipped on master via PR #9 carrying the CloudServiceEngine
+#   fix (recorded here as 4.1.2). Two distinct builds share the number, so an
+#   agent reporting 3.0.1 is ambiguous — check for emp in PROTOCOL_PORTS to
+#   tell them apart. Both fixes are present from 4.1.2 onward.
+#   Fix: live-deploy EMP flows landed on TCP 44818 (EtherNet/IP) instead of
+#   3001. The agent's local PROTOCOL_PORTS map (orchestrator_pool.py) omitted emp,
+#   so the destination port fell through to the 44818 default — the payload was
+#   correct Class D + EMP v4, but on the wrong port (a dissector-training corpus
+#   would mislabel it as EtherNet/IP). Added emp/atcs/c37118 and the ssh/telnet/rdp
+#   remote-access shapes to the map. ATCS was unaffected (its engine drives its own
+#   UDP 30000+ relay-feed ports). No wire-format change; PATCH.
 # 3.0.0 - BREAKING wire-format corrections for the rail engines, from primary
 #   sources (AAR S-9356 Class D draft 2010; AAR MSRP Section K-II v4.0). Any
 #   previously generated EMP/ATCS corpus is INVALID and must be re-exported.

@@ -6,8 +6,8 @@
 The sidecar is the deliverable that makes a run usable as dissector-training
 data, so the load-bearing property is that record ``pkt: N`` really describes
 pcap packet N, and that each field's offset lands on the bytes it claims.
-Verified here against a real orchestrator run carrying both encodings:
-EMP (binary L7) and ATCS (ASCII-hex relay feed).
+Verified here against a real orchestrator run carrying two binary-L7 protocols:
+EMP (inside Class D) and ATCS (the relay feed frame).
 """
 
 import json
@@ -15,6 +15,7 @@ import json
 import pytest
 from scapy.utils import rdpcap
 
+from app.protocol_engines.atcs.codeline import crc16_x25
 from app.protocol_engines.label_sidecar import LabelSidecarWriter, extract_label_fields
 from app.protocol_engines.output import PcapOutput
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
@@ -83,42 +84,38 @@ def test_labeled_field_offsets_land_on_real_bytes(corpus):
     packets = rdpcap(str(pcap_path))
     records = _records(sidecar_path)
 
-    checked_binary = checked_hex = 0
+    checked_emp = checked_atcs = 0
     for rec in records:
         fields = rec.get("fields")
         if not fields:
             continue
         raw = bytes(packets[rec["pkt"]])
         l7 = rec["l7_offset"]
-        if rec["encoding"] == "binary":
+        assert rec["encoding"] == "binary"
+        for f in fields:
+            assert l7 + f["off"] + f["len"] <= len(raw), f"{f['field']} out of bounds"
+        if rec["protocol"] == "emp":
             # EMP rides inside Class D: offsets are Class-D-relative, so the
             # Class D STX is at l7_offset and EMP begins 12 octets later.
-            for f in fields:
-                assert l7 + f["off"] + f["len"] <= len(raw), f"{f['field']} out of bounds"
             stx = next(f for f in fields if f["field"] == "classd.stx")
             assert raw[l7 + stx["off"]] == 0x02        # Class D STX really there
             ver = next(f for f in fields if f["field"] == "emp.version")
             assert ver["off"] == 12, "EMP must start at Class-D offset 12"
             assert raw[l7 + ver["off"]] == 4           # EMP v4 marker really there
-            checked_binary += 1
-        elif rec["encoding"] == "ascii_hex":
-            # ATCS: L7 payload is hex text; fields index the DECODED frame
-            frame = bytes.fromhex(raw[l7:].decode("ascii").strip())
-            for f in fields:
-                assert f["off"] + f["len"] <= len(frame), f"{f['field']} out of bounds"
-            # The frame counter belongs to the ATCSMon relay container, NOT the
-            # ATCS datagram — it must be labelled as such.
-            fc = next(f for f in fields if f["field"] == "relay.frame_counter")
-            assert "atcs.frame_counter" not in {f["field"] for f in fields}
-            assert frame[fc["off"]] == f_value(fc)     # frame counter really there
-            checked_hex += 1
-    assert checked_binary > 0, "no EMP-labeled packets checked"
-    assert checked_hex > 0, "no ATCS-labeled packets checked"
-
-
-def f_value(field):
-    v = field["value"]
-    return v if isinstance(v, int) else int(v)
+            checked_emp += 1
+        elif rec["protocol"] == "atcs":
+            # ATCS relay frame: RF address-type octet [0] is the ground-datagram
+            # 0x23 (ATCSMon's '#' gutter), and both CRC-16/X.25 framing checks
+            # must reproduce (header over [0..2], datagram over [5:-2], LE).
+            frame = raw[l7:]
+            at = next(f for f in fields if f["field"] == "relay.rf_address_type")
+            assert frame[at["off"]] == 0x23
+            assert "relay.frame_counter" not in {f["field"] for f in fields}
+            assert crc16_x25(frame[0:3]) == (frame[3] | frame[4] << 8)
+            assert crc16_x25(frame[5:-2]) == (frame[-2] | frame[-1] << 8)
+            checked_atcs += 1
+    assert checked_emp > 0, "no EMP-labeled packets checked"
+    assert checked_atcs > 0, "no ATCS-labeled packets checked"
 
 
 def test_both_protocols_and_encodings_present(corpus):
@@ -127,7 +124,7 @@ def test_both_protocols_and_encodings_present(corpus):
     protos = {r["protocol"] for r in records}
     assert {"emp", "atcs"} <= protos
     encodings = {r["encoding"] for r in records if r.get("fields")}
-    assert {"binary", "ascii_hex"} == encodings
+    assert {"binary"} == encodings
 
 
 def test_unlabeled_packets_still_recorded(corpus):

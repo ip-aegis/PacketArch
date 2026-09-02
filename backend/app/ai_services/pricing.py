@@ -63,6 +63,11 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     ("anthropic", "claude-opus-4-1"): ModelPrice(
         input=15.0, output=75.0, cache_read=1.5, cache_write=18.75,
     ),
+    # Sonnet 5: $3 / $15 per M standard (intro $2 / $10 through 2026-08-31;
+    # we bill at standard to avoid under-reporting cost).
+    ("anthropic", "claude-sonnet-5"): ModelPrice(
+        input=3.0, output=15.0, cache_read=0.3, cache_write=3.75,
+    ),
     # Sonnet 4.5 / 4.6: $3 / $15 per M.
     ("anthropic", "claude-sonnet-4-6"): ModelPrice(
         input=3.0, output=15.0, cache_read=0.3, cache_write=3.75,
@@ -90,6 +95,10 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     # OpenAI's automatic prompt-caching discount lives in the input column
     # already (the API returns cached tokens with a reduced count), so we
     # don't break it out as cache_read here.
+    # GPT-5.6 family — verified 2026-07-23 against developers.openai.com.
+    ("openai", "gpt-5.6-sol"): ModelPrice(input=5.0, output=30.0),
+    ("openai", "gpt-5.6-terra"): ModelPrice(input=2.5, output=15.0),
+    ("openai", "gpt-5.6-luna"): ModelPrice(input=1.0, output=6.0),
     ("openai", "gpt-5.5"): ModelPrice(input=5.0, output=30.0),
     ("openai", "gpt-5.5-pro"): ModelPrice(input=30.0, output=180.0),
     ("openai", "gpt-5.4"): ModelPrice(input=2.5, output=15.0),
@@ -126,6 +135,7 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     ("circuit", "claude-opus-4-8"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-opus-4-7"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-opus-4-6"): ModelPrice(input=0.0, output=0.0),
+    ("circuit", "claude-sonnet-5"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-sonnet-4-6"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "claude-haiku-4-5"): ModelPrice(input=0.0, output=0.0),
     ("circuit", "gemini-3.1-pro"): ModelPrice(input=0.0, output=0.0),

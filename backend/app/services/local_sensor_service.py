@@ -21,7 +21,11 @@ The backend never touches the host — see services/host_agent_client.py.
 
 from __future__ import annotations
 
+import asyncio
+import base64
+import json
 import logging
+import socket
 import uuid
 
 import yaml
@@ -100,6 +104,45 @@ async def _resolve_cv_deployment_name(db, cv: CyberVisionService) -> str:
             return name
         suffix += 1
         name = f"{base_name}-{suffix}"
+
+
+def _jwt_center_host(jwt: str) -> str | None:
+    """Extract ``centerHost`` from the (unverified) CV provisioning JWT payload.
+
+    The CV Center bakes its own sensor-facing collection address into the
+    minted token; PacketArch never sets it and cannot (the JWT is signed).
+    Returns ``None`` if the token can't be decoded or carries no host.
+    """
+    try:
+        payload = jwt.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        host = json.loads(base64.urlsafe_b64decode(payload)).get("centerHost")
+        return str(host) if host else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _center_reachable(center_host: str, *, timeout: float = 4.0) -> tuple[bool, str]:
+    """TCP-connect probe to the CV Center's sensor-facing (collection) address.
+
+    The sensor enrolls over HTTPS to ``centerHost``. If that address is
+    unreachable, the sensor loops forever on 'no route to host' and the lab
+    hangs in 'provisioning'. The backend egresses to the lab network through
+    the same host NAT path the sensor's collection bridge uses, so backend
+    reachability is a faithful proxy for the sensor's.
+
+    ``centerHost`` is normally a bare IP/hostname (enroll port 443); tolerate
+    an explicit ``host:port`` too. Returns ``(ok, detail)``.
+    """
+    host, port = center_host, 443
+    h, _, p = center_host.rpartition(":")
+    if h and p.isdigit():  # host:port form (not an IPv6 literal / bare host)
+        host, port = h, int(p)
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, f"{host}:{port} reachable"
+    except OSError as e:
+        return False, f"{host}:{port} unreachable ({type(e).__name__}: {e})"
 
 
 def _synthesize_sensor_compose(*, image: str, serial: str, jwt: str) -> str:
@@ -233,6 +276,29 @@ async def build_lab(db, *, name: str,
         )
     finally:
         await cv.close()
+
+    # Preflight: the CV Center stamps its own sensor-facing collection address
+    # into the minted JWT as `centerHost`. If that address is unreachable, the
+    # sensor can never enroll — it loops on 'no route to host' and the lab hangs
+    # in 'provisioning' forever. Fail now with an actionable message instead of
+    # persisting a lab + launching a sensor that's doomed. PacketArch cannot
+    # override centerHost (the JWT is Center-signed); the fix is on the Center.
+    center_host = _jwt_center_host(jwt)
+    if center_host:
+        ok, detail = await asyncio.to_thread(_center_reachable, center_host)
+        if not ok:
+            raise ExternalServiceError(
+                service="cyber_vision",
+                message=(
+                    f"The Cyber Vision Center advertises its sensor collection host as "
+                    f"'{center_host}', but it is unreachable from the PacketArch host "
+                    f"({detail}). The sensor would never enroll, so the build was stopped. "
+                    f"Fix the Center's collection-interface address so it is an IP reachable "
+                    f"from this host, then rebuild. Note: PacketArch cannot change this — "
+                    f"'{center_host}' is signed into the Center-minted provisioning token, "
+                    f"not set by PacketArch."
+                ),
+            )
 
     registry = image.rsplit("/", 1)[0]
     sensor_compose = _synthesize_sensor_compose(image=image, serial=serial, jwt=jwt)

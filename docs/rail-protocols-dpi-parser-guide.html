@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;min-height:100vh}</style>
+<title>Rail Protocols — Cyber Vision DPI Parser Guide</title>
+<style>
+  :root {
+    --paper:#F7F6F1; --surface:#FFFFFF; --surface-2:#F1EFE8;
+    --ink:#171A1C; --ink-soft:#565D62; --ink-faint:#8A9095;
+    --line:#E3E0D6; --line-strong:#CFCBBE;
+    --accent:#A96907;                 /* wayside signal amber */
+    --accent-soft:#F3E8D4;
+    --code-bg:#1B2024; --code-ink:#DFE3E0; --code-line:#2C333A;
+    /* signal aspects = confidence tiers */
+    --spec:#2E7D46; --legacy:#A96907; --prov:#3F6699; --synth:#B23A3A;
+    --spec-bg:#E4F0E7; --legacy-bg:#F5E9D3; --prov-bg:#E4EBF3; --synth-bg:#F3E0DE;
+    --radius:10px;
+    --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --measure:70ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0F1315; --surface:#151A1D; --surface-2:#1B2125;
+      --ink:#E9E7E0; --ink-soft:#A2A8AC; --ink-faint:#6E757A;
+      --line:#252C31; --line-strong:#333B41;
+      --accent:#E0A445; --accent-soft:#2A2418;
+      --code-bg:#0B0E10; --code-ink:#D8DCD9; --code-line:#222A30;
+      --spec:#5FB878; --legacy:#E0A445; --prov:#7CA0D4; --synth:#E27B7B;
+      --spec-bg:#16241A; --legacy-bg:#2A2314; --prov-bg:#16202E; --synth-bg:#2A1918;
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#F7F6F1; --surface:#FFFFFF; --surface-2:#F1EFE8;
+    --ink:#171A1C; --ink-soft:#565D62; --ink-faint:#8A9095;
+    --line:#E3E0D6; --line-strong:#CFCBBE; --accent:#A96907; --accent-soft:#F3E8D4;
+    --code-bg:#1B2024; --code-ink:#DFE3E0; --code-line:#2C333A;
+    --spec:#2E7D46; --legacy:#A96907; --prov:#3F6699; --synth:#B23A3A;
+    --spec-bg:#E4F0E7; --legacy-bg:#F5E9D3; --prov-bg:#E4EBF3; --synth-bg:#F3E0DE;
+  }
+  :root[data-theme="dark"]{
+    --paper:#0F1315; --surface:#151A1D; --surface-2:#1B2125;
+    --ink:#E9E7E0; --ink-soft:#A2A8AC; --ink-faint:#6E757A;
+    --line:#252C31; --line-strong:#333B41; --accent:#E0A445; --accent-soft:#2A2418;
+    --code-bg:#0B0E10; --code-ink:#D8DCD9; --code-line:#222A30;
+    --spec:#5FB878; --legacy:#E0A445; --prov:#7CA0D4; --synth:#E27B7B;
+    --spec-bg:#16241A; --legacy-bg:#2A2314; --prov-bg:#16202E; --synth-bg:#2A1918;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--font-sans); line-height:1.62;
+    font-size:16.5px; -webkit-font-smoothing:antialiased;
+    text-underline-offset:2px;
+  }
+  .wrap{max-width:78rem; margin:0 auto; padding:clamp(1.1rem,3.5vw,3rem)}
+  .col{max-width:62rem; margin:0 auto}
+  p,li{max-width:var(--measure)}
+  a{color:var(--accent); text-decoration-thickness:1px}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+  /* ---- masthead ---- */
+  .mast{border-bottom:1px solid var(--line); padding-bottom:1.9rem; margin-bottom:2.4rem}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--accent); font-weight:600;
+    display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  }
+  .eyebrow::before{content:""; width:26px; height:2px; background:var(--accent); display:inline-block}
+  h1{
+    font-size:clamp(2rem,4.6vw,3.1rem); line-height:1.04; letter-spacing:-.02em;
+    font-weight:800; margin:1rem 0 .5rem; text-wrap:balance; max-width:20ch;
+  }
+  .sub{font-size:1.12rem; color:var(--ink-soft); max-width:60ch; margin:0}
+  .sub b{color:var(--ink); font-weight:650}
+
+  /* ---- fidelity callout ---- */
+  .callout{
+    margin:1.9rem 0 0; padding:1.05rem 1.25rem; background:var(--surface-2);
+    border:1px solid var(--line); border-left:3px solid var(--accent);
+    border-radius:8px; font-size:.96rem; color:var(--ink-soft);
+  }
+  .callout b{color:var(--ink)}
+
+  /* ---- tier legend ---- */
+  .legend{
+    display:flex; gap:.5rem .9rem; flex-wrap:wrap; margin-top:1.4rem;
+    font-family:var(--font-mono); font-size:.78rem;
+  }
+  .aspect{display:inline-flex; align-items:center; gap:.5rem; padding:.34rem .7rem;
+    border:1px solid var(--line); border-radius:100px; background:var(--surface)}
+  .dot{width:9px; height:9px; border-radius:50%; flex:none; box-shadow:0 0 0 3px color-mix(in srgb,currentColor 16%,transparent)}
+  .aspect .lab{color:var(--ink-soft)}
+  .aspect b{color:var(--ink); font-weight:600}
+  .a-spec{color:var(--spec)} .a-legacy{color:var(--legacy)} .a-prov{color:var(--prov)} .a-synth{color:var(--synth)}
+
+  /* ---- sections ---- */
+  section{margin:3.2rem 0; scroll-margin-top:1.5rem}
+  .sec-head{display:flex; align-items:baseline; gap:.85rem; margin-bottom:.4rem;
+    border-top:1px solid var(--line); padding-top:1.7rem}
+  .sec-no{font-family:var(--font-mono); font-size:1rem; font-weight:700; color:var(--accent);
+    letter-spacing:.02em; flex:none}
+  h2{font-size:clamp(1.4rem,2.6vw,1.85rem); font-weight:750; letter-spacing:-.015em;
+    line-height:1.12; margin:0; text-wrap:balance}
+  h3{font-size:1.12rem; font-weight:700; margin:2.1rem 0 .5rem; letter-spacing:-.01em;
+    color:var(--ink)}
+  h3 .h3no{font-family:var(--font-mono); color:var(--accent); font-weight:700; margin-right:.5em; font-size:.95em}
+  p{margin:.75rem 0}
+  ul,ol{margin:.75rem 0; padding-left:1.25rem}
+  li{margin:.38rem 0}
+  li::marker{color:var(--accent-strong,var(--accent))}
+  strong{font-weight:680; color:var(--ink)}
+  code{font-family:var(--font-mono); font-size:.85em; background:var(--surface-2);
+    border:1px solid var(--line); border-radius:5px; padding:.06em .38em; color:var(--ink);
+    word-break:break-word}
+
+  /* ---- datasheet tables ---- */
+  .tbl-wrap{overflow-x:auto; margin:1.2rem 0; border:1px solid var(--line);
+    border-radius:var(--radius); background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.87rem; min-width:34rem}
+  thead th{
+    background:var(--surface-2); text-align:left; font-family:var(--font-mono);
+    font-size:.7rem; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-soft);
+    font-weight:600; padding:.7rem .85rem; border-bottom:1px solid var(--line-strong);
+    white-space:nowrap;
+  }
+  tbody td{padding:.62rem .85rem; border-bottom:1px solid var(--line); vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+  td.mono,th.mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+  td.f{font-family:var(--font-mono); font-size:.82rem; color:var(--ink); font-weight:600}
+  .datasheet td:first-child{color:var(--accent); font-family:var(--font-mono); font-weight:700;
+    font-variant-numeric:tabular-nums; white-space:nowrap}
+
+  /* tier chip */
+  .tier{display:inline-flex; align-items:center; gap:.4rem; font-family:var(--font-mono);
+    font-size:.7rem; font-weight:600; padding:.16rem .5rem; border-radius:100px; white-space:nowrap;
+    text-transform:uppercase; letter-spacing:.04em}
+  .tier .d{width:7px;height:7px;border-radius:50%}
+  .t-spec{color:var(--spec); background:var(--spec-bg)} .t-spec .d{background:var(--spec)}
+  .t-legacy{color:var(--legacy); background:var(--legacy-bg)} .t-legacy .d{background:var(--legacy)}
+  .t-prov{color:var(--prov); background:var(--prov-bg)} .t-prov .d{background:var(--prov)}
+  .t-synth{color:var(--synth); background:var(--synth-bg)} .t-synth .d{background:var(--synth)}
+  .t-nest{color:var(--ink-faint); background:var(--surface-2)} .t-nest .d{background:var(--ink-faint)}
+
+  /* ---- code / hex ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); border:1px solid var(--code-line);
+    border-radius:var(--radius); padding:1.05rem 1.15rem; overflow-x:auto; margin:1.2rem 0;
+    font-family:var(--font-mono); font-size:.82rem; line-height:1.6}
+  pre .c{color:#7d8a94} pre .k{color:var(--accent)} pre .s{color:#8fbf8f} pre .n{color:#c9a875}
+  :root[data-theme="dark"] pre .s{color:#8fc98f}
+  @media (prefers-color-scheme:dark){pre .s{color:#8fc98f}}
+
+  .hexnote{font-size:.82rem; color:var(--ink-soft); margin-top:-.6rem}
+
+  /* ---- callback / note blocks ---- */
+  .note{background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    padding:.55rem .9rem; font-size:.9rem; color:var(--ink-soft); margin:1rem 0}
+  .note.warn{border-left:3px solid var(--synth)}
+
+  footer{margin-top:3.5rem; border-top:1px solid var(--line); padding-top:1.4rem;
+    font-size:.8rem; color:var(--ink-faint); font-family:var(--font-mono); line-height:1.7;
+    max-width:none}
+
+  @media (max-width:640px){ body{font-size:15.5px} .sec-head{flex-wrap:wrap} }
+  @media (prefers-reduced-motion:no-preference){ a,tbody tr{transition:background .15s ease} }
+</style>
+</head>
+<body>
+<div class="wrap"><div class="col">
+
+  <header class="mast">
+    <div class="eyebrow">Cyber Vision · DPI Parser Guide</div>
+    <h1>Rail Signaling Protocols</h1>
+    <p class="sub"><b>EMP</b> (I-ETMS / PTC over AAR Class&nbsp;D) and <b>ATCS</b>
+    (relay-feed codeline) — everything a developer needs to build a Cyber Vision
+    dissector, plus the labeled-corpus format to train and validate it against.</p>
+
+    <div class="callout">
+      <b>Fidelity, up front.</b> ATCS's wire structure was <b>validated live
+      against a real ATCS&nbsp;Monitor&nbsp;4.1.0 decoder</b> — it accepts and
+      correctly decodes PacketArch's generated frames. EMP / Class&nbsp;D is built
+      from the public 2010 S-9356 draft + AAR MSRP K-II (2005): structurally
+      authoritative, not yet checked against a current-revision capture.
+      <b>Application-layer message content is synthetic</b> for both — the AAR ITC
+      catalog and per-territory codeline databases are proprietary. Every field
+      carries a confidence tier; weight your training accordingly.
+    </div>
+
+    <div class="legend" role="list" aria-label="Confidence tiers as signal aspects">
+      <span class="aspect a-spec" role="listitem"><span class="dot" style="background:var(--spec)"></span><b>spec</b><span class="lab">corpus / current-source verified</span></span>
+      <span class="aspect a-legacy" role="listitem"><span class="dot" style="background:var(--legacy)"></span><b>spec_legacy</b><span class="lab">legacy/draft revision</span></span>
+      <span class="aspect a-prov" role="listitem"><span class="dot" style="background:var(--prov)"></span><b>provisional</b><span class="lab">reconstructed</span></span>
+      <span class="aspect a-synth" role="listitem"><span class="dot" style="background:var(--synth)"></span><b>synthetic</b><span class="lab">invented — don't overfit</span></span>
+    </div>
+  </header>
+
+  <!-- ============ 1 ============ -->
+  <section id="corpus">
+    <div class="sec-head"><span class="sec-no">§1</span><h2>The labeled corpus — your training data</h2></div>
+    <p>A generation run with <code>export_labeled_corpus=true</code> emits three
+    files alongside the PCAP.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>File</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td class="f">&lt;stem&gt;.pcap</td><td>The combined capture (Ethernet/IP/TCP or UDP).</td></tr>
+        <tr><td class="f">&lt;stem&gt;.labels.jsonl</td><td>One JSON object <strong>per packet</strong>, index-aligned 1:1 with the PCAP — per-field ground truth.</td></tr>
+        <tr><td class="f">&lt;stem&gt;.labels.meta.json</td><td>Run summary: schema version, counts, protocol breakdown, field vocabulary.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="h3no">1.1</span>Per-packet label record</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Key</th><th>Present</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="f">pkt</td><td class="mono">always</td><td>0-based index into the PCAP (<code>packets[pkt]</code> is this frame).</td></tr>
+        <tr><td class="f">ts_ms</td><td class="mono">always</td><td>Timestamp (ms).</td></tr>
+        <tr><td class="f">flow_id</td><td class="mono">always</td><td>Originating flow.</td></tr>
+        <tr><td class="f">protocol</td><td class="mono">always</td><td><code>emp</code>, <code>atcs</code>, <code>unknown</code>, …</td></tr>
+        <tr><td class="f">type</td><td class="mono">always</td><td>Event type, e.g. <code>atcs_codeline_indication</code>, <code>tcp_syn</code> (may be null).</td></tr>
+        <tr><td class="f">l7_offset</td><td class="mono">if known</td><td>Byte offset where the L7 unit begins (§1.3).</td></tr>
+        <tr><td class="f">encoding</td><td class="mono">always</td><td><code>binary</code> (both protocols today) or <code>ascii_hex</code> (§1.2).</td></tr>
+        <tr><td class="f">fields</td><td class="mono">if labeled</td><td>Array of field entries. Absent for unlabeled packets (handshake, keep-alives).</td></tr>
+      </tbody>
+    </table></div>
+    <p>Each entry in <code>fields</code> carries <code>off</code>, <code>len</code>,
+    <code>field</code> (dotted name), <code>value</code>, <code>synthetic</code>,
+    <code>confidence</code>, and — for ATCS addresses only — <code>subfields</code>
+    and an optional <code>note</code>.</p>
+
+    <h3><span class="h3no">1.2</span>Mapping a field to bytes — <code>encoding</code></h3>
+    <ul>
+      <li><strong>binary</strong> (both EMP and ATCS today): the field is
+        <code>packet[l7_offset + off : l7_offset + off + len]</code>.</li>
+      <li><strong>ascii_hex</strong> (defined alternate, not currently emitted):
+        the L7 payload is ASCII-hex text; a field is the <code>2·len</code> hex
+        chars at <code>l7_offset + 2·off</code>. <code>off</code>/<code>len</code>
+        index the <em>decoded</em> frame.</li>
+    </ul>
+
+    <h3><span class="h3no">1.3</span><code>l7_offset</code> — do not hardcode 54</h3>
+    <p><code>l7_offset</code> is derived per packet as
+    <code>len(packet) − len(L7)</code>. Because PacketArch fingerprints the TCP
+    stack, frames carry TCP options, so the L7 start is frequently <strong>66</strong>,
+    not the classic <code>14 + 20 + 20 = 54</code>. Always read the field; never
+    assume a fixed header length. <strong>Nested:</strong> offsets are relative to
+    the outermost L7 unit — EMP rides inside Class&nbsp;D, so <code>emp.*</code>
+    offsets are Class-D-relative and EMP begins at Class-D offset <strong>12</strong>.</p>
+
+    <h3><span class="h3no">1.4</span>Confidence tiers — the signal aspects</h3>
+    <p>The tiers map to railroad signal aspects: <span class="tier t-spec"><span class="d"></span>spec</span>
+    is clear, <span class="tier t-legacy"><span class="d"></span>spec_legacy</span>
+    is approach, <span class="tier t-synth"><span class="d"></span>synthetic</span>
+    is stop. Train the <em>matcher</em> on structure (spec / spec_legacy); treat
+    synthetic bytes as "a payload of length N here," never as ground truth.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Tier</th><th>Meaning</th><th>How to use it</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tier t-spec"><span class="d"></span>spec</span></td><td>Current-source verified, or corpus-validated against the live decoder.</td><td>Ground truth for structure.</td></tr>
+        <tr><td><span class="tier t-legacy"><span class="d"></span>spec_legacy</span></td><td>Spec-derived from a legacy/draft revision (2010 S-9356; K-II 2005).</td><td>Trust structure; don't assume exact current values.</td></tr>
+        <tr><td><span class="tier t-prov"><span class="d"></span>provisional</span></td><td>Reconstructed; reproduces known values, positions unconfirmed.</td><td>Use cautiously.</td></tr>
+        <tr><td><span class="tier t-synth"><span class="d"></span>synthetic</span></td><td>Plausible but invented — no public source.</td><td><strong>Don't key the classifier on these values.</strong></td></tr>
+      </tbody>
+    </table></div>
+    <p><code>.meta.json</code> gives <code>schema_version</code> (=1),
+    <code>packet_count</code>, <code>labeled_count</code>,
+    <code>protocol_counts</code>, and <code>field_vocabulary</code> (sorted
+    distinct field names) — an index of what your dissector must cover.</p>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section id="emp">
+    <div class="sec-head"><span class="sec-no">§2</span><h2>EMP over AAR Class&nbsp;D</h2></div>
+    <p>EMP is the AAR Interoperable Train Control (I-ETMS / PTC) application
+    envelope exchanged between back-office servers, wayside interface units, and
+    locomotive computers. <strong>EMP never rides bare on TCP</strong> —
+    AAR&nbsp;S-9356 Class&nbsp;D is the transport: the TCP payload is
+    <code>Class&nbsp;D header (12B) + body + ETX</code>, and for a data message the
+    body is the EMP envelope.</p>
+
+    <h3><span class="h3no">2.1</span>Transport identification</h3>
+    <ul>
+      <li><strong>TCP.</strong> Default port <strong>3001</strong> — but this is a
+        documented Siemens wayside vendor default and is configurable; there is no
+        universal Class&nbsp;D port. <strong>Do not classify on port alone.</strong></li>
+      <li>Classify on framing invariants: <code>[0]==0x02</code> (STX) &amp;
+        <code>[1]==0x02</code> (version), last byte <code>0x03</code> (ETX),
+        <code>data_length</code> at <code>[8:12]</code> consistent with the
+        payload, and for a Data message <code>[12]==0x04</code> (EMP version).</li>
+      <li>Cross-reference: Fortinet's <code>ITCM.Class.D</code> signature is a
+        useful independent oracle.</li>
+    </ul>
+
+    <h3><span class="h3no">2.2</span>Class&nbsp;D frame — byte map</h3>
+    <p class="hexnote">Frame-relative offsets. Multi-byte values big-endian.</p>
+    <div class="tbl-wrap"><table class="datasheet">
+      <thead><tr><th>Off</th><th>W</th><th>Field</th><th>Meaning</th><th>Tier</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td class="mono">1</td><td class="f">classd.stx</td><td>Start marker <code>0x02</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>1</td><td class="mono">1</td><td class="f">classd.protocol_version</td><td>Class&nbsp;D version <code>0x02</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>2</td><td class="mono">4</td><td class="f">classd.commid</td><td>COMMID, uint32 BE — per-link counter</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>6</td><td class="mono">1</td><td class="f">classd.message_type</td><td>Message type (see below)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>7</td><td class="mono">1</td><td class="f">classd.message_version</td><td><code>0x02</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>8</td><td class="mono">4</td><td class="f">classd.data_length</td><td><code>len(body)</code>, uint32 BE</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>12</td><td class="mono">N</td><td class="f">(body)</td><td>Data msg → full EMP envelope</td><td><span class="tier t-nest"><span class="d"></span>nested</span></td></tr>
+        <tr><td>12+N</td><td class="mono">1</td><td class="f">classd.etx</td><td>End marker <code>0x03</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+      </tbody>
+    </table></div>
+    <p><code>len(frame) == len(body) + 13</code> (12-byte header + 1-byte ETX).
+    <strong>COMMID</strong> starts at 1, increments independently per link, rolls
+    <code>0xFFFFFFFF → 1</code> (never 0) — a good session/liveness signal.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th class="mono">Type</th><th>Message</th><th>Body</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">1</td><td>Data</td><td>Full EMP envelope</td></tr>
+        <tr><td class="mono">2</td><td>ACK</td><td>Acknowledged COMMID (4B BE)</td></tr>
+        <tr><td class="mono">3</td><td>NAK</td><td>NAK'd COMMID (4B BE) + 1-byte error code</td></tr>
+        <tr><td class="mono">4</td><td>Keep-alive</td><td><em>empty</em></td></tr>
+        <tr><td class="mono">30</td><td>Conformance test</td><td>—</td></tr>
+        <tr><td class="mono">31/32</td><td>Test echo req / resp</td><td>—</td></tr>
+        <tr><td class="mono">40/41</td><td>Operational echo req / resp</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="h3no">2.3</span>EMP v4 envelope — byte map</h3>
+    <p class="hexnote">EMP-relative offsets. All multi-byte fields big-endian.</p>
+    <div class="tbl-wrap"><table class="datasheet">
+      <thead><tr><th>Off</th><th>W</th><th>Field</th><th>Meaning</th><th>Tier</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td class="mono">1</td><td class="f">emp.version</td><td><strong>EMP version = 4</strong> (the "v4" marker)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>1</td><td class="mono">2</td><td class="f">emp.msg_type</td><td>Message type/number</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>3</td><td class="mono">1</td><td class="f">emp.msg_version</td><td>Message version = 1</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>4</td><td class="mono">1</td><td class="f">emp.flags</td><td>Flags (0 in this corpus)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>5</td><td class="mono">3</td><td class="f">emp.body_size</td><td>24-bit body size = <code>4 (CRC) + len(payload)</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>8</td><td class="mono">1</td><td class="f">emp.var_hdr_size</td><td><code>len(sender)+len(dest)+2</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>9</td><td class="mono">2</td><td class="f">emp.ttl_s</td><td>Time-to-live (s), default 120</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>11</td><td class="mono">2</td><td class="f">emp.qos</td><td>Quality of service, default 0</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>13</td><td class="mono">len+1</td><td class="f">emp.src_addr</td><td>NUL-terminated ASCII sender (<code>aar.w.wiu007</code>)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>…</td><td class="mono">len+1</td><td class="f">emp.dst_addr</td><td>NUL-terminated ASCII destination (<code>aar.b.bos</code>)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>13+vhdr</td><td class="mono">var</td><td class="f">(payload)</td><td>Application body (WIU / WDC / ACK / registration)</td><td><span class="tier t-synth"><span class="d"></span>synthetic</span></td></tr>
+        <tr><td>total−4</td><td class="mono">4</td><td class="f">emp.crc32</td><td>CRC-32 over preceding bytes, signed <code>&gt;i</code> (PTC-Sim)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Fixed common header = 8 bytes; variable-header fixed part
+    (<code>var_hdr_size</code>, <code>ttl</code>, <code>qos</code>) = 5 bytes; then
+    two NUL-terminated ASCII addresses; then payload; then the CRC-32. Minimum EMP
+    message = 20 bytes. Addresses follow <code>aar.&lt;class&gt;.&lt;name&gt;</code>
+    (<code>w</code> wayside, <code>b</code> back-office, <code>l</code> locomotive).</p>
+
+    <h3><span class="h3no">2.4</span>Parsing algorithm</h3>
+<pre><span class="k">parse_tcp_payload</span>(buf):
+  <span class="k">if</span> buf[0]!=0x02 <span class="k">or</span> buf[1]!=0x02 <span class="k">or</span> buf[-1]!=0x03: <span class="c"># not Class D</span>
+  commid = u32be(buf[2:6]); mtype = buf[6]; dlen = u32be(buf[8:12])
+  <span class="k">if</span> dlen != len(buf) - 13: <span class="c"># framing error (or needs reassembly)</span>
+  body = buf[12:12+dlen]
+  <span class="k">if</span> mtype == 1:                     <span class="c"># Data → EMP</span>
+    emp = body
+    <span class="k">assert</span> emp[0] == 4              <span class="c"># EMP version</span>
+    msg_type  = u16be(emp[1:3]); body_size = u24be(emp[5:8]); vhdr = emp[8]
+    sender, i = read_cstring(emp, 13)
+    dest,   j = read_cstring(emp, i)
+    payload   = emp[13+vhdr : len(emp)-4]
+    crc32     = s32be(emp[-4:])       <span class="c"># verify over emp[:-4] — strong signal</span>
+  <span class="k">elif</span> mtype == 2: acked = u32be(body[0:4])
+  <span class="k">elif</span> mtype == 3: nak = u32be(body[0:4]); err = body[4]
+  <span class="k">elif</span> mtype == 4: <span class="c"># keep-alive</span></pre>
+
+    <h3><span class="h3no">2.5</span>Trust vs. ignore</h3>
+    <ul>
+      <li><strong>Trust</strong> <span class="tier t-legacy"><span class="d"></span>legacy</span>:
+        all Class&nbsp;D + EMP-envelope <em>structure</em> — framing, STX/ETX,
+        COMMID, <code>data_length</code>, EMP version, sizes, TTL, QoS, the
+        NUL-terminated addresses, the CRC-32.</li>
+      <li><strong>Don't overfit</strong> <span class="tier t-synth"><span class="d"></span>synthetic</span>:
+        <code>emp.msg_type</code> <em>values</em> and payload schemas. The real AAR
+        ITC catalog is proprietary. Classify EMP on the <em>envelope</em>, not on
+        specific application message numbers.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section id="atcs">
+    <div class="sec-head"><span class="sec-no">§3</span><h2>ATCS relay-feed codeline</h2></div>
+    <p>ATCS (AAR MSRP Section K-II, formerly Spec 200) is a legacy 900&nbsp;MHz RF
+    codeline. <strong>The only IP-observable form is the ATCS&nbsp;Monitor relay
+    feed</strong>: base-station relays decode the RF and stream decoded frames over
+    IP to dispatch. Cyber Vision sees this feed, never the RF. This layout was
+    <strong>validated live against a real ATCS&nbsp;Monitor&nbsp;4.1.0 decoder.</strong></p>
+
+    <h3><span class="h3no">3.1</span>Feed transport identification</h3>
+    <ol>
+      <li>Subscriber opens <strong>TCP to port 4802</strong> (relay control; configurable).</li>
+      <li>Subscriber sends ASCII <code>ATCSMON &lt;version&gt;\n</code> (subscribe).</li>
+      <li>Relay replies <code>PORT &lt;n&gt;\n</code>, assigning a <strong>UDP data port (30000+)</strong>.</li>
+      <li>Relay streams <strong>binary ATCS frames over UDP, one frame per datagram.</strong></li>
+      <li>The subscriber's version string doubles as the keep-alive.</li>
+    </ol>
+    <div class="note">Classify the <strong>UDP codeline frames</strong> on frame
+    self-consistency (§3.3–3.4) — both CRC-16/X.25 checks passing is a near-zero
+    false-positive signal. Ports are configurable; don't rely on them alone.</div>
+
+    <h3><span class="h3no">3.2</span>Frame structure — byte map</h3>
+    <p class="hexnote">5-byte RF header + datagram + 2-byte datagram CRC.</p>
+    <div class="tbl-wrap"><table class="datasheet">
+      <thead><tr><th>Off</th><th>W</th><th>Field</th><th>Meaning</th><th>Tier</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td class="mono">1</td><td class="f">relay.rf_address_type</td><td><code>0x23</code> ground (renders as <code>#</code>), <code>0xFF</code> bcast, <code>0x00</code> CC_ID</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>1</td><td class="mono">1</td><td class="f">relay.rf_pad_bits</td><td>Pad bits in the last Reed-Solomon block</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>2</td><td class="mono">1</td><td class="f">relay.rf_block_count</td><td><strong># RS blocks — the length field</strong> (§3.4)</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>3</td><td class="mono">2</td><td class="f">relay.rf_header_crc</td><td>CRC-16/X.25 over <code>[0:3]</code>, little-endian</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>5</td><td class="mono">1</td><td class="f">atcs.gfi_group</td><td><code>(GFI &lt;&lt; 4) | Group</code></td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>6</td><td class="mono">1</td><td class="f">atcs.spare</td><td>Reserved (<code>0x00</code>)</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>7</td><td class="mono">1</td><td class="f">atcs.send_sequence</td><td>N(S), value = <code>byte &gt;&gt; 1</code></td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>8</td><td class="mono">1</td><td class="f">atcs.receive_sequence</td><td>N(R), value = <code>byte &gt;&gt; 1</code></td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>9</td><td class="mono">1</td><td class="f">atcs.addr_len</td><td>Nibbles: <strong>high = source digits, low = dest digits</strong> (<code>0xA</code>=10, <code>0xE</code>=14)</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>10</td><td class="mono">⌈dst/2⌉</td><td class="f">atcs.dst_addr</td><td><strong>Destination FIRST</strong> (modified BCD, §3.5)</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>…</td><td class="mono">⌈src/2⌉</td><td class="f">atcs.src_addr</td><td>Source address</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>…</td><td class="mono">1</td><td class="f">atcs.facility_len</td><td>Facility length (<code>0x00</code>)</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+        <tr><td>…</td><td class="mono">1</td><td class="f">atcs.message_number</td><td><code>msg_num &lt;&lt; 1 | more</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>…</td><td class="mono">1</td><td class="f">atcs.part_number</td><td><code>part &lt;&lt; 1 | e2e_ack</code></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>…</td><td class="mono">1</td><td class="f">atcs.message_length_vital</td><td><code>msg_len &lt;&lt; 1 | vital</code> — <strong>vital flag lives here</strong></td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>…</td><td class="mono">2</td><td class="f">atcs.label</td><td>Message label (16-bit, Spec 250)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>…</td><td class="mono">N</td><td class="f">atcs.usrdata</td><td>Application user data</td><td><span class="tier t-synth"><span class="d"></span>synthetic</span></td></tr>
+        <tr><td>…</td><td class="mono">4</td><td class="f">atcs.vital_crc</td><td>31-bit K-II vital CRC — <strong>vital messages only</strong> (§3.8)</td><td><span class="tier t-legacy"><span class="d"></span>legacy</span></td></tr>
+        <tr><td>len−2</td><td class="mono">2</td><td class="f">atcs.datagram_crc</td><td>CRC-16/X.25 over <code>[5 : len−2]</code>, little-endian</td><td><span class="tier t-spec"><span class="d"></span>spec</span></td></tr>
+      </tbody>
+    </table></div>
+    <p>Note the asymmetry at <code>[9]</code>: the octet carries the <em>source</em>
+    length in the high nibble, yet the <em>destination address is transmitted
+    first</em>.</p>
+
+    <h3><span class="h3no">3.3</span>The two CRCs — CRC-16/X.25 (your strongest classifier)</h3>
+    <p>Both framing CRCs are <strong>CRC-16/X.25</strong> (HDLC FCS):
+    <code>poly=0x1021, init=0xFFFF, RefIn=RefOut=true, XorOut=0xFFFF</code>, stored
+    <strong>little-endian</strong>. Header CRC covers <code>[0:3]</code>; datagram
+    CRC covers <code>[5 : len−2]</code>. Both passing over their exact spans is a
+    near-zero false-positive ATCS signal — use it as your primary matcher.</p>
+<pre><span class="k">def</span> crc16_x25(data):
+  crc = 0xFFFF
+  <span class="k">for</span> b <span class="k">in</span> data:
+    crc ^= b
+    <span class="k">for</span> _ <span class="k">in</span> range(8):
+      crc = (crc &gt;&gt; 1) ^ 0x8408 <span class="k">if</span> (crc &amp; 1) <span class="k">else</span> (crc &gt;&gt; 1)
+  <span class="k">return</span> crc ^ 0xFFFF          <span class="c"># stored LE: bytes([crc &amp; 0xFF, crc &gt;&gt; 8])</span>
+<span class="c"># header  : crc16_x25(frame[0:3])  == frame[3] | frame[4]&lt;&lt;8</span>
+<span class="c"># datagram: crc16_x25(frame[5:-2]) == frame[-2] | frame[-1]&lt;&lt;8</span></pre>
+
+    <h3><span class="h3no">3.4</span>Frame-length field (<code>block_count</code> / <code>pad_bits</code>)</h3>
+    <p>The RF header encodes length as Reed-Solomon blocks of <strong>60
+    frame-bits each</strong>. The real decoder rebuilds the expected length and
+    rejects a mismatch. For a total frame of <code>L</code> bytes:</p>
+<pre>block_count = ceil(8 * L / 60)          <span class="c"># = ceil(2 * L / 15)</span>
+pad_bits    = 60 * block_count - 8 * L   <span class="c"># always 0..59</span></pre>
+    <p>Recompute from the received datagram length and confirm against
+    <code>[2]</code>/<code>[1]</code> as an integrity check.</p>
+
+    <h3><span class="h3no">3.5</span>Address encoding — the gotchas</h3>
+    <ul>
+      <li><strong>Modified BCD, high nibble first.</strong> Two decimal digits per octet.</li>
+      <li><strong>A zero digit is nibble <code>0xA</code>, not <code>0x0</code>.</strong>
+        e.g. <code>28 A2 A6 3A A7</code> → <code>2 8 0 2 0 6 3 0 0 7</code> = <code>2802063007</code>.</li>
+      <li><strong>Destination first</strong>, then source.</li>
+      <li>Two forms: <strong>7-series (14 digits)</strong>
+        <code>T-RRR-CCC-AAA-XXXX</code> (Type/Railroad/Codeline/Address/eXtension);
+        <strong>5-series (10 digits)</strong> <code>T-RRR-XX-AAAA</code>.</li>
+      <li><strong>Type digit</strong> = role: <code>1</code> locomotive,
+        <code>2</code> office/dispatch, <code>3</code> base station,
+        <code>5</code>/<code>7</code> wayside (MCP). Wayside 7-series extension
+        <code>0202</code> = indications, <code>0101</code> = command &amp; control.</li>
+    </ul>
+<pre><span class="k">def</span> decode_atcs_addr(byts):        <span class="c"># nibble 0xA == digit 0</span>
+  <span class="k">return</span> "".join((<span class="s">"0"</span> <span class="k">if</span> n == 0xA <span class="k">else</span> str(n))
+                 <span class="k">for</span> x <span class="k">in</span> byts <span class="k">for</span> n <span class="k">in</span> (x &gt;&gt; 4, x &amp; 0xF))</pre>
+    <div class="note">Decoded ATCS addresses are <strong>directly usable for Cyber
+    Vision asset identity</strong>: railroad + codeline + serial + role. This is
+    the most valuable DPI output for the protocol.</div>
+
+    <h3><span class="h3no">3.6</span>GFI / Group and sequences</h3>
+    <p><code>[5] = (GFI &lt;&lt; 4) | Group</code>. Observed: <code>0x68</code>=GFI6/Grp8,
+    <code>0x25</code>=GFI2/Grp5, <code>0x6C</code>=GFI6/Grp12, <code>0x2D</code>=GFI2/Grp13.
+    <code>send/receive_sequence</code> = the byte <code>&gt;&gt; 1</code>
+    (LAPB-style N(S)/N(R); low bit 0).</p>
+
+    <h3><span class="h3no">3.7</span>Deriving UsrData length</h3>
+    <p>The decoder derives it from the received datagram size (one frame per UDP
+    datagram) minus the fixed overhead — do the same:</p>
+<pre>usrdata_len = total_frame_len
+            - 5   <span class="c"># RF header</span>
+            - 5   <span class="c"># network header [5:10]</span>
+            - dst_bytes - src_bytes   <span class="c"># from the [9] nibbles</span>
+            - 1   <span class="c"># facility length</span>
+            - 5   <span class="c"># transport header</span>
+            - 2   <span class="c"># datagram CRC</span>
+            - (4 <span class="k">if</span> vital <span class="k">else</span> 0)     <span class="c"># inner vital CRC</span></pre>
+
+    <h3><span class="h3no">3.8</span>Vital CRC (vital messages only)</h3>
+    <p>When the vital flag in <code>message_length_vital</code> is set, a 31-bit
+    K-II vital CRC (4 octets) precedes the datagram CRC inside the L7 region.
+    Polynomial low-mask <code>0x520D8A81</code>, data processed <strong>LSB-first</strong>,
+    register emitted least-significant-octet first; coverage = address-length octet
+    <code>[9]</code> through end of L7 data. Verified against the K-II mandatory
+    vector <code>01 02 → 25 ED BD 70</code>. The outer datagram CRC still wraps it.</p>
+
+    <h3><span class="h3no">3.9</span>Parsing algorithm</h3>
+<pre><span class="k">parse_atcs_datagram</span>(f):                 <span class="c"># f = one UDP payload</span>
+  <span class="k">if</span> crc16_x25(f[0:3])  != le16(f[3:5]): <span class="c"># reject: bad header CRC</span>
+  <span class="k">if</span> crc16_x25(f[5:-2]) != le16(f[-2:]): <span class="c"># reject: bad datagram CRC</span>
+  gfi, group = f[5] &gt;&gt; 4, f[5] &amp; 0x0F
+  sseq, rseq = f[7] &gt;&gt; 1, f[8] &gt;&gt; 1
+  src_d, dst_d = f[9] &gt;&gt; 4, f[9] &amp; 0x0F
+  o = 10
+  dst = decode_atcs_addr(f[o : o+ceil(dst_d/2)]); o += ceil(dst_d/2)
+  src = decode_atcs_addr(f[o : o+ceil(src_d/2)]); o += ceil(src_d/2)
+  facility_len = f[o]; o += 1 + facility_len
+  msg_num = f[o]&gt;&gt;1; part = f[o+1]&gt;&gt;1; vital = f[o+2] &amp; 1
+  label = be16(f[o+3:o+5]); o += 5
+  usr_end = len(f) - 2 - (4 <span class="k">if</span> vital <span class="k">else</span> 0)
+  usrdata = f[o : usr_end]</pre>
+
+    <h3><span class="h3no">3.10</span>Trust vs. ignore</h3>
+    <ul>
+      <li><strong>Trust</strong> <span class="tier t-spec"><span class="d"></span>spec</span>
+        (corpus-validated live): the 5-byte RF header, both CRC-16/X.25 fields,
+        <code>gfi_group</code>, spare, sequences, the address-length octet, the
+        dest-first BCD addresses, the facility length.</li>
+      <li><strong>Trust structure</strong> <span class="tier t-legacy"><span class="d"></span>legacy</span>:
+        the transport header layout and the vital CRC (K-II 2005; may drift).</li>
+      <li><strong>Don't overfit</strong> <span class="tier t-synth"><span class="d"></span>synthetic</span>:
+        UsrData content — per-territory codeline semantics live in proprietary
+        <code>.mcp</code> databases. Treat UsrData as an opaque length-N blob;
+        extract identity from the addresses.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section id="classifier">
+    <div class="sec-head"><span class="sec-no">§4</span><h2>Classifier design recommendations</h2></div>
+    <ol>
+      <li><strong>Identify on framing invariants, not ports.</strong> 3001 (EMP)
+        and 4802/30000+ (ATCS) are configurable vendor defaults.
+        <ul>
+          <li>EMP: <code>[0]==0x02 &amp;&amp; [1]==0x02 &amp;&amp; [-1]==0x03</code> and
+            <code>data_length</code> matches; then EMP <code>[12]==0x04</code>.</li>
+          <li>ATCS: both CRC-16/X.25 checks pass over their exact spans — high
+            confidence on its own.</li>
+        </ul></li>
+      <li><strong>Use CRCs as positive signals</strong>, not just error detection —
+        a self-verifying frame is almost certainly the protocol.</li>
+      <li><strong>Extract asset identity — the DPI payoff:</strong> EMP
+        <code>src/dst_addr</code> (<code>aar.&lt;class&gt;.&lt;name&gt;</code>) → device
+        + role; ATCS BCD addresses → railroad, codeline, serial, and role (type
+        digit + extension). Each distinct wayside MCP is a component.</li>
+      <li><strong>Don't learn synthetic content as ground truth</strong> —
+        <code>emp.msg_type</code> values, EMP payload schemas, ATCS UsrData bytes.</li>
+      <li><strong>Handle TCP reassembly</strong> for EMP (Class&nbsp;D can span
+        segments; use <code>data_length</code>). ATCS is one frame per UDP
+        datagram — no reassembly.</li>
+    </ol>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section id="open">
+    <div class="sec-head"><span class="sec-no">§5</span><h2>Open items &amp; fidelity caveats</h2></div>
+    <ul>
+      <li><span class="tier t-synth"><span class="d"></span>synthetic</span>
+        (won't change without proprietary sources): EMP application message catalog
+        (real message-type IDs + payload schemas), ATCS territory-specific UsrData
+        semantics.</li>
+      <li><span class="tier t-legacy"><span class="d"></span>legacy</span>
+        current-revision drift: Class&nbsp;D is the 2010 S-9356 draft; ATCS
+        transport header + vital CRC are K-II 2005 v4.0. A current-revision capture
+        (a BOS↔WIU trace; an ATCS&nbsp;Monitor <code>.log</code>) would promote them
+        to <span class="tier t-spec"><span class="d"></span>spec</span>.</li>
+      <li><strong>Resolved / validated:</strong> the ATCS relay-feed framing, both
+        CRC-16/X.25 fields, the frame-length field, GFI|Group, sequences, and
+        address encoding — all confirmed against the live ATCS&nbsp;Monitor&nbsp;4.1.0
+        decoder.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section id="reference">
+    <div class="sec-head"><span class="sec-no">§6</span><h2>Generating &amp; reading the corpus</h2></div>
+    <p>Set <code>export_labeled_corpus=true</code> on the generation request for the
+    <code>ptc_freight_corridor</code> (EMP) or <code>atcs_signaling_territory</code>
+    (ATCS) scenario. You get <code>.pcap</code> + <code>.labels.jsonl</code> +
+    <code>.labels.meta.json</code>.</p>
+<pre><span class="k">import</span> json
+<span class="k">from</span> scapy.utils <span class="k">import</span> rdpcap
+pkts = rdpcap(<span class="s">"run.pcap"</span>)
+<span class="k">for</span> rec <span class="k">in</span> map(json.loads, open(<span class="s">"run.labels.jsonl"</span>)):
+  <span class="k">if</span> <span class="k">not</span> rec.get(<span class="s">"fields"</span>): <span class="k">continue</span>
+  raw, l7 = bytes(pkts[rec[<span class="s">"pkt"</span>]]), rec[<span class="s">"l7_offset"</span>]
+  <span class="k">for</span> f <span class="k">in</span> rec[<span class="s">"fields"</span>]:                  <span class="c"># encoding == "binary"</span>
+    field_bytes = raw[l7 + f[<span class="s">"off"</span>] : l7 + f[<span class="s">"off"</span>] + f[<span class="s">"len"</span>]]
+    <span class="c"># f["field"], f["value"], f["confidence"], f["synthetic"]</span></pre>
+  </section>
+
+  <!-- ============ Appendices ============ -->
+  <section id="appendix-a">
+    <div class="sec-head"><span class="sec-no">§A</span><h2>Worked ATCS frame — real corpus, <code>Frame=32</code></h2></div>
+<pre>23 2c 05 ad f7  68 00 46 00 aa  28 a2 a6 3a a7  18 a2 8a 4a 75  00  c6 02 02 b2 1c  01 52 49 00  cf fa</pre>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th class="mono">Bytes</th><th>Field</th><th>Decode</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">23</td><td class="f">rf_address_type</td><td>ground datagram (the <code>#</code>)</td></tr>
+        <tr><td class="mono">2c</td><td class="f">rf_pad_bits</td><td>44</td></tr>
+        <tr><td class="mono">05</td><td class="f">rf_block_count</td><td>5 blocks (⌈8·32/60⌉=5; pad=60·5−256=44 ✓)</td></tr>
+        <tr><td class="mono">ad f7</td><td class="f">rf_header_crc</td><td>0xF7AD = CRC-16/X.25(<code>23 2c 05</code>), LE ✓</td></tr>
+        <tr><td class="mono">68</td><td class="f">gfi_group</td><td>GFI=6, Group=8</td></tr>
+        <tr><td class="mono">00</td><td class="f">spare</td><td>—</td></tr>
+        <tr><td class="mono">46</td><td class="f">send_sequence</td><td>0x46 &gt;&gt; 1 = 35</td></tr>
+        <tr><td class="mono">00</td><td class="f">receive_sequence</td><td>0</td></tr>
+        <tr><td class="mono">aa</td><td class="f">addr_len</td><td>src=10, dst=10 digits</td></tr>
+        <tr><td class="mono">28 a2 a6 3a a7</td><td class="f">dst_addr</td><td><strong>2802063007</strong> (dest first; 0xA=0) — "To Dispatch"</td></tr>
+        <tr><td class="mono">18 a2 8a 4a 75</td><td class="f">src_addr</td><td>1802804075</td></tr>
+        <tr><td class="mono">00</td><td class="f">facility_len</td><td>0</td></tr>
+        <tr><td class="mono">c6 02 02 b2 1c</td><td class="f">transport</td><td>msg/part/len-vital/label → Number 89.0.28</td></tr>
+        <tr><td class="mono">01 52 49 00</td><td class="f">usrdata</td><td>4 bytes (synthetic content)</td></tr>
+        <tr><td class="mono">cf fa</td><td class="f">datagram_crc</td><td>0xFACF = CRC-16/X.25(<code>68…00</code>), LE ✓</td></tr>
+      </tbody>
+    </table></div>
+    <p>Real ATCS&nbsp;Monitor decodes this as: <code>Frame=32 GFI=6 Group=8 SSeq=35
+    Rseq=0 UsrData=4 · To Dispatch: 2802063007 · Number=89.0.28</code>.</p>
+  </section>
+
+  <section id="appendix-b">
+    <div class="sec-head"><span class="sec-no">§B</span><h2>Worked EMP + Class&nbsp;D frame — TCP payload</h2></div>
+<pre>02 02 00000001 01 02 0000002c   <span class="c">Class D hdr (12B): STX, pver, COMMID=1, type=1 Data, mver, dlen=44</span>
+04 0201 01 00 000008 17 0078 0000
+61 61 72 2e 77 2e 77 69 75 30 30 37 00              <span class="c">"aar.w.wiu007\0"  emp.src_addr</span>
+61 61 72 2e 62 2e 62 6f 73 00                        <span class="c">"aar.b.bos\0"     emp.dst_addr</span>
+01 02 03 04                                          <span class="c">payload (synthetic, 4B)</span>
+43 f7 40 ad                                          <span class="c">emp.crc32</span>
+03                                                   <span class="c">Class D ETX</span></pre>
+    <p>EMP-relative: <code>[0]=04</code> version, <code>[1:3]=0201</code> msg_type,
+    <code>[5:8]=000008</code> body_size (8 = 4 CRC + 4 payload), <code>[8]=17</code>
+    var_hdr_size (23), <code>[9:11]=0078</code> ttl (120s), addresses at
+    <code>[13:]</code>, payload at <code>[36:40]</code>, CRC-32 at <code>[40:44]</code>.
+    <code>len(class_d)=57 = 44 + 13</code>.</p>
+  </section>
+
+  <footer>
+    PacketArch · rail DPI parser guide<br>
+    Sources: AAR S-9356 Class D (2010 draft) · AAR MSRP Section K-II (2005 v4.0) ·
+    ATCS Monitor 4.1.0 (live validation oracle).<br>
+    Application-layer content is synthetic pending the proprietary AAR ITC catalog
+    and per-territory codeline databases.
+  </footer>
+
+</div></div>
+</body>
+</html>

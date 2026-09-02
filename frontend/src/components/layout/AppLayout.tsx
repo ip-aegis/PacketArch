@@ -33,6 +33,7 @@ import {
   ThunderboltOutlined,
   RocketOutlined,
   MessageOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { SearchOutlined } from '@ant-design/icons';
 import { healthMonitorApi } from '../../api/healthMonitor';
@@ -68,7 +69,7 @@ const AppLayout: React.FC = () => {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [ackRequired, setAckRequired] = useState(false);
   const [healthAlertCount, setHealthAlertCount] = useState(0);
-  const { liveTrafficEnabled } = useFeatures();
+  const { liveTrafficEnabled, mimicEnabled } = useFeatures();
 
   // Global keyboard shortcuts: Ctrl/Cmd+K for command palette, ? for shortcuts cheatsheet.
   useEffect(() => {
@@ -208,6 +209,15 @@ const AppLayout: React.FC = () => {
             key: '/live-traffic',
             icon: <BarChartOutlined />,
             label: 'Live Traffic',
+          },
+        ]
+      : []),
+    ...(mimicEnabled
+      ? [
+          {
+            key: '/mimic',
+            icon: <ExperimentOutlined />,
+            label: 'Mimic',
           },
         ]
       : []),

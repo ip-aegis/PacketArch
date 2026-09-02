@@ -298,7 +298,7 @@ async def _test_openai_connection(db: AsyncSession) -> dict:
             select(SystemSetting).where(SystemSetting.key == "openai_model")
         )
     ).scalar_one_or_none()
-    model = (model_row.value if model_row else "gpt-5.4-nano") or "gpt-5.4-nano"
+    model = (model_row.value if model_row else "gpt-5.6-sol") or "gpt-5.6-sol"
     try:
         from openai import AsyncOpenAI, AuthenticationError, RateLimitError
         client = AsyncOpenAI(api_key=api_key)

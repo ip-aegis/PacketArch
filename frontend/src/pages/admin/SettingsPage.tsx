@@ -299,20 +299,24 @@ const AIProviderTab: React.FC<{
   // strong cost-conscious alternative; Haiku is fastest / cheapest.
   const anthropicModels = [
     { value: 'claude-opus-4-8', label: 'Claude Opus 4.8 (Latest · most capable)' },
+    { value: 'claude-sonnet-5', label: 'Claude Sonnet 5 (balanced · lower cost)' },
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
     { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
     { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (balanced · lower cost)' },
-    { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
-    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
-    { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (legacy)' },
+    { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (legacy)' },
+    { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (legacy)' },
   ];
 
   const openaiModels = [
-    { value: 'gpt-5.5', label: 'GPT-5.5 (Latest flagship · 1M context)' },
-    { value: 'gpt-5.4', label: 'GPT-5.4 (recommended workhorse · 1M context)' },
-    { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)' },
+    { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol (Latest flagship · frontier)' },
+    { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra (balanced · lower cost)' },
+    { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna (fastest · cheapest)' },
+    { value: 'gpt-5.5', label: 'GPT-5.5 (legacy flagship)' },
     { value: 'gpt-5.5-pro', label: 'GPT-5.5 Pro (highest-stakes reasoning)' },
+    { value: 'gpt-5.4', label: 'GPT-5.4 (legacy)' },
+    { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (legacy)' },
+    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (legacy)' },
     { value: 'o3', label: 'o3 (reasoning)' },
     { value: 'o4-mini', label: 'o4-mini (fast reasoning)' },
     { value: 'gpt-5', label: 'GPT-5 (legacy)' },

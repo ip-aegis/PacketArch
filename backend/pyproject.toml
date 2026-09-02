@@ -38,6 +38,24 @@ numpy = "^2.3.5"
 scipy = "^1.16.3"
 ldap3 = "^2.9.1"
 reportlab = "^4.2.0"
+# PacketArch Mimic — mature server-side Modbus stack for interactive device
+# personas (bound socket, writable datastore, FC43 device identification,
+# correct exceptions on malformed PDUs). See tasks/emulator-agent-design.md.
+# Pinned to the 3.8.x line: pymodbus 3.9+ reworked the datastore/context API
+# (ModbusSlaveContext→ModbusDeviceContext, datablock getValues/setValues removed).
+# The persona server is validated against 3.8; migrating to 3.14 is a tracked
+# follow-up (see tasks/mimic-build-plan.md) that needs re-validation of the block.
+pymodbus = ">=3.8.0,<3.9.0"
+# PacketArch Mimic — asyncio-native OPC UA server for device personas (address
+# space, writable nodes, server identity). Pinned to the validated 2.0.x line
+# (protocol libs churn within a major — see tasks/lessons.md).
+asyncua = ">=2.0.1,<2.1.0"
+# PacketArch Mimic — asyncio-native BACnet/IP stack for building-automation
+# personas. Pre-1.0 (0.0.x): pinned tight, revalidate on bump (API may break).
+bacpypes3 = ">=0.0.106,<0.1.0"
+# PacketArch Mimic — IEC 60870-5-104 controlled station (Fraunhofer c104).
+# Native C-extension; pinned to the validated 2.2.x line (revalidate on bump).
+c104 = ">=2.2.1,<2.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"

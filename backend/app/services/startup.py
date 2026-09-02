@@ -274,6 +274,44 @@ def _serve_agent_image(image_ref: str, version: str) -> None:
     AGENT_VERSION_PATH.write_text(version)
 
 
+def _serve_mimic_image() -> str:
+    """Re-serve the Mimic persona-runtime image (= the backend's OWN image, which
+    carries the full app.mimic code + all protocol libs) as the downloadable
+    tarball, so off-box Docker personas always run current code.
+
+    Regenerates only when the backend image changed (an id marker guards the heavy
+    ``docker save``) — this closes the stale-image trap where new process models /
+    protocols silently crash off-box personas. Heavy, so callers run it threaded.
+    """
+    import gzip
+    import socket
+
+    import docker
+
+    from app.api.routes.agent_install import MIMIC_IMAGE_PATH
+
+    marker = MIMIC_IMAGE_PATH.parent / "mimic-image.imageid"
+    client = docker.from_env()
+    me = client.containers.get(socket.gethostname())  # backend container -> its image
+    image_id = me.image.id
+    if MIMIC_IMAGE_PATH.exists() and marker.exists() and marker.read_text().strip() == image_id:
+        return f"up to date ({image_id[:19]})"
+    try:
+        me.image.tag("mimic-persona", "p0")  # the tag the persona cloud-init runs
+    except Exception:  # noqa: BLE001
+        pass
+    MIMIC_IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    save_img = client.images.get("mimic-persona:p0")
+    tmp = MIMIC_IMAGE_PATH.with_suffix(".tmp")
+    with gzip.open(tmp, "wb") as f:
+        for chunk in save_img.save(named=True):
+            f.write(chunk)
+    tmp.replace(MIMIC_IMAGE_PATH)  # atomic swap so a concurrent download never sees a partial
+    marker.write_text(image_id)
+    logger.info("re-served mimic persona image (%s)", image_id[:19])
+    return f"served ({image_id[:19]})"
+
+
 def _try_pull_agent_from_registry(ref: str) -> tuple[str | None, str | None]:
     """Best-effort pull of the agent image from a registry (e.g. GHCR).
 
@@ -558,6 +596,22 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     # Reconcile agent statuses (reset all to offline since no agents connected at startup)
     # Skipped in PCAP-only deployments — no agents will ever connect.
     from app.core.config import settings
+
+    # Keep the served Mimic persona-runtime image current (= this backend's image),
+    # so off-box Docker personas run current code. The docker save is heavy — run it
+    # in a background thread so it never delays startup.
+    if settings.mimic_enabled:
+        import threading
+        try:
+            threading.Thread(
+                target=lambda: logger.info("mimic image serve: %s", _serve_mimic_image()),
+                name="mimic-image-serve", daemon=True,
+            ).start()
+            results["mimic_image"] = "regenerating in background if stale"
+        except Exception as e:  # noqa: BLE001 — never block startup on this
+            logger.warning("mimic image serve failed to start: %s", e)
+            results["mimic_image"] = f"skipped: {e}"
+
     if settings.live_traffic_enabled:
         agents_reset = await reconcile_agent_statuses(db)
         if agents_reset > 0:
