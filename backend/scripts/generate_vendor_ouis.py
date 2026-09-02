@@ -97,6 +97,21 @@ PATTERNS: dict[str, list[str]] = {
     "broadcom": [r"\bbroadcom\b"],
     "microsoft": [r"microsoft corporation"],
     # Additional real OT vendors referenced by DEVICE_TYPE_VENDORS / generators.
+    # Data-centre power and cooling. dcim_cisco scenarios emit up to 16 rack
+    # PDUs and several CRAC units off one catalog entry each.
+    "eaton": [r"eaton corp", r"eaton automation"],   # incl. Data Center Solutions
+    "raritan": [r"raritan computer"],                # RARITAN COMPUTER, INC
+    "stulz": [r"\bstulz\b"],                         # STULZ GmbH
+
+    # Valve actuators. Added to break up the archetype generator emitting up
+    # to 32 fingerprint-identical actuators per scenario off a single catalog
+    # entry — Cyber Vision merges identically-fingerprinted devices. Each
+    # registrant string below was confirmed present in the IEEE MA-L registry.
+    "rotork": [r"\brotork\b"],                  # ROTORK INSTRUMENTS, LTD.
+    "auma": [r"auma riester"],                  # AUMA Riester GmbH & Co. KG
+    "samson": [r"\bsamson ag\b"],               # SAMSON AG
+    "belimo": [r"belimo automation"],           # BELIMO Automation AG
+
     # Rail / train-control vendors (transportation vertical).
     "wabtec": [r"\bwabtec\b"],
     "ge transportation": [r"ge transportation"],

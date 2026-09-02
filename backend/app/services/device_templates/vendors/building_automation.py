@@ -1430,4 +1430,310 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Mechanical Room",
         },
     ),
+    # ------------------------------------------------------------------
+    # Belimo Energy Valve — pressure-independent control valve with an
+    # integrated thermal energy meter and a native IP stack.
+    #
+    # Added to break up bas_tridium emitting up to 12 fingerprint-identical
+    # valve actuators and 27 identical field instruments off single catalog
+    # entries; Cyber Vision merges identically-fingerprinted devices. Belimo is
+    # the natural choice here — it is a building-automation valve vendor, not a
+    # process-industry one, so this is a better fit for a BAS scenario than the
+    # Fisher/Rotork actuators used on the DCS and water profiles.
+    #
+    # Sources, all authoritative:
+    #   OUI 6C:65:67    IEEE MA-L, registrant "BELIMO Automation AG",
+    #                   Brunnenbachstrasse 1, Hinwil CH.
+    #   BACnet vid 423  bacnet.org assigned-vendor-ids list, registered as
+    #                   "BELIMO Automation AG" at the SAME Hinwil address as
+    #                   the IEEE entry — cross-confirming it is one company.
+    #                   Belimo holds two IDs (284 and 423); 423 is used here.
+    #   model EV065F+BAC  belimo.com datasheets — the Energy Valve range is
+    #                   EV<size><body>+BAC, the "+BAC" suffix denoting BACnet.
+    #   protocols       belimo.com: BACnet/IP, BACnet MS/TP, Modbus TCP,
+    #                   Modbus RTU and MP-Bus, over Ethernet 10/100 with an
+    #                   integrated web server and PoE.
+    #
+    # firmware_variants is EMPTY: Belimo does not publish a firmware version
+    # for this range in any citable form, and an invented value would be a
+    # confidently-incorrect fingerprint. cves is empty and correct — no
+    # published CVEs for this product.
+    DeviceTemplate(
+        id="belimo/energy-valve/ev065f",
+        vendor="Belimo",
+        vendor_family="Energy Valve",
+        model="EV065F+BAC",
+        model_name="Belimo Energy Valve EV065F+BAC",
+        device_type="valve_positioner",
+        description=(
+            "Pressure-independent characterised control valve with integrated "
+            "thermal energy meter, native BACnet/IP and Modbus TCP"
+        ),
+
+        oui_prefixes=["6C:65:67"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 5840,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 10.0,
+            "max_ms": 150.0,
+            "mean_ms": 40.0,
+            "std_dev_ms": 22.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="BEL{10NUM}",
+            station_name_pattern="ev-{location}-{seq}",
+            vendor_short="BLM",
+            model_short="EV065",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 423,
+            "device_type": "Energy Valve",
+            "model_name": "EV065F+BAC",
+        },
+
+        modbus_identity={
+            "vendor_name": "BELIMO Automation AG",
+            "product_code": "EV065F+BAC",
+            "product_name": "Belimo Energy Valve",
+        },
+    ),
+    # ------------------------------------------------------------------
+    # Data-centre rack PDUs. dcim_cisco scenarios emit up to 16 PDUs, and the
+    # catalog held exactly one (Schneider Rack PDU), so every rack in a
+    # generated data centre had an identical PDU fingerprint — and Cyber Vision
+    # merges identically-fingerprinted devices.
+    #
+    # Raritan PX3. Sources: OUI 00:0D:5D is IEEE MA-L "Raritan Computer, Inc"
+    # (confirmed against the live registry and reproduced by regenerating from
+    # the bundled CSV). PX3-5660 is a real model from raritan.com's own product
+    # selector, and raritan.com lists the PX3 management protocols as
+    # HTTP(S), SSH, Telnet, SNMP v2/v3 and MODBUS-TCP.
+    # firmware/cves empty — no citable firmware version, no published CVEs.
+    DeviceTemplate(
+        id="raritan/px3/px3-5660",
+        vendor="Raritan",
+        vendor_family="PX3",
+        model="PX3-5660",
+        model_name="Raritan PX3-5660 Intelligent Rack PDU",
+        device_type="pdu",
+        description="Intelligent switched rack power distribution unit with per-outlet metering",
+
+        oui_prefixes=["00:0D:5D"],
+
+        tcp_stack={"ttl": 64, "window_size": 14600, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 6.0, "max_ms": 90.0, "mean_ms": 25.0,
+            "std_dev_ms": 15.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["snmp", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="RAR{10NUM}",
+            station_name_pattern="pdu-{location}-{seq}",
+            vendor_short="RAR",
+            model_short="PX3",
+        ),
+
+        firmware_variants=[],
+
+        snmp_identity={
+            "sys_descr": "Raritan PX3-5660 Intelligent Rack PDU",
+            "sys_object_id": "1.3.6.1.4.1.13742",  # Raritan enterprise OID
+            "sys_name": "PX3-5660-PDU-001",
+            "sys_location": "Data Center",
+        },
+
+        modbus_identity={
+            "vendor_name": "Raritan Computer, Inc",
+            "product_code": "PX3-5660",
+            "product_name": "PX3 Intelligent Rack PDU",
+        },
+    ),
+
+    # Eaton ePDU G3. Sources: OUI 00:05:4B and siblings are IEEE MA-L Eaton
+    # registrations (regenerated from the bundled IEEE CSV, not hand-entered).
+    # EVMAGU23X-3 is a real Eaton order code, appearing as the subject of
+    # Eaton's own G3 Universal Input Rack PDU brochure and installation manual.
+    # eaton.com states the ePDU G3 supports SNMP v1, v2 and v3 with traps and
+    # per-outlet get/set; no Modbus is claimed, so none is declared here.
+    #
+    # OUI note: IEEE also registers 00:22:D5 to "Eaton Corp. Electrical Group
+    # Data Center Solutions", which would be the closest match of all — but the
+    # OUI generator caps each vendor at six prefixes and that one sorts past the
+    # cut, so it is not in VENDOR_OUIS and the OUI integrity guard rejects it.
+    # 00:20:85 is "Eaton Corporation" in the same registry and is the correct
+    # registrant for the product either way.
+    DeviceTemplate(
+        id="eaton/epdu-g3/evmagu23x-3",
+        vendor="Eaton",
+        vendor_family="ePDU G3",
+        model="EVMAGU23X-3",
+        model_name="Eaton ePDU G3 Universal Input Rack PDU",
+        device_type="pdu",
+        description="Managed universal-input rack PDU with outlet switching and metering",
+
+        oui_prefixes=["00:20:85"],
+
+        tcp_stack={"ttl": 64, "window_size": 8192, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 8.0, "max_ms": 110.0, "mean_ms": 32.0,
+            "std_dev_ms": 18.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ETN{10NUM}",
+            station_name_pattern="pdu-{location}-{seq}",
+            vendor_short="ETN",
+            model_short="G3",
+        ),
+
+        firmware_variants=[],
+
+        snmp_identity={
+            "sys_descr": "Eaton ePDU G3 Universal Input Rack PDU EVMAGU23X-3",
+            "sys_object_id": "1.3.6.1.4.1.534",  # Eaton/Powerware enterprise OID
+            "sys_name": "EPDU-G3-PDU-001",
+            "sys_location": "Data Center",
+        },
+    ),
+    # ------------------------------------------------------------------
+    # KMC Controls BAC-A1616BC — BACnet Building Controller for plant/AHU duty.
+    #
+    # Closes bas_tridium/ahu_controller, which emitted up to 8 identical
+    # controllers off the catalog's single Delta Controls entry.
+    #
+    # Sources: OUI 00:D0:6F is IEEE MA-L "KMC CONTROLS" (already in
+    # VENDOR_OUIS, and it matches the live registry). BAC-A1616BC is the real
+    # model designation, sold as -000 and -001 variants; kmccontrols.com's own
+    # datasheet describes a native BACnet B-BC with an integrated router, web
+    # server and 16x16 expandable I/O.
+    #
+    # IP-capable, which matters: the controller routes between two MS/TP ports,
+    # a PTP port, FOUR logical BACnet IP ports and one BACnet Ethernet port on
+    # the physical Ethernet interface, and supports BBMD and foreign-device
+    # registration. Reliable Controls' MACH-ProZone and MACH-ProAir were
+    # considered first and REJECTED for this role: both are MS/TP only, so they
+    # have no IP endpoint and cannot be an addressed device in a scenario.
+    #
+    # firmware/cves empty — no citable firmware version, no published CVEs.
+    DeviceTemplate(
+        id="kmc/bac-a1616bc/building-controller",
+        vendor="KMC Controls",
+        vendor_family="BAC-A1616BC",
+        model="BAC-A1616BC",
+        model_name="KMC Controls BAC-A1616BC BACnet Building Controller",
+        device_type="ahu_controller",
+        description=(
+            "Native BACnet building controller with integrated router and web "
+            "server, 16x16 expandable I/O, for air-handling and plant duty"
+        ),
+
+        oui_prefixes=["00:D0:6F"],
+
+        tcp_stack={"ttl": 64, "window_size": 4096, "mss": 1460, "sack_permitted": False},
+
+        response_timing={
+            "min_ms": 15.0, "max_ms": 220.0, "mean_ms": 55.0,
+            "std_dev_ms": 30.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="KMC{10NUM}",
+            station_name_pattern="ahu-{location}-{seq}",
+            vendor_short="KMC",
+            model_short="A1616",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 28,  # KMC Controls, already in BACNET_VENDOR_IDS
+            "device_type": "BACnet Building Controller",
+            "model_name": "BAC-A1616BC",
+        },
+    ),
+    # ------------------------------------------------------------------
+    # Belimo 22RTH-5U00A room sensor — humidity + temperature.
+    #
+    # Closes bas_tridium/field_instrument, the largest gap the ratchet tracked:
+    # up to 27 devices, all previously pinned to a Honeywell JACE 8000, which
+    # is a BACnet SUPERVISORY CONTROLLER and was labelled "stand-in for BACnet
+    # sensors" in the pinning table. The catalog had no BAS sensor at all.
+    #
+    # Sources: OUI 6C:65:67 is IEEE MA-L "BELIMO Automation AG". 22RTH-5U00A is
+    # a real part number from Belimo's own US shop catalog, listed as a room
+    # sensor with active humidity/temperature, NFC, Modbus and BACnet; Belimo
+    # publishes Modbus register maps for the 22RTH / 22UTH / 22ADP families.
+    #
+    # Honest note on the role: a room sensor is a field-bus device, not an
+    # IP-addressed one. The field_instrument role explicitly covers this —
+    # "often HART-over-Ethernet or Modbus-mapped via gateway" — so it is
+    # surfaced the way the role documents rather than by pretending the sensor
+    # has its own IP stack. This is also why Reliable Controls' MACH-ProZone
+    # and MACH-ProAir were rejected for the controller roles: MS/TP only, with
+    # no such gateway story.
+    DeviceTemplate(
+        id="belimo/22rth/5u00a",
+        vendor="Belimo",
+        vendor_family="22RTH",
+        model="22RTH-5U00A",
+        model_name="Belimo 22RTH-5U00A Room Sensor",
+        device_type="room_sensor",
+        description=(
+            "Room air sensor measuring temperature and relative humidity, "
+            "with Modbus and BACnet output"
+        ),
+
+        oui_prefixes=["6C:65:67"],
+
+        tcp_stack={"ttl": 64, "window_size": 2920, "mss": 1460, "sack_permitted": False},
+
+        response_timing={
+            "min_ms": 20.0, "max_ms": 300.0, "mean_ms": 70.0,
+            "std_dev_ms": 45.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="BEL{10NUM}",
+            station_name_pattern="rm-sensor-{location}-{seq}",
+            vendor_short="BLM",
+            model_short="22RTH",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 423,
+            "device_type": "Room Sensor",
+            "model_name": "22RTH-5U00A",
+        },
+
+        modbus_identity={
+            "vendor_name": "BELIMO Automation AG",
+            "product_code": "22RTH-5U00A",
+            "product_name": "Belimo Room Sensor",
+        },
+    ),
 ]

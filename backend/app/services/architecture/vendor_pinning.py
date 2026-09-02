@@ -46,12 +46,19 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.SIEMENS_SHOP, "vfd"): (
         ("siemens", "6SL3210-1KE21-7UF1"),  # Sinamics G120
+        ("siemens", "6SL3210-1PE21-1UL0"),  # Sinamics G120C
+        ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120 line module
+        ("siemens", "G120"),
     ),
+    # Same reasoning: PROFIdrive keeps servos same-vendor; S210 is the modern sibling to the S120 already pinned.
     (VendorProfile.SIEMENS_SHOP, "servo"): (
         ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120
+        ("siemens", "S210"),
     ),
     (VendorProfile.SIEMENS_SHOP, "distributed_io"): (
         ("siemens", "6ES7 155-6AU01-0BN0"),  # ET 200SP
+        ("siemens", "6ES7 155-5AA01-0AB0"),  # ET 200SP, alternate head
+        ("siemens", "ET 200MP IM155-5 PN"),
     ),
     (VendorProfile.SIEMENS_SHOP, "engineering_workstation"): (
         ("siemens", "TIA Portal"),
@@ -96,10 +103,15 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("rockwell", "2711P-T10C22D9P"),
     ),
     (VendorProfile.ROCKWELL_SHOP, "vfd"): (
-        ("rockwell", "25B-D030N104"),  # PowerFlex 525
+        ("rockwell", "25B-D030N104"),   # PowerFlex 525
+        ("rockwell", "PowerFlex 753"),
+        ("rockwell", "20F-D052N103"),   # PowerFlex 753 frame
+        ("rockwell", "PowerFlex 755"),
     ),
+    # Servos ride CIP Motion, so the second model is same-vendor by necessity — a real line runs more than one Kinetix frame size.
     (VendorProfile.ROCKWELL_SHOP, "servo"): (
         ("rockwell", "25B-D030N104"),  # use VFD model as approximation
+        ("rockwell", "2198-S086-ERS4"),
     ),
     (VendorProfile.ROCKWELL_SHOP, "distributed_io"): (
         ("rockwell", "1734-AENT"),
@@ -132,11 +144,17 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.ROCKWELL_SHOP, "cnc_controller"): (
         ("fanuc", "0i-TF Plus"),
     ),
+    # Cognex and SICK vision both appear on Rockwell lines; the SICK entry already existed unpinned.
     (VendorProfile.ROCKWELL_SHOP, "vision_system"): (
         ("cognex", "In-Sight 7802"),
+        ("sick", "Inspector P631"),
     ),
+    # Up to 16 scanners. Cognex and SICK are both ordinary on a Rockwell line; all four already existed in the catalog and simply were not pinned.
     (VendorProfile.ROCKWELL_SHOP, "barcode_scanner"): (
         ("cognex", "DataMan 280"),
+        ("cognex", "DataMan 370"),
+        ("sick", "CLV650-0120"),
+        ("sick", "SICK CLV650"),
     ),
 
     # ====================================================================
@@ -193,10 +211,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "LXM32MD18M2"),
     ),
     (VendorProfile.SCHNEIDER_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.SCHNEIDER_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     (VendorProfile.SCHNEIDER_SHOP, "wcs_controller"): (
         ("schneider", "BMEP586040"),
@@ -221,10 +243,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "CI501"),
     ),
     (VendorProfile.ABB_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.ABB_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     (VendorProfile.ABB_SHOP, "safety_controller"): (
         # ABB doesn't have a dedicated safety PLC in catalog. Use a
@@ -264,12 +290,22 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_EMERSON, "field_instrument"): (
         ("emerson", "3051S"),
+        ("emerson", "5700"),
+        ("yokogawa", "EJA530A"),
+        ("endress_hauser", "Promag 400"),
     ),
     (VendorProfile.DCS_EMERSON, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
+    # Up to 15 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_EMERSON, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_EMERSON, "area_hmi"): (
         # DCS operator station — Continuous Historian is a Windows host
@@ -282,6 +318,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_EMERSON, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
 
     (VendorProfile.DCS_HONEYWELL, "dcs_controller"): (
@@ -300,17 +338,38 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.DCS_HONEYWELL, "distributed_io"): (
         ("honeywell", "Series C I/O"),
     ),
+    # NOTE: the catalog contains no Honeywell transmitters, so the previous
+    # single "STT850" pin resolved to no device template — the instrument got a
+    # model string with no fingerprint behind it. Pinning real instrument
+    # vendors fixes both that and the merge problem; a Honeywell-DCS plant with
+    # Emerson and Yokogawa instruments on it is entirely ordinary.
     (VendorProfile.DCS_HONEYWELL, "field_instrument"): (
-        ("honeywell", "STT850"),
+        ("emerson", "3051S"),
+        ("yokogawa", "EJA530A"),
+        ("emerson", "5700"),
+        ("endress_hauser", "Promag 400"),
     ),
+    # Was ("honeywell", "STT850") — an STT850 is a Honeywell TEMPERATURE
+    # transmitter, not a valve actuator, and it is absent from the device
+    # catalog, so the pin resolved to no fingerprint at all. Real actuators
+    # instead.
     (VendorProfile.DCS_HONEYWELL, "valve_actuator"): (
-        ("honeywell", "STT850"),
+        ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),
     ),
+    # Up to 20 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_HONEYWELL, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_HONEYWELL, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     (VendorProfile.DCS_HONEYWELL, "cell_controller"): (
         ("schneider", "BMEP586040"),  # utility-zone PLC; modbus
@@ -347,17 +406,29 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("yokogawa", "EJA530A"),
         ("yokogawa", "FLXA402"),
     ),
+    # Was pinned to a Yokogawa EJA530A, which is a PRESSURE TRANSMITTER, not a
+    # valve actuator — the same mis-assignment class as the Honeywell STT850
+    # entry. 18 of these appear in yokogawa_refinery_unit.
     (VendorProfile.DCS_YOKOGAWA, "valve_actuator"): (
-        ("yokogawa", "EJA530A"),
+        ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),
     ),
+    # Up to 12 drives in one scenario. Third-party drives under a DCS are
+    # normal — this pin was already cross-vendor, so it is widened, not
+    # re-pointed.
     (VendorProfile.DCS_YOKOGAWA, "vfd"): (
         ("rockwell", "25B-D030N104"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("siemens", "G120"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "distributed_io"): (
         ("schneider", "STBNIP2311"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "area_hmi"): (
         # HIS is the Centum Human Interface Station — same fingerprint
@@ -375,7 +446,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "800xA Operator Workplace 6.1.1"),
     ),
     (VendorProfile.DCS_ABB, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.DCS_ABB, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -400,8 +474,16 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # ====================================================================
     # MIXED_FIELD (water utility) — uses real catalog models
     # ====================================================================
+    # The existing M340 pin is kept FIRST so instance 0 of every existing
+    # scenario keeps its fingerprint; the appended entries are purpose-built
+    # utility RTUs (T300 and SCADAPack are Schneider's water-telemetry line,
+    # RTU560 is ABB's), which is both more diverse and more accurate for a
+    # remote pump station.
     (VendorProfile.MIXED_FIELD, "field_rtu"): (
         ("schneider", "BMXP3420302"),
+        ("schneider", "T300"),
+        ("abb", "RTU560"),
+        ("schneider", "SCADAPack 350"),
     ),
     (VendorProfile.MIXED_FIELD, "aggregator_rtu"): (
         ("sel", "SEL-3530"),  # RTAC, exists in catalog
@@ -412,14 +494,30 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.MIXED_FIELD, "engineering_workstation"): (
         ("schneider", "EcoStruxure Control Expert 16"),
     ),
+    # 10-16 drives per water/pipeline scenario; same merge problem as above.
+    # ABB and Schneider are both ordinary choices in a municipal utility.
     (VendorProfile.MIXED_FIELD, "vfd"): (
         ("schneider", "ATV930D15N4"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("abb", "ACS880-01"),
     ),
+    # Round-robin across several real transmitters/flow meters rather than one
+    # model. A water scenario emits 15-24 field instruments; with a single pin
+    # they are fingerprint-identical, and Cyber Vision MERGES
+    # identically-fingerprinted devices — so the asset count in CV silently
+    # disagrees with the scenario. All four match the role's own description
+    # ("smart transmitter — temperature, pressure, level, flow"); analysers are
+    # a different role and are deliberately not pulled in here.
     (VendorProfile.MIXED_FIELD, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                    # pressure / DP
+        ("yokogawa", "EJA530A"),                 # pressure
+        ("endress_hauser", "Promag 400"),        # electromagnetic flow
+        ("emerson", "5700"),                     # coriolis flow
     ),
     (VendorProfile.MIXED_FIELD, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     # The energy_substation archetype is reused by solar_bess_microgrid
     # under the MIXED_FIELD profile, so we need protection-class pins
@@ -473,7 +571,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # BAS_TRIDIUM — Tridium catalog has 0 entries; use Honeywell JACE 8000
     # (a Tridium-licensed Honeywell branding that DOES exist in catalog).
     # ====================================================================
+    # Up to 8 field controllers. A Tridium/Niagara site integrates whatever BACnet controllers are on the floor — that is the point of Niagara — so a single make is the least realistic option here. All five already existed in the catalog.
     (VendorProfile.BAS_TRIDIUM, "bms_field_controller"): (
+        ("delta_controls", "enteliBUS"),
+        ("johnson_controls", "NAE55"),
+        ("schneider", "CX9680"),
+        ("trane", "SC+"),
         ("honeywell", "JACE 8000"),
     ),
     (VendorProfile.BAS_TRIDIUM, "scada_primary"): (
@@ -482,14 +585,30 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.BAS_TRIDIUM, "engineering_workstation"): (
         ("honeywell", "JACE 8000"),
     ),
+    # Was ("honeywell", "JACE 8000"), explicitly a "stand-in for BACnet
+    # sensors" — a JACE is a supervisory controller, not an instrument. Belimo
+    # room sensors are actual BAS field devices; the E+H process transmitters
+    # are added because a campus plant room genuinely has pressure and flow
+    # instrumentation alongside the room sensing.
     (VendorProfile.BAS_TRIDIUM, "field_instrument"): (
-        ("honeywell", "JACE 8000"),  # stand-in for BACnet sensors
+        ("belimo", "22RTH-5U00A"),
+        ("endress_hauser", "PMC71"),
+        ("endress_hauser", "Promag 400"),
     ),
+    # Up to 19 HVAC drives per scenario. ABB's ACS580 and Schneider's ATV
+    # range are both ordinary in a plant room.
     (VendorProfile.BAS_TRIDIUM, "vfd"): (
         ("schneider", "ATV930D15N4"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
     ),
+    # Was ("honeywell", "JACE 8000") — a JACE is a BACnet SUPERVISORY
+    # CONTROLLER, not a valve. Belimo's Energy Valve is an actual BAS control
+    # valve with native BACnet/IP, so this is a correctness fix as much as a
+    # diversity one.
     (VendorProfile.BAS_TRIDIUM, "valve_actuator"): (
-        ("honeywell", "JACE 8000"),  # stand-in
+        ("belimo", "EV065F+BAC"),
+        ("emerson", "DVC6200"),
     ),
 
     # ====================================================================
@@ -499,8 +618,13 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("econolite", "Cobalt ATC"),
         ("econolite", "ASC/3-2100 Cobalt"),
     ),
+    # Up to 10 cabinets. A real signal system is a mix of controller generations and makes — the catalog held 11 traffic_controller templates and this pin used one.
     (VendorProfile.ATMS_NTCIP, "cabinet_controller"): (
         ("econolite", "Cobalt ATC"),
+        ("mccain", "2070 ATC"),
+        ("econolite", "ASC/3-2100 Cobalt"),
+        ("siemens_its", "M60"),
+        ("econolite", "ASC/3-2100"),
     ),
     (VendorProfile.ATMS_NTCIP, "scada_primary"): (
         ("schneider", "Geo SCADA Expert 2022"),
@@ -519,8 +643,11 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("pelco", "SD436-PG-E1"),
         ("bosch", "MIC IP 7100i"),
     ),
+    # Plate-reading cameras on a corridor are rarely all one make.
     (VendorProfile.ATMS_NTCIP, "anpr_camera"): (
         ("hikvision", "DS-2CD7A26G0/P"),
+        ("axis", "P1455-LE"),
+        ("axis", "P1448-LE"),
     ),
     (VendorProfile.ATMS_NTCIP, "dms_sign"): (
         ("daktronics", "Venus 7000"),
@@ -550,7 +677,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "ATV930D15N4"),  # stand-in for smart PDU
     ),
     (VendorProfile.DCIM_CISCO, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.DCIM_CISCO, "bms_field_controller"): (
         ("honeywell", "JACE 8000"),
@@ -688,11 +818,18 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("cisco", "IE-4000-8GT4G-E"),
         ("cisco", "Stratix 5700"),
     ),
+    # An access layer built entirely from one switch SKU is not how a plant
+    # grows, and identical fingerprints merge in Cyber Vision. IE-4000 stays
+    # first (existing scenarios keep instance 0) with current-generation IE
+    # models appended.
     "cell_switch": (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     "bay_switch": (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
     ),
     "wan_edge_router": (
         ("cisco", "IE-4000-8GT4G-E"),
@@ -742,7 +879,10 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("rockwell", "1734-AENT"),
     ),
     "field_instrument": (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     "valve_actuator": (
         ("emerson", "DVC6200"),
@@ -783,19 +923,30 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("honeywell", "PUB6438S"),
         ("distech controls", "ECY-VAV"),
     ),
+    # Up to 8 AHU controllers per BAS scenario. Delta and KMC are both
+    # ordinary in a plant room; one make for all of them is not.
     "ahu_controller": (
-        ("delta controls", "enteliBUS Manager"),
+        ("delta_controls", "enteliBUS Manager"),
+        ("kmc_controls", "BAC-A1616BC"),
     ),
     "chiller_controller": (
         ("carel", "pCO5+"),
         ("honeywell", "XL Web"),
     ),
+    # Up to 12 room controllers. A commercial communicating thermostat is a
+    # room controller; both entries already existed in the catalog.
     "room_controller": (
         ("siemens", "DXR2.E12"),
+        ("carrier", "33CS2PP"),
     ),
     # DCIM power / cooling.
+    # Up to 16 rack PDUs per data-centre scenario. Three makes across a rack row
+    # is normal; 16 identical ones are not, and identical fingerprints merge in
+    # Cyber Vision.
     "pdu": (
         ("schneider", "Rack PDU"),
+        ("raritan", "PX3-5660"),
+        ("eaton", "EVMAGU23X-3"),
     ),
     "ups_unit": (
         ("schneider", "Galaxy VM"),
@@ -853,6 +1004,15 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+# The sub-vendor profiles the generator cycles through for MULTI_VENDOR, by
+# name. Mirrors _MULTI_VENDOR_CYCLE in scenario_generator; exported so the
+# pin-integrity guard can evaluate what MULTI_VENDOR can actually resolve
+# rather than the (empty) MULTI_VENDOR table itself.
+_MULTI_VENDOR_CYCLE_NAMES: tuple[str, ...] = (
+    "siemens_shop", "rockwell_shop", "schneider_shop", "abb_shop",
+)
+
 
 def get_pin_candidates(
     vendor_profile: VendorProfile, role_id: str,

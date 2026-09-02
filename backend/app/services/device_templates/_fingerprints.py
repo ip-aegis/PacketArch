@@ -113,7 +113,17 @@ def get_fingerprint_from_template(
     else:
         firmware = template.get_default_firmware()
 
-    if not firmware:
+    # A template may legitimately declare NO firmware variants: some vendors
+    # never publish firmware version numbers for a product, and the curation
+    # rule is that a firmware value must be verifiable rather than merely
+    # well-shaped. Such a device still has an OUI, a TCP stack, response
+    # timing and protocol identities, so it must still yield a fingerprint —
+    # previously it yielded None and the generator fell back to emitting a
+    # vendor-only device with no fingerprint at all.
+    #
+    # A MISSING requested version is still an error: that means the caller
+    # asked for something this template does not have.
+    if not firmware and template.firmware_variants:
         return None
 
     # Build the fingerprint dictionary
@@ -121,7 +131,7 @@ def get_fingerprint_from_template(
         "vendor": template.vendor,
         "vendor_family": template.vendor_family,
         "model": template.model,
-        "firmware_version": firmware.version,
+        "firmware_version": firmware.version if firmware else None,
         "oui_prefixes": list(template.oui_prefixes),
         "tcp_stack": dict(template.tcp_stack) if template.tcp_stack else {},
         "response_timing": dict(template.response_timing) if template.response_timing else {},
@@ -170,6 +180,14 @@ def get_fingerprint_from_template(
         if base_identity:
             # Start with base identity
             merged = dict(base_identity)
+
+            if firmware is None:
+                # No published firmware for this template — emit the base
+                # protocol identity unchanged. Every branch below stamps a
+                # firmware string into the identity, and there is no
+                # verifiable value to stamp.
+                fingerprint[key] = merged
+                continue
 
             # Apply firmware overrides
             fw_override = firmware.identity_overrides.get(key, {})

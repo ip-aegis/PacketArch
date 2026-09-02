@@ -141,6 +141,32 @@ def _select_zones(arch: Archetype, scale: ScaleTier) -> list[ZoneDef]:
 # IP / subnet allocation (intra-scenario)
 # ---------------------------------------------------------------------------
 
+def _process_role_slug(value: str) -> str:
+    """Slugify a zone theme/name into a stable process-role key.
+
+    "Intake_Headworks" and "Intake Headworks" both become "intake_headworks",
+    so a cosmetic rename of the display name does not change the key.
+    """
+    out = []
+    for ch in (value or "").strip().lower():
+        if ch.isalnum():
+            out.append(ch)
+        elif out and out[-1] != "_":
+            out.append("_")
+    return "".join(out).strip("_")
+
+
+# The measurement a field instrument makes, cycled per instance within a zone.
+#
+# The archetype gives each station three identical DP transmitters with nothing
+# to say what each one measures, which forces every consumer to invent the
+# assignment independently — the ops-data feed was doing exactly that. Stamping
+# it here makes the generator the single source of truth, so the wire path and
+# anything reading the definition agree. A 3051S-class DP transmitter is
+# genuinely used for all three of these.
+_INSTRUMENT_MEASUREMENTS: tuple[str, ...] = ("level", "flow", "pressure")
+
+
 def _allocate_ip(zone_offset: int, host_offset: int) -> str:
     """Assign a /16-style address inside the scenario.
 
@@ -216,6 +242,22 @@ def _materialize_device(
     # Cell2 all Rockwell), not as vendor-mixed cells. Without this, a
     # Schneider PLC ends up wired to Siemens IO and the only shared
     # protocol is SNMP — exactly the audit's "irrational" pattern.
+    # Fingerprint rotation index. `instance_index` counts within ONE zone's
+    # role slot, so a role that appears once per zone (a station RTU, a cell
+    # switch, a valve actuator) would always be index 0 and therefore always
+    # take the FIRST pinned model — every station in the plant fingerprint-
+    # identical no matter how many models are pinned. Adding the zone offset
+    # makes the rotation advance across zones as well as within one.
+    #
+    # This matters beyond aesthetics: Cyber Vision MERGES
+    # identically-fingerprinted devices, so N identical station RTUs can
+    # collapse into fewer CV assets than the scenario declares — and a device
+    # present in one view and absent from the other is the failure that breaks
+    # an inventory comparison.
+    #
+    # Zone 0 / instance 0 still resolves to index 0, so the first device of the
+    # first zone keeps the fingerprint it has today.
+    pin_index = zone_offset + instance_index
     if vendor_profile == VendorProfile.MULTI_VENDOR:
         sub_vendor = _MULTI_VENDOR_CYCLE[
             zone_offset % len(_MULTI_VENDOR_CYCLE)
@@ -225,10 +267,10 @@ def _materialize_device(
         # the sub-vendor lacks a pin for this role.
         if not candidates:
             candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, instance_index)
+        pin = round_robin_pick(candidates, pin_index)
     else:
         candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, instance_index)
+        pin = round_robin_pick(candidates, pin_index)
 
     cve_ids: list[str] = []
     if pin is None:
@@ -287,6 +329,13 @@ def _materialize_device(
     protocols = list(full_fingerprint.get("supported_protocols") or
                      role.required_protocols or ("snmp",))
 
+    # What this instrument measures (field instruments only). See
+    # _INSTRUMENT_MEASUREMENTS.
+    measurement = (
+        _INSTRUMENT_MEASUREMENTS[instance_index % len(_INSTRUMENT_MEASUREMENTS)]
+        if role_id == "field_instrument" else None
+    )
+
     fp_ouis = full_fingerprint.get("oui_prefixes") if full_fingerprint else None
     mac = generate_mac_address(
         vendor=vendor or None,
@@ -303,6 +352,7 @@ def _materialize_device(
         "vendorFingerprint": full_fingerprint,
         "fingerprintModel": fingerprint_model,
         "protocols": protocols,
+        **({"measurement": measurement} if measurement else {}),
         "network": {
             "ipAddress": _allocate_ip(zone_offset, host_offset),
             "macAddress": mac,
@@ -547,6 +597,16 @@ def generate_from_archetype(
             "security_level": z.security_level,
             "is_external": z.is_external,
             "description": z.description,
+            # Machine-readable process role for this zone.
+            #
+            # A zone's DISPLAY name already carries its process meaning (a
+            # water plant's L1 zones render as "Intake Headworks",
+            # "Coagulation", "Filtration"), but only as prose: a downstream
+            # consumer has to keyword-match free text, and renaming the zone
+            # for readability silently breaks it. This is the same value as a
+            # stable slug, taken from the authored zone_theme where there is
+            # one and from the zone's own name otherwise.
+            "process_role": _process_role_slug(zone_themes.get(z.id) or z.name),
         }
 
     # ----- 2. Device materialization ----------------------------------
