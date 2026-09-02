@@ -97,6 +97,15 @@ PATTERNS: dict[str, list[str]] = {
     "broadcom": [r"\bbroadcom\b"],
     "microsoft": [r"microsoft corporation"],
     # Additional real OT vendors referenced by DEVICE_TYPE_VENDORS / generators.
+    # Valve actuators. Added to break up the archetype generator emitting up
+    # to 32 fingerprint-identical actuators per scenario off a single catalog
+    # entry — Cyber Vision merges identically-fingerprinted devices. Each
+    # registrant string below was confirmed present in the IEEE MA-L registry.
+    "rotork": [r"\brotork\b"],                  # ROTORK INSTRUMENTS, LTD.
+    "auma": [r"auma riester"],                  # AUMA Riester GmbH & Co. KG
+    "samson": [r"\bsamson ag\b"],               # SAMSON AG
+    "belimo": [r"belimo automation"],           # BELIMO Automation AG
+
     # Rail / train-control vendors (transportation vertical).
     "wabtec": [r"\bwabtec\b"],
     "ge transportation": [r"ge transportation"],

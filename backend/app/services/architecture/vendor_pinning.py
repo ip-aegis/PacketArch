@@ -205,6 +205,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.SCHNEIDER_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     (VendorProfile.SCHNEIDER_SHOP, "wcs_controller"): (
         ("schneider", "BMEP586040"),
@@ -233,6 +234,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.ABB_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     (VendorProfile.ABB_SHOP, "safety_controller"): (
         # ABB doesn't have a dedicated safety PLC in catalog. Use a
@@ -278,6 +280,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_EMERSON, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     (VendorProfile.DCS_EMERSON, "vfd"): (
         ("rockwell", "25B-D030N104"),
@@ -324,8 +327,13 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("emerson", "5700"),
         ("endress_hauser", "Promag 400"),
     ),
+    # Was ("honeywell", "STT850") — an STT850 is a Honeywell TEMPERATURE
+    # transmitter, not a valve actuator, and it is absent from the device
+    # catalog, so the pin resolved to no fingerprint at all. Real actuators
+    # instead.
     (VendorProfile.DCS_HONEYWELL, "valve_actuator"): (
-        ("honeywell", "STT850"),
+        ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),
     ),
     (VendorProfile.DCS_HONEYWELL, "vfd"): (
         ("rockwell", "25B-D030N104"),
@@ -370,8 +378,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("yokogawa", "EJA530A"),
         ("yokogawa", "FLXA402"),
     ),
+    # Was pinned to a Yokogawa EJA530A, which is a PRESSURE TRANSMITTER, not a
+    # valve actuator — the same mis-assignment class as the Honeywell STT850
+    # entry. 18 of these appear in yokogawa_refinery_unit.
     (VendorProfile.DCS_YOKOGAWA, "valve_actuator"): (
-        ("yokogawa", "EJA530A"),
+        ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "vfd"): (
         ("rockwell", "25B-D030N104"),
@@ -468,6 +480,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.MIXED_FIELD, "valve_actuator"): (
         ("emerson", "DVC6200"),
+        ("rotork", "IQ3 Pro"),      # electric actuator, integrated Ethernet
     ),
     # The energy_substation archetype is reused by solar_bess_microgrid
     # under the MIXED_FIELD profile, so we need protection-class pins

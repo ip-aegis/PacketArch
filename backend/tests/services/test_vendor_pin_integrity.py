@@ -49,17 +49,16 @@ from app.services.template_definition_builder import (
 # Shrink this list; never grow it.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
     # Sorted by blast radius — the number is the worst-case instance count in
-    # any one generated scenario. valve_actuator dominates: six profiles share
-    # the catalog's single valve positioner, roughly 118 devices in total.
+    # any one generated scenario. 27 entries, down from 31: the four largest
+    # valve_actuator gaps (dcs_honeywell 32, dcs_emerson 28, dcs_yokogawa 18,
+    # mixed_field 16 — 94 devices) closed by adding the Rotork IQ3 Pro to the
+    # catalog. The rest still need new device templates, which means verified
+    # OUIs, real order codes and NVD-checked CVEs.
     ("multi_vendor", "field_instrument"),        # up to 32
-    ("dcs_honeywell", "valve_actuator"),         # up to 32
-    ("dcs_emerson", "valve_actuator"),           # up to 28
     ("bas_tridium", "field_instrument"),         # up to 27
     ("dcs_honeywell", "vfd"),                    # up to 20
     ("bas_tridium", "vfd"),                      # up to 19
     ("dcim_cisco", "field_instrument"),          # up to 19
-    ("dcs_yokogawa", "valve_actuator"),          # up to 18
-    ("mixed_field", "valve_actuator"),           # up to 16
     ("dcs_honeywell", "distributed_io"),         # up to 16
     ("dcim_cisco", "pdu"),                       # up to 16
     ("rockwell_shop", "barcode_scanner"),        # up to 16

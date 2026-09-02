@@ -1,7 +1,7 @@
 # PacketArch — OT Traffic Simulation Platform
 # Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
 # Licensed under GPL-3.0. See LICENSE at the repo root.
-"""Process instrumentation device templates (Endress+Hauser, SICK, Vaisala)."""
+"""Process instrumentation device templates (Endress+Hauser, SICK, Vaisala, Rotork)."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
 
@@ -682,6 +682,88 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.1713.660.74",
             "sys_name": "SICK-CLV650-001",
             "sys_location": "Industrial Network",
+        },
+    ),
+    # ------------------------------------------------------------------
+    # Rotork IQ3 Pro — electric valve actuator with integrated Ethernet.
+    #
+    # Added because the catalog held exactly ONE valve actuator fingerprint
+    # (Emerson Fisher DVC6200), shared by six archetype vendor profiles — up to
+    # 32 fingerprint-identical actuators in a single generated scenario. Cyber
+    # Vision merges identically-fingerprinted devices, so that inflates a
+    # scenario's declared asset count above what CV will actually report.
+    #
+    # Every field below is from an authoritative source. Nothing is inferred:
+    #   OUI 00:90:14   IEEE MA-L registry, registrant "ROTORK INSTRUMENTS, LTD."
+    #   model          rotork.com — the IQ3 Pro range, "available with fully
+    #                  integrated ethernet, which is compatible with EtherNet/IP
+    #                  Modbus TCP and PROFINET protocols"
+    #   ODVA vendor 659 + Generic Device profile 0x2B — ODVA marketplace listing
+    #                  for the Rotork Integrated Ethernet Actuator, DOC 12399,
+    #                  conformance tested 2025
+    #
+    # firmware_variants is deliberately EMPTY. Rotork does not publish IQ3 Pro
+    # firmware version numbers (their own downloads page only says the device
+    # firmware "needs to match the firmware in the title of the Device
+    # Description zip file"), and the curation rule is that a firmware value
+    # must be real rather than merely well-shaped. An absent firmware string is
+    # honest; an invented one would be a confidently-incorrect fingerprint.
+    # Populate this when a verifiable version is available.
+    #
+    # cves is empty and correct: no published CVEs for this actuator range.
+    # Field devices legitimately have few or none, and padding the list would
+    # be worse than leaving it bare.
+    DeviceTemplate(
+        id="rotork/iq3/pro",
+        vendor="Rotork",
+        vendor_family="IQ3 Pro",
+        model="IQ3 Pro",
+        model_name="Rotork IQ3 Pro Integrated Ethernet Actuator",
+        device_type="valve_positioner",
+        description=(
+            "Intelligent multi-turn electric valve actuator for isolation or "
+            "regulating duty, with integrated industrial Ethernet"
+        ),
+
+        oui_prefixes=["00:90:14"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 8192,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 8.0,
+            "max_ms": 120.0,
+            "mean_ms": 30.0,
+            "std_dev_ms": 18.0,
+            "distribution": "lognormal",
+        },
+
+        supported_protocols=["modbus_tcp", "ethernet_ip", "profinet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="IQ3{10NUM}",
+            station_name_pattern="actuator-{location}-{seq}",
+            vendor_short="RTK",
+            model_short="IQ3",
+        ),
+
+        firmware_variants=[],
+
+        modbus_identity={
+            "vendor_name": "Rotork Controls Limited",
+            "product_code": "IQ3 Pro",
+            "product_name": "IQ3 Pro Integrated Ethernet Actuator",
+        },
+
+        ethernet_ip_identity={
+            # ODVA Authorized Vendor ID, from the ODVA marketplace listing.
+            "vendor_id": 659,
+            "device_type": 0x2B,  # Generic Device
+            "product_name": "Integrated Ethernet Actuator",
         },
     ),
 ]
