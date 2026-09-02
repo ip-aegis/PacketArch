@@ -1046,7 +1046,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "devices": [
             # BACK OFFICE (Level 3)
             {"type": "back_office_server", "vendor": "wabtec", "count": 2, "zone": "back_office",
-             "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp"],
+             "name_pattern": "PTC_Back_Office_Server_{n}", "protocols": ["emp", "snmp"],
              "fingerprint_model": "I-ETMS Back Office Server",
              "role": "I-ETMS Back Office Server"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "back_office",
@@ -1147,7 +1147,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "devices": [
             # DISPATCH OFFICE (Level 3)
             {"type": "atcs_office", "vendor": "alstom", "count": 2, "zone": "dispatch_office",
-             "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs"],
+             "name_pattern": "ATCS_Dispatch_Office_System_{n}", "protocols": ["atcs", "snmp"],
              "fingerprint_model": "ATCS Office Dispatch System",
              "role": "ATCS Office Dispatch System"},
             {"type": "switch", "vendor": "cisco", "count": 1, "zone": "dispatch_office",

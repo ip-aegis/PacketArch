@@ -2,6 +2,12 @@ packages:
   - 'frontend'
   - 'backend'
   - 'shared'
+# Postinstall scripts pnpm must be allowed to run. Both are required, not
+# optional: esbuild fetches its platform-native binary and msw installs its
+# service worker. This block was previously left as pnpm's unanswered
+# placeholder ("set this to true or false"), which made `pnpm install` fail
+# with ERR_PNPM_IGNORED_BUILDS as soon as CI picked up a pnpm that treats
+# ignored builds as an error.
 allowBuilds:
-  esbuild: set this to true or false
-  msw: set this to true or false
+  esbuild: true
+  msw: true

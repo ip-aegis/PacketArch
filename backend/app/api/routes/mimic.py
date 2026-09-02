@@ -305,9 +305,10 @@ async def cml_labs(db: DBSession, _user: CurrentUser) -> CmlLabListResponse:
     svc, _ = await _cml_service(db)
     base = (await _cml_base_url(db)).rstrip("/")
     labs = await svc.list_labs()
-    items = [CmlLabItem(lab_id=l.id, title=l.title, state=l.state, node_count=l.node_count,
-                        cml_url=f"{base}/lab/{l.id}" if base else "")
-             for l in labs if l.title.startswith(_CML_LAB_PREFIX)]
+    items = [CmlLabItem(lab_id=lab.id, title=lab.title, state=lab.state,
+                        node_count=lab.node_count,
+                        cml_url=f"{base}/lab/{lab.id}" if base else "")
+             for lab in labs if lab.title.startswith(_CML_LAB_PREFIX)]
     return CmlLabListResponse(items=items)
 
 

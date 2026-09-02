@@ -12,8 +12,6 @@ tiers: spec (RF header, CRCs, GFI|Group, sequences, addresses), spec_legacy
 (Spec 250 transport header + 31-bit vital CRC), synthetic (UsrData).
 """
 
-import struct
-
 import pytest
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.l2 import Ether

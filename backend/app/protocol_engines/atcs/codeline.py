@@ -78,7 +78,6 @@ Reference corpus frame whose fields this builder reproduces::
 from __future__ import annotations
 
 import struct
-from binascii import crc32
 
 # ATCS address Type digit (first digit of the address).
 ATCS_TYPE_LOCOMOTIVE = 1

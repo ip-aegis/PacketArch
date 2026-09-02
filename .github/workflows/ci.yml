@@ -42,7 +42,10 @@ jobs:
           node-version: "20"
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        # Pinned: an unpinned `npm install -g pnpm` turned CI red without a
+        # code change when a newer pnpm began treating ignored postinstall
+        # builds as a hard error.
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: |
@@ -123,7 +126,10 @@ jobs:
           node-version: "20"
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        # Pinned: an unpinned `npm install -g pnpm` turned CI red without a
+        # code change when a newer pnpm began treating ignored postinstall
+        # builds as a hard error.
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: |

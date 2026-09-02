@@ -7,9 +7,14 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.1.2"
+VERSION = "4.1.3"
 
 # Version history:
+# 4.1.3 - Lint-only: dropped an unused `from binascii import crc32` in
+#   protocol_engines/atcs/codeline.py (the vital CRC is computed by the
+#   module's own 31-bit routine, never by binascii). protocol_engines/ is
+#   staged into the agent, so the staging rule requires a version bump —
+#   but there is NO change to agent behaviour or to any byte on the wire.
 # 4.1.2 - CloudServiceEngine external-comms realism fix. cloud_service (and the
 #   SSH/TELNET/RDP/HTTPS remote-access flows it shares) emitted ONLY the client
 #   half of each heartbeat — SYN + TLS ClientHello + a lone shutdown FIN, never

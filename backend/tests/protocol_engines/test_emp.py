@@ -229,7 +229,8 @@ class TestClassD:
         for mutate, why in ((lambda b: b.__setitem__(0, 0x99), "bad STX"),
                             (lambda b: b.__setitem__(len(b) - 1, 0x99), "bad ETX"),
                             (lambda b: b.__setitem__(11, 0x40), "length mismatch")):
-            bad = bytearray(raw); mutate(bad)
+            bad = bytearray(raw)
+            mutate(bad)
             with pytest.raises(ValueError):
                 parse_class_d(bytes(bad))
 
