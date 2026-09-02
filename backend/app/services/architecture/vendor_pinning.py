@@ -201,7 +201,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "LXM32MD18M2"),
     ),
     (VendorProfile.SCHNEIDER_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.SCHNEIDER_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -230,7 +233,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "CI501"),
     ),
     (VendorProfile.ABB_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.ABB_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -430,7 +436,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "800xA Operator Workplace 6.1.1"),
     ),
     (VendorProfile.DCS_ABB, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.DCS_ABB, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -638,7 +647,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "ATV930D15N4"),  # stand-in for smart PDU
     ),
     (VendorProfile.DCIM_CISCO, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     (VendorProfile.DCIM_CISCO, "bms_field_controller"): (
         ("honeywell", "JACE 8000"),
@@ -837,7 +849,10 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("rockwell", "1734-AENT"),
     ),
     "field_instrument": (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                 # pressure / DP
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "5700"),                  # coriolis flow
     ),
     "valve_actuator": (
         ("emerson", "DVC6200"),
@@ -948,6 +963,15 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+# The sub-vendor profiles the generator cycles through for MULTI_VENDOR, by
+# name. Mirrors _MULTI_VENDOR_CYCLE in scenario_generator; exported so the
+# pin-integrity guard can evaluate what MULTI_VENDOR can actually resolve
+# rather than the (empty) MULTI_VENDOR table itself.
+_MULTI_VENDOR_CYCLE_NAMES: tuple[str, ...] = (
+    "siemens_shop", "rockwell_shop", "schneider_shop", "abb_shop",
+)
+
 
 def get_pin_candidates(
     vendor_profile: VendorProfile, role_id: str,

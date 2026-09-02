@@ -64,16 +64,17 @@ CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
 # NVD-checked CVEs — which is curation work, not a pinning change.
 #
 # Shrink this list; never grow it. A new entry is a regression.
+#
+# 15 entries, from 31 when the ratchet was written. Everything closable by
+# pinning models the catalog already had is done; what is left genuinely needs
+# new device templates.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
-    ("multi_vendor", "field_instrument"),        # up to 32
     # 27 instances. The catalog has NO building-automation sensor type at
     # all (only controllers and thermostats), so this needs a real BAS
     # sensor template rather than another supervisory-controller stand-in.
     ("bas_tridium", "field_instrument"),         # up to 27
-    ("dcim_cisco", "field_instrument"),          # up to 19
     ("dcim_cisco", "pdu"),                       # up to 16
     ("rockwell_shop", "barcode_scanner"),        # up to 16
-    ("multi_vendor", "valve_actuator"),          # up to 12
     ("bas_tridium", "room_controller"),          # up to 12
     ("atms_ntcip", "cabinet_controller"),        # up to 10
     ("bas_tridium", "bms_field_controller"),     # up to 8
@@ -158,9 +159,24 @@ def test_high_multiplicity_roles_have_more_than_one_model():
     for (profile, role), n in _high_multiplicity_roles().items():
         if (profile, role) in KNOWN_SINGLE_MODEL | CORRECTLY_SINGLE_VENDOR:
             continue
-        from app.services.architecture.vendor_pinning import VendorProfile
-        candidates = get_pin_candidates(VendorProfile(profile), role)
-        if len({m for _, m in candidates}) <= 1:
+        from app.services.architecture.vendor_pinning import (
+            _MULTI_VENDOR_CYCLE_NAMES,
+            VendorProfile,
+        )
+        # MULTI_VENDOR does not resolve its own pins: the generator cycles a
+        # sub-vendor per zone and looks the role up on THAT profile, falling
+        # back to MULTI_VENDOR and then to the agnostic table. Checking the
+        # MULTI_VENDOR profile alone reported a false offender for every
+        # multi_vendor role, so evaluate the union the generator can actually
+        # reach.
+        if profile == "multi_vendor":
+            models: set[str] = set()
+            for sub in _MULTI_VENDOR_CYCLE_NAMES:
+                models |= {m for _, m in get_pin_candidates(VendorProfile(sub), role)}
+            models |= {m for _, m in get_pin_candidates(VendorProfile(profile), role)}
+        else:
+            models = {m for _, m in get_pin_candidates(VendorProfile(profile), role)}
+        if len(models) <= 1:
             offenders[(profile, role)] = n
     assert not offenders, (
         "roles emitting >=4 devices from a single fingerprint (Cyber Vision "
