@@ -1510,4 +1510,108 @@ TEMPLATES: list[DeviceTemplate] = [
             "product_name": "Belimo Energy Valve",
         },
     ),
+    # ------------------------------------------------------------------
+    # Data-centre rack PDUs. dcim_cisco scenarios emit up to 16 PDUs, and the
+    # catalog held exactly one (Schneider Rack PDU), so every rack in a
+    # generated data centre had an identical PDU fingerprint — and Cyber Vision
+    # merges identically-fingerprinted devices.
+    #
+    # Raritan PX3. Sources: OUI 00:0D:5D is IEEE MA-L "Raritan Computer, Inc"
+    # (confirmed against the live registry and reproduced by regenerating from
+    # the bundled CSV). PX3-5660 is a real model from raritan.com's own product
+    # selector, and raritan.com lists the PX3 management protocols as
+    # HTTP(S), SSH, Telnet, SNMP v2/v3 and MODBUS-TCP.
+    # firmware/cves empty — no citable firmware version, no published CVEs.
+    DeviceTemplate(
+        id="raritan/px3/px3-5660",
+        vendor="Raritan",
+        vendor_family="PX3",
+        model="PX3-5660",
+        model_name="Raritan PX3-5660 Intelligent Rack PDU",
+        device_type="pdu",
+        description="Intelligent switched rack power distribution unit with per-outlet metering",
+
+        oui_prefixes=["00:0D:5D"],
+
+        tcp_stack={"ttl": 64, "window_size": 14600, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 6.0, "max_ms": 90.0, "mean_ms": 25.0,
+            "std_dev_ms": 15.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["snmp", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="RAR{10NUM}",
+            station_name_pattern="pdu-{location}-{seq}",
+            vendor_short="RAR",
+            model_short="PX3",
+        ),
+
+        firmware_variants=[],
+
+        snmp_identity={
+            "sys_descr": "Raritan PX3-5660 Intelligent Rack PDU",
+            "sys_object_id": "1.3.6.1.4.1.13742",  # Raritan enterprise OID
+            "sys_name": "PX3-5660-PDU-001",
+            "sys_location": "Data Center",
+        },
+
+        modbus_identity={
+            "vendor_name": "Raritan Computer, Inc",
+            "product_code": "PX3-5660",
+            "product_name": "PX3 Intelligent Rack PDU",
+        },
+    ),
+
+    # Eaton ePDU G3. Sources: OUI 00:05:4B and siblings are IEEE MA-L Eaton
+    # registrations (regenerated from the bundled IEEE CSV, not hand-entered).
+    # EVMAGU23X-3 is a real Eaton order code, appearing as the subject of
+    # Eaton's own G3 Universal Input Rack PDU brochure and installation manual.
+    # eaton.com states the ePDU G3 supports SNMP v1, v2 and v3 with traps and
+    # per-outlet get/set; no Modbus is claimed, so none is declared here.
+    #
+    # OUI note: IEEE also registers 00:22:D5 to "Eaton Corp. Electrical Group
+    # Data Center Solutions", which would be the closest match of all — but the
+    # OUI generator caps each vendor at six prefixes and that one sorts past the
+    # cut, so it is not in VENDOR_OUIS and the OUI integrity guard rejects it.
+    # 00:20:85 is "Eaton Corporation" in the same registry and is the correct
+    # registrant for the product either way.
+    DeviceTemplate(
+        id="eaton/epdu-g3/evmagu23x-3",
+        vendor="Eaton",
+        vendor_family="ePDU G3",
+        model="EVMAGU23X-3",
+        model_name="Eaton ePDU G3 Universal Input Rack PDU",
+        device_type="pdu",
+        description="Managed universal-input rack PDU with outlet switching and metering",
+
+        oui_prefixes=["00:20:85"],
+
+        tcp_stack={"ttl": 64, "window_size": 8192, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 8.0, "max_ms": 110.0, "mean_ms": 32.0,
+            "std_dev_ms": 18.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="ETN{10NUM}",
+            station_name_pattern="pdu-{location}-{seq}",
+            vendor_short="ETN",
+            model_short="G3",
+        ),
+
+        firmware_variants=[],
+
+        snmp_identity={
+            "sys_descr": "Eaton ePDU G3 Universal Input Rack PDU EVMAGU23X-3",
+            "sys_object_id": "1.3.6.1.4.1.534",  # Eaton/Powerware enterprise OID
+            "sys_name": "EPDU-G3-PDU-001",
+            "sys_location": "Data Center",
+        },
+    ),
 ]

@@ -140,11 +140,17 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.ROCKWELL_SHOP, "cnc_controller"): (
         ("fanuc", "0i-TF Plus"),
     ),
+    # Cognex and SICK vision both appear on Rockwell lines; the SICK entry already existed unpinned.
     (VendorProfile.ROCKWELL_SHOP, "vision_system"): (
         ("cognex", "In-Sight 7802"),
+        ("sick", "Inspector P631"),
     ),
+    # Up to 16 scanners. Cognex and SICK are both ordinary on a Rockwell line; all four already existed in the catalog and simply were not pinned.
     (VendorProfile.ROCKWELL_SHOP, "barcode_scanner"): (
         ("cognex", "DataMan 280"),
+        ("cognex", "DataMan 370"),
+        ("sick", "CLV650-0120"),
+        ("sick", "SICK CLV650"),
     ),
 
     # ====================================================================
@@ -561,7 +567,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # BAS_TRIDIUM — Tridium catalog has 0 entries; use Honeywell JACE 8000
     # (a Tridium-licensed Honeywell branding that DOES exist in catalog).
     # ====================================================================
+    # Up to 8 field controllers. A Tridium/Niagara site integrates whatever BACnet controllers are on the floor — that is the point of Niagara — so a single make is the least realistic option here. All five already existed in the catalog.
     (VendorProfile.BAS_TRIDIUM, "bms_field_controller"): (
+        ("delta_controls", "enteliBUS"),
+        ("johnson_controls", "NAE55"),
+        ("schneider", "CX9680"),
+        ("trane", "SC+"),
         ("honeywell", "JACE 8000"),
     ),
     (VendorProfile.BAS_TRIDIUM, "scada_primary"): (
@@ -596,8 +607,13 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("econolite", "Cobalt ATC"),
         ("econolite", "ASC/3-2100 Cobalt"),
     ),
+    # Up to 10 cabinets. A real signal system is a mix of controller generations and makes — the catalog held 11 traffic_controller templates and this pin used one.
     (VendorProfile.ATMS_NTCIP, "cabinet_controller"): (
         ("econolite", "Cobalt ATC"),
+        ("mccain", "2070 ATC"),
+        ("econolite", "ASC/3-2100 Cobalt"),
+        ("siemens_its", "M60"),
+        ("econolite", "ASC/3-2100"),
     ),
     (VendorProfile.ATMS_NTCIP, "scada_primary"): (
         ("schneider", "Geo SCADA Expert 2022"),
@@ -616,8 +632,11 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("pelco", "SD436-PG-E1"),
         ("bosch", "MIC IP 7100i"),
     ),
+    # Plate-reading cameras on a corridor are rarely all one make.
     (VendorProfile.ATMS_NTCIP, "anpr_camera"): (
         ("hikvision", "DS-2CD7A26G0/P"),
+        ("axis", "P1455-LE"),
+        ("axis", "P1448-LE"),
     ),
     (VendorProfile.ATMS_NTCIP, "dms_sign"): (
         ("daktronics", "Venus 7000"),
@@ -904,8 +923,13 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("siemens", "DXR2.E12"),
     ),
     # DCIM power / cooling.
+    # Up to 16 rack PDUs per data-centre scenario. Three makes across a rack row
+    # is normal; 16 identical ones are not, and identical fingerprints merge in
+    # Cyber Vision.
     "pdu": (
         ("schneider", "Rack PDU"),
+        ("raritan", "PX3-5660"),
+        ("eaton", "EVMAGU23X-3"),
     ),
     "ups_unit": (
         ("schneider", "Galaxy VM"),

@@ -65,7 +65,7 @@ CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
 #
 # Shrink this list; never grow it. A new entry is a regression.
 #
-# 15 entries, from 31 when the ratchet was written. Everything closable by
+# 9 entries, from 31 when the ratchet was written. Everything closable by
 # pinning models the catalog already had is done; what is left genuinely needs
 # new device templates.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
@@ -73,19 +73,13 @@ KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
     # all (only controllers and thermostats), so this needs a real BAS
     # sensor template rather than another supervisory-controller stand-in.
     ("bas_tridium", "field_instrument"),         # up to 27
-    ("dcim_cisco", "pdu"),                       # up to 16
-    ("rockwell_shop", "barcode_scanner"),        # up to 16
     ("bas_tridium", "room_controller"),          # up to 12
-    ("atms_ntcip", "cabinet_controller"),        # up to 10
-    ("bas_tridium", "bms_field_controller"),     # up to 8
     ("bas_tridium", "ahu_controller"),           # up to 8
-    ("rockwell_shop", "vision_system"),          # up to 8
     ("siemens_shop", "servo"),                   # up to 6
     ("rockwell_shop", "servo"),                  # up to 6
     ("multi_vendor", "cnc_controller"),          # up to 4
     ("atms_ntcip", "toll_lane_controller"),      # up to 4
     ("atms_ntcip", "toll_rsu"),                  # up to 4
-    ("atms_ntcip", "anpr_camera"),               # up to 4
     ("dcim_cisco", "crac_unit"),                 # up to 4
 }
 
