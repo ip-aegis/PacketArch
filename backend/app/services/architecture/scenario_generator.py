@@ -216,6 +216,22 @@ def _materialize_device(
     # Cell2 all Rockwell), not as vendor-mixed cells. Without this, a
     # Schneider PLC ends up wired to Siemens IO and the only shared
     # protocol is SNMP — exactly the audit's "irrational" pattern.
+    # Fingerprint rotation index. `instance_index` counts within ONE zone's
+    # role slot, so a role that appears once per zone (a station RTU, a cell
+    # switch, a valve actuator) would always be index 0 and therefore always
+    # take the FIRST pinned model — every station in the plant fingerprint-
+    # identical no matter how many models are pinned. Adding the zone offset
+    # makes the rotation advance across zones as well as within one.
+    #
+    # This matters beyond aesthetics: Cyber Vision MERGES
+    # identically-fingerprinted devices, so N identical station RTUs can
+    # collapse into fewer CV assets than the scenario declares — and a device
+    # present in one view and absent from the other is the failure that breaks
+    # an inventory comparison.
+    #
+    # Zone 0 / instance 0 still resolves to index 0, so the first device of the
+    # first zone keeps the fingerprint it has today.
+    pin_index = zone_offset + instance_index
     if vendor_profile == VendorProfile.MULTI_VENDOR:
         sub_vendor = _MULTI_VENDOR_CYCLE[
             zone_offset % len(_MULTI_VENDOR_CYCLE)
@@ -225,10 +241,10 @@ def _materialize_device(
         # the sub-vendor lacks a pin for this role.
         if not candidates:
             candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, instance_index)
+        pin = round_robin_pick(candidates, pin_index)
     else:
         candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, instance_index)
+        pin = round_robin_pick(candidates, pin_index)
 
     cve_ids: list[str] = []
     if pin is None:

@@ -46,12 +46,17 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.SIEMENS_SHOP, "vfd"): (
         ("siemens", "6SL3210-1KE21-7UF1"),  # Sinamics G120
+        ("siemens", "6SL3210-1PE21-1UL0"),  # Sinamics G120C
+        ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120 line module
+        ("siemens", "G120"),
     ),
     (VendorProfile.SIEMENS_SHOP, "servo"): (
         ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120
     ),
     (VendorProfile.SIEMENS_SHOP, "distributed_io"): (
         ("siemens", "6ES7 155-6AU01-0BN0"),  # ET 200SP
+        ("siemens", "6ES7 155-5AA01-0AB0"),  # ET 200SP, alternate head
+        ("siemens", "ET 200MP IM155-5 PN"),
     ),
     (VendorProfile.SIEMENS_SHOP, "engineering_workstation"): (
         ("siemens", "TIA Portal"),
@@ -96,7 +101,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("rockwell", "2711P-T10C22D9P"),
     ),
     (VendorProfile.ROCKWELL_SHOP, "vfd"): (
-        ("rockwell", "25B-D030N104"),  # PowerFlex 525
+        ("rockwell", "25B-D030N104"),   # PowerFlex 525
+        ("rockwell", "PowerFlex 753"),
+        ("rockwell", "20F-D052N103"),   # PowerFlex 753 frame
+        ("rockwell", "PowerFlex 755"),
     ),
     (VendorProfile.ROCKWELL_SHOP, "servo"): (
         ("rockwell", "25B-D030N104"),  # use VFD model as approximation
@@ -264,6 +272,9 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_EMERSON, "field_instrument"): (
         ("emerson", "3051S"),
+        ("emerson", "5700"),
+        ("yokogawa", "EJA530A"),
+        ("endress_hauser", "Promag 400"),
     ),
     (VendorProfile.DCS_EMERSON, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -282,6 +293,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_EMERSON, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
 
     (VendorProfile.DCS_HONEYWELL, "dcs_controller"): (
@@ -300,8 +313,16 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.DCS_HONEYWELL, "distributed_io"): (
         ("honeywell", "Series C I/O"),
     ),
+    # NOTE: the catalog contains no Honeywell transmitters, so the previous
+    # single "STT850" pin resolved to no device template — the instrument got a
+    # model string with no fingerprint behind it. Pinning real instrument
+    # vendors fixes both that and the merge problem; a Honeywell-DCS plant with
+    # Emerson and Yokogawa instruments on it is entirely ordinary.
     (VendorProfile.DCS_HONEYWELL, "field_instrument"): (
-        ("honeywell", "STT850"),
+        ("emerson", "3051S"),
+        ("yokogawa", "EJA530A"),
+        ("emerson", "5700"),
+        ("endress_hauser", "Promag 400"),
     ),
     (VendorProfile.DCS_HONEYWELL, "valve_actuator"): (
         ("honeywell", "STT850"),
@@ -311,6 +332,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_HONEYWELL, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     (VendorProfile.DCS_HONEYWELL, "cell_controller"): (
         ("schneider", "BMEP586040"),  # utility-zone PLC; modbus
@@ -358,6 +381,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.DCS_YOKOGAWA, "cell_switch"): (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     (VendorProfile.DCS_YOKOGAWA, "area_hmi"): (
         # HIS is the Centum Human Interface Station — same fingerprint
@@ -400,8 +425,16 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # ====================================================================
     # MIXED_FIELD (water utility) — uses real catalog models
     # ====================================================================
+    # The existing M340 pin is kept FIRST so instance 0 of every existing
+    # scenario keeps its fingerprint; the appended entries are purpose-built
+    # utility RTUs (T300 and SCADAPack are Schneider's water-telemetry line,
+    # RTU560 is ABB's), which is both more diverse and more accurate for a
+    # remote pump station.
     (VendorProfile.MIXED_FIELD, "field_rtu"): (
         ("schneider", "BMXP3420302"),
+        ("schneider", "T300"),
+        ("abb", "RTU560"),
+        ("schneider", "SCADAPack 350"),
     ),
     (VendorProfile.MIXED_FIELD, "aggregator_rtu"): (
         ("sel", "SEL-3530"),  # RTAC, exists in catalog
@@ -412,11 +445,26 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.MIXED_FIELD, "engineering_workstation"): (
         ("schneider", "EcoStruxure Control Expert 16"),
     ),
+    # 10-16 drives per water/pipeline scenario; same merge problem as above.
+    # ABB and Schneider are both ordinary choices in a municipal utility.
     (VendorProfile.MIXED_FIELD, "vfd"): (
         ("schneider", "ATV930D15N4"),
+        ("abb", "ACS580"),
+        ("schneider", "ATV630D15N4"),
+        ("abb", "ACS880-01"),
     ),
+    # Round-robin across several real transmitters/flow meters rather than one
+    # model. A water scenario emits 15-24 field instruments; with a single pin
+    # they are fingerprint-identical, and Cyber Vision MERGES
+    # identically-fingerprinted devices — so the asset count in CV silently
+    # disagrees with the scenario. All four match the role's own description
+    # ("smart transmitter — temperature, pressure, level, flow"); analysers are
+    # a different role and are deliberately not pulled in here.
     (VendorProfile.MIXED_FIELD, "field_instrument"): (
-        ("emerson", "3051S"),
+        ("emerson", "3051S"),                    # pressure / DP
+        ("yokogawa", "EJA530A"),                 # pressure
+        ("endress_hauser", "Promag 400"),        # electromagnetic flow
+        ("emerson", "5700"),                     # coriolis flow
     ),
     (VendorProfile.MIXED_FIELD, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -688,11 +736,18 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("cisco", "IE-4000-8GT4G-E"),
         ("cisco", "Stratix 5700"),
     ),
+    # An access layer built entirely from one switch SKU is not how a plant
+    # grows, and identical fingerprints merge in Cyber Vision. IE-4000 stays
+    # first (existing scenarios keep instance 0) with current-generation IE
+    # models appended.
     "cell_switch": (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
+        ("cisco", "IE-3500-8T3S-E"),
     ),
     "bay_switch": (
         ("cisco", "IE-4000-8GT4G-E"),
+        ("cisco", "IE-3300-8T2S"),
     ),
     "wan_edge_router": (
         ("cisco", "IE-4000-8GT4G-E"),
