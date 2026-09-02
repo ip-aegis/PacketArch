@@ -48,7 +48,7 @@ def _prepend_skills_as_system(
 class OpenAIProvider(AIProvider):
     """OpenAI GPT provider."""
 
-    def __init__(self, api_key: str, model: str = "gpt-5.4") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-5.6-sol") -> None:
         """Initialize OpenAI provider.
 
         Args:

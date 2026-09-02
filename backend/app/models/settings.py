@@ -113,7 +113,7 @@ DEFAULT_SETTINGS = [
     },
     {
         "key": "openai_model",
-        "value": "gpt-5.4",
+        "value": "gpt-5.6-sol",
         "is_secret": False,
         "category": "ai",
         "description": "OpenAI model to use for AI features",

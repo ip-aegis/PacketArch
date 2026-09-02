@@ -21,12 +21,20 @@ THINKING_MODELS = {
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-opus-4-5-20251101",
+    "claude-sonnet-5",
     "claude-sonnet-4-6",
     "claude-sonnet-4-5-20250929",
     "claude-sonnet-4-5",
 }
-# Models that support adaptive thinking (preferred over manual budget_tokens)
-ADAPTIVE_THINKING_MODELS = {"claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6"}
+# Models that support adaptive thinking (preferred over manual budget_tokens).
+# Sonnet 5 belongs here (not the budget_tokens branch): manual budget_tokens
+# is REMOVED on Sonnet 5 and returns HTTP 400 — it only supports adaptive.
+ADAPTIVE_THINKING_MODELS = {
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-sonnet-5",
+}
 
 
 class AnthropicProvider(AIProvider):

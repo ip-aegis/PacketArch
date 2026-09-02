@@ -119,7 +119,7 @@ class AIProviderFactory:
                 raise ValueError("OpenAI API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
-            model = await _resolve_model("openai_model") or "gpt-5.5"
+            model = await _resolve_model("openai_model") or "gpt-5.6-sol"
 
             logger.info(
                 "Creating OpenAI provider for task=%s with model: %s",
