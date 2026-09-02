@@ -131,6 +131,23 @@ def _high_multiplicity_roles():
 
 
 @pytest.mark.integration
+def test_the_survey_is_not_vacuous():
+    """Silence must not look like success.
+
+    Everything below is "no offenders found -> pass". If the survey ever
+    returned nothing — a refactor, a moved template registry, a swallowed
+    exception — the ratchet would pass while checking nothing at all. So assert
+    the survey still sees a realistic population before trusting its verdict.
+    """
+    surveyed = _high_multiplicity_roles()
+    assert len(surveyed) >= 50, (
+        f"survey found only {len(surveyed)} high-multiplicity (profile, role) "
+        f"pairs; it saw ~90 when written, so it is probably not running"
+    )
+    assert max(surveyed.values()) >= 20, "no role emits >=20 devices — suspicious"
+
+
+@pytest.mark.integration
 def test_high_multiplicity_roles_have_more_than_one_model():
     """Ratchet: no NEW role may emit many devices from one fingerprint."""
     offenders = {}
