@@ -65,12 +65,10 @@ CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
 #
 # Shrink this list; never grow it. A new entry is a regression.
 #
-# 6 entries, from 31 when the ratchet was written. Everything closable by
+# 4 entries, from 31 when the ratchet was written. Everything closable by
 # pinning models the catalog already had is done; what is left genuinely needs
 # new device templates.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
-    ("siemens_shop", "servo"),                   # up to 6
-    ("rockwell_shop", "servo"),                  # up to 6
     ("multi_vendor", "cnc_controller"),          # up to 4
     ("atms_ntcip", "toll_lane_controller"),      # up to 4
     ("atms_ntcip", "toll_rsu"),                  # up to 4

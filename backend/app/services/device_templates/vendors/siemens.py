@@ -3669,4 +3669,63 @@ TEMPLATES: list[DeviceTemplate] = [
             "icd_filename": "SIE_7VK87.icd",
         },
     ),
+    # ------------------------------------------------------------------
+    # SINAMICS S210 — second Siemens servo, closing siemens_shop/servo.
+    # Same reasoning as the Kinetix entry: servos ride the controller's motion
+    # network (PROFIdrive/PROFINET here), so the second model is same-vendor.
+    #
+    # Sources: siemens.com describes the S210 as a 0.1-7 kW servo drive with an
+    # integrated PROFINET IRT interface, EtherNet/IP support from V6.3 onward,
+    # an integrated web server, and SIL3 / PL e certification.
+    #
+    # The order code is NOT invented: Siemens publishes the S210 under its
+    # product designation and the specific 6SL5... order number could not be
+    # verified, so the designation is used — the same convention this catalog
+    # already applies to the "G120" entry.
+    #
+    # firmware V6.3 IS citable: Siemens states EtherNet/IP is supported "from
+    # V6.3 onwards", so that version demonstrably exists.
+    DeviceTemplate(
+        id="siemens/sinamics/s210",
+        vendor="Siemens",
+        vendor_family="SINAMICS S210",
+        model="S210",
+        model_name="SINAMICS S210 Servo Drive",
+        device_type="servo",
+        description="0.1-7 kW servo drive with integrated PROFINET IRT and web server",
+
+        oui_prefixes=["00:0E:8C"],
+
+        tcp_stack={"ttl": 64, "window_size": 8192, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 1.0, "max_ms": 20.0, "mean_ms": 4.0,
+            "std_dev_ms": 2.5, "distribution": "lognormal",
+        },
+
+        supported_protocols=["profinet", "ethernet_ip"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="SIE{10NUM}",
+            station_name_pattern="servo-{location}-{seq}",
+            vendor_short="SIE",
+            model_short="S210",
+        ),
+
+        firmware_variants=[
+            FirmwareVariant(
+                version="V6.3",
+                release_date=date(2023, 6, 1),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+            ),
+        ],
+
+        profinet_identity={
+            "vendor_id": "0x002A",  # Siemens AG, PROFIBUS/PROFINET vendor ID
+            "device_id": "0x0000",
+            "station_name": "sinamics-s210",
+        },
+    ),
 ]

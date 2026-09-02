@@ -50,8 +50,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120 line module
         ("siemens", "G120"),
     ),
+    # Same reasoning: PROFIdrive keeps servos same-vendor; S210 is the modern sibling to the S120 already pinned.
     (VendorProfile.SIEMENS_SHOP, "servo"): (
         ("siemens", "6SL3130-7TE25-5AA3"),  # Sinamics S120
+        ("siemens", "S210"),
     ),
     (VendorProfile.SIEMENS_SHOP, "distributed_io"): (
         ("siemens", "6ES7 155-6AU01-0BN0"),  # ET 200SP
@@ -106,8 +108,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("rockwell", "20F-D052N103"),   # PowerFlex 753 frame
         ("rockwell", "PowerFlex 755"),
     ),
+    # Servos ride CIP Motion, so the second model is same-vendor by necessity — a real line runs more than one Kinetix frame size.
     (VendorProfile.ROCKWELL_SHOP, "servo"): (
         ("rockwell", "25B-D030N104"),  # use VFD model as approximation
+        ("rockwell", "2198-S086-ERS4"),
     ),
     (VendorProfile.ROCKWELL_SHOP, "distributed_io"): (
         ("rockwell", "1734-AENT"),

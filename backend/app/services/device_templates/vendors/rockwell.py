@@ -2571,4 +2571,51 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Motor Control Center",
         },
     ),
+    # ------------------------------------------------------------------
+    # Kinetix 5700 — second Rockwell servo, closing rockwell_shop/servo.
+    #
+    # Servo drives are NOT a cross-vendor role: they sit on the controller's
+    # motion network (CIP Motion here), so a Rockwell cell's servos are
+    # Rockwell. The fix is therefore a second Rockwell model rather than a
+    # foreign one — a real line runs more than one Kinetix frame size.
+    #
+    # Sources: 2198-S086-ERS4 is a real catalog number with its own page on
+    # rockwellautomation.com — Kinetix 5700 single-axis servo drive, 43 A
+    # continuous RMS, two Ethernet RJ45 ports, EtherNet/IP.
+    # firmware/cves empty: no citable firmware version, none published.
+    DeviceTemplate(
+        id="rockwell/kinetix-5700/2198-s086-ers4",
+        vendor="Rockwell",
+        vendor_family="Kinetix 5700",
+        model="2198-S086-ERS4",
+        model_name="Kinetix 5700 Single-Axis Servo Drive",
+        device_type="servo",
+        description="Single-axis servo drive, 43 A continuous, CIP Motion over EtherNet/IP",
+
+        oui_prefixes=["00:00:BC"],
+
+        tcp_stack={"ttl": 64, "window_size": 8192, "mss": 1460, "sack_permitted": True},
+
+        response_timing={
+            "min_ms": 1.0, "max_ms": 25.0, "mean_ms": 5.0,
+            "std_dev_ms": 3.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["ethernet_ip", "cip_motion"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="KTX{10NUM}",
+            station_name_pattern="servo-{location}-{seq}",
+            vendor_short="AB",
+            model_short="K5700",
+        ),
+
+        firmware_variants=[],
+
+        ethernet_ip_identity={
+            "vendor_id": 1,  # Rockwell, per the ODVA Authorized Vendor list
+            "device_type": 0x2B,
+            "product_name": "Kinetix 5700",
+        },
+    ),
 ]
