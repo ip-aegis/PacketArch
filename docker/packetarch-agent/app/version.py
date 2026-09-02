@@ -87,7 +87,12 @@ VERSION = "4.1.2"
 #   sequences, address-length octet, and addresses are now `spec` (corpus-pinned);
 #   the Spec 250 transport header + vital CRC remain `spec_legacy`. See
 #   protocol_engines/atcs/{codeline.py,SPEC_NEEDS.md}.
-# 3.0.1 - Fix: live-deploy EMP flows landed on TCP 44818 (EtherNet/IP) instead of
+# 3.0.1 - NOTE: version collision. This 3.0.1 is the EMP-port fix below. A
+#   SEPARATE 3.0.1 shipped on master via PR #9 carrying the CloudServiceEngine
+#   fix (recorded here as 4.1.2). Two distinct builds share the number, so an
+#   agent reporting 3.0.1 is ambiguous — check for emp in PROTOCOL_PORTS to
+#   tell them apart. Both fixes are present from 4.1.2 onward.
+#   Fix: live-deploy EMP flows landed on TCP 44818 (EtherNet/IP) instead of
 #   3001. The agent's local PROTOCOL_PORTS map (orchestrator_pool.py) omitted emp,
 #   so the destination port fell through to the 44818 default — the payload was
 #   correct Class D + EMP v4, but on the wrong port (a dissector-training corpus
