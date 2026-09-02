@@ -581,8 +581,15 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.BAS_TRIDIUM, "engineering_workstation"): (
         ("honeywell", "JACE 8000"),
     ),
+    # Was ("honeywell", "JACE 8000"), explicitly a "stand-in for BACnet
+    # sensors" — a JACE is a supervisory controller, not an instrument. Belimo
+    # room sensors are actual BAS field devices; the E+H process transmitters
+    # are added because a campus plant room genuinely has pressure and flow
+    # instrumentation alongside the room sensing.
     (VendorProfile.BAS_TRIDIUM, "field_instrument"): (
-        ("honeywell", "JACE 8000"),  # stand-in for BACnet sensors
+        ("belimo", "22RTH-5U00A"),
+        ("endress_hauser", "PMC71"),
+        ("endress_hauser", "Promag 400"),
     ),
     # Up to 19 HVAC drives per scenario. ABB's ACS580 and Schneider's ATV
     # range are both ordinary in a plant room.
@@ -912,15 +919,21 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("honeywell", "PUB6438S"),
         ("distech controls", "ECY-VAV"),
     ),
+    # Up to 8 AHU controllers per BAS scenario. Delta and KMC are both
+    # ordinary in a plant room; one make for all of them is not.
     "ahu_controller": (
-        ("delta controls", "enteliBUS Manager"),
+        ("delta_controls", "enteliBUS Manager"),
+        ("kmc_controls", "BAC-A1616BC"),
     ),
     "chiller_controller": (
         ("carel", "pCO5+"),
         ("honeywell", "XL Web"),
     ),
+    # Up to 12 room controllers. A commercial communicating thermostat is a
+    # room controller; both entries already existed in the catalog.
     "room_controller": (
         ("siemens", "DXR2.E12"),
+        ("carrier", "33CS2PP"),
     ),
     # DCIM power / cooling.
     # Up to 16 rack PDUs per data-centre scenario. Three makes across a rack row

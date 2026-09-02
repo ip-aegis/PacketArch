@@ -65,16 +65,10 @@ CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
 #
 # Shrink this list; never grow it. A new entry is a regression.
 #
-# 9 entries, from 31 when the ratchet was written. Everything closable by
+# 6 entries, from 31 when the ratchet was written. Everything closable by
 # pinning models the catalog already had is done; what is left genuinely needs
 # new device templates.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
-    # 27 instances. The catalog has NO building-automation sensor type at
-    # all (only controllers and thermostats), so this needs a real BAS
-    # sensor template rather than another supervisory-controller stand-in.
-    ("bas_tridium", "field_instrument"),         # up to 27
-    ("bas_tridium", "room_controller"),          # up to 12
-    ("bas_tridium", "ahu_controller"),           # up to 8
     ("siemens_shop", "servo"),                   # up to 6
     ("rockwell_shop", "servo"),                  # up to 6
     ("multi_vendor", "cnc_controller"),          # up to 4

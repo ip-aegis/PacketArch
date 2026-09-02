@@ -1614,4 +1614,126 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_location": "Data Center",
         },
     ),
+    # ------------------------------------------------------------------
+    # KMC Controls BAC-A1616BC — BACnet Building Controller for plant/AHU duty.
+    #
+    # Closes bas_tridium/ahu_controller, which emitted up to 8 identical
+    # controllers off the catalog's single Delta Controls entry.
+    #
+    # Sources: OUI 00:D0:6F is IEEE MA-L "KMC CONTROLS" (already in
+    # VENDOR_OUIS, and it matches the live registry). BAC-A1616BC is the real
+    # model designation, sold as -000 and -001 variants; kmccontrols.com's own
+    # datasheet describes a native BACnet B-BC with an integrated router, web
+    # server and 16x16 expandable I/O.
+    #
+    # IP-capable, which matters: the controller routes between two MS/TP ports,
+    # a PTP port, FOUR logical BACnet IP ports and one BACnet Ethernet port on
+    # the physical Ethernet interface, and supports BBMD and foreign-device
+    # registration. Reliable Controls' MACH-ProZone and MACH-ProAir were
+    # considered first and REJECTED for this role: both are MS/TP only, so they
+    # have no IP endpoint and cannot be an addressed device in a scenario.
+    #
+    # firmware/cves empty — no citable firmware version, no published CVEs.
+    DeviceTemplate(
+        id="kmc/bac-a1616bc/building-controller",
+        vendor="KMC Controls",
+        vendor_family="BAC-A1616BC",
+        model="BAC-A1616BC",
+        model_name="KMC Controls BAC-A1616BC BACnet Building Controller",
+        device_type="ahu_controller",
+        description=(
+            "Native BACnet building controller with integrated router and web "
+            "server, 16x16 expandable I/O, for air-handling and plant duty"
+        ),
+
+        oui_prefixes=["00:D0:6F"],
+
+        tcp_stack={"ttl": 64, "window_size": 4096, "mss": 1460, "sack_permitted": False},
+
+        response_timing={
+            "min_ms": 15.0, "max_ms": 220.0, "mean_ms": 55.0,
+            "std_dev_ms": 30.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="KMC{10NUM}",
+            station_name_pattern="ahu-{location}-{seq}",
+            vendor_short="KMC",
+            model_short="A1616",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 28,  # KMC Controls, already in BACNET_VENDOR_IDS
+            "device_type": "BACnet Building Controller",
+            "model_name": "BAC-A1616BC",
+        },
+    ),
+    # ------------------------------------------------------------------
+    # Belimo 22RTH-5U00A room sensor — humidity + temperature.
+    #
+    # Closes bas_tridium/field_instrument, the largest gap the ratchet tracked:
+    # up to 27 devices, all previously pinned to a Honeywell JACE 8000, which
+    # is a BACnet SUPERVISORY CONTROLLER and was labelled "stand-in for BACnet
+    # sensors" in the pinning table. The catalog had no BAS sensor at all.
+    #
+    # Sources: OUI 6C:65:67 is IEEE MA-L "BELIMO Automation AG". 22RTH-5U00A is
+    # a real part number from Belimo's own US shop catalog, listed as a room
+    # sensor with active humidity/temperature, NFC, Modbus and BACnet; Belimo
+    # publishes Modbus register maps for the 22RTH / 22UTH / 22ADP families.
+    #
+    # Honest note on the role: a room sensor is a field-bus device, not an
+    # IP-addressed one. The field_instrument role explicitly covers this —
+    # "often HART-over-Ethernet or Modbus-mapped via gateway" — so it is
+    # surfaced the way the role documents rather than by pretending the sensor
+    # has its own IP stack. This is also why Reliable Controls' MACH-ProZone
+    # and MACH-ProAir were rejected for the controller roles: MS/TP only, with
+    # no such gateway story.
+    DeviceTemplate(
+        id="belimo/22rth/5u00a",
+        vendor="Belimo",
+        vendor_family="22RTH",
+        model="22RTH-5U00A",
+        model_name="Belimo 22RTH-5U00A Room Sensor",
+        device_type="room_sensor",
+        description=(
+            "Room air sensor measuring temperature and relative humidity, "
+            "with Modbus and BACnet output"
+        ),
+
+        oui_prefixes=["6C:65:67"],
+
+        tcp_stack={"ttl": 64, "window_size": 2920, "mss": 1460, "sack_permitted": False},
+
+        response_timing={
+            "min_ms": 20.0, "max_ms": 300.0, "mean_ms": 70.0,
+            "std_dev_ms": 45.0, "distribution": "lognormal",
+        },
+
+        supported_protocols=["bacnet", "modbus_tcp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="BEL{10NUM}",
+            station_name_pattern="rm-sensor-{location}-{seq}",
+            vendor_short="BLM",
+            model_short="22RTH",
+        ),
+
+        firmware_variants=[],
+
+        bacnet_identity={
+            "vendor_id": 423,
+            "device_type": "Room Sensor",
+            "model_name": "22RTH-5U00A",
+        },
+
+        modbus_identity={
+            "vendor_name": "BELIMO Automation AG",
+            "product_code": "22RTH-5U00A",
+            "product_name": "Belimo Room Sensor",
+        },
+    ),
 ]
