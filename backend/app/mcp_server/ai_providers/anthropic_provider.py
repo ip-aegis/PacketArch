@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Models that support extended thinking
 THINKING_MODELS = {
+    "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
@@ -29,7 +30,10 @@ THINKING_MODELS = {
 # Models that support adaptive thinking (preferred over manual budget_tokens).
 # Sonnet 5 belongs here (not the budget_tokens branch): manual budget_tokens
 # is REMOVED on Sonnet 5 and returns HTTP 400 — it only supports adaptive.
+# Opus 5 also belongs here: thinking is on by default and budget_tokens is
+# removed (400), same as Opus 4.8/4.7/4.6.
 ADAPTIVE_THINKING_MODELS = {
+    "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
@@ -40,12 +44,12 @@ ADAPTIVE_THINKING_MODELS = {
 class AnthropicProvider(AIProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, api_key: str, model: str = "claude-opus-4-8") -> None:
+    def __init__(self, api_key: str, model: str = "claude-opus-5") -> None:
         """Initialize Anthropic provider.
 
         Args:
             api_key: Anthropic API key
-            model: Model to use (default: Claude Opus 4.8 — latest,
+            model: Model to use (default: Claude Opus 5 — latest,
                 most capable for OT scenario generation + deep tool use).
         """
         self.client = AsyncAnthropic(api_key=api_key)
@@ -62,7 +66,7 @@ class AnthropicProvider(AIProvider):
     def _add_thinking_params(self, kwargs: dict[str, Any]) -> None:
         """Add thinking parameters based on model capabilities.
 
-        Opus 4.8 / 4.7 / 4.6: Uses adaptive thinking (model decides when to think deeply).
+        Opus 5 / 4.8 / 4.7 / 4.6: Uses adaptive thinking (model decides when to think deeply).
         Sonnet 4.6 / 4.5: Uses extended thinking with a budget — but only
         when the caller asked for enough ``max_tokens`` to leave room.
         Anthropic requires ``max_tokens > budget_tokens`` and the minimum

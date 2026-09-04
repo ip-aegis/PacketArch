@@ -67,11 +67,11 @@ class AITask(str, Enum):
 # upstream gateway.
 TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
     "anthropic": {
-        # Flagship Opus 4.8 for the heavy lifters — tool use,
+        # Flagship Opus 5 for the heavy lifters — tool use,
         # multi-turn reasoning, design review.
-        AITask.CHAT: "claude-opus-4-8",
-        AITask.SCENARIO_GENERATION: "claude-opus-4-8",
-        AITask.SCENARIO_REVIEW: "claude-opus-4-8",
+        AITask.CHAT: "claude-opus-5",
+        AITask.SCENARIO_GENERATION: "claude-opus-5",
+        AITask.SCENARIO_REVIEW: "claude-opus-5",
         # Sonnet 5 for medium-complexity prose generation (current-gen
         # balanced tier; adaptive thinking on, manual budget_tokens removed).
         AITask.DESCRIPTION_GENERATION: "claude-sonnet-5",
@@ -114,7 +114,7 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
 # task is given. Keeps the legacy "pick one model from settings"
 # behaviour working when the router can't decide.
 FALLBACK_MODEL: dict[str, str] = {
-    "anthropic": "claude-opus-4-8",
+    "anthropic": "claude-opus-5",
     "openai": "gpt-5.6-sol",
     "circuit": "gpt-5-nano",
 }

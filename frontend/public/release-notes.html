@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.18.2,
-      covering June 17 &ndash; July 13, 2026.
+      Feature releases and patches from v1.10.0 through v1.18.4,
+      covering June 17 &ndash; September 4, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">13</div>
+        <div class="cover-stat-value">14</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.18.1</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.18.4</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -583,7 +583,7 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-07-13</div>
+        <div class="cover-stat-value">2026-09-04</div>
       </div>
     </div>
   </header>
@@ -662,6 +662,11 @@ code {
           <td>v1.18.2</td>
           <td>Self-upgrade repair: agent installer 404 after in-app upgrade</td>
           <td>Jul 14, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.18.4</td>
+          <td>AI provider routing: Anthropic tier bumped to Claude Opus 5</td>
+          <td>Sep 4, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1406,6 +1411,55 @@ code {
             installs broken by a previous upgrade repair themselves by simply upgrading to
             v1.18.2 — no SSH needed. (Manual equivalent: <code>cd &lt;install dir&gt; &amp;&amp;
             docker compose up -d --force-recreate</code>.)
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.18.4
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.18.4">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.18.4</div>
+        <div class="release-date">2026-09-04</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">AI &amp; Reliability</div>
+        <div class="release-headline">Anthropic provider routing bumped to Claude Opus 5</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Flagship Anthropic tier moved from Opus 4.8 to Opus 5.</strong>
+            <code>model_router.py</code>'s <code>TASK_MODEL_MAP</code> now routes
+            <code>CHAT</code>, <code>SCENARIO_GENERATION</code>, and
+            <code>SCENARIO_REVIEW</code> to <code>claude-opus-5</code>, with the
+            same change mirrored in the Anthropic provider's default model,
+            the <code>anthropic_model</code> system setting's default, and
+            every fallback path. Sonnet 5 (description/help) and Haiku 4.5
+            (device/site naming) were already current and are unchanged.
+            The Settings &rarr; AI Provider model picker lists Opus 5 as the
+            top recommended option; Opus 4.8 remains selectable, relabeled
+            "legacy".
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Stale dated Haiku model id in two API-key verification
+            calls.</strong> The setup wizard's connectivity check and the
+            admin "Test AI Connection" endpoint both pinged
+            <code>claude-haiku-4-5-20251001</code> instead of the current
+            bare id <code>claude-haiku-4-5</code>; normalized both to match
+            the rest of the codebase.
           </li>
         </ul>
       </div>
