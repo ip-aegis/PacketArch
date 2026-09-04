@@ -54,12 +54,25 @@ def get_human_size(size_bytes: int) -> str:
 
 # Define available downloads with metadata.
 #
-# Two categories surface in the Settings → Downloads UI:
+# Categories surfacing in the Settings → Downloads UI:
 #
+#   documentation  — standalone reference docs (e.g. the install guide)
 #   authoring      — the Portable Scenario Authoring Kit
 #   appliance      — the built virtual appliance OVA (scanned from disk)
 #
 AVAILABLE_DOWNLOADS = {
+    # ── Documentation ─────────────────────────────────────────────
+    "installation-guide": {
+        "name": "PacketArch Installation Guide (PDF)",
+        "filename": "PacketArch-Installation-Guide-v1.10.1.pdf",
+        "description": "Covers all four install methods (git-clone, offline/air-gapped "
+        "bundle, virtual appliance OVA, developer/source setup), system requirements, "
+        "the first-run setup wizard, environment variables, upgrades, and backups. "
+        "Install commands and flags are current; written before several newer features "
+        "(Mimic, multi-sensor topology, Local Sensor Labs) shipped, so it doesn't cover "
+        "those.",
+        "category": "documentation",
+    },
     # ── Portable Scenario Authoring Kit ──────────────────────────
     # These four files together let any external program (or AI)
     # generate a .pascenario.json that this PacketArch install can
