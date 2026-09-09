@@ -208,6 +208,18 @@ TEMPLATES: list[DeviceTemplate] = [
                 is_default=True,
                 cves=[],
             ),
+            # Carried over from the duplicate `endress-hauser/promag/400`
+            # template when it was removed, so deduping did not cost the
+            # catalog a real historical version. That template also listed a
+            # V01.05.00 dated 2024-01-15, which cannot be right alongside a
+            # V01.06.00 dated 2023-08-01 — one of the two dates is wrong and
+            # neither is verifiable, so it is dropped rather than reconciled
+            # with a guess.
+            FirmwareVariant(
+                version="V01.03.00",
+                release_date=date(2022, 6, 20),
+                cves=[],
+            ),
         ],
 
         modbus_identity={
@@ -342,69 +354,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_descr": "Endress+Hauser Cerabar PMC71 Pressure Transmitter V01.06.00",
             "sys_object_id": "1.3.6.1.4.1.8714.768.21",
             "sys_name": "CERABA-PMC71-001",
-            "sys_location": "Industrial Network",
-        },
-    ),
-    DeviceTemplate(
-        id="endress-hauser/promag/400",
-        vendor="Endress+Hauser",
-        vendor_family="Promag",
-        model="Promag 400",
-        model_name="Promag 400 Electromagnetic Flowmeter",
-        device_type="flow_meter",
-        description="Electromagnetic flowmeter for process measurement applications",
-
-        oui_prefixes=["00:07:05"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 16384,
-            "mss": 1460,
-            "sack_permitted": True,
-        },
-
-        response_timing={
-            "min_ms": 2.0,
-            "max_ms": 50.0,
-            "mean_ms": 10.0,
-            "std_dev_ms": 6.0,
-            "distribution": "lognormal",
-        },
-
-        supported_protocols=["modbus_tcp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="EH{2ALPHA}{10NUM}",
-            station_name_pattern="fit-{location}-{seq}",
-            vendor_short="EH",
-            model_short="PM400",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V01.05.00",
-                release_date=date(2024, 1, 15),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V01.03.00",
-                release_date=date(2022, 6, 20),
-                cves=[],
-            ),
-        ],
-
-        modbus_identity={
-            "vendor_name": "Endress+Hauser",
-            "product_code": "Promag 400",
-            "product_name": "Electromagnetic Flowmeter",
-        },
-
-        snmp_identity={
-            "sys_descr": "Endress+Hauser Promag 400 Electromagnetic Flowmeter V01.05.00",
-            "sys_object_id": "1.3.6.1.4.1.8714.149.15",
-            "sys_name": "PROMAG-400-001",
             "sys_location": "Industrial Network",
         },
     ),
