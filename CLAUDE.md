@@ -1,737 +1,189 @@
-# PacketArch Development Guidelines
+# PacketArch — Claude Code Guide
 
-## Repository
+PacketArch is an OT traffic simulation platform (scenario studio → protocol-accurate PCAP
+and live traffic → observed by Cisco Cyber Vision). This file is the **map**: how the box
+works, the rules that keep the platform honest, and where the deep reference lives. Read
+the linked `docs/` page for a subsystem *when you touch it*, not up front.
 
-- **GitHub**: https://github.com/ip-aegis/PacketArch
-- **Branch**: `master` (primary branch)
-- **Clone**: `git clone https://github.com/ip-aegis/PacketArch.git`
-- **Auth**: `gh` CLI over HTTPS (`gh auth login` → HTTPS → `gh auth setup-git`).
-  The current dev box authenticates as the `ip-aegis` account this way;
-  `git push` uses the gh credential helper. (An SSH key at
-  `~/.ssh/id_ed25519` is an alternative if you prefer SSH, but the box is
-  set up for HTTPS+gh.)
+---
 
-### Git Workflow
+## Repository & workflow
+
+- **GitHub:** https://github.com/ip-aegis/PacketArch (public, GPL-3.0). Default branch `master`.
+- **Auth:** `gh` CLI over HTTPS as the `ip-aegis` account (`gh auth setup-git`). There is no
+  SSH key on this box.
+- **Branch → PR → merge.** Feature branches off `master`, PR against `master`. Don't commit
+  to `master` directly. Stage paths explicitly (`git add <paths>`), never `git add -A`.
+- **After every push:** `gh run list --branch <branch> --limit 1`. Red CI = reproduce the
+  **full** suite locally (no `-x`) so every failure shows, then fix all of them.
+- **Worktrees** are used for parallel branches (`~/PA-portfix`, `~/PacketArch-rail`). A worktree
+  has no `node_modules`; symlink the main tree's (`ln -sfn ~/PacketArch/frontend/node_modules frontend/node_modules`).
+- **Private sibling:** `ip-aegis/PacketArch-Vista` (`~/PacketArch-Vista`) carries the Splunk
+  ops-feed work. Public identifiers stay neutral (`ops_feed_*`, never `vista_*`).
+
+## Running the stack (dev = prod)
+
+There is **one** environment: the Docker Compose stack in `/home/rocsmith/PacketArch`.
+Nothing runs on the host with `uvicorn` or `pnpm dev`.
 
 ```bash
-git pull origin master
-git add -A
-git commit -m "Description of changes"
-git push origin master
+docker compose up -d --build backend frontend     # after most code changes
+docker compose up -d --build celery_worker        # + when touching traffic generation / background jobs
+docker compose up -d --build host-agent           # + when touching backend/app/mimic/ or docker/packetarch-host-agent/
+docker compose ps && docker compose logs -f backend
 ```
 
----
+**Rebuild the right containers.** A Mimic or Local-Lab change that only rebuilds `backend`
+leaves a stale `host-agent` that doesn't understand the new spec kind; failures are
+*silent* (teardown no-ops, reconcile stamps `error: 'mon_if'`). Same for `celery_worker`
+and generation code.
 
-## Off-Box Access
+Services: `postgres`, `redis`, `backend` (FastAPI), `celery_worker`, `frontend` (nginx +
+built SPA), `pgadmin`, `host-agent` (privileged; the only thing that touches the host),
+`updater`. To live-edit the host-agent without rebuilding, add the opt-in override
+`docker-compose.host-agent-dev.yml` (see its header).
 
-All services bind to `0.0.0.0` (all network interfaces):
-- **Frontend (Vite)**: `vite.config.ts` → `host: '0.0.0.0'`
-- **Backend (FastAPI)**: `config.py` → `api_host: '0.0.0.0'`
-- **Docker services**: Ports bound to `0.0.0.0` in `docker-compose.dev.yml`
+| Port | Bound to | What |
+|------|----------|------|
+| 443 / 80 | all interfaces | Frontend (HTTPS, self-signed; 80 redirects) |
+| 8001 | compose network only | Backend, via nginx proxy |
+| 5432 / 6379 | `127.0.0.1` | PostgreSQL / Redis |
+| 5050 | `127.0.0.1` | pgAdmin |
 
-### CORS Configuration
-Allowed origins: `http://localhost:3001`, `http://localhost:5173`, `http://*:3001`, `http://*:5173`
-Update `CORS_ORIGINS` in backend `.env` or `config.py` to add more.
+**Config** is the repo-root `.env` (gitignored) over `backend/app/core/config.py` defaults.
+A flag enabled only in this box's `.env` ships **default-off** to every other install; check
+`config.py` defaults against the release notes before tagging.
 
----
+First-run wizard, auto-graduation, wizard reset, SSL regeneration, env vars →
+[docs/production-stack-ops.md](docs/production-stack-ops.md). Fresh-server install and
+upgrades → [DEPLOY.md](DEPLOY.md).
 
-## Port Management
+## Tests & lint
 
-**Always check ports before starting services.**
+There is no Poetry or venv on the host and the backend image ships only main deps, so the
+backend suite runs **inside the container** after a one-off dev-dep install (ephemeral —
+repeat after a rebuild):
 
 ```bash
-# Linux
-lsof -i :8001 :3001 :5432 :6379
-# Windows
-netstat -ano | findstr ":8001 :3001 :5432 :6379"
+docker compose exec backend pip install -q pytest pytest-asyncio pytest-cov aiosqlite
+docker compose exec backend python -m pytest tests/        # full suite, no -x
+cd frontend && pnpm lint && pnpm exec tsc --noEmit && pnpm exec vitest run
 ```
 
-| Service | Port |
-|---------|------|
-| Backend (FastAPI) | 8001 |
-| Frontend (Vite) | 3001 |
-| PostgreSQL | 5432 |
-| Redis | 6379 |
-| pgAdmin (optional) | 5050 |
-
----
-
-## Development Workflow
-
-### Prerequisites
-- **Backend**: Python 3.11+, Poetry
-- **Frontend**: Node.js 18+, pnpm
-
-### First-Time Setup
-
-```bash
-cd backend && poetry lock && poetry install
-cd frontend && pnpm install
-```
-
-### Starting Services
-
-```bash
-# 1. Docker services
-cd docker && docker-compose -f docker-compose.dev.yml up -d
-
-# 2. Backend
-cd backend && poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-
-# 3. Frontend
-cd frontend && pnpm dev
-```
-
-Windows: use `python -m poetry run uvicorn ...` if poetry not in PATH.
-
-### Stopping Services
-
-```bash
-cd docker && docker-compose -f docker-compose.dev.yml down
-# Frontend/Backend: Ctrl+C
-```
-
----
-
-## Production Environment
-
-Development and production run on the same server. "Production" is the local Docker environment.
-
-- **URL**: `https://<SERVER_IP>` (port 443, self-signed SSL)
-- **Credentials**: chosen by the operator in the first-run setup wizard
-  (see "First-run Setup" below). The legacy `ADMIN_PASSWORD` env var is
-  still honored if set, primarily for automated test harnesses.
-- **Working Directory**: `/home/<SSH_USER>/packetarch`
-- **Architecture**: Nginx reverse proxy → backend (internal only)
-
-### First-run Setup
-
-Fresh installs land on a setup wizard at `https://<server>/` instead of
-a login page. The operator chooses admin credentials, names the site,
-and optionally configures AI / Cyber Vision in one flow. Until the
-wizard finishes, every API route except `/api/v1/setup/*`,
-`/api/v1/about`, and `/health` returns 503.
-
-State lives in two `system_settings` rows:
-- `setup.completed` — `"false"` until the wizard finishes (or
-  auto-graduation fires for an existing install with an admin user).
-- `site.name`, `site.fqdn`, `site.timezone` — written by the wizard.
-
-**Auto-graduation**: on every backend boot, `auto_graduate_setup()` in
-`backend/app/services/startup.py` flips `setup.completed=true` if any
-admin user already exists. This means upgrades from pre-wizard installs
-do NOT show the wizard.
-
-**To reset and re-run the wizard** (recovery from a compromised
-first-claim, or just to redo onboarding):
-```
-docker compose exec postgres psql -U packetarch -d packetarch -c \
-  "DELETE FROM users; UPDATE system_settings SET value='false' WHERE key='setup.completed';"
-docker compose restart backend
-```
-
-Backend wiring: `RequireSetupComplete` dep in `backend/app/api/deps.py`
-gates every router in `main.py` except setup/about/health. Frontend
-wiring: top-level `<SetupGate>` in `frontend/src/components/SetupGate.tsx`
-loads `/api/v1/setup/status` once and renders either the wizard or the
-normal app shell.
-
-### Deploying Changes
-
-```bash
-cd /home/rocsmith/packetarch
-docker compose up -d --build backend    # most common
-docker compose up -d --build frontend   # frontend only
-docker compose up -d --build            # everything
-```
-
-### Container Management
-
-```bash
-docker compose ps                       # status
-docker compose logs -f backend          # logs
-docker compose restart                  # restart all
-docker compose down                     # stop
-docker compose up -d                    # start
-```
-
-### Production Ports
-
-| Service | Internal | External | Notes |
-|---------|----------|----------|-------|
-| Frontend (nginx) | 443 | 443 | HTTPS with self-signed cert |
-| Backend | 8001 | Not exposed | Via nginx proxy |
-| PostgreSQL | 5432 | 5432 | |
-| Redis | 6379 | 6379 | |
-
-### SSL Certificate
-
-Auto-generated on first start. Regenerate:
-```bash
-docker compose down && docker volume rm packetarch_ssl_certs && docker compose up -d
-```
-
-### Environment Variables
-
-Production `.env` (generated by `scripts/server-init.sh`):
-```
-POSTGRES_PASSWORD=<generated>
-SECRET_KEY=<generated>
-ENCRYPTION_KEY=
-ADMIN_PASSWORD=<generated>
-DEBUG=false
-```
-
----
-
-## Remote Traffic Agent
-
-Agents connect to PacketArch via WebSocket (`/ws/agent?token=<token>`) — "phone home" model, no inbound ports needed.
-
-### Installing an Agent
-
-```bash
-# With auto-registration
-curl -fsSL https://<SERVER_IP>/agent/install.sh | sudo bash -s -- \
-  --server https://<SERVER_IP> --name "Agent-1" --register
-
-# With existing token
-curl -fsSL https://<SERVER_IP>/agent/install.sh | sudo bash -s -- \
-  --server https://<SERVER_IP> --token "your-agent-token" --interface eth0
-```
-
-### Agent Management
-
-```bash
-docker compose -f /opt/packetarch-agent/docker-compose.yml logs -f agent   # logs
-docker compose -f /opt/packetarch-agent/docker-compose.yml restart          # restart
-sudo /opt/packetarch-agent/install.sh --uninstall                           # uninstall
-```
-
-### Central Agent Updates
-
-1. "Build Image" in Settings → Agents (builds + saves tarball)
-2. Open online agent details → "Update" (sends `UPDATE_AGENT` via WebSocket)
-3. Agent downloads tarball, `docker load`, restarts
-
-Requires Docker socket mounted and agent online.
-
-### WebSocket Protocol
-
-**Server → Agent:** `START_SCENARIO`, `STOP_SCENARIO`, `UPDATE_SCENARIO`, `ADAPT_TRAFFIC`, `LIST_INTERFACES`, `UPDATE_AGENT`, `PING`
-
-**Agent → Server:** `STATUS`, `INTERFACES`, `ERROR`, `HEARTBEAT` (CPU/memory/version), `UPDATE_STATUS`
-
-### Key Files
-
-**Agent (`docker/packetarch-agent/`):** `app/main.py`, `app/websocket_client.py`, `app/orchestrator_pool.py`, `app/version.py`, `app/config.py`
-
-**Backend:** `api/websocket/agent_hub.py`, `services/agent_manager.py`, `api/routes/agents.py`, `api/routes/adaptation.py`, `services/adaptation_service.py`
-
----
-
-## Local Sensor Labs
-
-App-managed, on-box labs that run a traffic agent **and** a Cisco Cyber Vision
-docker sensor on the PacketArch host itself, wired through an isolated virtual
-SPAN. This **augments** the CML integration (which stays fully functional) — it's
-a second deployment target for when you don't want to stand up a CML lab.
-
-### How it works
-
-- **`packetarch-host-agent`** (`docker/packetarch-host-agent/`) — a long-running
-  **privileged** sibling container (declared in `docker-compose.yml`,
-  `restart: unless-stopped`, `network_mode: host`, `pid: host`). It is the ONLY
-  component that touches the host; the backend stays unprivileged.
-  - `app/state.py` — file-queue contract on the shared `host_agent_state` volume.
-  - `app/hostops.py` — idempotent host ops (veth, daemon.json, compose).
-  - `app/watcher.py` — drains the queue + a reconcile loop (reboot survival).
-- **Per-lab virtual SPAN**: an isolated veth crossover `pa-gen-<slug>` ↔
-  `pa-mon-<slug>` (no uplink — sim traffic can't leak). The agent injects on
-  `pa-gen`; the CV sensor's macvlan capture parent is forced to `pa-mon`. This
-  replaces CML's IOSvL2 SPAN switch on a single host.
-- **Registry trust**: the host's `/etc/docker/daemon.json` gets the CV Center
-  added to `insecure-registries` (SIGHUP dockerd — never restart, so the
-  PacketArch stack is not bounced).
-- **Backend stays unprivileged**: it parses the pasted CV compose, mints an agent
-  token, persists `LocalLab` + `TrafficAgent` rows, and writes a lab *spec* (JSON,
-  including the plaintext token) to the shared volume. The host-agent acts on it.
-
-### Operator flow
-
-Agents hub (`/agents`) → **Local Labs** tab → **New Local Lab** → paste the
-docker-compose CV generates for a *docker* sensor → **Build**. The agent token is
-shown once. Watch the **Topology** tab for the live agent→veth→sensor flow.
-**CV provisioning tokens are single-use** — use a fresh sensor/token per lab.
-
-### Lifecycle
-
-- **Teardown = full delete**: stops sensor+agent containers, removes the veth and
-  the per-lab macvlan network, drops the registry trust if unused, and deletes
-  the `LocalLab` + `TrafficAgent` rows (UI ↔ backend stay in sync).
-- **Survives restart**: the host-agent reconciles its persisted specs on its own
-  boot; `startup.reconcile_local_labs()` nudges it on backend boot.
-
-### Agent kinds
-
-`TrafficAgent` carries `cml_lab_id` (CML) / `local_lab_id` (Local) / neither
-(Manual). The Agents hub badges them and the deploy-time interface picker LOCKS
-the injection interface for managed (Local/CML) agents.
-
-### Key files
-
-**Backend:** `models/local_lab.py`, `services/local_sensor_service.py`,
-`services/host_agent_client.py`, `services/local_lab_naming.py`,
-`api/routes/local_sensor.py`, `startup.reconcile_local_labs`.
-**Frontend:** `pages/AgentsHubPage.tsx`, `components/agents/LocalLabsTab.tsx`,
-`components/agents/AgentTopology.tsx`, `api/localSensor.ts`,
-`stores/localSensorStore.ts`.
-**Reference scripts** (manual equivalent): `scripts/local-sensor/`.
-
----
-
-## PacketArch Mimic (device emulation)
-
-A **separate path** from scenario traffic generation, with its own canvas, deploy
-flow and runtime. A scenario **replays** traffic onto the wire; a Mimic persona
-**binds a real socket and answers** as the device it imitates. A scanner, an HMI
-or a Cyber Vision sensor can interrogate it and get real protocol responses,
-because there is a live server on the other end rather than a recording.
-
-**Gated by `mimic_enabled`, default `false`** (`core/config.py`). Flag off ⇒
-`/api/v1/mimic/*` 503s and the `/mimic` + `/mimic/studio` routes redirect.
-
-### Why it exists
-
-Scenario traffic cannot be polled. Anything that *interrogates* a device — an
-active scanner, a discovery tool, an HMI pointed at a PLC, DPI that reads
-identity objects — needs something listening. Mimic answers reads AND writes, so
-Modbus FC43, an OPC UA browse, or a BACnet device-object read return real data.
-Use a scenario for volume, breadth, PCAP and attack playbooks; use Mimic when
-something has to talk back.
-
-### How it works
-
-- **Cell** = the unit of deployment: one or more personas sharing a segment,
-  able to poll each other. Personas reuse the same 332-template fingerprint
-  substrate as scenarios, so OUI, identity strings and firmware match the
-  claimed device.
-- **Persona** (`mimic/persona.py`) binds identity + transport + process model +
-  per-protocol projections + protocol servers into one running device, and
-  drives the process model on a **wall-clock tick**. Personas are reactive, so
-  they live on wall time — never a virtual-time heap.
-- **Protocol servers** (`mimic/servers/`): Modbus TCP, OPC UA, BACnet,
-  IEC 60870-5-104.
-- **Live values**: registers/nodes are driven by `mimic/process_library/`
-  (tank, tank_control, chemical_reactor, heat_exchanger, compressor_station,
-  pump_station, power_feeder) under closed-loop PI control. Writing a setpoint
-  through a protocol client moves the loop and the read-back reflects it.
-- **Active personas** (`mimic/poll.py` → `ClientLoops`) poll their peers over
-  the peer's NATIVE protocol, so the segment carries real request/response
-  traffic with no generator involved.
-- **Certification gate** (`mimic/certification.py`): "we have a server for that
-  protocol" is necessary but NOT sufficient. A persona only ships if it also
-  returns the correct device identity over that protocol (FC43 / OPC UA
-  BuildInfo / BACnet device object — what CV actually classifies on) and the
-  chosen deploy target can serve it. Only certified cells are offered for deploy.
-
-### Two deploy targets
-
-- **On-box** (`mimic/deploy.py`, `docker_deploy.py`) — personas run on the
-  PacketArch host in a hub-bridge + netns segment inside an **existing Local
-  Lab**, classified by that lab's existing CV sensor. **No CV token and no new
-  sensor.** The unprivileged backend only writes a `kind="mimic"` spec to the
-  host-agent file-queue; the privileged host-agent provisions it.
-- **Off-box** (`mimic/slim/`, `slim_deploy.py`, `slim_author.py`) — each persona
-  is its own 512 MB **bare Alpine CML node** (a real host with a real stack, no
-  Docker). The backend **resolves identity from the substrate at deploy time**,
-  so the node ships no template catalog. `slim_sensor.py` can auto-provision a
-  CV sensor on a CML node with an IOSvL2 SPAN.
-
-### Gotchas (all learned in anger — see `tasks/lessons.md`)
-
-- **Rebuild BOTH backend and host-agent.** A Mimic change that only rebuilds the
-  backend leaves a stale host-agent that doesn't know the `mimic` spec kind:
-  teardown silently no-ops and reconcile stamps `error: 'mon_if'` every cycle
-  (it routes the mimic spec into the local-sensor path, which expects a
-  `mon_if` the mimic spec doesn't have). `docker compose up -d --build host-agent`.
-- **CML node bootstrap: `cmd &` does not survive the boot shell**, and
-  `rc-service local start` is a no-op (Alpine's `local` already ran). Launch with
-  `start-stop-daemon --start --background` so it double-forks and reparents to init.
-- **Pin every dep in the node bootstrap.** A bare `pip install pymodbus` on a
-  fresh node grabs the latest and breaks against the pinned API. The node
-  inherits no poetry/lock constraints — repeat the local pin.
-- **Use an unverified SSL context for node check-ins.** The backend cert is
-  self-signed; stdlib `urllib` raises `CERTIFICATE_VERIFY_FAILED` and a bare
-  `except` swallows it, so the persona runs but never reports.
-- **A client-only persona's vendor is its MAC OUI and nothing else** — it never
-  answers a query, so CV has no other evidence to classify it on.
-- **CV sensor on CML needs its capture NIC up + promiscuous**, and a
-  vendor-plausible MAC.
-- Slim protocol breadth uses **lazy protocol imports** (one missing wheel must
-  not break the others); IEC-104 off-box still needs a musl `c104` wheel.
-
-### Key files
-
-**Backend:** `mimic/interfaces.py` (`PersonaSpec` / `ProtocolBinding` /
-`PointBinding` — the JSON deploy contract), `mimic/persona.py`,
-`mimic/certification.py`, `mimic/presets.py`, `mimic/servers/`,
-`mimic/process_library/`, `mimic/projections/`, `mimic/slim/`,
-`mimic/deploy.py`, `mimic/cml_deploy.py`, `api/routes/mimic.py`.
-**Frontend:** `pages/MimicPage.tsx`, `pages/MimicStudioPage.tsx`.
-**Help:** `content/help/mimic.tsx`.
-
----
-
-## Code Standards
-
-- TypeScript strict mode for frontend
-- Python type hints for backend
-- All API endpoints documented with OpenAPI
-- Pydantic schemas for all request/response models
-- Zustand for frontend state management
-- SQLAlchemy 2.0 async patterns for database
-
-### Agent Versioning Rule
-
-Any change to `docker/packetarch-agent/` or `backend/app/protocol_engines/` (copied into agent via Docker build staging) **MUST** bump `docker/packetarch-agent/app/version.py`. Use semver: MAJOR for breaking protocol changes, MINOR for new features, PATCH for bug fixes.
-
----
-
-## Error Handling
-
-Backend exceptions extend `PacketArchError` in `backend/app/core/exceptions.py`:
-
-| Exception | HTTP Status | Use Case |
-|-----------|-------------|----------|
-| `PacketArchError` | 500 | Base class |
-| `ValidationError` | 400 | Invalid input |
-| `NotFoundError` | 404 | Resource not found |
-| `ConflictError` | 409 | Duplicate/conflicting state |
-| `ExternalServiceError` | 502 | Docker, CV, external API failures |
-| `TrafficGenerationError` | 500 | Traffic generation failures |
-
-Frontend: use `extractErrorMessage()` from `frontend/src/utils/errorUtils.ts`.
-
----
-
-## Architecture Overview
-
-PacketArch is an OT Traffic Simulation Platform:
-
-1. **Scenario Studio (Frontend)**: @xyflow/react canvas, @dnd-kit drag-and-drop, Zustand stores, Ant Design dark theme
-2. **Traffic Generation (Backend)**: Protocol engines (`protocol_engines/`), identity system, timing system, Celery + Redis background jobs, PCAP output
-3. **MCP/AI Integration**: MCP server (JSON-RPC 2.0), Anthropic Claude, HTTP + SSE transport
-
----
-
-## Key Patterns
-
-### Protocol Engine Pattern
-All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_poll_cycle()`, `generate_shutdown_sequence()`
-
-### State Machine Pattern
-`python-statemachine` for stateful conversations (Modbus, EtherNet/IP, PROFINET each have distinct state flows).
-
-### Canvas Node/Edge Pattern
-`DeviceNode` (OT devices), `ZoneNode` (resizable zone containers), `FlowEdge` (protocol connections with color coding).
-
----
-
-## Supported Protocols
-
-| Protocol | Port | Status |
-|----------|------|--------|
-| Modbus TCP | 502 | Production |
-| EtherNet/IP | 44818 (TCP), 2222 (UDP) | Production |
-| PROFINET | Layer 2 | Production |
-| S7comm | 102 (TCP) | Production |
-| BACnet/IP | 47808 (UDP) | Production |
-| SNMP/NTCIP | 161, 162 (UDP) | Production |
-| DNP3 | 20000 (TCP) | Production |
-| IEC 60870-5-104 | 2404 (TCP) | Production |
-| IEC 61850 (MMS/GOOSE/SV) | 102 (TCP) / L2 | Production |
-| C37.118 (synchrophasor) | 4712 (TCP), 4713 (UDP) | Production |
-| OPC UA | 4840 (TCP) | Production |
-| EMP (ITC/PTC train control) | 3001 (TCP, installation-configured) | Production |
-| ATCS (AAR Spec 200 codeline) | 4802 (TCP) + 30000+ (UDP) | Production |
-
-Additional engines exist for FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
-
-### Rail protocols (transportation vertical)
-
-Two rail engines back the `ptc_freight_corridor` and `atcs_signaling_territory`
-scenarios. Both were built to generate **labeled corpora** — Cisco Cyber Vision
-has no rail DPI today, so the goal is spec-conformant traffic Cisco can train a
-dissector on (see `--export-labeled-corpus` below).
-
-- **EMP** (`protocol_engines/emp/`) — the AAR Interoperable Train Control message
-  envelope (I-ETMS / PTC). **EMP never rides bare on TCP**: AAR S-9356 **Class D**
-  (`protocol_engines/emp/class_d.py`) is the mandatory transport, so the TCP
-  payload is `Class D header (12B) + EMP + ETX` and EMP begins at Class-D offset
-  12. Both the EMP v4 envelope and the Class D framing are byte-accurate. The ITC
-  application-message catalog is still unavailable, so message-type IDs and
-  payloads are synthetic. There is **no universal port** (Class D links are
-  installation-configured); 3001 is a documented Siemens wayside default used as
-  the platform's vendor profile.
-- **ATCS** (`protocol_engines/atcs/`) — legacy radio codeline (AAR MSRP Section
-  K-II, formerly Spec 200), emitted as the **ATCS Monitor relay feed** (the only
-  IP-observable form; CV never sees the 900 MHz RF). Models the decoded RF path —
-  radio datagram (Appendix G) over radio link (Appendix L) — NOT wireline LAPB.
-
-Both engines publish a **per-field confidence tier** in their label maps so a
-training corpus never misrepresents an assumed byte as authoritative:
-`spec` (verified against a current source) / `spec_legacy` (spec-derived from a
-legacy/draft revision — the 2010 S-9356 Class D draft, AAR MSRP K-II v4.0 2005) /
-`provisional` (reconstructed) / `synthetic` (invented). Open items are tracked in
-`protocol_engines/atcs/SPEC_NEEDS.md`.
-
-**ATCS gotchas** (all learned the hard way, all spec-confirmed): a zero address
-digit is BCD nibble **0xA**, not 0x0; the **vital flag lives in transport octet 2**,
-not the network header; the **destination address precedes the source** even though
-the length octet carries source length in the *high* nibble; the vital CRC is a
-**31-bit** CRC (poly low-mask `0x520D8A81`, LSB-first data, register emitted
-LSB-octet-first) covering the address-length octet through end of L7 data —
-verified against the K-II vector `01 02 -> 25 ED BD 70`. `gfi_group` was an
-ATCSMon *display* artifact and is not a wire field. The relay frame counter is
-labelled `relay.frame_counter`, not `atcs.*`, because it belongs to the ATCSMon
-container rather than the protocol.
-
-**Gotcha:** never hardcode an L7 offset. Fingerprinted TCP carries options
-(timestamps/MSS), so a frame's payload rarely starts at Eth14+IP20+TCP20=54.
-Derive it: `len(packet) - len(payload)`.
-
-### Labeled corpus export
-
-`GenerationRequest.export_labeled_corpus=true` makes a run emit
-`<stem>.labels.jsonl` + `.meta.json` alongside the PCAP — per-packet ground
-truth (protocol, type, `l7_offset`, `encoding`, and the field map) aligned 1:1
-with the combined PCAP. Two encodings: `binary` (field bytes at
-`l7_offset + off`) and `ascii_hex` (ATCS relay feed — `off`/`len` index the
-DECODED frame; bytes are 2 hex chars at `l7_offset + 2*off`). Implemented by
-`protocol_engines/label_sidecar.py`; engines opt in by publishing a field map on
-`PacketEvent.metadata`.
-
-Frontend protocol types: `frontend/src/types/protocols/` (discriminated union with type guards).
-
----
-
-## Industry Verticals
-
-6 verticals in `backend/app/scenario_templates/`: manufacturing, water, energy, oil_gas, building_automation, transportation. Each has pre-built scenario templates.
-
-Transportation covers both roadway ITS (NTCIP/SNMP) and **rail**: `ptc_freight_corridor` (EMP) and `atcs_signaling_territory` (ATCS). Rail device templates live in `services/device_templates/vendors/rail.py` (Wabtec / GE Transportation for PTC; Alstom / Siemens Mobility / Hitachi Rail for ATCS), with IEEE-verified OUIs.
-
----
-
-## IP Management
-
-Each scenario gets a unique `/16` range: `10.{n}.0.0/16` (n = 1-254). Hosts start at offset 10. Subnets `/24`, gateway `.1`. Auto-assigned on creation. View at `/ip-management`.
-
----
-
-## Device Templates
-
-Unified fingerprint/signature data in `backend/app/services/device_templates/` package (332 templates across 20 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
-
----
-
-## Cisco Cyber Vision Integration
-
-Connect to CV centers for device comparison, matching (MAC 100% / IP 95% confidence), and enrichment. Configure at Settings > Cyber Vision (URL + API token). Key files: `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx`.
-
----
-
-## Scenario Realism Requirements
-
-Every automated scenario creation path (templates, AI generation, quick demo) must satisfy these 5 realism dimensions. These are enforced by readiness checks, AI review, and remediation actions.
-
-1. **Device Naming** — Every device must have a unique, industrial-appropriate, human-understandable name that reflects its role, vendor, and zone (e.g., `Assembly_Line_PLC_01`, `Water_Treatment_VFD_03`). Generic names like `device_001` or `PLC-1` are flagged by readiness.
-2. **Protocol Accuracy** — Devices must only use protocols their vendor fingerprint supports. A Siemens PLC gets S7comm/PROFINET, not EtherNet/IP. Protocol repair is bidirectional: unsupported protocols are removed AND supported ones are added. Flows with protocols unsupported by both endpoints are rejected.
-3. **Completeness** — Every device must participate in at least one flow so Cyber Vision can fingerprint it. No orphan devices. If no role-compatible partner exists, an SNMP monitoring fallback flow is created. Protocol identities (sysName, station_name, etc.) must be populated for CV classification.
-4. **Inter/Intra-Cell Communications** — Cross-zone flows must be justified by IEC 62443 conduit definitions. Intra-zone traffic is unrestricted. Conduit compliance is checked at readiness time and enforced by the conduit compliance service.
-5. **Vendor-Realistic MAC Addresses** — Each device's MAC OUI prefix must match its declared vendor using IEEE-verified prefixes from `vendor_oui.py`. A Siemens device must have a Siemens OUI (`00:0E:8C`), not a Rockwell one. MAC-vendor alignment is checked at readiness and MAC regeneration follows fingerprint changes.
-
----
-
-## AI-Enhanced Features
-
-Natural language scenario generation, context-aware AI assistant, AI-powered help system. Key files: `api/routes/ai.py`, `mcp_server/`, `ai_services/`.
-
-### Claude Agent Skills
-
-Domain procedural knowledge is packaged as Claude Agent Skills under
-`backend/app/ai_services/skills/`. Each skill is a directory with a
-`SKILL.md` (YAML-lite frontmatter + markdown body). The
-`SkillRegistry` (`skills/registry.py`) loads them once per process.
-
-Shipped skills:
-
-- `packetarch-scenario-authoring` — Purdue levels, IEC 62443 conduits, vendor-protocol affinity, flow coverage, poll timing
-- `packetarch-fingerprint-validator` — 295-template catalog, OUI rules, protocol identity matrix, remediation actions
-- `packetarch-ics-attack-playbooks` — 9 playbooks, kill-chain vocabulary, action generator catalog
-- `packetarch-device-naming` — process-aware naming rules + vertical vocabulary
-- `packetarch-scenario-review` — scoring guide, categories, remediation action schemas
-- `packetarch-vuln-data-curation` — how to curate/verify CVEs, firmware versions, attack-playbook MITRE mappings, and device-fingerprint identifiers (OUI/ODVA/PROFINET/BACnet/SNMP) so they stay realistic and internally consistent
-
-Skills attach via `provider.chat(..., skills=["name1", "name2"])`.
-`AnthropicProvider._build_system_blocks()` emits each skill as its own
-cacheable text block (ephemeral cache_control) ahead of the per-call
-system prompt. OpenAI fallback inlines bodies as a single system
-message. Missing skills are logged and skipped — never fatal.
-
-To add a skill: create `skills/<name>/SKILL.md` with `name`,
-`description`, `version` frontmatter. Wire it at call sites via the
-`skills=[...]` kwarg. Visible at `GET /api/v1/ai/skills`.
-
----
-
-## Workflow Orchestration
-
-### 1. Plan Mode Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately - don't keep pushing
-- Use plan mode for verification steps, not just building
-- Write detailed specs upfront to reduce ambiguity
-
-### 2. Subagent Strategy
-- Use subagents liberally to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One tack per subagent for focused execution
-
-### 3. Self-Improvement Loop
-- After ANY correction from the user: update `tasks/lessons.md` with the pattern
-- Write rules for yourself that prevent the same mistake
-- Ruthlessly iterate on these lessons until mistake rate drops
-- Review lessons at session start for relevant project
-
-### 4. Verification Before Done
-- Never mark a task complete without proving it works
-- Diff behavior between main and your changes when relevant
-- Ask yourself: "Would a staff engineer approve this?"
-- Run tests, check logs, demonstrate correctness
-
-### 5. Demand Elegance (Balanced)
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-- Skip this for simple, obvious fixes - don't over-engineer
-- Challenge your own work before presenting it
-
-### 6. Autonomous Bug Fixing
-- When given a bug report: just fix it. Don't ask for hand-holding
-- Point at logs, errors, failing tests - then resolve them
-- Zero context switching required from the user
-- Go fix failing CI tests without being told how
-
-## Task Management
-
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
-
-## Core Principles
-
-- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
-- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
-- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
-
----
-
-## Licensing & Ownership
-
-PacketArch is **GPL-3.0** (driven by Scapy GPLv2 dependency). Owner
-strings live in `backend/app/core/version.py` — do NOT duplicate elsewhere.
-
-- `LICENSE` — canonical GPL-3.0 text at repo root (do not modify)
-- `NOTICE` — copyright + redistribution requirements
-- `scripts/add_copyright_headers.py --check|--fix` — sweeps source files
-  for the GPL header. Enforced on new files via pre-commit hook.
-- `scripts/generate_third_party_licenses.sh` — regenerates
-  `THIRD_PARTY_LICENSES.md` from poetry + pnpm dep trees.
-- First-run EULA acknowledgment: bump `ACK_VERSION` in `version.py`
-  to re-prompt all users.
-
-Any PR adding a non-GPL-compatible dep (AGPL is fine, proprietary/BSL
-is not) must be flagged before merge.
-
----
-
-## Feature Flags
-
-Current flags live in `backend/app/core/features.py` and surface to the
-frontend via `/api/v1/about.features`.
-
-- `AI_ENABLED` (default `true`) — when `false`:
-  - Backend: `/api/v1/ai/*` and `/api/v1/mcp/*` return 503.
-  - Frontend: AI wizard route redirects, AI tab in RightSidePanel
-    hides, "AI Create" / "Generate Description" / "AI Scenario Review"
-    / "Explain with AI" UI all hide. See `useFeatures` hook and
-    `FeatureGate` component.
-- `LIVE_TRAFFIC_ENABLED` (default `true`) — gates the live-agent half
-  of the platform. When `false` PacketArch ships as an AI-powered
-  PCAP-only generator. Behavior:
-  - Backend: `/api/v1/agents`, `/deployments`, `/adaptation`,
-    `/dashboard/live`, and the runtime-control half of `/attacks` (start,
-    stop, advance, pause, inject, state, injection-status) return 503.
-    The `/ws/agent` WebSocket and `/agent/*` install bundle are not
-    mounted at all. Read endpoints (`/attacks/playbooks`, etc.) stay
-    open so the PCAP-only build can populate the attack-playbook
-    dropdown in `GeneratePcapModal`.
-  - Frontend: `/deployments` and `/live-traffic` routes redirect.
-    Sidebar omits both nav entries. Settings tab list omits "Traffic
-    Agents". `AgentVersionBanner`, the agent-health bell, and
-    `useDeploymentsStore.fetchDeployments()` are all skipped.
-  - Attack + adaptive in PCAP: with the flag off, attack playbooks and
-    adaptive timing-drift can still be requested per-PCAP via the new
-    fields on `GenerationRequest` (`attack_playbook_id`,
-    `attack_config`, `adaptive_config`) — `TrafficOrchestrator`
-    registers `AttackOrchestrator` and `AdaptiveController` as
-    composition peers on `UnifiedOrchestrator` for the PCAP run.
-
-- `MULTI_SENSOR_TOPOLOGY_ENABLED` (default `true`) — per-zone
-  IE3500 + sensor topologies and the deploy conductor.
-- `MIMIC_ENABLED` (default **`false`**) — device emulation (see
-  "PacketArch Mimic" above). When `false`, `/api/v1/mimic/*` returns 503 and
-  the `/mimic` + `/mimic/studio` routes redirect. Ships dark: a fresh install
-  gains no new surface until it is turned on.
-
-New flag ergonomics: add to `Settings` in `config.py`, add to
-`Features` in `features.py`, add to `Features` in
-`frontend/src/api/about.ts`, add a `RequireXEnabled` dep and apply to
-router — or gate UI via `useFeatures()`.
-
----
-
-## Release Bundles (Multi-Lab Deploys)
-
-Releases are built as self-contained offline tarballs suitable for
-air-gapped lab deployment.
-
-- `scripts/build-release.sh` — builds backend/frontend/agent images,
-  pulls postgres/redis, `docker save`s everything, stages compose +
-  install script + docs + licenses, produces
-  `dist/packetarch-<version>-offline.tar.gz`. Set `PCAP_ONLY=1` to
-  produce the PCAP-only variant (`...-pcap-offline.tar.gz`): forces
-  `SKIP_AGENT=1`, stamps `BUILD_VARIANT=pcap-only` into the bundle's
-  `VERSION` file, and `install.sh` reads that to write
-  `LIVE_TRAFFIC_ENABLED=false` into the generated `.env`.
-- `scripts/release-bundle/` — the source-of-truth for everything that
-  goes INTO the bundle: `install.sh`, `README_SITE.md`,
-  `docker-compose.offline.yml`, `.env.example`.
-- `.github/workflows/release.yml` — tag `v*` to trigger a CI build.
-  Matrix builds both `full` and `pcap-only` variants in parallel; both
-  tarballs are attached to the draft GitHub Release.
-- Site operators use the bundle's `install.sh` (generates `.env` with
-  fresh secrets), then `packetarch-backup.sh` / `packetarch-restore.sh`
-  for snapshot/restore across the install's Postgres DB + PCAP volumes.
-
-### Cert injection (custom TLS)
-
-Frontend container's `docker-entrypoint.sh` checks
-`/etc/nginx/custom-certs/server.{crt,key}` on every boot; if present,
-copies to live cert path. Compose mounts `./certs` as the source. Drop
-real cert/key there + `docker compose restart frontend` to swap.
+CI (`.github/workflows/ci.yml`) is the gate: ruff (E,F,W), ESLint + `tsc`, backend pytest
+with `--cov-fail-under=45`, vitest, and a compose build + health check. Ruff's fuller config
+lives in `backend/pyproject.toml`. `.pre-commit-config.yaml` exists but pre-commit is **not
+installed** on this box. Tests use in-memory sqlite via `conftest.py` (no `DATABASE_URL`).
+
+## Code standards
+
+- TypeScript strict mode; Zustand for state; Ant Design components on the project's dark theme.
+- Python type hints on every signature; Pydantic schemas for all request/response models;
+  SQLAlchemy 2.0 async patterns; every endpoint documented in OpenAPI.
+- Backend errors extend `PacketArchError` (`backend/app/core/exceptions.py`), never raw
+  `HTTPException`: `ValidationError` 400 · `NotFoundError` 404 · `ConflictError` 409 ·
+  `ExternalServiceError` 502 (Docker, CV, external APIs) · `TrafficGenerationError` 500.
+  Frontend: `extractErrorMessage()` from `frontend/src/utils/errorUtils.ts`.
+- **Agent versioning rule:** any change under `docker/packetarch-agent/` or
+  `backend/app/protocol_engines/` (staged into the agent image) **must** bump
+  `docker/packetarch-agent/app/version.py` — MAJOR for agent/server protocol breaks, MINOR for
+  features, PATCH for fixes.
+- GPL-3.0 header on every new source file (`scripts/add_copyright_headers.py --check|--fix`).
+  Owner strings live only in `backend/app/core/version.py`. A non-GPL-compatible dependency
+  (proprietary/BSL; AGPL is fine) must be flagged before merge. Bump `ACK_VERSION` to
+  re-prompt the first-run EULA.
+
+## Architecture map
+
+1. **Scenario Studio** (frontend): `@xyflow/react` canvas, `@dnd-kit`, Zustand stores.
+   Canvas nodes: `DeviceNode`, `ZoneNode` (resizable), `FlowEdge` (protocol-colored).
+2. **Traffic generation** (backend): protocol engines + identity + timing systems, Celery/Redis
+   jobs, PCAP output. Every engine extends `ProtocolEngine` (`generate_startup_sequence` /
+   `generate_poll_cycle` / `generate_shutdown_sequence`); stateful conversations use
+   `python-statemachine`.
+3. **Live traffic**: remote agents phone home over WebSocket (`/ws/agent`); Local Sensor
+   Labs and Mimic run on-box through the privileged `host-agent`.
+4. **AI / MCP**: in-app Claude/OpenAI calls (`ai_services/`), MCP server (`mcp_server/`).
+
+| Subsystem | Code | Read when touching it |
+|-----------|------|-----------------------|
+| Protocol engines (canonical list: `ProtocolType` in `protocol_engines/protocols.py`) | `backend/app/protocol_engines/` | [docs/ADDING_NEW_PROTOCOLS.md](docs/ADDING_NEW_PROTOCOLS.md) |
+| Rail engines (EMP/Class D, ATCS) + labeled-corpus export | `protocol_engines/emp/`, `protocol_engines/atcs/`, `label_sidecar.py` | [docs/rail-protocol-engines.md](docs/rail-protocol-engines.md), [docs/rail-protocols-dpi-parser-guide.md](docs/rail-protocols-dpi-parser-guide.md) |
+| Device templates / fingerprints (per-vendor modules; `firmware_variants` drive firmware + CVE per instance) | `backend/app/services/device_templates/` | [docs/TEMPLATE_CREATION_GUIDE.md](docs/TEMPLATE_CREATION_GUIDE.md), [docs/fingerprinting-system.md](docs/fingerprinting-system.md) |
+| Verticals + reference architecture (8 template modules; roles / archetypes / comm matrix) | `backend/app/scenario_templates/`, `services/architecture/` | [docs/ADDING_NEW_VERTICALS.md](docs/ADDING_NEW_VERTICALS.md), [docs/architecture/](docs/architecture/README.md) |
+| Cyber Vision integration (match MAC 100% / IP 95%; classic v3 + new-UI `cvapi/v1`) | `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx` | — |
+| Remote traffic agents (install, WS protocol, central updates) | `docker/packetarch-agent/`, `api/websocket/agent_hub.py`, `services/agent_manager.py` | [docs/remote-traffic-agent.md](docs/remote-traffic-agent.md) |
+| Local Sensor Labs (on-box agent + CV docker sensor over a veth SPAN) | `services/local_sensor_service.py`, `docker/packetarch-host-agent/` | [docs/local-sensor-labs.md](docs/local-sensor-labs.md) |
+| Mimic (device emulation: personas bind real sockets; on-box + CML slim) | `backend/app/mimic/`, `api/routes/mimic.py` | [docs/mimic.md](docs/mimic.md) |
+| Attack playbooks + kill-chain timing | `protocol_engines/attacks/` | — |
+| Portable scenario format (schema, spec, LLM prompt) | `schemas/packetarch-scenario.v1.json` | [docs/SCENARIO_SPEC.md](docs/SCENARIO_SPEC.md), [docs/LLM_PROMPT.md](docs/LLM_PROMPT.md) |
+| Feature flags (`AI_ENABLED`, `LIVE_TRAFFIC_ENABLED`, `MULTI_SENSOR_TOPOLOGY_ENABLED`, `MIMIC_ENABLED`) | `core/config.py`, `core/features.py` | [docs/feature-flags.md](docs/feature-flags.md) |
+| Release bundles, OVA, cert injection | `scripts/build-release.sh`, `scripts/release-bundle/`, `.github/workflows/release.yml` | [docs/release-bundles.md](docs/release-bundles.md) |
+| REST API | `backend/app/api/` | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
+
+IP management: each scenario gets a unique `10.{n}.0.0/16`, `/24` subnets, gateway `.1`,
+hosts from `.10`; auto-assigned, viewable at `/ip-management`.
+
+**New feature flag:** add to `Settings` in `config.py` → `Features` in `features.py` →
+`Features` in `frontend/src/api/about.ts` → a `RequireXEnabled` dep on the router (or
+`useFeatures()` / `FeatureGate` in the UI). Ship dark (default off) unless told otherwise.
+
+## Scenario realism requirements
+
+Every automated scenario path (templates, AI generation, quick demo) must satisfy these five
+dimensions. Readiness checks, AI review, and remediation actions enforce them.
+
+1. **Device naming** — unique, industrial, human-readable, reflecting role/vendor/zone
+   (`Assembly_Line_PLC_01`). `device_001` / `PLC-1` are flagged.
+2. **Protocol accuracy** — only protocols the vendor fingerprint supports (a Siemens PLC gets
+   S7comm/PROFINET, not EtherNet/IP). Repair is bidirectional: unsupported removed, supported
+   added; flows unsupported by both endpoints are rejected.
+3. **Completeness** — every device in at least one flow so CV can fingerprint it; SNMP
+   monitoring fallback if no role-compatible partner; protocol identities (sysName,
+   station_name…) populated.
+4. **Inter/intra-cell** — cross-zone flows justified by IEC 62443 conduits; intra-zone free.
+5. **Vendor-realistic MACs** — OUI must match the declared vendor via IEEE-verified prefixes
+   in `vendor_oui.py`; MACs regenerate after fingerprint changes. For a *client-only* device
+   the OUI is the only vendor evidence CV has.
+
+Also: one canonical identity per device (one hostname + deterministic MAC across protocols),
+and every role needs a unique `sys_object_id` + model, or CV merges look-alikes into one asset.
+
+## In-app AI skill bundles (runtime prompts — not Claude Code skills)
+
+`backend/app/ai_services/skills/<name>/SKILL.md` are prompt bundles the **product** sends on
+its own AI calls (`SkillRegistry`, `skills/registry.py`; attached via
+`provider.chat(..., skills=[...])`; Anthropic gets each as a cacheable system block, OpenAI
+gets one inlined system message; missing skills log and skip). Six ship: scenario-authoring,
+fingerprint-validator, ics-attack-playbooks, device-naming, scenario-review,
+vuln-data-curation. Add one by creating the directory with `name` / `description` /
+`version` frontmatter and wiring the call site. Listed at `GET /api/v1/ai/skills`.
+This repo currently ships **no** Claude Code skills, hooks, or subagents; `.claude/` holds
+only local settings.
+
+## Behavior rules (project-specific standing orders)
+
+1. **Fix as you find.** Bugs and inconsistencies get fixed on the spot when the risk is
+   manageable; root cause over data patch. **Never invent data** — leave the field empty and
+   say why. What can't be closed gets a shrink-only ratchet test.
+2. **Deploy after every change** with the rebuild rule above, then verify live (logs, UI, and
+   Cyber Vision when it's a fingerprint/traffic change). "It deploys" is not "the suite passes."
+3. **PCAP must match live.** Whatever the agent emits for a scenario, the PCAP generator emits
+   too. Extend both paths in lockstep.
+4. **Check `services/` before declaring a capability missing.** PacketArch usually already wraps
+   the external API you're about to probe (CV deployment tokens, sensor compose, org hierarchy).
+5. **Pin what you validated.** A native/protocol lib is pinned to the line you tested
+   (`>=3.8,<3.9`), and the resolved version in `poetry.lock` is checked after locking. Node
+   bootstraps repeat the pin — they inherit no lockfile.
+6. **Release gate:** green `master` CI, a single alembic head, `frontend/public/release-notes.html`
+   updated in the same commit as the version bump, agent `version.py` collision checked, `.env`
+   flag overrides reconciled with defaults. Releases are drafts; publish by hand.
+7. **UI conventions:** Purdue layouts put Level 0 at the bottom, Level 4 at the top (reuse
+   `PURDUE_Y_POSITIONS`); new persistent canvas UI goes inside the `CanvasControls` toolbar,
+   not a floating panel.
+8. **Lessons.** After any correction, append a dated entry ending in a **Rule:** line to
+   [docs/gotchas.md](docs/gotchas.md); skim its index when entering a subsystem it covers.
+   Plans for multi-step work live as `tasks/<topic>-plan.md` with checkboxes and a closing
+   review section.
+9. **Secrets and confidential material** never enter the public repo: `.env`, `uploads/`,
+   `patent/`, `private/`, `CIRCUIT/` are ignored on purpose. Cisco-internal material stays out.

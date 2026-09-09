@@ -48,7 +48,7 @@ reportlab = "^4.2.0"
 pymodbus = ">=3.8.0,<3.9.0"
 # PacketArch Mimic — asyncio-native OPC UA server for device personas (address
 # space, writable nodes, server identity). Pinned to the validated 2.0.x line
-# (protocol libs churn within a major — see tasks/lessons.md).
+# (protocol libs churn within a major — see docs/gotchas.md).
 asyncua = ">=2.0.1,<2.1.0"
 # PacketArch Mimic — asyncio-native BACnet/IP stack for building-automation
 # personas. Pre-1.0 (0.0.x): pinned tight, revalidate on bump (API may break).

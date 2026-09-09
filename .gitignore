@@ -99,6 +99,7 @@ backend/app/scenario_templates_legacy_backup/
 # Snapshot tarballs written by packetarch-backup.sh / upgrade.sh
 backups/
 
-# Claude Code agent session data
-.claude/
+# Claude Code: shared config (.claude/settings.json, skills/, hooks/, agents/) is tracked;
+# per-user overrides are not.
+.claude/settings.local.json
 scripts/local-sensor/runtime/
