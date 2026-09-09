@@ -28,35 +28,22 @@ PacketArch is a web-based platform for creating and deploying OT (Operational Te
 
 ### Development Setup
 
+PacketArch runs as one Docker Compose stack that builds from source; dev and prod are the
+same stack (see [DEPLOY.md](DEPLOY.md) for a fresh-server install and `.env` setup).
+
 ```bash
 # Clone the repository
-git clone git@github.com:ip-aegis/PacketArch.git
+git clone https://github.com/ip-aegis/PacketArch.git
 cd PacketArch
 
-# Start database and Redis
-cd docker && docker-compose -f docker-compose.dev.yml up -d
-
-# Install and start backend
-cd ../backend
-poetry install
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-
-# Install and start frontend (new terminal)
-cd ../frontend
-pnpm install
-pnpm dev
-```
-
-Access the application at `http://localhost:3001`
-
-### Production Deployment
-
-```bash
-# Build and start all containers
+# Create .env (see DEPLOY.md), then build and start everything
 docker compose up -d --build
 
-# Access at https://localhost (self-signed certificate)
+# Rebuild after code changes
+docker compose up -d --build backend frontend
 ```
+
+Access the application at `https://localhost` (self-signed certificate).
 
 ## Architecture
 

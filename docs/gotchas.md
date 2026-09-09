@@ -1,4 +1,39 @@
-# Lessons
+# Gotchas & Lessons
+
+Dated, git-tracked lessons learned the hard way (moved from `tasks/lessons.md` on 2026-09-09).
+Each entry ends in a **Rule:** line; the rules that apply everywhere are promoted into
+`CLAUDE.md` § Behavior rules. Skim the index below when entering a subsystem it covers, and
+append a new entry after any correction.
+
+## Index
+
+| Subsystem | Entries |
+|-----------|---------|
+| Capability discovery | Check the app's own services before declaring a capability missing (2026-07-11) |
+| CI / release | `pytest -x` masks failures; flag overrides in `.env` don't ship (2026-07-13) |
+| Dependencies | Pin native-protocol libs to the validated line (2026-07-13); per-node pip pins (2026-07-14) |
+| Cyber Vision classification | Client-only persona vendor = MAC OUI (2026-07-13); CML MACs vs vendor OUIs, SPAN NIC up + promisc (2026-07-14) |
+| Mimic runtime | Poll-based write-back on change only (OPC UA); `set_target` vs `set_value` (2026-07-13) |
+| Mimic off-box (CML/Alpine) | `start-stop-daemon` launch, pinned pip, unverified SSL check-in, staged check-ins (2026-07-14); lazy protocol imports, no musl `c104` wheel, UDP bind invisible to `netstat -ltn` (2026-07-14) |
+| Deploy | Mimic spans backend + host-agent — rebuild BOTH (2026-07-14); rail work also touches `celery_worker` |
+| Worktrees | No `node_modules` in a worktree — symlink the main tree's |
+
+## Deploy: rail / generation changes also need `celery_worker` (2026-07-14)
+
+Compose services are `postgres`, `redis`, `backend`, `celery_worker`, `frontend`, `host-agent`,
+`updater`, `pgadmin`. Traffic-generation code runs in `celery_worker` as well as `backend`, so a
+rail-engine or generator change that only rebuilds `backend` + `frontend` keeps running the old
+generator in the worker. **Rule:** rebuild `celery_worker` alongside `backend` for anything under
+`protocol_engines/` or the generation/task code.
+
+## Worktrees have no `node_modules` (2026-07-14)
+
+A fresh `git worktree` has no `frontend/node_modules`, so `pnpm lint` / `vitest` fail before
+they start. **Rule:** `ln -sfn /home/rocsmith/PacketArch/frontend/node_modules frontend/node_modules`
+in the worktree (package.json is identical), or `pnpm install` if it isn't.
+
+---
+
 
 ## 2026-07-11 — Check the app's own services before declaring a capability missing
 While scoping the multi-sensor topology feature I probed the CV Center's raw

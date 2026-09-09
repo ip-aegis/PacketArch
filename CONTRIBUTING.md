@@ -13,24 +13,18 @@ Thank you for your interest in contributing to PacketArch!
 
 ```bash
 # Clone the repository
-git clone git@github.com:ip-aegis/PacketArch.git
+git clone https://github.com/ip-aegis/PacketArch.git
 cd PacketArch
 
-# Backend
-cd backend && poetry lock && poetry install
+# Create .env (see DEPLOY.md), then build and start the whole stack
+docker compose up -d --build
 
-# Frontend
-cd ../frontend && pnpm install
-
-# Start infrastructure (PostgreSQL, Redis)
-cd ../docker && docker-compose -f docker-compose.dev.yml up -d
-
-# Start backend
-cd ../backend && poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-
-# Start frontend (in a separate terminal)
-cd frontend && pnpm dev
+# Rebuild after code changes
+docker compose up -d --build backend frontend
 ```
+
+Dev and prod are the same Compose stack; nothing runs on the host directly. Poetry and
+pnpm are still needed for running the test suites and linters locally (below).
 
 ## Code Standards
 
