@@ -43,6 +43,7 @@ from app.services.architecture.comm_matrix import (
 )
 from app.services.architecture.role_catalog import get_role
 from app.services.architecture.vendor_pinning import (
+    filter_by_measurement,
     get_pin_candidates,
     round_robin_pick,
 )
@@ -258,6 +259,27 @@ def _materialize_device(
     # Zone 0 / instance 0 still resolves to index 0, so the first device of the
     # first zone keeps the fingerprint it has today.
     pin_index = zone_offset + instance_index
+
+    # What this instrument measures — field instruments only, None for every
+    # other role. Resolved BEFORE the pin is picked so the pick can honour it.
+    # See _INSTRUMENT_MEASUREMENTS.
+    measurement = (
+        _INSTRUMENT_MEASUREMENTS[instance_index % len(_INSTRUMENT_MEASUREMENTS)]
+        if role_id == "field_instrument" else None
+    )
+    if measurement is not None:
+        # Instruments sharing a measurement sit len(_INSTRUMENT_MEASUREMENTS)
+        # apart in instance_index, because the measurement cycles over that
+        # same period. Rotating those picks on instance_index would step by 3
+        # through a 3-model candidate list and land on the SAME model every
+        # time — every flow meter in the zone fingerprint-identical, which is
+        # the exact merge behavior the zone offset above was added to prevent.
+        # Count instruments of this measurement instead, so the rotation
+        # advances by one per pick.
+        pin_index = (
+            zone_offset + instance_index // len(_INSTRUMENT_MEASUREMENTS)
+        )
+
     if vendor_profile == VendorProfile.MULTI_VENDOR:
         sub_vendor = _MULTI_VENDOR_CYCLE[
             zone_offset % len(_MULTI_VENDOR_CYCLE)
@@ -267,10 +289,14 @@ def _materialize_device(
         # the sub-vendor lacks a pin for this role.
         if not candidates:
             candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, pin_index)
     else:
         candidates = get_pin_candidates(vendor_profile, role_id)
-        pin = round_robin_pick(candidates, pin_index)
+
+    # Keep a level tag off an electromagnetic flow meter. A no-op for every
+    # role that carries no measurement, and for any instrument profile whose
+    # pins cannot cover the measurement asked for.
+    candidates = filter_by_measurement(candidates, measurement)
+    pin = round_robin_pick(candidates, pin_index)
 
     cve_ids: list[str] = []
     if pin is None:
@@ -328,13 +354,6 @@ def _materialize_device(
 
     protocols = list(full_fingerprint.get("supported_protocols") or
                      role.required_protocols or ("snmp",))
-
-    # What this instrument measures (field instruments only). See
-    # _INSTRUMENT_MEASUREMENTS.
-    measurement = (
-        _INSTRUMENT_MEASUREMENTS[instance_index % len(_INSTRUMENT_MEASUREMENTS)]
-        if role_id == "field_instrument" else None
-    )
 
     fp_ouis = full_fingerprint.get("oui_prefixes") if full_fingerprint else None
     mac = generate_mac_address(
