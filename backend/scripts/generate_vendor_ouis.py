@@ -102,6 +102,15 @@ PATTERNS: dict[str, list[str]] = {
     "eaton": [r"eaton corp", r"eaton automation"],   # incl. Data Center Solutions
     "raritan": [r"raritan computer"],                # RARITAN COMPUTER, INC
     "stulz": [r"\bstulz\b"],                         # STULZ GmbH
+    # Vertiv has no IEEE block of its own. 00:08:77 belongs to
+    # "Liebert-Hiross Spa" — Liebert's precision-cooling arm and the direct
+    # ancestor of the PDX line — so it is the defensible owner rather than an
+    # embedded-module maker. Matched on the registrant string, which occurs
+    # exactly once in the registry.
+    "vertiv": [r"liebert-hiross"],                   # Liebert-Hiross Spa
+
+    # V2X / tolling roadside units (transportation vertical).
+    "cohda": [r"cohda wireless"],                    # Cohda Wireless Pty Ltd
 
     # Valve actuators. Added to break up the archetype generator emitting up
     # to 32 fingerprint-identical actuators per scenario off a single catalog
