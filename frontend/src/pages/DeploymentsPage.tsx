@@ -197,11 +197,19 @@ const DeploymentsPage: React.FC = () => {
       width: 120,
       render: (status: string) => {
         const config = statusConfig[status] || statusConfig.pending;
-        return (
+        const tag = (
           <Tag color={config.color} icon={config.icon}>
             {config.label}
           </Tag>
         );
+        if (status === 'disconnected') {
+          return (
+            <Tooltip title="Lost contact with the agent. Resumes automatically when the agent reconnects; remove it to cancel.">
+              {tag}
+            </Tooltip>
+          );
+        }
+        return tag;
       },
     },
     {

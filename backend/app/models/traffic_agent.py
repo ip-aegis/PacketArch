@@ -191,6 +191,16 @@ class AgentDeployment(Base):
         Text,
         nullable=True,
     )
+    # The options this deployment was started with (adaptive_config,
+    # attack_playbook, cell_isolation_override, topology). This is the
+    # persisted deploy intent: when the row goes 'disconnected' and the agent
+    # comes back without the scenario running, the deployment is replayed
+    # from here (AgentManager.resume_disconnected_deployments). Null on rows
+    # created before the column existed.
+    deploy_config: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

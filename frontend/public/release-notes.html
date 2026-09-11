@@ -565,7 +565,7 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.18.4,
+      Feature releases and patches from v1.10.0 through v1.18.5,
       covering June 17 &ndash; September 4, 2026.
     </p>
     <div class="cover-stats">
@@ -575,7 +575,7 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.18.4</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.18.5</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -667,6 +667,11 @@ code {
           <td>v1.18.4</td>
           <td>AI provider routing: Anthropic tier bumped to Claude Opus 5</td>
           <td>Sep 4, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.18.5</td>
+          <td>Live deployments survive a backend restart or host reboot</td>
+          <td>Sep 11, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1460,6 +1465,55 @@ code {
             <code>claude-haiku-4-5-20251001</code> instead of the current
             bare id <code>claude-haiku-4-5</code>; normalized both to match
             the rest of the codebase.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.18.5
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.18.5">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.18.5</div>
+        <div class="release-date">2026-09-11</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Live Traffic &amp; Reliability</div>
+        <div class="release-headline">Live deployments survive a backend restart or host reboot</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Deployments lost to a reboot now come back on their own.</strong>
+            A backend restart, an agent restart, or the whole host losing
+            power left every live deployment stuck in <em>Disconnected</em>
+            for good: the auto-redeploy list lived only in backend memory,
+            startup flipped the rows to disconnected, and nothing ever
+            re-issued the start. The intent now lives on the deployment row
+            itself. On an agent's first heartbeat back, any deployment that
+            is still <em>Disconnected</em> and that the agent is not running
+            is replayed through the normal deploy path, with the original
+            adaptive-timing, attack-playbook and cell-isolation options
+            (new <code>agent_deployments.deploy_config</code> column) and,
+            for a multi-sensor topology, through the topology conductor.
+            Rows the agent still reports running are simply re-synced as
+            before. The old row is closed before the replay goes out, so a
+            deployment can never be started twice.
+          </li>
+          <li class="change-item">
+            <strong>Health monitor.</strong> The in-memory
+            <code>disconnected_deployments</code> list and its 24-hour TTL
+            are gone; <code>auto_redeploy_on_reconnect</code> still gates
+            the behavior and each resume (or failure) is recorded as a
+            recovery event. A <em>Disconnected</em> deployment on the
+            Deployments page now explains that it resumes automatically and
+            that <em>Remove</em> cancels it.
           </li>
         </ul>
       </div>
