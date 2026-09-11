@@ -14,7 +14,7 @@ built for).
 """
 
 from contextlib import contextmanager
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
