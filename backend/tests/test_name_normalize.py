@@ -52,3 +52,32 @@ def test_group_label_bare_vs_deconflicted() -> None:
     assert _group_label(S(), "Industrial Dmz", dups).startswith("Industrial DMZ (")
     # 60-char hard cap respected
     assert all(len(_group_label(S(), z, dups)) <= 60 for z in ("Industrial DMZ", "X" * 80))
+
+
+def test_oh_level_name_folds_non_ascii() -> None:
+    """CV's OH endpoint 400s a non-ASCII level name ("Name is invalid"), which
+    fails the whole batch — so the em dash the scenario namer likes must be
+    folded to ASCII, not passed through."""
+    from app.services.cv_provisioning_service import _oh_level_name
+
+    # the live failure: em dash reached POST /cvapi/v1/oh and killed the phase
+    assert _oh_level_name("Pharma — Vaccine Bioreactor Plant ") == "Pharma - Vaccine"
+    assert _oh_level_name("Semiconductor Fab — 300mm Wafer Line") == "Semiconductor Fab"
+    # a separator is preserved as ASCII rather than dropped, so words stay apart
+    assert _oh_level_name("Cell 1 – Mixing") == "Cell 1 - Mixing"
+    assert _oh_level_name("Bioreactor 40°C") == "Bioreactor 40 degC"
+    assert _oh_level_name("Line “A”") == 'Line "A"'
+    # pure ASCII is untouched, and the 20-char cap still holds at a word boundary
+    assert _oh_level_name("Cookie Bakery") == "Cookie Bakery"
+    assert _oh_level_name("Process Control And Safety") == "Process Control"
+    assert all(len(_oh_level_name(n)) <= 20 for n in ("X" * 80, "Pharma — " + "Y" * 40))
+
+
+def test_oh_level_name_edge_cases() -> None:
+    from app.services.cv_provisioning_service import _oh_level_name
+
+    assert _oh_level_name("") == ""
+    assert _oh_level_name(None) == ""
+    # a name with nothing ASCII left over must not become whitespace
+    assert _oh_level_name("日本語") == ""
+    assert _oh_level_name("  spaced   out  name ") == "spaced out name"

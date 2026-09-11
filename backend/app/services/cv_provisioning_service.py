@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import unicodedata
 from datetime import datetime
 from uuid import UUID
 
@@ -98,10 +99,42 @@ GROUP_LABEL_LIMIT = 60
 OH_LEVEL_NAME_LIMIT = 20
 
 
+# Typographic characters that turn up in generated scenario and zone names,
+# mapped to ASCII so the fold below keeps a name readable rather than deleting
+# a word separator outright ("Pharma — Vaccine" folds to "Pharma - Vaccine",
+# not "Pharma  Vaccine").
+_OH_ASCII_FOLD = str.maketrans(
+    {
+        "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-",
+        "\u2014": "-", "\u2015": "-", "\u2212": "-",
+        "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",
+        "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',
+        "\u2026": "...", "\u2044": "/", "\u00d7": "x",
+        "\u00b5": "u", "\u03bc": "u", "\u00b0": " deg",
+        "\u00a0": " ", "\u2007": " ", "\u2009": " ", "\u202f": " ",
+    }
+)
+
+
+def _oh_ascii(text: str) -> str:
+    """Fold a name to plain ASCII, collapsing runs of whitespace.
+
+    CV's OH endpoint rejects a non-ASCII name with ``"Name is invalid"`` and
+    fails the whole ``POST /cvapi/v1/oh`` batch with a 400 — which took down
+    the entire org-hierarchy phase for a scenario named "Pharma — Vaccine
+    Bioreactor Plant" (confirmed live). Every other object in the pipeline
+    (presets, groups, custom networks) accepts the em dash, so the fold belongs
+    here rather than in the shared label helpers.
+    """
+    folded = unicodedata.normalize("NFKD", (text or "").translate(_OH_ASCII_FOLD))
+    return " ".join(folded.encode("ascii", "ignore").decode("ascii").split())
+
+
 def _oh_level_name(text: str, limit: int = OH_LEVEL_NAME_LIMIT) -> str:
-    """Truncate a name to fit CV's new-UI OH level cap, at a word boundary,
-    with no suffix character (CV rejects non-ASCII names outright)."""
-    text = (text or "").strip()
+    """Fold a name to ASCII and truncate it to fit CV's new-UI OH level cap, at
+    a word boundary, with no suffix character (CV rejects non-ASCII names
+    outright)."""
+    text = _oh_ascii(text)
     if len(text) <= limit:
         return text
     cut = text[:limit].rstrip()

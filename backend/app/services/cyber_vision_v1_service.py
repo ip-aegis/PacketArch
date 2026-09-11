@@ -65,7 +65,19 @@ class CyberVisionV1Service:
         client = await self._get_client()
         url = f"{self.base_url}/cvapi/v1{endpoint}"
         response = await client.request(method, url, params=params, json=json)
-        response.raise_for_status()
+        if response.is_error:
+            # httpx's own raise_for_status message carries only the status and
+            # URL, while CV puts the actual reason in the body ("Name is
+            # invalid" for a non-ASCII OH level name). Callers here are often
+            # best-effort wrappers that just log the exception, so fold the
+            # body into the message or the reason is lost for good.
+            detail = (response.text or "").strip().replace("\n", " ")
+            raise httpx.HTTPStatusError(
+                f"{response.status_code} from {method} {endpoint}"
+                + (f": {detail[:500]}" if detail else ""),
+                request=response.request,
+                response=response,
+            )
         if not response.content:
             return {}
         return response.json()
