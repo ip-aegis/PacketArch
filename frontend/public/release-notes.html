@@ -566,12 +566,12 @@ code {
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
       Feature releases and patches from v1.10.0 through v1.19.0,
-      covering June 17 &ndash; September 4, 2026.
+      covering June 17 &ndash; September 11, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">14</div>
+        <div class="cover-stat-value">17</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
@@ -579,11 +579,11 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
-        <div class="cover-stat-value">2.1.4 &rarr; 2.6.0</div>
+        <div class="cover-stat-value">2.1.4 &rarr; 4.1.3</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-09-04</div>
+        <div class="cover-stat-value">2026-09-11</div>
       </div>
     </div>
   </header>
@@ -1586,7 +1586,24 @@ code {
             Cyber Vision connection becomes the default center (tokens carried
             over as-is), and every existing local lab and provisioned scenario is
             stamped with it. The old global <code>cyber_vision_*</code> settings
-            are removed. Rebuild the host-agent with the backend.
+            are removed. A half-configured old connection (a URL with no token,
+            or the reverse) is left in place for you to finish under Settings
+            &rarr; Cyber Vision instead of being deleted.
+          </li>
+          <li class="change-item">
+            <strong>Keep the pre-upgrade backup if you might roll back.</strong>
+            Returning to an earlier version does not restore the old
+            <code>cyber_vision_*</code> settings, so an older build would see
+            Cyber Vision as unconfigured. The update button saves a backup
+            first (<code>backups/pre-upgrade-*.tgz</code>); restoring it brings
+            the settings back. Take one yourself before a manual upgrade.
+          </li>
+          <li class="change-item">
+            <strong>Manual deploys rebuild more services.</strong> The update
+            button rebuilds everything. If you deploy by hand, rebuild the
+            backend, <code>celery_worker</code> and <code>host-agent</code>
+            together, because the Cyber Vision provisioning task runs in the
+            worker.
           </li>
         </ul>
       </div>
@@ -1605,6 +1622,15 @@ code {
             call,</strong> so non-admins never saw <em>Provision to Cyber
             Vision</em>. It now reads the center list, which any signed-in user
             can see.
+          </li>
+          <li class="change-item">
+            <strong>Rebuilding the backend could strand every agent.</strong>
+            The web front end looked up the backend&rsquo;s address once, at
+            start-up. When a rebuild gave the backend a new address, agents
+            and the UI kept hitting the old one, and agents stayed offline
+            until the front end was restarted. It now looks the backend up on
+            each request, so agents reconnect and live deployments resume on
+            their own.
           </li>
         </ul>
       </div>
