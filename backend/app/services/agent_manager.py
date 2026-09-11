@@ -7,11 +7,12 @@ import asyncio
 import copy
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from fastapi import WebSocket
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.helpers import ensure_naming_complete
@@ -106,6 +107,9 @@ class AgentManager:
         self._injection_results: dict[str, dict[str, Any]] = {}  # scenario_id -> injection outcome
         self._lock = asyncio.Lock()
         self._reaper_task: asyncio.Task | None = None
+        # Agents whose disconnected deployments are being replayed right now
+        # (see resume_disconnected_deployments) — one replay per agent at a time.
+        self._resume_inflight: set[UUID] = set()
 
     @property
     def connected_agents(self) -> list[UUID]:
@@ -881,10 +885,27 @@ class AgentManager:
         as for a normal deploy, so the whole thing ties together.
         """
         interface = interface or agent.default_interface
+        # Persist the deploy options on the row: this is the intent a
+        # resume-after-disconnect replays (resume_disconnected_deployments),
+        # so adaptive timing / attack playbook / cell isolation come back the
+        # way the operator asked for them, and a topology conductor is routed
+        # back through the topology service instead of a plain deploy.
+        deploy_config: dict[str, Any] = {
+            k: v
+            for k, v in (
+                ("adaptive_config", adaptive_config),
+                ("attack_playbook", attack_playbook),
+                ("cell_isolation_override", cell_isolation_override),
+            )
+            if v
+        }
+        if topology_plan is not None:
+            deploy_config["topology"] = True
         agent_deployment = AgentDeployment(
             agent_id=agent.id,
             scenario_id=scenario.id,
             interface=interface,
+            deploy_config=deploy_config,
         )
         db.add(agent_deployment)
         await db.commit()
@@ -1010,6 +1031,138 @@ class AgentManager:
                 logger.exception(
                     f"pending deploy for agent {agent_id} (scenario {scenario_id}) failed"
                 )
+
+    async def resume_disconnected_deployments(
+        self, agent_id: UUID, running_scenarios: list[str] | None
+    ) -> int:
+        """Replay the deployments this agent lost while it, the backend, or the
+        whole host was down.
+
+        Called on every agent HEARTBEAT (see api/websocket/agent_hub.py): the
+        heartbeat is the first moment we know what the agent is actually
+        running, and that is what separates "still running, just re-sync the
+        row" (the sync path's job) from "gone, deploy it again" (this). A
+        deployment qualifies when its row is the most recent one for that
+        scenario on this agent, sits in ``disconnected``, and the agent does
+        not list the scenario as running. It is replayed through the same
+        ``execute_deployment`` the manual route uses, with the options stored
+        in ``deploy_config``; a topology conductor goes back through the
+        (re-entrant) topology service instead.
+
+        The intent lives in the DB row, not in process memory, so this covers
+        a backend restart and a host reboot — the two cases an in-memory
+        redeploy list can never cover. The lost row is closed (``stopped``)
+        BEFORE the deploy command goes out, so a second heartbeat can never
+        replay the same row twice. Honors
+        ``health_monitor.config.auto_redeploy_on_reconnect``; never raises
+        (it piggybacks on the websocket message loop).
+
+        Returns the number of deployments replayed.
+        """
+        from app.services.health_monitor import health_monitor
+
+        if running_scenarios is None or not health_monitor.config.auto_redeploy_on_reconnect:
+            return 0
+        if agent_id in self._resume_inflight:
+            return 0
+        self._resume_inflight.add(agent_id)
+        resumed = 0
+        try:
+            running = {str(s) for s in running_scenarios}
+            async with async_session_maker() as db:
+                agent = await db.get(TrafficAgent, agent_id)
+                if agent is None or not agent.is_active:
+                    return 0
+
+                result = await db.execute(
+                    select(AgentDeployment)
+                    .where(AgentDeployment.agent_id == agent_id)
+                    .order_by(AgentDeployment.started_at.desc())
+                )
+                latest: dict[UUID, AgentDeployment] = {}
+                for row in result.scalars():
+                    latest.setdefault(row.scenario_id, row)
+                candidates = [
+                    row
+                    for row in latest.values()
+                    if row.state == "disconnected" and str(row.scenario_id) not in running
+                ]
+                if not candidates:
+                    return 0
+
+                logger.info(
+                    "Agent %s (%s) is back without %d disconnected deployment(s) running "
+                    "— replaying them",
+                    agent.name, str(agent_id)[:8], len(candidates),
+                )
+                for row in candidates:
+                    scenario_id = str(row.scenario_id)
+                    config = row.deploy_config or {}
+                    now = datetime.now(timezone.utc)
+
+                    scenario = await db.get(Scenario, row.scenario_id)
+                    if scenario is None:
+                        row.state = "stopped"
+                        row.stopped_at = now
+                        await db.commit()
+                        logger.warning(
+                            "Disconnected deployment %s: scenario %s no longer exists — closed",
+                            row.id, scenario_id,
+                        )
+                        continue
+                    try:
+                        ensure_naming_complete(scenario)
+                    except Exception as e:
+                        # Leave the row alone; the next heartbeat retries.
+                        logger.info(
+                            "Disconnected deployment %s: not replaying yet (%s)", row.id, e
+                        )
+                        continue
+
+                    # Close the lost row first — the replay creates a fresh one,
+                    # and closing first is what makes a re-fire impossible.
+                    row.state = "stopped"
+                    row.stopped_at = now
+                    await db.commit()
+
+                    try:
+                        if config.get("topology"):
+                            from app.services import topology_provisioning_service
+
+                            await topology_provisioning_service.deploy(
+                                db, scenario_id, provision_cyber_vision=False
+                            )
+                        else:
+                            await self.execute_deployment(
+                                db,
+                                agent=agent,
+                                scenario=scenario,
+                                interface=row.interface,
+                                adaptive_config=config.get("adaptive_config"),
+                                attack_playbook=config.get("attack_playbook"),
+                                cell_isolation_override=config.get("cell_isolation_override"),
+                                provision_cyber_vision=False,
+                            )
+                        resumed += 1
+                        health_monitor.on_deployment_resumed(agent_id, agent.name, scenario_id)
+                        logger.info(
+                            "Resumed deployment of scenario %s on agent %s after reconnect",
+                            scenario_id, agent.name,
+                        )
+                    except Exception as e:
+                        logger.exception(
+                            "Resume of scenario %s on agent %s failed", scenario_id, agent.name
+                        )
+                        health_monitor.on_deployment_resume_failed(
+                            agent_id, agent.name, scenario_id, str(e)
+                        )
+                    # Don't flood the agent with back-to-back deploys.
+                    await asyncio.sleep(1.0)
+        except Exception:
+            logger.exception("resume_disconnected_deployments failed for agent %s", agent_id)
+        finally:
+            self._resume_inflight.discard(agent_id)
+        return resumed
 
 
 # Global singleton instance

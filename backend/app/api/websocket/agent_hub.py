@@ -372,10 +372,15 @@ async def agent_websocket(
                     platform=data.get("platform"),
                     version=data.get("version"),
                 )
-                # Sync running scenarios
+                # Sync running scenarios, then replay whatever this agent lost
+                # while it was away (order matters: sync first flips rows the
+                # agent still runs back to running, so resume never touches them)
                 running_scenarios = data.get("running_scenarios", [])
                 if running_scenarios is not None:
                     await sync_running_scenarios(agent.id, running_scenarios)
+                    await agent_manager.resume_disconnected_deployments(
+                        agent.id, running_scenarios
+                    )
 
             # Also update in-memory state
             await agent_manager.handle_message(agent.id, data)

@@ -3,6 +3,8 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Admin routes for system settings management."""
 
+import logging
+
 from fastapi import APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,8 @@ from app.core.encryption import decrypt_value, encrypt_value
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.settings import DEFAULT_SETTINGS, SystemSetting
 from app.schemas.settings import SettingResponse, SettingsResponse, SettingUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -59,15 +63,29 @@ async def get_all_settings(
 
     response = SettingsResponse()
 
-    for setting in settings:
-        setting_response = setting_to_response(setting)
+    # Group by matching the setting's category to a SettingsResponse FIELD, so
+    # a newly-added category needs no edit here. The previous if/elif chain
+    # named three categories and silently discarded every other one: with
+    # api_tokens and network no longer in DEFAULT_SETTINGS, the endpoint was
+    # returning 4 of the 37 settings the app ships, which is why AI provider
+    # settings never reached the settings UI. Anything unmatched is now logged
+    # rather than dropped in silence.
+    buckets = set(SettingsResponse.model_fields)
+    unbucketed: set[str] = set()
 
-        if setting.category == "api_tokens":
-            response.api_tokens.append(setting_response)
-        elif setting.category == "network":
-            response.network.append(setting_response)
-        elif setting.category == "system":
-            response.system.append(setting_response)
+    for setting in settings:
+        category = setting.category or ""
+        if category in buckets:
+            getattr(response, category).append(setting_to_response(setting))
+        else:
+            unbucketed.add(category or "<none>")
+
+    if unbucketed:
+        logger.warning(
+            "Settings in categories with no SettingsResponse field are not "
+            "being returned: %s. Add a field to SettingsResponse.",
+            ", ".join(sorted(unbucketed)),
+        )
 
     return response
 

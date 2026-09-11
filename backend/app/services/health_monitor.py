@@ -9,8 +9,13 @@ Runs an asyncio background loop that monitors connected agents for:
 - Resource exhaustion (high CPU/memory sustained)
 - Scenario errors (deployment in error state)
 
-Provides auto-recovery: restarts stalled scenarios and redeploys
-disconnected scenarios when agents reconnect.
+Provides auto-recovery: restarts stalled scenarios. Redeploying the
+deployments an agent lost while it was away is NOT done here — that intent
+has to survive a backend restart and a host reboot, so it lives on the
+``agent_deployments`` row (``state='disconnected'`` + ``deploy_config``) and
+is replayed by ``AgentManager.resume_disconnected_deployments`` on the
+agent's first heartbeat back. This service only gates it
+(``config.auto_redeploy_on_reconnect``) and records the outcome as events.
 
 All data is in-memory — rebuilds naturally from agent heartbeats/status.
 """
@@ -116,15 +121,6 @@ class AgentHealthState:
 
 
 @dataclass
-class DisconnectedDeployment:
-    agent_id: UUID
-    agent_name: str
-    scenario_id: str
-    interface: str | None
-    disconnected_at: datetime
-
-
-@dataclass
 class HealthMonitorConfig:
     check_interval_seconds: float = 10.0
     heartbeat_timeout_seconds: float = 90.0
@@ -138,7 +134,6 @@ class HealthMonitorConfig:
     auto_recovery_enabled: bool = True
     auto_redeploy_on_reconnect: bool = True
     max_events: int = 200
-    disconnected_deployment_ttl_hours: float = 24.0
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +146,6 @@ class HealthMonitorService:
     def __init__(self) -> None:
         self._agent_health: dict[UUID, AgentHealthState] = {}
         self._events: deque[HealthEvent] = deque(maxlen=200)
-        self._disconnected_deployments: dict[str, DisconnectedDeployment] = {}
         self.config = HealthMonitorConfig()
         self._task: asyncio.Task | None = None
         self._running = False
@@ -323,15 +317,6 @@ class HealthMonitorService:
             recovered = health.stalled_scenarios - active_stall_ids
             health.stalled_scenarios -= recovered
 
-        # --- Prune expired disconnected deployments ---
-        ttl_seconds = self.config.disconnected_deployment_ttl_hours * 3600
-        expired_keys = [
-            k for k, v in self._disconnected_deployments.items()
-            if (now - v.disconnected_at).total_seconds() > ttl_seconds
-        ]
-        for k in expired_keys:
-            del self._disconnected_deployments[k]
-
         # --- Recompute overall status for agents with no issues ---
         for conn in connections:
             health = self._get_or_create_health(conn.agent_id)
@@ -353,56 +338,17 @@ class HealthMonitorService:
         health.heartbeat_missed = False
         health.resource_warning_since = None
         health.stalled_scenarios.clear()
-
-        # Check for disconnected deployments to redeploy
-        if self.config.auto_redeploy_on_reconnect:
-            to_redeploy = [
-                v for v in self._disconnected_deployments.values()
-                if v.agent_id == agent_id
-            ]
-            if to_redeploy:
-                self._emit_event(
-                    HealthEventType.AGENT_RECONNECTED,
-                    HealthEventSeverity.INFO,
-                    agent_id,
-                    agent_name,
-                    message=f"Reconnected with {len(to_redeploy)} scenario(s) to redeploy",
-                )
-                # Schedule redeploy as separate task to avoid blocking WebSocket handler
-                asyncio.create_task(
-                    self._auto_redeploy_batch(agent_id, agent_name, to_redeploy)
-                )
+        # Anything this agent lost while away is replayed from its DB row by
+        # AgentManager.resume_disconnected_deployments on the first heartbeat.
 
     async def on_agent_disconnected(
         self, agent_id: UUID, agent_name: str, running_scenarios: list[str]
     ) -> None:
-        """Called when an agent disconnects. Saves running scenarios for redeploy."""
+        """Called when an agent disconnects."""
         health = self._get_or_create_health(agent_id)
         health.status = HealthStatus.OFFLINE
 
-        now = datetime.now(timezone.utc)
-
         if running_scenarios:
-            # Get interfaces from existing deployments in agent_manager
-            from app.services.agent_manager import agent_manager
-            for scenario_id in running_scenarios:
-                key = f"{agent_id}:{scenario_id}"
-                # Try to get the interface from the deployment record
-                deployment = agent_manager._deployments.get(scenario_id)
-                interface = None
-                if deployment and deployment.agent_id == agent_id:
-                    # We don't store interface in ScenarioDeployment, so we'll
-                    # look it up from DB at redeploy time
-                    pass
-
-                self._disconnected_deployments[key] = DisconnectedDeployment(
-                    agent_id=agent_id,
-                    agent_name=agent_name,
-                    scenario_id=scenario_id,
-                    interface=interface,
-                    disconnected_at=now,
-                )
-
             self._emit_event(
                 HealthEventType.AGENT_DISCONNECTED,
                 HealthEventSeverity.WARNING,
@@ -419,6 +365,35 @@ class HealthMonitorService:
                 agent_name,
                 message="Disconnected (no running scenarios)",
             )
+
+    def on_deployment_resumed(
+        self, agent_id: UUID, agent_name: str, scenario_id: str
+    ) -> None:
+        """A deployment lost to a disconnect was replayed on reconnect."""
+        health = self._get_or_create_health(agent_id)
+        # Fresh grace period so the stall detector doesn't fire on startup.
+        health.deployment_running_since[scenario_id] = datetime.now(timezone.utc)
+        self._emit_event(
+            HealthEventType.RECOVERY_SUCCEEDED,
+            HealthEventSeverity.INFO,
+            agent_id,
+            agent_name,
+            scenario_id=scenario_id,
+            message="Auto-resumed after reconnection",
+        )
+
+    def on_deployment_resume_failed(
+        self, agent_id: UUID, agent_name: str, scenario_id: str, error: str
+    ) -> None:
+        """Replaying a lost deployment on reconnect failed."""
+        self._emit_event(
+            HealthEventType.RECOVERY_FAILED,
+            HealthEventSeverity.WARNING,
+            agent_id,
+            agent_name,
+            scenario_id=scenario_id,
+            message=f"Auto-resume failed: {error}",
+        )
 
     def on_deployment_status(
         self, agent_id: UUID, scenario_id: str, pps: float, state: str
@@ -571,78 +546,6 @@ class HealthMonitorService:
             )
             logger.error(f"Auto-recovery failed for scenario {scenario_id}: {e}")
 
-    async def _auto_redeploy_batch(
-        self,
-        agent_id: UUID,
-        agent_name: str,
-        deployments: list[DisconnectedDeployment],
-    ) -> None:
-        """Redeploy a batch of disconnected scenarios after agent reconnection."""
-        from app.services.agent_manager import agent_manager
-
-        for dep in deployments:
-            key = f"{dep.agent_id}:{dep.scenario_id}"
-            try:
-                definition, interface = await self._fetch_scenario_for_redeploy(
-                    dep.scenario_id, agent_id
-                )
-                if definition is None:
-                    logger.warning(
-                        f"Cannot redeploy scenario {dep.scenario_id}: not found in DB"
-                    )
-                    self._disconnected_deployments.pop(key, None)
-                    continue
-
-                # Also create a DB deployment record
-                await self._create_deployment_record(agent_id, dep.scenario_id, interface)
-
-                success = await agent_manager.deploy_scenario(
-                    agent_id=agent_id,
-                    scenario_id=dep.scenario_id,
-                    definition=definition,
-                    interface=interface or dep.interface,
-                )
-
-                if success:
-                    self._emit_event(
-                        HealthEventType.RECOVERY_SUCCEEDED,
-                        HealthEventSeverity.INFO,
-                        agent_id,
-                        agent_name,
-                        scenario_id=dep.scenario_id,
-                        message="Auto-redeployed after reconnection",
-                    )
-                    # Reset grace period
-                    health = self._get_or_create_health(agent_id)
-                    health.deployment_running_since[dep.scenario_id] = datetime.now(timezone.utc)
-                else:
-                    self._emit_event(
-                        HealthEventType.RECOVERY_FAILED,
-                        HealthEventSeverity.WARNING,
-                        agent_id,
-                        agent_name,
-                        scenario_id=dep.scenario_id,
-                        message="Auto-redeploy failed: could not send deploy command",
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"Auto-redeploy failed for scenario {dep.scenario_id}: {e}"
-                )
-                self._emit_event(
-                    HealthEventType.RECOVERY_FAILED,
-                    HealthEventSeverity.WARNING,
-                    agent_id,
-                    agent_name,
-                    scenario_id=dep.scenario_id,
-                    message=f"Auto-redeploy failed: {e}",
-                )
-            finally:
-                self._disconnected_deployments.pop(key, None)
-
-            # Small delay between redeploys to avoid flooding
-            await asyncio.sleep(1.0)
-
     async def _fetch_scenario_for_redeploy(
         self, scenario_id: str, agent_id: UUID
     ) -> tuple[dict | None, str | None]:
@@ -709,25 +612,6 @@ class HealthMonitorService:
         except Exception as e:
             logger.error(f"Failed to fetch scenario {scenario_id} for redeploy: {e}")
             return None, None
-
-    async def _create_deployment_record(
-        self, agent_id: UUID, scenario_id: str, interface: str | None
-    ) -> None:
-        """Create an AgentDeployment DB record for a redeployed scenario."""
-        from app.core.database import async_session_maker
-        from app.models.traffic_agent import AgentDeployment
-
-        try:
-            async with async_session_maker() as db:
-                deployment = AgentDeployment(
-                    agent_id=agent_id,
-                    scenario_id=UUID(scenario_id),
-                    interface=interface,
-                )
-                db.add(deployment)
-                await db.commit()
-        except Exception as e:
-            logger.error(f"Failed to create deployment record: {e}")
 
     # ------------------------------------------------------------------
     # Query methods (for API)

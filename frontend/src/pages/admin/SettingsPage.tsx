@@ -53,6 +53,7 @@ import SystemUpdatesTab from '../../components/admin/SystemUpdatesTab';
 import ReleaseNotesTab from '../../components/admin/ReleaseNotesTab';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { SystemSetting, SettingsResponse } from '../../types';
+import { flattenSettings } from '../../types';
 import ContextualHelpIcon from '../../components/help/ContextualHelpIcon';
 
 const { Title, Text } = Typography;
@@ -161,11 +162,9 @@ const AIProviderTab: React.FC<{
   // Get current provider from settings
   useEffect(() => {
     if (settings) {
-      const allSettings = [
-        ...(settings.api_tokens || []),
-        ...(settings.network || []),
-        ...(settings.system || []),
-      ];
+      // Flatten every category rather than a named subset: listing them here
+      // is what dropped the AI settings when they moved to their own category.
+      const allSettings = flattenSettings(settings);
 
       const providerSetting = allSettings.find((s: SystemSetting) => s.key === 'ai_provider');
       if (providerSetting?.value) {

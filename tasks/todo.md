@@ -1,3 +1,35 @@
+# Durable deployment resume after reboot (2026-09-11)
+
+Context: Alpha lost power 3x (storms) 09-04..09-06; all 7 live deployments went
+`disconnected` and stayed there. Auto-redeploy list was in-memory only.
+
+- [x] Migration: `agent_deployments.deploy_config` JSONB (nullable, additive)
+- [x] Model: `AgentDeployment.deploy_config`
+- [x] `execute_deployment` persists the deploy options (adaptive/attack/cell-iso/topology)
+- [x] `AgentManager.resume_disconnected_deployments()` — heartbeat-driven, DB-backed,
+      closes the lost row BEFORE replaying, honors `auto_redeploy_on_reconnect`,
+      topology rows go through `topology_provisioning_service.deploy` (re-entrant)
+- [x] `agent_hub` HEARTBEAT: sync first, then resume
+- [x] `health_monitor`: drop in-memory `_disconnected_deployments` path; add
+      resume event hooks
+- [x] Frontend: tooltip on Disconnected status ("resumes when the agent reconnects")
+- [x] Version 1.18.5 + release notes entry
+- [x] Unit tests (sqlite) for candidate selection / replay / topology / flag
+- [x] Deploy (`docker compose up -d --build backend`) and verify the 7 rows resume live
+
+## Review (2026-09-11)
+- Shipped v1.18.5. Migration `add_deployment_deploy_config` applied on boot.
+- Tests: 7 new in tests/services/test_deployment_resume.py; tests/api + tests/services = 286 passed.
+- Live verification: after the backend restart all 8 agents reconnected; on
+  the first heartbeat all 7 disconnected rows were closed (`stopped`) and
+  replayed (7 new rows `running`, packets climbing, frames confirmed with
+  tcpdump on pa-mon-5a299c7a). Pre-existing rows have deploy_config NULL and
+  resumed with the scenario definition alone; rows created from now on carry
+  the deploy options.
+- Not committed (branch fix/ai-provider-settings-display); commit is the user's call.
+
+---
+
 # Multi-Sensor Topology — Implementation (design: multi-sensor-topology-design.md)
 
 (Previous content: Scenario Verify audit 2026-07-09 — completed, recorded in
