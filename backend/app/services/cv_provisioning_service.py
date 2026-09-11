@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -81,26 +82,241 @@ GROUP_LABEL_LIMIT = 60
 # CV's new-UI Organization Hierarchy caps level names at just 20 characters —
 # much stricter than Groups (60) or presets (100), and NOT documented in the
 # OpenAPI spec (confirmed live: CV rejects longer names with "only 20
-# characters allowed for name"). It also rejects non-ASCII characters
-# (confirmed live: the "…" ellipsis _truncate_at_word appends elsewhere gets
-# "Name is invalid") — so OH names need their own plain word-boundary
-# truncation, no suffix. The full-length _group_label value is still used for
-# the matching CV Group/custom network, so the old-UI/new-UI names can
-# visibly diverge when a zone or scenario name is long — that's a real CV
-# constraint, not a bug.
+# characters allowed for name"; re-confirmed on CV 5.5.x). It also rejects
+# non-ASCII characters (confirmed live: an "…" ellipsis or an em dash gets
+# "Name is invalid"). The full-length _group_label value is still used for the
+# matching CV Group/custom network, so the old-UI/new-UI names can visibly
+# diverge when a zone or scenario name is long — that's a real CV constraint,
+# not a bug.
 OH_LEVEL_NAME_LIMIT = 20
+
+# Non-ASCII → ASCII folds, applied before anything else. Scenario and zone names
+# routinely carry typographic punctuation (em dashes from the scenario templates
+# and the AI generator, degree signs from cold-storage zone names), and any one
+# of them makes CV reject the whole level.
+_OH_ASCII_FOLD = {
+    "—": "-",  # em dash
+    "–": "-",  # en dash
+    "‑": "-",  # non-breaking hyphen
+    "−": "-",  # minus sign
+    " ": " ",  # no-break space
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "…": "...",
+    "°": "deg",
+    "µ": "u",
+    "μ": "u",
+}
+
+# Multi-word phrases with a canonical short form in industrial networking.
+# Applied first so "Substation Local Area Network" collapses to "Substation LAN"
+# instead of being whittled down word by word. Matched case-insensitively on
+# word boundaries.
+_OH_PHRASE_ABBREV = {
+    "local area network": "LAN",
+    "wide area network": "WAN",
+    "manufacturing execution system": "MES",
+    "programmable logic controller": "PLC",
+    "human machine interface": "HMI",
+    "remote terminal unit": "RTU",
+    "distributed control system": "DCS",
+    "automated material handling": "AMHS",
+}
+
+# Grammatical connectors — pure filler at this budget. Dropped anywhere in the
+# name, which is what keeps "Solar Farm with Battery…" from stranding on the
+# preposition ("Solar Farm with") and "Point of Interconnection…" on "Point of".
+_OH_CONNECTORS = {"with", "of", "the", "and", "for", "a", "an", "to", "in", "on"}
+
+# Generic nouns that carry no distinguishing information once the head noun is
+# present. Dropped from the TAIL inward only — "Network" is noise in "Bay
+# Control Network" but load-bearing in "Network Operations".
+_OH_GENERIC_TAIL = {
+    "network",
+    "networks",
+    "net",
+    "system",
+    "systems",
+    "zone",
+    "line",
+    "plant",
+    "area",
+    "segment",
+}
+
+# Word-level abbreviations, applied longest-source-word first and only until the
+# name fits, so a mildly-over-budget name takes exactly one substitution.
+_OH_WORD_ABBREV = {
+    "interconnection": "Interconn",
+    "instrumentation": "Instr",
+    "instrumented": "Instr",
+    "chromatography": "Chrom",
+    "environmental": "Env",
+    "semiconductor": "Semi",
+    "refrigeration": "Refrig",
+    "purification": "Purif",
+    "distribution": "Distrib",
+    "intersection": "Intersect",
+    "temperature": "Temp",
+    "substation": "Substn",
+    "electrical": "Elec",
+    "environment": "Env",
+    "compressor": "Compr",
+    "automotive": "Auto",
+    "monitoring": "Mon",
+    "management": "Mgmt",
+    "protection": "Prot",
+    "operations": "Ops",
+    "bioreactor": "Bio",
+    "controller": "Ctlr",
+    "warehouse": "Whse",
+    "municipal": "Muni",
+    "treatment": "Treat",
+    "detection": "Detect",
+    "induction": "Induct",
+    "cleanroom": "Cleanrm",
+    "metrology": "Metrol",
+    "deposition": "Depos",
+    "diffusion": "Diff",
+    "assembly": "Asm",
+    "handling": "Hdlg",
+    "material": "Matl",
+    "metering": "Meter",
+    "pipeline": "Pipe",
+    "building": "Bldg",
+    "stations": "Stns",
+    "backhaul": "Bkhaul",
+    "aseptic": "Asept",
+    "battery": "Batt",
+    "storage": "Stor",
+    "station": "Stn",
+    "control": "Ctrl",
+    "cabinet": "Cab",
+    "utility": "Util",
+    "energy": "Engy",
+    "remote": "Rem",
+    "sorting": "Sort",
+    "chilled": "Chill",
+}
+
+# Characters that must never end an OH level name — an opening bracket left by a
+# dropped word, or a separator left by a dropped tail noun.
+_OH_TRAILING_JUNK = " \t-_/,.:;+&([{'\""
+
+
+def _oh_fold_ascii(text: str) -> str:
+    """Fold typographic punctuation to ASCII and drop anything still non-ASCII."""
+    for src, dst in _OH_ASCII_FOLD.items():
+        text = text.replace(src, dst)
+    text = "".join(c for c in text if ord(c) < 128)
+    return " ".join(text.split())
+
+
+def _oh_tidy(text: str) -> str:
+    """Collapse whitespace and strip dangling connectors/punctuation from the end.
+
+    Run after every shortening step so no intermediate result can be handed to
+    CV ending on a preposition or an unbalanced bracket.
+    """
+    text = " ".join(text.split())
+    while True:
+        stripped = text.rstrip(_OH_TRAILING_JUNK)
+        words = stripped.split()
+        if len(words) > 1 and words[-1].lower() in _OH_CONNECTORS:
+            text = " ".join(words[:-1])
+            continue
+        if stripped == text:
+            return text
+        text = stripped
 
 
 def _oh_level_name(text: str, limit: int = OH_LEVEL_NAME_LIMIT) -> str:
-    """Truncate a name to fit CV's new-UI OH level cap, at a word boundary,
-    with no suffix character (CV rejects non-ASCII names outright)."""
-    text = (text or "").strip()
+    """Compact a name to fit CV's 20-char ASCII-only OH level cap.
+
+    CV's cap is far too tight for real scenario and zone names, so a plain
+    word-boundary truncation throws away the distinguishing part of the name
+    ("Electrical Substation IED Network" → "Electrical") and can strand the
+    result on a connector or an open bracket. This instead spends the 20-char
+    budget deliberately, applying the cheapest meaning-preserving reduction
+    first and stopping the moment the name fits:
+
+    1. fold to ASCII (CV rejects non-ASCII names outright)
+    2. canonical multi-word abbreviations ("Local Area Network" → "LAN")
+    3. drop grammatical connectors ("with", "of", …)
+    4. drop generic trailing nouns ("Network", "System", …)
+    5. abbreviate words, longest source word first
+    6. tighten " / " and " - " separators
+    7. drop a trailing parenthetical
+    8. word-boundary truncate as a last resort
+
+    Deterministic and idempotent-ish by construction: every step is a pure
+    string reduction, so the same input always yields the same level name (which
+    is what makes ``_match_existing_oh_level``'s name-based fallback reliable).
+    """
+    text = _oh_tidy(_oh_fold_ascii(text or ""))
     if len(text) <= limit:
         return text
-    cut = text[:limit].rstrip()
-    if " " in cut:
-        cut = cut[: cut.rfind(" ")].rstrip()
-    return cut or text[:limit]
+
+    # 2. canonical phrases
+    for phrase, short in _OH_PHRASE_ABBREV.items():
+        pattern = re.compile(r"\b" + r"\s+".join(map(re.escape, phrase.split())) + r"\b", re.I)
+        text = _oh_tidy(pattern.sub(short, text))
+        if len(text) <= limit:
+            return text
+
+    # 3. connectors, anywhere in the name
+    words = text.split()
+    kept = [w for w in words if w.lower().strip("()[[],.") not in _OH_CONNECTORS]
+    if kept and len(kept) < len(words):
+        text = _oh_tidy(" ".join(kept))
+        if len(text) <= limit:
+            return text
+
+    # 4. generic nouns, from the tail inward
+    words = text.split()
+    while len(words) > 1 and words[-1].lower().strip("()[],.") in _OH_GENERIC_TAIL:
+        words.pop()
+        text = _oh_tidy(" ".join(words))
+        if len(text) <= limit:
+            return text
+        words = text.split()
+
+    # 5. word abbreviations, longest source word first
+    for full, short in sorted(_OH_WORD_ABBREV.items(), key=lambda kv: -len(kv[0])):
+        if len(full) <= len(short):
+            continue
+        pattern = re.compile(r"\b" + re.escape(full) + r"\b", re.I)
+        if not pattern.search(text):
+            continue
+        text = _oh_tidy(pattern.sub(short, text))
+        if len(text) <= limit:
+            return text
+
+    # 6. tighten separators — but only KEEP the tightening if it alone makes the
+    # name fit. Gluing tokens together otherwise destroys the word boundaries the
+    # truncation in step 8 relies on ("Parcel Sort Hub - 7/13/2026" would become
+    # "Parcel Sort Hub-7/13/2026", stranding the fill at "Parcel Sort").
+    tightened = _oh_tidy(re.sub(r"\s*([/+&-])\s*", r"\1", text))
+    if len(tightened) <= limit:
+        return tightened
+
+    # 7. drop a trailing parenthetical
+    text = _oh_tidy(re.sub(r"\s*[([][^)\]]*[)\]]?\s*$", "", text)) or text
+    if len(text) <= limit:
+        return text
+
+    # 8. last resort — greedy word fill, so we spend as much of the budget as
+    # whole words allow instead of backing off to the previous boundary.
+    out = ""
+    for word in text.split():
+        candidate = f"{out} {word}".strip()
+        if len(candidate) > limit:
+            break
+        out = candidate
+    out = _oh_tidy(out)
+    return out or _oh_tidy(text[:limit]) or text[:limit]
 
 # CV "type" for the custom networks we mint for simulated OT ranges. CV also
 # supports "IT Internal" / "External"; we default everything to "OT Internal"
@@ -400,7 +616,7 @@ async def provision_networks(db, scenario: Scenario) -> dict:
     synchronously at deploy time. Self-contained (own CV client + targeted state
     save). Raises only if CV is unconfigured; the caller wraps it best-effort.
 
-    Returns ``{created, existing, networks: {ipRange: {id, name, type}}}``.
+    Returns ``{created, existing, renamed, networks: {ipRange: {id, name, type}}}``.
     """
     svc = await cv_service_from_settings(db)
     if svc is None:
@@ -410,7 +626,7 @@ async def provision_networks(db, scenario: Scenario) -> dict:
     duplicates = await _duplicate_zone_names(db)
     desired = _desired_networks(scenario, subnet, duplicates)
 
-    result: dict = {"created": 0, "existing": 0, "networks": {}}
+    result: dict = {"created": 0, "existing": 0, "renamed": 0, "networks": {}}
     if not desired:
         await svc.close()
         return result
@@ -421,6 +637,24 @@ async def provision_networks(db, scenario: Scenario) -> dict:
         if to_create:
             await svc.create_networks(to_create)
             # POST returns an empty body — re-fetch to resolve server-assigned ids.
+            by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
+
+        # Realign names that drifted. Matching is by ipRange, so a renamed zone
+        # would otherwise keep showing its old name in CV forever (e.g. a /24
+        # left labelled "Water Control Network" after the zone became "Intake
+        # Zone"). Scoped to ranges inside the scenario's own /16 so a CV built-in
+        # (10/8 CONTAINS the /16 rather than nesting in it) can never be touched.
+        to_rename = [
+            {**live, "name": d["name"]}
+            for d in desired
+            if (live := by_range.get(d["ipRange"]))
+            and live.get("id")
+            and _range_within(d["ipRange"], subnet)
+            and live.get("name") != d["name"]
+        ]
+        if to_rename:
+            await svc.update_networks(to_rename)
+            result["renamed"] = len(to_rename)
             by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
 
         created_ranges = {d["ipRange"] for d in to_create}
@@ -446,37 +680,55 @@ async def provision_networks(db, scenario: Scenario) -> dict:
     await _save_cv_networks(db, scenario.id, result["networks"])
     logger.info(
         f"CV networks for scenario {scenario.id}: {result['created']} created, "
-        f"{result['existing']} existing ({len(result['networks'])} total)"
+        f"{result['existing']} existing, {result['renamed']} renamed "
+        f"({len(result['networks'])} total)"
     )
     return result
+
+
+def _range_within(ip_range: str | None, scope_cidr: str | None) -> bool:
+    """Whether ``ip_range`` is ``scope_cidr`` or nests inside it.
+
+    The guard that keeps every write/delete confined to a scenario's own /16: a
+    CV built-in like 10/8 CONTAINS the /16 rather than nesting in it, so it can
+    never satisfy this. An unparseable range is never in scope. A missing scope
+    matches nothing, so callers must handle "no allocated /16" explicitly rather
+    than silently getting a free pass.
+
+    Callers iterate over CV's whole network list, which includes IPv6 built-ins
+    (``ff00::/8``, ``fe80::/10``, …) — ``subnet_of`` raises TypeError across
+    address families, so mismatched versions are rejected up front.
+    """
+    import ipaddress
+
+    if not ip_range or not scope_cidr:
+        return False
+    try:
+        net = ipaddress.ip_network(ip_range, strict=False)
+        scope = ipaddress.ip_network(scope_cidr, strict=False)
+    except ValueError:
+        return False
+    if net.version != scope.version:
+        return False
+    return net == scope or net.subnet_of(scope)
 
 
 def _scenario_network_ids(networks_state: dict, scenario_cidr: str | None) -> list[str]:
     """Network ids safe to delete on teardown: only those whose ipRange falls
     within the scenario's /16 (equal or a subnet). Guards against ever deleting
-    a CV built-in (e.g. 10/8, which CONTAINS the /16 rather than nesting in it)
-    or an out-of-scope range, even if state somehow recorded one."""
-    import ipaddress
+    a CV built-in or an out-of-scope range, even if state somehow recorded one.
 
-    scope = None
-    if scenario_cidr:
-        try:
-            scope = ipaddress.ip_network(scenario_cidr, strict=False)
-        except ValueError:
-            scope = None
-
+    When the scenario has no allocated /16 there is nothing to scope against, so
+    every recorded id is returned — teardown state is written by this module and
+    only ever holds that scenario's own networks.
+    """
     ids: list[str] = []
     for ip_range, meta in (networks_state or {}).items():
         nid = (meta or {}).get("id")
         if not nid:
             continue
-        if scope is not None:
-            try:
-                net = ipaddress.ip_network(ip_range, strict=False)
-            except ValueError:
-                continue
-            if net != scope and not net.subnet_of(scope):
-                continue
+        if scenario_cidr and not _range_within(ip_range, scenario_cidr):
+            continue
         ids.append(str(nid))
     return ids
 
@@ -562,7 +814,11 @@ async def provision_org_hierarchy(
             raise RuntimeError("CV Organization Hierarchy has no 'Global' root level")
         global_id = global_level["id"]
 
-        scenario_name = _oh_level_name(getattr(scenario, "name", None) or "PacketArch scenario")
+        # _oh_level_name drops non-ASCII, so a name made entirely of typographic
+        # characters folds to "" — which CV rejects. Fall back rather than 400.
+        scenario_name = _oh_level_name(
+            getattr(scenario, "name", None) or "PacketArch scenario"
+        ) or _oh_level_name(f"Scenario {str(scenario.id)[:8]}")
         scenario_level_id = _match_existing_oh_level(
             levels_by_id, prior.get("scenario_level_id"), global_id, scenario_name
         )
@@ -579,6 +835,7 @@ async def provision_org_hierarchy(
 
         zone_labels = {
             zone_id: _oh_level_name(_group_label(scenario, zone.get("name") or zone_id, duplicates))
+            or _oh_level_name(f"Zone {str(zone_id)[:8]}")
             for zone_id, zone in zones.items()
         }
         to_create = [
@@ -1219,7 +1476,7 @@ async def reconcile_cv_networks(db) -> dict:
     by ipRange). Scenarios without an allocated /16 are skipped. Collects
     per-scenario failures instead of aborting the whole pass.
     """
-    summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "errors": []}
+    summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "renamed": 0, "errors": []}
     # Fail fast if CV isn't configured, consistent with the sibling reconcilers.
     probe = await cv_service_from_settings(db)
     if probe is None:
@@ -1235,13 +1492,185 @@ async def reconcile_cv_networks(db) -> dict:
             res = await provision_networks(db, s)
             summary["created"] += res.get("created", 0)
             summary["existing"] += res.get("existing", 0)
+            summary["renamed"] += res.get("renamed", 0)
         except Exception as e:  # noqa: BLE001
             summary["errors"].append(f"scenario {s.id}: {e}")
             logger.warning(f"reconcile_cv_networks: scenario {s.id} failed: {e}")
 
     logger.info(
         f"reconcile_cv_networks: scenarios={summary['scenarios']} created={summary['created']} "
-        f"existing={summary['existing']} errors={len(summary['errors'])}"
+        f"existing={summary['existing']} renamed={summary['renamed']} "
+        f"errors={len(summary['errors'])}"
+    )
+    return summary
+
+
+async def find_orphan_oh_levels(db) -> list[dict]:
+    """Identify Organization Hierarchy levels that PacketArch created but has
+    since lost track of — typically a scenario that was renamed, leaving its old
+    tree behind (a fresh reconcile builds a NEW tree beside the stale one,
+    because level matching is keyed on ``(parentLevelId, name)``).
+
+    Attribution is deliberately conservative, because an OH tree is a shared
+    surface and an operator's own levels are indistinguishable from ours by name
+    alone. A level is only a candidate when BOTH hold:
+
+    * no scenario's persisted ``org_hierarchy`` state references its id, and
+    * it currently holds at least one network whose range falls inside some
+      scenario's allocated /16 (``_range_within``, so a CV built-in never counts).
+
+    That second condition is the actual evidence of ownership, and it is why this
+    MUST run BEFORE ``provision_org_hierarchy`` — assigning a network to a level
+    MOVES it, so once the push has run the stale level holds nothing and the
+    evidence is gone. Ancestors of a candidate are included (a stale scenario
+    level whose only content is its zone children holds no networks itself), and
+    the result is ordered deepest-first so children are deletable before parents.
+
+    Returns candidate dicts: ``{id, name, depth, networks: [ipRange, …]}``.
+    Read-only — no CV writes. ``prune_orphan_oh_levels`` performs the deletion.
+    """
+    v1 = await cv_v1_service_from_settings(db)
+    if v1 is None:
+        return []
+
+    scenarios = (await db.execute(select(Scenario))).scalars().all()
+    referenced: set[str] = set()
+    scopes: list[str] = []
+    for s in scenarios:
+        org = _get_cv_state(s).get("org_hierarchy") or {}
+        if org.get("scenario_level_id"):
+            referenced.add(str(org["scenario_level_id"]))
+        referenced.update(str(v) for v in (org.get("zones") or {}).values() if v)
+        cidr = await get_scenario_subnet(db, s.id)
+        if cidr:
+            scopes.append(cidr)
+
+    try:
+        levels = await v1.get_oh_levels()
+        networks = await v1.get_networks()
+    finally:
+        await v1.close()
+
+    by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
+    nets_by_level: dict[str, list[str]] = {}
+    for n in networks:
+        gid, ip_range = n.get("groupId"), n.get("ipRange")
+        if gid and ip_range and any(_range_within(ip_range, c) for c in scopes):
+            nets_by_level.setdefault(str(gid), []).append(ip_range)
+
+    def depth(level_id: str) -> int:
+        seen, d, cur = set(), 0, level_id
+        while cur and cur in by_id and cur not in seen:
+            seen.add(cur)
+            cur = by_id[cur].get("parentLevelId")
+            d += 1
+        return d
+
+    # Seed with levels holding in-scope networks, then pull in their ancestors so
+    # a stale scenario level (empty itself) is pruned along with its zone levels.
+    #
+    # A ROOT level is never a candidate, however much scenario traffic it holds:
+    # CV's built-in `Global` root is where every network sits until something
+    # assigns it elsewhere, so a scenario whose OH step has not run yet parks its
+    # whole /16 there and would otherwise make the root look PacketArch-owned.
+    candidates: set[str] = {
+        lid
+        for lid in nets_by_level
+        if lid in by_id and lid not in referenced and by_id[lid].get("parentLevelId")
+    }
+    for lid in list(candidates):
+        cur = by_id[lid].get("parentLevelId")
+        while cur and cur in by_id and by_id[cur].get("parentLevelId"):  # never the root
+            if cur in referenced:
+                break
+            candidates.add(cur)
+            cur = by_id[cur].get("parentLevelId")
+
+    return sorted(
+        (
+            {
+                "id": lid,
+                "name": by_id[lid].get("name"),
+                "depth": depth(lid),
+                "networks": sorted(nets_by_level.get(lid, [])),
+            }
+            for lid in candidates
+        ),
+        key=lambda c: -c["depth"],
+    )
+
+
+async def prune_orphan_oh_levels(db, candidates: list[dict]) -> dict:
+    """Delete the orphan levels found by ``find_orphan_oh_levels``.
+
+    Call AFTER the provisioning push, so each candidate's networks have already
+    been reassigned to their correct level. Deletes deepest-first (CV rejects
+    deleting a level that still has children) and re-checks the live state first:
+    any candidate that still holds a network or a child is SKIPPED rather than
+    forced, so a level that turned out to be in use survives.
+    """
+    summary: dict = {"deleted": [], "skipped": [], "errors": []}
+    if not candidates:
+        return summary
+
+    v1 = await cv_v1_service_from_settings(db)
+    if v1 is None:
+        summary["errors"].append("Cyber Vision New UI API token is not configured")
+        return summary
+
+    try:
+        levels = await v1.get_oh_levels()
+        networks = await v1.get_networks()
+        child_count: dict[str, int] = {}
+        for lv in levels:
+            if lv.get("parentLevelId"):
+                child_count[str(lv["parentLevelId"])] = child_count.get(str(lv["parentLevelId"]), 0) + 1
+        held: dict[str, int] = {}
+        for n in networks:
+            if n.get("groupId"):
+                held[str(n["groupId"])] = held.get(str(n["groupId"]), 0) + 1
+        live_ids = {str(lv["id"]) for lv in levels if lv.get("id")}
+        root_ids = {str(lv["id"]) for lv in levels if lv.get("id") and not lv.get("parentLevelId")}
+
+        for cand in candidates:  # already deepest-first
+            lid, name = str(cand["id"]), cand.get("name")
+            if lid not in live_ids:
+                summary["skipped"].append({"name": name, "reason": "already gone"})
+                continue
+            # Independent of how the candidate list was built — deleting CV's
+            # root would take the whole hierarchy with it.
+            if lid in root_ids:
+                summary["skipped"].append({"name": name, "reason": "is a root level"})
+                continue
+            if held.get(lid):
+                summary["skipped"].append(
+                    {"name": name, "reason": f"still holds {held[lid]} network(s)"}
+                )
+                continue
+            if child_count.get(lid):
+                summary["skipped"].append(
+                    {"name": name, "reason": f"still has {child_count[lid]} child level(s)"}
+                )
+                continue
+            try:
+                await v1.delete_oh_level(lid)
+                summary["deleted"].append({"id": lid, "name": name})
+                parent = next(
+                    (str(lv["parentLevelId"]) for lv in levels
+                     if str(lv.get("id")) == lid and lv.get("parentLevelId")),
+                    None,
+                )
+                if parent:  # unblocks the parent later in this same pass
+                    child_count[parent] = max(0, child_count.get(parent, 1) - 1)
+            except Exception as e:  # noqa: BLE001
+                summary["errors"].append(f"level {name!r} ({lid}): {e}")
+                logger.warning(f"prune_orphan_oh_levels: failed to delete {name!r}: {e}")
+    finally:
+        await v1.close()
+
+    logger.info(
+        f"prune_orphan_oh_levels: deleted={len(summary['deleted'])} "
+        f"skipped={len(summary['skipped'])} errors={len(summary['errors'])}"
     )
     return summary
 
