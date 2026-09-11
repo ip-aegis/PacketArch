@@ -893,18 +893,34 @@ async def provision_scenario(
 async def reconcile_cv(
     db: DBSession,
     _admin: AdminUser,
+    prune_orphans: bool = Query(
+        default=False,
+        description=(
+            "Also DELETE org-hierarchy levels that PacketArch created but no "
+            "longer tracks (left behind by a renamed scenario). Off by default "
+            "because it is the only destructive part of a reconcile."
+        ),
+    ),
 ) -> dict:
     """Re-derive CV group names, custom networks, org hierarchy, and vertical roll-up presets.
 
     One-shot cleanup lever: rewrites every zone group's label to the readable
     convention (bare zone name, scenario-suffixed only on cross-scenario
-    collisions, acronym casing), ensures each scenario's custom networks (/16 +
-    zone /24s) exist, backfills/repairs each scenario's new-UI org-hierarchy
-    tree, and rebuilds each vertical's roll-up preset. Idempotent — safe to run
-    anytime CV drifts from the scenario set.
+    collisions, acronym casing), realigns each scenario's custom networks (/16 +
+    zone /24s), backfills/repairs each scenario's new-UI org-hierarchy tree, and
+    rebuilds each vertical's roll-up preset. Idempotent — safe to run anytime CV
+    drifts from the scenario set.
+
+    With ``prune_orphans=true`` it additionally removes stale org-hierarchy
+    levels. Orphans are identified BEFORE the push (assigning a network to a
+    level moves it, which destroys the ownership evidence) and deleted AFTER,
+    skipping any that still hold a network or child level.
+
     Requires admin (writes to Cyber Vision).
     """
     from app.services.cv_provisioning_service import (
+        find_orphan_oh_levels,
+        prune_orphan_oh_levels,
         reconcile_cv_group_names,
         reconcile_cv_networks,
         reconcile_cv_org_hierarchy,
@@ -912,9 +928,13 @@ async def reconcile_cv(
     )
 
     try:
+        # Must precede the push — see find_orphan_oh_levels.
+        orphans = await find_orphan_oh_levels(db) if prune_orphans else []
+
         groups = await reconcile_cv_group_names(db)
         networks = await reconcile_cv_networks(db)
         org_hierarchy = await reconcile_cv_org_hierarchy(db)
+        pruned = await prune_orphan_oh_levels(db, orphans) if prune_orphans else None
         verticals = await reconcile_vertical_presets(db)
     except RuntimeError as e:
         raise ValidationError(str(e))
@@ -929,6 +949,7 @@ async def reconcile_cv(
         "group_names": groups,
         "networks": networks,
         "org_hierarchy": org_hierarchy,
+        "orphan_levels": pruned,
         "vertical_presets": [
             {"vertical": v["vertical"], "label": v["label"], "subnets": len(v["subnets"])}
             for v in verticals
