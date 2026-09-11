@@ -80,6 +80,11 @@ Goal: one PacketArch server can talk to several CV Centers. Branch `feat/multi-c
   `pg_dump -Fc`) and `~/packetarch-backups/pre-v1.19.0-system_settings.sql` (the legacy rows).
 - Both tokens verified live after the move: classic via `/status`, new-UI via an OH-level
   and networks read (49 levels, 60 networks).
+- Found during deploy (pre-existing, fixed): rebuilding backend + celery_worker together
+  swapped their container IPs, and nginx kept proxying to the backend's old IP (now the
+  worker, port closed). All 8 agents went offline until the frontend restarted. nginx now
+  resolves `backend` per request via Docker DNS (`resolver 127.0.0.11 valid=10s`); re-test
+  with a forced IP swap recovered all 7 deployments in ~25s with no frontend restart.
 - Known gap: CML labs built from a pasted CV compose record no center. The sensor is tied
   to whichever center issued the compose, but a deploy on a CML agent uses the picker
   (default center) and is not locked the way a local-lab agent is. Fix path: match the
