@@ -532,8 +532,9 @@ const CVEDetailContent: React.FC<CVEDetailContentProps> = ({ cve, variants, load
           </div>
         </Descriptions.Item>
         <Descriptions.Item label="Affected Firmware">
-          {cve.affected_firmware_min ? `${cve.affected_firmware_min} - ` : '< '}
-          {cve.affected_firmware_max}
+          {cve.affected_firmware_max
+            ? `${cve.affected_firmware_min ? `${cve.affected_firmware_min} - ` : '< '}${cve.affected_firmware_max}`
+            : 'All versions'}
         </Descriptions.Item>
         <Descriptions.Item label="Fixed Version">
           {cve.fixed_firmware_version || <Text type="danger">No fix available</Text>}

@@ -48,7 +48,8 @@ class CVESummaryResponse(BaseModel):
     cvss_score: float | None
     vendor: str
     product_family: str
-    affected_firmware_max: str
+    # None = every version is affected (NVD CPE "all versions"); never invented.
+    affected_firmware_max: str | None = None
     fixed_firmware_version: str | None
     cyber_vision_detectable: bool
     exploit_available: bool
@@ -67,7 +68,8 @@ class CVEDetailResponse(BaseModel):
     product_family: str
     affected_models: list[str] | None
     affected_firmware_min: str | None
-    affected_firmware_max: str
+    # None = every version is affected (NVD CPE "all versions"); never invented.
+    affected_firmware_max: str | None = None
     fixed_firmware_version: str | None
     cyber_vision_detectable: bool
     detection_method: str | None
