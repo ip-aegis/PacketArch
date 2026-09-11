@@ -76,7 +76,10 @@ Goal: one PacketArch server can talk to several CV Centers. Branch `feat/multi-c
   instead of loading every definition. The celery worker must be rebuilt with the backend
   (it runs `provision_cyber_vision`).
 - Rollback: the migration deletes the legacy rows and the alembic downgrade does not restore
-  them. Pre-deploy dump + a `system_settings` data dump were kept in the session scratchpad.
+  them. Pre-deploy dumps on the dev box: `~/packetarch-backups/pre-v1.19.0.dump` (full,
+  `pg_dump -Fc`) and `~/packetarch-backups/pre-v1.19.0-system_settings.sql` (the legacy rows).
+- Both tokens verified live after the move: classic via `/status`, new-UI via an OH-level
+  and networks read (49 levels, 60 networks).
 - Known gap: CML labs built from a pasted CV compose record no center. The sensor is tied
   to whichever center issued the compose, but a deploy on a CML agent uses the picker
   (default center) and is not locked the way a local-lab agent is. Fix path: match the

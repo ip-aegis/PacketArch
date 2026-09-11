@@ -404,7 +404,7 @@ async def migrate_legacy_settings(db) -> str:
         # Half-configured (a URL with no token, or the reverse). There is no
         # center to build, but deleting would throw away what the operator
         # did enter, so leave the rows for them (or a rollback) to finish.
-        await db.rollback()
+        # Nothing was written above, so there is nothing to roll back.
         message = (
             "legacy settings are incomplete (URL and API token are both needed); "
             "left in place, add the center under Settings > Cyber Vision"
