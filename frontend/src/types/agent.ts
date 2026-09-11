@@ -105,6 +105,11 @@ export interface DeploymentCreate {
   cell_isolation_override?: Record<string, unknown>;
   /** Create a Cyber Vision preset + zone groups for this scenario at deploy time. */
   provision_cyber_vision?: boolean;
+  /**
+   * Cyber Vision Center to provision on (default center if omitted). Local-lab
+   * agents are locked to their lab's center; naming another is a 400.
+   */
+  cv_center_id?: string | null;
 }
 
 /**
@@ -120,6 +125,8 @@ export interface DeployNewLabRequest {
   attack_playbook?: Record<string, unknown>;
   cell_isolation_override?: Record<string, unknown>;
   provision_cyber_vision?: boolean;
+  /** Cyber Vision Center the new lab's sensor enrolls into (default center if omitted). */
+  cv_center_id?: string | null;
 }
 
 export interface DeployNewLabResponse {

@@ -143,38 +143,13 @@ class CyberVisionV1Service:
         return await self._paginated_get("/networks", max_page)
 
 
-async def cv_v1_service_from_settings(db) -> CyberVisionV1Service | None:
-    """Build a CyberVisionV1Service from stored system settings.
+async def cv_v1_service_from_settings(db, center_id=None) -> CyberVisionV1Service | None:
+    """New-UI-API client for a Cyber Vision Center (default center when
+    ``center_id`` is None). Returns None when that center has no new-UI token —
+    this integration is additive/optional, unlike the classic API.
 
-    Reuses the classic API's ``cyber_vision_url`` / ``cyber_vision_verify_ssl``
-    (same CV Center serves both APIs) plus the separate ``cyber_vision_new_ui_token``.
-    Returns None when the new-UI token isn't configured — this integration is
-    additive/optional, unlike the classic API.
+    Thin wrapper; the resolution logic lives in ``services/cv_centers.py``.
     """
-    from sqlalchemy import select
+    from app.services.cv_centers import cv_v1_client
 
-    from app.core.encryption import decrypt_value
-    from app.models.settings import SystemSetting
-
-    settings: dict[str, str] = {}
-    result = await db.execute(
-        select(SystemSetting).where(
-            SystemSetting.key.in_([
-                "cyber_vision_url",
-                "cyber_vision_new_ui_token",
-                "cyber_vision_verify_ssl",
-            ])
-        )
-    )
-    for setting in result.scalars().all():
-        if setting.key == "cyber_vision_new_ui_token" and setting.value:
-            settings[setting.key] = decrypt_value(setting.value)
-        else:
-            settings[setting.key] = setting.value
-
-    url = settings.get("cyber_vision_url")
-    token = settings.get("cyber_vision_new_ui_token")
-    if not url or not token:
-        return None
-    verify_ssl = (settings.get("cyber_vision_verify_ssl") or "false").lower() == "true"
-    return CyberVisionV1Service(url, token, verify_ssl)
+    return await cv_v1_client(db, center_id)

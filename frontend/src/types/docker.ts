@@ -74,6 +74,7 @@ export interface UnifiedDeployment {
     subnet: string | null;
     group_count: number;
     device_count: number;
+    center_id?: string | null; // Cyber Vision Center it is provisioned on
   } | null;
 }
 

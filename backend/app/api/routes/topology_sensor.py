@@ -63,16 +63,18 @@ async def deploy(
     db: DBSession,
     admin: AdminUser,
     provision_cyber_vision: bool = True,
+    cv_center_id: str | None = None,
 ) -> TopologyProvisionResponse:
     """Provision one Local Sensor Lab per SPAN (zones + core), then auto-deploy
     the scenario to the core lab's agent as the single conductor once all labs
     are ready — through the normal deploy pipeline, so it gets an
     AgentDeployment (active status + live traffic) and full CV provisioning
-    (preset + zone groups + org hierarchy). Agent tokens are returned once.
+    (preset + zone groups + org hierarchy). All labs enroll into
+    ``cv_center_id`` (default: the default center). Agent tokens are returned once.
     """
     data = await topology_provisioning_service.deploy(
         db, scenario_id, provision_cyber_vision=provision_cyber_vision,
-        created_by_id=admin.id,
+        created_by_id=admin.id, cv_center_id=cv_center_id,
     )
     return TopologyProvisionResponse(**data)
 

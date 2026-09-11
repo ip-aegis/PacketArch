@@ -12,6 +12,7 @@
 import React from 'react';
 import { Tag, Tooltip } from 'antd';
 import { ApiOutlined } from '@ant-design/icons';
+import { useCyberVisionCenters } from '../../hooks/useCyberVisionCenters';
 
 export interface CyberVisionSummary {
   status: 'not_started' | 'preset_created' | 'polling' | 'groups_created' | 'error';
@@ -19,6 +20,7 @@ export interface CyberVisionSummary {
   subnet?: string | null;
   group_count?: number;
   device_count?: number;
+  center_id?: string | null;
 }
 
 const STATUS_CONFIG: Record<
@@ -35,11 +37,15 @@ const CyberVisionBadge: React.FC<{
   cv?: CyberVisionSummary | null;
   style?: React.CSSProperties;
 }> = ({ cv, style }) => {
+  const { centers, multiCenter } = useCyberVisionCenters();
   if (!cv || !cv.status || cv.status === 'not_started') return null;
   const cfg = STATUS_CONFIG[cv.status];
   if (!cfg) return null;
 
   const tooltipParts: string[] = [];
+  // Which center only matters once there is more than one.
+  const center = multiCenter ? centers.find((c) => c.id === cv.center_id) : undefined;
+  if (center) tooltipParts.push(`Center: ${center.name}`);
   if (cv.preset_label) tooltipParts.push(`Preset: ${cv.preset_label}`);
   if (cv.subnet) tooltipParts.push(`Subnet: ${cv.subnet}`);
   if (cv.status === 'groups_created') {

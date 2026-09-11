@@ -174,6 +174,7 @@ async def get_live_dashboard() -> dict[str, Any]:
                         "subnet": cv.get("subnet"),
                         "group_count": len(cv.get("groups") or {}),
                         "device_count": int(cv.get("device_count") or 0),
+                        "center_id": cv.get("center_id"),
                     }
                 # Static protocol mix from the scenario definition. The
                 # live `protocol_breakdown` field still wins for runtime

@@ -11,7 +11,13 @@ Two-phase, mirroring the operator-built "Segmented Manufacturing" reference:
    traffic, poll the preset until the discovered-device count stabilises, then
    create one CV group per scenario zone and assign the matched devices.
 
-State is persisted on ``scenario.definition["cyber_vision"]``.
+State is persisted on ``scenario.definition["cyber_vision"]``, including the
+``center_id`` of the Cyber Vision Center it lives on. Every later step (the
+Celery group task, teardown, reconcile) reads that id back rather than using
+"the default center", so changing the default never retargets existing
+objects. A scenario lives on ONE center at a time: provisioning it onto a
+different center than the one it is already on is refused (ConflictError)
+instead of silently orphaning the first center's preset/groups/networks.
 """
 
 from __future__ import annotations
@@ -23,16 +29,17 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
+from app.core.exceptions import ConflictError
 from app.core.name_normalize import normalize_acronyms
+from app.models.cyber_vision_center import CyberVisionCenter
 from app.models.ip_range_allocation import IPRangeAllocation
 from app.models.scenario import Scenario
+from app.services import cv_centers
 from app.services.cyber_vision_service import (
     CyberVisionService,
-    cv_service_from_settings,
     is_broadcast_multicast,
     normalize_mac,
 )
-from app.services.cyber_vision_v1_service import cv_v1_service_from_settings
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +276,71 @@ def _get_cv_state(scenario: Scenario) -> dict:
     return dict((scenario.definition or {}).get(CV_STATE_KEY) or {})
 
 
+async def _stored_center_id(db, scenario_id: UUID) -> str | None:
+    """The center id recorded in the scenario's CV state, read FRESH from the
+    row (the ORM ``definition`` can be stale mid-flow — see _save_cv_state)."""
+    row = await db.execute(select(Scenario.definition).where(Scenario.id == scenario_id))
+    definition = row.scalar_one_or_none() or {}
+    cv = definition.get(CV_STATE_KEY) if isinstance(definition, dict) else None
+    cid = cv.get("center_id") if isinstance(cv, dict) else None
+    return str(cid) if cid else None
+
+
+async def scenario_center(db, scenario_id: UUID) -> CyberVisionCenter | None:
+    """The center a scenario's CV objects live on: its recorded center, else the
+    default (legacy state from before multi-center support). None when the
+    recorded center has been deleted or nothing is configured."""
+    cid = await _stored_center_id(db, scenario_id)
+    if cid:
+        try:
+            return await cv_centers.get_center(db, cid)
+        except Exception:  # noqa: BLE001 — recorded center no longer exists
+            return None
+    return await cv_centers.default_center(db)
+
+
+async def center_for_provisioning(
+    db, scenario: Scenario, center_id: UUID | str | None
+) -> CyberVisionCenter:
+    """Pick the center a (re)provision targets, enforcing one-center-per-scenario.
+
+    Explicit ``center_id`` > the center already recorded > the default. If the
+    scenario is already provisioned on a DIFFERENT center that still exists,
+    refuse: overwriting the recorded ids would orphan that center's preset,
+    groups, networks and OH levels (they are only findable by those ids).
+    """
+    stored = await _stored_center_id(db, scenario.id)
+    if center_id is not None:
+        target = await cv_centers.get_center(db, center_id)
+        if stored and stored != str(target.id):
+            try:
+                current = await cv_centers.get_center(db, stored)
+            except Exception:  # noqa: BLE001 — recorded center is gone; allow the move
+                current = None
+            if current is not None:
+                raise ConflictError(
+                    f"Scenario '{scenario.name}' is already provisioned on Cyber Vision "
+                    f"Center '{current.name}'. Tear down its Cyber Vision objects there "
+                    f"before provisioning it on '{target.name}'."
+                )
+        return target
+    center = await scenario_center(db, scenario.id) if stored else await cv_centers.default_center(db)
+    if center is None:
+        raise RuntimeError("Cyber Vision is not configured")
+    return center
+
+
+def _classic(center: CyberVisionCenter | None) -> CyberVisionService:
+    svc = cv_centers.classic_client(center)
+    if svc is None:
+        raise RuntimeError(
+            "Cyber Vision is not configured"
+            if center is None
+            else f"Cyber Vision Center '{center.name}' has no API token configured"
+        )
+    return svc
+
+
 async def _save_cv_state(db, scenario: Scenario, state: dict) -> None:
     """Persist CV provisioning state onto ``definition['cyber_vision']``.
 
@@ -391,7 +463,7 @@ async def _save_cv_networks(db, scenario_id: UUID, networks_state: dict) -> None
     await db.commit()
 
 
-async def provision_networks(db, scenario: Scenario) -> dict:
+async def provision_networks(db, scenario: Scenario, center_id: UUID | str | None = None) -> dict:
     """Define CV custom networks for a scenario (scenario /16 + per-zone /24s).
 
     Idempotent get-or-create keyed by ipRange: ranges CV already has (built-ins
@@ -400,11 +472,15 @@ async def provision_networks(db, scenario: Scenario) -> dict:
     synchronously at deploy time. Self-contained (own CV client + targeted state
     save). Raises only if CV is unconfigured; the caller wraps it best-effort.
 
+    Targets ``center_id`` when given, else the scenario's recorded center.
+
     Returns ``{created, existing, networks: {ipRange: {id, name, type}}}``.
     """
-    svc = await cv_service_from_settings(db)
-    if svc is None:
-        raise RuntimeError("Cyber Vision is not configured")
+    center = (
+        await cv_centers.get_center(db, center_id) if center_id is not None
+        else await scenario_center(db, scenario.id)
+    )
+    svc = _classic(center)
 
     subnet = await get_scenario_subnet(db, scenario.id)
     duplicates = await _duplicate_zone_names(db)
@@ -513,7 +589,10 @@ def _match_existing_oh_level(
 
 
 async def provision_org_hierarchy(
-    db, scenario: Scenario, networks_state: dict | None = None
+    db,
+    scenario: Scenario,
+    networks_state: dict | None = None,
+    center_id: UUID | str | None = None,
 ) -> dict:
     """Mirror a scenario's zones into CV's new-UI Organization Hierarchy.
 
@@ -535,7 +614,11 @@ async def provision_org_hierarchy(
         RuntimeError: if the New UI API token isn't configured (caller wraps
             this best-effort, same as ``provision_networks``).
     """
-    svc = await cv_v1_service_from_settings(db)
+    center = (
+        await cv_centers.get_center(db, center_id) if center_id is not None
+        else await scenario_center(db, scenario.id)
+    )
+    svc = cv_centers.v1_client(center)
     if svc is None:
         raise RuntimeError("Cyber Vision New UI API is not configured")
 
@@ -624,15 +707,22 @@ async def provision_org_hierarchy(
     return result
 
 
-async def provision_preset(db, scenario: Scenario) -> dict:
+async def provision_preset(
+    db, scenario: Scenario, center_id: UUID | str | None = None
+) -> dict:
     """Create a CV preset for the scenario and record it on the definition.
+
+    ``center_id`` picks the Cyber Vision Center (default: the one the scenario
+    is already on, else the default center); it is recorded in the state so
+    every later step targets the same center.
 
     Raises:
         RuntimeError: if Cyber Vision is not configured.
+        ConflictError: if the scenario is already provisioned on another center.
+        NotFoundError: for an unknown ``center_id``.
     """
-    svc = await cv_service_from_settings(db)
-    if svc is None:
-        raise RuntimeError("Cyber Vision is not configured")
+    center = await center_for_provisioning(db, scenario, center_id)
+    svc = _classic(center)
 
     subnet = await get_scenario_subnet(db, scenario.id)
     label, description = _build_preset_meta(scenario, subnet)
@@ -653,6 +743,7 @@ async def provision_preset(db, scenario: Scenario) -> dict:
 
     state = _get_cv_state(scenario)
     state.update({
+        "center_id": str(center.id),
         "preset_id": preset.get("id"),
         "preset_label": label,
         "subnet": subnet,
@@ -667,7 +758,9 @@ async def provision_preset(db, scenario: Scenario) -> dict:
     # groups they're created here at deploy time. Best-effort — never block the
     # preset (which is the operator-visible artifact) on network provisioning.
     try:
-        state["networks"] = (await provision_networks(db, scenario)).get("networks", {})
+        state["networks"] = (
+            await provision_networks(db, scenario, center_id=center.id)
+        ).get("networks", {})
     except Exception:  # noqa: BLE001 — network org is additive, never fatal
         logger.exception("CV network provisioning failed (continuing)")
 
@@ -676,7 +769,7 @@ async def provision_preset(db, scenario: Scenario) -> dict:
     # optional (skipped entirely if the New UI API token isn't configured).
     try:
         state["org_hierarchy"] = await provision_org_hierarchy(
-            db, scenario, networks_state=state.get("networks")
+            db, scenario, networks_state=state.get("networks"), center_id=center.id
         )
     except Exception:  # noqa: BLE001 — org hierarchy is additive, never fatal
         logger.exception("CV org hierarchy provisioning failed (continuing)")
@@ -685,7 +778,7 @@ async def provision_preset(db, scenario: Scenario) -> dict:
     vertical = getattr(scenario, "vertical", None)
     if vertical:
         try:
-            await provision_vertical_preset(db, vertical)
+            await provision_vertical_preset(db, vertical, center_id=center.id)
         except Exception:  # noqa: BLE001 — roll-up is best-effort, never block
             logger.exception("vertical roll-up preset reconcile failed (continuing)")
     return state
@@ -751,7 +844,15 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
     if not state:
         return summary
 
-    svc = await cv_service_from_settings(db)
+    # The center the objects were created on — never "the current default".
+    center = await scenario_center(db, scenario.id)
+    if center is None:
+        summary["errors"].append(
+            "the Cyber Vision Center this scenario was provisioned on no longer exists"
+        )
+        return summary
+    summary["center_id"] = str(center.id)
+    svc = cv_centers.classic_client(center)
     if svc is None:
         return summary
 
@@ -797,7 +898,7 @@ async def teardown_cv_provisioning(db, scenario: Scenario) -> dict:
         # API token isn't configured.
         org_hierarchy = state.get("org_hierarchy") or {}
         if org_hierarchy:
-            v1 = await cv_v1_service_from_settings(db)
+            v1 = cv_centers.v1_client(center)
             if v1 is not None:
                 try:
                     for zone_id, level_id in (org_hierarchy.get("zones") or {}).items():
@@ -1004,9 +1105,8 @@ async def provision_groups(
     # stay bare (readable). Computed from PacketArch's own DB — deterministic.
     duplicates = await _duplicate_zone_names(db)
 
-    svc = await cv_service_from_settings(db)
-    if svc is None:
-        raise RuntimeError("Cyber Vision is not configured")
+    # Same center the preset was created on (recorded by provision_preset).
+    svc = _classic(await scenario_center(db, scenario.id))
 
     state["status"] = "polling"
     await _save_cv_state(db, scenario, state)
@@ -1158,6 +1258,24 @@ async def _create_or_get_group(
         raise
 
 
+async def _scenarios_by_center(db) -> dict[str, list[Scenario]]:
+    """Group scenarios by the center their CV objects live on.
+
+    A scenario with a recorded ``center_id`` belongs to that center (skipped if
+    the center was deleted). One with no recorded center — never provisioned,
+    or legacy — belongs to the default center, which reproduces the
+    single-center behavior exactly on an install with one center.
+    """
+    centers = {str(c.id): c for c in await cv_centers.list_centers(db)}
+    default = next((cid for cid, c in centers.items() if c.is_default), None)
+    out: dict[str, list[Scenario]] = {cid: [] for cid in centers}
+    for s in (await db.execute(select(Scenario))).scalars().all():
+        cid = str(_get_cv_state(s).get("center_id") or "") or default
+        if cid in out:
+            out[cid].append(s)
+    return out
+
+
 async def reconcile_cv_group_names(db) -> dict:
     """Re-derive ALL CV group labels from the current scenario set in one pass.
 
@@ -1166,48 +1284,61 @@ async def reconcile_cv_group_names(db) -> dict:
     drift (e.g. a new scenario introduces a collision with an existing bare group
     → both get promoted to suffixed). Preserves each group's color/criticalness
     and rewrites the stored ``cyber_vision.groups`` labels so state stays in sync.
+    Runs per center, against each scenario's own center.
     """
-    summary: dict = {"checked": 0, "renamed": 0, "errors": []}
-    svc = await cv_service_from_settings(db)
-    if svc is None:
+    summary: dict = {"centers": 0, "checked": 0, "renamed": 0, "errors": []}
+    by_center = await _scenarios_by_center(db)
+    if not by_center:
         raise RuntimeError("Cyber Vision is not configured")
-    try:
-        live = {g.get("id"): g for g in await svc.get_groups()}
-        duplicates = await _duplicate_zone_names(db)
-        rows = (await db.execute(select(Scenario))).scalars().all()
-        for s in rows:
-            state = _get_cv_state(s)
-            groups = state.get("groups") or {}
-            if not groups:
-                continue
-            zones = (s.definition or {}).get("zones") or {}
-            color = _color_for_vertical(getattr(s, "vertical", None))
-            changed = False
-            for zone_id, g in groups.items():
-                gid = g.get("group_id")
-                if not gid or gid not in live:
-                    continue
-                summary["checked"] += 1
-                zname = (zones.get(zone_id) or {}).get("name") or zone_id
-                target = _group_label(s, zname, duplicates)
-                cur = live[gid].get("label") or live[gid].get("name")
-                if cur == target:
-                    continue
-                crit = g.get("criticalness", live[gid].get("criticalness", 2))
-                try:
-                    await svc.update_group(gid, label=target, description="", color=color, criticalness=crit)
-                    g["label"] = target
-                    changed = True
-                    summary["renamed"] += 1
-                except Exception as e:  # noqa: BLE001
-                    summary["errors"].append(f"group {gid}: {e}")
-                    logger.warning(f"reconcile_cv_group_names: group {gid} -> '{target}' failed: {e}")
-            if changed:
-                state["groups"] = groups
-                await _save_cv_state(db, s, state)
-    finally:
-        await svc.close()
-    logger.info(f"reconcile_cv_group_names: checked={summary['checked']} renamed={summary['renamed']} errors={len(summary['errors'])}")
+    duplicates = await _duplicate_zone_names(db)
+    for cid, scenarios in by_center.items():
+        with_groups = [s for s in scenarios if _get_cv_state(s).get("groups")]
+        if not with_groups:
+            continue
+        svc = cv_centers.classic_client(await cv_centers.get_center(db, cid))
+        if svc is None:
+            summary["errors"].append(f"center {cid}: no API token")
+            continue
+        summary["centers"] += 1
+        try:
+            live = {g.get("id"): g for g in await svc.get_groups()}
+            for s in with_groups:
+                state = _get_cv_state(s)
+                groups = state.get("groups") or {}
+                zones = (s.definition or {}).get("zones") or {}
+                color = _color_for_vertical(getattr(s, "vertical", None))
+                changed = False
+                for zone_id, g in groups.items():
+                    gid = g.get("group_id")
+                    if not gid or gid not in live:
+                        continue
+                    summary["checked"] += 1
+                    zname = (zones.get(zone_id) or {}).get("name") or zone_id
+                    target = _group_label(s, zname, duplicates)
+                    cur = live[gid].get("label") or live[gid].get("name")
+                    if cur == target:
+                        continue
+                    crit = g.get("criticalness", live[gid].get("criticalness", 2))
+                    try:
+                        await svc.update_group(gid, label=target, description="", color=color, criticalness=crit)
+                        g["label"] = target
+                        changed = True
+                        summary["renamed"] += 1
+                    except Exception as e:  # noqa: BLE001
+                        summary["errors"].append(f"group {gid}: {e}")
+                        logger.warning(f"reconcile_cv_group_names: group {gid} -> '{target}' failed: {e}")
+                if changed:
+                    state["groups"] = groups
+                    await _save_cv_state(db, s, state)
+        except Exception as e:  # noqa: BLE001 — one unreachable center must not abort the rest
+            summary["errors"].append(f"center {cid}: {e}")
+            logger.warning(f"reconcile_cv_group_names: center {cid} failed: {e}")
+        finally:
+            await svc.close()
+    logger.info(
+        f"reconcile_cv_group_names: centers={summary['centers']} checked={summary['checked']} "
+        f"renamed={summary['renamed']} errors={len(summary['errors'])}"
+    )
     return summary
 
 
@@ -1216,28 +1347,26 @@ async def reconcile_cv_networks(db) -> dict:
 
     One-shot cleanup lever mirroring ``reconcile_cv_group_names``: walks the
     current scenario set and get-or-creates each scenario's networks (idempotent
-    by ipRange). Scenarios without an allocated /16 are skipped. Collects
-    per-scenario failures instead of aborting the whole pass.
+    by ipRange) on the scenario's own center. Scenarios without an allocated
+    /16 are skipped. Collects per-scenario failures instead of aborting.
     """
     summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "errors": []}
-    # Fail fast if CV isn't configured, consistent with the sibling reconcilers.
-    probe = await cv_service_from_settings(db)
-    if probe is None:
+    by_center = await _scenarios_by_center(db)
+    if not by_center:
         raise RuntimeError("Cyber Vision is not configured")
-    await probe.close()
 
-    rows = (await db.execute(select(Scenario))).scalars().all()
-    for s in rows:
-        if await get_scenario_subnet(db, s.id) is None:
-            continue  # no allocated /16 → nothing to define
-        summary["scenarios"] += 1
-        try:
-            res = await provision_networks(db, s)
-            summary["created"] += res.get("created", 0)
-            summary["existing"] += res.get("existing", 0)
-        except Exception as e:  # noqa: BLE001
-            summary["errors"].append(f"scenario {s.id}: {e}")
-            logger.warning(f"reconcile_cv_networks: scenario {s.id} failed: {e}")
+    for cid, scenarios in by_center.items():
+        for s in scenarios:
+            if await get_scenario_subnet(db, s.id) is None:
+                continue  # no allocated /16 → nothing to define
+            summary["scenarios"] += 1
+            try:
+                res = await provision_networks(db, s, center_id=cid)
+                summary["created"] += res.get("created", 0)
+                summary["existing"] += res.get("existing", 0)
+            except Exception as e:  # noqa: BLE001
+                summary["errors"].append(f"scenario {s.id}: {e}")
+                logger.warning(f"reconcile_cv_networks: scenario {s.id} failed: {e}")
 
     logger.info(
         f"reconcile_cv_networks: scenarios={summary['scenarios']} created={summary['created']} "
@@ -1249,33 +1378,34 @@ async def reconcile_cv_networks(db) -> dict:
 async def reconcile_cv_org_hierarchy(db) -> dict:
     """Backfill/repair every scenario's new-UI Organization Hierarchy tree.
 
-    Mirrors ``reconcile_cv_networks``, but SOFT-skips (returns a
-    ``{"skipped": True}`` summary) rather than raising when the New UI API
-    token isn't configured — unlike the classic CV connection the other
-    reconcilers require, this integration is optional/additive, and an
+    Mirrors ``reconcile_cv_networks`` per center, but SOFT-skips centers whose
+    New UI API token isn't configured (returns ``{"skipped": True}`` when no
+    center has one) rather than raising — this integration is optional and an
     unconfigured token shouldn't abort the rest of a ``POST /reconcile`` pass.
     ``provision_org_hierarchy`` is get-or-create-or-rename in one pass, so this
-    single reconciler covers both drift-repair and backfill for scenarios
-    provisioned before this feature existed.
+    covers both drift-repair and backfill.
     """
     summary: dict = {"scenarios": 0, "errors": []}
-    probe = await cv_v1_service_from_settings(db)
-    if probe is None:
+    by_center = await _scenarios_by_center(db)
+    with_v1 = [
+        cid for cid in by_center
+        if (await cv_centers.get_center(db, cid)).new_ui_token
+    ]
+    if not with_v1:
         summary["skipped"] = True
         summary["reason"] = "Cyber Vision New UI API token is not configured"
         return summary
-    await probe.close()
 
-    rows = (await db.execute(select(Scenario))).scalars().all()
-    for s in rows:
-        if await get_scenario_subnet(db, s.id) is None:
-            continue  # no allocated /16 → nothing to mirror
-        summary["scenarios"] += 1
-        try:
-            await provision_org_hierarchy(db, s)
-        except Exception as e:  # noqa: BLE001
-            summary["errors"].append(f"scenario {s.id}: {e}")
-            logger.warning(f"reconcile_cv_org_hierarchy: scenario {s.id} failed: {e}")
+    for cid in with_v1:
+        for s in by_center[cid]:
+            if await get_scenario_subnet(db, s.id) is None:
+                continue  # no allocated /16 → nothing to mirror
+            summary["scenarios"] += 1
+            try:
+                await provision_org_hierarchy(db, s, center_id=cid)
+            except Exception as e:  # noqa: BLE001
+                summary["errors"].append(f"scenario {s.id}: {e}")
+                logger.warning(f"reconcile_cv_org_hierarchy: scenario {s.id} failed: {e}")
 
     logger.info(
         f"reconcile_cv_org_hierarchy: scenarios={summary['scenarios']} errors={len(summary['errors'])}"
@@ -1308,17 +1438,36 @@ def _vertical_preset_label(vertical: str | None) -> str:
     return f"{_vertical_display(vertical)} — All Scenarios"
 
 
-async def _subnets_by_vertical(db) -> dict[str, list[str]]:
-    """Map vertical -> sorted list of its scenarios' /16 CIDRs (DB = source of truth)."""
+async def _subnets_by_vertical(db, center_id: UUID | str | None = None) -> dict[str, list[str]]:
+    """Map vertical -> sorted list of its scenarios' /16 CIDRs (DB = source of truth).
+
+    With ``center_id``, only scenarios that belong to that center count (see
+    ``_scenarios_by_center``), so one center's roll-up never lists another
+    center's scenarios.
+    """
+    target: str | None = None
+    default_id: str | None = None
+    if center_id is not None:
+        target = str(center_id)
+        default = await cv_centers.default_center(db)
+        default_id = str(default.id) if default else None
+    # Projection only (the center id is one JSON subfield read in SQL), so a
+    # per-center, per-vertical reconcile never loads whole definitions.
     rows = (
         await db.execute(
-            select(Scenario.vertical, IPRangeAllocation.cidr_range).join(
-                IPRangeAllocation, IPRangeAllocation.scenario_id == Scenario.id
-            )
+            select(
+                Scenario.vertical,
+                IPRangeAllocation.cidr_range,
+                cv_centers.scenario_center_id_column(),
+            ).join(IPRangeAllocation, IPRangeAllocation.scenario_id == Scenario.id)
         )
     ).all()
     out: dict[str, set[str]] = {}
-    for vertical, cidr in rows:
+    for vertical, cidr, recorded in rows:
+        # Same membership rule as _scenarios_by_center: no recorded center
+        # means the default center.
+        if target is not None and (recorded or default_id) != target:
+            continue
         v = (vertical or "").strip()
         if v and cidr:
             out.setdefault(v, set()).add(cidr)
@@ -1332,17 +1481,19 @@ async def _subnets_by_vertical(db) -> dict[str, list[str]]:
     return {v: sorted(subs, key=_key) for v, subs in out.items()}
 
 
-async def provision_vertical_preset(db, vertical: str) -> dict:
-    """Create/replace the CV roll-up preset for one vertical (idempotent by label).
+async def provision_vertical_preset(
+    db, vertical: str, center_id: UUID | str | None = None
+) -> dict:
+    """Create/replace one center's CV roll-up preset for a vertical (idempotent by label).
 
-    Aggregates every current scenario /16 in the vertical. If the vertical has no
-    scenarios, any stale roll-up preset is removed. Never raises on empty input.
+    Aggregates every current scenario /16 in the vertical that belongs to the
+    center (default center when ``center_id`` is None). If there are none, any
+    stale roll-up preset is removed. Never raises on empty input.
     """
+    center = await cv_centers.resolve_center(db, center_id)
+    svc = _classic(center)
     label = _vertical_preset_label(vertical)
-    subs = (await _subnets_by_vertical(db)).get(vertical, [])
-    svc = await cv_service_from_settings(db)
-    if svc is None:
-        raise RuntimeError("Cyber Vision is not configured")
+    subs = (await _subnets_by_vertical(db, center.id)).get(vertical, [])
     try:
         existing = next(
             (p.get("id") for p in await svc.get_presets() if (p.get("label") or "") == label),
@@ -1351,7 +1502,8 @@ async def provision_vertical_preset(db, vertical: str) -> dict:
         if existing:
             await svc.delete_preset(existing)
         if not subs:
-            return {"vertical": vertical, "label": label, "subnets": [], "preset_id": None}
+            return {"vertical": vertical, "label": label, "subnets": [], "preset_id": None,
+                    "center_id": str(center.id)}
         bgroup = await _ensure_broadcast_group(svc)
         desc = (
             f"PacketArch vertical roll-up — {len(subs)} {_vertical_display(vertical)} "
@@ -1363,14 +1515,29 @@ async def provision_vertical_preset(db, vertical: str) -> dict:
             subnets=subs,
             exclude_groups=[{"id": bgroup.get("id"), "label": BROADCAST_GROUP_LABEL}],
         )
-        logger.info(f"Provisioned vertical preset '{label}' ({len(subs)} subnets) -> {preset.get('id')}")
-        return {"vertical": vertical, "label": label, "subnets": subs, "preset_id": preset.get("id")}
+        logger.info(
+            f"Provisioned vertical preset '{label}' on {center.name} "
+            f"({len(subs)} subnets) -> {preset.get('id')}"
+        )
+        return {"vertical": vertical, "label": label, "subnets": subs,
+                "preset_id": preset.get("id"), "center_id": str(center.id)}
     finally:
         await svc.close()
 
 
 async def reconcile_vertical_presets(db) -> list[dict]:
-    """Re-provision every vertical's roll-up preset; drop rollups for empty verticals."""
-    by_vert = await _subnets_by_vertical(db)
-    verticals = sorted(set(by_vert) | set(VERTICAL_DISPLAY_NAMES))
-    return [await provision_vertical_preset(db, v) for v in verticals]
+    """Re-provision every center's vertical roll-up presets; drop empty ones.
+
+    A center that is unreachable or has no token is reported, not fatal.
+    """
+    out: list[dict] = []
+    for center in await cv_centers.list_centers(db):
+        by_vert = await _subnets_by_vertical(db, center.id)
+        for v in sorted(set(by_vert) | set(VERTICAL_DISPLAY_NAMES)):
+            try:
+                out.append(await provision_vertical_preset(db, v, center_id=center.id))
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"vertical roll-up '{v}' on {center.name} failed: {e}")
+                out.append({"vertical": v, "label": _vertical_preset_label(v), "subnets": [],
+                            "preset_id": None, "center_id": str(center.id), "error": str(e)})
+    return out

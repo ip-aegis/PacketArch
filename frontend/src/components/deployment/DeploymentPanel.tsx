@@ -29,6 +29,8 @@ import { useAgentsStore } from '../../stores/agentsStore';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { scenariosApi, type ScenarioValidationResponse } from '../../api/scenarios';
 import { cyberVisionApi } from '../../api/cyberVision';
+import { useCyberVisionCenters } from '../../hooks/useCyberVisionCenters';
+import CyberVisionCenterSelect from '../common/CyberVisionCenterSelect';
 import localSensorApi, { type LocalLabItem } from '../../api/localSensor';
 import type {
   UnifiedDeployment,
@@ -70,7 +72,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   const [validating, setValidating] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [hasReadinessErrors, setHasReadinessErrors] = useState(false);
-  const [cvConfigured, setCvConfigured] = useState(false);
+  // Cyber Vision is usable when any center has a token.
+  const { configured: cvConfigured, multiCenter: multiCvCenter } = useCyberVisionCenters();
+  // Center for a manual "Push to Cyber Vision" of a not-yet-provisioned scenario.
+  const [pushCenterId, setPushCenterId] = useState<string | null>(null);
   const [cvProvision, setCvProvision] = useState<CVProvisionStatus | null>(null);
   const [cvProvisioning, setCvProvisioning] = useState(false);
   const [pendingAgentDeploy, setPendingAgentDeploy] = useState<
@@ -116,22 +121,6 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioId]);
 
-  // ── Detect whether Cyber Vision is configured ───────────────────
-  useEffect(() => {
-    let cancelled = false;
-    cyberVisionApi
-      .getSettings()
-      .then((s) => {
-        if (!cancelled) setCvConfigured(!!s.cyber_vision_url && s.cyber_vision_api_token_set);
-      })
-      .catch(() => {
-        if (!cancelled) setCvConfigured(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // ── Load CV provisioning state for this scenario ────────────────
   useEffect(() => {
     if (!scenarioId || !cvConfigured) return;
@@ -164,7 +153,10 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     if (!scenarioId) return;
     setCvProvisioning(true);
     try {
-      const state = await cyberVisionApi.provisionScenario(scenarioId);
+      // An already-provisioned scenario stays on its center; only a fresh one
+      // takes the picked center (null = the default).
+      const alreadyOn = cvProvision?.center_id && cvProvision.status !== 'not_started';
+      const state = await cyberVisionApi.provisionScenario(scenarioId, alreadyOn ? null : pushCenterId);
       setCvProvision(state);
       message.success('Cyber Vision preset created. Zone groups will appear once CV discovers the devices.');
     } catch (err: unknown) {
@@ -261,13 +253,21 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     phase_schedule?: PhaseScheduleConfig;
     cell_isolation_mode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
     provision_cyber_vision?: boolean;
+    cv_center_id?: string | null;
   }) => {
     const fields: Pick<
       DeploymentCreate,
-      'adaptive_config' | 'attack_playbook' | 'cell_isolation_override' | 'provision_cyber_vision'
+      | 'adaptive_config'
+      | 'attack_playbook'
+      | 'cell_isolation_override'
+      | 'provision_cyber_vision'
+      | 'cv_center_id'
     > = {};
     if (values.provision_cyber_vision) {
       fields.provision_cyber_vision = true;
+    }
+    if (values.cv_center_id) {
+      fields.cv_center_id = values.cv_center_id;
     }
     if (values.phase_schedule?.enabled) {
       fields.adaptive_config = { phase_schedule: values.phase_schedule };
@@ -332,6 +332,7 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
     phase_schedule?: PhaseScheduleConfig;
     cell_isolation_mode?: 'inherit' | 'off' | 'conduit_gated' | 'strict_northbound';
     provision_cyber_vision?: boolean;
+    cv_center_id?: string | null;
   }) => {
     if (!scenarioId) return;
     if (values.mode === 'existing' && !values.agent_id) return;
@@ -552,14 +553,24 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
               <Title level={5} style={{ color: '#8aa4bc', margin: 0, fontSize: 13 }}>
                 Cyber Vision
               </Title>
-              <Button
-                size="small"
-                icon={<ApiOutlined />}
-                loading={cvProvisioning}
-                onClick={handleProvisionCv}
-              >
-                Push to Cyber Vision
-              </Button>
+              <Space size={6}>
+                {multiCvCenter && (!cvProvision?.center_id || cvProvision.status === 'not_started') && (
+                  <CyberVisionCenterSelect
+                    size="small"
+                    style={{ minWidth: 180 }}
+                    value={pushCenterId}
+                    onChange={setPushCenterId}
+                  />
+                )}
+                <Button
+                  size="small"
+                  icon={<ApiOutlined />}
+                  loading={cvProvisioning}
+                  onClick={handleProvisionCv}
+                >
+                  Push to Cyber Vision
+                </Button>
+              </Space>
             </Space>
             {cvProvision && cvProvision.status && cvProvision.status !== 'not_started' && (
               <div style={{ marginTop: 8, fontSize: 12, color: '#8aa4bc' }}>
@@ -570,6 +581,11 @@ const DeploymentPanel: React.FC<DeploymentPanelProps> = ({
                   {cvProvision.status === 'error' && <Tag color="error">Error</Tag>}
                   {cvProvision.preset_label && <span>{cvProvision.preset_label}</span>}
                   {cvProvision.subnet && <Tag>{cvProvision.subnet}</Tag>}
+                  {multiCvCenter && cvProvision.center_name && (
+                    <Tooltip title="Cyber Vision Center this scenario is provisioned on">
+                      <Tag color="geekblue">{cvProvision.center_name}</Tag>
+                    </Tooltip>
+                  )}
                 </Space>
                 {cvProvision.status === 'groups_created' && (
                   <div style={{ marginTop: 4 }}>

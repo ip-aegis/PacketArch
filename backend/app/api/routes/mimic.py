@@ -186,7 +186,9 @@ async def teardown_cell(cell_slug: str, _admin: AdminUser) -> TeardownResponse:
 # native runtime; an optional IOSvL2 SPAN mirrors the OT segment to an auto-
 # provisioned CV docker sensor node. No host-agent — the backend drives CML + CV
 # directly. Labs are titled "Mimic: <name>" so we can list/tear-down without new
-# persistence; the CV sensor serial (for cleanup) rides in the lab description.
+# persistence; the CV sensor serial and the id of the Cyber Vision Center it
+# enrolled into (for cleanup) ride in the lab description ("sensor:<serial>
+# cvcenter:<id>").
 # --------------------------------------------------------------------------- #
 
 _CML_LAB_PREFIX = "Mimic: "
@@ -200,11 +202,18 @@ async def _cml_service(db):
     return CMLService(url, user, pw, verify_ssl=verify), server_url
 
 
-async def _cv_service(db):
-    from app.api.routes.cyber_vision import get_cv_settings
-    from app.services.cyber_vision_service import CyberVisionService
-    url, token, verify = await get_cv_settings(db)
-    return CyberVisionService(url, token, verify_ssl=verify)
+async def _cv_service(db, center_id=None):
+    """Classic CV client for a center (default center if None). 400 if unconfigured."""
+    from app.services.cv_centers import require_cv_client
+    return await require_cv_client(db, center_id)
+
+
+def _desc_field(desc: str, key: str) -> str | None:
+    """Value of a ``key:value`` token in a Mimic CML lab description."""
+    marker = f"{key}:"
+    if marker not in desc:
+        return None
+    return desc.split(marker, 1)[1].split()[0] or None
 
 
 async def _allocate_data_subnet(svc) -> int:
@@ -245,7 +254,7 @@ async def cml_status(db: DBSession, _user: CurrentUser) -> CmlMimicStatusRespons
     except Exception as e:  # noqa: BLE001 — not-configured / unreachable both mean "no"
         msg = f"CML not available: {e}"
     try:
-        await _cv_service(db)
+        await (await _cv_service(db)).close()
         cv_configured = True
     except Exception:  # noqa: BLE001
         pass
@@ -275,10 +284,12 @@ async def cml_deploy(req: CmlDeployRequest, db: DBSession, _admin: AdminUser) ->
     sensor_serial = None
     description = f"net:{net_idx}"
     if req.with_sensor:
-        cv = await _cv_service(db)
+        from app.services.cv_centers import resolve_center
+        center = await resolve_center(db, req.cv_center_id)
+        cv = await _cv_service(db, req.cv_center_id)
         await cv.create_deployment_token(_CV_DEPLOYMENT)
         sensor_serial = f"mimic-{scaffold_slug(req.cell_name)}-{uuid.uuid4().hex[:6]}"
-        description += f" sensor:{sensor_serial}"
+        description += f" sensor:{sensor_serial} cvcenter:{center.id}"
     lab_id = await svc.create_lab(title, description)
     if req.with_sensor:
         result = await deploy_docker_cell_with_sensor(
@@ -345,13 +356,16 @@ async def cml_teardown(lab_id: str, db: DBSession, _admin: AdminUser) -> CmlTear
     CV sensor object (serial stored in the lab description)."""
     svc, _ = await _cml_service(db)
     serial = None
+    center_id = None
     try:
         lab = await svc._request("GET", f"/labs/{lab_id}")  # noqa: SLF001
         desc = (lab.get("lab_description") or lab.get("description") or "") if isinstance(lab, dict) else ""
-        if "sensor:" in desc:
-            serial = desc.split("sensor:", 1)[1].split()[0]
+        serial = _desc_field(desc, "sensor")
+        # The center the sensor enrolled into; labs from before multi-center
+        # support carry none and fall back to the default center.
+        center_id = _desc_field(desc, "cvcenter")
     except Exception:  # noqa: BLE001
-        pass
+        center_id = None
     for method, path in (("PUT", f"/labs/{lab_id}/stop"), ("PUT", f"/labs/{lab_id}/wipe"),
                          ("DELETE", f"/labs/{lab_id}")):
         try:
@@ -361,7 +375,7 @@ async def cml_teardown(lab_id: str, db: DBSession, _admin: AdminUser) -> CmlTear
             pass
     if serial:
         try:
-            cv = await _cv_service(db)
+            cv = await _cv_service(db, center_id)
             s = await cv.find_sensor_by_serial(serial)
             if s:
                 await cv.delete_sensor(s["id"])

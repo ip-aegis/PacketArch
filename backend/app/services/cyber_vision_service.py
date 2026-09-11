@@ -1476,37 +1476,14 @@ async def get_cyber_vision_service(
     return CyberVisionService(base_url, api_token, verify_ssl)
 
 
-async def cv_service_from_settings(db) -> CyberVisionService | None:
-    """Build a CyberVisionService from stored system settings.
+async def cv_service_from_settings(db, center_id=None) -> CyberVisionService | None:
+    """Classic-API client for a Cyber Vision Center (default center when
+    ``center_id`` is None). Returns None when that center has no classic token
+    or no center is configured. Usable from request handlers and Celery tasks.
 
-    Returns None when CV is not configured. Usable from both request handlers
-    and Celery tasks (anywhere with a DB session) without importing the routes
-    module.
+    Thin wrapper kept for its many call sites; the resolution logic lives in
+    ``services/cv_centers.py``.
     """
-    from sqlalchemy import select
+    from app.services.cv_centers import cv_client
 
-    from app.core.encryption import decrypt_value
-    from app.models.settings import SystemSetting
-
-    settings: dict[str, str] = {}
-    result = await db.execute(
-        select(SystemSetting).where(
-            SystemSetting.key.in_([
-                "cyber_vision_url",
-                "cyber_vision_api_token",
-                "cyber_vision_verify_ssl",
-            ])
-        )
-    )
-    for setting in result.scalars().all():
-        if setting.key == "cyber_vision_api_token" and setting.value:
-            settings[setting.key] = decrypt_value(setting.value)
-        else:
-            settings[setting.key] = setting.value
-
-    url = settings.get("cyber_vision_url")
-    token = settings.get("cyber_vision_api_token")
-    if not url or not token:
-        return None
-    verify_ssl = (settings.get("cyber_vision_verify_ssl") or "false").lower() == "true"
-    return CyberVisionService(url, token, verify_ssl)
+    return await cv_client(db, center_id)

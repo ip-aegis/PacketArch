@@ -74,14 +74,19 @@ export const topologyApi = {
   preflight: async (scenarioId: string): Promise<TopologyPreflight> =>
     (await apiClient.get(`${base(scenarioId)}/preflight`)).data,
 
+  // Every member lab's sensor enrolls into cvCenterId (default center if omitted).
   deploy: async (
     scenarioId: string,
     provisionCyberVision = true,
+    cvCenterId?: string | null,
   ): Promise<TopologyProvisionResult> =>
     (
-      await apiClient.post(
-        `${base(scenarioId)}/deploy?provision_cyber_vision=${provisionCyberVision}`,
-      )
+      await apiClient.post(`${base(scenarioId)}/deploy`, null, {
+        params: {
+          provision_cyber_vision: provisionCyberVision,
+          ...(cvCenterId ? { cv_center_id: cvCenterId } : {}),
+        },
+      })
     ).data,
 
   deployment: async (scenarioId: string): Promise<TopologyDeployment> =>

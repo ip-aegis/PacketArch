@@ -144,20 +144,42 @@ async def _subsystem_authentication(db) -> SubsystemStatus:
 
 
 async def _subsystem_cyber_vision(db) -> SubsystemStatus:
-    url = await _get_setting(db, "cyber_vision_url")
-    token = await _get_setting(db, "cyber_vision_api_token")
-    if url and token:
+    from app.services import cv_centers
+
+    centers = await cv_centers.list_centers(db)
+    configured = [c for c in centers if c.api_token]
+    detail = {
+        "centers": [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "url": c.url,
+                "is_default": c.is_default,
+                "api_token_set": bool(c.api_token),
+                "new_ui_token_set": bool(c.new_ui_token),
+            }
+            for c in centers
+        ],
+    }
+    default = next((c for c in centers if c.is_default), None)
+    if default is not None:
+        # Kept for clients that read the single-center shape.
+        detail["url"] = default.url
+        detail["api_token_set"] = bool(default.api_token)
+    if configured:
+        names = ", ".join(c.name for c in configured)
+        summary = (
+            f"Configured: {names}" if len(configured) > 1 else f"Configured: {configured[0].url}"
+        )
         return SubsystemStatus(
             key="cyber_vision", label="Cisco Cyber Vision",
-            status="ok",
-            summary=f"Connected to {url}",
-            detail={"url": url, "api_token_set": True},
+            status="ok", summary=summary, detail=detail,
         )
     return SubsystemStatus(
         key="cyber_vision", label="Cisco Cyber Vision",
         status="needs_attention",
         summary="Not configured — CV comparison / enrichment features unavailable.",
-        detail={"url": url or "", "api_token_set": bool(token)},
+        detail=detail,
     )
 
 

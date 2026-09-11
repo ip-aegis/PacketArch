@@ -50,13 +50,14 @@ class SettingsResponse(BaseModel):
     # Categories in DEFAULT_SETTINGS.
     ai: list[SettingResponse] = []
     cml: list[SettingResponse] = []
-    cyber_vision: list[SettingResponse] = []
     ldap: list[SettingResponse] = []
     setup: list[SettingResponse] = []
     system: list[SettingResponse] = []
 
     # No longer in DEFAULT_SETTINGS, kept so existing clients keep their keys.
+    # (cyber_vision: Centers moved to their own table — /cyber-vision/centers.)
     api_tokens: list[SettingResponse] = []
+    cyber_vision: list[SettingResponse] = []
     network: list[SettingResponse] = []
 
 

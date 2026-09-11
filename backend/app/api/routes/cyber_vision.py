@@ -6,16 +6,18 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 
-from app.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 
 from app.api.deps import AdminUser, CurrentUser, DBSession
-from app.core.encryption import decrypt_value, encrypt_value
 from app.models.scenario import Scenario
-from app.models.settings import SystemSetting
 from app.schemas.cyber_vision import (
+    CVCenterCreate,
+    CVCenterListResponse,
+    CVCenterResponse,
+    CVCenterUpdate,
     ComparisonInsight,
     CVComparisonResult,
     CVConnectionStatusResponse,
@@ -43,72 +45,130 @@ from app.services.cyber_vision_service import (
     deduplicate_by_mac,
     normalize_mac,
 )
+from app.services import cv_centers
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cyber-vision", tags=["Cyber Vision"])
 
 
-_SECRET_CV_KEYS = {"cyber_vision_api_token", "cyber_vision_new_ui_token"}
+# Every CV route takes an optional ``center_id``; omitted means the default
+# center. Scenario-scoped routes default to the center the scenario is already
+# provisioned on instead.
+CenterQuery = Query(
+    default=None,
+    description="Cyber Vision Center id (default: the default center)",
+)
 
 
-async def get_cv_settings(db) -> tuple[str | None, str | None, bool]:
-    """Get CV settings from database."""
-    settings = {}
-    result = await db.execute(
-        select(SystemSetting).where(
-            SystemSetting.key.in_([
-                "cyber_vision_url",
-                "cyber_vision_api_token",
-                "cyber_vision_verify_ssl",
-            ])
-        )
+async def get_cv_service(db, center_id: UUID | str | None = None) -> CyberVisionService:
+    """A configured classic-API client for a center (default center if None).
+
+    Raises ValidationError (400) when no center / no token is configured and
+    NotFoundError (404) for an unknown ``center_id``.
+    """
+    return await cv_centers.require_cv_client(db, center_id)
+
+
+def _scenario_center_id(scenario: Scenario) -> str | None:
+    cv = (scenario.definition or {}).get("cyber_vision") or {}
+    return cv.get("center_id") if isinstance(cv, dict) else None
+
+
+async def _center_response(db, center) -> CVCenterResponse:
+    return CVCenterResponse(**cv_centers.to_summary(center, await cv_centers.usage(db, center.id)))
+
+
+# --------------------------------------------------------------------------- #
+# Centers
+# --------------------------------------------------------------------------- #
+@router.get("/centers", response_model=CVCenterListResponse)
+async def list_centers(db: DBSession, _user: CurrentUser) -> CVCenterListResponse:
+    """All configured Cyber Vision Centers (tokens never returned)."""
+    centers = await cv_centers.list_centers(db)
+    items = [await _center_response(db, c) for c in centers]
+    default = next((c for c in centers if c.is_default), None)
+    return CVCenterListResponse(
+        centers=items, default_center_id=str(default.id) if default else None
     )
-    for setting in result.scalars().all():
-        if setting.key == "cyber_vision_api_token" and setting.value:
-            settings[setting.key] = decrypt_value(setting.value)
-        else:
-            settings[setting.key] = setting.value
-
-    url = settings.get("cyber_vision_url")
-    token = settings.get("cyber_vision_api_token")
-    verify_ssl = settings.get("cyber_vision_verify_ssl", "false").lower() == "true"
-
-    return url, token, verify_ssl
 
 
-async def _get_cv_new_ui_token_set(db) -> bool:
-    """Whether the separate New UI API token is configured (masked bool only)."""
-    result = await db.execute(
-        select(SystemSetting).where(SystemSetting.key == "cyber_vision_new_ui_token")
+@router.post("/centers", response_model=CVCenterResponse, status_code=status.HTTP_201_CREATED)
+async def create_center(body: CVCenterCreate, db: DBSession, _admin: AdminUser) -> CVCenterResponse:
+    """Add a Cyber Vision Center. The first center becomes the default."""
+    center = await cv_centers.create_center(
+        db,
+        name=body.name,
+        url=body.url,
+        api_token=body.api_token,
+        new_ui_token=body.new_ui_token,
+        verify_ssl=body.verify_ssl,
+        is_default=body.is_default,
     )
-    setting = result.scalar_one_or_none()
-    return bool(setting and setting.value)
+    await db.commit()
+    await db.refresh(center)
+    return await _center_response(db, center)
 
 
-async def get_cv_service(db) -> CyberVisionService:
-    """Get a configured CV service instance."""
-    url, token, verify_ssl = await get_cv_settings(db)
+@router.put("/centers/{center_id}", response_model=CVCenterResponse)
+async def update_center(
+    center_id: UUID, body: CVCenterUpdate, db: DBSession, _admin: AdminUser
+) -> CVCenterResponse:
+    """Edit a center. Omitted fields are unchanged; ``new_ui_token: ""`` clears it."""
+    center = await cv_centers.get_center(db, center_id)
+    await cv_centers.update_center(
+        db,
+        center,
+        name=body.name,
+        url=body.url,
+        api_token=body.api_token,
+        new_ui_token=body.new_ui_token,
+        verify_ssl=body.verify_ssl,
+    )
+    await db.commit()
+    await db.refresh(center)
+    return await _center_response(db, center)
 
-    if not url or not token:
-        raise ValidationError("Cyber Vision is not configured. Please set URL and API token in settings.")
 
-    return CyberVisionService(url, token, verify_ssl)
+@router.post("/centers/{center_id}/default", response_model=CVCenterResponse)
+async def make_default_center(center_id: UUID, db: DBSession, _admin: AdminUser) -> CVCenterResponse:
+    """Make this the default center (used whenever a request names none)."""
+    center = await cv_centers.get_center(db, center_id)
+    await cv_centers.set_default(db, center)
+    await db.commit()
+    await db.refresh(center)
+    return await _center_response(db, center)
 
 
+@router.delete("/centers/{center_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_center(center_id: UUID, db: DBSession, _admin: AdminUser) -> None:
+    """Remove a center. 409 while local labs or provisioned scenarios live on it."""
+    center = await cv_centers.get_center(db, center_id)
+    await cv_centers.delete_center(db, center)
+    await db.commit()
+
+
+@router.get("/centers/{center_id}/status", response_model=CVConnectionStatusResponse)
+async def center_status(center_id: UUID, db: DBSession, _user: CurrentUser) -> CVConnectionStatusResponse:
+    """Live connection check against one center."""
+    return await get_status(db, _user, center_id=center_id)
+
+
+# --------------------------------------------------------------------------- #
+# Legacy single-center settings (the default center)
+# --------------------------------------------------------------------------- #
 @router.get("/settings", response_model=CVSettingsResponse)
 async def get_settings(
     db: DBSession,
     _admin: AdminUser,
 ) -> CVSettingsResponse:
-    """Get Cyber Vision settings (token masked)."""
-    url, token, verify_ssl = await get_cv_settings(db)
-
+    """The default center in the legacy single-center shape (tokens masked)."""
+    center = await cv_centers.default_center(db)
     return CVSettingsResponse(
-        cyber_vision_url=url or "",
-        cyber_vision_api_token_set=bool(token),
-        cyber_vision_verify_ssl=verify_ssl,
-        cyber_vision_new_ui_token_set=await _get_cv_new_ui_token_set(db),
+        cyber_vision_url=center.url if center else "",
+        cyber_vision_api_token_set=bool(center and center.api_token),
+        cyber_vision_verify_ssl=bool(center and center.verify_ssl),
+        cyber_vision_new_ui_token_set=bool(center and center.new_ui_token),
     )
 
 
@@ -118,44 +178,31 @@ async def update_settings(
     db: DBSession,
     admin: AdminUser,
 ) -> CVSettingsResponse:
-    """Update Cyber Vision settings."""
-    updates = {}
-
-    if update.cyber_vision_url is not None:
-        updates["cyber_vision_url"] = update.cyber_vision_url
-
-    if update.cyber_vision_api_token is not None:
-        updates["cyber_vision_api_token"] = encrypt_value(update.cyber_vision_api_token)
-
-    if update.cyber_vision_verify_ssl is not None:
-        updates["cyber_vision_verify_ssl"] = str(update.cyber_vision_verify_ssl).lower()
-
-    if update.cyber_vision_new_ui_token is not None:
-        updates["cyber_vision_new_ui_token"] = encrypt_value(update.cyber_vision_new_ui_token)
-
-    for key, value in updates.items():
-        result = await db.execute(
-            select(SystemSetting).where(SystemSetting.key == key)
-        )
-        setting = result.scalar_one_or_none()
-
-        if setting is None:
-            # Create new setting
-            setting = SystemSetting(
-                key=key,
-                value=value,
-                is_secret=(key in _SECRET_CV_KEYS),
-                category="cyber_vision",
-                description=f"Cyber Vision {key.replace('cyber_vision_', '').replace('_', ' ')}",
+    """Update the default center (creating it if none exists yet)."""
+    center = await cv_centers.default_center(db)
+    if center is None:
+        if not update.cyber_vision_url or not update.cyber_vision_api_token:
+            raise ValidationError(
+                "No Cyber Vision Center exists yet; a URL and API token are required."
             )
-            db.add(setting)
-        else:
-            setting.value = value
-            setting.updated_by_id = admin.id
-
+        await cv_centers.create_center(
+            db,
+            url=update.cyber_vision_url,
+            api_token=update.cyber_vision_api_token,
+            new_ui_token=update.cyber_vision_new_ui_token,
+            verify_ssl=bool(update.cyber_vision_verify_ssl),
+            is_default=True,
+        )
+    else:
+        await cv_centers.update_center(
+            db,
+            center,
+            url=update.cyber_vision_url,
+            api_token=update.cyber_vision_api_token,
+            new_ui_token=update.cyber_vision_new_ui_token,
+            verify_ssl=update.cyber_vision_verify_ssl,
+        )
     await db.commit()
-
-    # Return updated settings
     return await get_settings(db, admin)
 
 
@@ -163,29 +210,31 @@ async def update_settings(
 async def get_status(
     db: DBSession,
     _user: CurrentUser,
+    center_id: UUID | None = CenterQuery,
 ) -> CVConnectionStatusResponse:
-    """Check Cyber Vision connection status."""
+    """Check the connection to a center (default center when none is named)."""
+    center = await cv_centers.resolve_center(db, center_id)
+    service = await get_cv_service(db, center_id)
     try:
-        service = await get_cv_service(db)
         result = await service.test_connection()
-        await service.close()
-
         return CVConnectionStatusResponse(
             connected=result.success,
             message=result.message,
             version=result.version,
             center_name=result.center_name,
+            center_id=str(center.id) if center else None,
+            center_label=center.name if center else None,
         )
-
-    except (ValidationError, NotFoundError):
-        # Re-raise typed exceptions (not configured)
-        raise
     except Exception as e:
         logger.exception("Error checking CV status")
         return CVConnectionStatusResponse(
             connected=False,
             message=f"Connection error: {str(e)}",
+            center_id=str(center.id) if center else None,
+            center_label=center.name if center else None,
         )
+    finally:
+        await service.close()
 
 
 @router.post("/test-connection", response_model=CVTestConnectionResponse)
@@ -221,10 +270,11 @@ async def test_connection(
 async def get_presets(
     db: DBSession,
     _user: CurrentUser,
+    center_id: UUID | None = CenterQuery,
 ) -> CVPresetListResponse:
     """Fetch available presets from Cyber Vision."""
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         presets = await service.get_presets()
         await service.close()
 
@@ -249,10 +299,11 @@ async def get_devices(
     size: int = Query(default=100, ge=1, le=500, description="Number of devices per page"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     search: str | None = Query(default=None),
+    center_id: UUID | None = CenterQuery,
 ) -> CVDeviceListResponse:
     """Fetch devices from Cyber Vision."""
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         devices = await service.get_devices(size=size, page=page)
         await service.close()
 
@@ -297,6 +348,7 @@ async def analyze_duplicate_mac_addresses(
         default=None,
         description="Optional CV preset ID to filter devices",
     ),
+    center_id: UUID | None = CenterQuery,
 ) -> DuplicateMacAnalysisResponse:
     """Analyze all CV devices for duplicate MAC addresses.
 
@@ -308,7 +360,7 @@ async def analyze_duplicate_mac_addresses(
     - low: Nearly identical devices (multi-segment visibility)
     """
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         all_devices = await service.get_all_devices(preset_id=preset_id)
         await service.close()
 
@@ -331,10 +383,11 @@ async def get_device(
     device_id: str,
     db: DBSession,
     _user: CurrentUser,
+    center_id: UUID | None = CenterQuery,
 ) -> CVDeviceResponse:
     """Get details for a specific CV device."""
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         device = await service.get_device_details(device_id)
         await service.close()
 
@@ -370,10 +423,11 @@ async def get_vulnerabilities(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     severity: str | None = Query(default=None),
+    center_id: UUID | None = CenterQuery,
 ) -> CVVulnerabilityListResponse:
     """Fetch vulnerabilities from Cyber Vision."""
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         vulnerabilities = await service.get_vulnerabilities(
             limit=limit, offset=offset, severity=severity
         )
@@ -544,6 +598,10 @@ async def compare_scenario(
     db: DBSession,
     current_user: CurrentUser,
     preset_id: str | None = Query(default=None, description="Optional CV preset ID to filter devices"),
+    center_id: UUID | None = Query(
+        default=None,
+        description="Cyber Vision Center id (default: the center the scenario is provisioned on, else the default center)",
+    ),
 ) -> CVComparisonResult:
     """Compare a scenario's devices against Cyber Vision discovered devices.
 
@@ -570,7 +628,7 @@ async def compare_scenario(
     scenario_devices = list(scenario_definition.get("devices", {}).values())
 
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id or _scenario_center_id(scenario))
 
         # Fetch ALL CV devices and build lookup tables (optionally filtered by preset)
         all_cv_devices = await service.get_all_devices(preset_id=preset_id)
@@ -708,6 +766,7 @@ async def enrich_devices(
     request: CVEnrichmentRequest,
     db: DBSession,
     _admin: AdminUser,
+    center_id: UUID | None = CenterQuery,
 ) -> CVEnrichmentResult:
     """Push PacketArch device data to Cyber Vision.
 
@@ -722,7 +781,7 @@ async def enrich_devices(
     Requires admin privileges to write to Cyber Vision.
     """
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         results = []
         success_count = 0
         failed_count = 0
@@ -850,6 +909,14 @@ async def provision_scenario(
     scenario_id: UUID,
     db: DBSession,
     _admin: AdminUser,
+    center_id: UUID | None = Query(
+        default=None,
+        description=(
+            "Cyber Vision Center to provision on (default: the center the scenario is "
+            "already provisioned on, else the default center). Naming a DIFFERENT "
+            "center than the one it is already on is refused (409) — tear down first."
+        ),
+    ),
 ) -> CVProvisionResponse:
     """Create a Cyber Vision preset for a scenario, then schedule zone groups.
 
@@ -869,7 +936,9 @@ async def provision_scenario(
         raise NotFoundError("Scenario", str(scenario_id))
 
     try:
-        state = await provision_preset(db, scenario)
+        state = await provision_preset(db, scenario, center_id=center_id)
+    except (ConflictError, NotFoundError, ValidationError):
+        raise
     except RuntimeError as e:
         raise ValidationError(str(e))
     except Exception as e:
@@ -886,7 +955,15 @@ async def provision_scenario(
     except Exception:
         logger.exception("Failed to enqueue CV group provisioning task")
 
-    return CVProvisionResponse(**state)
+    return await _provision_response(db, state)
+
+
+async def _provision_response(db, state: dict) -> CVProvisionResponse:
+    names = await cv_centers.center_names(db)
+    cid = state.get("center_id")
+    fields = {k: v for k, v in state.items() if k in CVProvisionResponse.model_fields}
+    fields["center_name"] = names.get(str(cid)) if cid else None
+    return CVProvisionResponse(**fields)
 
 
 @router.post("/reconcile")
@@ -949,7 +1026,7 @@ async def get_provision_status(
         raise NotFoundError("Scenario", str(scenario_id))
 
     state = (scenario.definition or {}).get("cyber_vision") or {}
-    return CVProvisionResponse(**state) if state else CVProvisionResponse(status="not_started")
+    return await _provision_response(db, state) if state else CVProvisionResponse(status="not_started")
 
 
 @router.get("/flows")
@@ -959,6 +1036,7 @@ async def get_flows(
     device_id: str | None = Query(default=None, description="Filter by device id"),
     limit: int = Query(default=200, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
+    center_id: UUID | None = CenterQuery,
 ) -> dict:
     """Fetch raw network flows from Cyber Vision.
 
@@ -969,7 +1047,7 @@ async def get_flows(
     PN-IO by checking last-activity timestamps on suspicious flows).
     """
     try:
-        service = await get_cv_service(db)
+        service = await get_cv_service(db, center_id)
         flows = await service.get_flows(
             device_id=device_id, limit=limit, offset=offset
         )

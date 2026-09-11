@@ -114,6 +114,14 @@ class DeploymentCreate(BaseModel):
             "CV has discovered the simulated devices."
         ),
     )
+    cv_center_id: UUID | None = Field(
+        None,
+        description=(
+            "Cyber Vision Center to provision on (default: the default center). "
+            "Local-lab agents are locked to their "
+            "lab's center; naming a different one is a 400."
+        ),
+    )
 
 
 class DeploymentResponse(BaseModel):
@@ -170,6 +178,13 @@ class DeployNewLabRequest(BaseModel):
             "If true and Cyber Vision is configured, create a CV preset for "
             "this scenario once it deploys and schedule zone-group creation "
             "once CV has discovered the simulated devices."
+        ),
+    )
+    cv_center_id: UUID | None = Field(
+        None,
+        description=(
+            "Cyber Vision Center the new lab's sensor enrolls into — and that "
+            "provisioning targets (default: the default center)."
         ),
     )
 

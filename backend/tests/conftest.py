@@ -155,3 +155,20 @@ def admin_auth_headers(admin_user: User) -> dict[str, str]:
 
     token = create_access_token(data={"sub": str(admin_user.id)})
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture(scope="function")
+async def cv_center(db_session: AsyncSession):
+    """A configured (default) Cyber Vision Center row. Tests that talk to CV
+    patch ``app.services.cv_centers.classic_client`` to hand back a fake."""
+    from app.services import cv_centers
+
+    center = await cv_centers.create_center(
+        db_session,
+        name="Test Center",
+        url="https://10.0.0.5",
+        api_token="test-classic-token",
+    )
+    await db_session.commit()
+    await db_session.refresh(center)
+    return center

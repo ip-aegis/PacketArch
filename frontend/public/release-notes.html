@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.18</title>
+  <title>PacketArch Release Notes — v1.10 through v1.19</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,7 +565,7 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.18.5,
+      Feature releases and patches from v1.10.0 through v1.19.0,
       covering June 17 &ndash; September 4, 2026.
     </p>
     <div class="cover-stats">
@@ -575,7 +575,7 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.18.5</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.19.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -671,6 +671,11 @@ code {
         <tr class="patch">
           <td>v1.18.5</td>
           <td>Live deployments survive a backend restart or host reboot</td>
+          <td>Sep 11, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.19.0</td>
+          <td>Multiple Cyber Vision Centers on one PacketArch server</td>
           <td>Sep 11, 2026</td>
         </tr>
       </tbody>
@@ -1514,6 +1519,92 @@ code {
             recovery event. A <em>Disconnected</em> deployment on the
             Deployments page now explains that it resumes automatically and
             that <em>Remove</em> cancels it.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.19.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.19.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.19.0</div>
+        <div class="release-date">2026-09-11</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">One PacketArch server, multiple Cyber Vision Centers</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="new">
+        <div class="change-type-label">New &amp; Improved</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Settings &rarr; Cyber Vision is now a list of centers.</strong>
+            Add, edit, test, and remove any number of Cyber Vision Centers, each
+            with its own URL, SSL setting, API token and optional New UI API token.
+            One center is the default and is used whenever you don&rsquo;t pick
+            one, so single-center installs behave exactly as before.
+          </li>
+          <li class="change-item">
+            <strong>Pick the center where it matters.</strong> With more than one
+            center, a picker appears on the Cyber Vision page, in New Local Lab,
+            in the deploy form next to <em>Provision to Cyber Vision</em>, in the
+            multi-sensor topology deploy, beside <em>Push to Cyber Vision</em>,
+            and in Mimic&rsquo;s off-box sensor option. Deployment badges and the
+            local lab list show which center a scenario or lab lives on.
+          </li>
+          <li class="change-item">
+            <strong>Everything stays on the center it was created on.</strong> A
+            local lab records the center its sensor enrolled into, and a deploy to
+            that lab&rsquo;s agent always provisions there (the picker is locked,
+            like the injection interface). A provisioned scenario records its
+            center, and the zone-group task, teardown, reconcile and the vertical
+            roll-up presets all follow that record rather than the current default.
+            Provisioning a scenario onto a different center than the one it is
+            already on is refused with a clear message instead of orphaning the
+            first center&rsquo;s preset, groups and networks.
+          </li>
+          <li class="change-item">
+            <strong>New API:</strong> <code>/api/v1/cyber-vision/centers</code>
+            (list, add, edit, make default, remove, status). Every existing
+            <code>/cyber-vision/*</code> route takes an optional
+            <code>center_id</code>; <code>/cyber-vision/settings</code> keeps
+            working against the default center.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="infra">
+        <div class="change-type-label">Upgrade</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Automatic migration.</strong> On first boot the existing
+            Cyber Vision connection becomes the default center (tokens carried
+            over as-is), and every existing local lab and provisioned scenario is
+            stamped with it. The old global <code>cyber_vision_*</code> settings
+            are removed. Rebuild the host-agent with the backend.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Host-agent no longer borrows another center&rsquo;s sensor
+            image.</strong> When a center&rsquo;s registry couldn&rsquo;t serve a
+            pull, the offline fallback retagged any cached sensor image, and the
+            retag stuck for later builds. It now prefers the lab&rsquo;s own
+            registry and never borrows from a registry other live labs use.
+          </li>
+          <li class="change-item">
+            <strong>The deploy panel detected Cyber Vision through an admin-only
+            call,</strong> so non-admins never saw <em>Provision to Cyber
+            Vision</em>. It now reads the center list, which any signed-in user
+            can see.
           </li>
         </ul>
       </div>

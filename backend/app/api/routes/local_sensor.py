@@ -60,6 +60,7 @@ async def build(req: LocalLabBuildRequest, db: DBSession, admin: AdminUser) -> L
         name=req.name,
         agent_name=req.agent_name,
         created_by_id=admin.id,
+        cv_center_id=req.cv_center_id,
     )
     return LocalLabBuildResponse(**result)
 

@@ -37,6 +37,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useLocalSensorStore } from '../../stores/localSensorStore';
 import type { LocalLabItem } from '../../api/localSensor';
+import CyberVisionCenterSelect from '../common/CyberVisionCenterSelect';
+import { useCyberVisionCenters } from '../../hooks/useCyberVisionCenters';
 
 const { Text, Paragraph } = Typography;
 
@@ -54,6 +56,8 @@ const stateColor: Record<string, string> = {
 const LocalLabsTab: React.FC = () => {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
+  // Center picker + per-lab center name only matter with more than one center.
+  const { multiCenter } = useCyberVisionCenters();
   const {
     hostStatus,
     labs,
@@ -105,6 +109,7 @@ const LocalLabsTab: React.FC = () => {
     const result = await build({
       name: values.name,
       agent_name: values.agent_name || null,
+      cv_center_id: values.cv_center_id || null,
     });
     if (result?.success) {
       setModalOpen(false);
@@ -186,6 +191,9 @@ const LocalLabsTab: React.FC = () => {
       render: (_, row) => (
         <Space direction="vertical" size={0}>
           <Text style={{ fontSize: 13 }}>{row.sensor_serial || '—'}</Text>
+          {multiCenter && row.cv_center_name && (
+            <Text type="secondary" style={{ fontSize: 12 }}>{row.cv_center_name}</Text>
+          )}
           {row.resources && (
             <Space size={4}>
               <Tooltip title="virtual SPAN">
@@ -302,11 +310,20 @@ const LocalLabsTab: React.FC = () => {
           <Form.Item name="agent_name" label="Agent name (optional)">
             <Input placeholder="Defaults to Local-Sensor-<id>" />
           </Form.Item>
+          {multiCenter && (
+            <Form.Item
+              name="cv_center_id"
+              label="Cyber Vision Center"
+              tooltip="The sensor enrolls into this center, permanently. Scenarios deployed to this lab provision Cyber Vision here."
+            >
+              <CyberVisionCenterSelect />
+            </Form.Item>
+          )}
           <Alert
             type="info"
             showIcon
             message="Sensor auto-provisioned via Cyber Vision"
-            description="Uses the Cyber Vision connection configured under Settings > Cyber Vision to create and enroll the docker sensor automatically. The capture interface is wired automatically."
+            description="Creates and enrolls the docker sensor automatically on the chosen Cyber Vision Center (the default center unless you pick one). The capture interface is wired automatically."
           />
         </Form>
       </Modal>

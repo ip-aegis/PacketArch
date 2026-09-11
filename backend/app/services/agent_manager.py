@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.helpers import ensure_naming_complete
 from app.core.database import async_session_maker
-from app.core.exceptions import ExternalServiceError
+from app.core.exceptions import ExternalServiceError, ValidationError
 from app.models.scenario import Scenario
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
 from app.services.device_identity_enricher import enrich_definition_serial_numbers
@@ -866,6 +866,7 @@ class AgentManager:
         topology_plan: dict | None = None,
         span_interface_map: dict | None = None,
         definition_override: dict | None = None,
+        cv_center_id: UUID | str | None = None,
     ) -> AgentDeployment:
         """Create an AgentDeployment row, repair+merge the scenario definition,
         and send the deploy command to the agent.
@@ -884,6 +885,12 @@ class AgentManager:
         the AgentDeployment row (→ active status, live traffic) happen exactly
         as for a normal deploy, so the whole thing ties together.
         """
+        # Decide the Cyber Vision Center BEFORE anything is created, so a wrong
+        # or conflicting center is a clean 4xx instead of a half-done deploy.
+        cv_center = None
+        if provision_cyber_vision:
+            cv_center = await self.resolve_deploy_cv_center(db, agent, scenario, cv_center_id)
+
         interface = interface or agent.default_interface
         # Persist the deploy options on the row: this is the intent a
         # resume-after-disconnect replays (resume_disconnected_deployments),
@@ -970,12 +977,12 @@ class AgentManager:
         )
 
         # Optionally provision Cyber Vision: create the preset now, schedule groups.
-        if provision_cyber_vision:
+        if cv_center is not None:
             try:
                 from app.services.cv_provisioning_service import provision_preset
                 from app.traffic_generator.tasks import provision_cyber_vision as provision_cv_task
 
-                await provision_preset(db, scenario)
+                await provision_preset(db, scenario, center_id=cv_center.id)
                 provision_cv_task.apply_async(kwargs={"scenario_id": str(scenario.id)})
                 logger.info(f"Scheduled CV provisioning for scenario {scenario.id}")
             except Exception:
@@ -983,6 +990,46 @@ class AgentManager:
                 logger.exception("CV provisioning at deploy time failed (deployment unaffected)")
 
         return agent_deployment
+
+    async def resolve_deploy_cv_center(
+        self,
+        db: AsyncSession,
+        agent: TrafficAgent,
+        scenario: Scenario,
+        requested: UUID | str | None,
+    ):
+        """The Cyber Vision Center a deploy with CV provisioning targets.
+
+        A local-lab agent is LOCKED to its lab's center: the lab's sensor is the
+        only thing that sees the injected traffic, and it enrolls into exactly
+        one center, so provisioning anywhere else would build presets and groups
+        that never fill. Any other agent uses the requested center, else the
+        default. Also enforces one-center-per-scenario (ConflictError) before
+        the deploy starts. Returns None when Cyber Vision isn't configured at
+        all (the deploy proceeds without CV, as before).
+        """
+        from app.models.local_lab import LocalLab
+        from app.services import cv_centers
+        from app.services.cv_provisioning_service import center_for_provisioning
+
+        center_id = requested
+        if agent.local_lab_id:
+            lab = await db.get(LocalLab, UUID(str(agent.local_lab_id)))
+            lab_center_id = lab.cv_center_id if lab else None
+            if lab_center_id is not None:
+                if requested and str(requested) != str(lab_center_id):
+                    lab_center = await cv_centers.get_center(db, lab_center_id)
+                    raise ValidationError(
+                        f"Agent '{agent.name}' belongs to a local lab whose sensor reports to "
+                        f"Cyber Vision Center '{lab_center.name}'. Cyber Vision provisioning "
+                        "for this deploy has to target that center."
+                    )
+                center_id = lab_center_id
+        try:
+            return await center_for_provisioning(db, scenario, center_id)
+        except RuntimeError:
+            logger.warning("Cyber Vision is not configured; deploying without CV provisioning")
+            return None
 
     async def resolve_pending_deploy(self, agent_id: UUID) -> None:
         """Fire an auto-deploy queued by "deploy to a new dedicated Local
@@ -1023,6 +1070,7 @@ class AgentManager:
                     attack_playbook=config.get("attack_playbook"),
                     cell_isolation_override=config.get("cell_isolation_override"),
                     provision_cyber_vision=bool(config.get("provision_cyber_vision")),
+                    cv_center_id=config.get("cv_center_id"),
                 )
                 logger.info(
                     f"Auto-deployed scenario {scenario_id} to agent {agent_id} on connect"

@@ -4,7 +4,12 @@
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
 /**
- * Cyber Vision state management with Zustand
+ * Cyber Vision state management with Zustand.
+ *
+ * PacketArch can talk to several Cyber Vision Centers. `selectedCenterId` is
+ * the center the Cyber Vision page is looking at (null = the default center);
+ * every data fetch targets it, and switching centers clears the cached data so
+ * one center's devices are never shown under another's name.
  */
 
 import { create } from 'zustand';
@@ -13,9 +18,10 @@ import {
   type CVDevice,
   type CVVulnerability,
   type CVComparisonResult,
+  type CVCenter,
+  type CVCenterCreate,
+  type CVCenterUpdate,
   type CVConnectionStatus,
-  type CVSettings,
-  type CVSettingsUpdate,
   type CVTestConnectionRequest,
   type CVPreset,
   type CVEnrichmentRequest,
@@ -25,9 +31,14 @@ import {
 import { extractErrorMessage } from '../utils/errorUtils';
 
 interface CyberVisionState {
-  // Connection state
+  // Centers
+  centers: CVCenter[];
+  defaultCenterId: string | null;
+  centersLoaded: boolean;
+  selectedCenterId: string | null; // null = the default center
+
+  // Connection state (of the selected center)
   connectionStatus: CVConnectionStatus | null;
-  settings: CVSettings | null;
 
   // Data
   devices: CVDevice[];
@@ -52,9 +63,13 @@ interface CyberVisionState {
   isLoadingMacAnalysis: boolean;
 
   // Actions
+  fetchCenters: () => Promise<void>;
+  selectCenter: (centerId: string | null) => void;
+  createCenter: (body: CVCenterCreate) => Promise<CVCenter>;
+  updateCenter: (centerId: string, body: CVCenterUpdate) => Promise<CVCenter>;
+  makeDefaultCenter: (centerId: string) => Promise<void>;
+  deleteCenter: (centerId: string) => Promise<void>;
   fetchStatus: () => Promise<void>;
-  fetchSettings: () => Promise<void>;
-  updateSettings: (settings: CVSettingsUpdate) => Promise<void>;
   testConnection: (request: CVTestConnectionRequest) => Promise<{ success: boolean; message: string }>;
   fetchDevices: (params?: { limit?: number; offset?: number; search?: string }) => Promise<void>;
   fetchVulnerabilities: (params?: { limit?: number; offset?: number; severity?: string }) => Promise<void>;
@@ -68,161 +83,214 @@ interface CyberVisionState {
   clearMacAnalysis: () => void;
 }
 
-export const useCyberVisionStore = create<CyberVisionState>()((set) => ({
-  // Initial state
+// Everything fetched FROM a center — reset whenever the selected center changes.
+const centerData = {
   connectionStatus: null,
-  settings: null,
-  devices: [],
-  vulnerabilities: [],
-  presets: [],
+  devices: [] as CVDevice[],
+  vulnerabilities: [] as CVVulnerability[],
+  presets: [] as CVPreset[],
   comparisonResult: null,
-  isLoading: false,
-  isLoadingDevices: false,
-  isLoadingVulnerabilities: false,
-  isLoadingPresets: false,
-  isComparing: false,
-  isTesting: false,
-  isEnriching: false,
   enrichmentResult: null,
   enrichedSinceCompare: false,
-  error: null,
   macAnalysis: null,
-  isLoadingMacAnalysis: false,
+};
 
-  fetchStatus: async () => {
-    set({ isLoading: true, error: null });
+let centersRequest: Promise<void> | null = null;
+
+export const useCyberVisionStore = create<CyberVisionState>()((set, get) => {
+  const loadCenters = async () => {
     try {
-      const status = await cyberVisionApi.getStatus();
-      set({ connectionStatus: status, isLoading: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch CV status');
+      const list = await cyberVisionApi.listCenters();
+      const { selectedCenterId } = get();
+      // A selected center that was deleted falls back to the default.
+      const stillThere = list.centers.some((c) => c.id === selectedCenterId);
       set({
-        error: message,
-        isLoading: false,
-        connectionStatus: { connected: false, message, version: null, center_name: null }
+        centers: list.centers,
+        defaultCenterId: list.default_center_id,
+        centersLoaded: true,
+        ...(selectedCenterId && !stillThere ? { selectedCenterId: null, ...centerData } : {}),
       });
-    }
-  },
-
-  fetchSettings: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const settings = await cyberVisionApi.getSettings();
-      set({ settings, isLoading: false });
     } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch CV settings');
-      set({ error: message, isLoading: false });
+      set({ error: extractErrorMessage(error, 'Failed to load Cyber Vision Centers'), centersLoaded: true });
     }
-  },
+  };
 
-  updateSettings: async (settingsUpdate: CVSettingsUpdate) => {
-    set({ isLoading: true, error: null });
-    try {
-      const settings = await cyberVisionApi.updateSettings(settingsUpdate);
-      set({ settings, isLoading: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to update CV settings');
-      set({ error: message, isLoading: false });
-      throw error;
-    }
-  },
+  return {
+    // Initial state
+    centers: [],
+    defaultCenterId: null,
+    centersLoaded: false,
+    selectedCenterId: null,
+    connectionStatus: null,
+    devices: [],
+    vulnerabilities: [],
+    presets: [],
+    comparisonResult: null,
+    isLoading: false,
+    isLoadingDevices: false,
+    isLoadingVulnerabilities: false,
+    isLoadingPresets: false,
+    isComparing: false,
+    isTesting: false,
+    isEnriching: false,
+    enrichmentResult: null,
+    enrichedSinceCompare: false,
+    error: null,
+    macAnalysis: null,
+    isLoadingMacAnalysis: false,
 
-  testConnection: async (request: CVTestConnectionRequest) => {
-    set({ isTesting: true, error: null });
-    try {
-      const result = await cyberVisionApi.testConnection(request);
-      set({ isTesting: false });
-      return result;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Connection test failed');
-      set({ isTesting: false });
-      return { success: false, message };
-    }
-  },
+    fetchCenters: () => {
+      // Many components (pickers, badges) ask at mount; share one request.
+      if (!centersRequest) {
+        centersRequest = loadCenters().finally(() => {
+          centersRequest = null;
+        });
+      }
+      return centersRequest;
+    },
 
-  fetchDevices: async (params) => {
-    set({ isLoadingDevices: true, error: null });
-    try {
-      const response = await cyberVisionApi.getDevices(params);
-      set({ devices: response.items, isLoadingDevices: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch CV devices');
-      set({ error: message, isLoadingDevices: false });
-    }
-  },
+    selectCenter: (centerId) => {
+      if (centerId === get().selectedCenterId) return;
+      set({ selectedCenterId: centerId, ...centerData, error: null });
+    },
 
-  fetchVulnerabilities: async (params) => {
-    set({ isLoadingVulnerabilities: true, error: null });
-    try {
-      const response = await cyberVisionApi.getVulnerabilities(params);
-      set({ vulnerabilities: response.items, isLoadingVulnerabilities: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch CV vulnerabilities');
-      set({ error: message, isLoadingVulnerabilities: false });
-    }
-  },
+    createCenter: async (body) => {
+      const center = await cyberVisionApi.createCenter(body);
+      await get().fetchCenters();
+      return center;
+    },
 
-  fetchPresets: async () => {
-    set({ isLoadingPresets: true, error: null });
-    try {
-      const response = await cyberVisionApi.getPresets();
-      set({ presets: response.items, isLoadingPresets: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to fetch CV presets');
-      set({ error: message, isLoadingPresets: false });
-    }
-  },
+    updateCenter: async (centerId, body) => {
+      const center = await cyberVisionApi.updateCenter(centerId, body);
+      await get().fetchCenters();
+      return center;
+    },
 
-  compareScenario: async (scenarioId: string, presetId?: string) => {
-    set({ isComparing: true, error: null, comparisonResult: null, enrichedSinceCompare: false });
-    try {
-      const result = await cyberVisionApi.compareScenario(scenarioId, presetId);
-      set({ comparisonResult: result, isComparing: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to compare scenario');
-      set({ error: message, isComparing: false });
-    }
-  },
+    makeDefaultCenter: async (centerId) => {
+      await cyberVisionApi.makeDefaultCenter(centerId);
+      await get().fetchCenters();
+    },
 
-  clearError: () => {
-    set({ error: null });
-  },
+    deleteCenter: async (centerId) => {
+      await cyberVisionApi.deleteCenter(centerId);
+      await get().fetchCenters();
+    },
 
-  clearComparison: () => {
-    set({ comparisonResult: null });
-  },
+    fetchStatus: async () => {
+      const centerId = get().selectedCenterId;
+      set({ isLoading: true, error: null });
+      try {
+        const status = await cyberVisionApi.getStatus(centerId);
+        if (get().selectedCenterId !== centerId) return; // switched mid-flight
+        set({ connectionStatus: status, isLoading: false });
+      } catch (error: unknown) {
+        if (get().selectedCenterId !== centerId) return;
+        const message = extractErrorMessage(error, 'Failed to fetch CV status');
+        set({
+          error: message,
+          isLoading: false,
+          connectionStatus: { connected: false, message, version: null, center_name: null }
+        });
+      }
+    },
 
-  enrichDevices: async (request: CVEnrichmentRequest) => {
-    set({ isEnriching: true, error: null, enrichmentResult: null });
-    try {
-      const result = await cyberVisionApi.enrichDevices(request);
-      set({ enrichmentResult: result, isEnriching: false, enrichedSinceCompare: true });
-      return result;
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to enrich CV devices');
-      set({ error: message, isEnriching: false });
-      return null;
-    }
-  },
+    testConnection: async (request: CVTestConnectionRequest) => {
+      set({ isTesting: true, error: null });
+      try {
+        const result = await cyberVisionApi.testConnection(request);
+        set({ isTesting: false });
+        return result;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Connection test failed');
+        set({ isTesting: false });
+        return { success: false, message };
+      }
+    },
 
-  clearEnrichmentResult: () => {
-    set({ enrichmentResult: null });
-  },
+    fetchDevices: async (params) => {
+      set({ isLoadingDevices: true, error: null });
+      try {
+        const response = await cyberVisionApi.getDevices(params, get().selectedCenterId);
+        set({ devices: response.items, isLoadingDevices: false });
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to fetch CV devices');
+        set({ error: message, isLoadingDevices: false });
+      }
+    },
 
-  analyzeDuplicateMacs: async (presetId?: string) => {
-    set({ isLoadingMacAnalysis: true, error: null, macAnalysis: null });
-    try {
-      const result = await cyberVisionApi.analyzeDuplicateMacs(presetId);
-      set({ macAnalysis: result, isLoadingMacAnalysis: false });
-    } catch (error: unknown) {
-      const message = extractErrorMessage(error, 'Failed to analyze duplicate MACs');
-      set({ error: message, isLoadingMacAnalysis: false });
-    }
-  },
+    fetchVulnerabilities: async (params) => {
+      set({ isLoadingVulnerabilities: true, error: null });
+      try {
+        const response = await cyberVisionApi.getVulnerabilities(params, get().selectedCenterId);
+        set({ vulnerabilities: response.items, isLoadingVulnerabilities: false });
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to fetch CV vulnerabilities');
+        set({ error: message, isLoadingVulnerabilities: false });
+      }
+    },
 
-  clearMacAnalysis: () => {
-    set({ macAnalysis: null });
-  },
-}));
+    fetchPresets: async () => {
+      set({ isLoadingPresets: true, error: null });
+      try {
+        const response = await cyberVisionApi.getPresets(get().selectedCenterId);
+        set({ presets: response.items, isLoadingPresets: false });
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to fetch CV presets');
+        set({ error: message, isLoadingPresets: false });
+      }
+    },
+
+    compareScenario: async (scenarioId: string, presetId?: string) => {
+      set({ isComparing: true, error: null, comparisonResult: null, enrichedSinceCompare: false });
+      try {
+        const result = await cyberVisionApi.compareScenario(scenarioId, presetId, get().selectedCenterId);
+        set({ comparisonResult: result, isComparing: false });
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to compare scenario');
+        set({ error: message, isComparing: false });
+      }
+    },
+
+    clearError: () => {
+      set({ error: null });
+    },
+
+    clearComparison: () => {
+      set({ comparisonResult: null });
+    },
+
+    enrichDevices: async (request: CVEnrichmentRequest) => {
+      set({ isEnriching: true, error: null, enrichmentResult: null });
+      try {
+        const result = await cyberVisionApi.enrichDevices(request, get().selectedCenterId);
+        set({ enrichmentResult: result, isEnriching: false, enrichedSinceCompare: true });
+        return result;
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to enrich CV devices');
+        set({ error: message, isEnriching: false });
+        return null;
+      }
+    },
+
+    clearEnrichmentResult: () => {
+      set({ enrichmentResult: null });
+    },
+
+    analyzeDuplicateMacs: async (presetId?: string) => {
+      set({ isLoadingMacAnalysis: true, error: null, macAnalysis: null });
+      try {
+        const result = await cyberVisionApi.analyzeDuplicateMacs(presetId, get().selectedCenterId);
+        set({ macAnalysis: result, isLoadingMacAnalysis: false });
+      } catch (error: unknown) {
+        const message = extractErrorMessage(error, 'Failed to analyze duplicate MACs');
+        set({ error: message, isLoadingMacAnalysis: false });
+      }
+    },
+
+    clearMacAnalysis: () => {
+      set({ macAnalysis: null });
+    },
+  };
+});
 
 export default useCyberVisionStore;

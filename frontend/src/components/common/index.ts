@@ -21,3 +21,6 @@ export { modesFromSummary, modesFromDefinition } from './scenarioModes';
 
 export { default as CyberVisionBadge } from './CyberVisionBadge';
 export type { CyberVisionSummary } from './CyberVisionBadge';
+
+export { default as CyberVisionCenterSelect } from './CyberVisionCenterSelect';
+export type { CyberVisionCenterSelectProps } from './CyberVisionCenterSelect';
