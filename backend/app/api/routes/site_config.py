@@ -148,24 +148,15 @@ async def _subsystem_cyber_vision(db) -> SubsystemStatus:
 
     centers = await cv_centers.list_centers(db)
     configured = [c for c in centers if c.api_token]
-    detail = {
-        "centers": [
-            {
-                "id": str(c.id),
-                "name": c.name,
-                "url": c.url,
-                "is_default": c.is_default,
-                "api_token_set": bool(c.api_token),
-                "new_ui_token_set": bool(c.new_ui_token),
-            }
-            for c in centers
-        ],
-    }
     default = next((c for c in centers if c.is_default), None)
+    # `detail` is a flat key -> scalar map (SubsystemStatus and the Overview
+    # card both require it); per-center names go in the summary line.
+    detail: dict[str, str | int | bool | None] = {"centers": len(centers)}
     if default is not None:
-        # Kept for clients that read the single-center shape.
+        detail["default_center"] = default.name
         detail["url"] = default.url
         detail["api_token_set"] = bool(default.api_token)
+        detail["new_ui_token_set"] = bool(default.new_ui_token)
     if configured:
         names = ", ".join(c.name for c in configured)
         summary = (

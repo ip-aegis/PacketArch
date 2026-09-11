@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.19.0,
+      Feature releases and patches from v1.10.0 through v1.19.1,
       covering June 17 &ndash; September 11, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">17</div>
+        <div class="cover-stat-value">18</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.19.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.19.1</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -676,6 +676,11 @@ code {
         <tr>
           <td>v1.19.0</td>
           <td>Multiple Cyber Vision Centers on one PacketArch server</td>
+          <td>Sep 11, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.19.1</td>
+          <td>Settings Overview loads again; CVE browser lists every CVE</td>
           <td>Sep 11, 2026</td>
         </tr>
       </tbody>
@@ -1631,6 +1636,48 @@ code {
             until the front end was restarted. It now looks the backend up on
             each request, so agents reconnect and live deployments resume on
             their own.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.19.1
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.19.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.19.1</div>
+        <div class="release-date">2026-09-11</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Settings &amp; Library</div>
+        <div class="release-headline">Settings Overview loads again; CVE browser lists every CVE</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Settings &rarr; Overview showed &ldquo;Could not load site
+            configuration.&rdquo;</strong> v1.19.0 put the list of Cyber Vision
+            centers into the Cyber Vision card in a shape the page could not
+            accept, so the whole Overview failed on every install. The card now
+            shows the number of centers and the default center, and the summary
+            line names every configured center.
+          </li>
+          <li class="change-item">
+            <strong>The CVE browser loaded nothing.</strong> Four curated CVEs
+            affect every firmware version, so they have no upper version bound,
+            and the list required one. One such entry failed the whole list.
+            Those CVEs now show <em>All versions</em>.
+          </li>
+          <li class="change-item">
+            <strong>Mimic&rsquo;s off-box lab list reported an internal error
+            when CML was unreachable.</strong> It now reports that CML could not
+            be reached, like the rest of the CML pages.
           </li>
         </ul>
       </div>

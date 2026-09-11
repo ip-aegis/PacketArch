@@ -108,8 +108,10 @@ const CVESection: React.FC<CVESectionProps> = React.memo(({
                 {selectedCve.title}
               </Text>
               <Text type="secondary" style={{ fontSize: 11 }}>
-                Affected: {selectedCve.product_family} &lt;{' '}
-                {selectedCve.affected_firmware_max}
+                Affected: {selectedCve.product_family}{' '}
+                {selectedCve.affected_firmware_max
+                  ? <>&lt; {selectedCve.affected_firmware_max}</>
+                  : 'all versions'}
               </Text>
               {selectedCve.cyber_vision_detectable && (
                 <Tag color="blue" style={{ fontSize: 10 }}>

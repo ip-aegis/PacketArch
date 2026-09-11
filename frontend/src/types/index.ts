@@ -336,7 +336,8 @@ export interface CVEVulnerability {
   product_family: string;
   affected_models: string[];
   affected_firmware_min: string | null;
-  affected_firmware_max: string;
+  /** null = every version is affected. */
+  affected_firmware_max: string | null;
   fixed_firmware_version: string | null;
   cyber_vision_detectable: boolean;
   advisory_url: string | null;

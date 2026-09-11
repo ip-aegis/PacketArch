@@ -313,9 +313,17 @@ async def _cml_base_url(db) -> str:
 @router.get("/cml/labs", response_model=CmlLabListResponse)
 async def cml_labs(db: DBSession, _user: CurrentUser) -> CmlLabListResponse:
     """List off-box (CML) Mimic labs (titled 'Mimic: …')."""
+    from app.core.exceptions import ExternalServiceError
     svc, _ = await _cml_service(db)
     base = (await _cml_base_url(db)).rstrip("/")
-    labs = await svc.list_labs()
+    try:
+        labs = await svc.list_labs()
+    except Exception as e:  # noqa: BLE001 — unreachable CML is a 502, not a 500
+        raise ExternalServiceError(
+            service="cml", message=f"Failed to list CML labs: {e}", original_error=e
+        ) from e
+    finally:
+        await svc.close()
     items = [CmlLabItem(lab_id=lab.id, title=lab.title, state=lab.state,
                         node_count=lab.node_count,
                         cml_url=f"{base}/lab/{lab.id}" if base else "")
