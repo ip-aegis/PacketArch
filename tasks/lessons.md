@@ -222,3 +222,25 @@ speaks a protocol (mimic actions) the running host-agent doesn't understand, and
 failures are SILENT. When touching Mimic, rebuild `host-agent` alongside `backend`.
 Possible hardening (not done): surface a non-success host-agent result from
 `teardown_cell` instead of returning the request-id blindly.
+
+## 2026-09-11 — v1.19.0 shipped a 422 on Settings > Overview (untested route I edited)
+
+To show every Cyber Vision center I put a list of center objects into the site-config
+Cyber Vision card's `detail`. That field is `dict[str, str | int | bool | None]`, so
+`GET /admin/site-config` returned 422 on every install. Rocky found it on the Overview
+tab right after the release. The 1182-test suite passed because no test called that
+route, and my live checks only covered the Cyber Vision routes.
+
+**Rule:** when a change feeds a new value into an existing response, find that response's
+`response_model` and check the value fits the declared type, and make sure some test
+calls the route. Before tagging a release, sweep every parameter-free GET endpoint as
+admin and treat any 422/500 as a blocker (the sweep also found two pre-existing 422/500s).
+
+```bash
+docker compose exec -T backend python -c "from app.main import app
+for r in app.routes:
+    p=getattr(r,'path',''); m=getattr(r,'methods',set()) or set()
+    if 'GET' in m and '{' not in p and p.startswith('/api/v1'): print(p)" |
+while read p; do c=$(curl -sk -o /dev/null -m 20 -w '%{http_code}' -H "Authorization: Bearer $TOKEN" "https://localhost$p")
+  case $c in 2*|401|403|404|503) ;; *) echo "$c $p";; esac; done
+```
