@@ -21,45 +21,66 @@ Goal: one PacketArch server can talk to several CV Centers. Branch `feat/multi-c
   Ciphertext copied verbatim from the legacy settings rows (same Fernet key).
 
 ## Backend
-- [ ] Model `CyberVisionCenter` (table `cyber_vision_centers`) + Alembic migration
+- [x] Model `CyberVisionCenter` (table `cyber_vision_centers`) + Alembic migration
       (table, `local_labs.cv_center_id` FK)
-- [ ] `services/cv_centers.py`: get/default/list, `cv_client(db, center_id)`,
+- [x] `services/cv_centers.py`: get/default/list, `cv_client(db, center_id)`,
       `cv_v1_client(db, center_id)`, legacy settings → default center migration +
       backfill (`local_labs.cv_center_id`, `definition.cyber_vision.center_id`) at startup
-- [ ] Collapse the four factories onto the helper (cv_service_from_settings,
+- [x] Collapse the four factories onto the helper (cv_service_from_settings,
       cv_v1_service_from_settings, routes get_cv_service, mimic._cv_service)
-- [ ] Centers CRUD + test routes; `center_id` query param on every /cyber-vision route;
+- [x] Centers CRUD + test routes; `center_id` query param on every /cyber-vision route;
       `/cyber-vision/settings` + `/status` keep working against the default center
-- [ ] cv_provisioning_service: center-aware provision/groups/networks/OH/teardown,
+- [x] cv_provisioning_service: center-aware provision/groups/networks/OH/teardown,
       conflict guard, vertical roll-up filtered per center, reconcilers per center
-- [ ] Celery `provision_cyber_vision` carries/reads the center
-- [ ] Deploy: `cv_center_id` on DeploymentCreate / DeployNewLabRequest / topology deploy;
+- [x] Celery `provision_cyber_vision` carries/reads the center
+- [x] Deploy: `cv_center_id` on DeploymentCreate / DeployNewLabRequest / topology deploy;
       local-lab agents locked to their lab's center
-- [ ] Local labs: `cv_center_id` on build; per-center deployment-token name;
+- [x] Local labs: `cv_center_id` on build; per-center deployment-token name;
       teardown uses the lab's center
-- [ ] Topology: all N+1 labs + preset on one center
-- [ ] Mimic CML: center picker; record `cvcenter:<id>` in the lab description; teardown uses it
-- [ ] Setup wizard writes the first (default) center; site-config reports per center
-- [ ] Host-agent: `_newest_cached_sensor_image` only reuses an image from the SAME
+- [x] Topology: all N+1 labs + preset on one center
+- [x] Mimic CML: center picker; record `cvcenter:<id>` in the lab description; teardown uses it
+- [x] Setup wizard writes the first (default) center; site-config reports per center
+- [x] Host-agent: `_newest_cached_sensor_image` only reuses an image from the SAME
       registry (two centers on different CV versions); rebuild host-agent
-- [ ] Tests: new center tests; update test_admin_settings, test_local_sensor,
+- [x] Tests: new center tests; update test_admin_settings, test_local_sensor,
       test_agents_deploy, test_topology_provisioning
 
 ## Frontend
-- [ ] Settings → Cyber Vision: list of centers (add/edit/delete/test/set default)
-- [ ] CyberVisionPage: center selector in the header; store keyed/cleared per center
-- [ ] LocalLabsTab: center selector in New Local Lab
-- [ ] DeploymentForm / DeploymentPanel / MultiSensorDeploySection: center selector
+- [x] Settings → Cyber Vision: list of centers (add/edit/delete/test/set default)
+- [x] CyberVisionPage: center selector in the header; store keyed/cleared per center
+- [x] LocalLabsTab: center selector in New Local Lab
+- [x] DeploymentForm / DeploymentPanel / MultiSensorDeploySection: center selector
       beside "Provision Cyber Vision"; locked + shown for local-lab agents
-- [ ] CyberVisionBadge / deployment cards: show center name
-- [ ] Help text
+- [x] CyberVisionBadge / deployment cards: show center name
+- [x] Help text
 
 ## Ship
-- [ ] Version bump + release notes; deploy backend + frontend + host-agent; verify live
+- [x] Version bump + release notes; deploy backend + frontend + host-agent; verify live
       against the real center (10.10.20.115)
 
-## Review
-(filled in when done)
+## Review (2026-09-11)
+- Shipped as v1.19.0 on `feat/multi-cv-centers`. Migration `add_cyber_vision_centers`
+  applied on boot; the legacy-settings move ran once:
+  "migrated legacy settings into default center '10.10.20.115' (8 lab(s), 6 scenario(s) stamped)".
+- Tests: backend 1182 passed / 39 xfailed; frontend vitest 119 passed; tsc error set
+  identical to master (52, all pre-existing).
+- Live checks: one default center; all 8 labs and all 6 provisioned scenarios carry the
+  center id; legacy rows gone; `/status` connected (proves the copied ciphertext decrypts);
+  all 7 deployments back to running after the restart; host-agent reconciles 8 specs clean.
+  A probe second center round-tripped (create, status fails cleanly, duplicate URL 409,
+  delete of the in-use default 409, delete 204).
+- Per-center deployment-token name: left as is. The `-N` suffix is probed live against
+  each center, so it was never global.
+- Fixed before deploy (advisor review): the boot migration no longer deletes half-configured
+  legacy rows; `usage()` and the vertical roll-up read `cyber_vision.center_id` in SQL
+  instead of loading every definition. The celery worker must be rebuilt with the backend
+  (it runs `provision_cyber_vision`).
+- Rollback: the migration deletes the legacy rows and the alembic downgrade does not restore
+  them. Pre-deploy dump + a `system_settings` data dump were kept in the session scratchpad.
+- Known gap: CML labs built from a pasted CV compose record no center. The sensor is tied
+  to whichever center issued the compose, but a deploy on a CML agent uses the picker
+  (default center) and is not locked the way a local-lab agent is. Fix path: match the
+  compose's registry host to a center URL at build and store it on the lab.
 
 ---
 
