@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.19.1,
+      Feature releases and patches from v1.10.0 through v1.19.2,
       covering June 17 &ndash; September 11, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">18</div>
+        <div class="cover-stat-value">19</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.19.1</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.19.2</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -681,6 +681,11 @@ code {
         <tr class="patch">
           <td>v1.19.1</td>
           <td>Settings Overview loads again; CVE browser lists every CVE</td>
+          <td>Sep 11, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.19.2</td>
+          <td>Scenarios named with an em dash build their full Cyber Vision hierarchy</td>
           <td>Sep 11, 2026</td>
         </tr>
       </tbody>
@@ -1678,6 +1683,52 @@ code {
             <strong>Mimic&rsquo;s off-box lab list reported an internal error
             when CML was unreachable.</strong> It now reports that CML could not
             be reached, like the rest of the CML pages.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.19.2
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.19.2">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.19.2</div>
+        <div class="release-date">2026-09-11</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">Scenarios named with an em dash build their full Cyber Vision hierarchy</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>A scenario whose name contained an em dash provisioned only
+            part of the way into Cyber Vision.</strong> Its preset, custom
+            networks and zone groups were all created normally, but the
+            Organization Hierarchy tree was skipped, so neither the scenario nor
+            its zones ever appeared beneath <em>Global</em> in the new Cyber
+            Vision UI. Cyber Vision refuses a hierarchy level name containing
+            any character outside plain ASCII, and the scenario namer likes an
+            em dash &mdash; so a name such as &ldquo;Pharma &mdash; Vaccine
+            Bioreactor Plant&rdquo; was rejected outright while a plainer name
+            such as &ldquo;Cookie Bakery&rdquo; went through. Level names are
+            now folded to ASCII before they are sent, turning the em dash into
+            a hyphen rather than dropping it, so the hierarchy is built in full.
+          </li>
+          <li class="change-item">
+            <strong>The failure left no trace in the deployment status.</strong>
+            The hierarchy step is deliberately best-effort so that it cannot
+            fail a deployment, but a scenario that lost its tree still reported
+            a clean, fully-provisioned state. The cause is now recorded in the
+            backend log with the rejected name. An affected scenario is repaired
+            by redeploying it, or in bulk through the Cyber Vision reconcile
+            endpoint.
           </li>
         </ul>
       </div>
