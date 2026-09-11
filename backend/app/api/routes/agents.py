@@ -806,6 +806,7 @@ async def deploy_scenario_to_agent(
         attack_playbook=deployment.attack_playbook,
         cell_isolation_override=deployment.cell_isolation_override,
         provision_cyber_vision=deployment.provision_cyber_vision,
+        cv_center_id=deployment.cv_center_id,
     )
 
     return DeploymentResponse.model_validate(agent_deployment)
@@ -832,6 +833,7 @@ async def deploy_scenario_to_new_lab(
         name=request.lab_name,
         agent_name=request.agent_name,
         created_by_id=admin.id,
+        cv_center_id=request.cv_center_id,
     )
 
     agent = await get_or_404(db, TrafficAgent, UUID(result["agent_id"]), "Agent")
@@ -841,6 +843,9 @@ async def deploy_scenario_to_new_lab(
         "attack_playbook": request.attack_playbook,
         "cell_isolation_override": request.cell_isolation_override,
         "provision_cyber_vision": request.provision_cyber_vision,
+        # The lab was built on this center; the deploy is locked to it anyway,
+        # recorded for clarity. None = the lab's (default) center.
+        "cv_center_id": str(request.cv_center_id) if request.cv_center_id else None,
     }
     await db.commit()
 

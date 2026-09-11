@@ -1,3 +1,68 @@
+# Multiple Cyber Vision Centers (2026-09-11)
+
+Goal: one PacketArch server can talk to several CV Centers. Branch `feat/multi-cv-centers`.
+
+## Decisions (stated assumptions)
+- **One center per lab, one center per scenario's CV state.** No fan-out of one
+  scenario into several centers at once. `definition['cyber_vision']` stays one blob
+  and gains `center_id`.
+- **Conflict guard**: provisioning a scenario whose stored `center_id` is a DIFFERENT,
+  still-existing center raises ConflictError (409) instead of orphaning that center's
+  preset/groups/networks/OH levels. Tear down first to move it. This guard is the
+  single hinge if fan-out is ever wanted.
+- **Resolution chain**: `local_labs.cv_center_id` set at build, immutable (the JWT bakes
+  in centerHost). A local-lab agent's center is derived from its lab and LOCKED at
+  deploy. Manual/CML agents pick a center, default = the default center. Everything
+  downstream (Celery task, teardown, reconcilers) reads the center from stored state,
+  never from "the current default".
+- **Default center**: exactly one. Routes with no `center_id` use it (back-compat for
+  the setup wizard, old clients, and `/cyber-vision/settings`).
+- Token store: each center carries both tokens (classic `/api/3.0` + new-UI `/cvapi/v1`).
+  Ciphertext copied verbatim from the legacy settings rows (same Fernet key).
+
+## Backend
+- [ ] Model `CyberVisionCenter` (table `cyber_vision_centers`) + Alembic migration
+      (table, `local_labs.cv_center_id` FK)
+- [ ] `services/cv_centers.py`: get/default/list, `cv_client(db, center_id)`,
+      `cv_v1_client(db, center_id)`, legacy settings → default center migration +
+      backfill (`local_labs.cv_center_id`, `definition.cyber_vision.center_id`) at startup
+- [ ] Collapse the four factories onto the helper (cv_service_from_settings,
+      cv_v1_service_from_settings, routes get_cv_service, mimic._cv_service)
+- [ ] Centers CRUD + test routes; `center_id` query param on every /cyber-vision route;
+      `/cyber-vision/settings` + `/status` keep working against the default center
+- [ ] cv_provisioning_service: center-aware provision/groups/networks/OH/teardown,
+      conflict guard, vertical roll-up filtered per center, reconcilers per center
+- [ ] Celery `provision_cyber_vision` carries/reads the center
+- [ ] Deploy: `cv_center_id` on DeploymentCreate / DeployNewLabRequest / topology deploy;
+      local-lab agents locked to their lab's center
+- [ ] Local labs: `cv_center_id` on build; per-center deployment-token name;
+      teardown uses the lab's center
+- [ ] Topology: all N+1 labs + preset on one center
+- [ ] Mimic CML: center picker; record `cvcenter:<id>` in the lab description; teardown uses it
+- [ ] Setup wizard writes the first (default) center; site-config reports per center
+- [ ] Host-agent: `_newest_cached_sensor_image` only reuses an image from the SAME
+      registry (two centers on different CV versions); rebuild host-agent
+- [ ] Tests: new center tests; update test_admin_settings, test_local_sensor,
+      test_agents_deploy, test_topology_provisioning
+
+## Frontend
+- [ ] Settings → Cyber Vision: list of centers (add/edit/delete/test/set default)
+- [ ] CyberVisionPage: center selector in the header; store keyed/cleared per center
+- [ ] LocalLabsTab: center selector in New Local Lab
+- [ ] DeploymentForm / DeploymentPanel / MultiSensorDeploySection: center selector
+      beside "Provision Cyber Vision"; locked + shown for local-lab agents
+- [ ] CyberVisionBadge / deployment cards: show center name
+- [ ] Help text
+
+## Ship
+- [ ] Version bump + release notes; deploy backend + frontend + host-agent; verify live
+      against the real center (10.10.20.115)
+
+## Review
+(filled in when done)
+
+---
+
 # Durable deployment resume after reboot (2026-09-11)
 
 Context: Alpha lost power 3x (storms) 09-04..09-06; all 7 live deployments went

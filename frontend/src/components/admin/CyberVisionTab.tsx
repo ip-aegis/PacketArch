@@ -4,295 +4,435 @@
  * Licensed under GPL-3.0. See LICENSE at the repo root.
  */
 /**
- * Cyber Vision settings tab for admin settings page
+ * Settings > Cyber Vision: the Cyber Vision Centers this server talks to.
+ *
+ * One row per center, each with its own URL, SSL setting and both API tokens
+ * (classic /api/3.0 and the separate new-UI /cvapi/v1 token store). One center
+ * is the default: anything that doesn't name a center uses it. Local labs and
+ * provisioned scenarios stay on the center they were created on.
  */
 
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
+  Button,
   Card,
   Form,
   Input,
-  Button,
-  Switch,
+  Modal,
+  Popconfirm,
   Space,
-  Alert,
-  Typography,
-  Spin,
-  message,
+  Switch,
+  Table,
   Tag,
+  Tooltip,
+  Typography,
+  message,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
+  ApiOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
   SafetyCertificateOutlined,
-  ApiOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import { useCyberVisionStore } from '../../stores/cyberVisionStore';
+import { cyberVisionApi, type CVCenter, type CVConnectionStatus } from '../../api/cyberVision';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text } = Typography;
 
+interface CenterFormValues {
+  name?: string;
+  url: string;
+  api_token?: string;
+  new_ui_token?: string;
+  verify_ssl?: boolean;
+  is_default?: boolean;
+}
+
 const CyberVisionTab: React.FC = () => {
   const {
-    settings,
-    connectionStatus,
-    isLoading,
-    isTesting,
-    error,
-    fetchSettings,
-    fetchStatus,
-    updateSettings,
+    centers,
+    centersLoaded,
+    fetchCenters,
+    createCenter,
+    updateCenter,
+    makeDefaultCenter,
+    deleteCenter,
     testConnection,
-    clearError,
+    isTesting,
   } = useCyberVisionStore();
 
-  const [form] = Form.useForm();
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [form] = Form.useForm<CenterFormValues>();
+  const [editing, setEditing] = useState<CVCenter | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [statuses, setStatuses] = useState<Record<string, CVConnectionStatus | 'checking'>>({});
+  const [formTest, setFormTest] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
-    fetchSettings();
-    fetchStatus();
-  }, [fetchSettings, fetchStatus]);
+    fetchCenters();
+  }, [fetchCenters]);
 
-  useEffect(() => {
-    if (settings) {
-      form.setFieldsValue({
-        cyber_vision_url: settings.cyber_vision_url,
-        cyber_vision_verify_ssl: settings.cyber_vision_verify_ssl,
-      });
-    }
-  }, [settings, form]);
-
-  const handleSave = async (values: {
-    cyber_vision_url: string;
-    cyber_vision_api_token?: string;
-    cyber_vision_verify_ssl?: boolean;
-    cyber_vision_new_ui_token?: string;
-  }) => {
+  const checkStatus = async (center: CVCenter) => {
+    setStatuses((prev) => ({ ...prev, [center.id]: 'checking' }));
     try {
-      await updateSettings({
-        cyber_vision_url: values.cyber_vision_url,
-        cyber_vision_api_token: values.cyber_vision_api_token || undefined,
-        cyber_vision_verify_ssl: values.cyber_vision_verify_ssl,
-        cyber_vision_new_ui_token: values.cyber_vision_new_ui_token || undefined,
-      });
-      message.success('Cyber Vision settings saved');
-      // Clear the token fields after save (they're stored encrypted)
-      form.setFieldValue('cyber_vision_api_token', '');
-      form.setFieldValue('cyber_vision_new_ui_token', '');
-      // Refresh status
-      fetchStatus();
-    } catch {
-      message.error('Failed to save settings');
+      const status = await cyberVisionApi.getCenterStatus(center.id);
+      setStatuses((prev) => ({ ...prev, [center.id]: status }));
+    } catch (error: unknown) {
+      setStatuses((prev) => ({
+        ...prev,
+        [center.id]: {
+          connected: false,
+          message: extractErrorMessage(error, 'Connection check failed'),
+          version: null,
+          center_name: null,
+        },
+      }));
     }
   };
 
-  const handleTestConnection = async () => {
-    const url = form.getFieldValue('cyber_vision_url');
-    const token = form.getFieldValue('cyber_vision_api_token');
-    const verifySsl = form.getFieldValue('cyber_vision_verify_ssl');
+  // Check every center once the list loads.
+  useEffect(() => {
+    centers.forEach((c) => {
+      if (!statuses[c.id]) checkStatus(c);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centers]);
 
+  const openAdd = () => {
+    setEditing(null);
+    setFormTest(null);
+    form.resetFields();
+    form.setFieldsValue({ verify_ssl: false, is_default: centers.length === 0 });
+    setModalOpen(true);
+  };
+
+  const openEdit = (center: CVCenter) => {
+    setEditing(center);
+    setFormTest(null);
+    form.resetFields();
+    form.setFieldsValue({ name: center.name, url: center.url, verify_ssl: center.verify_ssl });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    const values = await form.validateFields();
+    setSaving(true);
+    try {
+      if (editing) {
+        await updateCenter(editing.id, {
+          name: values.name || undefined,
+          url: values.url,
+          api_token: values.api_token || undefined,
+          new_ui_token: values.new_ui_token || undefined,
+          verify_ssl: values.verify_ssl,
+        });
+        message.success(`Saved ${values.name || editing.name}`);
+        setStatuses((prev) => {
+          const next = { ...prev };
+          delete next[editing.id];
+          return next;
+        });
+      } else {
+        const created = await createCenter({
+          name: values.name || undefined,
+          url: values.url,
+          api_token: values.api_token ?? '',
+          new_ui_token: values.new_ui_token || undefined,
+          verify_ssl: values.verify_ssl ?? false,
+          is_default: values.is_default ?? false,
+        });
+        message.success(`Added ${created.name}`);
+      }
+      setModalOpen(false);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to save the Cyber Vision Center'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFormTest = async () => {
+    const { url, api_token, verify_ssl } = form.getFieldsValue();
     if (!url) {
-      message.warning('Please enter a Cyber Vision URL');
+      message.warning('Enter the Cyber Vision URL first');
       return;
     }
-
-    // If no new token entered, use existing (test with stored credentials)
-    if (!token && !settings?.cyber_vision_api_token_set) {
-      message.warning('Please enter an API token');
+    if (!api_token) {
+      if (editing) {
+        // No new token typed: test the stored credentials.
+        const status = await cyberVisionApi.getCenterStatus(editing.id).catch(() => null);
+        if (status) setStatuses((prev) => ({ ...prev, [editing.id]: status }));
+        setFormTest({
+          success: Boolean(status?.connected),
+          message: status?.message || 'Connection check failed',
+        });
+      } else {
+        message.warning('Enter an API token first');
+      }
       return;
     }
+    setFormTest(await testConnection({ url, api_token, verify_ssl: verify_ssl ?? false }));
+  };
 
-    setTestResult(null);
-
-    // If we have a new token, test with that
-    if (token) {
-      const result = await testConnection({
-        url,
-        api_token: token,
-        verify_ssl: verifySsl || false,
-      });
-      setTestResult(result);
-      if (result.success) {
-        message.success('Connection successful!');
-      } else {
-        message.error(`Connection failed: ${result.message}`);
-      }
-    } else {
-      // Test with stored credentials via status endpoint
-      await fetchStatus();
-      if (connectionStatus?.connected) {
-        setTestResult({ success: true, message: 'Connected using stored credentials' });
-        message.success('Connection successful!');
-      } else {
-        setTestResult({ success: false, message: connectionStatus?.message || 'Connection failed' });
-        message.error(`Connection failed: ${connectionStatus?.message}`);
-      }
+  const handleMakeDefault = async (center: CVCenter) => {
+    try {
+      await makeDefaultCenter(center.id);
+      message.success(`${center.name} is now the default Cyber Vision Center`);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to change the default center'));
     }
   };
 
-  if (isLoading && !settings) {
-    return (
-      <div style={{ textAlign: 'center', padding: 48 }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16 }}>
-          <Text type="secondary">Loading Cyber Vision settings...</Text>
-        </div>
-      </div>
+  const handleDelete = async (center: CVCenter) => {
+    try {
+      await deleteCenter(center.id);
+      message.success(`Removed ${center.name}`);
+    } catch (error: unknown) {
+      message.error(extractErrorMessage(error, 'Failed to remove the Cyber Vision Center'));
+    }
+  };
+
+  const renderStatus = (center: CVCenter) => {
+    const status = statuses[center.id];
+    if (!status || status === 'checking') return <Tag>Checking…</Tag>;
+    return status.connected ? (
+      <Tooltip title={status.version ? `API version ${status.version}` : status.message}>
+        <Tag icon={<CheckCircleOutlined />} color="success">Connected</Tag>
+      </Tooltip>
+    ) : (
+      <Tooltip title={status.message}>
+        <Tag icon={<CloseCircleOutlined />} color="error">Not connected</Tag>
+      </Tooltip>
     );
-  }
+  };
+
+  const columns: ColumnsType<CVCenter> = [
+    {
+      title: 'Center',
+      key: 'name',
+      render: (_, c) => (
+        <Space direction="vertical" size={0}>
+          <Space size={6}>
+            <Text strong>{c.name}</Text>
+            {c.is_default && <Tag color="blue">Default</Tag>}
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12 }}>{c.url}</Text>
+        </Space>
+      ),
+    },
+    { title: 'Status', key: 'status', width: 140, render: (_, c) => renderStatus(c) },
+    {
+      title: 'Tokens',
+      key: 'tokens',
+      width: 170,
+      render: (_, c) => (
+        <Space size={4} wrap>
+          <Tag color={c.api_token_set ? 'green' : 'red'}>Classic API</Tag>
+          <Tooltip title="Optional. Enables the Organization Hierarchy sync.">
+            <Tag color={c.new_ui_token_set ? 'green' : 'default'}>New UI API</Tag>
+          </Tooltip>
+        </Space>
+      ),
+    },
+    {
+      title: 'In use',
+      key: 'usage',
+      width: 150,
+      render: (_, c) => (
+        <Text type="secondary">
+          {c.local_labs} lab{c.local_labs === 1 ? '' : 's'}, {c.scenarios} scenario
+          {c.scenarios === 1 ? '' : 's'}
+        </Text>
+      ),
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 170,
+      render: (_, c) => {
+        const inUse = c.local_labs + c.scenarios > 0;
+        const deleteBlocked = inUse
+          ? 'Tear down the local labs and scenarios on this center first'
+          : c.is_default && centers.length > 1
+            ? 'Make another center the default first'
+            : null;
+        return (
+          <Space size={0}>
+            <Tooltip title="Test connection">
+              <Button type="text" icon={<SafetyCertificateOutlined />} onClick={() => checkStatus(c)} />
+            </Tooltip>
+            <Tooltip title="Edit">
+              <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(c)} />
+            </Tooltip>
+            {!c.is_default && (
+              <Tooltip title="Make default">
+                <Button type="text" icon={<StarOutlined />} onClick={() => handleMakeDefault(c)} />
+              </Tooltip>
+            )}
+            {deleteBlocked ? (
+              <Tooltip title={deleteBlocked}>
+                <Button type="text" danger icon={<DeleteOutlined />} disabled />
+              </Tooltip>
+            ) : (
+              <Popconfirm
+                title={`Remove ${c.name}?`}
+                description="PacketArch will stop using this center. Nothing is deleted on the center itself."
+                okText="Remove"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => handleDelete(c)}
+              >
+                <Tooltip title="Remove">
+                  <Button type="text" danger icon={<DeleteOutlined />} />
+                </Tooltip>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={clearError}
-        />
-      )}
-
-      {testResult && (
-        <Alert
-          message={testResult.success ? 'Connection Successful' : 'Connection Failed'}
-          description={testResult.message}
-          type={testResult.success ? 'success' : 'error'}
-          showIcon
-          icon={testResult.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-          closable
-          onClose={() => setTestResult(null)}
-        />
-      )}
-
-      {/* Connection Status */}
-      <Card title="Connection Status" size="small">
-        <Space>
-          {connectionStatus?.connected ? (
-            <>
-              <Tag icon={<CheckCircleOutlined />} color="success">
-                Connected
-              </Tag>
-              {connectionStatus.version && (
-                <Text type="secondary">API Version: {connectionStatus.version}</Text>
-              )}
-            </>
-          ) : (
-            <>
-              <Tag icon={<CloseCircleOutlined />} color="error">
-                Not Connected
-              </Tag>
-              {connectionStatus?.message && (
-                <Text type="secondary">{connectionStatus.message}</Text>
-              )}
-            </>
-          )}
-        </Space>
+      <Card
+        title="Cyber Vision Centers"
+        size="small"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
+            Add center
+          </Button>
+        }
+      >
+        {centersLoaded && centers.length === 0 ? (
+          <Alert
+            type="info"
+            showIcon
+            message="No Cyber Vision Center configured"
+            description="Add one to compare scenarios against what Cyber Vision sees, provision presets and groups at deploy time, and build local sensor labs."
+          />
+        ) : (
+          <Table
+            rowKey="id"
+            size="small"
+            loading={!centersLoaded}
+            columns={columns}
+            dataSource={centers}
+            pagination={false}
+          />
+        )}
+        {centers.length > 1 && (
+          <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+            The default center is used whenever you don&apos;t pick one. Local labs and
+            provisioned scenarios stay on the center they were created on.
+          </Text>
+        )}
       </Card>
 
-      {/* Configuration Form */}
-      <Card title="Cyber Vision Configuration" size="small">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-          initialValues={{
-            cyber_vision_verify_ssl: false,
-          }}
-        >
-          <Form.Item
-            name="cyber_vision_url"
-            label="Cyber Vision URL"
-            tooltip="The URL of your Cisco Cyber Vision center (e.g., https://10.10.20.115)"
-            rules={[{ required: true, message: 'Please enter the Cyber Vision URL' }]}
-          >
-            <Input
-              prefix={<ApiOutlined />}
-              placeholder="https://10.10.20.115"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="cyber_vision_api_token"
-            label="API Token"
-            tooltip="Your Cyber Vision API token. Leave empty to keep existing token."
-            extra={
-              settings?.cyber_vision_api_token_set ? (
-                <Text type="success">
-                  <CheckCircleOutlined /> API token is configured
-                </Text>
-              ) : (
-                <Text type="warning">No API token configured</Text>
-              )
-            }
-          >
-            <Input.Password
-              placeholder="Enter API token (leave empty to keep existing)"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="cyber_vision_verify_ssl"
-            label="Verify SSL Certificate"
-            valuePropName="checked"
-            tooltip="Enable SSL certificate verification. Disable for self-signed certificates."
-          >
-            <Switch checkedChildren="Yes" unCheckedChildren="No" />
-          </Form.Item>
-
-          <Form.Item
-            name="cyber_vision_new_ui_token"
-            label="New UI API Token"
-            tooltip="Optional. CV's new UI has its own API with a separate token store from the classic API token above — same Cyber Vision center, same URL/SSL setting. Enables mirroring scenario zones into CV's new Organization Hierarchy view. Leave empty to keep existing token, or leave unconfigured to skip this feature entirely."
-            extra={
-              settings?.cyber_vision_new_ui_token_set ? (
-                <Text type="success">
-                  <CheckCircleOutlined /> New UI API token is configured
-                </Text>
-              ) : (
-                <Text type="secondary">Optional — not configured (Organization Hierarchy sync skipped)</Text>
-              )
-            }
-          >
-            <Input.Password
-              placeholder="Enter New UI API token (leave empty to keep existing)"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={isLoading}>
-                Save Settings
-              </Button>
-              <Button
-                onClick={handleTestConnection}
-                loading={isTesting}
-                icon={<SafetyCertificateOutlined />}
-              >
-                Test Connection
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
-
-      {/* Info Card */}
       <Card title="About Cyber Vision Integration" size="small">
-        <Text type="secondary">
-          Cisco Cyber Vision integration allows PacketArch to:
-        </Text>
+        <Text type="secondary">Cisco Cyber Vision integration allows PacketArch to:</Text>
         <ul style={{ marginTop: 8 }}>
           <li>Pull discovered devices from your OT network</li>
           <li>Compare scenario devices against real network inventory</li>
           <li>View vulnerability data detected by Cyber Vision</li>
-          <li>Cross-reference generated traffic with actual network visibility</li>
+          <li>Provision presets, zone groups and networks when a scenario deploys</li>
         </ul>
         <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
           To get an API token, log into your Cyber Vision center and navigate to
-          Settings &gt; API &gt; Generate Token.
+          Settings &gt; API &gt; Generate Token. The New UI API token is separate: create it
+          from the new UI&apos;s Configuration &gt; API page.
         </Text>
       </Card>
+
+      <Modal
+        open={modalOpen}
+        title={editing ? `Edit ${editing.name}` : 'Add Cyber Vision Center'}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSave}
+        okText={editing ? 'Save' : 'Add center'}
+        confirmLoading={saving}
+        forceRender
+      >
+        {formTest && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type={formTest.success ? 'success' : 'error'}
+            showIcon
+            message={formTest.success ? 'Connection successful' : 'Connection failed'}
+            description={formTest.message}
+          />
+        )}
+        {editing && editing.local_labs + editing.scenarios > 0 && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="info"
+            showIcon
+            message="This center is in use, so its URL can't change"
+            description="Local labs and provisioned scenarios live on it. To move to a new address, add it as a separate center."
+          />
+        )}
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label="Name" tooltip="Shown in pickers. Defaults to the URL's host.">
+            <Input placeholder="e.g. Plant A Center" maxLength={100} />
+          </Form.Item>
+          <Form.Item
+            name="url"
+            label="Cyber Vision URL"
+            rules={[{ required: true, message: 'Enter the Cyber Vision URL' }]}
+          >
+            <Input
+              prefix={<ApiOutlined />}
+              placeholder="https://10.10.20.115"
+              disabled={Boolean(editing && editing.local_labs + editing.scenarios > 0)}
+            />
+          </Form.Item>
+          <Form.Item
+            name="api_token"
+            label="API Token"
+            rules={editing ? [] : [{ required: true, message: 'Enter the API token' }]}
+            extra={
+              editing?.api_token_set ? (
+                <Text type="success"><CheckCircleOutlined /> Configured. Leave empty to keep it.</Text>
+              ) : undefined
+            }
+          >
+            <Input.Password placeholder={editing ? 'Leave empty to keep the existing token' : 'Classic API token'} />
+          </Form.Item>
+          <Form.Item
+            name="new_ui_token"
+            label="New UI API Token"
+            tooltip="Optional. Cyber Vision's new UI has its own API with a separate token store. Enables mirroring scenario zones into the Organization Hierarchy."
+            extra={
+              editing?.new_ui_token_set ? (
+                <Text type="success"><CheckCircleOutlined /> Configured. Leave empty to keep it.</Text>
+              ) : (
+                <Text type="secondary">Optional. Organization Hierarchy sync is skipped without it.</Text>
+              )
+            }
+          >
+            <Input.Password placeholder="Optional" />
+          </Form.Item>
+          <Space size="large">
+            <Form.Item name="verify_ssl" label="Verify SSL certificate" valuePropName="checked">
+              <Switch checkedChildren="Yes" unCheckedChildren="No" />
+            </Form.Item>
+            {!editing && centers.length > 0 && (
+              <Form.Item name="is_default" label="Make default" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            )}
+          </Space>
+          <Button icon={<SafetyCertificateOutlined />} loading={isTesting} onClick={handleFormTest}>
+            Test connection
+          </Button>
+        </Form>
+      </Modal>
     </Space>
   );
 };

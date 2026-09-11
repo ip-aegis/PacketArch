@@ -90,8 +90,9 @@ const AdminSettingsContent: React.FC = () => {
               Cyber Vision
             </Tag>
             <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
-              Connect to a Cisco Cyber Vision Center (URL + API token) to enable
-              device comparison, matching, and enrichment.
+              Connect one or more Cisco Cyber Vision Centers (URL + API token each) to
+              enable device comparison, matching, enrichment, and deploy-time
+              provisioning. One center is the default.
             </Paragraph>
           </div>
 

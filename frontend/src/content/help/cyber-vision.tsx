@@ -33,13 +33,23 @@ const CyberVisionContent: React.FC = () => {
       <Card style={CARD_STYLE}>
         <Title level={5} style={{ color: '#fff', marginBottom: 12 }}>
           <LinkOutlined style={{ marginRight: 8 }} />
-          Connecting a Center
+          Connecting Centers
         </Title>
         <Paragraph style={{ color: TEXT_PARAGRAPH }}>
-          Configure your CV connection in <Text strong style={{ color: '#fff' }}>Settings → Cyber Vision</Text>:
-          base URL (e.g. <Text code>https://cv-center.example.com</Text>) and an API token
-          with read access. The connection is tested before save; check the test result for
-          TLS and auth errors.
+          Add each Cyber Vision Center in <Text strong style={{ color: '#fff' }}>Settings → Cyber Vision</Text>:
+          base URL (e.g. <Text code>https://cv-center.example.com</Text>), an API token, and
+          optionally the separate New UI API token that enables the Organization Hierarchy
+          sync. Use <Text strong style={{ color: '#fff' }}>Test connection</Text> to check TLS and
+          auth before saving.
+        </Paragraph>
+        <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
+          One PacketArch server can talk to several centers. One of them is the
+          <Text strong style={{ color: '#fff' }}> default</Text>, used whenever you don&apos;t pick one.
+          With more than one center, a picker appears on this page, when you build a local lab,
+          and when you deploy with <Text strong style={{ color: '#fff' }}>Provision to Cyber Vision</Text>.
+          A local lab&apos;s sensor enrolls into one center for good, so deploys to that lab always
+          provision there. A scenario lives on one center at a time: tear down its Cyber Vision
+          objects before provisioning it on another.
         </Paragraph>
       </Card>
 
@@ -108,9 +118,10 @@ export const cyberVisionArticle: HelpArticle = {
   category: 'security-testing',
   keywords: [
     'cyber vision', 'cv', 'cisco', 'integration', 'compare', 'match',
-    'component', 'flow', 'enrichment', 'preset', 'fingerprint'
+    'component', 'flow', 'enrichment', 'preset', 'fingerprint',
+    'center', 'multiple centers', 'default center'
   ],
-  summary: 'Connect to a Cisco Cyber Vision center, match simulated devices to CV components, and validate fingerprints.',
+  summary: 'Connect one or more Cisco Cyber Vision centers, match simulated devices to CV components, and validate fingerprints.',
   content: CyberVisionContent,
   relatedArticles: ['device-library', 'deployments', 'admin-settings'],
   relatedPages: ['/cyber-vision'],

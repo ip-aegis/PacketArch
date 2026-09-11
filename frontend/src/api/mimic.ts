@@ -107,6 +107,7 @@ export interface CmlDeployRequest {
   devices: AuthorDevice[];
   relationships: AuthorRelationship[];
   with_sensor: boolean;
+  cv_center_id?: string | null; // Cyber Vision Center the sensor enrolls into (default center if omitted)
 }
 
 export interface CmlPersonaResult {

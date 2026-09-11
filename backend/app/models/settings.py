@@ -190,36 +190,8 @@ DEFAULT_SETTINGS = [
         "category": "system",
         "description": "Enable real-time packet generation",
     },
-    # Cyber Vision settings
-    {
-        "key": "cyber_vision_url",
-        "value": "",
-        "is_secret": False,
-        "category": "cyber_vision",
-        "description": "Cisco Cyber Vision center URL (e.g., https://10.10.20.115)",
-    },
-    {
-        "key": "cyber_vision_api_token",
-        "is_secret": True,
-        "category": "cyber_vision",
-        "description": "Cisco Cyber Vision API token for authentication",
-    },
-    {
-        "key": "cyber_vision_verify_ssl",
-        "value": "false",
-        "is_secret": False,
-        "category": "cyber_vision",
-        "description": "Verify SSL certificates when connecting to Cyber Vision",
-    },
-    {
-        "key": "cyber_vision_new_ui_token",
-        "is_secret": True,
-        "category": "cyber_vision",
-        "description": (
-            "Cisco Cyber Vision New UI API token (cvapi/v1 — a separate token "
-            "store from the classic API token above; same URL/SSL setting)"
-        ),
-    },
+    # Cyber Vision connection settings are no longer global settings: each
+    # Center is a row in cyber_vision_centers (models/cyber_vision_center.py).
     # Cisco Modeling Labs (CML) settings
     {
         "key": "cml_url",

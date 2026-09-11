@@ -41,7 +41,47 @@ export interface CVConnectionStatus {
   connected: boolean;
   message: string;
   version: string | null;
-  center_name: string | null;
+  center_name: string | null; // the name the Center reports about itself
+  center_id?: string | null; // PacketArch id of the center that was checked
+  center_label?: string | null; // PacketArch display name of that center
+}
+
+// A configured Cyber Vision Center (tokens are never returned).
+export interface CVCenter {
+  id: string;
+  name: string;
+  url: string;
+  verify_ssl: boolean;
+  is_default: boolean;
+  api_token_set: boolean;
+  new_ui_token_set: boolean;
+  local_labs: number; // local sensor labs whose sensor enrolls here
+  scenarios: number; // scenarios provisioned on this center
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CVCenterList {
+  centers: CVCenter[];
+  default_center_id: string | null;
+}
+
+export interface CVCenterCreate {
+  name?: string;
+  url: string;
+  api_token: string;
+  new_ui_token?: string;
+  verify_ssl?: boolean;
+  is_default?: boolean;
+}
+
+// Omitted fields are unchanged; new_ui_token: "" clears it.
+export interface CVCenterUpdate {
+  name?: string;
+  url?: string;
+  api_token?: string;
+  new_ui_token?: string;
+  verify_ssl?: boolean;
 }
 
 // CV Test connection request
@@ -231,10 +271,49 @@ export interface CVProvisionStatus {
   device_count: number;
   error: string | null;
   updated_at: string | null;
+  center_id?: string | null; // Cyber Vision Center the scenario is provisioned on
+  center_name?: string | null;
 }
+
+// Optional center selector: omitted means the default center (or, for
+// scenario-scoped calls, the center the scenario is already provisioned on).
+const centerParams = (centerId?: string | null) => (centerId ? { center_id: centerId } : {});
 
 // Cyber Vision API
 export const cyberVisionApi = {
+  // --- Centers ---------------------------------------------------------------
+  listCenters: async (): Promise<CVCenterList> => {
+    const response = await apiClient.get<CVCenterList>('/api/v1/cyber-vision/centers');
+    return response.data;
+  },
+
+  createCenter: async (body: CVCenterCreate): Promise<CVCenter> => {
+    const response = await apiClient.post<CVCenter>('/api/v1/cyber-vision/centers', body);
+    return response.data;
+  },
+
+  updateCenter: async (centerId: string, body: CVCenterUpdate): Promise<CVCenter> => {
+    const response = await apiClient.put<CVCenter>(`/api/v1/cyber-vision/centers/${centerId}`, body);
+    return response.data;
+  },
+
+  makeDefaultCenter: async (centerId: string): Promise<CVCenter> => {
+    const response = await apiClient.post<CVCenter>(`/api/v1/cyber-vision/centers/${centerId}/default`);
+    return response.data;
+  },
+
+  deleteCenter: async (centerId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/cyber-vision/centers/${centerId}`);
+  },
+
+  getCenterStatus: async (centerId: string): Promise<CVConnectionStatus> => {
+    const response = await apiClient.get<CVConnectionStatus>(
+      `/api/v1/cyber-vision/centers/${centerId}/status`
+    );
+    return response.data;
+  },
+
+  // Legacy single-center settings (the default center)
   // Get CV settings
   getSettings: async (): Promise<CVSettings> => {
     const response = await apiClient.get<CVSettings>('/api/v1/cyber-vision/settings');
@@ -248,8 +327,10 @@ export const cyberVisionApi = {
   },
 
   // Get connection status
-  getStatus: async (): Promise<CVConnectionStatus> => {
-    const response = await apiClient.get<CVConnectionStatus>('/api/v1/cyber-vision/status');
+  getStatus: async (centerId?: string | null): Promise<CVConnectionStatus> => {
+    const response = await apiClient.get<CVConnectionStatus>('/api/v1/cyber-vision/status', {
+      params: centerParams(centerId),
+    });
     return response.data;
   },
 
@@ -263,50 +344,63 @@ export const cyberVisionApi = {
   },
 
   // Get CV devices
-  getDevices: async (params?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }): Promise<CVDeviceListResponse> => {
+  getDevices: async (
+    params?: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+    },
+    centerId?: string | null,
+  ): Promise<CVDeviceListResponse> => {
     // Backend expects 'size' (not 'limit') and 'start' (not 'offset')
     const response = await apiClient.get<CVDeviceListResponse>('/api/v1/cyber-vision/devices', {
-      params: params ? {
-        size: params.limit,
-        start: params.offset,
-        search: params.search,
-      } : undefined,
+      params: {
+        ...(params ? { size: params.limit, start: params.offset, search: params.search } : {}),
+        ...centerParams(centerId),
+      },
     });
     return response.data;
   },
 
   // Get single CV device
-  getDevice: async (deviceId: string): Promise<CVDevice> => {
-    const response = await apiClient.get<CVDevice>(`/api/v1/cyber-vision/devices/${deviceId}`);
+  getDevice: async (deviceId: string, centerId?: string | null): Promise<CVDevice> => {
+    const response = await apiClient.get<CVDevice>(`/api/v1/cyber-vision/devices/${deviceId}`, {
+      params: centerParams(centerId),
+    });
     return response.data;
   },
 
   // Get CV vulnerabilities
-  getVulnerabilities: async (params?: {
-    limit?: number;
-    offset?: number;
-    severity?: string;
-  }): Promise<CVVulnerabilityListResponse> => {
+  getVulnerabilities: async (
+    params?: {
+      limit?: number;
+      offset?: number;
+      severity?: string;
+    },
+    centerId?: string | null,
+  ): Promise<CVVulnerabilityListResponse> => {
     const response = await apiClient.get<CVVulnerabilityListResponse>(
       '/api/v1/cyber-vision/vulnerabilities',
-      { params }
+      { params: { ...(params ?? {}), ...centerParams(centerId) } }
     );
     return response.data;
   },
 
   // Get CV presets
-  getPresets: async (): Promise<CVPresetListResponse> => {
-    const response = await apiClient.get<CVPresetListResponse>('/api/v1/cyber-vision/presets');
+  getPresets: async (centerId?: string | null): Promise<CVPresetListResponse> => {
+    const response = await apiClient.get<CVPresetListResponse>('/api/v1/cyber-vision/presets', {
+      params: centerParams(centerId),
+    });
     return response.data;
   },
 
   // Compare scenario with CV devices
-  compareScenario: async (scenarioId: string, presetId?: string): Promise<CVComparisonResult> => {
-    const params = presetId ? { preset_id: presetId } : undefined;
+  compareScenario: async (
+    scenarioId: string,
+    presetId?: string,
+    centerId?: string | null,
+  ): Promise<CVComparisonResult> => {
+    const params = { ...(presetId ? { preset_id: presetId } : {}), ...centerParams(centerId) };
     const response = await apiClient.post<CVComparisonResult>(
       `/api/v1/cyber-vision/compare/${scenarioId}`,
       null,
@@ -316,18 +410,26 @@ export const cyberVisionApi = {
   },
 
   // Enrich CV devices with PacketArch data
-  enrichDevices: async (request: CVEnrichmentRequest): Promise<CVEnrichmentResult> => {
+  enrichDevices: async (
+    request: CVEnrichmentRequest,
+    centerId?: string | null,
+  ): Promise<CVEnrichmentResult> => {
     const response = await apiClient.post<CVEnrichmentResult>(
       '/api/v1/cyber-vision/enrich',
-      request
+      request,
+      { params: centerParams(centerId) }
     );
     return response.data;
   },
 
   // Provision a CV preset for a scenario and schedule zone-group creation
-  provisionScenario: async (scenarioId: string): Promise<CVProvisionStatus> => {
+  // Omitting centerId keeps the scenario on its current center (else the
+  // default). Naming a different center than the one it is on is a 409.
+  provisionScenario: async (scenarioId: string, centerId?: string | null): Promise<CVProvisionStatus> => {
     const response = await apiClient.post<CVProvisionStatus>(
-      `/api/v1/cyber-vision/provision/${scenarioId}`
+      `/api/v1/cyber-vision/provision/${scenarioId}`,
+      null,
+      { params: centerParams(centerId) }
     );
     return response.data;
   },
@@ -341,8 +443,11 @@ export const cyberVisionApi = {
   },
 
   // Analyze duplicate MAC addresses
-  analyzeDuplicateMacs: async (presetId?: string): Promise<DuplicateMacAnalysisResponse> => {
-    const params = presetId ? { preset_id: presetId } : undefined;
+  analyzeDuplicateMacs: async (
+    presetId?: string,
+    centerId?: string | null,
+  ): Promise<DuplicateMacAnalysisResponse> => {
+    const params = { ...(presetId ? { preset_id: presetId } : {}), ...centerParams(centerId) };
     const response = await apiClient.get<DuplicateMacAnalysisResponse>(
       '/api/v1/cyber-vision/duplicate-macs',
       { params }

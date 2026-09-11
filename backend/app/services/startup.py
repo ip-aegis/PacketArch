@@ -556,6 +556,17 @@ async def run_startup_tasks(db: AsyncSession) -> dict:
     settings_created = await seed_default_settings(db)
     results["settings"] = f"Seeded {settings_created} default settings"
 
+    # Move the pre-multi-center global cyber_vision_* settings into the first
+    # (default) Cyber Vision Center, stamping existing labs + provisioned
+    # scenarios with it. Idempotent; must run before anything that talks to CV.
+    from app.services.cv_centers import migrate_legacy_settings
+    try:
+        results["cv_centers"] = await migrate_legacy_settings(db)
+    except Exception as e:  # never block startup; CV stays on the legacy rows
+        await db.rollback()
+        logger.exception("migrate_legacy_settings failed")
+        results["cv_centers"] = f"legacy migration failed: {e}"
+
     # Auto-graduate existing installs: if an admin already exists (legacy
     # bootstrap or pre-wizard install), mark setup as complete so the wizard
     # doesn't fire on upgrade.

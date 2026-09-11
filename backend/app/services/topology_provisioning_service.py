@@ -23,7 +23,7 @@ import uuid
 from typing import Any
 
 from app.core.exceptions import NotFoundError, ValidationError
-from app.services import local_sensor_service, topology_planner
+from app.services import cv_centers, local_sensor_service, topology_planner
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +87,15 @@ async def preflight(db, scenario_id: str) -> dict[str, Any]:
     }
 
 
-async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None) -> dict[str, Any]:
+async def provision(
+    db, scenario_id: str, created_by_id: uuid.UUID | None = None,
+    cv_center_id: uuid.UUID | str | None = None,
+) -> dict[str, Any]:
     """Provision one Local Sensor Lab per SPAN (zones + core).
+
+    Every member lab's sensor enrolls into the SAME Cyber Vision Center
+    (``cv_center_id``, default: the default center, resolved once up front so
+    a default change mid-loop can't split the group across centers).
 
     Returns the deployment summary including the per-span member list with each
     lab's ``gen_if`` (the injection interface for that SPAN). Agent tokens are
@@ -120,6 +127,9 @@ async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None
         zid = span_id.split(":", 1)[1] if ":" in span_id else span_id
         return (zones.get(zid, {}) or {}).get("name") or zid
 
+    center = await cv_centers.resolve_center(db, cv_center_id)
+    pinned_center_id = center.id if center else None
+
     prefix = group_prefix(scenario_id)
     members: list[dict[str, Any]] = []
     for span_id in spans:
@@ -127,7 +137,7 @@ async def provision(db, scenario_id: str, created_by_id: uuid.UUID | None = None
         lab_name = f"{prefix}{_span_label(span_id)}"
         built = await local_sensor_service.build_lab(
             db, name=lab_name, agent_name=None, created_by_id=created_by_id,
-            sensor_label=_sensor_label(span_id),
+            sensor_label=_sensor_label(span_id), cv_center_id=pinned_center_id,
         )
         members.append(
             {
@@ -298,6 +308,7 @@ def _build_span_map(scenario_id: str, members: list[dict[str, Any]], plan: dict[
 async def deploy(
     db, scenario_id: str, *, provision_cyber_vision: bool = True,
     created_by_id: uuid.UUID | None = None,
+    cv_center_id: uuid.UUID | str | None = None,
 ) -> dict[str, Any]:
     """Provision N+1 sensor labs, then (when all are ready) deploy the scenario
     to the core lab's agent as the single conductor THROUGH the normal
@@ -316,6 +327,12 @@ async def deploy(
             raise ValidationError(
                 "This topology deployment is already live. Tear it down first to redeploy."
             )
+        member_centers = {m.get("cv_center_id") for m in existing["members"]} - {None}
+        if cv_center_id and member_centers and member_centers != {str(cv_center_id)}:
+            raise ValidationError(
+                "This topology's labs are already provisioned on a different Cyber "
+                "Vision Center. Tear it down first to move it."
+            )
         plan = await plan_for(db, scenario_id)
         members = _members_from_labs(scenario_id, existing["members"], plan)
         result = {
@@ -330,7 +347,9 @@ async def deploy(
             scenario_id, len(members),
         )
     else:
-        result = await provision(db, scenario_id, created_by_id=created_by_id)
+        result = await provision(
+            db, scenario_id, created_by_id=created_by_id, cv_center_id=cv_center_id
+        )
     await _set_pending(db, scenario_id, provision_cyber_vision)
     _arm_deploy(scenario_id, provision_cyber_vision)
     result["deploy_pending"] = True

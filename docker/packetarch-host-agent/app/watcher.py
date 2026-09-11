@@ -91,7 +91,13 @@ def _provision(spec: dict, *, fast: bool = False) -> None:
             # local). See hostops.ensure_sensor_image.
             img_ref = hostops.sensor_image_ref(sensor_yaml)
             if img_ref:
-                hostops.ensure_sensor_image(img_ref)
+                # Registries of the OTHER Cyber Vision Centers live labs use:
+                # never borrow their cached sensor image for this lab.
+                other_registries = {
+                    s.get("registry") for s in state.list_specs()
+                    if s.get("registry") and s.get("registry") != spec.get("registry")
+                }
+                hostops.ensure_sensor_image(img_ref, other_registries=other_registries)
             if not hostops.container_running(spec["sensor_container"]):
                 hostops.compose_down(hostops.sensor_compose_path(work),
                                      hostops._project(slug, "sensor"))

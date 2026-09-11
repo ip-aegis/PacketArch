@@ -7,8 +7,10 @@ The host-agent file-queue is patched so these tests never touch a real shared
 volume or Docker — they exercise the route/service/DB layer only. Both the route
 and the service do `from app.services import host_agent_client`, so patching the
 attributes on that module covers both call sites. The Cyber Vision API is
-likewise faked — `local_sensor_service` talks to it via `cv_service_from_settings`,
-patched to return an in-memory fake instead of a real httpx-backed client.
+likewise faked: a real Cyber Vision Center row comes from the `cv_center`
+fixture, and `cv_centers.classic_client` is patched to hand back an in-memory
+fake instead of a real httpx-backed client (recording which center it was
+built for).
 """
 
 from contextlib import contextmanager
@@ -65,11 +67,20 @@ def fake_host_agent(available: bool = True):
 
 
 @contextmanager
-def fake_cyber_vision(configured: bool = True):
-    """Patch `cv_service_from_settings` to return a FakeCyberVisionService (or
-    None, simulating "Cyber Vision isn't configured")."""
-    fake = FakeCyberVisionService() if configured else None
-    with patch(f"{_LSS}.cv_service_from_settings", AsyncMock(return_value=fake)):
+def fake_cyber_vision():
+    """Patch `cv_centers.classic_client` so any configured center yields a
+    FakeCyberVisionService (and no center yields None, i.e. "Cyber Vision isn't
+    configured"). `fake.centers` records which centers clients were built for."""
+    fake = FakeCyberVisionService()
+    fake.centers = []
+
+    def _client(center):
+        if center is None:
+            return None
+        fake.centers.append(center.id)
+        return fake
+
+    with patch("app.services.cv_centers.classic_client", side_effect=_client):
         yield fake
 
 
@@ -86,7 +97,7 @@ async def test_host_status_unavailable(
 
 
 async def test_build_creates_lab_and_agent(
-    client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession
+    client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, cv_center
 ):
     """Build auto-provisions via the (faked) CV API, mints an agent token, and
     persists LocalLab + agent."""
@@ -108,6 +119,10 @@ async def test_build_creates_lab_and_agent(
         await db_session.execute(select(LocalLab).where(LocalLab.name == "Test Lab"))
     ).scalar_one()
     assert lab.sensor_serial == body["sensor_serial"]
+    # Built on (and bound to) the default center.
+    assert lab.cv_center_id == cv_center.id
+    assert body["cv_center_id"] == str(cv_center.id)
+    assert body["cv_center_name"] == "Test Center"
     assert "SERIAL_NUMBER=" in lab.sensor_compose
     assert "PROVISIONING_TOKEN=" in lab.sensor_compose
     agent = (
@@ -122,7 +137,7 @@ async def test_build_rejects_when_cv_not_configured(
     client: AsyncClient, admin_auth_headers: dict
 ):
     """No Cyber Vision connection configured -> 400 ValidationError."""
-    with fake_host_agent(), fake_cyber_vision(configured=False):
+    with fake_host_agent(), fake_cyber_vision():
         resp = await client.post(
             "/api/v1/local-sensor/build",
             headers=admin_auth_headers,
@@ -132,7 +147,7 @@ async def test_build_rejects_when_cv_not_configured(
 
 
 async def test_list_then_teardown(
-    client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession
+    client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, cv_center
 ):
     """A built lab lists, then teardown full-deletes the lab + its agent (and
     best-effort deletes the CV sensor object)."""
@@ -162,3 +177,54 @@ async def test_list_then_teardown(
         await db_session.execute(select(LocalLab).where(LocalLab.name == "Cycle Lab"))
     ).scalar_one_or_none()
     assert remaining is None
+
+
+async def test_lab_is_built_and_torn_down_on_its_own_center(
+    client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, cv_center
+):
+    """A lab built on a non-default center records it, lists it, and is torn
+    down there — even after the default changes."""
+    from app.services import cv_centers
+
+    other = await cv_centers.create_center(
+        db_session, name="Second Center", url="https://10.0.0.6", api_token="t2"
+    )
+    await db_session.commit()
+
+    with fake_host_agent(), fake_cyber_vision() as cv:
+        build = await client.post(
+            "/api/v1/local-sensor/build",
+            headers=admin_auth_headers,
+            json={"name": "Second Lab", "cv_center_id": str(other.id)},
+        )
+        assert build.status_code == 200, build.text
+        assert build.json()["cv_center_id"] == str(other.id)
+        lab_id = build.json()["lab_id"]
+
+        listed = await client.get("/api/v1/local-sensor/labs", headers=admin_auth_headers)
+        item = next(i for i in listed.json()["items"] if i["lab_id"] == lab_id)
+        assert item["cv_center_name"] == "Second Center"
+
+        # Flip the default to the second center and back: teardown must follow
+        # the lab's recorded center, not whatever is default now.
+        await cv_centers.set_default(db_session, cv_center)
+        await db_session.commit()
+        cv.centers.clear()
+        teardown = await client.post(
+            f"/api/v1/local-sensor/{lab_id}/teardown", headers=admin_auth_headers
+        )
+    assert teardown.status_code == 200
+    assert cv.centers == [other.id]
+    assert cv.deleted_sensor_ids == ["sensor-uuid-1"]
+
+
+async def test_build_rejects_unknown_center(
+    client: AsyncClient, admin_auth_headers: dict, cv_center
+):
+    with fake_host_agent(), fake_cyber_vision():
+        resp = await client.post(
+            "/api/v1/local-sensor/build",
+            headers=admin_auth_headers,
+            json={"name": "Nowhere Lab", "cv_center_id": "00000000-0000-0000-0000-000000000001"},
+        )
+    assert resp.status_code == 404

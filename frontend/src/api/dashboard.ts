@@ -63,6 +63,7 @@ export interface DashboardDeployment {
     subnet: string | null;
     group_count: number;
     device_count: number;
+    center_id?: string | null; // Cyber Vision Center it is provisioned on
   } | null;
   /** Industry vertical from the scenario definition. */
   vertical?: string | null;

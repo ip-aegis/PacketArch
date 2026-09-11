@@ -3,6 +3,8 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Cyber Vision schemas for API validation."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -55,7 +57,9 @@ class CVConnectionStatusResponse(BaseModel):
     connected: bool
     message: str
     version: str | None = None
-    center_name: str | None = None
+    center_name: str | None = Field(None, description="Name the Center reports about itself")
+    center_id: str | None = Field(None, description="PacketArch id of the center that was checked")
+    center_label: str | None = Field(None, description="PacketArch display name of that center")
 
 
 class CVTestConnectionRequest(BaseModel):
@@ -107,7 +111,9 @@ class CVComparisonResult(BaseModel):
 
 
 class CVSettingsUpdate(BaseModel):
-    """Schema for updating CV settings."""
+    """Schema for updating the DEFAULT center's settings (legacy single-center
+    shape, kept for the setup wizard and older clients — use
+    ``/cyber-vision/centers`` for anything multi-center)."""
 
     cyber_vision_url: str | None = Field(default=None, description="Cyber Vision URL")
     cyber_vision_api_token: str | None = Field(default=None, description="API token")
@@ -119,7 +125,7 @@ class CVSettingsUpdate(BaseModel):
 
 
 class CVSettingsResponse(BaseModel):
-    """Schema for CV settings response (token masked)."""
+    """The default center in the legacy single-center shape (tokens masked)."""
 
     cyber_vision_url: str
     cyber_vision_api_token_set: bool = Field(description="Whether token is configured")
@@ -280,3 +286,53 @@ class CVProvisionResponse(BaseModel):
     device_count: int = Field(0, description="Devices assigned to groups")
     error: str | None = Field(None, description="Error message if provisioning failed")
     updated_at: str | None = Field(None, description="Last state update timestamp")
+    center_id: str | None = Field(None, description="Cyber Vision Center this scenario is provisioned on")
+    center_name: str | None = Field(None, description="Name of that center")
+
+
+# --- Cyber Vision Centers ---------------------------------------------------
+
+class CVCenterCreate(BaseModel):
+    """Add a Cyber Vision Center."""
+
+    name: str | None = Field(
+        default=None, max_length=100, description="Display name (default: the URL's host)"
+    )
+    url: str = Field(..., min_length=1, max_length=500, description="Center URL, e.g. https://10.10.20.115")
+    api_token: str = Field(..., min_length=1, description="Classic /api/3.0 API token")
+    new_ui_token: str | None = Field(
+        default=None, description="Optional New UI /cvapi/v1 token (a separate CV token store)"
+    )
+    verify_ssl: bool = False
+    is_default: bool = Field(default=False, description="Make this the default center")
+
+
+class CVCenterUpdate(BaseModel):
+    """Partial update. Omitted fields are unchanged; new_ui_token="" clears it."""
+
+    name: str | None = Field(default=None, max_length=100)
+    url: str | None = Field(default=None, max_length=500)
+    api_token: str | None = None
+    new_ui_token: str | None = None
+    verify_ssl: bool | None = None
+
+
+class CVCenterResponse(BaseModel):
+    """A Cyber Vision Center (tokens never returned)."""
+
+    id: str
+    name: str
+    url: str
+    verify_ssl: bool
+    is_default: bool
+    api_token_set: bool
+    new_ui_token_set: bool
+    local_labs: int = Field(0, description="Local sensor labs whose sensor enrolls here")
+    scenarios: int = Field(0, description="Scenarios provisioned on this center")
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CVCenterListResponse(BaseModel):
+    centers: list[CVCenterResponse]
+    default_center_id: str | None = None

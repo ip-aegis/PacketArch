@@ -51,10 +51,23 @@ class LocalLab(Base):
         ForeignKey("traffic_agents.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Parsed from the operator-pasted CV sensor compose.
+    # The Cyber Vision Center this lab's sensor enrolls into. Set at build and
+    # never changed: the Center-minted provisioning JWT bakes in the Center's
+    # own collection host, so the binding is immutable by construction. Deploys
+    # to this lab's agent provision CV on this center; teardown deletes the
+    # sensor here. Null only on labs built before multi-center support until
+    # the boot-time backfill stamps them with the migrated default center.
+    cv_center_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("cyber_vision_centers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # The CV sensor serial (the sensor's identity on its Center) and the
+    # Center's image registry host, both derived at build time.
     sensor_serial: Mapped[str | None] = mapped_column(String(128), nullable=True)
     registry: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # The operator-pasted CV docker-compose YAML (verbatim).
+    # The CV docker-compose YAML synthesized at build (holds the minted JWT).
     sensor_compose: Mapped[str] = mapped_column(Text, nullable=False)
     # Per-lab virtual SPAN interface names.
     gen_if: Mapped[str] = mapped_column(String(64), nullable=False)

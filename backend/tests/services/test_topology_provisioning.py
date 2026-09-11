@@ -26,6 +26,9 @@ def _def() -> dict:
     }
 
 
+from types import SimpleNamespace  # noqa: E402
+
+
 class _FakeScn:
     def __init__(self, sid, definition):
         self.id = sid
@@ -43,17 +46,24 @@ def patched(monkeypatch):
     built = []
     labs_store = []
 
-    async def fake_build_lab(db, *, name, agent_name, created_by_id, sensor_label=None):
+    async def fake_build_lab(db, *, name, agent_name, created_by_id, sensor_label=None,
+                             cv_center_id=None):
         slug = f"slug{len(built)}"
         rec = {
             "lab_id": f"lab-{len(built)}", "slug": slug,
             "agent_id": f"agent-{len(built)}", "agent_token": "tok",
             "sensor_serial": f"ser-{len(built)}", "state": "provisioning",
+            "cv_center_id": cv_center_id,
         }
         built.append((name, rec))
         labs_store.append({"lab_id": rec["lab_id"], "name": name, "slug": slug,
-                           "gen_if": f"pa-gen-{slug}", "state": "running"})
+                           "gen_if": f"pa-gen-{slug}", "state": "running",
+                           "cv_center_id": str(cv_center_id) if cv_center_id else None})
         return rec
+
+    # Center resolution: the default center unless one is named.
+    async def fake_resolve_center(db, center_id=None):
+        return SimpleNamespace(id=center_id or "default-center")
 
     async def fake_list_labs(db):
         return list(labs_store)
@@ -88,6 +98,7 @@ def patched(monkeypatch):
     def fake_arm_deploy(scenario_id, provision_cyber_vision):
         armed.append(scenario_id)
 
+    monkeypatch.setattr(tps.cv_centers, "resolve_center", fake_resolve_center)
     monkeypatch.setattr(tps, "_load_scenario", fake_load)
     monkeypatch.setattr(tps, "_deployment_state", fake_deployment_state)
     monkeypatch.setattr(tps, "_get_pending", fake_get_pending)
@@ -97,8 +108,6 @@ def patched(monkeypatch):
     monkeypatch.setattr(local_sensor_service, "build_lab", fake_build_lab)
     monkeypatch.setattr(local_sensor_service, "list_labs", fake_list_labs)
     monkeypatch.setattr(local_sensor_service, "teardown_lab", fake_teardown_lab)
-
-    from types import SimpleNamespace
 
     return SimpleNamespace(
         sid=sid, built=built, torn=torn,
@@ -193,6 +202,26 @@ class TestProvisioning:
         assert set(res["span_interface_map"]) == {"zone:z-cell", "zone:z-ops", "core"}
         assert p.sid in p.pending
         assert p.armed == [p.sid]
+
+    async def test_provision_pins_every_lab_to_one_center(self, patched):
+        p = patched
+        await tps.provision(None, p.sid, cv_center_id="center-b")
+        assert {rec["cv_center_id"] for _, rec in p.built} == {"center-b"}
+
+    async def test_provision_default_center_resolved_once(self, patched):
+        p = patched
+        await tps.provision(None, p.sid)
+        assert {rec["cv_center_id"] for _, rec in p.built} == {"default-center"}
+
+    async def test_deploy_refuses_to_move_existing_labs_to_another_center(self, patched):
+        p = patched
+        await tps.provision(None, p.sid, cv_center_id="center-a")
+        with pytest.raises(Exception) as ei:
+            await tps.deploy(None, p.sid, cv_center_id="center-b")
+        assert "different Cyber Vision Center" in str(ei.value)
+        # Same center (or none named) resumes as before.
+        res = await tps.deploy(None, p.sid, cv_center_id="center-a")
+        assert res["deploy_pending"] is True
 
     async def test_deploy_refuses_when_conductor_live(self, patched):
         p = patched

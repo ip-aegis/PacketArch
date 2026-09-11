@@ -32,12 +32,14 @@ import yaml
 from sqlalchemy import select
 
 from app.core.exceptions import ConflictError, ExternalServiceError, ValidationError
+from app.models.cyber_vision_center import CyberVisionCenter
 from app.models.local_lab import LocalLab
 from app.models.settings import SystemSetting
 from app.models.traffic_agent import TrafficAgent
 from app.services import host_agent_client, local_lab_naming
 from app.services.agent_tokens import generate_agent_token, hash_token
-from app.services.cyber_vision_service import CyberVisionService, cv_service_from_settings
+from app.services import cv_centers
+from app.services.cyber_vision_service import CyberVisionService
 
 logger = logging.getLogger(__name__)
 
@@ -221,9 +223,13 @@ def _spec_from_lab(lab: LocalLab, *, agent_token: str, agent_name: str,
 
 async def build_lab(db, *, name: str,
                     agent_name: str | None, created_by_id: uuid.UUID | None,
-                    sensor_label: str | None = None) -> dict:
+                    sensor_label: str | None = None,
+                    cv_center_id: uuid.UUID | str | None = None) -> dict:
     """Create a local sensor lab: auto-provision a CV sensor, persist desired
     state, and queue host provisioning.
+
+    The sensor enrolls into ``cv_center_id`` (default: the default center), and
+    the lab records it — permanently, since the Center-minted JWT pins it.
 
     Returns a dict suitable for LocalLabBuildResponse. The agent token is shown
     only once (in the return value); only its hash is stored.
@@ -235,11 +241,14 @@ async def build_lab(db, *, name: str,
                     "mounted on the backend). Local sensor labs require the host-agent service.",
         )
 
-    cv = await cv_service_from_settings(db)
+    center = await cv_centers.resolve_center(db, cv_center_id)
+    cv = cv_centers.classic_client(center)
     if cv is None:
         raise ValidationError(
             "Cyber Vision isn't configured. Configure it under Settings > Cyber Vision "
             "before creating a local sensor lab — auto-provisioning needs it."
+            if center is None else
+            f"Cyber Vision Center '{center.name}' has no API token configured."
         )
 
     # Name uniqueness (friendly error before hitting the DB constraint).
@@ -290,7 +299,7 @@ async def build_lab(db, *, name: str,
             raise ExternalServiceError(
                 service="cyber_vision",
                 message=(
-                    f"The Cyber Vision Center advertises its sensor collection host as "
+                    f"Cyber Vision Center '{center.name}' advertises its sensor collection host as "
                     f"'{center_host}', but it is unreachable from the PacketArch host "
                     f"({detail}). The sensor would never enroll, so the build was stopped. "
                     f"Fix the Center's collection-interface address so it is an IP reachable "
@@ -320,6 +329,7 @@ async def build_lab(db, *, name: str,
         name=name,
         slug=slug,
         agent_id=agent.id,
+        cv_center_id=center.id,
         sensor_serial=serial,
         registry=registry,
         sensor_compose=sensor_compose,
@@ -352,6 +362,8 @@ async def build_lab(db, *, name: str,
         "agent_id": str(agent.id),
         "agent_token": token,
         "sensor_serial": serial,
+        "cv_center_id": str(center.id),
+        "cv_center_name": center.name,
         "state": lab.state,
         "warnings": [],
     }
@@ -374,6 +386,7 @@ async def list_labs(db) -> list[dict]:
     """All local labs, each enriched with live host-agent status + agent state."""
     result = await db.execute(select(LocalLab))
     labs = result.scalars().all()
+    names = await cv_centers.center_names(db)
     # Map agent_id -> agent
     agent_ids = [lab.agent_id for lab in labs if lab.agent_id]
     agents = {}
@@ -393,6 +406,8 @@ async def list_labs(db) -> list[dict]:
             "agent_name": a.name if a else None,
             "agent_status": a.status if a else None,
             "sensor_serial": lab.sensor_serial,
+            "cv_center_id": str(lab.cv_center_id) if lab.cv_center_id else None,
+            "cv_center_name": names.get(str(lab.cv_center_id)) if lab.cv_center_id else None,
             "gen_if": lab.gen_if,
             "mon_if": lab.mon_if,
             "stage": None,
@@ -422,6 +437,11 @@ async def get_lab(db, lab_id: str) -> dict | None:
         "agent_name": a.name if a else None,
         "agent_status": a.status if a else None,
         "sensor_serial": lab.sensor_serial,
+        "cv_center_id": str(lab.cv_center_id) if lab.cv_center_id else None,
+        "cv_center_name": (
+            (await cv_centers.center_names(db)).get(str(lab.cv_center_id))
+            if lab.cv_center_id else None
+        ),
         "gen_if": lab.gen_if,
         "mon_if": lab.mon_if,
         "stage": None,
@@ -447,13 +467,17 @@ async def teardown_lab(db, lab_id: str) -> dict:
         except Exception:  # noqa: BLE001 — proceed with DB delete regardless
             logger.exception("failed to queue host-agent teardown for %s", slug)
 
-    # Best-effort: remove the sensor object from the CV Center too, so labs
-    # don't leave orphaned sensor entries behind. Non-fatal — a stale/
-    # reconfigured CV connection (or a lab built via the old paste-a-compose
-    # flow against a different Center) just no-ops with a logged warning,
-    # same as the host-agent teardown call above.
+    # Best-effort: remove the sensor object from the Center the lab was built
+    # on (never "the current default"), so labs don't leave orphaned sensor
+    # entries behind. Non-fatal — an unreachable Center just no-ops with a
+    # logged warning, same as the host-agent teardown call above. Labs from
+    # before multi-center support were stamped with the migrated default.
     if lab.sensor_serial:
-        cv = await cv_service_from_settings(db)
+        center = (
+            await db.get(CyberVisionCenter, lab.cv_center_id)
+            if lab.cv_center_id else await cv_centers.default_center(db)
+        )
+        cv = cv_centers.classic_client(center)
         if cv is not None:
             try:
                 sensor = await cv.find_sensor_by_serial(lab.sensor_serial)

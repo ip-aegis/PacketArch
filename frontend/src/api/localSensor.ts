@@ -19,6 +19,7 @@ export interface LocalHostStatus {
 export interface LocalLabBuildRequest {
   name: string;
   agent_name?: string | null;
+  cv_center_id?: string | null; // Cyber Vision Center the sensor enrolls into (default center if omitted)
 }
 
 export interface LocalLabBuildResponse {
@@ -29,6 +30,8 @@ export interface LocalLabBuildResponse {
   agent_id: string | null;
   agent_token: string | null;
   sensor_serial: string | null;
+  cv_center_id?: string | null;
+  cv_center_name?: string | null;
   state: string;
   warnings: string[];
 }
@@ -49,6 +52,8 @@ export interface LocalLabItem {
   agent_name: string | null;
   agent_status: string | null;
   sensor_serial: string | null;
+  cv_center_id?: string | null; // the Cyber Vision Center this lab's sensor enrolls into
+  cv_center_name?: string | null;
   gen_if: string;
   mon_if: string;
   stage: string | null;

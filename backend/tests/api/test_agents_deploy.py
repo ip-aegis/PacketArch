@@ -66,7 +66,12 @@ def fake_host_agent():
 
 @contextmanager
 def fake_cyber_vision():
-    with patch(f"{_LSS}.cv_service_from_settings", AsyncMock(return_value=FakeCyberVisionService())):
+    """Any configured center yields the fake; no center yields None."""
+    fake = FakeCyberVisionService()
+    with patch(
+        "app.services.cv_centers.classic_client",
+        side_effect=lambda center: fake if center is not None else None,
+    ):
         yield
 
 
@@ -86,6 +91,7 @@ async def _make_scenario(db_session: AsyncSession, test_user) -> Scenario:
 
 async def test_deploy_new_lab_creates_pending_deploy(
     client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, test_user,
+    cv_center,
 ):
     """POST /agents/deploy-new-lab auto-provisions a lab and stores a pending
     deploy on the new agent — it does NOT deploy immediately."""
@@ -125,7 +131,7 @@ async def test_deploy_new_lab_requires_cv_configured(
     client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, test_user,
 ):
     scenario = await _make_scenario(db_session, test_user)
-    with fake_host_agent(), patch(f"{_LSS}.cv_service_from_settings", AsyncMock(return_value=None)):
+    with fake_host_agent(), fake_cyber_vision():  # no center row -> not configured
         resp = await client.post(
             "/api/v1/agents/deploy-new-lab",
             headers=admin_auth_headers,

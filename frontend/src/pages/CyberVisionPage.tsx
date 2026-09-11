@@ -51,6 +51,7 @@ import { useCyberVisionStore } from '../stores/cyberVisionStore';
 import { scenariosApi } from '../api/scenarios';
 import { extractErrorMessage } from '../utils/errorUtils';
 import ContextualHelpIcon from '../components/help/ContextualHelpIcon';
+import CyberVisionCenterSelect from '../components/common/CyberVisionCenterSelect';
 import type {
   CVDevice,
   CVVulnerability,
@@ -71,6 +72,10 @@ interface ScenarioOption {
 const CyberVisionPage: React.FC = () => {
   const navigate = useNavigate();
   const {
+    centers,
+    selectedCenterId,
+    selectCenter,
+    fetchCenters,
     connectionStatus,
     devices,
     vulnerabilities,
@@ -131,10 +136,24 @@ const CyberVisionPage: React.FC = () => {
 
   // Fetch initial data
   useEffect(() => {
-    fetchStatus();
+    fetchCenters();
     loadScenarios();
-    fetchPresets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; loadScenarios is a plain function
   }, []);
+
+  // (Re)load everything that comes FROM a center whenever the viewed center
+  // changes (the store has already cleared the previous center's data).
+  useEffect(() => {
+    setSelectedPreset(null);
+    setMacPresetFilter(null);
+    fetchStatus();
+    fetchPresets();
+  }, [selectedCenterId, fetchStatus, fetchPresets]);
+
+  // Only worth a picker once there is more than one center to choose from.
+  const centerPicker = centers.length > 1 ? (
+    <CyberVisionCenterSelect value={selectedCenterId} onChange={selectCenter} />
+  ) : null;
 
   // Load scenarios for dropdown
   const loadScenarios = async () => {
@@ -605,6 +624,7 @@ const CyberVisionPage: React.FC = () => {
           <EyeOutlined /> Cyber Vision
           <ContextualHelpIcon articleId="cyber-vision" tooltip="Cyber Vision integration help" />
         </Title>
+        {centerPicker && <div style={{ marginBottom: 16 }}>{centerPicker}</div>}
         <Alert
           message="Not Connected"
           description={
@@ -1350,6 +1370,7 @@ const CyberVisionPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
+              {centerPicker}
               {connectionStatus?.connected ? (
                 <Tag icon={<CheckCircleOutlined />} color="success">
                   Connected

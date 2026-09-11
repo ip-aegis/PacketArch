@@ -32,6 +32,8 @@ import { Alert, App, Button, Card, Checkbox, Divider, Form, Input, Segmented, Se
 import { PlusOutlined, RocketOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMimicStore } from '../stores/mimicStore';
 import { useLocalSensorStore } from '../stores/localSensorStore';
+import { useCyberVisionCenters } from '../hooks/useCyberVisionCenters';
+import CyberVisionCenterSelect from '../components/common/CyberVisionCenterSelect';
 
 const { Title, Text } = Typography;
 
@@ -118,6 +120,8 @@ const StudioInner: React.FC = () => {
   const [scenarioKey, setScenarioKey] = React.useState<string | undefined>(undefined);
   const [target, setTarget] = React.useState<'onbox' | 'offbox'>('onbox');
   const [withSensor, setWithSensor] = React.useState(false);
+  const [sensorCenterId, setSensorCenterId] = React.useState<string | null>(null);
+  const { multiCenter: multiCvCenter } = useCyberVisionCenters();
   const [form] = Form.useForm();
   const role = Form.useWatch('role', form) as string | undefined;
   const templateId = Form.useWatch('template_id', form) as string | undefined;
@@ -301,7 +305,10 @@ const StudioInner: React.FC = () => {
     }));
     const relationships = edges.map((e) => ({ source: e.source, target: e.target }));
     if (target === 'offbox') {
-      const res = await deployCml({ cell_name: cellName, devices, relationships, with_sensor: withSensor });
+      const res = await deployCml({
+        cell_name: cellName, devices, relationships, with_sensor: withSensor,
+        cv_center_id: withSensor ? sensorCenterId : null,
+      });
       if (res) {
         message.success(
           `Off-box lab "${res.lab_title}" launching — ${res.personas.length} persona node(s)` +
@@ -446,6 +453,14 @@ const StudioInner: React.FC = () => {
                       <Text type="secondary" style={{ fontSize: 11 }}> — Cyber Vision not configured</Text>
                     )}
                   </Checkbox>
+                  {withSensor && multiCvCenter && (
+                    <CyberVisionCenterSelect
+                      size="small"
+                      style={{ width: '100%' }}
+                      value={sensorCenterId}
+                      onChange={setSensorCenterId}
+                    />
+                  )}
                 </>
               ) : (
                 <Select

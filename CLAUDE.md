@@ -538,7 +538,36 @@ Unified fingerprint/signature data in `backend/app/services/device_templates/` p
 
 ## Cisco Cyber Vision Integration
 
-Connect to CV centers for device comparison, matching (MAC 100% / IP 95% confidence), and enrichment. Configure at Settings > Cyber Vision (URL + API token). Key files: `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx`.
+Connect to CV centers for device comparison, matching (MAC 100% / IP 95% confidence), and enrichment. Configure at Settings > Cyber Vision. Key files: `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx`.
+
+### Multiple centers (v1.19.0+)
+
+One PacketArch server can talk to many CV Centers. Each is a row in
+`cyber_vision_centers` (`models/cyber_vision_center.py`) with its own URL, SSL
+flag, classic `/api/3.0` token and optional new-UI `/cvapi/v1` token. Exactly one
+is the default.
+
+- **Resolution lives in one place:** `services/cv_centers.py` (`cv_client` /
+  `cv_v1_client` / `require_cv_client`). Explicit `center_id` must exist (404);
+  none means the default; nothing configured means `None`/400. Never read CV
+  config any other way.
+- **Objects remember their center, never "the default":**
+  `local_labs.cv_center_id` (immutable — the Center-minted JWT pins it) and
+  `scenario.definition['cyber_vision']['center_id']`. The Celery group task,
+  teardown, reconcilers and vertical roll-ups all follow those ids.
+- **One center per scenario.** `cv_provisioning_service.center_for_provisioning`
+  refuses (409) to provision a scenario onto a different, still-existing center
+  than the one it is on. That guard is the single hinge if fan-out is ever wanted.
+- **Local-lab agents are locked** to their lab's center at deploy
+  (`AgentManager.resolve_deploy_cv_center`); naming another is a 400.
+- **Legacy:** the old global `cyber_vision_*` settings are moved into the default
+  center at boot by `cv_centers.migrate_legacy_settings` (idempotent; token
+  ciphertext copied verbatim; labs + provisioned scenarios stamped). The
+  `/cyber-vision/settings` route is a shim over the default center.
+- **Host-agent:** `hostops._newest_cached_sensor_image` never borrows a cached
+  sensor image from another live center's registry. Rebuild host-agent with backend.
+- **Frontend:** `hooks/useCyberVisionCenters.ts` (`multiCenter` gates every
+  picker) and `components/common/CyberVisionCenterSelect.tsx`.
 
 ---
 

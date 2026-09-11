@@ -937,7 +937,10 @@ async def delete_scenario(
     # Best-effort Cyber Vision teardown (delete the preset + zone groups we
     # created). Never block scenario deletion on CV being reachable.
     deleted_vertical = getattr(scenario, "vertical", None)
-    cv_synced = bool((scenario.definition or {}).get("cyber_vision"))
+    cv_state = (scenario.definition or {}).get("cyber_vision")
+    cv_synced = bool(cv_state)
+    # The roll-up to re-sync lives on the center this scenario was provisioned on.
+    deleted_center_id = cv_state.get("center_id") if isinstance(cv_state, dict) else None
     if cv_synced:
         try:
             from app.services.cv_provisioning_service import teardown_cv_provisioning
@@ -953,7 +956,7 @@ async def delete_scenario(
     if cv_synced and deleted_vertical:
         try:
             from app.services.cv_provisioning_service import provision_vertical_preset
-            await provision_vertical_preset(db, deleted_vertical)
+            await provision_vertical_preset(db, deleted_vertical, center_id=deleted_center_id)
         except Exception:
             _logger.exception("vertical roll-up reconcile failed after delete (continuing)")
 

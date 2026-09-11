@@ -19,6 +19,8 @@ class CyberVisionSummary(BaseModel):
     subnet: str | None = None
     group_count: int = 0
     device_count: int = 0
+    # Cyber Vision Center the scenario is provisioned on (UI maps id -> name).
+    center_id: str | None = None
 
 
 class UnifiedDeploymentResponse(BaseModel):
@@ -86,6 +88,7 @@ class UnifiedDeploymentResponse(BaseModel):
                     subnet=cv.get("subnet"),
                     group_count=len(cv.get("groups") or {}),
                     device_count=int(cv.get("device_count") or 0),
+                    center_id=cv.get("center_id"),
                 )
         return cls(
             id=deployment.id,

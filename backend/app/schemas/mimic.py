@@ -119,6 +119,8 @@ class CmlDeployRequest(BaseModel):
     devices: list[AuthorDeviceInput] = Field(..., min_length=1)
     relationships: list[AuthorRelationship] = Field(default_factory=list)
     with_sensor: bool = False  # add an IOSvL2 SPAN + auto-provisioned CV sensor node
+    # Cyber Vision Center the sensor enrolls into (default: the default center).
+    cv_center_id: str | None = None
 
 
 class CmlPersonaResult(BaseModel):

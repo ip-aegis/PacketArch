@@ -159,29 +159,18 @@ async def complete_setup(
             category="ai",
         )
 
-    # 4. Cyber Vision (optional)
-    if payload.cyber_vision.enabled:
-        if payload.cyber_vision.url:
-            await _upsert_setting(
+    # 4. Cyber Vision (optional) — becomes the first, default Cyber Vision Center.
+    if payload.cyber_vision.enabled and payload.cyber_vision.url and payload.cyber_vision.api_token:
+        from app.services import cv_centers
+
+        if await cv_centers.default_center(db) is None:
+            await cv_centers.create_center(
                 db,
-                "cyber_vision_url",
-                payload.cyber_vision.url,
-                category="cyber_vision",
+                url=payload.cyber_vision.url,
+                api_token=payload.cyber_vision.api_token,
+                verify_ssl=payload.cyber_vision.verify_ssl,
+                is_default=True,
             )
-        if payload.cyber_vision.api_token:
-            await _upsert_setting(
-                db,
-                "cyber_vision_api_token",
-                payload.cyber_vision.api_token,
-                is_secret=True,
-                category="cyber_vision",
-            )
-        await _upsert_setting(
-            db,
-            "cyber_vision_verify_ssl",
-            "true" if payload.cyber_vision.verify_ssl else "false",
-            category="cyber_vision",
-        )
 
     # 5. License acknowledgment
     forwarded = request.headers.get("x-forwarded-for")

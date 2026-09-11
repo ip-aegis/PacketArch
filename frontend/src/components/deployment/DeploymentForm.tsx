@@ -36,6 +36,9 @@ import type { Phase } from '../../types';
 import { PHASE_NAME_MAP, DEFAULT_LIVE_DURATIONS } from '../../constants/phases';
 import { useFeatures } from '../../hooks/useFeatures';
 import MultiSensorDeploySection from './MultiSensorDeploySection';
+import CyberVisionCenterSelect from '../common/CyberVisionCenterSelect';
+import { useCyberVisionCenters } from '../../hooks/useCyberVisionCenters';
+import { useLocalSensorStore } from '../../stores/localSensorStore';
 
 const { Text } = Typography;
 
@@ -86,6 +89,7 @@ export interface DeploymentFormProps {
     duration_minutes?: number;
     phase_schedule?: PhaseScheduleConfig;
     provision_cyber_vision?: boolean;
+    cv_center_id?: string | null;
   }) => void;
 }
 
@@ -118,6 +122,23 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
   // interface (a host-networked local agent otherwise exposes dozens of host
   // interfaces — the "ton of options" footgun). Lock it; nothing to choose.
   const isManagedAgent = !!(selectedAgent?.local_lab_id || selectedAgent?.cml_lab_id);
+
+  // Cyber Vision Center. Only a decision when more than one center exists. A
+  // local-lab agent is LOCKED to its lab's center (the lab's sensor is the only
+  // thing that sees the traffic), mirroring the interface lock above.
+  const { multiCenter: multiCvCenter } = useCyberVisionCenters();
+  const { labs, fetchLabs } = useLocalSensorStore();
+  const provisionCv = Form.useWatch('provision_cyber_vision', form) as boolean | undefined;
+  const agentLab = selectedAgent?.local_lab_id
+    ? labs.find((l) => l.lab_id === selectedAgent.local_lab_id)
+    : undefined;
+  useEffect(() => {
+    if (multiCvCenter && selectedAgent?.local_lab_id && !agentLab) fetchLabs();
+  }, [multiCvCenter, selectedAgent?.local_lab_id, agentLab, fetchLabs]);
+  // A locked agent never sends cv_center_id; clear any value picked for another agent.
+  useEffect(() => {
+    if (selectedAgent?.local_lab_id) form.setFieldValue('cv_center_id', undefined);
+  }, [selectedAgent?.local_lab_id, form]);
 
   // Host plumbing that is never a valid injection target: loopback, docker
   // bridges, and the veth/SPAN endpoints of OTHER local labs. (A managed
@@ -359,11 +380,20 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
             <Form.Item name="agent_name" label="Agent name (optional)">
               <Input placeholder="Defaults to Local-Sensor-<id>" />
             </Form.Item>
+            {multiCvCenter && (
+              <Form.Item
+                name="cv_center_id"
+                label="Cyber Vision Center"
+                tooltip="The new lab's sensor enrolls into this center, and Cyber Vision provisioning for this deploy happens there."
+              >
+                <CyberVisionCenterSelect />
+              </Form.Item>
+            )}
             <Alert
               type="info"
               showIcon
               message="Sensor auto-provisioned via Cyber Vision"
-              description="Uses the Cyber Vision connection configured under Settings > Cyber Vision. Enrollment takes a minute or two; the scenario deploys automatically once the sensor is online."
+              description="Creates and enrolls the docker sensor on the chosen Cyber Vision Center (the default center unless you pick one). Enrollment takes a minute or two; the scenario deploys automatically once the sensor is online."
               style={{ marginBottom: 12 }}
             />
           </>
@@ -402,6 +432,25 @@ const DeploymentForm: React.FC<DeploymentFormProps> = React.memo(({
                 </Tooltip>
               </Checkbox>
             </Form.Item>
+          )}
+          {cvConfigured && multiCvCenter && provisionCv && mode === 'existing' && (
+            selectedAgent?.local_lab_id ? (
+              <Form.Item label={<span style={{ fontSize: 12, color: '#8aa4bc' }}>Cyber Vision Center</span>} style={{ marginBottom: 12 }}>
+                <CyberVisionCenterSelect
+                  size="small"
+                  value={agentLab?.cv_center_id ?? null}
+                  lockedReason="This agent belongs to a local lab; its sensor reports to this center, so provisioning happens there."
+                />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="cv_center_id"
+                label={<span style={{ fontSize: 12, color: '#8aa4bc' }}>Cyber Vision Center</span>}
+                style={{ marginBottom: 12 }}
+              >
+                <CyberVisionCenterSelect size="small" />
+              </Form.Item>
+            )
           )}
 
           {/* Phase Schedule */}

@@ -26,8 +26,8 @@ class LocalHostStatusResponse(BaseModel):
 class LocalLabBuildRequest(BaseModel):
     """Schema for building a local agent + CV-sensor lab on the host.
 
-    The CV sensor is auto-provisioned via the Cyber Vision API (Settings >
-    Cyber Vision must be configured) — no compose paste required.
+    The CV sensor is auto-provisioned via the Cyber Vision API on the chosen
+    Cyber Vision Center (default center when omitted) — no compose paste.
     """
 
     name: str = Field(..., min_length=1, max_length=128, description="Name for the new local lab")
@@ -35,6 +35,10 @@ class LocalLabBuildRequest(BaseModel):
         default=None,
         max_length=255,
         description="Name for the PacketArch agent; default derived from the lab slug",
+    )
+    cv_center_id: str | None = Field(
+        default=None,
+        description="Cyber Vision Center the lab's sensor enrolls into (default: the default center)",
     )
 
 
@@ -48,6 +52,8 @@ class LocalLabBuildResponse(BaseModel):
     agent_id: str | None = None
     agent_token: str | None = Field(default=None, description="Agent token (shown only once)")
     sensor_serial: str | None = None
+    cv_center_id: str | None = None
+    cv_center_name: str | None = None
     state: str = "pending"
     warnings: list[str] = Field(default_factory=list)
 
@@ -66,6 +72,8 @@ class LocalLabItem(BaseModel):
     agent_name: str | None = None
     agent_status: str | None = None
     sensor_serial: str | None = None
+    cv_center_id: str | None = Field(None, description="Cyber Vision Center the sensor enrolls into")
+    cv_center_name: str | None = None
     gen_if: str
     mon_if: str
     # Live fields merged from the host-agent status file (best-effort).

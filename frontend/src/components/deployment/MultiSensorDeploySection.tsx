@@ -33,6 +33,8 @@ import {
   type TopologyDeployment,
 } from '../../api/topology';
 import { deploymentsApi } from '../../api/deployments';
+import CyberVisionCenterSelect from '../common/CyberVisionCenterSelect';
+import { useCyberVisionCenters } from '../../hooks/useCyberVisionCenters';
 import { extractErrorMessage } from '../../utils/errorUtils';
 
 const { Text, Paragraph } = Typography;
@@ -58,6 +60,9 @@ const MultiSensorDeploySection: React.FC<Props> = ({ scenarioId, cvConfigured })
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [deployment, setDeployment] = useState<TopologyDeployment | null>(null);
   const [provisionCv, setProvisionCv] = useState<boolean>(!!cvConfigured);
+  // All N+1 labs enroll into one Cyber Vision Center (null = the default).
+  const [cvCenterId, setCvCenterId] = useState<string | null>(null);
+  const { multiCenter: multiCvCenter } = useCyberVisionCenters();
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<number | null>(null);
 
@@ -102,7 +107,7 @@ const MultiSensorDeploySection: React.FC<Props> = ({ scenarioId, cvConfigured })
   const onDeploy = async () => {
     setBusy(true);
     try {
-      const res = await topologyApi.deploy(scenarioId, provisionCv);
+      const res = await topologyApi.deploy(scenarioId, provisionCv, cvCenterId);
       message.success(
         `Provisioning ${res.sensor_count} sensors — the conductor deploys automatically when they're ready.`,
       );
@@ -175,6 +180,14 @@ const MultiSensorDeploySection: React.FC<Props> = ({ scenarioId, cvConfigured })
           >
             Provision Cyber Vision {cvConfigured ? '' : '(configure CV in Settings first)'}
           </Checkbox>
+          {cvConfigured && multiCvCenter && (
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                Cyber Vision Center (every sensor in the topology enrolls here)
+              </Typography.Text>
+              <CyberVisionCenterSelect value={cvCenterId} onChange={setCvCenterId} style={{ width: '100%' }} />
+            </div>
+          )}
           <Popconfirm
             title={`Provision ${preflight.sensor_count} sensors?`}
             description={`Mints ${preflight.sensor_count} CV sensors (~${preflight.ram_estimate_gb} GB RAM) and deploys the conductor when ready.`}

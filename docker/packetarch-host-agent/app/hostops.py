@@ -412,24 +412,47 @@ def sensor_image_ref(compose_text: str) -> str | None:
     return None
 
 
-def _newest_cached_sensor_image(exclude: str | None = None) -> str | None:
+def _registry_of(repo_tag: str) -> str:
+    """'host:443/sensor:tag' -> 'host:443' (same shape as a spec's `registry`)."""
+    repo = repo_tag.rsplit(":", 1)[0] if ":" in repo_tag.rsplit("/", 1)[-1] else repo_tag
+    return repo.rsplit("/", 1)[0] if "/" in repo else ""
+
+
+def _newest_cached_sensor_image(
+    exclude: str | None = None,
+    prefer_registry: str | None = None,
+    avoid_registries: set[str] | frozenset[str] = frozenset(),
+) -> str | None:
     """Newest local image whose repo path ends in '/sensor' (a CV sensor image).
 
     Used as an offline fallback when the CV Center registry can't serve a pull.
     `docker images` lists newest-first, so the first match is the freshest.
+
+    Multi-center safety: an image from `prefer_registry` (the lab's own Center)
+    wins; an image from any registry in `avoid_registries` (another Center that
+    live labs still use) is never borrowed. Retagging another live Center's
+    sensor under this Center's ref would be sticky — the next build finds the
+    ref "already present" and never re-pulls — so a lab could run another CV
+    version's sensor indefinitely. Orphaned registries (a Center that changed
+    address, the original single-center use case) remain fair game.
     """
     p = _run(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"], check=False)
+    candidates = []
     for repo_tag in p.stdout.splitlines():
         repo_tag = repo_tag.strip()
         if not repo_tag or "<none>" in repo_tag or repo_tag == exclude:
             continue
         repo = repo_tag.rsplit(":", 1)[0]
         if repo.rsplit("/", 1)[-1] == "sensor":
-            return repo_tag
-    return None
+            candidates.append(repo_tag)
+    if prefer_registry:
+        same = next((c for c in candidates if _registry_of(c) == prefer_registry), None)
+        if same:
+            return same
+    return next((c for c in candidates if _registry_of(c) not in avoid_registries), None)
 
 
-def ensure_sensor_image(image_ref: str) -> None:
+def ensure_sensor_image(image_ref: str, other_registries: set[str] | None = None) -> None:
     """Make the CV sensor image available locally for `image_ref`.
 
     Order of preference (a lab only needs the image bytes — SERIAL_NUMBER +
@@ -441,7 +464,9 @@ def ensure_sensor_image(image_ref: str) -> None:
          have a cached sensor image from a prior lab → retag it to image_ref so
          provisioning still succeeds offline. Logged loudly; if the cached image
          is a different CV version it simply won't enroll (soft 'degraded'), it
-         can't harm anything.
+         can't harm anything. Never borrows from `other_registries` — the
+         registries of OTHER Centers that live labs still use (see
+         _newest_cached_sensor_image).
       4. No image and no cache → raise a clear, actionable error.
     """
     if _run(["docker", "image", "inspect", image_ref], check=False).returncode == 0:
@@ -449,7 +474,11 @@ def ensure_sensor_image(image_ref: str) -> None:
     log.info("sensor image %s not local — attempting registry pull", image_ref)
     if _run(["docker", "pull", image_ref], check=False, timeout=600).returncode == 0:
         return
-    cached = _newest_cached_sensor_image(exclude=image_ref)
+    cached = _newest_cached_sensor_image(
+        exclude=image_ref,
+        prefer_registry=_registry_of(image_ref),
+        avoid_registries=frozenset((other_registries or set()) - {_registry_of(image_ref)}),
+    )
     if cached:
         log.warning(
             "CV registry could not serve %s — reusing cached sensor image %s "
