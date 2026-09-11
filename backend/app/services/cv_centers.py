@@ -275,19 +275,28 @@ async def usage(db, center_id: uuid.UUID) -> dict[str, int]:
     return {"local_labs": int(labs), "scenarios": int(scenarios)}
 
 
+def scenario_center_id_column():
+    """SQL expression for a scenario's recorded ``cyber_vision.center_id`` (text).
+
+    Reads the one JSON subfield in the database instead of loading every
+    scenario definition. Compiles to ``->>`` on Postgres and ``JSON_EXTRACT``
+    on sqlite (tests); NULL when the scenario has no CV state or no center.
+    """
+    from app.models.scenario import Scenario
+
+    return Scenario.definition["cyber_vision"]["center_id"].as_string()
+
+
 async def _scenarios_on_center_count(db, center_id: uuid.UUID) -> int:
     from app.models.scenario import Scenario
 
-    # JSON path query written portably (Postgres in prod, sqlite in tests):
-    # filter in Python over the rows that have CV state at all.
-    rows = (await db.execute(select(Scenario.definition))).scalars().all()
-    target = str(center_id)
-    return sum(
-        1 for d in rows
-        if isinstance(d, dict)
-        and isinstance(d.get("cyber_vision"), dict)
-        and str(d["cyber_vision"].get("center_id") or "") == target
-    )
+    return (
+        await db.execute(
+            select(func.count(Scenario.id)).where(
+                scenario_center_id_column() == str(center_id)
+            )
+        )
+    ).scalar_one()
 
 
 async def center_in_use(db, center_id: uuid.UUID) -> bool:
@@ -391,6 +400,17 @@ async def migrate_legacy_settings(db) -> str:
         )
     elif have_centers:
         message = "centers already exist; removed stale legacy settings"
+    elif legacy_url or legacy_token:
+        # Half-configured (a URL with no token, or the reverse). There is no
+        # center to build, but deleting would throw away what the operator
+        # did enter, so leave the rows for them (or a rollback) to finish.
+        await db.rollback()
+        message = (
+            "legacy settings are incomplete (URL and API token are both needed); "
+            "left in place, add the center under Settings > Cyber Vision"
+        )
+        logger.warning("cv_centers: %s", message)
+        return message
 
     for row in rows.values():
         await db.delete(row)

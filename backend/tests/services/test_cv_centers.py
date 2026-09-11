@@ -173,6 +173,22 @@ async def test_empty_legacy_rows_are_just_removed(db_session):
     assert left == []
 
 
+async def test_half_configured_legacy_rows_are_kept(db_session):
+    """A URL with no token can't become a center, and must not be thrown away."""
+    db_session.add(SystemSetting(
+        key="cyber_vision_url", value="https://10.9.9.9", category="cyber_vision"))
+    db_session.add(SystemSetting(
+        key="cyber_vision_api_token", value="", category="cyber_vision", is_secret=True))
+    await db_session.commit()
+    message = await cv_centers.migrate_legacy_settings(db_session)
+    assert "incomplete" in message
+    assert await cv_centers.default_center(db_session) is None
+    left = {s.key: s.value for s in (await db_session.execute(
+        select(SystemSetting).where(SystemSetting.key.in_(cv_centers.LEGACY_CV_KEYS))
+    )).scalars().all()}
+    assert left.get("cyber_vision_url") == "https://10.9.9.9"
+
+
 # --------------------------------------------------------------------------- #
 # One center per scenario
 # --------------------------------------------------------------------------- #

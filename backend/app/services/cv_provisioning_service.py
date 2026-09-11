@@ -1445,20 +1445,28 @@ async def _subnets_by_vertical(db, center_id: UUID | str | None = None) -> dict[
     ``_scenarios_by_center``), so one center's roll-up never lists another
     center's scenarios.
     """
-    member_ids: set | None = None
+    target: str | None = None
+    default_id: str | None = None
     if center_id is not None:
-        by_center = await _scenarios_by_center(db)
-        member_ids = {s.id for s in by_center.get(str(center_id), [])}
+        target = str(center_id)
+        default = await cv_centers.default_center(db)
+        default_id = str(default.id) if default else None
+    # Projection only (the center id is one JSON subfield read in SQL), so a
+    # per-center, per-vertical reconcile never loads whole definitions.
     rows = (
         await db.execute(
-            select(Scenario.id, Scenario.vertical, IPRangeAllocation.cidr_range).join(
-                IPRangeAllocation, IPRangeAllocation.scenario_id == Scenario.id
-            )
+            select(
+                Scenario.vertical,
+                IPRangeAllocation.cidr_range,
+                cv_centers.scenario_center_id_column(),
+            ).join(IPRangeAllocation, IPRangeAllocation.scenario_id == Scenario.id)
         )
     ).all()
     out: dict[str, set[str]] = {}
-    for sid, vertical, cidr in rows:
-        if member_ids is not None and sid not in member_ids:
+    for vertical, cidr, recorded in rows:
+        # Same membership rule as _scenarios_by_center: no recorded center
+        # means the default center.
+        if target is not None and (recorded or default_id) != target:
             continue
         v = (vertical or "").strip()
         if v and cidr:
