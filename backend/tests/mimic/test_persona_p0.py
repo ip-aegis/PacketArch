@@ -62,11 +62,24 @@ async def test_p0_modbus_persona_gate() -> None:
         assert revision == "V4.10", f"firmware revision unexpected: {info!r}"
 
         # --- 2. Live drift: level ~50%, moving with noise ------------------- #
-        first = (await _read_regs(client, 0, 4))[0]
-        await asyncio.sleep(1.0)
-        second = (await _read_regs(client, 0, 4))[0]
+        # Sample a WINDOW rather than comparing two reads a second apart. The
+        # register is an integer and the loop sits near steady state, so two
+        # consecutive samples can legitimately round to the same value — that
+        # made the old `first != second` check fail intermittently on a loaded
+        # CI runner while passing locally. Observing >1 distinct value across
+        # the window tests the same property (the model is driving the
+        # registers) without depending on any single interval.
+        samples = []
+        for _ in range(12):
+            samples.append((await _read_regs(client, 0, 4))[0])
+            if len(set(samples)) > 1:
+                break
+            await asyncio.sleep(0.25)
+        first = samples[0]
         assert 3000 <= first <= 7000, f"level {first} outside plausible band"
-        assert first != second, "registers static — not driven by the model"
+        assert len(set(samples)) > 1, (
+            f"registers static — not driven by the model (12 samples over ~3s: {samples})"
+        )
 
         # --- 3. Write-back: pump ON fills, OFF drains ---------------------- #
         baseline = (await _read_regs(client, 0, 1))[0]
