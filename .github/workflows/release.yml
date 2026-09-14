@@ -36,8 +36,72 @@ permissions:
   packages: write       # publish the agent image to GHCR (build once, distribute)
 
 jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" \
+              && -n "${{ inputs.version_override }}" ]]; then
+              VERSION="${{ inputs.version_override }}"
+          else
+              VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # The release workflow used to run NO checks at all: it would happily
+      # build and publish off a red master. v1.19.3 shipped a backend image
+      # carrying the previous release's install-guide PDF because the tag was
+      # pushed before the guide was regenerated -- CI caught it, but only
+      # after the release was already built and published.
+      - name: Install guide matches app_version
+        run: python scripts/check_install_guide_version.py
+
+      - name: Tag matches app_version
+        env:
+          RESOLVED: ${{ steps.version.outputs.VERSION }}
+          OVERRIDE: ${{ inputs.version_override }}
+        run: |
+          APP_VERSION="$(grep -E '^\s*app_version' backend/app/core/config.py \
+              | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "tag/override resolves to: ${RESOLVED}"
+          echo "backend app_version:      ${APP_VERSION}"
+          if [[ "${RESOLVED}" == "${APP_VERSION}" ]]; then
+              echo "OK: they match."
+              exit 0
+          fi
+          # build-release.sh takes VERSION from the tag, overriding config.py,
+          # so a mismatch silently names every artifact after the tag while the
+          # running app reports something else.
+          # Only an EXPLICIT override earns the warn-only path -- that is what
+          # the input is for. A manual run without one resolves to the branch
+          # name ("master"), which must not silently produce
+          # packetarch-master-offline.tar.gz.
+          if [[ -n "${OVERRIDE}" ]]; then
+              echo "::warning::Publishing as ${RESOLVED} but app_version is ${APP_VERSION}." \
+                   "Allowed because version_override was set explicitly," \
+                   "but the artifacts will not match what the app reports."
+              exit 0
+          fi
+          echo "::error::Tag v${RESOLVED} does not match app_version ${APP_VERSION}." \
+               "Bump backend/app/core/config.py (and regenerate the install guide)" \
+               "before tagging, or retag to v${APP_VERSION}."
+          exit 1
+
   build:
     name: Build release bundle (${{ matrix.variant }})
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -185,6 +249,7 @@ jobs:
 
   build-ova:
     name: Build OVA appliance
+    needs: preflight
     # Self-hosted KVM host (see header). guestfs-tools + qemu + passwordless
     # sudo are expected to be present on the runner.
     runs-on: [self-hosted, ova-builder]
