@@ -541,6 +541,28 @@ Unified fingerprint/signature data in `backend/app/services/device_templates/` p
 
 Connect to CV centers for device comparison, matching (MAC 100% / IP 95% confidence), and enrichment. Configure at Settings > Cyber Vision. Key files: `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx`.
 
+### API audit (re-run after every CV upgrade)
+
+`docs/cyber-vision/API_AUDIT_5.6.md` is the current audit (CV **5.6**) — what
+each of the two surfaces supports, verified response shapes, and the gotchas.
+Read it before changing any CV client. Highlights:
+
+- **Networks cannot be created on the new-UI API.** `/cvapi/v1/networks` is
+  GET-only (POST → 405). Creation/update/delete is classic
+  `POST|PUT|DELETE /api/3.0/networks/`. The two APIs also report different
+  `type` vocabularies for the SAME object (new-UI `"OT"` vs classic
+  `"OT Internal"`) — never round-trip a new-UI network into a classic write.
+- **CV 5.6 no longer publishes a classic spec.** Only the new-UI spec is
+  served (`/ui/cisco-cyber-vision-api-v4.json` — the "v4" is a UI asset name;
+  the API is still `/cvapi/v1`). `docs/cyber-vision/cisco-cyber-vision-api-v3-5.4.0.json`
+  is a 5.4-vintage copy and the only written record of the classic surface —
+  do not delete it, and do not trust it as current. **Live probe is the only
+  authority for `/api/3.0`.**
+- `GET /api/3.0/devices/{id}/usersProperties` **404s on 5.6** — read
+  `userProperties` off `GET /devices/{id}` instead.
+- Keep probes **read-only** against shared Centers, and resolve clients only
+  through `services/cv_centers.py`.
+
 ### Multiple centers (v1.19.0+)
 
 One PacketArch server can talk to many CV Centers. Each is a row in

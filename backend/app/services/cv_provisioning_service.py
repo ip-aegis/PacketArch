@@ -116,31 +116,128 @@ _OH_ASCII_FOLD = str.maketrans(
 )
 
 
-def _oh_ascii(text: str) -> str:
-    """Fold a name to plain ASCII, collapsing runs of whitespace.
+# Punctuation CV's OH endpoint ACCEPTS, swept character-by-character against a
+# live 5.6 Center (PATCH /cvapi/v1/oh/{id}, one candidate char per probe).
+# Everything else — including plain ASCII — is rejected with "Name is invalid":
+#     ! " ; < = > ? [ \ ] ^ ` { | } ~
+# Being ASCII is NOT sufficient, which is why a whitelist replaced the old
+# "fold to ASCII and hope" approach.
+_OH_ALLOWED_PUNCT = frozenset("#$%&'()*+,-./:@_ ")
 
-    CV's OH endpoint rejects a non-ASCII name with ``"Name is invalid"`` and
-    fails the whole ``POST /cvapi/v1/oh`` batch with a 400 — which took down
-    the entire org-hierarchy phase for a scenario named "Pharma — Vaccine
+# Rejected characters that carry meaning, mapped to an accepted equivalent so a
+# name stays readable instead of losing a word separator. Anything rejected and
+# NOT listed here becomes a space (then collapsed).
+_OH_PUNCT_SUBST = {
+    '"': "'", "`": "'",
+    "[": "(", "]": ")", "{": "(", "}": ")",
+    "\\": "/", "|": "/",
+}
+
+
+def _oh_ascii(text: str) -> str:
+    r"""Fold a name to the character set CV's OH endpoint actually accepts.
+
+    CV's OH endpoint rejects a bad name with ``"Name is invalid"`` and fails
+    the whole ``POST /cvapi/v1/oh`` batch with a 400 — which took down the
+    entire org-hierarchy phase for a scenario named "Pharma — Vaccine
     Bioreactor Plant" (confirmed live). Every other object in the pipeline
-    (presets, groups, custom networks) accepts the em dash, so the fold belongs
-    here rather than in the shared label helpers.
+    (presets, groups, custom networks) accepts these characters, so the fold
+    belongs here rather than in the shared label helpers.
+
+    Two rules, both verified live on CV 5.6:
+      * non-ASCII is rejected — folded to ASCII (em dash -> "-", not deleted);
+      * **so is much of plain ASCII** — ``[ ] { } | \ < > = ! ? ; " ~ ^ `` are
+        all "Name is invalid" even though they survive an ASCII fold. Hence
+        the explicit whitelist below rather than a bare ``encode("ascii")``.
     """
     folded = unicodedata.normalize("NFKD", (text or "").translate(_OH_ASCII_FOLD))
-    return " ".join(folded.encode("ascii", "ignore").decode("ascii").split())
+    ascii_only = folded.encode("ascii", "ignore").decode("ascii")
+    out = []
+    for ch in ascii_only:
+        if ch.isalnum() or ch in _OH_ALLOWED_PUNCT:
+            out.append(ch)
+        else:
+            out.append(_OH_PUNCT_SUBST.get(ch, " "))
+    return " ".join("".join(out).split())
 
 
-def _oh_level_name(text: str, limit: int = OH_LEVEL_NAME_LIMIT) -> str:
+# Separators left dangling by a word-boundary cut ("Process Control / Operations"
+# -> "Process Control /"). Trimmed so a truncated level reads as a name.
+_OH_TRAILING_PUNCT = " /-,&:;.|([{"
+
+
+def _oh_level_name(text: str, limit: int = OH_LEVEL_NAME_LIMIT, fallback: str = "") -> str:
     """Fold a name to ASCII and truncate it to fit CV's new-UI OH level cap, at
     a word boundary, with no suffix character (CV rejects non-ASCII names
-    outright)."""
-    text = _oh_ascii(text)
+    outright).
+
+    ``fallback`` covers a name that folds away to NOTHING (a fully non-ASCII
+    name such as "日本語ゾーン"). CV rejects an empty name as surely as a
+    non-ASCII one, so callers pass something identity-bearing (the zone or
+    scenario id) rather than letting the whole OH batch 400.
+    """
+    text = _oh_ascii(text) or _oh_ascii(fallback) or "Unnamed"
     if len(text) <= limit:
         return text
     cut = text[:limit].rstrip()
     if " " in cut:
         cut = cut[: cut.rfind(" ")].rstrip()
-    return cut or text[:limit]
+    cut = cut.rstrip(_OH_TRAILING_PUNCT)
+    return cut or text[:limit].rstrip(_OH_TRAILING_PUNCT) or text[:limit]
+
+
+def _oh_level_names_for_siblings(
+    full_labels: dict[str, str], limit: int = OH_LEVEL_NAME_LIMIT
+) -> dict[str, str]:
+    """Truncate a set of SIBLING level names, keeping them distinct from each other.
+
+    ``_oh_level_name`` cuts at a word boundary, which can throw away the only
+    part that made two names different — ``_group_label`` deconflicts by
+    appending " (scenario name)", and a 20-char word-boundary cut deletes that
+    suffix wholesale. Two zones in one scenario could therefore collapse to the
+    same OH name, and because ``_match_existing_oh_level`` keys on
+    ``(parentLevelId, name)`` BOTH zones would then resolve to the SAME level:
+    one zone level silently missing, both zones' networks assigned into one.
+
+    Collisions are resolved in order of increasing damage:
+      1. word-boundary cut (prettiest — what ``_oh_level_name`` does);
+      2. hard cut at ``limit`` for the colliding group, which keeps the
+         distinguishing characters the word cut discarded
+         ("Process Control / Op" vs "Process Control / Sa");
+      3. a numeric suffix, if even the hard cut is identical. Last resort and
+         unreached by any current scenario — note it can read misleadingly
+         ("Energy Center Wing Alpha Two" -> "Energy Center Wing 2" alongside a
+         real Wing A..H), so prefer distinguishing names upstream.
+
+    Deterministic: ties break on the full label then the key, so re-running
+    provisioning produces the same names and does not churn levels.
+    """
+    short = {
+        k: _oh_level_name(v, limit, fallback=f"Zone {str(k)[:8]}")
+        for k, v in full_labels.items()
+    }
+
+    def collisions(mapping: dict[str, str]) -> dict[str, list[str]]:
+        buckets: dict[str, list[str]] = {}
+        for key, name in mapping.items():
+            buckets.setdefault(name, []).append(key)
+        return {n: ks for n, ks in buckets.items() if len(ks) > 1}
+
+    for keys in list(collisions(short).values()):
+        # step 2 — hard cut preserves what the word-boundary cut threw away
+        for key in keys:
+            short[key] = _oh_ascii(full_labels[key])[:limit].rstrip() or short[key]
+            short[key] = short[key] or f"Zone {str(key)[:8]}"[:limit]
+
+    for keys in list(collisions(short).values()):
+        # step 3 — still identical, so the names genuinely share a prefix
+        for i, key in enumerate(sorted(keys, key=lambda k: (full_labels[k], k)), start=1):
+            if i == 1:
+                continue
+            suffix = f" {i}"
+            short[key] = (short[key][: limit - len(suffix)].rstrip() + suffix)[:limit]
+
+    return short
 
 # CV "type" for the custom networks we mint for simulated OT ranges. CV also
 # supports "IT Internal" / "External"; we default everything to "OT Internal"
@@ -590,6 +687,22 @@ def _scenario_network_ids(networks_state: dict, scenario_cidr: str | None) -> li
     return ids
 
 
+def _log_oh_create_failures(result: dict, context: str) -> None:
+    """``POST /cvapi/v1/oh`` supports PARTIAL SUCCESS — a 201 does not mean every
+    level was created. Surface CV's own per-level reason ("Name contains invalid
+    characters", the 20-char cap, ...) instead of leaving callers to infer it
+    from a later "not found after create". See docs/cyber-vision/API_AUDIT_5.6.md.
+    """
+    if not isinstance(result, dict) or not result.get("failedCount"):
+        return
+    for r in result.get("results") or []:
+        if isinstance(r, dict) and (r.get("message") or "").lower() != "success":
+            logger.warning(
+                f"CV org-hierarchy create rejected {context} level "
+                f"'{r.get('name')}': {r.get('message')}"
+            )
+
+
 async def _save_cv_org_hierarchy(db, scenario_id: UUID, org_state: dict) -> None:
     """Persist ONLY ``definition['cyber_vision']['org_hierarchy']`` via a targeted
     jsonb_set (mirrors ``_save_cv_networks``)."""
@@ -678,12 +791,16 @@ async def provision_org_hierarchy(
             raise RuntimeError("CV Organization Hierarchy has no 'Global' root level")
         global_id = global_level["id"]
 
-        scenario_name = _oh_level_name(getattr(scenario, "name", None) or "PacketArch scenario")
+        scenario_name = _oh_level_name(
+            getattr(scenario, "name", None) or "PacketArch scenario",
+            fallback=f"Scenario {str(scenario.id)[:8]}",
+        )
         scenario_level_id = _match_existing_oh_level(
             levels_by_id, prior.get("scenario_level_id"), global_id, scenario_name
         )
         if scenario_level_id is None:
-            await svc.create_oh_levels([{"name": scenario_name, "parentLevelId": global_id}])
+            res = await svc.create_oh_levels([{"name": scenario_name, "parentLevelId": global_id}])
+            _log_oh_create_failures(res, "scenario")
             levels = await svc.get_oh_levels()
             levels_by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
             scenario_level_id = _match_existing_oh_level(levels_by_id, None, global_id, scenario_name)
@@ -693,17 +810,20 @@ async def provision_org_hierarchy(
             await svc.rename_oh_level(scenario_level_id, scenario_name)
             levels_by_id[scenario_level_id]["name"] = scenario_name
 
-        zone_labels = {
-            zone_id: _oh_level_name(_group_label(scenario, zone.get("name") or zone_id, duplicates))
+        # Truncate the sibling set as a GROUP so two zones can't collapse onto
+        # one OH level (see _oh_level_names_for_siblings).
+        zone_labels = _oh_level_names_for_siblings({
+            zone_id: _group_label(scenario, zone.get("name") or zone_id, duplicates)
             for zone_id, zone in zones.items()
-        }
+        })
         to_create = [
             {"name": label, "parentLevelId": scenario_level_id}
             for zone_id, label in zone_labels.items()
             if _match_existing_oh_level(levels_by_id, prior_zones.get(zone_id), scenario_level_id, label) is None
         ]
         if to_create:
-            await svc.create_oh_levels(to_create)
+            res = await svc.create_oh_levels(to_create)
+            _log_oh_create_failures(res, "zone")
             levels = await svc.get_oh_levels()
             levels_by_id = {lv["id"]: lv for lv in levels if lv.get("id")}
 

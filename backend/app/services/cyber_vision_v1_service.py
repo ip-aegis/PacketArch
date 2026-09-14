@@ -12,6 +12,11 @@ name (``x-token-id``) is identical. Confirmed live against a CV 5.5.1 center.
 Only the Organization Hierarchy surface is wrapped here (what PacketArch's
 provisioning needs); the new API also exposes Assets/CustomProperties/
 Vulnerabilities endpoints that aren't consumed yet.
+
+Audited against CV 5.6 (spec ``1.0.0-5.6.0``) — see
+``docs/cyber-vision/API_AUDIT_5.6.md``. Note the spec is served as
+``cisco-cyber-vision-api-v4.json`` but the API is still ``/cvapi/v1``; the
+"v4" is a UI asset name, not an API version.
 """
 
 from __future__ import annotations
@@ -84,7 +89,15 @@ class CyberVisionV1Service:
 
     async def _paginated_get(self, endpoint: str, max_page: int = 500) -> list[dict]:
         """GET a cursor-paginated list endpoint, following the ``Link: rel="next"``
-        response header (the cursor is NOT in the JSON body — confirmed live)."""
+        response header (the cursor is NOT in the JSON body — confirmed live).
+
+        Only the ``cursor`` VALUE is taken from that header; the request is
+        rebuilt here. That is deliberate: on CV 5.6 the ``/oh`` Link URL is
+        malformed — ``http://<host>/oh?cursor=...``, missing the ``/cvapi/v1``
+        prefix and downgraded to plain http — so following it verbatim 404s.
+        ``/networks`` returns a correct URL, but do NOT "simplify" this to use
+        the URL directly or ``/oh`` pagination breaks.
+        """
         client = await self._get_client()
         url = f"{self.base_url}/cvapi/v1{endpoint}"
         out: list[dict] = []
@@ -109,15 +122,26 @@ class CyberVisionV1Service:
     async def get_oh_levels(self, max_page: int = 500) -> list[dict]:
         """Fetch every Organization Hierarchy level (cursor-paginated).
 
-        Each item: ``{id, name, description, parentLevelId, hierarchy}``.
-        The root ``Global`` level has no ``parentLevelId``.
+        Each item: ``{id, name, description, parentLevelId, hierarchy}``
+        (verified live on CV 5.6). The root ``Global`` level has no
+        ``parentLevelId``.
+
+        The 5.6 spec's own EXAMPLE for this endpoint is wrong — it shows
+        ``pathId`` and describes pagination "using pathId". The Center returns
+        ``hierarchy`` and no ``pathId``. The spec's ``OrgHierarchyItem``
+        definition agrees with the live shape; only the example is at fault.
         """
         return await self._paginated_get("/oh", max_page)
 
     async def create_oh_levels(self, levels: list[dict]) -> dict:
         """Create one or more hierarchy levels. Each item: ``{name, parentLevelId}``.
 
-        Supports partial success — inspect the returned ``results`` list.
+        Returns ``{successCount, failedCount, results[]}``. A 201 does NOT mean
+        every level was created — this endpoint supports PARTIAL SUCCESS, so
+        callers must inspect ``failedCount``/``results``. Each result is
+        ``{message, name, parentLevelId}`` and carries NO ``id``: the new
+        level's id can only be learned by re-fetching ``get_oh_levels()`` and
+        matching on ``(parentLevelId, name)``.
         """
         result = await self._request("POST", "/oh", json={"levels": levels})
         return result if isinstance(result, dict) else {}
@@ -142,6 +166,8 @@ class CyberVisionV1Service:
         Each network belongs to exactly one level at a time — assigning a
         network here moves it away from wherever it was assigned before.
         The list must be non-empty; CV schema-rejects ``{"networks": []}``.
+        CV caps this at 500 networks per request and validates the level and
+        every network id up front: if any is unknown, NOTHING is assigned.
         """
         if not network_ids:
             return
@@ -151,7 +177,15 @@ class CyberVisionV1Service:
 
     async def get_networks(self, max_page: int = 500) -> list[dict]:
         """Fetch new-UI-API network objects (each carries ``groupId`` = its
-        assigned Organization Hierarchy level id, defaulting to Global)."""
+        assigned Organization Hierarchy level id, defaulting to Global).
+
+        READ-ONLY: this endpoint is GET-only (POST -> 405 on CV 5.6). Networks
+        are created/updated/deleted on the CLASSIC API
+        (``CyberVisionService.create_networks``). The two APIs also disagree on
+        ``type`` for the same object — new-UI says ``"OT"`` where classic says
+        ``"OT Internal"`` — so never round-trip an object from here into a
+        classic write.
+        """
         return await self._paginated_get("/networks", max_page)
 
 

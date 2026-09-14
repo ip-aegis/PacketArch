@@ -774,28 +774,55 @@ class CyberVisionService:
             logger.exception(f"Error fetching CV device {device_id}")
             raise
 
+    async def _paged_slice(
+        self, endpoint: str, limit: int, offset: int, params: dict | None = None
+    ) -> list[dict]:
+        """Fetch ``[offset, offset+limit)`` from a classic list endpoint.
+
+        CV 5.6 SILENTLY IGNORES ``limit``/``offset`` on ``/flows`` and
+        ``/vulnerabilities`` — it returns the ENTIRE collection (71k+ flows on a
+        busy Center) with a 200. Only 1-based ``page`` + ``size`` are honoured.
+        Verified live; see ``docs/cyber-vision/API_AUDIT_5.6.md`` §4.
+
+        Requests ``size=limit`` pages covering the window and slices, so a
+        non-page-aligned ``offset`` still returns exactly the right rows. At
+        most two requests.
+        """
+        limit = max(1, int(limit))
+        offset = max(0, int(offset))
+        first_page = offset // limit + 1
+        skip = offset % limit
+
+        rows: list[dict] = []
+        for page in range(first_page, first_page + (2 if skip else 1)):
+            data = await self._request(
+                "GET", endpoint, params={**(params or {}), "page": page, "size": limit}
+            )
+            items = data if isinstance(data, list) else data.get("items", [])
+            rows.extend(items)
+            if len(items) < limit:
+                break  # last page — no point asking for the next one
+        return rows[skip : skip + limit]
+
     async def get_vulnerabilities(
         self, limit: int = 100, offset: int = 0, severity: str | None = None
     ) -> list[CVVulnerability]:
         """Fetch vulnerability data from Cyber Vision.
 
         Args:
-            limit: Maximum number of vulnerabilities to return
+            limit: Maximum number of vulnerabilities to return (translated to
+                CV's 1-based page/size — see ``_paged_slice``)
             offset: Offset for pagination
             severity: Optional severity filter (critical, high, medium, low)
 
         Returns:
             List of vulnerabilities
         """
-        params = {"limit": limit, "offset": offset}
-        if severity:
-            params["severity"] = severity
+        params = {"severity": severity} if severity else {}
 
         try:
-            data = await self._request("GET", "/vulnerabilities", params=params)
-
-            # Handle both list response and paginated response
-            vuln_data = data if isinstance(data, list) else data.get("items", data.get("vulnerabilities", []))
+            # NOT limit/offset — CV 5.6 ignores those and returns all 3.6k rows.
+            vuln_data = await self._paged_slice("/vulnerabilities", limit, offset, params)
 
             return [CVVulnerability.from_api_response(v) for v in vuln_data]
 
@@ -834,19 +861,18 @@ class CyberVisionService:
 
         Args:
             device_id: Optional device ID to filter by
-            limit: Maximum number of flows to return
+            limit: Maximum number of flows to return (translated to CV's
+                1-based page/size — see ``_paged_slice``)
             offset: Offset for pagination
 
         Returns:
             List of network flows
         """
-        params = {"limit": limit, "offset": offset}
-        if device_id:
-            params["deviceId"] = device_id
+        params = {"deviceId": device_id} if device_id else {}
 
         try:
-            data = await self._request("GET", "/flows", params=params)
-            return data if isinstance(data, list) else data.get("items", [])
+            # NOT limit/offset — CV 5.6 ignores those and returns all 71k+ flows.
+            return await self._paged_slice("/flows", limit, offset, params)
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to fetch CV flows: {e.response.status_code}")
@@ -896,6 +922,11 @@ class CyberVisionService:
 
         Returns:
             Property ID of the created property
+
+        On CV 5.6 this sub-resource is WRITE-ONLY: POST (here) and
+        ``DELETE .../{property_id}`` both work, but ``GET`` on the collection
+        404s. Read the properties back off ``GET /devices/{id}`` instead — see
+        ``get_device_properties`` and docs/cyber-vision/API_AUDIT_5.6.md §5.
         """
         # Truncate to API limits
         label = label[:60]
@@ -961,20 +992,33 @@ class CyberVisionService:
     async def get_device_properties(self, device_id: str) -> list[dict]:
         """Get existing user properties for a device.
 
+        Read off the device detail response, NOT from
+        ``/devices/{id}/usersProperties`` — that collection endpoint 404s on
+        CV 5.6 (every spelling variant; see
+        ``docs/cyber-vision/API_AUDIT_5.6.md`` §5). It used to be swallowed as
+        "no properties", which silently defeated the ``skip_existing`` dedup in
+        ``enrich_device()`` and re-added every property on every run.
+
         Args:
             device_id: CV device ID
 
         Returns:
-            List of properties with id, label, value
+            List of ``{id, key, value}`` entries (empty if the device has none
+            or does not exist). NOTE the asymmetry, confirmed live on 5.6:
+            ``add_device_property`` POSTs ``{"label": ..., "value": ...}`` but
+            CV reads the property back as ``{"key": ..., "value": ...}``.
         """
         try:
-            data = await self._request("GET", f"/devices/{device_id}/usersProperties")
-            return data if isinstance(data, list) else []
+            data = await self._request("GET", f"/devices/{device_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return []
             logger.error(f"Failed to get properties for device {device_id}: {e.response.status_code}")
             raise
+        if not isinstance(data, dict):
+            return []
+        props = data.get("userProperties") or []
+        return [p for p in props if isinstance(p, dict)]
 
     async def resolve_device_id(self, device_id: str, mac: str | None = None, ip: str | None = None) -> str | None:
         """Resolve a device ID to a valid main device ID.
@@ -1053,7 +1097,15 @@ class CyberVisionService:
         if skip_existing:
             try:
                 existing = await self.get_device_properties(resolved_id)
-                existing_labels = {p.get("label", "").lower() for p in existing}
+                # CV returns a populated entry as {id, KEY, value} even
+                # though add_device_property POSTs {"label": ...} — confirmed
+                # live on 5.6 by an add/read-back/delete round-trip. Reading
+                # "label" alone yields a set of empty strings and every
+                # property gets re-added; "label or key" covers both spellings.
+                existing_labels = {
+                    str(p.get("label") or p.get("key") or "").lower()
+                    for p in existing
+                } - {""}
             except Exception as e:
                 logger.warning(f"Could not fetch existing properties: {e}")
 
@@ -1305,6 +1357,11 @@ class CyberVisionService:
     async def create_networks(self, networks: list[dict]) -> bool:
         """Create custom networks (batch, array body).
 
+        This is the ONLY way to create a network. The new-UI API's
+        ``/cvapi/v1/networks`` is GET-only (POST -> 405 on CV 5.6), and it
+        reports ``type`` with a DIFFERENT vocabulary ("OT" where this API says
+        "OT Internal"), so never feed a new-UI network object into this call.
+
         CV assigns each an ``id`` and returns an empty 200 body, so callers
         resolve the new ids with a follow-up ``get_networks()`` matched on
         ``ipRange``. Each item needs ``{name, ipRange, type}`` and may set
@@ -1371,8 +1428,11 @@ class CyberVisionService:
                 if prop_id:
                     results[label] = prop_id
             except Exception as e:
-                # Log but don't fail - property might already exist
-                logger.debug(f"Could not add property '{label}' to device {device_id}: {e}")
+                # Non-fatal (the property may simply already exist), but log
+                # at WARNING: at debug level a dead write surface is
+                # indistinguishable from success. The POST itself is confirmed
+                # working on CV 5.6 even though its GET sibling 404s.
+                logger.warning(f"Could not add property '{label}' to device {device_id}: {e}")
 
         return results
 

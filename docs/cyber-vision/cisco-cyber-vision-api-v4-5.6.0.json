@@ -1,0 +1,2213 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "API to manage the resources of Cisco Cyber Vision - New UI.",
+    "title": "Cisco Cyber Vision - New UI API.",
+    "contact": {
+      "name": "Cisco Industrial Networking Community",
+      "url": "https://community.cisco.com/t5/industrial-networking/bd-p/discussions-iot-industrial-routing",
+      "email": "tac@cisco.com"
+    },
+    "license": {
+      "name": "Cisco API License Terms and Conditions",
+      "url": "https://developer.cisco.com/site/license/cisco-api-license/"
+    },
+    "version": "1.0.0-5.6.0"
+  },
+  "basePath": "/cvapi/v1/",
+  "paths": {
+    "/assets": {
+      "get": {
+        "description": "Retrieves a list of assets based on the provided query parameters. Pagination is handled by a cursor, which is provided in the HTTP response header for fetching subsequent results.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get a paginated list of assets",
+        "operationId": "getAssetList",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of assets to return in a single response.",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of assets.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by their last active time, specified as a duration (e.g., \"30d\" for 30 days ago).",
+            "name": "lastActiveTime",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by their first active time, specified as a duration (e.g., \"30d\" for 30 days ago).",
+            "name": "firstActiveTime",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Filter assets based on their vulnerability status (true for vulnerable, false for not vulnerable).",
+            "name": "vulnerable",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Filter assets that have active alerts (true) or do not (false).",
+            "name": "hasActiveAlerts",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by functional group name.",
+            "name": "functionalGroupName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by vendor name.",
+            "name": "vendor",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by type.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by their name.",
+            "name": "name",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "centerId": "550e8400-e29b-41d4-a716-446655440000",
+                "items": [
+                  {
+                    "activeAlertCount": 1,
+                    "creationTime": "2025-09-17T03:28:00.978789Z",
+                    "firstActiveTime": "2025-09-17T03:27:46.507698Z",
+                    "functionalGroupId": "00000000-0000-0000-0000-000000000000",
+                    "functionalGroupName": "",
+                    "id": "019955be-045a-723f-8d95-6412827e4586",
+                    "lastActiveTime": "2025-09-17T03:27:46.544944Z",
+                    "name": "Intel 10.11.255.73",
+                    "networkInterfaces": [
+                      {
+                        "ip": "10.11.255.73",
+                        "isPrimary": true,
+                        "mac": "70:1c:e7:5b:6e:77",
+                        "networkName": "10/8 private network"
+                      },
+                      {
+                        "ip": "fe80::45:5d9b:4d96:cd91",
+                        "isPrimary": false,
+                        "mac": "70:1c:e7:5b:6e:77",
+                        "networkName": "IPv6 link local"
+                      }
+                    ],
+                    "pcapAssociations": [],
+                    "sensorAssociations": [],
+                    "type": "IT Generic",
+                    "vendor": "Intel",
+                    "vulnerabilityCount": 0
+                  }
+                ],
+                "pageSize": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/alerts": {
+      "get": {
+        "description": "Retrieves a list of assets with their associated alerts based on the provided query parameters.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get list of assets with their alerts",
+        "operationId": "getAssetAlerts",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of assets to return in a single response.",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of assets.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter alerts by status. Allowed values are 'Active', 'Cleared', 'Muted'. Default is 'Active'.",
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter alerts by specific asset name.",
+            "name": "assetName",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetAlertListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "centerId": "550e8400-e29b-41d4-a716-446655440000",
+                "items": [
+                  {
+                    "alerts": [
+                      {
+                        "alertId": "a8f018ae-1637-449b-82db-6dceeb3550e5",
+                        "alertType": "Critical vulnerabilities in monitored entities",
+                        "category": "Security",
+                        "instanceId": "b9f128bf-2748-559c-c93e-7edffc4661f6",
+                        "lastOccurrence": "2024-01-15T10:30:00Z",
+                        "severity": "Critical",
+                        "trigger": "CVE-2021-44228"
+                      }
+                    ],
+                    "id": "008cd112-a533-5549-b651-dccdd64be0aa",
+                    "name": "Server-01",
+                    "networkInterfaces": [
+                      {
+                        "isPrimary": true,
+                        "mac": "00:0d:29:d8:ac:47"
+                      }
+                    ]
+                  }
+                ],
+                "pageSize": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/vulnerabilities": {
+      "get": {
+        "description": "Retrieves a list of assets with their associated vulnerabilities based on the provided query parameters. Pagination is handled by a cursor, which is provided in the HTTP response header for fetching subsequent results.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get list of assets by score",
+        "operationId": "getAssetVulnerabilities",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of assets to return in a single response.",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of assets.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets that are affected by vulnerabilities which have a Cisco Security Risk Score greater than or equal to the defined threshold. (Allowed range 0-100).",
+            "name": "csrs",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets that are affected by vulnerabilities which have a CVSS score greater than or equal to the defined threshold. (Allowed range 0.0-10.0).",
+            "name": "cvss",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetVulnerabilityListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "centerId": "550e8400-e29b-41d4-a716-446655440000",
+                "items": [
+                  {
+                    "assetInterfaces": [
+                      {
+                        "ip": "192.168.2.10",
+                        "isPrimary": true,
+                        "mac": "00:1c:06:1f:18:6c",
+                        "networkName": "192.168/16 private network"
+                      },
+                      {
+                        "isPrimary": false,
+                        "mac": "00:1c:06:1f:18:6d"
+                      }
+                    ],
+                    "id": "019955be-045a-7275-9096-caface951deb",
+                    "name": "192.168.2.10",
+                    "vulnerabilities": [
+                      {
+                        "csrsScore": "34",
+                        "cveId": "CVE-2013-0700",
+                        "cvssScore": "7.8",
+                        "name": "Denial-of-Service Vulnerabilities in SIMATIC S7-1200 PLCs 2"
+                      },
+                      {
+                        "csrsScore": "34",
+                        "cveId": "CVE-2013-2780",
+                        "cvssScore": "7.8",
+                        "name": "Denial-of-Service Vulnerabilities in SIMATIC S7-1200 PLCs 1"
+                      },
+                      {
+                        "csrsScore": "42",
+                        "cveId": "CVE-2025-24812",
+                        "cvssScore": "6.5",
+                        "name": "Improper Validation Vulnerability in Siemens SIMATIC S7-1200 CPU Family"
+                      }
+                    ]
+                  }
+                ],
+                "pageSize": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/vulnerabilities/{cveId}": {
+      "get": {
+        "description": "Retrieves a list of assets that are affected by the specified vulnerability ID. Accepts either a public CVE identifier (CVE-YYYY-NNNNN, e.g. \"CVE-2021-34527\") or a Cisco-private vulnerability identifier (PVT-YYYY-NNNNN, e.g. \"PVT-2025-00001\"). Each asset includes its name, network interfaces (IP, MAC), and type. Pagination is handled by a cursor, which is provided in the HTTP response header for fetching subsequent results.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get list of assets by vulnerability ID",
+        "operationId": "getAssetsByCve",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Any vulnerability identifier — CVE-YYYY-NNNNN or PVT-YYYY-NNNNN. The legacy parameter name (cveId) is preserved for backward compatibility.",
+            "name": "cveId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of assets to return in a single response.",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of assets.",
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Filter assets by asset type.",
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetListByCVEResponse"
+            },
+            "examples": {
+              "application/json": {
+                "centerId": "550e8400-e29b-41d4-a716-446655440000",
+                "items": [
+                  {
+                    "id": "019955be-045a-7275-9096-caface951deb",
+                    "name": "192.168.2.10",
+                    "networkInterfaces": [
+                      {
+                        "ip": "192.168.2.10",
+                        "isPrimary": true,
+                        "mac": "00:1c:06:1f:18:6c",
+                        "networkName": "192.168/16 private network"
+                      },
+                      {
+                        "isPrimary": false,
+                        "mac": "00:1c:06:1f:18:6d"
+                      }
+                    ],
+                    "type": "PLC"
+                  }
+                ],
+                "pageSize": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/{assetId}/custom-properties": {
+      "get": {
+        "description": "Returns custom properties defined directly on the asset and those inherited from networks the asset belongs to.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "List custom properties of an asset",
+        "operationId": "listAssetCustomProperties",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the asset",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Filter custom properties by key (like match)",
+            "name": "key",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetCustomPropertyListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "items": [
+                  {
+                    "createdAt": "2026-03-25T15:45:34.877365065Z",
+                    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "key": "location",
+                    "source": "asset",
+                    "value": "building-A"
+                  }
+                ],
+                "totalCount": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new key-value custom property directly on the specified asset.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Create a custom property on an asset",
+        "operationId": "createAssetCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the asset",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Custom property key-value pair to create",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Custom property created",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "value": "building-A"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/{assetId}/custom-properties/{propertyId}": {
+      "get": {
+        "description": "Returns the custom property identified by propertyId for the specified asset.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Get a custom property of an asset",
+        "operationId": "getAssetCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the asset",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "value": "building-A"
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes the selected custom property from the specified asset.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Delete a custom property from an asset",
+        "operationId": "deleteAssetCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the asset",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property to delete",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Custom property deleted"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates the value of an existing custom property for the specified asset.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Update a custom property on an asset",
+        "operationId": "updateAssetCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the asset",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property to update",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Updated custom property value",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom property updated",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "updatedAt": "2026-03-25T15:45:34.877365065Z",
+                "value": "building-B"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/assets/{assetId}/vulnerabilities/acknowledgement": {
+      "post": {
+        "description": "Adds acknowledgment for vulnerabilities of a single asset, selected by CVE identifiers.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Bulk acknowledge vulnerabilities for one asset",
+        "operationId": "bulkAckAssetVulnerabilities",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Asset UUID",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Request payload containing CVE IDs to acknowledge and a non-empty acknowledgment comment.",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AssetVulnerabilityBulkAckRequestPayload"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "delete": {
+        "description": "Removes acknowledgment for vulnerabilities of a single asset, selected by CVE identifiers.",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Bulk unacknowledge vulnerabilities for one asset",
+        "operationId": "bulkUnackAssetVulnerabilities",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Asset UUID",
+            "name": "assetId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Request payload containing CVE IDs to unacknowledge.",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AssetVulnerabilityBulkUnackRequestPayload"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/networks": {
+      "get": {
+        "description": "Retrieves a list of networks with their custom properties. Pagination is handled by a cursor, which is provided in the HTTP response header for fetching subsequent results.",
+        "tags": [
+          "Networks"
+        ],
+        "summary": "Get a paginated list of networks",
+        "operationId": "getNetworkList",
+        "parameters": [
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of networks to return in a single response.",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of networks.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/NetworkListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "items": [
+                  {
+                    "customProperties": [],
+                    "duplicated": false,
+                    "id": "86bc937a-19cf-5f0a-9b28-1f9a8347590e",
+                    "ipRange": "10.0.1.0/24",
+                    "name": "OT-Network-1",
+                    "type": "subnet"
+                  }
+                ],
+                "pageSize": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/networks/{networkId}/custom-properties": {
+      "get": {
+        "description": "Returns the custom properties defined on the specified network.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "List custom properties of a network",
+        "operationId": "listNetworkCustomProperties",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the network",
+            "name": "networkId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Filter custom properties by key (partial match)",
+            "name": "key",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/NetworkCustomPropertyListResponse"
+            },
+            "examples": {
+              "application/json": {
+                "items": [
+                  {
+                    "createdAt": "2026-03-25T15:45:34.877365065Z",
+                    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "key": "location",
+                    "value": "building-A"
+                  }
+                ],
+                "totalCount": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new key-value custom property directly on the specified network.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Create a custom property on a network",
+        "operationId": "createNetworkCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the network",
+            "name": "networkId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Custom property key-value pair to create",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Custom property created",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "value": "building-A"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/networks/{networkId}/custom-properties/{propertyId}": {
+      "get": {
+        "description": "Returns the custom property identified by propertyId for the specified network.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Get a custom property of a network",
+        "operationId": "getNetworkCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the network",
+            "name": "networkId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "value": "building-A"
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes the selected custom property from the specified network.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Delete a custom property from a network",
+        "operationId": "deleteNetworkCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the network",
+            "name": "networkId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property to delete",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Custom property deleted"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates the value of an existing custom property for the specified network.",
+        "tags": [
+          "CustomProperties"
+        ],
+        "summary": "Update a custom property on a network",
+        "operationId": "updateNetworkCustomProperty",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the network",
+            "name": "networkId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier of the custom property to update",
+            "name": "propertyId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Updated custom property value",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Custom property updated",
+            "schema": {
+              "$ref": "#/definitions/CustomPropertyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "createdAt": "2026-03-25T15:45:34.877365065Z",
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "key": "location",
+                "updatedAt": "2026-03-25T15:45:34.877365065Z",
+                "value": "building-B"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/oh": {
+      "get": {
+        "description": "Retrieves organization hierarchy levels as a flat array with cursor-based pagination using pathId.",
+        "tags": [
+          "OrgHierarchy"
+        ],
+        "summary": "Get the global organization hierarchy with pagination",
+        "operationId": "getOHGlobal",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Maximum number of items per page (default 10, max 500)",
+            "name": "max",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Cursor for pagination, obtained from a previous response to fetch the next set of levels.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/OrgHierarchyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "centerId": "019955be-045a-723f-8d95-6412827e4586",
+                "items": [
+                  {
+                    "id": "019955be-045a-723f-8d95-6412827e4587",
+                    "name": "Global",
+                    "pathId": "/"
+                  }
+                ],
+                "pageSize": 1,
+                "totalCount": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates one or more organization hierarchy levels. Supports partial success when creating multiple levels.",
+        "tags": [
+          "OrgHierarchy"
+        ],
+        "summary": "Create organization hierarchy levels",
+        "operationId": "createOHLevels",
+        "parameters": [
+          {
+            "description": "One or more hierarchy levels to create",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrgHierarchyCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Levels created (check successCount and failedCount for details)",
+            "schema": {
+              "$ref": "#/definitions/OrgHierarchyCreateResponse"
+            },
+            "examples": {
+              "application/json": {
+                "failedCount": 1,
+                "results": [
+                  {
+                    "message": "success",
+                    "name": "Site-A",
+                    "parentId": "019955be-045a-723f-8d95-6412827e4586"
+                  },
+                  {
+                    "message": "Name contains invalid characters",
+                    "name": "Invalid{Name}",
+                    "parentId": "019955be-045a-723f-8d95-6412827e4586"
+                  }
+                ],
+                "successCount": 1
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/oh/{levelId}": {
+      "delete": {
+        "description": "Deletes an existing level from the organization hierarchy. System-defined levels (Global) cannot be deleted. The level must not have any sub levels or members attached.",
+        "tags": [
+          "OrgHierarchy"
+        ],
+        "summary": "Delete an organization hierarchy level",
+        "operationId": "deleteOHLevel",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the level to delete",
+            "name": "levelId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "level deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates the name of an existing level in the organization hierarchy. The hierarchy path will be automatically updated for the level and all its descendants. System-defined levels (Global, Public, Unused) cannot be renamed.",
+        "tags": [
+          "OrgHierarchy"
+        ],
+        "summary": "Rename an organization hierarchy node",
+        "operationId": "renameOHLevel",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the level to rename",
+            "name": "levelId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New name for the hierarchy level",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrgHierarchyRenameRequest"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "level renamed successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "incorrect token"
+          },
+          "403": {
+            "description": "forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "internal server error"
+          }
+        }
+      }
+    },
+    "/oh/{levelId}/networks": {
+      "put": {
+        "description": "Assigns one or more networks to a specified hierarchy level. Networks are identified by their UUIDs and the target level is specified by its UUID in the path. The endpoint validates that both the level and all network IDs exist before performing any assignments. If validation fails, no changes are made. Maximum 500 networks can be assigned in a single request.",
+        "tags": [
+          "Networks"
+        ],
+        "summary": "Assign networks to a hierarchy level",
+        "operationId": "assignNetworks",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "UUID of the hierarchy level to assign networks to",
+            "name": "levelId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Request payload containing list of network UUIDs",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NetworkAssignRequest"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All networks successfully assigned - empty response body"
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Alert": {
+      "type": "object",
+      "properties": {
+        "alertId": {
+          "type": "string",
+          "x-go-name": "AlertID"
+        },
+        "alertType": {
+          "type": "string",
+          "x-go-name": "AlertType"
+        },
+        "category": {
+          "type": "string",
+          "x-go-name": "Category"
+        },
+        "instanceId": {
+          "type": "string",
+          "x-go-name": "InstanceID"
+        },
+        "lastOccurrence": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastOccurrence"
+        },
+        "severity": {
+          "type": "string",
+          "x-go-name": "Severity"
+        },
+        "trigger": {
+          "type": "string",
+          "x-go-name": "Trigger"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "Asset": {
+      "type": "object",
+      "properties": {
+        "activeAlertCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ActiveAlertCount"
+        },
+        "creationTime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "CreationTime"
+        },
+        "customProperties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetCustomPropertySummary"
+          },
+          "x-go-name": "CustomProperties"
+        },
+        "firstActiveTime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "FirstActiveTime"
+        },
+        "functionalGroupId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "FunctionalGroupId"
+        },
+        "functionalGroupName": {
+          "type": "string",
+          "x-go-name": "FunctionalGroupName"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "lastActiveTime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastActiveTime"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "networkInterfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetInterfaceSummary"
+          },
+          "x-go-name": "NetworkInterfaces"
+        },
+        "pcapAssociations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetPcap"
+          },
+          "x-go-name": "PcapAssociations"
+        },
+        "sensorAssociations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetSensor"
+          },
+          "x-go-name": "SensorAssociations"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
+        },
+        "vendor": {
+          "type": "string",
+          "x-go-name": "Vendor"
+        },
+        "vulnerabilityCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VulnerabilityCount"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetAlertListResponse": {
+      "type": "object",
+      "properties": {
+        "centerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "CenterID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetWithAlerts"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetCustomPropertyListItem": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "CreatedAt"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "networkId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "NetworkID"
+        },
+        "networkName": {
+          "type": "string",
+          "x-go-name": "NetworkName"
+        },
+        "source": {
+          "type": "string",
+          "x-go-name": "Source"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "UpdatedAt"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetCustomPropertyListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetCustomPropertyListItem"
+          },
+          "x-go-name": "Items"
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalCount"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetCustomPropertySummary": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "CreatedAt"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "networkId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "NetworkID"
+        },
+        "networkName": {
+          "type": "string",
+          "x-go-name": "NetworkName"
+        },
+        "source": {
+          "type": "string",
+          "x-go-name": "Source"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "UpdatedAt"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetInterfaceSummary": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "x-go-name": "IP"
+        },
+        "isPrimary": {
+          "type": "boolean",
+          "x-go-name": "Primary"
+        },
+        "mac": {
+          "type": "string",
+          "x-go-name": "MAC"
+        },
+        "networkName": {
+          "type": "string",
+          "x-go-name": "NetworkName"
+        },
+        "vlan": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VLAN"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetListByCVEResponse": {
+      "type": "object",
+      "properties": {
+        "centerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "CenterID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetResponse"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetListResponse": {
+      "type": "object",
+      "properties": {
+        "centerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "CenterID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Asset"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetPcap": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "x-go-name": "Filename"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "networkInterfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetInterfaceSummary"
+          },
+          "x-go-name": "NetworkInterfaces"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetSensor": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "isClose": {
+          "type": "boolean",
+          "x-go-name": "IsClose"
+        },
+        "label": {
+          "type": "string",
+          "x-go-name": "Label"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetVulnerabilityBulkAckRequestPayload": {
+      "description": "Contains vulnerability IDs (CVE-* or PVT-*) and a mandatory acknowledgment comment.\nThe legacy field name `cveIds` is preserved for backward compatibility.",
+      "type": "object",
+      "title": "AssetVulnerabilityBulkAckRequestPayload represents bulk ack payload for one asset.",
+      "required": [
+        "cveIds",
+        "ackComment"
+      ],
+      "properties": {
+        "ackComment": {
+          "description": "Comment attached to vulnerability acknowledgment.",
+          "type": "string",
+          "x-go-name": "AckComment"
+        },
+        "cveIds": {
+          "description": "List of vulnerability identifiers to acknowledge for the asset.\nAccepts both CVE-YYYY-NNNNN (public KDB feed) and PVT-YYYY-NNNNN\n(Cisco-private KDB feed) ids; the field name is unchanged.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "CVEIDs"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetVulnerabilityBulkUnackRequestPayload": {
+      "description": "Contains vulnerability IDs (CVE-* or PVT-*) to remove acknowledgment from.\nThe legacy field name `cveIds` is preserved for backward compatibility.",
+      "type": "object",
+      "title": "AssetVulnerabilityBulkUnackRequestPayload represents bulk unack payload for one asset.",
+      "required": [
+        "cveIds"
+      ],
+      "properties": {
+        "cveIds": {
+          "description": "List of vulnerability identifiers to unacknowledge for the asset.\nAccepts both CVE-YYYY-NNNNN and PVT-YYYY-NNNNN ids.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "CVEIDs"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetVulnerabilityListResponse": {
+      "type": "object",
+      "properties": {
+        "centerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "CenterID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetWithVulnerabilities"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetWithAlerts": {
+      "type": "object",
+      "properties": {
+        "alerts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Alert"
+          },
+          "x-go-name": "Alerts"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "networkInterfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetInterfaceSummary"
+          },
+          "x-go-name": "NetworkInterfaces"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "AssetWithVulnerabilities": {
+      "type": "object",
+      "properties": {
+        "assetInterfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AssetInterfaceSummary"
+          },
+          "x-go-name": "AssetInterfaces"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "vulnerabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Vulnerability"
+          },
+          "x-go-name": "Vulnerabilities"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "CustomPropertyCreateRequest": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "CustomPropertyResponse": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "CreatedAt"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "UpdatedAt"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "CustomPropertyUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "ErrorResponse": {
+      "description": "ErrorResponse represents an error response",
+      "type": "object",
+      "properties": {
+        "message": {
+          "description": "Error message",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "resource not found"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "NetworkAssignRequest": {
+      "description": "NetworkAssignRequest represents the request body for assigning networks to a hierarchy level",
+      "type": "object",
+      "required": [
+        "networks"
+      ],
+      "properties": {
+        "networks": {
+          "description": "List of network UUIDs to assign",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Networks",
+          "example": [
+            "86bc937a-19cf-5f0a-9b28-1f9a8347590e",
+            "7fda78e7-ed45-4fcd-87b5-6eef6b8334a4"
+          ]
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "NetworkCustomPropertyListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CustomPropertyResponse"
+          },
+          "x-go-name": "Items"
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalCount"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "NetworkListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NetworkSummary"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "NetworkSummary": {
+      "type": "object",
+      "properties": {
+        "customProperties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CustomPropertyResponse"
+          },
+          "x-go-name": "CustomProperties"
+        },
+        "duplicated": {
+          "type": "boolean",
+          "x-go-name": "Duplicated"
+        },
+        "groupId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "GroupID"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "ipRange": {
+          "type": "string",
+          "x-go-name": "IPRange"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
+        },
+        "vlanId": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VlanID"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyCreateRequest": {
+      "type": "object",
+      "properties": {
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OrgHierarchyLevelInput"
+          },
+          "x-go-name": "Levels"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyCreateResponse": {
+      "type": "object",
+      "properties": {
+        "failedCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "FailedCount"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OrgHierarchyCreateResult"
+          },
+          "x-go-name": "Results"
+        },
+        "successCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "SuccessCount"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyCreateResult": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "parentLevelId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ParentLevelID"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyItem": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "hierarchy": {
+          "type": "string",
+          "x-go-name": "Hierarchy"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "parentLevelId": {
+          "type": "string",
+          "x-go-name": "ParentLevelID"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyLevelInput": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "parentLevelId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "ParentLevelID"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyRenameRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "OrgHierarchyResponse": {
+      "type": "object",
+      "properties": {
+        "centerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-go-name": "CenterID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OrgHierarchyItem"
+          },
+          "x-go-name": "Items"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalCount"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    },
+    "Vulnerability": {
+      "type": "object",
+      "properties": {
+        "csrsScore": {
+          "type": "string",
+          "x-go-name": "CsrsScore"
+        },
+        "cveId": {
+          "description": "CveID identifies the vulnerability. May carry a CVE-* identifier\n(public KDB feed, NVD-aggregated) or a PVT-* identifier\n(Cisco-private KDB feed). The field name is preserved for\nbackward compatibility; do not rename.",
+          "type": "string",
+          "x-go-name": "CveID"
+        },
+        "cvssScore": {
+          "type": "string",
+          "x-go-name": "CvssScore"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "source": {
+          "description": "Source is the KDB feed of origin: \"public\" (CVE-*) or \"private\" (PVT-*).\nClients may use this in addition to / instead of inspecting the prefix.",
+          "type": "string",
+          "enum": [
+            "public",
+            "private"
+          ],
+          "x-go-name": "Source"
+        }
+      },
+      "x-go-package": "cv-gitlab.cisco.com/sentryo-labs/ccv-go/cmd/od-backend/api4/model"
+    }
+  },
+  "securityDefinitions": {
+    "token": {
+      "description": "API token created in the Cyber Vision administration UI",
+      "type": "apiKey",
+      "name": "x-token-id",
+      "in": "header"
+    }
+  },
+  "security": [
+    {
+      "token": []
+    }
+  ],
+  "tags": [
+    {
+      "description": "Assets are the physical and logical entities that make up the network.",
+      "name": "Assets"
+    },
+    {
+      "description": "Manage custom properties on assets and networks. Custom properties are user-defined key-value pairs attached to assets and networks.",
+      "name": "CustomProperties"
+    },
+    {
+      "description": "Operations related to network management and assignment.",
+      "name": "Networks"
+    },
+    {
+      "description": "Organization Hierarchies represent the hierarchical structure of organizational levels.",
+      "name": "OrgHierarchy"
+    }
+  ]
+}
