@@ -43,6 +43,26 @@ class DownloadsListResponse(BaseModel):
     files: List[DownloadableFile]
 
 
+def resolve_filename(meta: dict) -> str | None:
+    """Resolve a catalog entry to a concrete filename in DOWNLOADS_DIR.
+
+    Entries carry either a fixed ``filename`` or a ``filename_glob``. For a
+    glob, the newest-versioned match wins, so regenerating the install guide
+    for a new release is picked up with no code change.
+    """
+    fixed = meta.get("filename")
+    if fixed:
+        return fixed
+    pattern = meta.get("filename_glob")
+    if not pattern:
+        return None
+    matches = sorted(
+        (p for p in DOWNLOADS_DIR.glob(pattern) if p.is_file()),
+        key=lambda p: p.stat().st_mtime,
+    )
+    return matches[-1].name if matches else None
+
+
 def get_human_size(size_bytes: int) -> str:
     """Convert bytes to human-readable format."""
     for unit in ["B", "KB", "MB", "GB"]:
@@ -64,7 +84,11 @@ AVAILABLE_DOWNLOADS = {
     # ── Documentation ─────────────────────────────────────────────
     "installation-guide": {
         "name": "PacketArch Installation Guide (PDF)",
-        "filename": "PacketArch-Installation-Guide-v1.10.1.pdf",
+        # Resolved at request time by `resolve_filename()` — the guide is
+        # regenerated per release (scripts/build_install_guide_pdf.py stamps the
+        # version into the name), so pinning an exact filename here is how it
+        # silently went stale at v1.10.1 while the app shipped 1.19.x.
+        "filename_glob": "PacketArch-Installation-Guide-v*.pdf",
         "description": "Covers all four install methods (git-clone, offline/air-gapped "
         "bundle, virtual appliance OVA, developer/source setup), system requirements, "
         "the first-run setup wizard, environment variables, upgrades, and backups. "
@@ -149,13 +173,16 @@ async def list_downloads():
     DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
     for key, meta in AVAILABLE_DOWNLOADS.items():
-        file_path = DOWNLOADS_DIR / meta["filename"]
+        resolved = resolve_filename(meta)
+        if not resolved:
+            continue
+        file_path = DOWNLOADS_DIR / resolved
         if file_path.exists():
             size_bytes = file_path.stat().st_size
             files.append(
                 DownloadableFile(
                     name=meta["name"],
-                    filename=meta["filename"],
+                    filename=resolved,
                     description=meta["description"],
                     size_bytes=size_bytes,
                     size_human=get_human_size(size_bytes),
@@ -176,7 +203,11 @@ async def download_file(filename: str):
     # Security: only allow files that are in our allowed list. The allowed set
     # is the static catalog plus any built appliance OVAs (resolved from a
     # separate, bind-mounted dir — never inside DOWNLOADS_DIR).
-    static_allowed = {meta["filename"] for meta in AVAILABLE_DOWNLOADS.values()}
+    static_allowed = {
+        name
+        for name in (resolve_filename(meta) for meta in AVAILABLE_DOWNLOADS.values())
+        if name
+    }
     appliance_paths = {p.name: p for p in scan_appliance_ovas()}
 
     if filename in static_allowed:

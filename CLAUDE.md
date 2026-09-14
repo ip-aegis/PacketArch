@@ -27,7 +27,7 @@ git push origin master
 All services bind to `0.0.0.0` (all network interfaces):
 - **Frontend (Vite)**: `vite.config.ts` → `host: '0.0.0.0'`
 - **Backend (FastAPI)**: `config.py` → `api_host: '0.0.0.0'`
-- **Docker services**: Ports bound to `0.0.0.0` in `docker-compose.dev.yml`
+- **Docker services**: Postgres/Redis are bound to `127.0.0.1` in the root `docker-compose.yml` (reach them via SSH tunnel); the frontend publishes 80/443 on all interfaces.
 
 ### CORS Configuration
 Allowed origins: `http://localhost:3001`, `http://localhost:5173`, `http://*:3001`, `http://*:5173`
@@ -72,8 +72,9 @@ cd frontend && pnpm install
 ### Starting Services
 
 ```bash
-# 1. Docker services
-cd docker && docker-compose -f docker-compose.dev.yml up -d
+# 1. Backing services (from the repo root; needs POSTGRES_PASSWORD in .env —
+#    use packetarch_dev to match the backend's default DATABASE_URL)
+docker compose up -d postgres redis
 
 # 2. Backend
 cd backend && poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
@@ -87,7 +88,7 @@ Windows: use `python -m poetry run uvicorn ...` if poetry not in PATH.
 ### Stopping Services
 
 ```bash
-cd docker && docker-compose -f docker-compose.dev.yml down
+docker compose down            # from the repo root
 # Frontend/Backend: Ctrl+C
 ```
 
@@ -313,7 +314,7 @@ something has to talk back.
 ### How it works
 
 - **Cell** = the unit of deployment: one or more personas sharing a segment,
-  able to poll each other. Personas reuse the same 332-template fingerprint
+  able to poll each other. Personas reuse the same 348-template fingerprint
   substrate as scenarios, so OUI, identity strings and firmware match the
   claimed device.
 - **Persona** (`mimic/persona.py`) binds identity + transport + process model +
@@ -443,8 +444,8 @@ All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_po
 | Protocol | Port | Status |
 |----------|------|--------|
 | Modbus TCP | 502 | Production |
-| EtherNet/IP | 44818 (TCP), 2222 (UDP) | Production |
-| PROFINET | Layer 2 | Production |
+| EtherNet/IP | 44818 (TCP) | Production |
+| PROFINET | Layer 2 (0x8892); 34964 (UDP) for DCE/RPC AR setup | Production |
 | S7comm | 102 (TCP) | Production |
 | BACnet/IP | 47808 (UDP) | Production |
 | SNMP/NTCIP | 161, 162 (UDP) | Production |
@@ -456,7 +457,7 @@ All engines extend `ProtocolEngine`: `generate_startup_sequence()`, `generate_po
 | EMP (ITC/PTC train control) | 3001 (TCP, installation-configured) | Production |
 | ATCS (AAR Spec 200 codeline) | 4802 (TCP) + 30000+ (UDP) | Production |
 
-Additional engines exist for FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
+Additional engines exist for PCCC (2222 TCP legacy, or over EtherNet/IP), FINS and SLMP. Remote-access shapes (SSH/Telnet/RDP/HTTPS) share the CloudServiceEngine for TCP+TLS heartbeats.
 
 ### Rail protocols (transportation vertical)
 
@@ -518,7 +519,7 @@ Frontend protocol types: `frontend/src/types/protocols/` (discriminated union wi
 
 ## Industry Verticals
 
-6 verticals in `backend/app/scenario_templates/`: manufacturing, water, energy, oil_gas, building_automation, transportation. Each has pre-built scenario templates.
+8 verticals in `backend/app/scenario_templates/` (37 templates): manufacturing (8), transportation (6), energy_power (5), building_automation (5), water_wastewater (4), oil_gas (4), distribution_logistics (4), testing (1). Each has pre-built scenario templates.
 
 Transportation covers both roadway ITS (NTCIP/SNMP) and **rail**: `ptc_freight_corridor` (EMP) and `atcs_signaling_territory` (ATCS). Rail device templates live in `services/device_templates/vendors/rail.py` (Wabtec / GE Transportation for PTC; Alstom / Siemens Mobility / Hitachi Rail for ATCS), with IEEE-verified OUIs.
 
@@ -532,7 +533,7 @@ Each scenario gets a unique `/16` range: `10.{n}.0.0/16` (n = 1-254). Hosts star
 
 ## Device Templates
 
-Unified fingerprint/signature data in `backend/app/services/device_templates/` package (332 templates across 20 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
+Unified fingerprint/signature data in `backend/app/services/device_templates/` package (348 templates across 24 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
 
 ---
 
@@ -597,7 +598,7 @@ Domain procedural knowledge is packaged as Claude Agent Skills under
 Shipped skills:
 
 - `packetarch-scenario-authoring` — Purdue levels, IEC 62443 conduits, vendor-protocol affinity, flow coverage, poll timing
-- `packetarch-fingerprint-validator` — 295-template catalog, OUI rules, protocol identity matrix, remediation actions
+- `packetarch-fingerprint-validator` — 348-template catalog, OUI rules, protocol identity matrix, remediation actions
 - `packetarch-ics-attack-playbooks` — 9 playbooks, kill-chain vocabulary, action generator catalog
 - `packetarch-device-naming` — process-aware naming rules + vertical vocabulary
 - `packetarch-scenario-review` — scoring guide, categories, remediation action schemas

@@ -23,7 +23,9 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo usermod -aG docker $USER
-newgrp docker   # or log out/in for group membership to take effect
+# Log out and back in (or open a new SSH session) so the docker group applies.
+# `newgrp docker` also works, but it starts a subshell — don't paste it as part
+# of a larger block, or everything after it runs inside that subshell.
 
 # 2. Clone (public repo, HTTPS — no SSH key needed)
 git clone https://github.com/ip-aegis/PacketArch.git ~/packetarch
@@ -47,10 +49,15 @@ chmod 600 .env
 docker compose up -d --build
 ```
 
-Or run the one-shot helper (does all of the above):
+Or run the one-shot helper (does all of the above — installs Docker, clones to
+`~/packetarch`, generates `.env`, builds and starts):
 
 ```bash
-./scripts/server-init.sh         # defaults to ip-aegis/PacketArch @ master
+# Straight from GitHub, no clone needed first:
+curl -sSL https://raw.githubusercontent.com/ip-aegis/PacketArch/master/scripts/server-init.sh | bash
+
+# Or from an existing clone:
+bash scripts/server-init.sh      # defaults to ip-aegis/PacketArch @ master
 ```
 
 Then open `https://<server-ip>/` and complete the first-run **setup wizard** —
@@ -99,21 +106,20 @@ firewall.
 
 ---
 
-## GitHub Actions Deployment (optional)
+## GitHub Actions
 
-`ci.yml` runs lint/build on push/PR. `deploy.yml` can SSH to the server and
-`git pull && docker compose up -d --build` on push to `master`. To use it, add
-these repository secrets (Settings → Secrets and variables → Actions):
+Two workflows are committed:
 
-| Secret | Description |
-|--------|-------------|
-| `SSH_HOST` | Production server IP/hostname |
-| `SSH_USER` | SSH username on the server |
-| `SSH_PRIVATE_KEY` | Deploy private key (full `-----BEGIN/END-----` block) |
-| `POSTGRES_PASSWORD` / `SECRET_KEY` / `ENCRYPTION_KEY` / `ADMIN_PASSWORD` | Mirror the server `.env` |
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `ci.yml` | push / PR | Backend + frontend lint and tests |
+| `release.yml` | tag `v*` | Builds the self-contained offline bundles (full and PCAP-only variants) and attaches them to a **draft** GitHub Release |
 
-`release.yml` (tag `v*`) builds the self-contained offline bundles for
-air-gapped installs; `build-agent.yml` builds the traffic-agent image.
+> Releases are created as **drafts** — publish the draft manually for it to
+> become visible (and to become "Latest") to anyone outside the repo.
+
+There is no automated SSH deploy workflow; production boxes pull and rebuild
+themselves via `scripts/upgrade.sh` or the **Settings → Updates** UI button.
 
 ---
 
@@ -203,5 +209,5 @@ curl -fsSL https://<server>/agent/install.sh | sudo bash -s -- \
 | Service | URL |
 |---------|-----|
 | Frontend | `https://<server>/` |
-| API Docs | `https://<server>/api/docs` |
+| API Docs (Swagger) | `https://<server>/api/docs` — **only when `DEBUG=true`**; disabled on a stock install |
 | pgAdmin (tools profile, loopback) | `http://localhost:5050` via SSH tunnel |

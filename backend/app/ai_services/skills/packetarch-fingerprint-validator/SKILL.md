@@ -15,7 +15,7 @@ timing. A wrong fingerprint silently breaks detection tools.
 
 ## Source of Truth
 
-- **Templates**: `backend/app/services/device_templates/` — 295 templates
+- **Templates**: `backend/app/services/device_templates/` — 348 templates
   across 18 vendor modules. Queryable via MCP tools
   (`get_fingerprint_by_vendor_model`, `search_fingerprints`).
 - **OUI data**: `backend/app/protocol_engines/vendor_oui.py`:

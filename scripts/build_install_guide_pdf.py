@@ -13,7 +13,10 @@ Out:  dist/PacketArch-Installation-Guide-v<version>.pdf
 """
 from __future__ import annotations
 
+import datetime
 import os
+import re
+import subprocess
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -36,9 +39,34 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-VERSION = "1.10.1"
-COMMIT = "70f97ae"
-DATE = "June 25, 2026"
+def _derive_version() -> str:
+    """App version from the backend settings (single source of truth)."""
+    env = os.environ.get("PACKETARCH_VERSION")
+    if env:
+        return env
+    here = os.path.dirname(os.path.abspath(__file__))
+    cfg = os.path.join(here, "..", "backend", "app", "core", "config.py")
+    with open(cfg) as fh:
+        m = re.search(r'app_version:\s*str\s*=\s*"([^"]+)"', fh.read())
+    if not m:
+        raise SystemExit("could not read app_version from backend/app/core/config.py")
+    return m.group(1)
+
+
+def _git(*args: str, default: str = "unknown") -> str:
+    try:
+        return subprocess.check_output(
+            ["git", *args],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return default
+
+
+VERSION = _derive_version()
+COMMIT = _git("rev-parse", "--short", "HEAD")
+DATE = datetime.date.today().strftime("%B %-d, %Y")
 
 # --- palette -------------------------------------------------------------
 INK = colors.HexColor("#1a2230")
@@ -339,8 +367,11 @@ def build():
     s.append(bullets([
         "Open <font face='Courier'>https://&lt;server-ip&gt;/</font> and "
         "accept the self-signed certificate.",
-        "API docs are at <font face='Courier'>https://&lt;server-ip&gt;/"
-        "api/docs</font>.",
+        "API docs (<font face='Courier'>/api/docs</font>) are served only when "
+        "<font face='Courier'>DEBUG=true</font>. A production install sets "
+        "<font face='Courier'>DEBUG=false</font>, so they are disabled on "
+        "purpose \u2014 do not enable DEBUG on a production box just to read "
+        "them (it also turns on SQL echo and returns raw errors to clients).",
         "Complete the first-run setup wizard to create the admin account "
         "(see the dedicated section).",
         "Open inbound <font face='Courier'>443</font> (and "
@@ -473,15 +504,18 @@ def build():
     ]))
     s.append(Paragraph("Setup", h3))
     s.append(codeblock(
-        "git clone git@github.com:ip-aegis/PacketArch.git\n"
+        "git clone https://github.com/ip-aegis/PacketArch.git\n"
         "cd PacketArch\n\n"
-        "# 1. Database + Redis\n"
-        "cd docker && docker-compose -f docker-compose.dev.yml up -d\n\n"
-        "# 2. Backend (http://localhost:8001)\n"
-        "cd ../backend && poetry install\n"
+        "# 1. Dev .env (password must match the backend default DATABASE_URL)\n"
+        "printf 'POSTGRES_PASSWORD=packetarch_dev\\n"
+        "SECRET_KEY=dev-secret-not-for-production\\n' > .env\n\n"
+        "# 2. Database + Redis (from the repo root)\n"
+        "docker compose up -d postgres redis\n\n"
+        "# 3. Backend (http://localhost:8001)\n"
+        "cd backend && poetry install\n"
         "poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001\n\n"
-        "# 3. Frontend (new terminal -> http://localhost:3001)\n"
-        "cd ../frontend && pnpm install && pnpm dev"))
+        "# 4. Frontend (new terminal -> http://localhost:3001)\n"
+        "cd frontend && pnpm install && pnpm dev"))
     s.append(Paragraph("Development ports", h3))
     s.append(table(
         ["Service", "Port"],
