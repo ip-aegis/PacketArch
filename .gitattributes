@@ -1,0 +1,15 @@
+# Force LF on checkout for files Docker executes. A Windows clone with the
+# default core.autocrlf=true otherwise produces CRLF shell scripts, which
+# build fine but fail at container start with:
+#   exec /docker-entrypoint.sh: no such file or directory
+#
+# Scoped deliberately: no blanket "* text=auto". Existing files in this repo
+# are already LF, so these rules change checkout behavior only -- they do not
+# rewrite history or touch the RTF/XML spec captures that legitimately hold CRLF.
+
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+Dockerfile.*  text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+entrypoint.sh text eol=lf
