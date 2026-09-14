@@ -402,3 +402,82 @@ Tear down with:
 ssh rocsmith@10.10.20.62 'sudo virsh destroy pa-installtest && \
   sudo virsh undefine pa-installtest --remove-all-storage'
 ```
+
+---
+
+## 7. Handoff round (same session) — making the doc actually handable
+
+Scope chosen: **internet-connected box** (clone + build). Release backlog:
+**publish all**.
+
+### The fourth install doc nobody was looking at
+
+`backend/app/api/routes/downloads.py` served
+**`PacketArch-Installation-Guide-v1.10.1.pdf`** — a June PDF, nine versions
+behind — as "PacketArch Installation Guide" in **Settings → Downloads**. That
+is the doc an operator actually receives, and text extraction confirmed it
+carried the **same three defects** as the README: the `git@github.com` SSH
+clone, `docker-compose.dev.yml`, and a bare `/api/docs` URL.
+
+Two independent reasons it could never keep up:
+
+- `scripts/build_install_guide_pdf.py` hardcoded `VERSION = "1.10.1"`,
+  `COMMIT = "70f97ae"`, `DATE = "June 25, 2026"`.
+- `downloads.py` pinned the exact filename, so even a regenerated PDF wouldn't
+  be picked up without a code edit.
+
+**Fixed:** the generator now derives the version from `app_version` and the
+commit from `git`; `downloads.py` resolves the guide by glob
+(`PacketArch-Installation-Guide-v*.pdf`, newest wins). Regenerated at v1.19.2
+and verified live: the catalog lists the new file, it downloads (200, 25,956
+bytes), and the stale name 404s. The two stale committed copies were removed.
+
+### Drift guard (so it stays fixed)
+
+Nothing in `build-release.sh` or `release.yml` regenerates the guide, so
+auto-deriving the version only helps if a human remembers to run it.
+`scripts/check_install_guide_version.py` now fails CI when the committed
+guide's version doesn't match `app_version`. Verified against all three
+failure modes: stale version, two guides committed, no guide at all — plus
+the real v1.10.1 case, which it catches.
+
+### Releases published
+
+All five drafts published (oldest first so ordering is right). Public
+**Latest is now v1.19.2** with all 7 assets, including
+`packetarch-1.19.2-offline.tar.gz` (890 MB),
+`packetarch-1.19.2-pcap-offline.tar.gz` (759 MB) and
+`packetarch-1.19.2-appliance.ova` (931 MB). Previously the public saw
+v1.18.2 from 2026-07-14.
+
+### Final end-to-end proof
+
+The README was fetched **from raw.githubusercontent.com** (not the working
+tree), its Quick Start block extracted programmatically, and run on a VM
+wiped with `docker system prune -af --volumes` — a genuine cold build:
+
+```
+git@github.com occurrences:        0
+docker-compose.dev.yml occurrences: 0
+PUBLISHED_README_EXIT=0
+GET /                -> 200
+setup wizard shown:  True
+version:             1.19.2
+all six containers healthy
+```
+
+### Commits
+
+- `a0d65d4` Install instructions a new user can actually follow
+- `8bd5bc3` Keep the install guide from going stale again
+
+Both pushed to `origin/master`.
+
+### Still open (not done, deliberately)
+
+- **`release.yml` does not gate on CI** — the finding in §3 stands. Three tags
+  were cut over red lint. Not changed here; it's a release-policy decision.
+- **The offline bundle path is still unexecuted.** Now that v1.19.2 is
+  published, `packetarch-1.19.2-offline.tar.gz` is downloadable and could be
+  tested in the VM against `scripts/release-bundle/install.sh`.
+- **The OVA path** is untouched.
