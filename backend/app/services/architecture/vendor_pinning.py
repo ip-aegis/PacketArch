@@ -79,6 +79,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("kuka", "KR C4"),  # KUKA is the Siemens-shop default robot
     ),
     (VendorProfile.SIEMENS_SHOP, "cnc_controller"): (
+        ("siemens", "NCU 730.3B PN"),   # SINUMERIK 840D sl
         ("fanuc", "0i-TF Plus"),
     ),
     (VendorProfile.SIEMENS_SHOP, "vision_system"): (
@@ -141,8 +142,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         # Fanuc is the dominant robot in Rockwell-shop automotive lines.
         ("fanuc", "R-30iB Plus"),
     ),
+    # A machine tool is bought as a machine and arrives with whatever control
+    # its builder fitted, so the CNC brand does not have to follow the plant's
+    # PLC brand.
     (VendorProfile.ROCKWELL_SHOP, "cnc_controller"): (
         ("fanuc", "0i-TF Plus"),
+        ("siemens", "NCU 730.3B PN"),   # SINUMERIK 840D sl
     ),
     # Cognex and SICK vision both appear on Rockwell lines; the SICK entry already existed unpinned.
     (VendorProfile.ROCKWELL_SHOP, "vision_system"): (
@@ -654,7 +659,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("daktronics", "Venus 1500"),
     ),
     (VendorProfile.ATMS_NTCIP, "toll_rsu"): (
-        ("q-free", "RSU 5000"),
+        ("q-free", "RSU 5000"),         # DSRC
+        ("cohda", "MK6 RSU"),           # dual DSRC + C-V2X
     ),
     (VendorProfile.ATMS_NTCIP, "toll_lane_controller"): (
         ("kapsch", "TCS 2000"),
@@ -751,6 +757,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     ),
     (VendorProfile.MULTI_VENDOR, "cnc_controller"): (
         ("fanuc", "0i-TF Plus"),
+        ("siemens", "NCU 730.3B PN"),   # SINUMERIK 840D sl
     ),
     (VendorProfile.MULTI_VENDOR, "vision_system"): (
         ("cognex", "In-Sight 7802"),
@@ -910,7 +917,8 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("daktronics", "Venus 7000"),
     ),
     "toll_rsu": (
-        ("q-free", "RSU 5000"),
+        ("q-free", "RSU 5000"),         # DSRC
+        ("cohda", "MK6 RSU"),           # dual DSRC + C-V2X
     ),
     "toll_lane_controller": (
         ("kapsch", "TCS 2000"),
@@ -952,7 +960,8 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("schneider", "Galaxy VM"),
     ),
     "crac_unit": (
-        ("schneider", "InRow DX"),
+        ("schneider", "InRow DX"),      # in-row
+        ("vertiv", "PDX"),              # perimeter, iCOM control
     ),
     # Logistics — robotics, identification, vision.
     "agv": (
@@ -997,6 +1006,7 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
     ),
     "cnc_controller": (
         ("fanuc", "0i-TF Plus"),
+        ("siemens", "NCU 730.3B PN"),   # SINUMERIK 840D sl
     ),
 }
 

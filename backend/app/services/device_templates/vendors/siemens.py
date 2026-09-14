@@ -9,6 +9,104 @@ from datetime import date
 
 
 TEMPLATES: list[DeviceTemplate] = [
+    # A CNC-heavy machining cell had exactly one controller fingerprint in the
+    # catalog (a Fanuc 0i-TF Plus), so every machine tool in a scenario came
+    # out identical and Cyber Vision merged them. SINUMERIK is the obvious
+    # second: it is what a Siemens shop actually buys, and the IEEE registry
+    # even carries "SIEMENS NUMERICAL CONTROL LTD" as a registrant.
+    #
+    # The NCU is the networked part of an 840D sl — a numerical control unit
+    # with an integrated S7 PLC (a 317-3 PN/DP on this variant), which is why
+    # it answers both PROFINET and S7comm rather than one or the other.
+    #
+    # Article number 6FC5373-0AA30-0AB0 is the 730.3B PN per Siemens' own
+    # product datasheet. Note 6FC5372-... is the smaller NCU 720.3B PN — the
+    # two differ by one digit and are easy to transpose.
+    DeviceTemplate(
+        id="siemens/sinumerik/840d-sl",
+        vendor="Siemens",
+        vendor_family="SINUMERIK",
+        model="NCU 730.3B PN",
+        model_name="SINUMERIK 840D sl NCU 730.3B PN",
+        device_type="cnc_controller",
+        description="CNC numerical control unit with integrated PLC for machine tools",
+
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": False,
+        },
+
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 40.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 5.0,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["profinet", "s7comm", "snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="S C-{8HEX}",
+            station_name_pattern="cnc-{location}-{seq}",
+            vendor_short="SIE",
+            model_short="840DSL",
+        ),
+
+        # Versions and dates taken from Siemens' own CNC software readmes for
+        # the 840D sl line, which tops out in the 4.95 SPx range.
+        firmware_variants=[
+            FirmwareVariant(
+                version="V4.95 SP5",
+                release_date=date(2025, 5, 28),
+                is_latest=True,
+                is_default=True,
+                cves=[],
+                population_weight=0.6,
+            ),
+            FirmwareVariant(
+                version="V4.95 SP3",
+                release_date=date(2023, 3, 31),
+                cves=[],
+                population_weight=0.4,
+            ),
+        ],
+
+        # vendor_id 42 is Siemens on the PROFIBUS/PROFINET manufacturer list.
+        # device_id is deliberately absent: Siemens does not publish one for
+        # this NCU, and a made-up value is worse than none.
+        profinet_identity={
+            "vendor_id": 0x002A,
+            "device_role": 2,             # Controller
+            "im0_manufacturer": "Siemens AG",
+            "im0_order_id": "6FC5373-0AA30-0AB0",
+            "im0_hw_revision": 3,
+        },
+
+        # An S7 client interrogating an 840D sl reaches the NCU's INTEGRATED
+        # PLC, which on the 730.3B PN is a 317-3 PN/DP — so that, not the NCU
+        # designation, is what a module-identification read returns. The PLC's
+        # own 6ES7 order number is not published separately from the NCU
+        # article number, so it is left out rather than guessed.
+        s7_identity={
+            "module_type": "CPU 317-3 PN/DP",
+            "copyright": "Original Siemens Equipment",
+            "module_name": "SINUMERIK",
+            "hardware_version": "V3",
+        },
+
+        snmp_identity={
+            "sys_descr": "Siemens SINUMERIK 840D sl NCU 730.3B PN V4.95 SP5",
+            "sys_object_id": "1.3.6.1.4.1.4329.840.31",
+            "sys_name": "SINUME-840DSL-001",
+            "sys_location": "Machine Shop",
+        },
+    ),
     DeviceTemplate(
         id="siemens/s7-1500/cpu-1516-3",
         vendor="Siemens",
@@ -3694,7 +3792,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="servo",
         description="0.1-7 kW servo drive with integrated PROFINET IRT and web server",
 
-        oui_prefixes=["00:0E:8C"],
+        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={"ttl": 64, "window_size": 8192, "mss": 1460, "sack_permitted": True},
 
