@@ -29,6 +29,12 @@ jobs:
           cd backend
           ruff check . --select=E,F,W --ignore=E501
 
+      - name: Install guide matches app_version
+        # The guide in Settings > Downloads is a committed generated artifact.
+        # It went stale once (app at 1.19.x, operators handed a v1.10.1 PDF
+        # that predated the setup wizard); this keeps that from recurring.
+        run: python scripts/check_install_guide_version.py
+
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-latest
