@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.19.2,
-      covering June 17 &ndash; September 11, 2026.
+      Feature releases and patches from v1.10.0 through v1.19.3,
+      covering June 17 &ndash; September 14, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">19</div>
+        <div class="cover-stat-value">20</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.19.2</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.19.3</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -583,7 +583,7 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-09-11</div>
+        <div class="cover-stat-value">2026-09-14</div>
       </div>
     </div>
   </header>
@@ -687,6 +687,11 @@ code {
           <td>v1.19.2</td>
           <td>Scenarios named with an em dash build their full Cyber Vision hierarchy</td>
           <td>Sep 11, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.19.3</td>
+          <td>Cyber Vision 5.6 compatibility: flow queries, device enrichment and hierarchy names</td>
+          <td>Sep 14, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1735,10 +1740,90 @@ code {
     </div>
   </section>
 
+  <!-- ════════════════════════════════════════════════════
+       v1.19.3
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.19.3">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.19.3</div>
+        <div class="release-date">2026-09-14</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">Cyber Vision 5.6 compatibility: flow queries, device enrichment and hierarchy names</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Asking Cyber Vision for a page of flows returned every flow
+            it had.</strong> The flow and vulnerability views request a bounded
+            page &mdash; at most 500 rows &mdash; but Cyber Vision 5.6 quietly
+            ignores the pagination style PacketArch was using and answers with
+            the entire collection instead, reporting success while doing it. On
+            a Center that had been running labs for a while that meant more
+            than seventy thousand flow records loaded and returned for a
+            request that asked for a hundred, making those views slow to the
+            point of appearing hung. PacketArch now uses the pagination style
+            5.6 honours, so a page is a page again.
+          </li>
+          <li class="change-item">
+            <strong>Pushing device details into Cyber Vision added a fresh copy
+            of every property each time.</strong> Enrichment checks what a
+            device already has so it can skip it, but the endpoint it used to
+            read those properties back no longer exists in 5.6. The check
+            silently concluded the device had none, so every run re-added the
+            lot and properties accumulated. The existing properties are now
+            read from the device record itself, and a device that has already
+            been enriched is left alone.
+          </li>
+          <li class="change-item">
+            <strong>Punctuation in a scenario or zone name could still wipe out
+            its Cyber Vision hierarchy.</strong> v1.19.2 fixed this for accented
+            and typographic characters such as the em dash. It turns out Cyber
+            Vision also refuses sixteen ordinary keyboard characters &mdash;
+            among them square brackets, braces, quotation marks, a pipe, a
+            backslash and a question mark &mdash; and rejects the whole batch
+            when it sees one, so a zone named something like
+            &ldquo;Zone [A]&rdquo; took the scenario&rsquo;s entire hierarchy
+            down with it. Names are now translated into exactly the characters
+            Cyber Vision accepts, with brackets becoming parentheses and a pipe
+            becoming a slash rather than simply vanishing. A name written
+            entirely in a non-Latin script, which previously reduced to nothing
+            at all, now falls back to an identifying name instead of being
+            rejected as empty.
+          </li>
+          <li class="change-item">
+            <strong>Two zones in one scenario could quietly merge into a single
+            hierarchy level.</strong> Cyber Vision caps a hierarchy level name
+            at twenty characters, and PacketArch shortens at a word boundary to
+            fit. Two zones whose names only differed after that cut-off ended up
+            with the same shortened name, and both were then filed under one
+            level &mdash; one level missing from the tree, both zones&rsquo;
+            networks assigned to the other, and no error anywhere. Zone names
+            are now shortened as a set, so siblings are guaranteed to stay
+            distinct. No existing scenario was affected.
+          </li>
+          <li class="change-item">
+            <strong>A partly-rejected hierarchy no longer hides the reason.</strong>
+            Cyber Vision can accept some levels in a batch and refuse others
+            while still reporting overall success. PacketArch discarded that
+            detail, so a missing level had to be inferred later. The reason
+            Cyber Vision gave for each refused level is now written to the
+            backend log.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-07-14</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-14</div>
   </footer>
 
 </div>
