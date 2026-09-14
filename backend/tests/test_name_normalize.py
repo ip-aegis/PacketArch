@@ -66,7 +66,10 @@ def test_oh_level_name_folds_non_ascii() -> None:
     # a separator is preserved as ASCII rather than dropped, so words stay apart
     assert _oh_level_name("Cell 1 – Mixing") == "Cell 1 - Mixing"
     assert _oh_level_name("Bioreactor 40°C") == "Bioreactor 40 degC"
-    assert _oh_level_name("Line “A”") == 'Line "A"'
+    # NB: the straight double quote is itself CV-rejected ("Name is invalid",
+    # verified live on 5.6), so the smart quotes fold on to an apostrophe
+    # rather than to '"'. See docs/cyber-vision/API_AUDIT_5.6.md §3.
+    assert _oh_level_name("Line “A”") == "Line 'A'"
     # pure ASCII is untouched, and the 20-char cap still holds at a word boundary
     assert _oh_level_name("Cookie Bakery") == "Cookie Bakery"
     assert _oh_level_name("Process Control And Safety") == "Process Control"
@@ -76,8 +79,13 @@ def test_oh_level_name_folds_non_ascii() -> None:
 def test_oh_level_name_edge_cases() -> None:
     from app.services.cv_provisioning_service import _oh_level_name
 
-    assert _oh_level_name("") == ""
-    assert _oh_level_name(None) == ""
-    # a name with nothing ASCII left over must not become whitespace
-    assert _oh_level_name("日本語") == ""
+    # These used to assert "" — but CV rejects an EMPTY name just as it rejects
+    # a bad character (verified live on 5.6), so returning "" only moved the
+    # 400 downstream and failed the whole POST /cvapi/v1/oh batch. A name that
+    # folds away to nothing now falls back instead.
+    assert _oh_level_name("") == "Unnamed"
+    assert _oh_level_name(None) == "Unnamed"
+    assert _oh_level_name("日本語") == "Unnamed"
+    # ...and callers pass something identity-bearing so two such zones differ
+    assert _oh_level_name("日本語", fallback="Zone abc12345") == "Zone abc12345"
     assert _oh_level_name("  spaced   out  name ") == "spaced out name"

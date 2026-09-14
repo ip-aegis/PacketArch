@@ -85,6 +85,27 @@ cd frontend && pnpm dev
 
 Windows: use `python -m poetry run uvicorn ...` if poetry not in PATH.
 
+### Running the Backend Tests
+
+The dev box has **no poetry and no pytest on the host**, and the backend image
+is built with `poetry install --only main`, so the dev group (pytest,
+pytest-asyncio, aiosqlite) is not in it either. Run the suite in a throwaway
+container — it installs the pinned dev deps, mounts the working tree, and
+leaves nothing behind:
+
+```bash
+docker compose run --rm --no-deps -v "$(pwd)/backend:/src:ro" --entrypoint sh backend -c '
+  pip install -q "pytest>=7.4.4,<8" "pytest-asyncio>=0.23.3,<0.24" "aiosqlite>=0.19,<0.20"
+  cp -r /src/tests /app/tests_live && cp /src/pyproject.toml /app/pyproject.toml
+  cd /app && python -m pytest tests_live -q -p no:cacheprovider -m "not integration"'
+```
+
+Copy the tests in rather than only mounting them: the image's own `/app/tests`
+is whatever was baked at build time, so a test file added since the last
+`--build` is invisible and pytest silently collects **0 items** and still
+exits 0. Drop the `-m "not integration"` filter to include integration tests
+(they need Postgres/Redis up).
+
 ### Stopping Services
 
 ```bash
