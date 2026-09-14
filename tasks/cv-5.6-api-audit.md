@@ -9,7 +9,8 @@ networks are created in the new UI.
   `https://10.10.20.115/ui/cisco-cyber-vision-api-v4.json`, `info.version =
   1.0.0-5.6.0`. Document authority exists.
 - **Classic `/api/3.0`** — the Center **no longer serves** its spec JSON (404 on
-  every known path). Our on-file `cisco-cyber-vision-api-v3.json` is
+  every known path). Our on-file copy (now
+  `docs/cyber-vision/cisco-cyber-vision-api-v3-5.4.0.json`) is
   `3.0.0-5.4.0` and is now the only written record. **Live probe is the only
   authority for this half** — and it is where breakage risk actually lives
   (~27 call sites vs 6).
