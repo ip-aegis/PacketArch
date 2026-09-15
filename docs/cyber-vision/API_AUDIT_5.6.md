@@ -671,6 +671,43 @@ not the asset group — confirmed against PacketArch's own stored
 `org_hierarchy` state. No token-authenticated surface exposes the asset-group
 fact, so the health check genuinely requires a UI session.
 
+### Live confirmation, and the blast radius is narrower than it looks
+
+Measured on `10.10.20.115` (CV 5.6) on 2026-09-15 with a UI session, across
+the 6 provisioned scenarios / 60 networks:
+
+| Scenario | CV state written | Networks with an asset group |
+|---|---|---|
+| Semiconductor Fab — 300mm Wafer Line | 2026-07-23 | 10 / 10 |
+| Municipal Water Treatment Plant | 2026-07-23 | 7 / 7 |
+| Strict Purdue Segmented Manufacturing | 2026-07-23 | 7 / 7 |
+| Electrical Substation IED Network | 2026-07-23 | 7 / 7 |
+| Data Center Infrastructure | 2026-07-23 | 7 / 7 |
+| **Heat & Hot-Water Cost Allocation Retrofit** | **2026-08-10** | **0 / 11** |
+
+**The split is the upgrade date, not the scenario.** This Center was upgraded
+to 5.6 between those two dates. Networks created on 5.5.x kept their asset
+groups; every network created afterwards has none. Verified as a real absence
+rather than a name-matching artifact — no asset group on the Center mentions
+`Heat`, `Energy`, `Wing` or `BMS`, and all 47 groups are `type: "network"`.
+
+Two consequences:
+
+- **The symptom is usually a partial map, not an empty one.** An install that
+  provisioned most of its scenarios before the upgrade sees most zones render
+  normally, which makes this harder to spot than "the map is blank" suggests
+  — and makes the per-scenario report the right diagnostic shape.
+- **Nothing degrades retroactively.** An upgrade does not strip existing asset
+  groups, so only scenarios provisioned (or re-provisioned) after the upgrade
+  need repair. `scripts/cv-repair-networks.sh` skips the healthy ones.
+
+Also confirmed live: `GET /scv/4.0/networks/csv/sample` returns
+`ip_range,type,name,vlan_id,Location,Department` with `OT Internal` /
+`IT Internal` / `External` in the `type` column — matching `CSV_COLUMNS` and
+the classic vocabulary exactly; `center-type` is `standalone`; the
+form-encoded `u`/`p` login succeeds and `check_session` returns an 88-char
+`x-csrf-token` header.
+
 ### What PacketArch does now
 
 Network **creation** goes through the new UI's CSV import

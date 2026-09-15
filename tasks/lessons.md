@@ -283,6 +283,17 @@ needs a UI session, which is itself worth writing down.)
 ship the detector with the fix. `scripts/cv-repair-networks.sh` is read-only by
 default for that reason, and §10 says to run it after every CV upgrade.
 
+**And a prediction I got wrong, which is why the detector had to be run rather
+than reasoned about.** From "all 60 networks on this Center were created
+through the classic API" I predicted all 60 would be missing asset groups. The
+live check found 49 of 60 perfectly healthy: the five scenarios provisioned
+before the Center's 5.6 upgrade kept their asset groups, and only the one
+provisioned after it lost them. The defect attaches to the moment of
+*creation*, not to the API used, so an upgrade breaks nothing retroactively —
+which also means the usual symptom is a *partial* map, not the empty one the
+report describes. Reasoning from the mechanism gave me the right cause and the
+wrong blast radius.
+
 ## Test a working-tree change against the working tree, not the baked image (2026-09-15)
 
 CLAUDE.md's throwaway-container recipe mounts `backend` at `/src` and copies in
