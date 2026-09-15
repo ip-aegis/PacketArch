@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.19.3,
-      covering June 17 &ndash; September 14, 2026.
+      Feature releases and patches from v1.10.0 through v1.20.0,
+      covering June 17 &ndash; September 15, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">20</div>
+        <div class="cover-stat-value">21</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.19.3</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.20.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -688,10 +688,15 @@ code {
           <td>Scenarios named with an em dash build their full Cyber Vision hierarchy</td>
           <td>Sep 11, 2026</td>
         </tr>
-        <tr>
+        <tr class="patch">
           <td>v1.19.3</td>
           <td>Cyber Vision 5.6 compatibility: flow queries, device enrichment and hierarchy names</td>
           <td>Sep 14, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.20.0</td>
+          <td>Scenario zones appear on the Cyber Vision 5.6 communications map again</td>
+          <td>Sep 15, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1819,6 +1824,99 @@ code {
       </div>
     </div>
   </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.20.0
+  ════════════════════════════════════════════════════ -->
+  <section class="release" id="v1.20.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.20.0</div>
+        <div class="release-date">2026-09-15</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Cyber Vision</div>
+        <div class="release-headline">Scenario zones appear on the Cyber Vision 5.6 communications map again</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Scenario zones were missing from the Cyber Vision 5.6
+            communications map.</strong> Cyber Vision 5.6 moved network creation
+            into its own interface, and a network created the way PacketArch had
+            always created it &mdash; through the API &mdash; is only
+            half-registered. It appears in the inventory, devices are attributed
+            to it, and every check PacketArch could perform came back clean; but
+            Cyber Vision no longer builds the network&rsquo;s asset group, and
+            the communications map is drawn from asset groups. The zone was
+            simply absent from the map while looking healthy everywhere else.
+            Cisco has confirmed the behaviour and is retiring that route.
+            PacketArch now creates networks the way the interface does, so zones
+            appear on the map as they did before 5.6.
+          </li>
+          <li class="change-item">
+            <strong>The map gap was easy to mistake for something else.</strong>
+            Because nothing else was broken, the obvious remedies &mdash;
+            recreating networks, rebuilding the hierarchy, re-provisioning the
+            scenario &mdash; all appeared to succeed and changed nothing. Worth
+            knowing: only networks created <em>after</em> a Center was upgraded
+            to 5.6 are affected. Upgrading does not disturb what already exists,
+            so the usual symptom is a map missing some zones rather than an
+            empty one.
+          </li>
+          <li class="change-item">
+            <strong>A trailing space in a scenario name could break name
+            matching against Cyber Vision.</strong> Cyber Vision trims
+            whitespace from a network name, so the name PacketArch recorded no
+            longer matched the one Cyber Vision stored. Names are now trimmed
+            when they are generated.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="feat">
+        <div class="change-type-label">New</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Cyber Vision Centers take a UI username and password.</strong>
+            Creating a network the way Cyber Vision&rsquo;s own interface does
+            requires signing in as a user; an API token cannot do it. Each
+            Center therefore has a third credential alongside its two API
+            tokens, under <strong>Settings &rarr; Cyber Vision</strong>. The
+            password is encrypted and never returned. A Center that is missing
+            it is called out on that page, and the connection check now tests
+            the login rather than reporting a healthy Center on the strength of
+            the API token alone.
+          </li>
+          <li class="change-item">
+            <strong>Deploys keep working without it, and say so.</strong> A
+            Center with no UI credentials still gets its networks created the
+            old way rather than failing the deploy &mdash; a half-registered
+            network is still useful for device attribution and the classic
+            interface. The deploy log states plainly that those networks will
+            not appear on the communications map, and names the ranges.
+          </li>
+          <li class="change-item">
+            <strong>A tool to find and fix affected installs.</strong> Networks
+            created before this release stay half-registered: re-importing them
+            does not help, because only creating a network afresh builds its
+            asset group. <strong>scripts/cv-repair-networks.sh</strong> reports,
+            per scenario, which networks are missing theirs &mdash; the one
+            check that detects this &mdash; alongside three others that can all
+            pass while the map stays empty. It is read-only by default and is
+            worth re-running after any Cyber Vision upgrade. Adding
+            <strong>--scenario &lt;name&gt; --apply</strong> repairs one
+            scenario: it skips what is already healthy, recreates the rest,
+            verifies each one, and restores the Organization Hierarchy
+            afterwards. It works one scenario at a time by design.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
 
   <!-- FOOTER -->
   <footer class="doc-footer">

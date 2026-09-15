@@ -107,6 +107,11 @@ const CyberVisionTab: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centers]);
 
+  // CV 5.6 only registers a network properly when it is created through the
+  // UI, so a center without UI credentials silently produces zones that never
+  // reach the communications map. Worth saying out loud, not just in a tag.
+  const centersMissingUiLogin = centers.filter((c) => !(c.ui_username && c.ui_password_set));
+
   const openAdd = () => {
     setEditing(null);
     setFormTest(null);
@@ -342,6 +347,30 @@ const CyberVisionTab: React.FC = () => {
           </Button>
         }
       >
+        {centersLoaded && centers.length > 0 && centersMissingUiLogin.length > 0 && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            message={
+              centersMissingUiLogin.length === 1
+                ? `${centersMissingUiLogin[0].name} has no UI login`
+                : `${centersMissingUiLogin.length} centers have no UI login`
+            }
+            description={
+              <>
+                On Cyber Vision 5.6 a network created through the API is not registered
+                completely: Cyber Vision does not build its asset group, so the zone never
+                appears on the communications map. Creating it through Cyber Vision&apos;s own
+                UI is the only route that works, and that needs a UI username and password
+                as well as the API tokens. Edit the center to add them.
+                {' '}Scenarios already provisioned without them keep their gap until they are
+                repaired — run <Text code>scripts/cv-repair-networks.sh</Text> to see which
+                are affected.
+              </>
+            }
+          />
+        )}
         {centersLoaded && centers.length === 0 ? (
           <Alert
             type="info"

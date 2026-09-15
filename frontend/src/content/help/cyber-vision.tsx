@@ -42,6 +42,19 @@ const CyberVisionContent: React.FC = () => {
           sync. Use <Text strong style={{ color: '#fff' }}>Test connection</Text> to check TLS and
           auth before saving.
         </Paragraph>
+        <Paragraph style={{ color: TEXT_PARAGRAPH }}>
+          On <Text strong style={{ color: '#fff' }}>Cyber Vision 5.6 and later</Text>, also add a
+          <Text strong style={{ color: '#fff' }}> UI username and password</Text>. 5.6 moved network
+          creation into its own UI, and a network created through the API is left
+          half-registered — it appears in the inventory and devices are attributed to it, but
+          Cyber Vision never builds its asset group, and the communications map is drawn from
+          asset groups. The zone is simply absent from the map while looking healthy
+          everywhere else. Creating the network the way the UI does is the only route that
+          registers it fully, and that needs a real login rather than a token. Without one,
+          PacketArch still provisions the network the old way and warns that it will not reach
+          the map. Networks created before the credentials were added keep the gap until they
+          are repaired.
+        </Paragraph>
         <Paragraph style={{ color: TEXT_PARAGRAPH, marginBottom: 0 }}>
           One PacketArch server can talk to several centers. One of them is the
           <Text strong style={{ color: '#fff' }}> default</Text>, used whenever you don&apos;t pick one.
