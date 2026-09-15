@@ -54,6 +54,14 @@ class CyberVisionCenter(Base):
     api_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Encrypted new-UI /cvapi/v1 token (optional; a separate CV token store).
     new_ui_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # CV UI login (optional). A THIRD credential kind, distinct from the two
+    # API tokens: CV 5.6 only registers a network correctly when it is created
+    # through the new UI's CSV import, and that needs a real UI *session*
+    # (/scv/*), which no API token can obtain. Username is returned by the API;
+    # the password is Fernet ciphertext and never is. Both halves or neither —
+    # a center with only one is treated as having no UI credentials.
+    ui_username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ui_password: Mapped[str | None] = mapped_column(Text, nullable=True)
     verify_ssl: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(

@@ -65,9 +65,18 @@ Across all 13 new-UI paths the only network *writes* are
 level) and the custom-properties CRUD. Network creation, update and deletion
 remain exclusively on classic `POST|PUT|DELETE /api/3.0/networks/`.
 
-**PacketArch is already structurally correct here**: `cv_provisioning_service`
+> **CORRECTION (2026-09-15).** The paragraph below was wrong, and §10 is the
+> full account. Classic network creation is not merely the only route — on
+> 5.6 it is **broken**. The network is created and assets are attributed to
+> it, but CV never materializes the network's **asset group**, and the new
+> UI's communications map groups on asset groups, so the network is invisible
+> there. Networks are now created through the new UI's **CSV import**
+> (`POST /scv/4.0/networks/csv`), with the classic call kept only as a
+> fallback. Reads are unaffected.
+
+~~**PacketArch is already structurally correct here**: `cv_provisioning_service`
 creates networks on the classic API and uses the new-UI API only to read them
-back and assign them into the Organization Hierarchy. No change required.
+back and assign them into the Organization Hierarchy. No change required.~~
 
 ### The same network reports a different `type` on each API
 
@@ -568,11 +577,17 @@ correctness today.
    the field as `key`, not `label` (§5). All probe properties deleted;
    `userProperties` back to `[]`.
 
-**No open items remain.** Every write path PacketArch uses against CV has now
-been exercised on 5.6 except `POST/PUT/DELETE /api/3.0/networks/`,
+**One open item, reopened by §10.** Every write path PacketArch uses against
+CV has been exercised on 5.6 except `POST/PUT/DELETE /api/3.0/networks/`,
 `POST /presets`, `DELETE /presets/{id}`, `POST|PUT /groups`, and
-`DELETE /sensors/{id}` — all of which run on every scenario provision/teardown
-in normal operation and would be loudly broken if they had regressed.
+`DELETE /sensors/{id}`.
+
+The original reasoning here was that these "run on every scenario
+provision/teardown in normal operation and would be loudly broken if they had
+regressed." **That reasoning was wrong, and `POST /networks/` is the
+counter-example** — it regressed *silently*, because its only visible effect
+lives in a part of CV's UI no API PacketArch calls can see. See §10, and
+`tasks/lessons.md`.
 
 ---
 
@@ -590,3 +605,190 @@ docker compose exec -T -e PYTHONPATH=/app backend python /tmp/cv56_probe.py
 Probe scripts resolve clients through `services/cv_centers.py`
 (`cv_client` / `cv_v1_client`) — per CLAUDE.md, never read CV config any other
 way. Keep probes **read-only** against shared Centers.
+
+---
+
+## 10. Defect: classic network creation leaves the communications map empty
+
+**Added 2026-09-15.** This supersedes §2's original verdict and reopens §8.
+
+The operator-facing symptom is that the new UI's communications map
+(`/ui/#/communications`) shows little or nothing for PacketArch scenarios,
+while every other surface looks healthy.
+
+### Mechanism
+
+CV materializes one **asset group** per properly-registered network:
+
+```json
+{
+  "groupId": "dade974c-343f-5421-948c-35eaddc099bd",
+  "name": "Intake Zone",
+  "description": "Network group for subnet: Intake Zone (10.2.2.0/24)",
+  "type": "network",
+  "groupOrigin": "system",
+  "interfaceCount": 8
+}
+```
+
+The map is driven by `POST /scv/4.0/communications/asset-groups` and groups on
+exactly those. Per Cisco, CV 5.6.0 moved network creation to the new UI and
+removed network configuration from the classic UI but kept the classic API —
+and creating a network through that API does not populate the database
+correctly. The network lists on both APIs, assets are attributed to it by CV's
+own `networkInterfaces[].networkName`, and yet **no asset group is created**,
+so it can never appear on the map. **That route is being deprecated and there
+is no API replacement planned for some time.**
+
+### Measured behaviour
+
+Verified against two live 5.6 Centers:
+
+| Operation | Asset group created? | Notes |
+|---|---|---|
+| classic `POST /api/3.0/networks/` | **No** | network lists fine, assets attributed, map blank |
+| classic `PUT /api/3.0/networks/` with identical values | **No** | change-impact preview `0/0`, nothing changes |
+| new-UI CSV import — **create** | **Yes** | immediate, with all member interfaces |
+| new-UI CSV import — **upsert** of an existing bad row | **No** | returns `updated:1` and repairs nothing |
+
+The last row is the trap: re-importing looks like success and fixes nothing.
+Only a *create* materializes the asset group, so repairing an existing bad
+network means delete-then-create.
+
+### There is no token-only detector
+
+Probed read-only against `10.10.20.115` on 2026-09-15:
+
+| Probe | Result |
+|---|---|
+| `GET /scv/3.0/center-type` (no auth) | `{"center_type":"standalone"}` |
+| `GET /scv/4.0/asset-group` with the classic token / the new-UI token / no auth | `401` in all three cases |
+| `GET /cvapi/v1/{groups,asset-group,asset-groups}`, `GET /cvapi/v1/networks/{id}` | `404` |
+| `GET /cvapi/v1/networks` `groupId` vs `GET /cvapi/v1/oh` level ids | **60/60 are OH level ids** |
+
+`groupId` on the new-UI network object is the **Organization Hierarchy level**,
+not the asset group — confirmed against PacketArch's own stored
+`org_hierarchy` state. No token-authenticated surface exposes the asset-group
+fact, so the health check genuinely requires a UI session.
+
+### What PacketArch does now
+
+Network **creation** goes through the new UI's CSV import
+(`services/cyber_vision_ui_service.py`, wired in at
+`cv_provisioning_service._create_networks`). Reads stay on the classic API,
+which lists both kinds of network identically, so id resolution by `ipRange`
+and the whole Organization Hierarchy half are unchanged.
+
+Each Center therefore carries a **third credential kind** — a UI
+username/password, resolved only through `cv_centers.ui_client`:
+
+| Credential | Used for |
+|---|---|
+| Classic API token | `/api/3.0` — reads, presets, groups, network *reads* |
+| New UI API token | `/cvapi/v1` — Organization Hierarchy, network reads |
+| **UI username + password** | **`/scv/4.0` — network creation via CSV import** |
+
+Without UI credentials, or if the import itself fails, creation falls back to
+the classic API and logs a warning containing the literal string
+`will NOT appear on the communications map`. This is deliberate: a
+half-registered network still serves the classic UI and asset attribution, so
+falling back beats failing the deploy. A **partial** import warns but does NOT
+fall back, because an `updated` row does not repair a bad network.
+
+### The `/scv` surface
+
+`/scv` is the UI's own private API. None of it is in any published spec and it
+can change in any CV release.
+
+| Call | Purpose |
+|---|---|
+| `GET /scv/3.0/center-type` | `standalone` or `CVSM` — decides the login route |
+| `POST /scv/1.0/login` | login for a standalone Center |
+| `POST /scv/4.0/login` | login for a CVSM Center |
+| `GET /scv/1.0/check_session` | **returns the CSRF token** |
+| `GET /scv/4.0/networks/csv/sample` | the CSV template — authoritative column list |
+| `POST /scv/4.0/networks/csv` | multipart `file`; upserts by `ip_range` |
+| `DELETE /scv/4.0/networks` | body `{"idList": [...]}` |
+| `GET /scv/4.0/network/{id}/details` | one network incl. `orgHierarchy` |
+| `GET /scv/4.0/asset-group?type=all&hasParent=false` | asset groups — the health check |
+| `GET /scv/4.0/oh/groups` | OH tree with `impactRating`, `networksCount` |
+
+Two auth mechanics that are not guessable:
+
+1. **The login body is form-encoded, not JSON**, with fields `u` and `p`.
+   Sending JSON returns `401 INVALID_CREDENTIALS` regardless of how correct
+   the credentials are, which reads exactly like a wrong password.
+2. **Writes require a gorilla/csrf token.** `GET /scv/1.0/check_session` sets
+   the `_gorilla_csrf` cookie **and returns the matching token in the
+   `x-csrf-token` response header**; every `/scv/4.0` write must echo that
+   value in the `x-csrf-token` *request* header. The cookie value on its own is
+   not the token. Without it: `403 Forbidden - CSRF token not found in
+   request`. The token is bound to the cookie, so it must be **re-fetched
+   after any re-login** — a rotated cookie plus a held-over token yields the
+   same CSRF 403, which looks nothing like session expiry.
+
+### CSV format
+
+From CV's own template (`GET /scv/4.0/networks/csv/sample`):
+
+```
+ip_range,type,name,vlan_id,Location,Department
+10.1.0.0/24,OT Internal,Factory Floor,,Building A,Manufacturing
+```
+
+- Required columns: `ip_range`, `type`, `name`, `vlan_id`. Any further column
+  becomes a **custom property** on the network.
+- `type` uses the **classic** vocabulary — `OT Internal` / `IT Internal` /
+  `External`. This is *not* the new-UI API's reading of the same field, which
+  reports `OT` for the same object (§2). Feeding it `OT` mistypes the network.
+  `build_networks_csv` takes the classic `_net_item` payload dicts for exactly
+  this reason: the vocabulary cannot drift.
+- **CV trims whitespace in `name`**, so `_net_item` strips at generation —
+  otherwise a recorded name would not match what CV stores.
+- Quote properly. Zone labels are `f"{zone} ({scenario})"` and scenario names
+  are free text, so commas and em dashes are routine; `build_networks_csv`
+  uses `csv.writer`.
+- The response is `{"created": N, "updated": N, "skipped": N, "errors": [...]}`.
+  **Check `created`** — `updated` does not repair a bad network.
+
+### Verification — run all four after every CV upgrade
+
+`scripts/cv-repair-networks.sh` (read-only by default) reports all of them per
+scenario. The first, third and fourth can all pass while the map stays empty:
+
+1. **Networks exist** — every expected range present (classic `GET /networks/`).
+2. **Asset group exists** for each — `GET /scv/4.0/asset-group`. *This is the
+   one that detects this defect.* Key on **presence by name**, never on
+   `interfaceCount`: a scenario's `/16` umbrella legitimately reports `0`
+   because CV attributes assets to the more specific `/24`s.
+3. **Assigned to the right OH level**, not parked at `Global`.
+4. **PacketArch's stored ids match CV** — stale ids cause `404 Network IDs not
+   found` on hierarchy assignment.
+
+### Repairing an existing install
+
+`scripts/cv-repair-networks.sh --scenario <id|name> --apply`, one scenario at
+a time. It skips networks that already have an asset group, deletes the rest,
+**asserts their asset groups are actually gone** (a survivor would turn the
+create into a no-op upsert), CSV-creates them, verifies the asset groups now
+exist, then re-resolves PacketArch's stored ids and re-applies the
+Organization Hierarchy — necessary because a recreated network gets a new id
+and OH membership is keyed by id, so every repaired network returns to
+`Global`. Between the delete and the create, assets in that range fall back to
+CV's built-in `10/8`.
+
+### Open items
+
+- **`/scv` is a workaround, not a supported integration.** Cisco has not
+  committed to a replacement API timeline. It may break on any CV upgrade, and
+  the failure is *silent* — the classic fallback "works" — so the next
+  regression will again only be visible as an empty map. Re-run the four
+  checks above after every CV upgrade.
+- **Does a classic `DELETE /api/3.0/networks/` remove a CSV-created network's
+  asset group, or orphan it?** Unmeasured — the table above covers create and
+  upsert only. Teardown still uses the classic delete. The repair script's
+  assert-gone step is what will produce the evidence; if a classic delete
+  orphans the group, teardown should prefer the `/scv` delete with the classic
+  call as fallback.
+- **Ask Cisco:** if CSV import took the *create* path for an already-present
+  `ip_range`, repairs would need no deletes at all. Worth requesting.

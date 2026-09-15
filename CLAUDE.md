@@ -106,6 +106,11 @@ is whatever was baked at build time, so a test file added since the last
 exits 0. Drop the `-m "not integration"` filter to include integration tests
 (they need Postgres/Redis up).
 
+**Testing uncommitted app code?** Add `cp -r /src/app/. /app/app/` to that
+command as well. The recipe above copies only the tests, so the suite runs the
+*image's* `app/`, and a test importing something you just wrote fails with a
+confusing `ImportError` for a symbol that is plainly in the file.
+
 ### Stopping Services
 
 ```bash
@@ -562,17 +567,35 @@ Unified fingerprint/signature data in `backend/app/services/device_templates/` p
 
 Connect to CV centers for device comparison, matching (MAC 100% / IP 95% confidence), and enrichment. Configure at Settings > Cyber Vision. Key files: `api/routes/cyber_vision.py`, `services/cyber_vision_service.py`, `pages/CyberVisionPage.tsx`.
 
+### Three credential kinds per Center
+
+A Center row carries the classic `/api/3.0` token, the new-UI `/cvapi/v1`
+token, **and** a UI username/password for CV's private `/scv` surface. All
+three resolve only through `services/cv_centers.py`
+(`classic_client` / `v1_client` / `ui_client`). The UI login exists because
+**CV 5.6 only registers a network correctly when it is created through the new
+UI's CSV import**, and that needs a real UI session — no API token can reach
+`/scv`. Without it, network creation falls back to the classic API and the
+networks do not appear on the communications map. See
+`docs/cyber-vision/API_AUDIT_5.6.md` §10 and
+`docs/cyber-vision/CV-5.6-Communications-Map-Remediation.md`;
+`scripts/cv-repair-networks.sh` reports (and repairs) affected installs.
+
 ### API audit (re-run after every CV upgrade)
 
 `docs/cyber-vision/API_AUDIT_5.6.md` is the current audit (CV **5.6**) — what
 each of the two surfaces supports, verified response shapes, and the gotchas.
 Read it before changing any CV client. Highlights:
 
-- **Networks cannot be created on the new-UI API.** `/cvapi/v1/networks` is
-  GET-only (POST → 405). Creation/update/delete is classic
-  `POST|PUT|DELETE /api/3.0/networks/`. The two APIs also report different
-  `type` vocabularies for the SAME object (new-UI `"OT"` vs classic
-  `"OT Internal"`) — never round-trip a new-UI network into a classic write.
+- **Networks cannot be created on the new-UI API** (`/cvapi/v1/networks` is
+  GET-only, POST → 405) **and classic creation is broken on 5.6** — it returns
+  200 but CV never creates the network's asset group, so the network never
+  appears on the communications map (§10). Creation now goes through
+  `POST /scv/4.0/networks/csv`; the classic call is a warned fallback. Reads
+  stay classic. The two APIs also report different `type` vocabularies for the
+  SAME object (new-UI `"OT"` vs classic `"OT Internal"`) — never round-trip a
+  new-UI network into a classic write, and the CSV takes the classic
+  vocabulary.
 - **CV 5.6 no longer publishes a classic spec.** Only the new-UI spec is
   served (`/ui/cisco-cyber-vision-api-v4.json` — the "v4" is a UI asset name;
   the API is still `/cvapi/v1`). `docs/cyber-vision/cisco-cyber-vision-api-v3-5.4.0.json`

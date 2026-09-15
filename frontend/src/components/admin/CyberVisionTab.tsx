@@ -51,6 +51,8 @@ interface CenterFormValues {
   url: string;
   api_token?: string;
   new_ui_token?: string;
+  ui_username?: string;
+  ui_password?: string;
   verify_ssl?: boolean;
   is_default?: boolean;
 }
@@ -117,7 +119,14 @@ const CyberVisionTab: React.FC = () => {
     setEditing(center);
     setFormTest(null);
     form.resetFields();
-    form.setFieldsValue({ name: center.name, url: center.url, verify_ssl: center.verify_ssl });
+    form.setFieldsValue({
+      name: center.name,
+      url: center.url,
+      verify_ssl: center.verify_ssl,
+      // Secrets are deliberately left blank, but the UI username is returned
+      // by the API, so prefill it — otherwise saving an edit would clear it.
+      ui_username: center.ui_username ?? undefined,
+    });
     setModalOpen(true);
   };
 
@@ -131,6 +140,8 @@ const CyberVisionTab: React.FC = () => {
           url: values.url,
           api_token: values.api_token || undefined,
           new_ui_token: values.new_ui_token || undefined,
+          ui_username: values.ui_username ?? undefined,
+          ui_password: values.ui_password || undefined,
           verify_ssl: values.verify_ssl,
         });
         message.success(`Saved ${values.name || editing.name}`);
@@ -145,6 +156,8 @@ const CyberVisionTab: React.FC = () => {
           url: values.url,
           api_token: values.api_token ?? '',
           new_ui_token: values.new_ui_token || undefined,
+          ui_username: values.ui_username || undefined,
+          ui_password: values.ui_password || undefined,
           verify_ssl: values.verify_ssl ?? false,
           is_default: values.is_default ?? false,
         });
@@ -229,14 +242,23 @@ const CyberVisionTab: React.FC = () => {
     },
     { title: 'Status', key: 'status', width: 140, render: (_, c) => renderStatus(c) },
     {
-      title: 'Tokens',
+      title: 'Credentials',
       key: 'tokens',
-      width: 170,
+      width: 220,
       render: (_, c) => (
         <Space size={4} wrap>
           <Tag color={c.api_token_set ? 'green' : 'red'}>Classic API</Tag>
           <Tooltip title="Optional. Enables the Organization Hierarchy sync.">
             <Tag color={c.new_ui_token_set ? 'green' : 'default'}>New UI API</Tag>
+          </Tooltip>
+          <Tooltip
+            title={
+              c.ui_username && c.ui_password_set
+                ? `UI login as ${c.ui_username}. Networks are created through the new UI so they appear on the communications map.`
+                : 'Not set. On Cyber Vision 5.6 networks created without a UI login do not appear on the communications map.'
+            }
+          >
+            <Tag color={c.ui_username && c.ui_password_set ? 'green' : 'orange'}>UI login</Tag>
           </Tooltip>
         </Space>
       ),
@@ -417,6 +439,31 @@ const CyberVisionTab: React.FC = () => {
             }
           >
             <Input.Password placeholder="Optional" />
+          </Form.Item>
+          <Form.Item
+            name="ui_username"
+            label="UI Username"
+            tooltip="Cyber Vision 5.6 only registers a network correctly when it is created through the new UI, and that needs a real UI login rather than an API token. Without it, networks are created on the classic API and will not appear on the communications map."
+            extra={
+              <Text type="secondary">
+                Needed on CV 5.6+ for networks to appear on the communications map.
+              </Text>
+            }
+          >
+            <Input placeholder="Optional" autoComplete="off" />
+          </Form.Item>
+          <Form.Item
+            name="ui_password"
+            label="UI Password"
+            extra={
+              editing?.ui_password_set ? (
+                <Text type="success"><CheckCircleOutlined /> Configured. Leave empty to keep it.</Text>
+              ) : (
+                <Text type="secondary">Required alongside the UI username; one without the other is ignored.</Text>
+              )
+            }
+          >
+            <Input.Password placeholder="Optional" autoComplete="new-password" />
           </Form.Item>
           <Space size="large">
             <Form.Item name="verify_ssl" label="Verify SSL certificate" valuePropName="checked">

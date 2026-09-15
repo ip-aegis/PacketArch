@@ -55,6 +55,12 @@ export interface CVCenter {
   is_default: boolean;
   api_token_set: boolean;
   new_ui_token_set: boolean;
+  // CV UI login. A third credential kind, for the private /scv surface — the
+  // only way to create a network CV 5.6 shows on the communications map. The
+  // username is returned so you can see which account a center uses; the
+  // password never is.
+  ui_username: string | null;
+  ui_password_set: boolean;
   local_labs: number; // local sensor labs whose sensor enrolls here
   scenarios: number; // scenarios provisioned on this center
   created_at: string | null;
@@ -71,16 +77,21 @@ export interface CVCenterCreate {
   url: string;
   api_token: string;
   new_ui_token?: string;
+  ui_username?: string;
+  ui_password?: string;
   verify_ssl?: boolean;
   is_default?: boolean;
 }
 
-// Omitted fields are unchanged; new_ui_token: "" clears it.
+// Omitted fields are unchanged; an empty string clears an optional credential
+// (new_ui_token, ui_username, ui_password).
 export interface CVCenterUpdate {
   name?: string;
   url?: string;
   api_token?: string;
   new_ui_token?: string;
+  ui_username?: string;
+  ui_password?: string;
   verify_ssl?: boolean;
 }
 

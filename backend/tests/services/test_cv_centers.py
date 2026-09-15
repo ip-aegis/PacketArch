@@ -117,6 +117,32 @@ async def test_url_change_refused_while_in_use(db_session, test_user):
     assert a.new_ui_token is None
 
 
+async def test_ui_credentials_are_a_third_credential_kind(db_session):
+    """CV 5.6 needs a UI session (/scv) to create a network it actually
+    registers. Both halves or neither: one alone yields no client."""
+    a = await _center(db_session, "A", "https://10.0.0.1")
+    assert cv_centers.ui_client(a) is None
+
+    await cv_centers.update_center(db_session, a, ui_username="operator", ui_password="pw")
+    assert a.ui_username == "operator"
+    assert decrypt_value(a.ui_password) == "pw"
+    assert a.ui_password != "pw", "the password must be stored encrypted"
+    client = cv_centers.ui_client(a)
+    assert client is not None and client.username == "operator" and client.password == "pw"
+
+    # A username with no password is unconfigured, not half-configured.
+    await cv_centers.update_center(db_session, a, ui_password="")
+    assert a.ui_password is None
+    assert cv_centers.ui_client(a) is None
+
+    # Omitting a field leaves it alone; an empty string clears it.
+    await cv_centers.update_center(db_session, a, ui_password="pw")
+    await cv_centers.update_center(db_session, a, name="Plant A")
+    assert decrypt_value(a.ui_password) == "pw"
+    await cv_centers.update_center(db_session, a, ui_username="")
+    assert a.ui_username is None and cv_centers.ui_client(a) is None
+
+
 # --------------------------------------------------------------------------- #
 # Legacy migration
 # --------------------------------------------------------------------------- #
@@ -310,13 +336,21 @@ async def test_center_routes_round_trip(client: AsyncClient, admin_auth_headers,
     created = await client.post(
         "/api/v1/cyber-vision/centers",
         headers=admin_auth_headers,
-        json={"url": "https://10.0.0.1", "api_token": "secret-classic", "new_ui_token": "secret-ui"},
+        json={
+            "url": "https://10.0.0.1",
+            "api_token": "secret-classic",
+            "new_ui_token": "secret-ui",
+            "ui_username": "operator",
+            "ui_password": "secret-uipw",
+        },
     )
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["name"] == "10.0.0.1" and body["is_default"] is True
     assert body["api_token_set"] and body["new_ui_token_set"]
-    assert "secret" not in created.text
+    # The UI username is shown; the password, like both tokens, never is.
+    assert body["ui_username"] == "operator" and body["ui_password_set"] is True
+    assert "secret-classic" not in created.text and "secret-ui" not in created.text
 
     second = await client.post(
         "/api/v1/cyber-vision/centers",

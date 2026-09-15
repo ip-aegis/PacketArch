@@ -1,191 +1,121 @@
-# Multiple Cyber Vision Centers (2026-09-11)
+# CV 5.6 — empty communications map remediation
 
-Goal: one PacketArch server can talk to several CV Centers. Branch `feat/multi-cv-centers`.
+Plan: /home/rocsmith/.claude/plans/sparkling-exploring-eich.md
+Spec: uploads/CV-5.6-Communications-Map-Remediation.md
 
-## Decisions (stated assumptions)
-- **One center per lab, one center per scenario's CV state.** No fan-out of one
-  scenario into several centers at once. `definition['cyber_vision']` stays one blob
-  and gains `center_id`.
-- **Conflict guard**: provisioning a scenario whose stored `center_id` is a DIFFERENT,
-  still-existing center raises ConflictError (409) instead of orphaning that center's
-  preset/groups/networks/OH levels. Tear down first to move it. This guard is the
-  single hinge if fan-out is ever wanted.
-- **Resolution chain**: `local_labs.cv_center_id` set at build, immutable (the JWT bakes
-  in centerHost). A local-lab agent's center is derived from its lab and LOCKED at
-  deploy. Manual/CML agents pick a center, default = the default center. Everything
-  downstream (Celery task, teardown, reconcilers) reads the center from stored state,
-  never from "the current default".
-- **Default center**: exactly one. Routes with no `center_id` use it (back-compat for
-  the setup wizard, old clients, and `/cyber-vision/settings`).
-- Token store: each center carries both tokens (classic `/api/3.0` + new-UI `/cvapi/v1`).
-  Ciphertext copied verbatim from the legacy settings rows (same Fernet key).
+## 0. Confirm the /scv surface
+- [ ] BLOCKED: needs CV UI credentials for 10.10.20.115 (operator to supply).
+      Read-only probes already done: /scv exists, center_type=standalone,
+      both API tokens 401 on /scv, groupId on /cvapi/v1/networks is the OH
+      level (60/60) so there is no token-only asset-group detector.
 
-## Backend
-- [x] Model `CyberVisionCenter` (table `cyber_vision_centers`) + Alembic migration
-      (table, `local_labs.cv_center_id` FK)
-- [x] `services/cv_centers.py`: get/default/list, `cv_client(db, center_id)`,
-      `cv_v1_client(db, center_id)`, legacy settings → default center migration +
-      backfill (`local_labs.cv_center_id`, `definition.cyber_vision.center_id`) at startup
-- [x] Collapse the four factories onto the helper (cv_service_from_settings,
-      cv_v1_service_from_settings, routes get_cv_service, mimic._cv_service)
-- [x] Centers CRUD + test routes; `center_id` query param on every /cyber-vision route;
-      `/cyber-vision/settings` + `/status` keep working against the default center
-- [x] cv_provisioning_service: center-aware provision/groups/networks/OH/teardown,
-      conflict guard, vertical roll-up filtered per center, reconcilers per center
-- [x] Celery `provision_cyber_vision` carries/reads the center
-- [x] Deploy: `cv_center_id` on DeploymentCreate / DeployNewLabRequest / topology deploy;
-      local-lab agents locked to their lab's center
-- [x] Local labs: `cv_center_id` on build; per-center deployment-token name;
-      teardown uses the lab's center
-- [x] Topology: all N+1 labs + preset on one center
-- [x] Mimic CML: center picker; record `cvcenter:<id>` in the lab description; teardown uses it
-- [x] Setup wizard writes the first (default) center; site-config reports per center
-- [x] Host-agent: `_newest_cached_sensor_image` only reuses an image from the SAME
-      registry (two centers on different CV versions); rebuild host-agent
-- [x] Tests: new center tests; update test_admin_settings, test_local_sensor,
-      test_agents_deploy, test_topology_provisioning
+## 1. UI credentials on each Center
+- [x] models/cyber_vision_center.py: ui_username + ui_password columns
+- [x] alembic revision add_cv_center_ui_creds (down_revision add_cyber_vision_centers)
+- [x] cv_centers: create_center / update_center / to_summary / ui_client / cv_ui_client
+- [x] schemas/cyber_vision.py: CVCenterCreate / Update / Response
+- [x] routes/cyber_vision.py: keyword pass-through (create + update)
+- [x] frontend: api/cyberVision.ts types + CyberVisionTab fields (prefill username!)
 
-## Frontend
-- [x] Settings → Cyber Vision: list of centers (add/edit/delete/test/set default)
-- [x] CyberVisionPage: center selector in the header; store keyed/cleared per center
-- [x] LocalLabsTab: center selector in New Local Lab
-- [x] DeploymentForm / DeploymentPanel / MultiSensorDeploySection: center selector
-      beside "Provision Cyber Vision"; locked + shown for local-lab agents
-- [x] CyberVisionBadge / deployment cards: show center name
-- [x] Help text
+## 2. The /scv UI session client
+- [x] services/cyber_vision_ui_service.py: center-type probe, form-encoded u/p
+      login, check_session CSRF from response header, shared cookie jar,
+      one re-auth on 401 / CSRF-403 with a FRESH csrf token
+- [x] methods: import_networks_csv, list_asset_groups, delete_networks,
+      network_details, test_connection
 
-## Ship
-- [x] Version bump + release notes; deploy backend + frontend + host-agent; verify live
-      against the real center (10.10.20.115)
+## 3. Creation via CSV import
+- [x] _csv_rows() with csv.writer + UTF-8 (names carry commas and em dashes)
+- [x] _create_networks(center, svc, to_create) -> warnings; 3 outcomes
+- [x] _net_item: strip the name (the /16 umbrella is currently unstripped)
+- [x] provision_networks: result["warnings"]; reconcile_cv_networks aggregation
 
-## Review (2026-09-11)
-- Shipped as v1.19.0 on `feat/multi-cv-centers`. Migration `add_cyber_vision_centers`
-  applied on boot; the legacy-settings move ran once:
-  "migrated legacy settings into default center '10.10.20.115' (8 lab(s), 6 scenario(s) stamped)".
-- Tests: backend 1182 passed / 39 xfailed; frontend vitest 119 passed; tsc error set
-  identical to master (52, all pre-existing).
-- Live checks: one default center; all 8 labs and all 6 provisioned scenarios carry the
-  center id; legacy rows gone; `/status` connected (proves the copied ciphertext decrypts);
-  all 7 deployments back to running after the restart; host-agent reconciles 8 specs clean.
-  A probe second center round-tripped (create, status fails cleanly, duplicate URL 409,
-  delete of the in-use default 409, delete 204).
-- Per-center deployment-token name: left as is. The `-N` suffix is probed live against
-  each center, so it was never global.
-- Fixed before deploy (advisor review): the boot migration no longer deletes half-configured
-  legacy rows; `usage()` and the vertical roll-up read `cyber_vision.center_id` in SQL
-  instead of loading every definition. The celery worker must be rebuilt with the backend
-  (it runs `provision_cyber_vision`).
-- Rollback: the migration deletes the legacy rows and the alembic downgrade does not restore
-  them. Pre-deploy dumps on the dev box: `~/packetarch-backups/pre-v1.19.0.dump` (full,
-  `pg_dump -Fc`) and `~/packetarch-backups/pre-v1.19.0-system_settings.sql` (the legacy rows).
-- Both tokens verified live after the move: classic via `/status`, new-UI via an OH-level
-  and networks read (49 levels, 60 networks).
-- Found during deploy (pre-existing, fixed): rebuilding backend + celery_worker together
-  swapped their container IPs, and nginx kept proxying to the backend's old IP (now the
-  worker, port closed). All 8 agents went offline until the frontend restarted. nginx now
-  resolves `backend` per request via Docker DNS (`resolver 127.0.0.11 valid=10s`); re-test
-  with a forced IP swap recovered all 7 deployments in ~25s with no frontend restart.
-- Known gap: CML labs built from a pasted CV compose record no center. The sensor is tied
-  to whichever center issued the compose, but a deploy on a CML agent uses the picker
-  (default center) and is not locked the way a local-lab agent is. Fix path: match the
-  compose's registry host to a center URL at build and store it on the lab.
+## 4. Repair script
+- [x] cli/repair_cv_networks.py: dry-run report (4 checks) + --scenario X --apply
+- [x] scripts/cv-repair-networks.sh wrapper
+- [x] assert asset group GONE after delete, before create
 
----
+## 5. Docs
+- [x] API_AUDIT_5.6.md: correct §2, add §10
+- [x] tasks/lessons.md entry
+- [x] move the spec into docs/cyber-vision/
+- [x] CLAUDE.md: third credential kind
 
-# Durable deployment resume after reboot (2026-09-11)
-
-Context: Alpha lost power 3x (storms) 09-04..09-06; all 7 live deployments went
-`disconnected` and stayed there. Auto-redeploy list was in-memory only.
-
-- [x] Migration: `agent_deployments.deploy_config` JSONB (nullable, additive)
-- [x] Model: `AgentDeployment.deploy_config`
-- [x] `execute_deployment` persists the deploy options (adaptive/attack/cell-iso/topology)
-- [x] `AgentManager.resume_disconnected_deployments()` — heartbeat-driven, DB-backed,
-      closes the lost row BEFORE replaying, honors `auto_redeploy_on_reconnect`,
-      topology rows go through `topology_provisioning_service.deploy` (re-entrant)
-- [x] `agent_hub` HEARTBEAT: sync first, then resume
-- [x] `health_monitor`: drop in-memory `_disconnected_deployments` path; add
-      resume event hooks
-- [x] Frontend: tooltip on Disconnected status ("resumes when the agent reconnects")
-- [x] Version 1.18.5 + release notes entry
-- [x] Unit tests (sqlite) for candidate selection / replay / topology / flag
-- [x] Deploy (`docker compose up -d --build backend`) and verify the 7 rows resume live
-
-## Review (2026-09-11)
-- Shipped v1.18.5. Migration `add_deployment_deploy_config` applied on boot.
-- Tests: 7 new in tests/services/test_deployment_resume.py; tests/api + tests/services = 286 passed.
-- Live verification: after the backend restart all 8 agents reconnected; on
-  the first heartbeat all 7 disconnected rows were closed (`stopped`) and
-  replayed (7 new rows `running`, packets climbing, frames confirmed with
-  tcpdump on pa-mon-5a299c7a). Pre-existing rows have deploy_config NULL and
-  resumed with the scenario definition alone; rows created from now on carry
-  the deploy options.
-- Not committed (branch fix/ai-provider-settings-display); commit is the user's call.
-
----
-
-# Multi-Sensor Topology — Implementation (design: multi-sensor-topology-design.md)
-
-(Previous content: Scenario Verify audit 2026-07-09 — completed, recorded in
-memory `scenario_verify_audit` and git history.)
-
-## Phase 0 — Topology planner (pure) + preview endpoint — DONE (commit f207951)
-- [x] Research: definition JSON schema as backend consumes it
-- [x] `backend/app/services/topology_planner.py` — derive_topology() + plan_segments()
-- [x] Unit tests — 14 passed in container
-- [x] `POST /api/v1/scenarios/{id}/topology/preview` + MULTI_SENSOR_TOPOLOGY_ENABLED
-      flag (default OFF; enabled in this box's .env) + RequireMultiSensorTopology
-- [x] Deployed + verified live: "Strict Purdue Segmented Manufacturing" → valid,
-      6 switches + core, 7 spans, 41 links, 59 flow plans (20 intra / 39 cross),
-      correct 4-segment gateway-rewritten framing with TTL -1 far-side
-
-## Phase 0a — CV cross-sensor correlation check (live Center)
-- [x] Inventory: CV connected; 2 sensors ENROLLED+CONNECTED
-      (docker sensor c186cf78 = local lab ce269fd7; hardware IE-3500-01)
-- [x] Crafted za/zb/core PCAPs (Modbus convo 10.199.1.10↔10.199.2.10, VLAN
-      101/102, TTL 64/63, SVI MACs Cisco OUI) — in agent container /tmp/phase0a/
-- [x] Injected ZA view on pa-gen-ce269fd7; **Dot1Q survives veth→pa-mon**
-      (45 tagged frames sniffed on sensor side, VLAN 101 intact) → risk #4
-      Dot1Q half retired empirically
-- [x] CV ingested the ZA view — components: 10.199.1.10 w/ TRUE MAC,
-      10.199.1.1 (SVI) as Cisco device, 10.199.2.10 attributed to SVI MAC
-      (classic behind-a-router view) → single-sensor premise VALIDATED
-- [x] Operator: docker-only; hardware IE-3500-01 is a real switch — OFF LIMITS
-- [x] Probed CV v3 + cvapi/v1: no programmatic docker-sensor compose minting
-      → §4.2 guided paste flow confirmed as only option
-- [x] CORRECTED (Rocky): build_lab() auto-provisions sensors via reusable CV
-      deployment token — no paste needed; lesson in tasks/lessons.md; design
-      §1/§4.2/§5 fixed
-- [x] Lab #2 "Topology-Test-B" (9b1a888e) built hands-free via API — ENROLLED
-- [x] Injected za→lab A + zb→lab B simultaneously (same conversation)
-- [ ] Poll running: does Center merge the two sensor views? (1 device or 2 for
-      10.199.2.10; conversation correlation)
-- [ ] Cleanup: teardown lab #2 + prune synthetic 10.199.* components
-- [x] Interim findings written into design doc §5 Phase 0a
-
-## Phases 1-5 — DONE (2026-07-11, autonomous)
-- [x] Phase 1: TopologyRouter + SpanPcapOutput, 31/31 per-SPAN invariants (b4bb725)
-- [x] Phase 2: switch/core asset injection, live SNMP-fingerprinted (801933b)
-- [x] Phase 3: provisioning service + LiveTopologyOutput; live 3-sensor
-      validation (cross-zone S7 on multiple sensors, IE3500 named CV asset) (3e1403f)
-- [x] Phase 4: Advanced Deployment UI tab, feature-gated, in bundle (c0ec38e)
-- [x] Phase 5: topology_overrides (switch/core model) + polish (e670f4d)
+## 6. Verify
+- [x] backend suite in a throwaway container
+- [x] alembic single head; upgrade + downgrade
+- [x] docker compose up -d --build backend celery_worker frontend
 
 ## Review
-Delivered a complete, additive multi-sensor topology workflow end-to-end,
-design→ship, across 7 commits. The existing single-agent deploy and Local
-Sensor Lab paths are untouched (all new code is behind the default-off
-MULTI_SENSOR_TOPOLOGY flag + a topology_mode branch). Validation was
-behaviour-driven at every phase: pure-planner unit tests (42 topology tests),
-per-SPAN PCAP dissection (31/31 invariants on a real 6-zone scenario), and a
-live 3-sensor Cyber Vision deployment on a throwaway 2-zone scenario proving
-the user's exact goal — cross-zone flows picked up by multiple sensors with
-gateway-rewritten per-segment framing, and an IE3500 per zone as a real CV
-asset. Full backend regression green (882 passed). Two follow-ups remain
-(agent live-streaming integration + per-link LLDP/SVI-merge), both documented
-as realism/integration polish on the proven mechanism, neither blocking.
 
-Key decisions & why: single-conductor over per-zone injectors (identical CV
-output, fewer moving parts); generate-once/render-many (coherence by
-construction, PCAP=live); derive-from-zones topology (matches "one switch per
-zone", far less UI); name-prefix lab grouping (no risky migration).
+Everything except §0 is done; §0 needs credentials only the operator has.
+
+**What shipped**
+
+- `cyber_vision_centers` gains `ui_username` + `ui_password` (Fernet, never
+  returned), resolved only through the new `cv_centers.ui_client` /
+  `cv_ui_client`. Both halves or neither. Migration `add_cv_center_ui_creds`,
+  single alembic head before and after, applied live on boot.
+- `services/cyber_vision_ui_service.py` — the `/scv` session client. Modelled
+  on `CMLService`, with the two mechanics that precedent does not hint at:
+  form-encoded `u`/`p` login, and a CSRF token read from `check_session`'s
+  response header, re-fetched (never reused) after a re-auth because it is
+  bound to the `_gorilla_csrf` cookie.
+- `cv_provisioning_service._create_networks` — CSV import with a classic
+  fallback. No creds or a failed import falls back and warns; a *partial*
+  import warns and deliberately does NOT fall back. Warnings ride out on
+  `provision_networks()["warnings"]` and aggregate into the reconcile
+  response, so they are visible beyond the log.
+- `_net_item` now strips the name. The spec claimed this was already done; it
+  was not — zone names came pre-stripped from `_group_label`, the scenario /16
+  umbrella name did not.
+- `app/cli/repair_cv_networks.py` + `scripts/cv-repair-networks.sh`. Read-only
+  report by default (the four checks); `--scenario X --apply` repairs one
+  scenario and refuses to sweep. Detector is **presence in the asset-group
+  list by name**, never `interfaceCount` — a /16 umbrella legitimately reports
+  zero interfaces.
+- Frontend: two fields in the Center editor plus a "UI login" tag. The
+  username is prefilled on edit (unlike the secrets) or saving an edit would
+  silently clear it.
+- Docs: audit §2 corrected, §8 reopened, new §10; two `lessons.md` entries;
+  spec moved into `docs/cyber-vision/`; CLAUDE.md gained the third credential
+  kind and a fix to the test recipe.
+
+**Decisions worth knowing**
+
+- **Teardown still uses the classic delete.** Whether a classic DELETE removes
+  a CSV-created network's asset group is unmeasured, and changing the
+  destructive path on an inference buys risk for unreported map clutter. The
+  repair script's assert-gone step is what will produce the evidence — that
+  assert is a correctness requirement anyway, since a surviving asset group
+  turns the follow-up create into a no-op upsert.
+- **Repair heals in-script** rather than deferring to
+  `POST /cyber-vision/reconcile`, because that route sweeps every scenario on
+  every center — the opposite of the spec's "one scenario at a time, do not
+  sweep". It calls the two existing scenario-scoped functions, passing
+  `networks_state=` explicitly (the default path reads a stale ORM attribute).
+
+**Verified**
+
+- Full backend suite green: 1255 passed, 2 xfailed. New file
+  `tests/services/test_cv_networks_csv.py` (19 tests) covers the CSV builder
+  (including comma/em-dash quoting), the three fallback outcomes asserted on
+  the classic fake's call count, and the client's login/CSRF mechanics via
+  `httpx.MockTransport`.
+- `tsc --noEmit` clean. GPL headers present on all new files.
+- Deployed: `backend`, `celery_worker`, `frontend` rebuilt; migration ran.
+- Repair script exits 2 with the right message against the live Center, which
+  has no UI credentials yet.
+- Read-only probes against `.115` confirmed the premise: `/scv` is live,
+  `center_type=standalone`, both API tokens 401 on `/scv`, and
+  `groupId` on `/cvapi/v1/networks` is the OH level (60/60 vs our stored
+  state) — so no token-only detector exists.
+
+**Not done**
+
+- §0. The `/scv` login flow, the CSRF dance and the CSV column list are
+  implemented from the spec's description, not yet from a live authenticated
+  round trip. With UI credentials for `.115`: confirm
+  `GET /scv/4.0/networks/csv/sample` matches `CSV_COLUMNS`, confirm the
+  asset-group list is missing all 60 networks, then repair one scenario with
+  `--apply` and verify.

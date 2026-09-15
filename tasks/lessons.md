@@ -244,3 +244,54 @@ for r in app.routes:
 while read p; do c=$(curl -sk -o /dev/null -m 20 -w '%{http_code}' -H "Authorization: Bearer $TOKEN" "https://localhost$p")
   case $c in 2*|401|403|404|503) ;; *) echo "$c $p";; esac; done
 ```
+
+## A green audit is not a working feature: verify the artifact, not the 200 (2026-09-15)
+
+The CV 5.6 API audit passed clean — every consumed endpoint probed, every
+response shape checked, `docs/cyber-vision/API_AUDIT_5.6.md` §8 closed with "no
+open items". Then the new UI's communications map came up empty for every
+PacketArch scenario, and the cause was the one thing the audit had explicitly
+reasoned its way past: classic `POST /api/3.0/networks/` still returns 200 on
+5.6, still creates a network that lists on both APIs and still gets assets
+attributed to it — but CV no longer creates the network's **asset group**, and
+the map groups on asset groups. Invisible on the map, healthy on every API we
+called.
+
+Two compounding mistakes, both mine:
+
+1. **§8 listed `POST /networks/` as unverified and then dismissed the risk** —
+   "runs on every scenario provision/teardown in normal operation and would be
+   loudly broken if it had regressed." That is an argument, not a measurement,
+   and it is exactly backwards for a write whose effect lives somewhere our
+   reads cannot see. The regression was silent *because* the write still
+   succeeded.
+2. **§2 concluded "PacketArch is already structurally correct here. No change
+   required"** from the fact that the classic API was the only route that could
+   create a network. "It's the only way" and "it works" are different claims.
+
+**Rule:** for any vendor write whose real effect is only observable in the
+vendor's own UI, verification means reading back the **downstream artifact**
+the UI consumes — here the asset group — not the status code, and not the
+object you just wrote. If no API surface exposes that artifact, say so in the
+audit as an open item instead of reasoning the gap closed. (Checked: no
+token-authenticated CV surface exposes it. `groupId` on
+`GET /cvapi/v1/networks` is the Organization Hierarchy level, not the asset
+group — confirmed 60/60 against our own stored `org_hierarchy`. The check
+needs a UI session, which is itself worth writing down.)
+
+**Rule:** when a feature's failure mode is silent and its fallback "works",
+ship the detector with the fix. `scripts/cv-repair-networks.sh` is read-only by
+default for that reason, and §10 says to run it after every CV upgrade.
+
+## Test a working-tree change against the working tree, not the baked image (2026-09-15)
+
+CLAUDE.md's throwaway-container recipe mounts `backend` at `/src` and copies in
+`/src/tests` — but **not** `/src/app`. So the suite runs the *image's* app
+code. A new test importing a function I had just written failed with
+`ImportError: cannot import name '_create_networks'`, which looks like a typo
+in the import and is actually a stale image.
+
+**Rule:** add `cp -r /src/app/. /app/app/` to the recipe whenever the change
+under test is uncommitted app code — or rebuild first. An ImportError for a
+symbol you can see in the file means you are not running the file you are
+looking at.

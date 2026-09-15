@@ -41,6 +41,7 @@ from app.services.cyber_vision_service import (
     is_broadcast_multicast,
     normalize_mac,
 )
+from app.services.cyber_vision_ui_service import build_networks_csv
 
 logger = logging.getLogger(__name__)
 
@@ -536,9 +537,16 @@ def _zone_subnet(zone: dict, range_index: int | None) -> str | None:
 
 
 def _net_item(name: str, ip_range: str) -> dict:
-    """Build a CV custom-network payload item with our standard defaults."""
+    """Build a CV custom-network payload item with our standard defaults.
+
+    The name is stripped because CV trims whitespace in the CSV import: a name
+    with a trailing space comes back trimmed, so recording the untrimmed form
+    would break any later name-keyed comparison against CV. Zone names arrive
+    already stripped from ``_group_label``; the scenario /16 umbrella name does
+    not, so this is the one place that holds for both.
+    """
     return {
-        "name": (name or "PacketArch")[:GROUP_LABEL_LIMIT],
+        "name": (name or "PacketArch").strip()[:GROUP_LABEL_LIMIT].strip(),
         "ipRange": ip_range,
         "type": DEFAULT_NETWORK_TYPE,
         "vlanId": None,
@@ -593,6 +601,83 @@ async def _save_cv_networks(db, scenario_id: UUID, networks_state: dict) -> None
     await db.commit()
 
 
+_MAP_CONSEQUENCE = "will NOT appear on the communications map"
+
+
+def _map_warning(items: list[dict], mechanism: str) -> str:
+    """One warning shape for every path that leaves networks unregistered.
+
+    Names the mechanism, the consequence, the affected ranges and the remedy,
+    and always contains ``_MAP_CONSEQUENCE`` verbatim so a log line greps back
+    to docs/cyber-vision/CV-5.6-Communications-Map-Remediation.md.
+    """
+    ranges = ", ".join(i.get("ipRange", "?") for i in items)
+    return (
+        f"CV networks created via the classic API ({mechanism}) — {ranges} "
+        f"{_MAP_CONSEQUENCE}: CV 5.6 does not create their asset group. "
+        "Add a CV UI username/password under Settings > Cyber Vision, then run "
+        "scripts/cv-repair-networks.sh --scenario <id> --apply."
+    )
+
+
+async def _create_networks(
+    center: CyberVisionCenter | None, svc: CyberVisionService, to_create: list[dict]
+) -> list[str]:
+    """Create CV networks, preferring the new UI's CSV import. Returns warnings.
+
+    CV 5.6 broke classic network creation: the network is created and assets
+    are attributed to it, but CV never materializes its **asset group**, and
+    the new UI's communications map groups on asset groups — so the network is
+    invisible there while looking healthy on every other API. Only a create
+    through the UI's CSV import registers it properly.
+
+    Three outcomes, deliberately:
+
+    * **No UI credentials, or the import fails** — fall back to the classic
+      API and warn. A half-registered network still serves the classic UI and
+      asset attribution, so falling back beats failing the deploy.
+    * **Partial import** (``created`` < requested) — warn, but do NOT fall
+      back. The import upserts by ``ip_range`` and an ``updated`` row repairs
+      nothing, so a classic retry would only add noise. Note ``to_create`` is
+      already filtered against the ranges classic ``get_networks()`` returned,
+      so a short ``created`` means CV knows a range the classic API did not
+      show — read/write surface asymmetry, not a normal upsert.
+    * **Full import** — nothing to warn about.
+    """
+    warnings: list[str] = []
+    ui = cv_centers.ui_client(center)
+
+    if ui is None:
+        name = center.name if center is not None else "unknown"
+        warnings.append(_map_warning(to_create, f"no UI credentials for center '{name}'"))
+    else:
+        try:
+            res = await ui.import_networks_csv(build_networks_csv(to_create))
+        except Exception as e:  # noqa: BLE001 — any UI failure falls back to classic
+            warnings.append(_map_warning(to_create, f"CV UI CSV import failed: {e}"))
+        else:
+            created = int(res.get("created") or 0)
+            if created < len(to_create):
+                ranges = ", ".join(i.get("ipRange", "?") for i in to_create)
+                warnings.append(
+                    f"CV UI CSV import created only {created} of {len(to_create)} networks "
+                    f"requested ({ranges}); the rest {_MAP_CONSEQUENCE}. CV reported "
+                    f"created={created} updated={res.get('updated')} "
+                    f"skipped={res.get('skipped')} errors={res.get('errors')}. An 'updated' "
+                    "row does not repair a bad network, so this is NOT retried on the "
+                    "classic API — run scripts/cv-repair-networks.sh to delete and recreate."
+                )
+                logger.warning(warnings[-1])
+            # Imported (fully or partly): never also create them classically.
+            return warnings
+        finally:
+            await ui.close()
+
+    logger.warning(warnings[-1])
+    await svc.create_networks(to_create)
+    return warnings
+
+
 async def provision_networks(db, scenario: Scenario, center_id: UUID | str | None = None) -> dict:
     """Define CV custom networks for a scenario (scenario /16 + per-zone /24s).
 
@@ -604,7 +689,10 @@ async def provision_networks(db, scenario: Scenario, center_id: UUID | str | Non
 
     Targets ``center_id`` when given, else the scenario's recorded center.
 
-    Returns ``{created, existing, networks: {ipRange: {id, name, type}}}``.
+    Returns ``{created, existing, networks: {ipRange: {id, name, type}},
+    warnings}``. ``warnings`` is non-empty when networks had to be created on
+    the classic API, which on CV 5.6 means they will not render on the
+    communications map — see ``_create_networks``.
     """
     center = (
         await cv_centers.get_center(db, center_id) if center_id is not None
@@ -616,7 +704,7 @@ async def provision_networks(db, scenario: Scenario, center_id: UUID | str | Non
     duplicates = await _duplicate_zone_names(db)
     desired = _desired_networks(scenario, subnet, duplicates)
 
-    result: dict = {"created": 0, "existing": 0, "networks": {}}
+    result: dict = {"created": 0, "existing": 0, "networks": {}, "warnings": []}
     if not desired:
         await svc.close()
         return result
@@ -625,8 +713,8 @@ async def provision_networks(db, scenario: Scenario, center_id: UUID | str | Non
         by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
         to_create = [d for d in desired if d["ipRange"] not in by_range]
         if to_create:
-            await svc.create_networks(to_create)
-            # POST returns an empty body — re-fetch to resolve server-assigned ids.
+            result["warnings"] = await _create_networks(center, svc, to_create)
+            # Neither create path returns ids — re-fetch to resolve them.
             by_range = {n.get("ipRange"): n for n in await svc.get_networks() if n.get("ipRange")}
 
         created_ranges = {d["ipRange"] for d in to_create}
@@ -1503,7 +1591,7 @@ async def reconcile_cv_networks(db) -> dict:
     by ipRange) on the scenario's own center. Scenarios without an allocated
     /16 are skipped. Collects per-scenario failures instead of aborting.
     """
-    summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "errors": []}
+    summary: dict = {"scenarios": 0, "created": 0, "existing": 0, "warnings": [], "errors": []}
     by_center = await _scenarios_by_center(db)
     if not by_center:
         raise RuntimeError("Cyber Vision is not configured")
@@ -1517,6 +1605,7 @@ async def reconcile_cv_networks(db) -> dict:
                 res = await provision_networks(db, s, center_id=cid)
                 summary["created"] += res.get("created", 0)
                 summary["existing"] += res.get("existing", 0)
+                summary["warnings"].extend(res.get("warnings") or [])
             except Exception as e:  # noqa: BLE001
                 summary["errors"].append(f"scenario {s.id}: {e}")
                 logger.warning(f"reconcile_cv_networks: scenario {s.id} failed: {e}")

@@ -4,9 +4,14 @@
 """Cyber Vision Centers: lookup, client construction, legacy migration.
 
 The single place that turns "which Cyber Vision Center?" into a configured
-API client. Every CV consumer goes through ``cv_client`` / ``cv_v1_client``
-(the historical ``cv_service_from_settings`` / ``cv_v1_service_from_settings``
-factories are thin wrappers over them).
+client. Every CV consumer goes through ``cv_client`` / ``cv_v1_client`` /
+``cv_ui_client`` (the historical ``cv_service_from_settings`` /
+``cv_v1_service_from_settings`` factories are thin wrappers over them).
+
+Three credential kinds, one per surface: the classic ``/api/3.0`` token, the
+new-UI ``/cvapi/v1`` token, and a UI username/password for the private
+``/scv`` surface — which is the only way to create a network CV 5.6 actually
+registers. See ``cyber_vision_ui_service``.
 
 Resolution rule, used everywhere:
 - an explicit ``center_id`` must exist (``NotFoundError`` otherwise);
@@ -33,6 +38,7 @@ from app.models.cyber_vision_center import CyberVisionCenter
 from app.models.local_lab import LocalLab
 from app.models.settings import SystemSetting
 from app.services.cyber_vision_service import CyberVisionService
+from app.services.cyber_vision_ui_service import CyberVisionUIService
 from app.services.cyber_vision_v1_service import CyberVisionV1Service
 
 logger = logging.getLogger(__name__)
@@ -140,12 +146,31 @@ def v1_client(center: CyberVisionCenter | None) -> CyberVisionV1Service | None:
     return CyberVisionV1Service(center.url, token, center.verify_ssl)
 
 
+def ui_client(center: CyberVisionCenter | None) -> CyberVisionUIService | None:
+    """CV UI session client (/scv) for a center, or None without UI credentials.
+
+    Both halves are required: a center carrying only a username or only a
+    password has no usable UI session, so it counts as unconfigured rather than
+    failing later at login.
+    """
+    if center is None or not center.ui_username or not center.ui_password:
+        return None
+    password = decrypt_value(center.ui_password)
+    if not password:
+        return None
+    return CyberVisionUIService(center.url, center.ui_username, password, center.verify_ssl)
+
+
 async def cv_client(db, center_id: CenterRef = None) -> CyberVisionService | None:
     return classic_client(await resolve_center(db, center_id))
 
 
 async def cv_v1_client(db, center_id: CenterRef = None) -> CyberVisionV1Service | None:
     return v1_client(await resolve_center(db, center_id))
+
+
+async def cv_ui_client(db, center_id: CenterRef = None) -> CyberVisionUIService | None:
+    return ui_client(await resolve_center(db, center_id))
 
 
 async def require_cv_client(db, center_id: CenterRef = None) -> CyberVisionService:
@@ -195,6 +220,8 @@ async def create_center(
     api_token: str,
     name: str | None = None,
     new_ui_token: str | None = None,
+    ui_username: str | None = None,
+    ui_password: str | None = None,
     verify_ssl: bool = False,
     is_default: bool = False,
 ) -> CyberVisionCenter:
@@ -215,6 +242,8 @@ async def create_center(
         url=url,
         api_token=encrypt_value(api_token),
         new_ui_token=encrypt_value(new_ui_token) if new_ui_token else None,
+        ui_username=(ui_username or "").strip() or None,
+        ui_password=encrypt_value(ui_password) if ui_password else None,
         verify_ssl=verify_ssl,
         is_default=make_default,
     )
@@ -231,10 +260,13 @@ async def update_center(
     url: str | None = None,
     api_token: str | None = None,
     new_ui_token: str | None = None,
+    ui_username: str | None = None,
+    ui_password: str | None = None,
     verify_ssl: bool | None = None,
 ) -> CyberVisionCenter:
-    """Partial update. ``None`` leaves a field alone; ``new_ui_token=""`` clears
-    the optional new-UI token. Flushes, does not commit."""
+    """Partial update. ``None`` leaves a field alone; an empty string clears an
+    optional credential (``new_ui_token``, ``ui_username``, ``ui_password``).
+    Flushes, does not commit."""
     new_name = (name.strip() if name is not None else center.name) or center.name
     new_url = normalize_url(url) if url is not None else center.url
     if new_url != center.url and await center_in_use(db, center.id):
@@ -250,6 +282,10 @@ async def update_center(
         center.api_token = encrypt_value(api_token)
     if new_ui_token is not None:
         center.new_ui_token = encrypt_value(new_ui_token) if new_ui_token else None
+    if ui_username is not None:
+        center.ui_username = ui_username.strip() or None
+    if ui_password is not None:
+        center.ui_password = encrypt_value(ui_password) if ui_password else None
     if verify_ssl is not None:
         center.verify_ssl = verify_ssl
     await db.flush()
@@ -339,6 +375,10 @@ def to_summary(center: CyberVisionCenter, usage_counts: dict[str, int] | None = 
         "is_default": center.is_default,
         "api_token_set": bool(center.api_token),
         "new_ui_token_set": bool(center.new_ui_token),
+        # The UI username is shown (so an operator can see which account a
+        # center logs in as); the password never leaves the server.
+        "ui_username": center.ui_username,
+        "ui_password_set": bool(center.ui_password),
         "local_labs": (usage_counts or {}).get("local_labs", 0),
         "scenarios": (usage_counts or {}).get("scenarios", 0),
         "created_at": center.created_at,

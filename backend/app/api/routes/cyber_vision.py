@@ -102,6 +102,8 @@ async def create_center(body: CVCenterCreate, db: DBSession, _admin: AdminUser) 
         url=body.url,
         api_token=body.api_token,
         new_ui_token=body.new_ui_token,
+        ui_username=body.ui_username,
+        ui_password=body.ui_password,
         verify_ssl=body.verify_ssl,
         is_default=body.is_default,
     )
@@ -123,6 +125,8 @@ async def update_center(
         url=body.url,
         api_token=body.api_token,
         new_ui_token=body.new_ui_token,
+        ui_username=body.ui_username,
+        ui_password=body.ui_password,
         verify_ssl=body.verify_ssl,
     )
     await db.commit()

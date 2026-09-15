@@ -303,17 +303,30 @@ class CVCenterCreate(BaseModel):
     new_ui_token: str | None = Field(
         default=None, description="Optional New UI /cvapi/v1 token (a separate CV token store)"
     )
+    ui_username: str | None = Field(
+        default=None,
+        max_length=100,
+        description=(
+            "Optional CV UI username. Together with ui_password this is a THIRD "
+            "credential kind, used for the private /scv surface — the only way to "
+            "create a network CV 5.6 registers on the communications map."
+        ),
+    )
+    ui_password: str | None = Field(default=None, description="Optional CV UI password")
     verify_ssl: bool = False
     is_default: bool = Field(default=False, description="Make this the default center")
 
 
 class CVCenterUpdate(BaseModel):
-    """Partial update. Omitted fields are unchanged; new_ui_token="" clears it."""
+    """Partial update. Omitted fields are unchanged; an empty string clears an
+    optional credential (new_ui_token, ui_username, ui_password)."""
 
     name: str | None = Field(default=None, max_length=100)
     url: str | None = Field(default=None, max_length=500)
     api_token: str | None = None
     new_ui_token: str | None = None
+    ui_username: str | None = Field(default=None, max_length=100)
+    ui_password: str | None = None
     verify_ssl: bool | None = None
 
 
@@ -327,6 +340,10 @@ class CVCenterResponse(BaseModel):
     is_default: bool
     api_token_set: bool
     new_ui_token_set: bool
+    ui_username: str | None = Field(
+        default=None, description="CV UI username (the password is never returned)"
+    )
+    ui_password_set: bool = False
     local_labs: int = Field(0, description="Local sensor labs whose sensor enrolls here")
     scenarios: int = Field(0, description="Scenarios provisioned on this center")
     created_at: datetime | None = None
