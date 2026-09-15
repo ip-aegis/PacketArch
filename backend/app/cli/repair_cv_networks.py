@@ -127,9 +127,22 @@ async def _center_state(db, center):
     }
 
 
-def _report_scenario(scenario: Scenario, state: dict) -> list[dict]:
-    """Per-range check rows for one scenario. Pure — no I/O."""
-    cv = (scenario.definition or {}).get(cps.CV_STATE_KEY) or {}
+async def _cv_state(db, scenario_id) -> dict:
+    """The scenario's CV state, read straight from the row.
+
+    NEVER take this off the ORM attribute. The provisioning saves go through
+    raw ``jsonb_set`` SQL, so ``scenario.definition`` is stale the moment
+    ``provision_networks`` has run — which is exactly when the post-repair
+    report needs it. Same hazard as ``cv_provisioning_service._stored_center_id``.
+    """
+    definition = (
+        await db.execute(select(Scenario.definition).where(Scenario.id == scenario_id))
+    ).scalar_one() or {}
+    return definition.get(cps.CV_STATE_KEY) or {}
+
+
+def _report_scenario(cv: dict, state: dict) -> list[dict]:
+    """Per-range check rows for one scenario's CV state. Pure — no I/O."""
     stored = cv.get("networks") or {}
     oh = cv.get("org_hierarchy") or {}
     expected_levels = {oh.get("scenario_level_id"), *(oh.get("zones") or {}).values()}
@@ -185,9 +198,8 @@ def _print_report(scenario: Scenario, rows: list[dict]) -> int:
     return len(broken)
 
 
-async def _repair(db, scenario: Scenario, state: dict, center) -> None:
+async def _repair(db, scenario: Scenario, rows: list[dict], state: dict, center) -> None:
     """Delete → verify gone → CSV create → verify → re-resolve ids + hierarchy."""
-    rows = _report_scenario(scenario, state)
     broken = [r for r in rows if not r["asset_group"]]
     if not broken:
         print("  Nothing to repair — every network already has an asset group.")
@@ -273,20 +285,25 @@ async def _run(wanted: str | None, apply: bool) -> int:
                 return 2
             try:
                 for s in group:
-                    broken = _print_report(s, _report_scenario(s, state))
+                    rows = _report_scenario(await _cv_state(db, s.id), state)
+                    broken = _print_report(s, rows)
                     if not apply:
                         exit_code = exit_code or (1 if broken else 0)
                         continue
                     try:
-                        await _repair(db, s, state, center)
+                        await _repair(db, s, rows, state, center)
                     except (Aborted, CyberVisionUIError) as e:
                         print(f"  ABORTED: {e}", file=sys.stderr)
                         return 1
-                    # Re-read CV and re-report, so the operator sees the result
-                    # of the repair rather than the state that prompted it.
+                    # Re-read BOTH sides and re-report, so the operator sees the
+                    # result of the repair rather than the state that prompted
+                    # it: CV has new network ids, and our stored ids were just
+                    # rewritten by raw SQL behind the ORM's back.
                     fresh = await _center_state(db, center)
                     try:
-                        still_broken = _print_report(s, _report_scenario(s, fresh))
+                        still_broken = _print_report(
+                            s, _report_scenario(await _cv_state(db, s.id), fresh)
+                        )
                     finally:
                         await fresh["ui"].close()
                     exit_code = exit_code or (1 if still_broken else 0)

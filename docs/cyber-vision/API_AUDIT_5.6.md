@@ -802,6 +802,31 @@ scenario. The first, third and fourth can all pass while the map stays empty:
 4. **PacketArch's stored ids match CV** — stale ids cause `404 Network IDs not
    found` on hierarchy assignment.
 
+### Repair, exercised end to end
+
+Run against `Heat & Hot-Water Cost Allocation Retrofit` on `.115`, 2026-09-15
+— the one scenario on that Center provisioned after its 5.6 upgrade:
+
+```
+  - deleting 11 network(s) via the CV UI API
+  - verified their asset groups are gone
+  - CSV import: {'created': 11, 'updated': 0, 'skipped': 0, 'errors': []}
+  - verified every recreated network now has an asset group
+  - re-resolved stored ids (11 networks)
+  - re-assigned the Organization Hierarchy
+  => all 11 networks have an asset group.
+```
+
+`created: 11, updated: 0` — every row took the create path, which is the whole
+point. All four checks then pass for all 60 networks on the Center.
+
+> **The `verified their asset groups are gone` line proved nothing here, and
+> must not be read as a measurement of delete semantics.** A *broken* network
+> has no asset group to begin with, so the assertion was vacuously true. It is
+> still the right guard — a surviving group would mean the follow-up create
+> silently becomes an upsert — but it only carries information when deleting a
+> *healthy* network. See the open item below.
+
 ### Repairing an existing install
 
 `scripts/cv-repair-networks.sh --scenario <id|name> --apply`, one scenario at
@@ -822,10 +847,13 @@ CV's built-in `10/8`.
   regression will again only be visible as an empty map. Re-run the four
   checks above after every CV upgrade.
 - **Does a classic `DELETE /api/3.0/networks/` remove a CSV-created network's
-  asset group, or orphan it?** Unmeasured — the table above covers create and
-  upsert only. Teardown still uses the classic delete. The repair script's
-  assert-gone step is what will produce the evidence; if a classic delete
-  orphans the group, teardown should prefer the `/scv` delete with the classic
-  call as fallback.
+  asset group, or orphan it?** Still unmeasured — the measured-behaviour table
+  covers create and upsert only, and the repair run above could not settle it
+  because the networks it deleted had no asset groups to lose. Teardown still
+  uses the classic delete. The clean experiment is isolated and cheap: CSV-
+  create a throwaway range (it gains an asset group), classic-DELETE it, then
+  re-list asset groups. If the group survives, teardown should prefer the
+  `/scv` delete with the classic call as fallback, because an orphaned group
+  would turn a later create of that range into a repair-nothing upsert.
 - **Ask Cisco:** if CSV import took the *create* path for an already-present
   `ip_range`, repairs would need no deletes at all. Worth requesting.

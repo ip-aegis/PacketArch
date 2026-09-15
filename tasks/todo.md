@@ -4,7 +4,14 @@ Plan: /home/rocsmith/.claude/plans/sparkling-exploring-eich.md
 Spec: uploads/CV-5.6-Communications-Map-Remediation.md
 
 ## 0. Confirm the /scv surface
-- [ ] BLOCKED: needs CV UI credentials for 10.10.20.115 (operator to supply).
+- [x] DONE 2026-09-15 with operator-supplied credentials. center_type=standalone,
+      form-encoded login OK, check_session returns an 88-char x-csrf-token,
+      and CV's own CSV template is exactly
+      `ip_range,type,name,vlan_id,Location,Department` with the classic
+      `OT Internal` vocabulary — matching CSV_COLUMNS. Repair exercised end to
+      end on the one broken scenario: created=11 updated=0, all four checks
+      now green for all 60 networks on the Center.
+- [x] (superseded) needs CV UI credentials for 10.10.20.115.
       Read-only probes already done: /scv exists, center_type=standalone,
       both API tokens 401 on /scv, groupId on /cvapi/v1/networks is the OH
       level (60/60) so there is no token-only asset-group detector.
@@ -111,11 +118,30 @@ Everything except §0 is done; §0 needs credentials only the operator has.
   `groupId` on `/cvapi/v1/networks` is the OH level (60/60 vs our stored
   state) — so no token-only detector exists.
 
-**Not done**
+**§0, done after the fact (operator supplied credentials)**
 
-- §0. The `/scv` login flow, the CSRF dance and the CSV column list are
-  implemented from the spec's description, not yet from a live authenticated
-  round trip. With UI credentials for `.115`: confirm
-  `GET /scv/4.0/networks/csv/sample` matches `CSV_COLUMNS`, confirm the
-  asset-group list is missing all 60 networks, then repair one scenario with
-  `--apply` and verify.
+- Every assumption the client was written against is now confirmed live:
+  `center_type=standalone`, the form-encoded `u`/`p` login, the 88-char
+  `x-csrf-token` from `check_session`, and CV's own CSV template matching
+  `CSV_COLUMNS` and the classic `OT Internal` vocabulary.
+- **My blast-radius prediction was wrong.** I expected all 60 networks on
+  `.115` to lack asset groups; 49 were healthy. The split is the Center's 5.6
+  upgrade date: the five scenarios provisioned 2026-07-23 kept their asset
+  groups, the one provisioned 2026-08-10 lost them. The defect attaches to the
+  moment of creation, so an upgrade breaks nothing retroactively and the usual
+  symptom is a *partial* map.
+- Repair run on that scenario: `created=11 updated=0 skipped=0 errors=[]`, all
+  four checks green afterwards, and all 60 networks on the Center now healthy.
+- **Fixed a real bug the live run exposed**: the post-repair report read stored
+  ids off the ORM `scenario.definition`, which is stale because
+  `_save_cv_networks` writes via raw `jsonb_set` — so a successful repair
+  reported `ids BAD` for all 11 networks. The CLI now reads CV state fresh from
+  the row (`_cv_state`). Recorded in `lessons.md`.
+
+**Still open**
+
+- Whether a classic `DELETE /api/3.0/networks/` removes a CSV-created
+  network's asset group or orphans it. The repair's assert-gone step could not
+  settle it — the networks it deleted had no asset groups to lose. The clean
+  experiment: CSV-create a throwaway range, classic-DELETE it, re-list asset
+  groups. Teardown stays on the classic delete until then.

@@ -306,3 +306,20 @@ in the import and is actually a stale image.
 under test is uncommitted app code — or rebuild first. An ImportError for a
 symbol you can see in the file means you are not running the file you are
 looking at.
+
+## Guarding a raw-SQL write path but not the read path beside it (2026-09-15)
+
+`cv_provisioning_service` saves CV state with raw Postgres `jsonb_set`, so a
+loaded `scenario.definition` is stale the instant it runs — the codebase says
+so in three places. In `cli/repair_cv_networks.py` I passed `networks_state=`
+explicitly for exactly that reason, and then, four lines later, had the
+post-repair report read the stored ids off `scenario.definition`. The repair
+had worked perfectly and the report said `ids BAD` for all 11 networks. I only
+caught it by re-querying the row before believing my own output.
+
+**Rule:** staleness attaches to the *object*, not to one call. When a flow
+writes through raw SQL, every subsequent read of that column in the same
+session must come from a fresh `select`, reads for display included — a helper
+that does the fresh read (`_cv_state`) is better than remembering to refresh at
+each site. And when a verification step disagrees with a step that just
+reported success, suspect the verification first.
