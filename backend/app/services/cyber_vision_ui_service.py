@@ -287,12 +287,18 @@ class CyberVisionUIService:
     # --- Convenience --------------------------------------------------------
 
     async def test_connection(self) -> tuple[bool, str]:
-        """``(ok, message)``; never raises. Reads only."""
+        """``(ok, message)``; never raises. Reads only.
+
+        Deliberately stops at ``check_session``: obtaining a session and a CSRF
+        token is exactly what validates the credential, and the connection
+        check runs on every Settings page load (once per center). Listing asset
+        groups would be decoration paid for with a third request against the
+        appliance on every render.
+        """
         try:
             ctype = await self.center_type()
-            await self._login()
-            groups = await self.list_asset_groups()
-            return True, f"Connected to a {ctype} Center ({len(groups)} asset groups)"
+            await self._login()  # also fetches the CSRF token
+            return True, f"Connected to a {ctype} Center"
         except CyberVisionUIError as e:
             return False, str(e)
         except httpx.HTTPError as e:
