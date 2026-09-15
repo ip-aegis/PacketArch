@@ -221,13 +221,26 @@ async def get_status(
     service = await get_cv_service(db, center_id)
     try:
         result = await service.test_connection()
+        # Also exercise the UI login when configured. Without this a typo'd UI
+        # password reads as a healthy center, and the operator only finds out
+        # later, from a deploy-log warning, that the scenario's networks never
+        # reached the communications map.
+        ui_login, ui_note = None, ""
+        ui = cv_centers.ui_client(center)
+        if ui is not None:
+            try:
+                ui_login, ui_message = await ui.test_connection()
+                ui_note = f" UI login: {'ok' if ui_login else ui_message}."
+            finally:
+                await ui.close()
         return CVConnectionStatusResponse(
             connected=result.success,
-            message=result.message,
+            message=f"{result.message}{ui_note}",
             version=result.version,
             center_name=result.center_name,
             center_id=str(center.id) if center else None,
             center_label=center.name if center else None,
+            ui_login=ui_login,
         )
     except Exception as e:
         logger.exception("Error checking CV status")

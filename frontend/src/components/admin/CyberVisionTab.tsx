@@ -215,6 +215,16 @@ const CyberVisionTab: React.FC = () => {
   const renderStatus = (center: CVCenter) => {
     const status = statuses[center.id];
     if (!status || status === 'checking') return <Tag>Checking…</Tag>;
+    // A working classic token with a broken UI login is not "Connected": the
+    // classic half works and networks still will not reach the communications
+    // map, which is exactly the failure this whole path exists to prevent.
+    if (status.connected && status.ui_login === false) {
+      return (
+        <Tooltip title={status.message}>
+          <Tag icon={<CloseCircleOutlined />} color="warning">UI login failed</Tag>
+        </Tooltip>
+      );
+    }
     return status.connected ? (
       <Tooltip title={status.version ? `API version ${status.version}` : status.message}>
         <Tag icon={<CheckCircleOutlined />} color="success">Connected</Tag>

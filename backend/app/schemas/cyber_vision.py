@@ -60,6 +60,14 @@ class CVConnectionStatusResponse(BaseModel):
     center_name: str | None = Field(None, description="Name the Center reports about itself")
     center_id: str | None = Field(None, description="PacketArch id of the center that was checked")
     center_label: str | None = Field(None, description="PacketArch display name of that center")
+    ui_login: bool | None = Field(
+        None,
+        description=(
+            "Whether the CV UI login works. None when no UI credentials are "
+            "configured. False means networks will be created on the classic API "
+            "and will not appear on the communications map."
+        ),
+    )
 
 
 class CVTestConnectionRequest(BaseModel):

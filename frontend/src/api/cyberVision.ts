@@ -44,6 +44,10 @@ export interface CVConnectionStatus {
   center_name: string | null; // the name the Center reports about itself
   center_id?: string | null; // PacketArch id of the center that was checked
   center_label?: string | null; // PacketArch display name of that center
+  // Whether the CV UI login works. null when no UI credentials are configured;
+  // false means networks land on the classic API and never reach the
+  // communications map.
+  ui_login?: boolean | null;
 }
 
 // A configured Cyber Vision Center (tokens are never returned).
