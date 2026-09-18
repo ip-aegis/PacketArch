@@ -344,3 +344,35 @@ fail" (the host's misconfiguration) but "what does the workaround cost". The
 answer — it silently breaks the self-upgrade — was two greps away and was the
 only thing that justified a code change. Before proposing to patch around an
 operator workaround, check what the workaround collides with.
+
+## A green healthcheck is a claim, not evidence (2026-09-18)
+
+A remote install had the backend crashlooping 220 times over four hours while
+`docker compose ps` showed 4 of 6 services green. Both green claims were empty:
+`postgres` passes `pg_isready`, which never authenticates, and `celery_worker`
+passed `celery inspect ping`, which only reaches Redis — it could not reach the
+database either.
+
+**Rule:** when triaging, ask what each healthcheck actually executes before
+believing it. A healthcheck that does not exercise the dependency under
+suspicion is not evidence that dependency is fine. And when adding one, make it
+touch what the service needs to do its job, or it will lie at exactly the
+moment someone is relying on it.
+
+**Corollary for retry loops:** classify the error before retrying. The old
+entrypoint retried a rejected password 30 times over 60 seconds and printed a
+stack trace each time. Auth failure cannot self-heal; "connection refused" can.
+Retrying both identically turned a one-line cause into 60 seconds of noise.
+
+## A test that fails for the wrong reason looks like a pass (2026-09-18)
+
+Two in one session. Verifying the entrypoint change, I set `SECRET_KEY: x` —
+the probe died on a Pydantic validation error before ever reaching Postgres, so
+"it failed" told me nothing about the code under test. Earlier the same day, a
+CI monitor reported "ended without output" and that was a missing `jq` binary,
+not a quiet run.
+
+**Rule:** when a check produces the outcome I expected, confirm it produced it
+by the mechanism I intended — read the actual error text, not just the exit
+path. And treat silence from a watcher as unverified, never as "nothing
+happened": go query the real state.
