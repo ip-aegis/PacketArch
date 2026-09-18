@@ -76,6 +76,18 @@ keys, generated on the appliance, never shared. The false comment is
 corrected in the same commit, because that comment is what will cause
 this to regress.
 
+**The fix does NOT reach appliances already deployed.** `scripts/upgrade.sh`
+only does `git fetch` + `git checkout <tag>` + rebuild + alembic; it never
+re-bakes `/usr/local/sbin/packetarch-firstboot.sh`, the systemd unit or the
+host keys, and the unit is sentinel-guarded by `.firstboot-done` so it never
+re-runs. So every appliance built from v1.20.0 or earlier keeps a dead sshd
+forever, even after a successful in-app upgrade. Only a fresh OVA carries the
+fix. Operator remediation, at the console, one time:
+
+```bash
+sudo ssh-keygen -A && sudo systemctl restart ssh
+```
+
 ### 2. First-boot DNS race — 2 of 3 build attempts failed — FIXED
 
 The log shows `build attempt 1/3` and `2/3` both failing on
@@ -90,15 +102,23 @@ needs a manual reboot to retry.
 Fix: a bounded DNS-readiness wait mirroring the existing `docker_ready`
 loop, plus `nss-lookup.target` in the unit's `After=`/`Wants=`.
 
-### 3. Talos/Snort rules redistributed in a public GPL repo — NEEDS A DECISION
+### 3. Talos/Snort rules are ALREADY PUBLISHED in a public GPL repo — most urgent
 
+Not a queued decision — a live exposure.
 `uploads/{Malware-CNC,Exploit-Kit,Malware-Backdoor,OS-Other,Experimental-Scada}_rules.txt`
-are tracked at v1.20.0, so they are in the public repo **and** baked into
-the appliance at `/opt/packetarch/uploads/`. ~2185 rules carrying
-`reference:url,snort.org/rule_docs/...` and `metadata:impact_flag red` —
-registered/subscriber Talos content, which is not freely redistributable.
-CLAUDE.md requires licensing to be flagged before merge; this is that
-flag.
+are tracked at v1.20.0, so they are in the public repo, in the **published,
+non-draft** v1.20.0 Release, and baked into an appliance with a public
+download link, right now.
+
+~2185 rules. The basis for "registered/subscriber Talos content, not
+community": each rule carries a Talos sid + rev and a rule_docs reference —
+e.g. `sid:16811; rev:8` with `reference:url,snort.org/rule_docs/1-16811`,
+and `sid:44677; rev:2` — plus `metadata:impact_flag red`, which is a Talos
+field. Those sids are checkable against whichever rule set they came from.
+CLAUDE.md requires licensing to be flagged before merge; this is that flag.
+
+Remediation has a long tail: history rewrite on a public repo, *plus* a new
+OVA build, *plus* the v1.20.0 assets are already distributed.
 
 Not a pure delete: `protocol_engines/attacks/snort_actions.py:41` cites
 those paths as provenance, removal needs history rewrite to be effective
@@ -147,7 +167,7 @@ uses**, then booted on `br0` exactly like the first test.
 | | Shipped v1.20.0 | With the fixes |
 |---|---|---|
 | `systemctl is-active ssh` | `failed` (`no hostkeys available`) | **`active`**, `sshd -t` rc=0 |
-| First-boot log | — | `[0/3] Generating this appliance's SSH host keys...` |
+| First-boot log | `build attempt 1/3` → `attempt 1 failed; retrying in 30s` | `[0/3] Generating this appliance's SSH host keys...` |
 | DNS | attempts 1 + 2 died on `registry-1.docker.io` resolution | `waiting for DNS... (1..17/30)` → **`DNS ready.`** |
 | Build attempts | 1 failed, 2 failed, 3 succeeded | **`build attempt 1/3`, succeeded** |
 | Containers | 6/6 healthy | 6/6 healthy |
