@@ -43,6 +43,36 @@ if [[ ! -f "${INSTALL_DIR}/docker-compose.yml" ]]; then
     exit 1
 fi
 
+# --- regenerate this appliance's SSH host keys ------------------------------
+# build-ova.sh deletes /etc/ssh/ssh_host_* so the shared image does NOT ship a
+# shared key pair. Nothing else puts them back: with no cloud-init datasource,
+# ds-identify disables cloud-init entirely ("disabled-by-generator"), so its
+# ssh module never runs. Without this, sshd fails ExecStartPre forever
+# ("no hostkeys available") and the appliance is console-only. ssh-keygen -A
+# only creates what is missing, so this is a no-op on later boots.
+if ! compgen -G '/etc/ssh/ssh_host_*_key' >/dev/null; then
+    echo "[0/3] Generating this appliance's SSH host keys..."
+    ssh-keygen -A
+    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+fi
+
+# Wait for working DNS before touching a registry. Ordered After=
+# network-online.target + nss-lookup.target, but systemd-resolved can still be
+# without a DHCP nameserver when we get here -- and then every image pull dies
+# on "lookup registry-1.docker.io on 127.0.0.53:53: server misbehaving". The
+# build retries below are 30s apart, so all three attempts can burn inside the
+# same DNS-dead window and the appliance gives up without a sentinel. Wait it
+# out here instead (informational only: if DNS never comes up the build retries
+# still run and produce the real error in the log).
+for i in $(seq 1 30); do
+    if getent hosts registry-1.docker.io >/dev/null 2>&1; then
+        echo "  DNS ready."
+        break
+    fi
+    echo "  waiting for DNS... (${i}/30)"
+    sleep 2
+done
+
 # Wait for the Docker daemon (ordered After=docker.service, but socket
 # readiness can lag on a cold VM). If it never comes up, exit non-zero WITHOUT
 # the sentinel so the next reboot retries (do not fall through into the build).

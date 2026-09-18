@@ -6,7 +6,9 @@
 # reboot instead of bricking the appliance (a stale .env must not block retry).
 [Unit]
 Description=PacketArch appliance first-boot init
-After=docker.service network-online.target
+# nss-lookup.target: the build pulls from a registry, so name resolution must
+# be up, not just the link (see the DNS wait in the script -- belt and braces).
+After=docker.service network-online.target nss-lookup.target
 Wants=docker.service network-online.target
 # Only run until the stack has successfully come up (sentinel written by the script).
 ConditionPathExists=!/opt/packetarch/.firstboot-done
