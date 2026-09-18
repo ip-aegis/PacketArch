@@ -242,11 +242,56 @@ Keep it in `.env` because `.env` is untracked. A hand-edit to
 upgrade (`scripts/upgrade.sh`) stashes those before checking out the new tag.
 Remove the line once the host is fixed.
 
+## Backend crashlooping on "password authentication failed"
+
+Symptom: the backend restarts every ~70 seconds and never goes healthy, the
+frontend stays in `Created` (it waits for a healthy backend), and
+`docker compose logs backend` shows
+
+```
+FATAL:  password authentication failed for user "packetarch"
+```
+
+**`docker compose ps` will not help you here, and is actively misleading:**
+
+| Container | Reports | Actually |
+|-----------|---------|----------|
+| `postgres` | healthy | `pg_isready` never authenticates — it only asks whether the server accepts connections |
+| `celery_worker` | healthy | fixed in v1.20.2; before that its healthcheck only pinged Redis |
+| `backend` | unhealthy | the only service that actually checks the database |
+| `frontend` | `Created` | blocked on `backend: service_healthy` |
+
+**Cause.** Postgres applies `POSTGRES_PASSWORD` *only* when it initialises an
+empty data directory. A `packetarch_postgres_data` volume that survived a
+`docker compose down` keeps the password it was **built** with, so a
+regenerated `.env` silently stops matching it. Anything that replaces `.env`
+while leaving the volume in place produces this: re-cloning into a fresh
+directory, deleting `.env`, or `install.sh --force-env`.
+
+**Fix, keeping the data:**
+
+```bash
+./scripts/fix-db-password.sh          # offline bundle: ./fix-db-password.sh
+```
+
+It rewrites the role's password to match `.env` over the container's unix
+socket (which is `trust`, so no working password is needed), verifies the new
+one authenticates over the network, then restarts the affected services.
+`--check` reports without changing anything.
+
+**Or discard the database and start clean — this deletes every scenario,
+PCAP and user in it:**
+
+```bash
+docker compose down -v && docker compose up -d
+```
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---------|-------|
 | Containers won't start | `docker compose logs` |
+| Backend crashloops, `password authentication failed` | `./scripts/fix-db-password.sh` — see "Backend crashlooping" above. Ignore the green `postgres` healthcheck; it does not authenticate. |
 | Build fails on pip/apt/npm/apk | `./scripts/check-docker-egress.sh` — see "When the build can't reach the network" above |
 | Traffic generation fails silently | `DOCKER_GID` in `.env` matches `getent group docker` |
 | `permission denied` on docker | `sudo usermod -aG docker $USER`, then re-login |

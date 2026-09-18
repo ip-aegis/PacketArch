@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.20.1,
+      Feature releases and patches from v1.10.0 through v1.20.2,
       covering June 17 &ndash; September 18, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">22</div>
+        <div class="cover-stat-value">23</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.20.1</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.20.2</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -701,6 +701,11 @@ code {
         <tr class="patch">
           <td>v1.20.1</td>
           <td>Installs on a host whose Docker builds cannot reach the network; upgrades keep local changes</td>
+          <td>Sep 18, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.20.2</td>
+          <td>A database password mismatch now says so, instead of looking like four healthy containers</td>
           <td>Sep 18, 2026</td>
         </tr>
       </tbody>
@@ -1989,6 +1994,78 @@ code {
             Docker setting is still the thing to correct. Previously the only
             way to achieve this was to edit <code>docker-compose.yml</code>,
             which is exactly the kind of local change upgrades used to discard.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       v1.20.2
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.20.2">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.20.2</div>
+        <div class="release-date">2026-09-18</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Installation</div>
+        <div class="release-headline">A database password mismatch now says so, instead of looking like four healthy containers</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>An install whose database password no longer matched was
+            almost impossible to diagnose.</strong> PostgreSQL only applies the
+            configured password when it first creates its database; a database
+            that outlives the configuration file keeps the password it was built
+            with. Regenerating that file &mdash; by reinstalling into a fresh
+            directory, deleting it, or using <code>--force-env</code> &mdash;
+            therefore left the two out of step. What the operator saw was four
+            of six containers reporting healthy, a backend restarting every
+            seventy seconds, and a frontend that never started at all. The
+            database itself reported healthy throughout, because the check it
+            runs does not attempt to log in.
+          </li>
+          <li class="change-item">
+            <strong>The worker reported healthy while it could not reach the
+            database.</strong> Its health check only confirmed it could reach
+            the message broker. It now checks the database as well, so a worker
+            that cannot do any useful work no longer claims otherwise.
+          </li>
+          <li class="change-item">
+            <strong>The backend now fails immediately and explains itself.</strong>
+            It previously retried for a minute and printed a full stack trace on
+            every attempt &mdash; thirty of them &mdash; even though a rejected
+            password can never resolve by waiting. It now tells the two cases
+            apart: a database that is still starting is waited for as before,
+            while a rejected password stops at once with a plain explanation and
+            the command that repairs it.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="feat">
+        <div class="change-type-label">New</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>A one-command repair.</strong>
+            <code>scripts/fix-db-password.sh</code> realigns the database
+            password with the configuration file, keeping all existing data. It
+            verifies the new password works before restarting anything, and does
+            nothing if the password was already correct. It ships in the offline
+            bundle too, since this is a problem operators meet at install time.
+            The alternative has always been to delete the database.
+          </li>
+          <li class="change-item">
+            <strong>Both installers now warn before creating the mismatch.</strong>
+            Generating fresh credentials when a database already exists is the
+            act that causes this, so both installers check for that database
+            first and say plainly what will happen and what the two ways forward
+            are.
           </li>
         </ul>
       </div>

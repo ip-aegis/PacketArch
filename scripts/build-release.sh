@@ -197,7 +197,12 @@ cp "${REPO_ROOT}/scripts/release-bundle/.env.example"    "${STAGE}/.env.example"
 # them from day one without having to hunt the repo.
 cp "${REPO_ROOT}/scripts/packetarch-backup.sh"  "${STAGE}/packetarch-backup.sh"
 cp "${REPO_ROOT}/scripts/packetarch-restore.sh" "${STAGE}/packetarch-restore.sh"
-chmod +x "${STAGE}/install.sh" "${STAGE}/packetarch-backup.sh" "${STAGE}/packetarch-restore.sh"
+# Ships with the bundle because the failure it repairs (a data volume older
+# than .env, so postgres rejects the generated password) is an INSTALL-time
+# problem — the operator hits it before they have anything else to work with.
+cp "${REPO_ROOT}/scripts/fix-db-password.sh"    "${STAGE}/fix-db-password.sh"
+chmod +x "${STAGE}/install.sh" "${STAGE}/packetarch-backup.sh" \
+         "${STAGE}/packetarch-restore.sh" "${STAGE}/fix-db-password.sh"
 
 # Portable scenario authoring kit — schema, registry snapshot, spec doc,
 # and the ready-to-use LLM prompt. Ships in every install so airgapped

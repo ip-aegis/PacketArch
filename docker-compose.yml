@@ -165,9 +165,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # Celery worker doesn't run a web server, so use celery inspect ping
+    # Celery worker doesn't run a web server, so use celery inspect ping — but
+    # that only proves the BROKER (redis) is reachable. This worker also needs
+    # Postgres, and a worker that cannot reach it can do no useful work. Without
+    # the second clause the service reported "healthy" for four hours on an
+    # install whose database was rejecting every connection, which is precisely
+    # what stopped the operator diagnosing it (see scripts/fix-db-password.sh).
     healthcheck:
-      test: ["CMD-SHELL", "celery -A app.traffic_generator.tasks.celery_app inspect ping --timeout 5"]
+      test: ["CMD-SHELL", "celery -A app.traffic_generator.tasks.celery_app inspect ping --timeout 5 && python -c 'from app.core.database import sync_engine; sync_engine.connect().close()'"]
       interval: 30s
       timeout: 10s
       start_period: 30s

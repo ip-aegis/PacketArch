@@ -133,12 +133,36 @@ DEBUG=false
 EOF
     chmod 600 "${ENV_FILE}"
     GENERATED_FRESH=1
+
+    # Postgres applies POSTGRES_PASSWORD only when it initialises an EMPTY data
+    # directory. A data volume that outlived the .env we just replaced keeps its
+    # ORIGINAL password, so the backend crashloops on "password authentication
+    # failed" while postgres still reports healthy (pg_isready never
+    # authenticates). Warn at the point the mismatch is created.
+    PGVOL="$(basename "${INSTALL_DIR}")_postgres_data"
+    if docker volume inspect "${PGVOL}" >/dev/null 2>&1; then
+        echo ""
+        echo "  !! An existing database volume was found: ${PGVOL}"
+        echo "     The .env just written has a NEW POSTGRES_PASSWORD, which that"
+        echo "     volume will NOT accept. Left alone the backend will crashloop"
+        echo "     while postgres reports healthy."
+        echo ""
+        echo "     Keep the existing database:  ./fix-db-password.sh"
+        echo "     Discard it and start clean:  docker volume rm ${PGVOL}   (DELETES ALL DATA)"
+        echo ""
+        DB_VOLUME_PREEXISTED=1
+    fi
 fi
 
 # --- bring it up --------------------------------------------------------
 echo "[4/5] Starting stack..."
 cd "${INSTALL_DIR}"
 docker compose --env-file .env up -d
+
+if [[ "${DB_VOLUME_PREEXISTED:-0}" -eq 1 ]]; then
+    echo "  NOTE: the pre-existing database volume still has its old password;"
+    echo "        the backend will not become healthy until you run ./fix-db-password.sh"
+fi
 
 echo "[5/5] Waiting for backend healthcheck..."
 for i in $(seq 1 30); do

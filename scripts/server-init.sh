@@ -99,6 +99,31 @@ fi
 
 cd "$INSTALL_DIR"
 
+
+# --- volume/.env desync preflight ------------------------------------------
+# Postgres applies POSTGRES_PASSWORD only when it initialises an EMPTY data
+# directory. If the data volume outlives the .env we are about to generate, the
+# volume keeps its ORIGINAL password and the backend crashloops on
+# "password authentication failed" — while postgres still reports healthy,
+# because pg_isready never authenticates. Catch it here instead.
+check_db_volume_desync() {
+    local vol="${COMPOSE_PROJECT_NAME:-packetarch}_postgres_data"
+    sudo docker volume inspect "$vol" >/dev/null 2>&1 || return 0
+
+    warn "An existing database volume was found: ${vol}"
+    warn "The .env just generated has a NEW random POSTGRES_PASSWORD, which that"
+    warn "volume will NOT accept — postgres keeps the password it was built with."
+    warn "Left alone, the backend will crashloop while postgres reports healthy."
+    echo ""
+    warn "Two ways forward:"
+    warn "  KEEP the existing database  -> ./scripts/fix-db-password.sh"
+    warn "     (realigns the role's password with the new .env; data preserved)"
+    warn "  DISCARD it and start clean  -> sudo docker volume rm ${vol}"
+    warn "     (DELETES every scenario, PCAP and user in that database)"
+    echo ""
+    DB_VOLUME_PREEXISTED=1
+}
+
 # Step 4: Create .env file
 info "Step 4/5: Creating .env file..."
 if [ ! -f .env ]; then
@@ -134,6 +159,8 @@ ENVEOF
 
     chmod 600 .env
     info ".env created with secure random values"
+    # A fresh .env means a fresh password — which an older volume will reject.
+    check_db_volume_desync
 else
     info ".env already exists, skipping"
 fi
@@ -177,6 +204,24 @@ sudo docker compose up -d --build
 # Wait for startup
 info "Waiting for services to start..."
 sleep 20
+
+# A pre-existing volume rejects the freshly generated password (see
+# check_db_volume_desync). Offer the non-destructive repair rather than leaving
+# the operator with a crashlooping backend and four green healthchecks.
+if [ "${DB_VOLUME_PREEXISTED:-0}" = "1" ]; then
+    warn "The database volume predates this .env — the backend cannot authenticate yet."
+    if [ -t 0 ]; then
+        read -p "Realign the database password with the new .env now? (y/n): " fix_db || fix_db=""
+        if [ "$fix_db" = "y" ]; then
+            ./scripts/fix-db-password.sh || warn "fix-db-password.sh failed — run it manually."
+        else
+            warn "Skipped. Run ./scripts/fix-db-password.sh when ready."
+        fi
+    else
+        warn "Non-interactive install — not changing the database password automatically."
+        warn "Run this to finish:  ./scripts/fix-db-password.sh"
+    fi
+fi
 
 # Show status
 echo ""
