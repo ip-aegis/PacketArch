@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.19</title>
+  <title>PacketArch Release Notes — v1.10 through v1.20</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -565,17 +565,17 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.20.0,
-      covering June 17 &ndash; September 15, 2026.
+      Feature releases and patches from v1.10.0 through v1.20.1,
+      covering June 17 &ndash; September 18, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">21</div>
+        <div class="cover-stat-value">22</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.20.0</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.20.1</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
@@ -583,7 +583,7 @@ code {
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-09-14</div>
+        <div class="cover-stat-value">2026-09-18</div>
       </div>
     </div>
   </header>
@@ -697,6 +697,11 @@ code {
           <td>v1.20.0</td>
           <td>Scenario zones appear on the Cyber Vision 5.6 communications map again</td>
           <td>Sep 15, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.20.1</td>
+          <td>Installs on a host whose Docker builds cannot reach the network; upgrades keep local changes</td>
+          <td>Sep 18, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -1918,10 +1923,82 @@ code {
   </section>
 
 
+  <!-- ════════════════════════════════════════════════════
+       v1.20.1
+  ════════════════════════════════════════════════════ -->
+  <section class="release patch" id="v1.20.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.20.1</div>
+        <div class="release-date">2026-09-18</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Installation</div>
+        <div class="release-headline">Installs on a host whose Docker builds cannot reach the network, and upgrades stop discarding local changes</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>An upgrade could silently discard a site&rsquo;s local
+            changes and then fail because of it.</strong> When the upgrade found
+            edited files it set them aside before switching versions, and never
+            put them back &mdash; so a site carrying a change its host depended
+            on lost that change, and the rebuild immediately afterwards failed
+            for want of it. Local changes are now restored before the rebuild.
+            If they genuinely conflict with the new version they are kept safely
+            aside and the upgrade says so, instead of vanishing.
+          </li>
+          <li class="change-item">
+            <strong>A failed upgrade could stay on the broken version.</strong>
+            Restoring local changes left edited files in place, which in turn
+            could prevent the rollback from reverting the code &mdash; leaving
+            the install on the version that had just failed while reporting a
+            rollback. The rollback now sets those changes aside before
+            reverting and reapplies them afterwards.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="feat">
+        <div class="change-type-label">New</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>A first install now explains itself when image builds
+            cannot reach the network.</strong> Docker builds each image in its
+            own isolated network, so a server with perfectly good internet can
+            still fail every build &mdash; and the error it prints is whatever
+            package manager happened to be running at the time. A new check,
+            <code>scripts/check-docker-egress.sh</code>, runs before the build
+            and separates the four causes that produce that symptom: a firewall
+            dropping the container bridge, a network size mismatch behind a VPN
+            (which hangs rather than fails), a DNS server the containers cannot
+            reach, and Docker address ranges that clash with the site&rsquo;s
+            own. Each is reported with the setting that fixes it. It is worth
+            running on its own at any time.
+          </li>
+          <li class="change-item">
+            <strong>A supported way to build anyway.</strong> Setting
+            <code>DOCKER_BUILD_NETWORK=host</code> in <code>.env</code> lets
+            every image build use the server&rsquo;s own network. It affects
+            the build only &mdash; the running system is unchanged and the
+            images are identical. It is a stopgap, not a fix: three of the four
+            causes also break the running system&rsquo;s own connections to
+            Cyber Vision Centers, CML and AI providers, so the underlying
+            Docker setting is still the thing to correct. Previously the only
+            way to achieve this was to edit <code>docker-compose.yml</code>,
+            which is exactly the kind of local change upgrades used to discard.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-14</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-18</div>
   </footer>
 
 </div>
