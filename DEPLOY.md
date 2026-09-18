@@ -74,6 +74,7 @@ headless install: it auto-creates the `admin` user and skips the wizard.)
 | `ENCRYPTION_KEY` | optional | If unset, it's derived deterministically from `SECRET_KEY` and is stable across reboots. Set an explicit Fernet key only to rotate it independently of `SECRET_KEY`. |
 | `DOCKER_GID` | recommended | Must match the host docker group (`getent group docker \| cut -d: -f3`) or the backend can't reach the Docker socket to spawn traffic containers. Varies by distro (988 on Ubuntu 24.04); falls back to 987 if unset. |
 | `DEBUG` | optional | `false` in production |
+| `DOCKER_BUILD_NETWORK` | optional | Leave unset on a healthy host. `host` makes every image build (including the socket-built agent and updater images) use the host network stack — a stopgap for a host whose bridged build sandbox has no egress. See "When the build can't reach the network". |
 
 ---
 
@@ -194,11 +195,59 @@ curl -fsSL https://<server>/agent/install.sh | sudo bash -s -- \
 
 ---
 
+## When the build can't reach the network
+
+Every image builds network-touching steps (`poetry install`, `apt-get`,
+`npm ci`, `apk add`) inside a **bridged build sandbox**, not on the host
+network stack. A host with perfectly good internet can therefore fail every
+build — the daemon pulls base images over the host stack and succeeds, then
+the first `RUN` fails.
+
+Diagnose before you reach for a workaround:
+
+```bash
+./scripts/check-docker-egress.sh
+```
+
+It separates the four causes, because the popular fix (host networking for the
+build) papers over all four equally and so tells you nothing about which one
+you have:
+
+| Cause | Signature | Durable fix |
+|-------|-----------|-------------|
+| Firewall drops the bridge's FORWARD traffic | no TCP egress from any container | firewalld: add `docker0` to the `docker` zone + masquerade. On Ubuntu ufw does **not** normally block Docker — check `DEFAULT_FORWARD_POLICY` and `iptables -S DOCKER-USER` |
+| MTU mismatch (VPN/tunnel uplink below 1500) | **hangs**, not errors — DNS resolves, small requests work, downloads stall mid-transfer | `"mtu": <uplink mtu>` in `/etc/docker/daemon.json` |
+| DNS unreachable from a container | host resolves fine, container `nslookup` fails (systemd-resolved's 127.0.0.53 stub isn't reachable from a bridge) | `"dns": ["<resolver>"]` in `/etc/docker/daemon.json` |
+| Docker's subnets collide with the site's | containers reach the wrong host | `"default-address-pools"` in `/etc/docker/daemon.json` |
+
+**Prefer the `daemon.json` fix.** Three of the four also break *runtime* egress,
+when the backend reaches a Cyber Vision Center, a CML server or an AI provider.
+A build that succeeds is not an install that works.
+
+If you must ship before the host can be fixed, the supported stopgap is an
+`.env` line — **not** an edit to `docker-compose.yml`:
+
+```bash
+echo 'DOCKER_BUILD_NETWORK=host' >> .env
+docker compose up -d --build
+```
+
+Every build stanza honours it, and it is carried into the backend so the agent
+and updater images (built through the Docker socket, which Compose's
+`build.network` cannot reach) use it too. It affects the build sandbox only —
+the running stack is unchanged and the resulting images are identical.
+
+Keep it in `.env` because `.env` is untracked. A hand-edit to
+`docker-compose.yml` is a local change to a *tracked* file, and the release
+upgrade (`scripts/upgrade.sh`) stashes those before checking out the new tag.
+Remove the line once the host is fixed.
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---------|-------|
 | Containers won't start | `docker compose logs` |
+| Build fails on pip/apt/npm/apk | `./scripts/check-docker-egress.sh` — see "When the build can't reach the network" above |
 | Traffic generation fails silently | `DOCKER_GID` in `.env` matches `getent group docker` |
 | `permission denied` on docker | `sudo usermod -aG docker $USER`, then re-login |
 | Encrypted settings reset on reboot | `ENCRYPTION_KEY` is unset in `.env` |

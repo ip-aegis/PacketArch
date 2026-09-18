@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin_user
 from app.api.helpers import ensure_naming_complete, get_or_404, paginate as paginate_query
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import ConflictError, ExternalServiceError, NotFoundError, ValidationError
 from app.models.traffic_agent import AgentDeployment, TrafficAgent
@@ -262,6 +263,13 @@ async def build_agent_image(background_tasks: BackgroundTasks) -> dict:
                 rm=True,
                 nocache=True,
                 buildargs={"AGENT_VERSION": version or "dev"},
+                # This build goes through the mounted Docker socket, NOT
+                # docker-compose, so compose's `build.network` never reaches
+                # it. Carry the same knob through, or a host whose bridged
+                # build sandbox has no egress fails here (apt-get, the
+                # docker-cli tarball download, pip) even after compose builds
+                # were fixed. Empty => docker-py omits it (default sandbox).
+                network_mode=settings.docker_build_network or None,
             )
 
             # Log build output

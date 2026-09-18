@@ -323,3 +323,24 @@ session must come from a fresh `select`, reads for display included — a helper
 that does the fresh read (`_cv_state`) is better than remembering to refresh at
 each site. And when a verification step disagrees with a step that just
 reported success, suspect the verification first.
+
+## Compose "network: host" — ask WHICH key before diagnosing (2026-09-18)
+
+Rocky asked why a new install would need "network:host in the docker compose
+files". I answered for runtime `network_mode: host` — wrong. His follow-up
+("and move the ./backend to context") gave it away: `network: host` is a
+**build** key, and the only reason to convert `build: ./backend` into
+`build: {context: ./backend}` long form is to hang a sub-key off it.
+
+**Rule:** `network_mode:` (service-level, runtime netns) and `build.network:`
+(build sandbox only) are different keys with opposite risk profiles. The tell
+is the long-form `context:` conversion — a short-form `build:` that grows a
+`context:` is always making room for a build sub-key. When the report is
+ambiguous, ask which one before reasoning about consequences; I built a whole
+answer about DNS/port-binding exposure that applied to neither.
+
+**Second-order lesson:** the interesting question was never "why does the build
+fail" (the host's misconfiguration) but "what does the workaround cost". The
+answer — it silently breaks the self-upgrade — was two greps away and was the
+only thing that justified a code change. Before proposing to patch around an
+operator workaround, check what the workaround collides with.

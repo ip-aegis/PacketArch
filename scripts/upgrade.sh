@@ -115,11 +115,40 @@ if [[ "$TARGET_REF" == "$CURRENT_REF" && $FORCE -ne 1 ]]; then
   exit 0
 fi
 
+AUTOSTASH=""
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   [[ $FORCE -eq 1 ]] || fail preflight "working tree has local changes to tracked files. Commit/stash them, or use --force."
+  AUTOSTASH="upgrade.sh autostash $(date -u +%FT%TZ)"
   warn "stashing local changes (--force)"
-  git stash push -m "upgrade.sh autostash $(date -u +%FT%TZ)" >/dev/null || true
+  if git stash push -m "$AUTOSTASH" >/dev/null; then
+    warn "local changes stashed as: ${AUTOSTASH}"
+  else
+    AUTOSTASH=""
+    warn "git stash push failed — continuing with the tree as-is"
+  fi
 fi
+
+# Reapply the autostash after a checkout. Without this the stash was created
+# and never restored, so a site carrying a needed local edit (the classic one
+# is a build.network tweak in docker-compose.yml) silently lost it AND then
+# failed the rebuild that follows — on exactly the host that needed the edit.
+# A conflicting pop is reset away so the build still runs on a clean tree, but
+# git keeps the stash (a failed pop never drops it) and we say so loudly.
+restore_autostash() {
+  [[ -n "$AUTOSTASH" ]] || return 0
+  local ref
+  ref="$(git stash list --format='%gd %gs' | grep -F -- "$AUTOSTASH" | head -1 | awk '{print $1}')"
+  if [[ -z "$ref" ]]; then AUTOSTASH=""; return 0; fi
+  if git stash pop "$ref" >/dev/null 2>&1; then
+    warn "reapplied your stashed local changes"
+    AUTOSTASH=""
+  else
+    git reset --hard HEAD >/dev/null 2>&1 || true
+    warn "could NOT reapply your local changes — they conflict with this version."
+    warn "They are preserved in the stash list as: ${AUTOSTASH}"
+    warn "Reapply manually after the upgrade:  git stash list && git stash pop"
+  fi
+}
 
 [[ -f .env ]] || fail preflight ".env missing — is this a configured install?"
 
@@ -169,7 +198,15 @@ fi
 rollback() {
   write_status rolling_back running "Upgrade failed — rolling back to ${CURRENT_DESC}"
   warn "ROLLBACK: reverting code to ${CURRENT_DESC} (${CURRENT_REF:0:12})"
+  # restore_autostash may have already reapplied the operator's changes onto
+  # the new tag, leaving the tree dirty — which would make the checkout below
+  # refuse and silently leave us on the FAILED version. Re-stash first.
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    AUTOSTASH="upgrade.sh rollback autostash $(date -u +%FT%TZ)"
+    git stash push -m "$AUTOSTASH" >/dev/null || AUTOSTASH=""
+  fi
   git checkout --quiet "$CURRENT_REF" || warn "git checkout of previous ref failed"
+  restore_autostash   # back on the ref it was taken from, so it reapplies cleanly
   $DC up -d --build || warn "rebuild during rollback failed"
   if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
     warn "restoring database from pre-upgrade backup"
@@ -185,6 +222,7 @@ rollback() {
 write_status checkout running "Checking out ${TARGET}"
 log "Checking out ${TARGET} ..."
 git checkout --quiet "refs/tags/${TARGET}" || fail checkout "git checkout ${TARGET} failed"
+restore_autostash   # before the build, so a needed local edit is actually in effect
 
 write_status building running "Building images for ${TARGET}"
 log "Building images for ${TARGET} (this can take a few minutes) ..."
@@ -226,3 +264,7 @@ write_status success success "Upgrade complete: now on ${TARGET}"
 log "Upgrade complete: ${CURRENT_DESC} -> ${TARGET}"
 [[ -n "$BACKUP_FILE" ]] && log "Pre-upgrade backup kept at ${BACKUP_FILE}"
 log "Previous images are retained for fast rollback — run 'docker image prune' to reclaim space."
+if [[ -n "$AUTOSTASH" ]]; then
+  warn "REMINDER: your local changes are still stashed as '${AUTOSTASH}' (git stash list)"
+fi
+

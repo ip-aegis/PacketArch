@@ -121,6 +121,12 @@ DEBUG=false
 # compose project name so the updater container targets the right repo/project.
 HOST_INSTALL_DIR=${INSTALL_DIR}
 COMPOSE_PROJECT_NAME=packetarch
+# Build-time network for image builds. Leave unset on a healthy host.
+# Set to host ONLY if this host's bridged container egress is broken and
+# you cannot fix /etc/docker/daemon.json — see ./scripts/check-docker-egress.sh.
+# Keep it HERE rather than editing docker-compose.yml: .env is untracked, so
+# the self-upgrade won't stash your change away and fail the next rebuild.
+# DOCKER_BUILD_NETWORK=host
 # ADMIN_PASSWORD unset => first boot shows the setup wizard (create admin there).
 # Uncomment + set for a headless install that auto-creates admin and skips it:
 # ADMIN_PASSWORD=changeme
@@ -133,7 +139,39 @@ else
 fi
 
 # Step 5: Build and start
-info "Step 5/5: Building and starting containers..."
+# Every image runs network-touching steps (poetry/pip, apt-get, npm ci, apk) in
+# a BRIDGED build sandbox, so a host with fine internet can still fail every
+# build. Diagnose that up front instead of surfacing a raw pip/npm error.
+if [ -x ./scripts/check-docker-egress.sh ]; then
+    info "Step 5/5: Checking Docker egress before building..."
+    if ! ./scripts/check-docker-egress.sh; then
+        warn "Egress problems found (see above)."
+        warn "Fixing /etc/docker/daemon.json is the durable answer — three of the"
+        warn "four causes also break RUNTIME egress (Cyber Vision, CML, AI providers)."
+        # server-init.sh is documented as `curl ... | bash`, where stdin is
+        # the SCRIPT, not a terminal. A `read` there hits EOF, returns
+        # non-zero, and under `set -e` would abort the whole install. Only
+        # prompt on a real TTY, and never let the read itself be fatal.
+        use_host_net=""
+        if [ -t 0 ]; then
+            read -p "Build anyway with DOCKER_BUILD_NETWORK=host as a stopgap? (y/n): " use_host_net || use_host_net=""
+        else
+            warn "Non-interactive install — not enabling the stopgap automatically."
+            warn "If the build fails: echo 'DOCKER_BUILD_NETWORK=host' >> .env && docker compose up -d --build"
+        fi
+        if [ "$use_host_net" = "y" ]; then
+            if grep -q '^DOCKER_BUILD_NETWORK=' .env; then
+                sed -i 's/^DOCKER_BUILD_NETWORK=.*/DOCKER_BUILD_NETWORK=host/' .env
+            else
+                echo 'DOCKER_BUILD_NETWORK=host' >> .env
+            fi
+            warn "DOCKER_BUILD_NETWORK=host written to .env (build-time only)."
+            warn "Remove it once the host is fixed."
+        fi
+    fi
+fi
+
+info "Building and starting containers..."
 sudo docker compose up -d --build
 
 # Wait for startup

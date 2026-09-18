@@ -43,6 +43,15 @@ class Settings(BaseSettings):
     compose_project_name: str = "packetarch"
     docker_gid: str = ""
 
+    # Build-time network for images the backend builds itself through the
+    # mounted Docker socket (the agent image, the updater image). Those builds
+    # bypass docker-compose entirely, so the compose-level
+    # `build.network: ${DOCKER_BUILD_NETWORK}` knob cannot reach them — this
+    # setting carries the same value through. Empty => Docker's default bridged
+    # build sandbox. Set DOCKER_BUILD_NETWORK=host in .env ONLY when the host's
+    # bridged container egress is broken; see scripts/check-docker-egress.sh.
+    docker_build_network: str = ""
+
     # API
     api_prefix: str = "/api/v1"
     api_host: str = "0.0.0.0"  # Bind to all interfaces for off-box access

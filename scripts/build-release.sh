@@ -71,15 +71,22 @@ rm -rf "${STAGE}"
 mkdir -p "${STAGE}/images" "${STAGE}/docker"
 
 # --- build app images ---------------------------------------------------
+# Same build-network knob the runtime compose stanzas expose: these are raw
+# `docker build` calls, so neither compose's `build.network` nor the backend's
+# DOCKER_BUILD_NETWORK setting reaches them. A maintainer cutting a bundle on a
+# host whose bridged build sandbox has no egress needs the same escape hatch.
+# Unset => `default`. See scripts/check-docker-egress.sh.
+BUILD_NET="--network=${DOCKER_BUILD_NETWORK:-default}"
+
 echo "[1/6] Building backend image ${BACKEND_IMAGE}..."
-docker build \
+docker build ${BUILD_NET} \
     --tag "${BACKEND_IMAGE}" \
     --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
     --build-arg BUILD_DATE="${BUILD_DATE}" \
     "${REPO_ROOT}/backend"
 
 echo "[2/6] Building frontend image ${FRONTEND_IMAGE}..."
-docker build \
+docker build ${BUILD_NET} \
     --tag "${FRONTEND_IMAGE}" \
     --build-arg BUILD_COMMIT="${BUILD_COMMIT}" \
     --build-arg BUILD_DATE="${BUILD_DATE}" \
@@ -129,7 +136,7 @@ PYEOF
         | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
     echo "  agent version: ${AGENT_VERSION:-unknown}"
 
-    docker build \
+    docker build ${BUILD_NET} \
         --tag "${AGENT_IMAGE}" \
         --build-arg "AGENT_VERSION=${AGENT_VERSION:-dev}" \
         "${AGENT_BUILD_CTX}"

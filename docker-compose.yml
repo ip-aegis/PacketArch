@@ -36,7 +36,17 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      # Build-time network for every image built from this file. Unset =>
+      # `default` (the normal bridged build sandbox). Set
+      # DOCKER_BUILD_NETWORK=host in .env ONLY when the host's bridged
+      # container egress is broken (firewalld/nftables FORWARD drop, VPN MTU
+      # mismatch, unreachable DNS, bridge/site subnet collision) and you
+      # cannot fix /etc/docker/daemon.json. It changes the build sandbox
+      # only — the running stack is unaffected and the images are identical.
+      # Keeping it in .env (untracked) means upgrades don't stash it away.
+      network: ${DOCKER_BUILD_NETWORK:-default}
     restart: unless-stopped
     group_add:
       # Must match the host's docker group GID so the backend can reach the
@@ -67,6 +77,10 @@ services:
       HOST_INSTALL_DIR: ${HOST_INSTALL_DIR:-}
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-packetarch}
       DOCKER_GID: ${DOCKER_GID:-987}
+      # Same build-network knob the compose build stanzas use, carried into the
+      # backend because the agent + updater images are built through the
+      # mounted Docker socket, which compose's build.network cannot reach.
+      DOCKER_BUILD_NETWORK: ${DOCKER_BUILD_NETWORK:-}
       # Local-sensor file-queue root (shared with the host-agent service).
       HOST_AGENT_STATE: /hostagent/local-labs
       # Cisco CIRCUIT provider — env-var overrides for the encrypted
@@ -126,7 +140,9 @@ services:
       retries: 3
 
   celery_worker:
-    build: ./backend
+    build:
+      context: ./backend
+      network: ${DOCKER_BUILD_NETWORK:-default}
     restart: unless-stopped
     command: celery -A app.traffic_generator.tasks.celery_app worker --loglevel=info --concurrency=2
     environment:
@@ -158,7 +174,9 @@ services:
       retries: 3
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      network: ${DOCKER_BUILD_NETWORK:-default}
     restart: unless-stopped
     ports:
       - "80:80"    # HTTP -> HTTPS redirect (nginx returns 301 to 443)
@@ -195,7 +213,9 @@ services:
   # privileged + network_mode host (veth in host netns) + pid host (SIGHUP the
   # host dockerd to live-reload daemon.json — never restart).
   host-agent:
-    build: ./docker/packetarch-host-agent
+    build:
+      context: ./docker/packetarch-host-agent
+      network: ${DOCKER_BUILD_NETWORK:-default}
     image: packetarch-host-agent:latest
     container_name: ${COMPOSE_PROJECT_NAME:-packetarch}-host-agent
     restart: unless-stopped
@@ -229,7 +249,9 @@ services:
   # The pinned `image:` name is what the backend references.
   updater:
     profiles: ["updater"]
-    build: ./docker/packetarch-updater
+    build:
+      context: ./docker/packetarch-updater
+      network: ${DOCKER_BUILD_NETWORK:-default}
     image: packetarch-updater:latest
     working_dir: /repo
     group_add:

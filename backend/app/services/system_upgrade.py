@@ -136,7 +136,13 @@ def _ensure_updater_image(client) -> None:
         client.images.get(UPDATER_IMAGE)
     except docker.errors.ImageNotFound:
         logger.info("updater image missing — building %s", UPDATER_IMAGE)
-        client.images.build(path=UPDATER_BUILD_CONTEXT, tag=UPDATER_IMAGE, rm=True)
+        # Socket build, not compose — see the note in routes/agents.py.
+        client.images.build(
+            path=UPDATER_BUILD_CONTEXT,
+            tag=UPDATER_IMAGE,
+            rm=True,
+            network_mode=settings.docker_build_network or None,
+        )
 
 
 def launch_updater(target: str) -> None:
