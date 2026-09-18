@@ -136,6 +136,46 @@ applied unilaterally).
   rather than rejecting an unknown name. Appliance behaving as coded, not
   an OVA defect.
 
+## Review — fixes verified on a rebuilt appliance
+
+Both fixes were re-tested, not just read. A second VM (`pa-ova-fix`,
+10.10.20.130) was built from a pristine copy of the shipped OVA's disk
+with the corrected `firstboot.sh` / unit / cloud-init comment baked in
+using the **same `virt-customize --copy-in` primitives `build-ova.sh`
+uses**, then booted on `br0` exactly like the first test.
+
+| | Shipped v1.20.0 | With the fixes |
+|---|---|---|
+| `systemctl is-active ssh` | `failed` (`no hostkeys available`) | **`active`**, `sshd -t` rc=0 |
+| First-boot log | — | `[0/3] Generating this appliance's SSH host keys...` |
+| DNS | attempts 1 + 2 died on `registry-1.docker.io` resolution | `waiting for DNS... (1..17/30)` → **`DNS ready.`** |
+| Build attempts | 1 failed, 2 failed, 3 succeeded | **`build attempt 1/3`, succeeded** |
+| Containers | 6/6 healthy | 6/6 healthy |
+| App | 1.20.0, wizard shown | 1.20.0, wizard shown |
+
+The DNS wait took **17 iterations ≈ 34 s** — the race is real and not
+marginal. The old code covered a ~60–90 s window with three fixed 30 s
+sleeps, so the shipped OVA recovered with little margin; a slower
+resolver would have exited FATAL and required a manual reboot.
+
+One honest limit on the SSH fix: sshd now **starts** with per-VM host
+keys, which is the defect that was fixed, but the cloud image's
+`60-cloudimg-settings.conf` still sets `PasswordAuthentication no`, so
+`ubuntu` / `packetarch` over SSH is refused by design. That is the right
+default — password SSH with a documented default password would be worse
+than no SSH. The operator adds a key from the console; before the fix, no
+amount of key-adding would have helped, because sshd could never start.
+
+Fixed in `563bc1e`. Findings 3–6 are unaddressed by design and are
+Rocky's call (3 and 4 touch published git history).
+
 ## State
 
-`pa-ova-test` on Alpha — see the review section below for disposition.
+- `pa-ova-test` (the as-shipped run, wizard completed, scenario + PCAP)
+  — **destroyed and undefined**.
+- `pa-ova-fix` (the fixed run, fresh wizard state) — **left running** at
+  `https://10.10.20.130/` so the appliance can be clicked through.
+  Tear down with:
+  `sudo virsh destroy pa-ova-fix && sudo virsh undefine pa-ova-fix --remove-all-storage`
+- Scratch on Alpha: `~/ova-test/` (~3.5 GB: the extracted OVA + converted
+  qcow2). Safe to delete.
