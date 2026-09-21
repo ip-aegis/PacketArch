@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PacketArch Release Notes — v1.10 through v1.20</title>
+  <title>PacketArch Release Notes — v1.10 through v1.21</title>
   <style>
 /* ──────────────────────────────────────────────────────
    TOKENS
@@ -387,6 +387,20 @@ body {
 .release.patch .release-headline { font-size: 15.5px; font-weight: 600; }
 
 /* ── CHANGE GROUPS ── */
+/* Optional framing paragraph between a release header and its change groups.
+   Used where the whole release shares one cause worth stating once. */
+.release-note {
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--c-accent);
+  background: var(--c-raised);
+  border-radius: 0 4px 4px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--c-muted);
+  max-width: 660px;
+}
+
 .change-groups { display: flex; flex-direction: column; gap: 22px; }
 
 .change-group {
@@ -565,13 +579,13 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.20.2,
-      covering June 17 &ndash; September 18, 2026.
+      Feature releases and patches from v1.10.0 through v1.21.0,
+      covering June 17 &ndash; September 21, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">23</div>
+        <div class="cover-stat-value">24</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
@@ -707,6 +721,11 @@ code {
           <td>v1.20.2</td>
           <td>A database password mismatch now says so, instead of looking like four healthy containers</td>
           <td>Sep 18, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.21.0</td>
+          <td>Installs on a corporate laptop behind a VPN, and says what is wrong when it does not</td>
+          <td>Sep 21, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -2072,10 +2091,124 @@ code {
     </div>
   </section>
 
+  <section class="release" id="v1.21.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.21.0</div>
+        <div class="release-date">2026-09-21</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Installation</div>
+        <div class="release-headline">Installs on a corporate laptop behind a VPN, and says what is wrong when it does not</div>
+      </div>
+    </div>
+    <p class="release-note">
+      Every change here came out of one real install: a managed laptop on a
+      corporate VPN, which took two weeks to bring up. Each problem it hit was
+      ours, not the installer&rsquo;s. The goal of this release is that a fresh
+      install on such a machine either works first time, or names the cause in
+      one command.
+    </p>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>The stack now chooses a network address range that a
+            corporate network is unlikely to be using.</strong> A VPN typically
+            claims a large private address range, and Docker&rsquo;s default
+            choices sit inside it. When they overlapped, the result looked like
+            a working install and was not: every container started and reported
+            healthy, a request made from inside the web server container
+            succeeded, and the same request from the machine itself was
+            refused, because the reply left through the tunnel instead of
+            coming back. The range is now fixed to one chosen to avoid the
+            usual corporate and home networks, and both installers pick an
+            alternative automatically if the machine already routes it.
+          </li>
+          <li class="change-item">
+            <strong>&ldquo;Server error&rdquo; on every login now says what it
+            actually is.</strong> The same address overlap can stop the web
+            server resolving the application&rsquo;s name, so every API call
+            failed after a thirty-second timeout &mdash; reported as a generic
+            server error, which sent the operator looking for an application
+            bug for two weeks. Those failures now read &ldquo;Backend
+            unreachable&rdquo;, name the HTTP status, and point at the
+            diagnostics command. Genuine application messages are unaffected.
+          </li>
+          <li class="change-item">
+            <strong>A login page where the setup wizard was expected no longer
+            appears without explanation.</strong> When the first-run check
+            could not be read, the interface assumed setup was already
+            finished and showed the normal login &mdash; indistinguishable from
+            a healthy install. It still falls back that way, so a momentary
+            blip cannot lock anyone out of a working system, but it now shows a
+            permanent banner saying the page is a fallback and that signing in
+            will not work until the underlying problem is fixed.
+          </li>
+          <li class="change-item">
+            <strong>The web server and the host helper now report a health
+            state.</strong> Neither defined a health check, and that is shown as
+            a blank column &mdash; which reads as &ldquo;never became
+            healthy&rdquo; when it means &ldquo;never asked&rdquo;. The web
+            server&rsquo;s check deliberately goes through to the application,
+            so it covers the whole path a browser takes rather than just
+            confirming the web server is running.
+          </li>
+          <li class="change-item">
+            <strong>Upgrades handle the address-range change safely.</strong>
+            Changing it requires the network to be rebuilt, and doing that
+            while the database is running leaves the database reachable by
+            address but not by name &mdash; which would fail the upgrade&rsquo;s
+            database step for a reason that has nothing to do with the
+            database. The upgrade now settles the change first, restarts the
+            database on the new network, and verifies the result. If something
+            outside PacketArch is attached to the network, it says which
+            container rather than stopping the system and leaving it down.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="feat">
+        <div class="change-type-label">New</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>One command collects everything needed to diagnose an
+            install.</strong> <code>scripts/collect-diagnostics.sh</code> writes
+            a single file: versions, configuration key names, container states
+            with restart counts, the text of every health check, the
+            reachability path a user takes, name resolution between services,
+            network addresses, host routes and listeners, and recent logs. It
+            finds the installation from its own location, so it works whether
+            PacketArch was installed from source, from the offline bundle or as
+            an appliance &mdash; the previous approach was a support command
+            that assumed one of those and silently found nothing on the others.
+            Every secret value is replaced with a placeholder throughout the
+            file, including inside logs.
+          </li>
+          <li class="change-item">
+            <strong>The pre-install check now tests name resolution between
+            services.</strong> It could already prove a container reached the
+            internet; it could not prove one container could find another,
+            which is what the platform actually depends on and the one failure
+            that leaves every container green while nothing works.
+          </li>
+          <li class="change-item">
+            <strong>The installation guide has a troubleshooting chapter.</strong>
+            It opens with the two read-only commands, a table for telling which
+            kind of installation you are looking at, and the
+            everything-is-green-and-still-unreachable failure in full &mdash;
+            including why editing the compose file to work around it is a trap
+            that the upgrade process will undo.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-18</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-21</div>
   </footer>
 
 </div>
