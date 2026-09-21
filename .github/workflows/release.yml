@@ -293,13 +293,22 @@ jobs:
           # This runner's ${RUNNER_TEMP} is not reliably wiped between jobs
           # (see the note on "Locate OVA" below) — old OVAs accumulate
           # otherwise, ~900MB+ each.
-          sudo rm -rf "${RUNNER_TEMP}/ova-out"
           # VERSION is passed explicitly rather than left to build-ova.sh's
           # own OVA_GIT_REF-derived default, so the output filename is
           # always deterministic and matches what "Locate OVA" expects below.
+          # OVA_CACHE_DIR is pinned to a build-only path. The previous default
+          # (/var/cache/packetarch-ova) is a well-known location on this host,
+          # and a VM got created with the cached cloud image AS ITS DISK rather
+          # than a copy — which locked the file, grew it from 3.5G to 30G, and
+          # would have had the release appliance built from that VM's disk if
+          # the lock had happened to be free. build-ova.sh now refuses a cache
+          # it cannot verify, and this path keeps the release build out of a
+          # directory anything else on the box might reasonably reach for.
+          sudo rm -rf "${RUNNER_TEMP}/ova-out"
           sudo env \
             OVA_GIT_REF="${{ steps.ovaref.outputs.REF }}" \
             VERSION="${{ steps.ovaref.outputs.VERSION }}" \
+            OVA_CACHE_DIR=/var/cache/packetarch-ova-release \
             OUT_DIR="${RUNNER_TEMP}/ova-out" \
             ./scripts/ova/build-ova.sh
 
