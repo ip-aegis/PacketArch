@@ -365,7 +365,26 @@ FATAL:  password authentication failed for user "packetarch"
 | `postgres` | healthy | `pg_isready` never authenticates — it only asks whether the server accepts connections |
 | `celery_worker` | healthy | fixed in v1.20.2; before that its healthcheck only pinged Redis |
 | `backend` | unhealthy | the only service that actually checks the database |
-| `frontend` | `Created` | blocked on `backend: service_healthy` |
+| `frontend` | `Created` | blocked on `backend: service_healthy` — it never starts, so it has no health state to report |
+| `host-agent` | healthy | correct, and unrelated: it is `network_mode: host` and does not use the database |
+
+**Every service reports a health state as of v1.21.0.** Before that, `frontend`
+and `host-agent` defined no healthcheck at all, and Compose renders that as a
+**blank** status column — which reads as "never became healthy" when it
+actually means "never asked". What each check now executes:
+
+| Service | Health probe | What a green check therefore proves |
+|---------|--------------|-------------------------------------|
+| `postgres` | `pg_isready` | the server accepts connections. **Not** that credentials work |
+| `redis` | `redis-cli ping` | the broker answers |
+| `backend` | `curl http://localhost:8001/health` | the app is up, which requires the database |
+| `celery_worker` | `celery inspect ping` **and** a real DB connect | broker *and* database reachable |
+| `frontend` | `curl -fsk https://127.0.0.1/health` | TLS listener up, `backend` resolved through Docker's embedded DNS, and reached. `/health` is proxied, so this covers the whole chain a browser takes — a static-asset probe would have stayed green through the "every /api/ call 502s" outage |
+| `host-agent` | heartbeat file age **and** main-loop age | the process is alive *and* its request-draining loop is turning (a lab provision can pause the loop for minutes legitimately, so the two are checked separately) |
+
+`./scripts/collect-diagnostics.sh` prints the literal text of every one of
+these, so you can check what a green check means on the install in front of
+you rather than trusting this table.
 
 **Cause.** Postgres applies `POSTGRES_PASSWORD` *only* when it initialises an
 empty data directory. A `packetarch_postgres_data` volume that survived a

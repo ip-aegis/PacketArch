@@ -94,8 +94,40 @@ def ensure_dirs() -> None:
         d.mkdir(parents=True, exist_ok=True)
 
 
+HEARTBEAT = STATE_ROOT / "heartbeat.json"
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def write_heartbeat(loop_ts: float | None, loop_age_s: float | None) -> None:
+    """Publish process liveness for the container healthcheck.
+
+    Two facts, because they fail independently and only one of them is what an
+    operator usually means by "is the host-agent alive":
+
+      ts          — written by a daemon thread, so it keeps moving even while a
+                    provision is inside a multi-minute `docker build`. Stale ts
+                    means the PROCESS is gone or wedged at the interpreter level.
+      loop_age_s  — how long since the main watcher loop last turned. The loop
+                    is what drains the backend's request queue, so a stalled
+                    loop is a real failure (local-lab provisioning hangs with
+                    nothing in the UI to show why) even though the process is up.
+
+    A blank healthcheck was the status this service reported before: no check at
+    all, which `docker compose ps` renders as an empty column. An operator read
+    that as "never became healthy" and spent time on a service that was fine.
+    """
+    _write_atomic(
+        HEARTBEAT,
+        {
+            "pid": os.getpid(),
+            "ts": now_iso(),
+            "loop_ts": loop_ts,
+            "loop_age_s": None if loop_age_s is None else round(loop_age_s, 1),
+        },
+    )
 
 
 def _write_atomic(path: Path, data: dict) -> None:

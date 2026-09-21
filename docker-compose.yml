@@ -194,6 +194,24 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    # /health is PROXIED to the backend (frontend/nginx.conf), so this one probe
+    # covers the whole chain a user's browser takes: nginx serving TLS on 443,
+    # resolving "backend" through Docker's embedded DNS, and reaching it. A
+    # probe of a static asset would have stayed green through the exact outage
+    # this is here to catch — the page loaded fine and every /api/ call 502'd.
+    #
+    # Must be 127.0.0.1, not localhost: nginx listens on IPv4 only, and busybox
+    # resolves localhost to ::1 first, which gives "connection refused" on a
+    # perfectly healthy container.
+    #
+    # -k because the default cert is self-signed; this is a loopback probe of
+    # the container's own listener, so there is no trust decision to make.
+    healthcheck:
+      test: ["CMD", "curl", "-fsk", "-o", "/dev/null", "https://127.0.0.1/health"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
   # Optional: pgAdmin for database management
   pgadmin:
@@ -244,6 +262,32 @@ services:
       # 'app'` crash loop, and local-lab provisioning silently hangs. To
       # live-edit the watcher without a rebuild, opt in explicitly:
       #   docker compose -f docker-compose.yml -f docker-compose.host-agent-dev.yml up -d host-agent
+    # The watcher publishes heartbeat.json on the shared state volume: a wall-
+    # clock `ts` from a daemon thread (process liveness) plus `loop_age_s`, how
+    # long since the main request-draining loop last turned. Both are checked,
+    # because they fail apart: a provision can sit in a multi-minute docker
+    # build with the loop paused and the process perfectly healthy, while a
+    # wedged loop leaves local-lab provisioning hanging with a live process.
+    # 900s for the loop is far beyond any legitimate single iteration and well
+    # inside "someone is waiting and confused".
+    #
+    # Previously this service defined no healthcheck at all, which compose
+    # renders as a blank status column — and an operator read blank as "never
+    # became healthy" and lost time on a service that was fine.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c 'import datetime,json,os,sys,time;
+          p=os.path.join(os.environ.get("HOST_AGENT_STATE","/hostagent/local-labs"),"heartbeat.json");
+          d=json.load(open(p));
+          age=time.time()-datetime.datetime.fromisoformat(d["ts"]).timestamp();
+          la=d.get("loop_age_s");
+          sys.exit(0 if age<60 and (la is None or la<900) else 1)'
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
   # Self-upgrade runner. Never auto-starts (profiled). The backend launches a
   # one-off container FROM this image via the Docker socket to run

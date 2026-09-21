@@ -18,8 +18,11 @@ RUN npx vite build
 # Runtime stage - nginx for static serving with SSL
 FROM nginx:alpine
 
-# Install openssl for certificate generation
-RUN apk add --no-cache openssl
+# openssl for certificate generation; curl for the container healthcheck.
+# nginx:alpine happens to ship curl today, but it is a floating tag — relying on
+# that would make the healthcheck vanish on a base-image refresh, and a
+# healthcheck that cannot run is reported exactly like one that never passed.
+RUN apk add --no-cache openssl curl
 
 # Create SSL directories. /etc/nginx/ssl is the live cert location nginx
 # reads from; /etc/nginx/custom-certs is the read-only mount point operators

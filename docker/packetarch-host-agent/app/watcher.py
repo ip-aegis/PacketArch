@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 
 from app import hostops, state
@@ -26,6 +27,30 @@ log = logging.getLogger("hostagent.watcher")
 
 POLL_INTERVAL = float(os.environ.get("HOST_AGENT_POLL_INTERVAL", "2"))
 RECONCILE_INTERVAL = float(os.environ.get("HOST_AGENT_RECONCILE_INTERVAL", "30"))
+HEARTBEAT_INTERVAL = float(os.environ.get("HOST_AGENT_HEARTBEAT_INTERVAL", "5"))
+
+# Last time the main watcher loop turned, as a wall clock. Read by the heartbeat
+# thread; a single float assignment needs no lock.
+_last_loop_ts: float | None = None
+
+
+def _heartbeat_loop() -> None:
+    """Publish liveness on a wall clock, independent of the main loop.
+
+    Deliberately NOT written from the main loop alone: provisioning a lab can
+    sit inside a `docker build` or an image pull for minutes, and a heartbeat
+    that stalls there would report the service unhealthy for doing its job.
+    The main loop's own timestamp is carried along so a genuinely wedged loop is
+    still distinguishable from a busy one.
+    """
+    while True:
+        try:
+            now = time.time()
+            age = None if _last_loop_ts is None else now - _last_loop_ts
+            state.write_heartbeat(_last_loop_ts, age)
+        except Exception:  # never let the heartbeat kill the agent
+            log.debug("heartbeat write failed", exc_info=True)
+        time.sleep(HEARTBEAT_INTERVAL)
 
 
 # --- provisioning ----------------------------------------------------------
@@ -270,10 +295,15 @@ def main() -> None:
     state.ensure_dirs()
     log.info("PacketArch host-agent started; state=%s", state.STATE_ROOT)
 
+    global _last_loop_ts
+    _last_loop_ts = time.time()
+    threading.Thread(target=_heartbeat_loop, name="heartbeat", daemon=True).start()
+
     _reconcile_all()  # reboot survival: converge desired specs on boot
     last_reconcile = time.monotonic()
 
     while True:
+        _last_loop_ts = time.time()
         for path in state.list_requests():
             req = state.read_request(path)
             state.consume_request(path)
