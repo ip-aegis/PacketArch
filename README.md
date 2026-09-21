@@ -37,9 +37,29 @@ HOST_INSTALL_DIR=$(pwd)
 COMPOSE_PROJECT_NAME=packetarch
 COMPOSE_SUBNET=10.200.0.0/24
 DEBUG=false
+# Uncomment ONLY if the build below fails to reach the network. It makes image
+# builds use the host's network stack. This is the supported way to do it —
+# do NOT edit docker-compose.yml, because that is a tracked file and the
+# upgrade will stash your edit away. See "When the build can't reach the
+# network" in DEPLOY.md.
+# DOCKER_BUILD_NETWORK=host
 EOF
 chmod 600 .env
 
+# Check this host can build before spending ten minutes finding out it can't.
+# Image builds run pip/apt/npm inside a bridged sandbox, so a machine with
+# perfectly good internet can still fail every build — common on a VPN.
+./scripts/check-docker-egress.sh
+
+docker compose up -d --build
+```
+
+If the preflight reports a build-sandbox problem it names the durable fix. The
+one-line stopgap, if you need to ship before the host can be changed, is an
+`.env` entry — **never** an edit to `docker-compose.yml`:
+
+```bash
+echo 'DOCKER_BUILD_NETWORK=host' >> .env
 docker compose up -d --build
 ```
 

@@ -43,12 +43,33 @@ COMPOSE_SUBNET=10.200.0.0/24
 DEBUG=false
 # ADMIN_PASSWORD intentionally omitted => first boot shows the setup wizard.
 # Add ADMIN_PASSWORD=<value> only for a headless install (skips the wizard).
+# Uncomment ONLY if step 4's preflight says the build sandbox has no network.
+# This is the supported way to set it — do NOT edit docker-compose.yml, which
+# is tracked, so the upgrade stashes your edit away.
+# DOCKER_BUILD_NETWORK=host
 EOF
 chmod 600 .env
 
-# 4. Build and start
+# 4. Preflight, THEN build. Image builds run pip/apt/npm/apk inside a bridged
+#    sandbox, so a host with perfectly good internet can still fail every
+#    build — the usual cause on a corporate laptop is the VPN. Ten seconds
+#    here saves finding out ten minutes into a build.
+./scripts/check-docker-egress.sh
+
+# 5. Build and start
 docker compose up -d --build
 ```
+
+> **If the build cannot reach the network**, the preflight names which of the
+> causes you have and the durable fix for it. The supported stopgap is one
+> `.env` line — `echo 'DOCKER_BUILD_NETWORK=host' >> .env` — and **not** an edit
+> to `docker-compose.yml`. Every build stanza honours it, and it is carried into
+> the backend so the socket-built agent and updater images use it too. Full
+> detail in "When the build can't reach the network" below.
+>
+> `scripts/server-init.sh` (next section) runs this preflight for you and offers
+> the stopgap interactively, which is why it is the easier path on a host you
+> already suspect.
 
 Or run the one-shot helper (does all of the above — installs Docker, clones to
 `~/packetarch`, generates `.env`, builds and starts):
