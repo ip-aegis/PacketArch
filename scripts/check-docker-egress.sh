@@ -5,16 +5,22 @@
 # `docker compose up -d --build` runs network-touching steps in EVERY image
 # (poetry/pip, apt-get, npm ci, apk add). Those run inside a BRIDGED build
 # sandbox, not on the host stack — so a host with perfectly good internet can
-# still fail every build. This script finds out which of the four usual causes
-# you have, because the popular workaround (build.network: host) fixes all four
-# equally and therefore tells you nothing.
+# still fail every build. This script finds out which of the usual causes you
+# have, because the popular workaround (build.network: host) fixes all of the
+# build-time ones equally and therefore tells you nothing.
 #
-# Three of the four come back at RUNTIME, when the backend reaches out to a
-# Cyber Vision Center, a CML server or an AI provider. A build that succeeds is
-# not an install that works.
+# Most of them come back at RUNTIME, when the backend reaches out to a Cyber
+# Vision Center, a CML server or an AI provider. A build that succeeds is not an
+# install that works — and the last check here (embedded DNS) is a cause that
+# NEVER shows at build time and produces a green `docker compose ps` on a stack
+# where every single API call 502s.
+#
+# Sections: 0 daemon · 1 MTU · 2 subnet collisions (incl. COMPOSE_SUBNET) ·
+#           3 bridged egress · 4 BuildKit sandbox · 5 embedded DNS
 #
 # Usage:  ./scripts/check-docker-egress.sh [--quick]
-#         --quick   skip the real build-sandbox probe (no image pull/build)
+#         --quick   skip everything that pulls or runs a container
+#                   (sections 3, 4 and 5)
 #
 # Exit:   0 = no problems found       1 = at least one problem found
 #         2 = could not run the checks (no docker / daemon unreachable)
@@ -223,6 +229,105 @@ else
     echo "          Every build stanza honours it. Editing docker-compose.yml by hand"
     echo "          instead will be stashed away by the self-upgrade and the next"
     echo "          upgrade will fail on this host."
+  fi
+fi
+
+# ---- 5. embedded DNS (container-name resolution) ---------------------------
+# Section 3 proves a container can resolve the INTERNET. That is a different
+# resolver from the one the stack actually depends on. Inside a user-defined
+# network, Docker runs an embedded DNS server at 127.0.0.11 that resolves
+# SERVICE NAMES — `postgres`, `redis`, `backend`. nginx resolves its upstream
+# through it on every request (frontend/nginx.conf `resolver 127.0.0.11`), so
+# when this breaks the symptom is not "no internet", it is: the page loads,
+# every /api/ call 502s after the resolver timeout, and the login says
+# "Backend unreachable". Nothing in `docker compose ps` shows it.
+#
+# It breaks on hosts where the 127.0.0.11 DNAT loses its conntrack reply path —
+# a site/VPN route overlapping the bridge subnet is the cause we have actually
+# seen. Note that container-name resolution NEVER works on the default `bridge`
+# network, only on user-defined ones, so this probe must not run there.
+head_ "Docker embedded DNS (service-name resolution)"
+DNS_NET=""; DNS_TARGET=""; DNS_TEMP_NET=""; DNS_PEER=""
+if (( QUICK )); then
+  skip "--quick: skipped"
+else
+  # Prefer the REAL stack network if it is up: then we resolve a real service
+  # name over the real subnet, which is the path users hit.
+  for candidate in "${COMPOSE_PROJECT_NAME:-packetarch}_default" packetarch_default; do
+    if $DOCKER network inspect "$candidate" >/dev/null 2>&1; then
+      first_id="$($DOCKER network inspect "$candidate" \
+                    --format '{{range $k,$v := .Containers}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')"
+      if [[ -n "$first_id" ]]; then
+        DNS_TARGET="$($DOCKER inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$first_id" 2>/dev/null)"
+        [[ -n "$DNS_TARGET" ]] && { DNS_NET="$candidate"; break; }
+      fi
+    fi
+  done
+  if [[ -z "$DNS_NET" ]]; then
+    # Stack is down (or not installed yet) — stand up a throwaway user-defined
+    # network so this check is useful BEFORE the first `up`, which is exactly
+    # when an operator wants it.
+    DNS_TEMP_NET="pa-dnsprobe-$$"
+    DNS_PEER="pa-dnspeer-$$"
+    if $DOCKER network create --subnet "$COMPOSE_SUBNET" "$DNS_TEMP_NET" >/dev/null 2>&1 \
+       || $DOCKER network create "$DNS_TEMP_NET" >/dev/null 2>&1; then
+      if $DOCKER run -d --name "$DNS_PEER" --network "$DNS_TEMP_NET" \
+           "$PROBE_IMAGE" sleep 60 >/dev/null 2>&1; then
+        DNS_NET="$DNS_TEMP_NET"; DNS_TARGET="$DNS_PEER"
+      fi
+    fi
+  fi
+  cleanup_dns_probe() {
+    [[ -n "$DNS_PEER" ]] && $DOCKER rm -f "$DNS_PEER" >/dev/null 2>&1
+    [[ -n "$DNS_TEMP_NET" ]] && $DOCKER network rm "$DNS_TEMP_NET" >/dev/null 2>&1
+    return 0
+  }
+
+  if [[ -z "$DNS_NET" || -z "$DNS_TARGET" ]]; then
+    skip "could not set up a user-defined network to probe — re-run after the first build"
+    cleanup_dns_probe
+  else
+    # getent, NOT nslookup. busybox nslookup exits 0 on NXDOMAIN — it prints
+    # "server can't find <name>" and still returns success, so an exit-code
+    # check on it reports PASS for the exact failure this section exists to
+    # catch (confirmed on alpine:3.20). getent hosts returns 2 when the name
+    # does not resolve.
+    RES_OUT="$($DOCKER run --rm --network "$DNS_NET" "$PROBE_IMAGE" \
+                 cat /etc/resolv.conf 2>&1)"
+    EDNS_OUT="$($DOCKER run --rm --network "$DNS_NET" "$PROBE_IMAGE" \
+                 getent hosts "$DNS_TARGET" 2>&1)"; EDNS_RC=$?
+    if (( EDNS_RC == 0 )); then
+      ok "\"$DNS_TARGET\" resolves inside $DNS_NET -> ${EDNS_OUT%% *} (embedded DNS working)"
+    else
+      bad "\"$DNS_TARGET\" does NOT resolve inside $DNS_NET — Docker's embedded DNS is broken on this host"
+      echo "          This is the one that presents as a WORKING install: the page loads,"
+      echo "          every /api/ call 502s, and the login says \"Backend unreachable\"."
+      echo "          nginx re-resolves \"backend\" through 127.0.0.11 on every request."
+      echo ""
+      echo "          The container's resolver config was:"
+      grep -E 'nameserver|ExtServers|Overrides' <<< "$RES_OUT" | sed 's/^/            /'
+      echo "          On a user-defined network Docker always writes 127.0.0.11 there"
+      echo "          (a daemon.json \"dns\" entry becomes its UPSTREAM, it does not"
+      echo "          replace it), so a failure here means the DNAT to the embedded"
+      echo "          resolver is losing its reply path — conntrack. The cause we have"
+      echo "          actually seen is a site/VPN route overlapping the bridge subnet."
+      echo ""
+      echo "          fix, in order of preference:"
+      echo "               1. move the stack off the routed range:"
+      echo "                    echo 'COMPOSE_SUBNET=<free /24>' >> .env"
+      echo "                    docker compose down && docker compose up -d"
+      echo "               2. move ALL of docker off it (needs root + daemon restart):"
+      echo "                    \"default-address-pools\" in /etc/docker/daemon.json"
+      echo "               3. confirm nothing is dropping 127.0.0.11 traffic:"
+      echo "                    sudo iptables -t nat -S DOCKER_OUTPUT DOCKER_POSTROUTING"
+      echo ""
+      echo "          Do NOT paper over this with \"extra_hosts\" entries in"
+      echo "          docker-compose.yml. They pin container IPs that change on every"
+      echo "          recreate, they are a local edit to a TRACKED file (so the"
+      echo "          self-upgrade stashes them away), and they cannot help the"
+      echo "          frontend at all — nginx resolves through 127.0.0.11, not /etc/hosts."
+    fi
+    cleanup_dns_probe
   fi
 fi
 

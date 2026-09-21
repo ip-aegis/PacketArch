@@ -272,18 +272,19 @@ Diagnose before you reach for a workaround:
 ./scripts/check-docker-egress.sh
 ```
 
-It separates the four causes, because the popular fix (host networking for the
-build) papers over all four equally and so tells you nothing about which one
-you have:
+It separates the causes, because the popular fix (host networking for the
+build) papers over the build-time ones equally and so tells you nothing about
+which one you have:
 
 | Cause | Signature | Durable fix |
 |-------|-----------|-------------|
 | Firewall drops the bridge's FORWARD traffic | no TCP egress from any container | firewalld: add `docker0` to the `docker` zone + masquerade. On Ubuntu ufw does **not** normally block Docker — check `DEFAULT_FORWARD_POLICY` and `iptables -S DOCKER-USER` |
 | MTU mismatch (VPN/tunnel uplink below 1500) | **hangs**, not errors — DNS resolves, small requests work, downloads stall mid-transfer | `"mtu": <uplink mtu>` in `/etc/docker/daemon.json` |
 | DNS unreachable from a container | host resolves fine, container `nslookup` fails (systemd-resolved's 127.0.0.53 stub isn't reachable from a bridge) | `"dns": ["<resolver>"]` in `/etc/docker/daemon.json` |
-| Docker's subnets collide with the site's | containers reach the wrong host | `"default-address-pools"` in `/etc/docker/daemon.json` |
+| Docker's subnets collide with the site's | containers reach the wrong host | `COMPOSE_SUBNET` in `.env` for this stack, or `"default-address-pools"` in `/etc/docker/daemon.json` for the whole host |
+| Embedded DNS (127.0.0.11) broken | **no build symptom at all** — everything builds and starts, then every `/api/` call 502s and login says "Backend unreachable" | Same as above: it is the subnet collision showing up at runtime. Section 5 of the preflight names it. |
 
-**Prefer the `daemon.json` fix.** Three of the four also break *runtime* egress,
+**Prefer the `daemon.json` fix.** Most of these also break *runtime* egress,
 when the backend reaches a Cyber Vision Center, a CML server or an AI provider.
 A build that succeeds is not an install that works.
 
