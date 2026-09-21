@@ -579,13 +579,13 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.21.0,
+      Feature releases and patches from v1.10.0 through v1.21.1,
       covering June 17 &ndash; September 21, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">24</div>
+        <div class="cover-stat-value">25</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
@@ -725,6 +725,11 @@ code {
         <tr>
           <td>v1.21.0</td>
           <td>Installs on a corporate laptop behind a VPN, and says what is wrong when it does not</td>
+          <td>Sep 21, 2026</td>
+        </tr>
+        <tr class="patch">
+          <td>v1.21.1</td>
+          <td>Installers clear a previous attempt instead of starting on top of it</td>
           <td>Sep 21, 2026</td>
         </tr>
       </tbody>
@@ -2199,6 +2204,52 @@ code {
             everything-is-green-and-still-unreachable failure in full &mdash;
             including why editing the compose file to work around it is a trap
             that the upgrade process will undo.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="release patch" id="v1.21.1">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.21.1</div>
+        <div class="release-date">2026-09-21</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Installation</div>
+        <div class="release-headline">Installers clear a previous attempt instead of starting on top of it</div>
+      </div>
+    </div>
+    <div class="change-groups">
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Re-running an installer no longer inherits a half-finished
+            earlier attempt.</strong> All three installers &mdash; the
+            source install script, the offline bundle&rsquo;s installer, and the
+            appliance&rsquo;s first-boot routine &mdash; started the stack
+            directly on top of whatever containers were already present.
+            Starting an existing stack does not fully rebuild it: containers
+            whose definition has not changed are reused, and when the container
+            network itself has changed they are reconnected to the new network
+            <em>without the names other services use to find them</em>. Since
+            the previous release fixes the network address range, an install run
+            over an older attempt hit exactly that: the right network, every
+            container attached and running, and the database no longer findable
+            by name. The installers now list what they found and remove it
+            first. The appliance does the same between its three build
+            attempts, which previously retried on top of the failed one.
+          </li>
+          <li class="change-item">
+            <strong>Data is never removed.</strong> Only containers and the
+            container network are cleared; the volumes holding the database and
+            generated files are left alone, so re-running an installer on a
+            working site is safe. A database whose password no longer matches a
+            regenerated configuration file is still handled the way it was &mdash;
+            by telling the operator and offering a one-command repair &mdash;
+            rather than by deleting anything.
           </li>
         </ul>
       </div>
