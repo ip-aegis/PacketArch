@@ -84,3 +84,6 @@ probe died on a Pydantic error before reaching Postgres. Caught it because the
 output named the wrong error, not because the test failed. Worth remembering
 that a test which fails for the wrong reason still looks like a pass when you
 are only checking the exit path.
+
+## 2026-09-21 — Corporate-host install hardening
+- [ ] Execute tasks/corporate-host-install-plan.md (6 tasks, priority order; check in with Rocky first). Origin: David G. install thread 09-04→09-18.
