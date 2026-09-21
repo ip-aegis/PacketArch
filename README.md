@@ -35,6 +35,7 @@ ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 DOCKER_GID=$(getent group docker | cut -d: -f3)
 HOST_INSTALL_DIR=$(pwd)
 COMPOSE_PROJECT_NAME=packetarch
+COMPOSE_SUBNET=10.200.0.0/24
 DEBUG=false
 EOF
 chmod 600 .env

@@ -280,3 +280,35 @@ volumes:
   upgrade_state:
   agent_dist:
   host_agent_state:
+
+# The stack's own bridge network, with the subnet PINNED rather than taken from
+# Docker's default-address-pools (172.17-172.31.0.0/16 + 192.168.0.0/16).
+#
+# Why pin it: a corporate laptop on VPN routes large RFC1918 blocks — a
+# 172.16.0.0/12 site route is the common one. When Docker hands this network a
+# subnet inside that block, the collision is invisible until it isn't: the
+# containers come up, `curl` INSIDE the frontend returns 200, and the host still
+# gets a TCP reset on 443, because the return path leaves through the VPN. The
+# embedded DNS resolver (127.0.0.11) can stop reverse-NATing replies on the same
+# host, so `backend` also stops resolving — and nginx then 502s every /api/
+# call. A pinned subnet outside the routed space removes that whole class, and
+# makes the network deterministic across installs.
+#
+# The default was chosen to avoid: 172.16.0.0/12 (the usual VPN/site block),
+# 172.16.0.0/16 specifically (PacketArch's own local-lab pool —
+# hostops._LAB_SUBNET_BLOCK), and 192.168.0.0/16 (home/branch LANs). Scenario
+# IP ranges (10.{n}.0.0/16) are simulated traffic on isolated veths, never host
+# routes, so they do not conflict with this.
+#
+# Override in .env when 10.200.0.0/24 is itself routed at your site:
+#   COMPOSE_SUBNET=10.201.0.0/24
+# Changing it on an existing install needs the network recreated:
+#   docker compose down && docker compose up -d
+# scripts/upgrade.sh does that automatically when the value changes.
+#
+# host-agent is network_mode: host and is not attached to this network.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMPOSE_SUBNET:-10.200.0.0/24}

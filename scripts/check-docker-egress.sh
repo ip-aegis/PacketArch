@@ -82,14 +82,33 @@ fi
 # will reach the wrong place, or labs will starve for free /24s.
 head_ "Subnet collisions (docker pools vs site routes)"
 mapfile -t HOST_ROUTES < <(ip -4 route show 2>/dev/null | awk '$1 ~ /\// {print $1}' | grep -v '^169\.254')
+# The stack's own bridge subnet is PINNED via COMPOSE_SUBNET (docker-compose.yml
+# `networks.default.ipam`), so check the value this install will actually use —
+# not just docker's pools. A pinned subnet that the site routes fails in exactly
+# the same way as an unpinned one, and silently, because the pin looks deliberate.
+COMPOSE_SUBNET="${COMPOSE_SUBNET:-}"
+if [[ -z "$COMPOSE_SUBNET" ]]; then
+  for envf in "$(dirname "${BASH_SOURCE[0]}")/../.env" "$(dirname "${BASH_SOURCE[0]}")/.env" ./.env; do
+    if [[ -f "$envf" ]]; then
+      COMPOSE_SUBNET="$(grep -E '^COMPOSE_SUBNET=' "$envf" | head -1 | cut -d= -f2- | tr -d '"'"'"' ')"
+      [[ -n "$COMPOSE_SUBNET" ]] && break
+    fi
+  done
+fi
+COMPOSE_SUBNET="${COMPOSE_SUBNET:-10.200.0.0/24}"   # docker-compose.yml default
 # python emits "<route>|<pool label>|<overlapping pools>" per hit
-COLLIDE="$(python3 - "${HOST_ROUTES[@]}" <<'PY' 2>/dev/null
-import ipaddress, sys
+COLLIDE="$(COMPOSE_SUBNET="$COMPOSE_SUBNET" python3 - "${HOST_ROUTES[@]}" <<'PY' 2>/dev/null
+import ipaddress, os, sys
 pools = {
     "docker default-address-pools": [ipaddress.ip_network(f"172.{n}.0.0/16") for n in range(17, 32)]
                                     + [ipaddress.ip_network("192.168.0.0/16")],
     "PacketArch local-lab block":   [ipaddress.ip_network("172.16.0.0/16")],
 }
+try:
+    pools["PacketArch stack network (COMPOSE_SUBNET)"] = [
+        ipaddress.ip_network(os.environ["COMPOSE_SUBNET"], strict=False)]
+except (KeyError, ValueError):
+    pass
 hits = set()
 for arg in sys.argv[1:]:
     try:
@@ -117,10 +136,26 @@ while IFS='|' read -r net label overlap; do
   COLLIDED=1
 done <<< "$COLLIDE"
 if [[ -n "${COLLIDED:-}" ]]; then
-  echo "          fix: set \"default-address-pools\" in /etc/docker/daemon.json to a"
+  echo "          Two fixes, at two levels — apply the one that matches the hit above:"
+  echo ""
+  echo "          COMPOSE-LEVEL (this stack only; no daemon restart, no root):"
+  echo "               echo 'COMPOSE_SUBNET=<free /24>' >> .env"
+  echo "               docker compose down && docker compose up -d"
+  echo "          (currently: ${COMPOSE_SUBNET}. A subnet change needs the network"
+  echo "           recreated, so 'up -d' alone is not enough. scripts/upgrade.sh"
+  echo "           does the down/up for you when the value changes.)"
+  echo ""
+  echo "          HOST-LEVEL (every compose project and every local sensor lab):"
+  echo "               set \"default-address-pools\" in /etc/docker/daemon.json to a"
   echo "               range your site does not route, then restart docker"
+  echo ""
+  echo "          A VPN'd corporate laptop usually routes 172.16.0.0/12, which covers"
+  echo "          most of docker's pools. Symptom if you skip this: the stack comes up,"
+  echo "          'curl' INSIDE the frontend returns 200, and the host still gets a TCP"
+  echo "          reset on 443 — plus 'backend' can stop resolving, so every /api/ call"
+  echo "          502s and the UI says \"Backend unreachable\"."
 else
-  ok "no site route overlaps docker's pools or the local-lab block"
+  ok "no site route overlaps docker's pools, the local-lab block, or ${COMPOSE_SUBNET}"
 fi
 
 # ---- 3. bridged container egress (DNS / L3+TLS) ----------------------------

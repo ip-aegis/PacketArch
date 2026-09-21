@@ -108,6 +108,19 @@ services:
       backend:
         condition: service_healthy
 
+# Pinned bridge subnet — see the long note in the repo's docker-compose.yml.
+# Short version: a site/VPN route that overlaps Docker's default pools
+# (172.17-172.31.0.0/16) makes the stack come up and still be unreachable from
+# the host, and breaks the embedded DNS resolver so `backend` stops resolving.
+# Pinning removes that class. Override in .env if 10.200.0.0/24 is routed at
+# your site, then `docker compose down && docker compose up -d` (a subnet change
+# needs the network recreated).
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMPOSE_SUBNET:-10.200.0.0/24}
+
 volumes:
   postgres_data:
   redis_data:

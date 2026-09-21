@@ -194,6 +194,125 @@ if [[ $DO_BACKUP -eq 1 ]]; then
     || { BACKUP_FILE=""; fail backup "backup failed; aborting before any changes were made"; }
 fi
 
+# ---- stack network subnet --------------------------------------------------
+# v1.21.0 pins the stack's bridge subnet (docker-compose.yml
+# `networks.default.ipam`, value from COMPOSE_SUBNET). Moving onto or off that
+# pin CHANGES the declared network config, and a changed network must be
+# RECREATED — not just re-`up`ed.
+#
+# Compose v2 does recreate it inside `up -d` on its own, in both directions
+# (verified: unpinned->pinned, pinned->other-pin, pinned->unpinned). It cannot
+# when a container OUTSIDE this compose project holds an endpoint on the
+# network: `docker network rm` fails with "has active endpoints", compose exits
+# non-zero, and it has already stopped every service — so the box is left
+# DOWN. That is the case worth detecting by name, because the generic
+# "compose up failed" rollback then hits the identical wall and only warns.
+#
+# Prints nothing and returns 0 when no recreate is needed.
+
+# The subnet the CURRENT tree + .env will ask for ("" if none is declared).
+declared_subnet() {
+  $DC config --format json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+cfg = ((d.get("networks") or {}).get("default") or {}).get("ipam") or {}
+for c in cfg.get("config") or []:
+    if c.get("subnet"):
+        print(c["subnet"]); break
+' 2>/dev/null
+}
+
+# The compose network's real name and current subnet ("" if it does not exist).
+stack_network_name() {
+  $DC config --format json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+net = (d.get("networks") or {}).get("default") or {}
+print(net.get("name") or (str(d.get("name") or "") + "_default"))
+' 2>/dev/null
+}
+live_subnet() {
+  ${SUDO} docker network inspect "$1" \
+    --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}' 2>/dev/null | awk '{print $1}'
+}
+# Containers on the network that this compose project does not own.
+foreign_endpoints() {
+  local net="$1" proj="$2" id name p out=""
+  while read -r id name; do
+    [[ -z "$id" ]] && continue
+    p="$(${SUDO} docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$id" 2>/dev/null)"
+    [[ "$p" == "$proj" ]] || out="${out}${name} "
+  done < <(${SUDO} docker network inspect "$net" \
+             --format '{{range $k,$v := .Containers}}{{$k}} {{$v.Name}}
+{{end}}' 2>/dev/null)
+  echo "$out"
+}
+
+# Returns 0 if the stack can be brought up; 1 if a blocking condition was found.
+prepare_stack_network() {
+  local want have net proj foreign
+  want="$(declared_subnet)"
+  net="$(stack_network_name)"
+  [[ -n "$net" ]] || return 0
+  have="$(live_subnet "$net")"
+  [[ -n "$have" ]] || return 0            # network does not exist yet — nothing to recreate
+  [[ -n "$want" && "$want" != "$have" ]] || return 0
+  proj="${COMPOSE_PROJECT_NAME:-$(basename "$REPO_DIR")}"
+  proj="$($DC config --format json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("name",""))' 2>/dev/null || echo "$proj")"
+
+  log "Stack network ${net}: ${have} -> ${want} (COMPOSE_SUBNET changed; network must be recreated)"
+  foreign="$(foreign_endpoints "$net" "$proj")"
+  if [[ -n "$foreign" ]]; then
+    warn "Cannot recreate ${net}: these containers are attached but not part of"
+    warn "this compose project, so removing the network will be refused:"
+    warn "    ${foreign}"
+    warn "Detach or remove them (docker network disconnect ${net} <name>), then re-run."
+    return 1
+  fi
+  # Explicit down/up rather than relying on compose's implicit recreate, so a
+  # failure is ours to see and roll back from. The implicit path is actively
+  # unsafe mid-upgrade: `docker compose run --rm --no-deps backend alembic ...`
+  # ALSO recreates a changed network, and it does so under a still-running
+  # postgres — verified on Docker 29, the service stays up, gets re-addressed,
+  # and stops resolving by name inside the run container. The migration then
+  # fails with a name-resolution error that has nothing to do with the schema.
+  $DC down --remove-orphans >/dev/null 2>&1 || warn "compose down reported an error; continuing"
+  ${SUDO} docker network rm "$net" >/dev/null 2>&1 || true
+
+  # Everything after this point (build, alembic) needs the database reachable
+  # over the NEW network, so bring it back before returning.
+  log "Restarting database on the new network ..."
+  $DC up -d postgres redis >/dev/null || { warn "could not restart postgres/redis on ${want}"; return 1; }
+  local i
+  for i in $(seq 1 30); do
+    $DC exec -T postgres pg_isready -U packetarch >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  warn "postgres did not become ready on the new network"
+  return 1
+}
+
+# Confirm the recreate actually landed, instead of trusting `up -d`'s exit code.
+verify_stack_network() {
+  local want have net
+  want="$(declared_subnet)"
+  net="$(stack_network_name)"
+  [[ -n "$want" && -n "$net" ]] || return 0
+  have="$(live_subnet "$net")"
+  if [[ -n "$have" && "$have" != "$want" ]]; then
+    warn "${net} is on ${have} but ${want} was declared — the network was not recreated."
+    return 1
+  fi
+  [[ -n "$have" ]] && log "Stack network ${net} on ${have}"
+  return 0
+}
+
 # ---- rollback helper -------------------------------------------------------
 rollback() {
   write_status rolling_back running "Upgrade failed — rolling back to ${CURRENT_DESC}"
@@ -207,6 +326,11 @@ rollback() {
   fi
   git checkout --quiet "$CURRENT_REF" || warn "git checkout of previous ref failed"
   restore_autostash   # back on the ref it was taken from, so it reapplies cleanly
+  # Rolling back to a tag that declares a DIFFERENT subnet (or none at all) is
+  # the same network-recreate problem in reverse. Do it deliberately here: a
+  # bare `up -d --build || warn` on this path would leave the box down with
+  # nothing but a warning, on exactly the run that is already failing.
+  prepare_stack_network || warn "stack network could not be prepared for rollback"
   $DC up -d --build || warn "rebuild during rollback failed"
   if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
     warn "restoring database from pre-upgrade backup"
@@ -223,6 +347,15 @@ write_status checkout running "Checking out ${TARGET}"
 log "Checking out ${TARGET} ..."
 git checkout --quiet "refs/tags/${TARGET}" || fail checkout "git checkout ${TARGET} failed"
 restore_autostash   # before the build, so a needed local edit is actually in effect
+
+# The target tag may declare a different stack subnet than the running network
+# (v1.21.0 pins it via COMPOSE_SUBNET). Settle that FIRST: every compose command
+# from here on — including the alembic `compose run` — would otherwise trigger an
+# implicit, silent network recreate at the worst possible moment.
+if ! prepare_stack_network; then
+  rollback
+  die "the stack network could not be moved to the declared COMPOSE_SUBNET — rolled back to ${CURRENT_DESC}"
+fi
 
 write_status building running "Building images for ${TARGET}"
 log "Building images for ${TARGET} (this can take a few minutes) ..."
@@ -242,6 +375,10 @@ fi
 write_status starting running "Starting upgraded stack"
 log "Starting upgraded stack ..."
 if ! $DC up -d; then rollback; die "compose up failed — rolled back to ${CURRENT_DESC}"; fi
+if ! verify_stack_network; then
+  rollback
+  die "stack network is not on the declared COMPOSE_SUBNET — rolled back to ${CURRENT_DESC}"
+fi
 
 # Re-resolve nginx's backend upstream: a recreated backend gets a new container
 # IP, and the (possibly unchanged) frontend's nginx caches the old one -> 502.

@@ -135,6 +135,25 @@ if [ ! -f .env ]; then
     ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
     # Match the host docker group so the backend can use the Docker socket.
     DOCKER_GID=$(getent group docker | cut -d: -f3)
+    # Pin the stack's bridge subnet to something this host does not route.
+    # 10.200.0.0/24 is the documented default; if the site already routes it
+    # (VPN, corporate LAN) fall back through a couple of alternates rather than
+    # writing a value that is broken on arrival.
+    COMPOSE_SUBNET_VALUE=""
+    if command -v ip >/dev/null 2>&1; then
+        for cand in 10.200.0.0/24 10.201.0.0/24 10.202.0.0/24 192.168.243.0/24; do
+            if ! ip -4 route show "$cand" 2>/dev/null | grep -q .; then
+                COMPOSE_SUBNET_VALUE="$cand"; break
+            fi
+        done
+    fi
+    if [ -z "$COMPOSE_SUBNET_VALUE" ]; then
+        COMPOSE_SUBNET_VALUE="10.200.0.0/24"
+        warn "Could not find a free candidate /24 (or iproute2 is missing)."
+        warn "Wrote COMPOSE_SUBNET=${COMPOSE_SUBNET_VALUE} — pick a free /24 in .env before starting."
+    elif [ "$COMPOSE_SUBNET_VALUE" != "10.200.0.0/24" ]; then
+        info "10.200.0.0/24 is routed on this host; using ${COMPOSE_SUBNET_VALUE} for the stack network"
+    fi
 
     cat > .env << ENVEOF
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -146,6 +165,13 @@ DEBUG=false
 # compose project name so the updater container targets the right repo/project.
 HOST_INSTALL_DIR=${INSTALL_DIR}
 COMPOSE_PROJECT_NAME=packetarch
+# Subnet for the stack's own bridge network. Pinned rather than taken from
+# Docker's default pools (172.17-172.31.0.0/16), because a VPN/site route that
+# overlaps those pools makes the stack come up and STILL be unreachable from the
+# host, and can break Docker's embedded DNS so nginx stops resolving `backend`.
+# Change it only if your site routes 10.200.0.0/24 — a change needs the network
+# recreated: docker compose down && docker compose up -d
+COMPOSE_SUBNET=${COMPOSE_SUBNET_VALUE}
 # Build-time network for image builds. Leave unset on a healthy host.
 # Set to host ONLY if this host's bridged container egress is broken and
 # you cannot fix /etc/docker/daemon.json — see ./scripts/check-docker-egress.sh.

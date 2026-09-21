@@ -39,6 +39,7 @@ ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')
 DOCKER_GID=$(getent group docker | cut -d: -f3)
 HOST_INSTALL_DIR=$(pwd)
 COMPOSE_PROJECT_NAME=packetarch
+COMPOSE_SUBNET=10.200.0.0/24
 DEBUG=false
 # ADMIN_PASSWORD intentionally omitted => first boot shows the setup wizard.
 # Add ADMIN_PASSWORD=<value> only for a headless install (skips the wizard).
@@ -74,6 +75,7 @@ headless install: it auto-creates the `admin` user and skips the wizard.)
 | `ENCRYPTION_KEY` | optional | If unset, it's derived deterministically from `SECRET_KEY` and is stable across reboots. Set an explicit Fernet key only to rotate it independently of `SECRET_KEY`. |
 | `DOCKER_GID` | recommended | Must match the host docker group (`getent group docker \| cut -d: -f3`) or the backend can't reach the Docker socket to spawn traffic containers. Varies by distro (988 on Ubuntu 24.04); falls back to 987 if unset. |
 | `DEBUG` | optional | `false` in production |
+| `COMPOSE_SUBNET` | recommended | Subnet for the stack's own bridge network. **Pinned** by default (`10.200.0.0/24`) instead of taken from Docker's pools, because a VPN/site route that overlaps those pools makes the stack come up and still be unreachable. Change it only if your site routes that /24 — and see "When the host's network overlaps Docker's" below, a change needs the network recreated. |
 | `DOCKER_BUILD_NETWORK` | optional | Leave unset on a healthy host. `host` makes every image build (including the socket-built agent and updater images) use the host network stack — a stopgap for a host whose bridged build sandbox has no egress. See "When the build can't reach the network". |
 
 ---
@@ -195,6 +197,67 @@ curl -fsSL https://<server>/agent/install.sh | sudo bash -s -- \
 
 ---
 
+## When the host's network overlaps Docker's
+
+This is the failure that looks like nothing is wrong. On a VPN'd corporate
+laptop the tunnel typically routes **172.16.0.0/12**, which covers almost all of
+Docker's default address pools (172.17–172.31.0.0/16). When Docker hands the
+stack's bridge a subnet inside that block:
+
+- every container starts, and `docker compose ps` is green;
+- `curl https://localhost/health` **inside** the frontend container returns
+  `200`;
+- the host still gets a **TCP reset** on 80/443, because the reply routes out
+  through the VPN instead of back to the bridge;
+- and Docker's embedded DNS resolver (`127.0.0.11`) can stop reverse-NATing
+  replies on the same host, so the name `backend` stops resolving. nginx
+  resolves its upstream per request (`frontend/nginx.conf`), so **every
+  `/api/` call 502s** after the resolver timeout and the UI reports
+  "Backend unreachable".
+
+**PacketArch pins the subnet** so this cannot happen by accident. The stack's
+network is declared in `docker-compose.yml` as
+`networks.default.ipam.config[].subnet` = `${COMPOSE_SUBNET:-10.200.0.0/24}`.
+The default avoids 172.16.0.0/12 (the usual site block), 172.16.0.0/16
+specifically (PacketArch's own local-lab pool) and 192.168.0.0/16
+(home/branch LANs). Scenario IP ranges (`10.{n}.0.0/16`) are simulated traffic
+on isolated veths, never host routes, so they do not conflict with it.
+
+Check before you install — the preflight flags a collision with Docker's
+pools, the local-lab pool, **and** your configured `COMPOSE_SUBNET`:
+
+```bash
+./scripts/check-docker-egress.sh
+```
+
+If your site routes `10.200.0.0/24` too, pick a free /24:
+
+```bash
+echo 'COMPOSE_SUBNET=10.201.0.0/24' >> .env
+docker compose down && docker compose up -d      # a subnet change needs the
+                                                 # network RECREATED
+```
+
+`docker compose up -d` on its own is not enough, and worse than not enough: a
+changed network config makes Compose remove and recreate the network
+mid-command. It will do that even under a `docker compose run` (the upgrade's
+`alembic` step), leaving a still-running Postgres re-addressed and no longer
+resolvable by name. `scripts/upgrade.sh` detects a changed `COMPOSE_SUBNET` and
+does the down/restart explicitly for this reason. If a container from outside
+this compose project is attached to the network, removal is refused and
+Compose exits **having already stopped the stack** — `upgrade.sh` names those
+containers instead of leaving you with a dead box.
+
+The host-level alternative, which fixes every compose project and every local
+sensor lab at once, is `"default-address-pools"` in `/etc/docker/daemon.json`
+(needs root and a daemon restart).
+
+Verify what you actually got:
+
+```bash
+docker network inspect packetarch_default --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+```
+
 ## When the build can't reach the network
 
 Every image builds network-touching steps (`poetry install`, `apt-get`,
@@ -293,6 +356,9 @@ docker compose down -v && docker compose up -d
 | Containers won't start | `docker compose logs` |
 | Backend crashloops, `password authentication failed` | `./scripts/fix-db-password.sh` — see "Backend crashlooping" above. Ignore the green `postgres` healthcheck; it does not authenticate. |
 | Build fails on pip/apt/npm/apk | `./scripts/check-docker-egress.sh` — see "When the build can't reach the network" above |
+| Page loads but every login says "Backend unreachable" / "Server error" | nginx cannot resolve or reach `backend`. `./scripts/collect-diagnostics.sh` and read the DNS + in-container sections; the usual cause is a subnet/VPN overlap — see "When the host's network overlaps Docker's" |
+| Containers healthy but the host gets a TCP reset on 443 | Subnet overlap with a site/VPN route. `./scripts/check-docker-egress.sh`, then set `COMPOSE_SUBNET` |
+| Anything you can't place | `./scripts/collect-diagnostics.sh` writes one redacted file — send that |
 | Traffic generation fails silently | `DOCKER_GID` in `.env` matches `getent group docker` |
 | `permission denied` on docker | `sudo usermod -aG docker $USER`, then re-login |
 | Encrypted settings reset on reboot | `ENCRYPTION_KEY` is unset in `.env` |
