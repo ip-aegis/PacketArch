@@ -40,7 +40,7 @@ an air-gapped, no-build appliance instead, use the offline tarball
 |------|------|
 | `build-ova.sh` | Orchestrator: clone → Ubuntu image → customize → VMDK → OVF/manifest → `.ova` |
 | `firstboot.sh` | Baked to `/usr/local/sbin/packetarch-firstboot.sh`; generates `.env` + `compose up --build` once on first boot |
-| `packetarch-firstboot.service` | One-shot systemd unit (guarded by `ConditionPathExists=!/opt/packetarch/.env`, 30-min timeout for the build) |
+| `packetarch-firstboot.service` | One-shot systemd unit (guarded by `ConditionPathExists=!/opt/packetarch/.firstboot-done` — a success **sentinel**, not `.env`, so a first-boot build that fails on a registry blip retries next boot instead of bricking the appliance; 30-min timeout for the build) |
 | `packetarch.ovf.template` | Broad-compat OVF 1.0 descriptor (placeholders filled by the build) |
 
 ## Prerequisites

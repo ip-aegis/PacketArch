@@ -352,8 +352,12 @@ def build():
         "<font face='Courier'>DOCKER_GID</font>, and self-upgrade "
         "pointers (<font face='Courier'>HOST_INSTALL_DIR</font>, "
         "<font face='Courier'>COMPOSE_PROJECT_NAME=packetarch</font>).",
-        "<b>5/5</b> Runs <font face='Courier'>docker compose up -d "
-        "--build</font> and prints the access URLs.",
+        "<b>5/5</b> Checks Docker egress "
+        "(<font face='Courier'>check-docker-egress.sh</font>), runs "
+        "<font face='Courier'>docker compose up -d --build</font>, and then "
+        "<i>the script</i> prints the access URLs. The compose command itself "
+        "prints no URLs \u2014 if you follow the manual equivalent below, use "
+        "the table in \u201cAccess and first login\u201d.",
     ]))
 
     s.append(Paragraph("Manual equivalent", h3))
@@ -361,7 +365,25 @@ def build():
         "git clone https://github.com/ip-aegis/PacketArch.git ~/packetarch\n"
         "cd ~/packetarch\n"
         "# create .env (see Environment Variables section), then:\n"
+        "sudo ./scripts/check-docker-egress.sh      # preflight; see below\n"
         "sudo docker compose up -d --build"))
+    s.append(Paragraph("Access and first login", h3))
+    s.append(Paragraph(
+        "<font face='Courier'>docker compose up -d --build</font> prints no "
+        "URLs of its own. These are the addresses either path produces:", body))
+    s.append(table(
+        ["Service", "URL"],
+        [["Frontend (the platform)", "https://&lt;server-ip&gt;/"],
+         ["Health probe", "https://&lt;server-ip&gt;/health"],
+         ["API docs (Swagger)", "https://&lt;server-ip&gt;/api/docs &mdash; only when DEBUG=true"],
+         ["pgAdmin (tools profile)", "http://localhost:5050 via SSH tunnel"]],
+        col_widths=[2.2 * inch, 4.0 * inch], code_cols=(1,)))
+    s.append(Spacer(1, 6))
+    s.append(Paragraph(
+        "The certificate is self-signed by default, so expect a browser trust "
+        "warning. If the page loads but login reports <b>Backend "
+        "unreachable</b>, nginx cannot reach the application \u2014 see "
+        "&ldquo;Troubleshooting&rdquo;.", small))
 
     s.append(Paragraph("After it finishes", h3))
     s.append(bullets([
@@ -600,6 +622,16 @@ def build():
          ["BUILD_COMMIT / BUILD_DATE",
           "Build provenance stamped at release-build time; surfaced in the "
           "UI footer / About page."],
+         ["COMPOSE_SUBNET",
+          "Subnet for the stack's own bridge network, PINNED rather than "
+          "taken from Docker's pools (default 10.200.0.0/24). A site or VPN "
+          "route that overlaps Docker's pools makes the stack come up and "
+          "still be unreachable \u2014 see Troubleshooting. Changing it needs "
+          "the network recreated (down, then up)."],
+         ["DOCKER_BUILD_NETWORK",
+          "Leave unset on a healthy host. 'host' makes every image build use "
+          "the host network stack \u2014 a stopgap for a host whose bridged "
+          "build sandbox has no egress."],
          ["DEBUG", "false in production."]],
         col_widths=[2.3 * inch, 4.4 * inch], code_cols=(0,)))
     s.append(KeepTogether(env_block))
@@ -695,6 +727,132 @@ def build():
          ["Rebuild backend", "docker compose up -d --build backend"],
          ["Stop / start", "docker compose down  /  docker compose up -d"]],
         col_widths=[1.6 * inch, 5.1 * inch], code_cols=(1,)))
+
+    s.append(PageBreak())
+
+    # ---------------- TROUBLESHOOTING ----------------
+    s.append(Paragraph("Troubleshooting", h1))
+    s.append(Paragraph(
+        "Two read-only commands answer most of this. Run them before "
+        "changing anything \u2014 between them they name every install "
+        "failure seen in the field so far.", body))
+    s.append(codeblock(
+        "./scripts/check-docker-egress.sh    # can containers build, route and RESOLVE?\n"
+        "./scripts/collect-diagnostics.sh    # one redacted file to send back"))
+    s.append(Paragraph(
+        "<font face='Courier'>collect-diagnostics.sh</font> locates the "
+        "install from its own path, so it works on any of the four methods "
+        "without being told which. It replaces every secret value from "
+        "<font face='Courier'>.env</font> with "
+        "<font face='Courier'>&lt;redacted:KEY&gt;</font> throughout its "
+        "output, including inside container logs. In the offline bundle and "
+        "the appliance both scripts sit flat beside "
+        "<font face='Courier'>docker-compose.yml</font>, so drop the "
+        "<font face='Courier'>scripts/</font> prefix.", body))
+
+    s.append(Paragraph("Which install path am I on?", h3))
+    s.append(table(
+        ["Layout", "Install dir", "Tell"],
+        [["Git clone", "wherever you cloned, usually ~/packetarch",
+          ".git/ is present"],
+         ["Offline bundle", "/opt/packetarch (--install-dir overrides)",
+          "VERSION file, no .git/"],
+         ["Appliance (OVA)", "/opt/packetarch",
+          "/var/log/packetarch-firstboot.log and .firstboot-done"]],
+        col_widths=[1.4 * inch, 2.8 * inch, 2.5 * inch], code_cols=(1, 2)))
+
+    s.append(Paragraph(
+        "Everything is green and the platform is still unreachable", h2))
+    s.append(Paragraph(
+        "This is the failure that costs the most time, because nothing looks "
+        "wrong. On a VPN'd corporate laptop the tunnel usually routes "
+        "<font face='Courier'>172.16.0.0/12</font>, which covers almost all "
+        "of Docker's default address pools "
+        "(<font face='Courier'>172.17\u2013172.31.0.0/16</font>). When the "
+        "stack's bridge lands inside that block:", body))
+    s.append(bullets([
+        "every container starts and <font face='Courier'>docker compose ps"
+        "</font> is green;",
+        "<font face='Courier'>curl https://localhost/health</font> "
+        "<i>inside</i> the frontend container returns 200;",
+        "the host still gets a TCP reset on 80/443, because the reply routes "
+        "out through the VPN instead of back to the bridge;",
+        "and Docker's embedded DNS (<font face='Courier'>127.0.0.11</font>) "
+        "can stop returning answers, so the name "
+        "<font face='Courier'>backend</font> no longer resolves. nginx "
+        "re-resolves its upstream on every request, so every "
+        "<font face='Courier'>/api/</font> call returns 502 after the "
+        "resolver timeout and the login page reports <b>Backend "
+        "unreachable</b>.",
+    ]))
+    s.append(Paragraph(
+        "PacketArch pins its subnet so this cannot happen by accident. If "
+        "your site routes the default too, pick a free /24:", body))
+    s.append(codeblock(
+        "echo 'COMPOSE_SUBNET=10.201.0.0/24' >> .env\n"
+        "docker compose down && docker compose up -d   # a subnet change needs\n"
+        "                                              # the network RECREATED"))
+    s.append(callout(
+        "<b>Do not work around this with <font face='Courier'>extra_hosts"
+        "</font> entries in <font face='Courier'>docker-compose.yml</font>.</b> "
+        "They pin container IP addresses that change on every recreate; they "
+        "cannot help the frontend at all, because nginx resolves through "
+        "127.0.0.11 rather than /etc/hosts; and they are a local edit to a "
+        "TRACKED file, which <font face='Courier'>scripts/upgrade.sh</font> "
+        "refuses to upgrade over (it stops unless you pass "
+        "<font face='Courier'>--force</font>, and then stashes them). Put "
+        "<font face='Courier'>COMPOSE_SUBNET</font> in "
+        "<font face='Courier'>.env</font> instead \u2014 .env is untracked, so "
+        "upgrades leave it alone."))
+
+    s.append(Paragraph("A green healthcheck is a claim, not evidence", h2))
+    s.append(Paragraph(
+        "Read what a check executes before believing it. "
+        "<font face='Courier'>collect-diagnostics.sh</font> prints the "
+        "literal text of every one, alongside each container's restart "
+        "count \u2014 a service can report healthy while crashlooping "
+        "behind it.", body))
+    s.append(table(
+        ["Service", "Probe", "What green proves"],
+        [["postgres", "pg_isready",
+          "the server accepts connections. NOT that credentials work"],
+         ["backend", "curl /health", "the app is up, which needs the database"],
+         ["celery_worker", "celery ping + a real DB connect",
+          "broker and database both reachable"],
+         ["frontend", "curl -fsk https://127.0.0.1/health",
+          "TLS up, 'backend' resolved AND reached (the endpoint is proxied)"],
+         ["host-agent", "heartbeat age + main-loop age",
+          "process alive and its request loop turning"]],
+        col_widths=[1.1 * inch, 2.2 * inch, 3.4 * inch], code_cols=(1,)))
+
+    s.append(Paragraph(
+        "Backend crashlooping on \u201cpassword authentication failed\u201d", h2))
+    s.append(Paragraph(
+        "Postgres applies <font face='Courier'>POSTGRES_PASSWORD</font> only "
+        "when it initialises an EMPTY data directory. A data volume that "
+        "outlived its <font face='Courier'>.env</font> keeps the password it "
+        "was built with, so a regenerated .env silently stops matching. "
+        "Re-cloning into a fresh directory, deleting .env, or "
+        "<font face='Courier'>install.sh --force-env</font> all produce it. "
+        "Repair it without losing data:", body))
+    s.append(codeblock("./scripts/fix-db-password.sh        # --check to report only"))
+
+    s.append(Paragraph("Builds fail on pip / apt / npm / apk", h2))
+    s.append(Paragraph(
+        "Those steps run inside a bridged build sandbox, not on the host "
+        "network stack, so a host with perfectly good internet can fail every "
+        "build. Run the egress preflight: it separates firewall FORWARD "
+        "drops, a VPN MTU below the bridge's (which HANGS mid-download rather "
+        "than erroring), an unreachable container resolver, and subnet "
+        "collisions. Prefer the "
+        "<font face='Courier'>/etc/docker/daemon.json</font> fix \u2014 most "
+        "of those causes also break RUNTIME egress to a Cyber Vision Center, "
+        "a CML server or an AI provider, and a build that succeeds is not an "
+        "install that works. The supported stopgap is an .env line, never a "
+        "compose edit:", body))
+    s.append(codeblock(
+        "echo 'DOCKER_BUILD_NETWORK=host' >> .env\n"
+        "docker compose up -d --build"))
 
     s.append(Spacer(1, 14))
     s.append(rule())

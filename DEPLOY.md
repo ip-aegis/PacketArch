@@ -169,6 +169,18 @@ schema delta lands even on a plain `docker compose up`.
 > long-term fix is to run `alembic upgrade head` in the backend entrypoint and
 > drop `create_all`; until then, `upgrade.sh` is the supported upgrade path.
 
+> **Hand-edits to tracked files are not supported, and `upgrade.sh` is where
+> that bites.** A local change to `docker-compose.yml` makes the tree dirty, so
+> the upgrade **stops in preflight** unless you pass `--force` — and with
+> `--force` the change is stashed, reapplied after checkout, and dropped back
+> into the stash list if it conflicts with the new tag. The two edits sites
+> actually reach for both have `.env` equivalents, and `.env` is untracked:
+>
+> | Instead of editing compose | Put this in `.env` |
+> |---|---|
+> | `extra_hosts:` for `postgres`/`redis` | `COMPOSE_SUBNET=<free /24>` — and note `extra_hosts` cannot fix the frontend at all, because nginx resolves through `127.0.0.11`, not `/etc/hosts` |
+> | `build: network: host` | `DOCKER_BUILD_NETWORK=host` |
+
 **Manual rollback** (if you're not using `upgrade.sh`):
 ```bash
 cd ~/packetarch

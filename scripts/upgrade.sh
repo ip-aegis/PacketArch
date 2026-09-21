@@ -20,6 +20,22 @@
 #   ./scripts/upgrade.sh --status-file F # write JSON progress to F (used by the
 #                                        #   in-app one-button upgrade)
 #
+# HAND-EDITS TO TRACKED FILES ARE NOT SUPPORTED, and this script is where that
+# bites. A local change to docker-compose.yml — the ones sites actually reach
+# for are `extra_hosts:` entries to paper over broken DNS, and a `build:
+# network: host` tweak — makes the tree dirty, so the run STOPS in preflight
+# unless you pass --force. With --force the change is stashed, reapplied after
+# the checkout, and dropped back into the stash list if it conflicts with the
+# new tag. Either way the site's fix is fragile at exactly the moment it is
+# needed. Every knob those edits exist for has an .env equivalent, and .env is
+# untracked, so upgrades never touch it:
+#
+#   extra_hosts for postgres/redis   ->  COMPOSE_SUBNET=<free /24>
+#                                        (and it cannot fix the frontend anyway:
+#                                        nginx resolves through 127.0.0.11, not
+#                                        /etc/hosts)
+#   build: network: host             ->  DOCKER_BUILD_NETWORK=host
+#
 set -euo pipefail
 
 # ---- locate repo + compose wrapper -----------------------------------------
@@ -32,7 +48,7 @@ log()  { printf "${C_GREEN}[upgrade]${C_OFF} %s\n" "$*"; }
 warn() { printf "${C_YELLOW}[upgrade]${C_OFF} %s\n" "$*" >&2; }
 die()  { printf "${C_RED}[upgrade] ERROR:${C_OFF} %s\n" "$*" >&2; exit 1; }
 
-usage() { sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; }
+ usage() { sed -n "3,37p" "$0" | sed 's/^# \{0,1\}//'; }
 
 # ---- status file (consumed by the backend's /system/upgrade-status) --------
 STATUS_FILE=""
