@@ -196,6 +196,24 @@ for pair in "backend:postgres" "backend:redis" "frontend:backend"; do
 done
 sub "resolver config inside the backend container"
 $DC exec -T backend cat /etc/resolv.conf 2>&1 | sed 's/^/  /' || echo "  (could not exec)"
+sub "network ALIASES per container (this is what makes a service name resolve)"
+echo "  A container with an empty alias list is unreachable BY NAME even though"
+echo "  it is attached, running and healthy. Docker reattaches a container to a"
+echo "  recreated network WITHOUT restoring its compose aliases, so this is the"
+echo "  state a bare 'docker compose up -d' leaves behind after a COMPOSE_SUBNET"
+echo "  change: correct subnet, everything attached, and no name resolution."
+echo "  Fix: docker compose down && docker compose up -d  (recreates them)."
+echo ""
+$DK ps --filter "label=com.docker.compose.project=${PROJ:-packetarch}" \
+     --format '{{.Names}}' 2>/dev/null | while read -r c; do
+  al="$($DK inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$v.Aliases}}{{end}}' "$c" 2>/dev/null)"
+  mode="$($DK inspect -f '{{.HostConfig.NetworkMode}}' "$c" 2>/dev/null)"
+  flag=""
+  case "$al" in
+    ""|"[]") [[ "$mode" == "host" ]] || flag="   <-- NO ALIASES: not resolvable by name" ;;
+  esac
+  printf '  %-30s mode=%-10s aliases=%s%s\n' "$c" "$mode" "${al:-[]}" "$flag"
+done
 
 sec "DOCKER NETWORKS"
 NET="$($DC config --format json 2>/dev/null | python3 -c "

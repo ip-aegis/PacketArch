@@ -376,3 +376,33 @@ not a quiet run.
 by the mechanism I intended — read the actual error text, not just the exit
 path. And treat silence from a watcher as unverified, never as "nothing
 happened": go query the real state.
+
+## `docker compose up -d` can move a network and silently drop its aliases (2026-09-21)
+
+Deploying the pinned-subnet change on this box with `docker compose up -d
+--build` recreated `packetarch_default` on 10.200.0.0/24 exactly as intended,
+and then the backend crashlooped on "waiting for database". Everything an
+operator would look at said the deploy worked: right subnet, all containers
+attached and running, `postgres` reporting healthy. But `postgres` and `redis`
+were the two services Compose did not have to rebuild, so it **reattached**
+them to the new network — without their compose service-name aliases.
+`getent hosts postgres` from the backend returned nothing. Reproduced in
+isolation afterwards: change only the subnet, bare `up -d`, and both containers
+come back with `aliases=[]` and no name resolution. `down && up -d` restores
+them.
+
+**Rule:** a network config change needs the containers RECREATED, not
+reattached. `docker compose down && docker compose up -d`, never `up -d` alone.
+And when checking whether a container is reachable by name, check its **alias
+list**, not whether it is attached — attachment and aliases fail separately,
+and only the alias list distinguishes them. Nothing in `docker compose ps` or
+`docker network inspect` shows an empty alias list, which is why this had to
+be added to collect-diagnostics.sh by hand.
+
+**Second-order lesson:** I had already proved, earlier in the same session,
+that Compose auto-recreates a changed network inside `up -d`, and I concluded
+from that the explicit `down` was belt-and-braces. It wasn't — I had tested
+that the *network* ends up correct, not that the *containers* still work on it.
+Testing the artifact is not testing the outcome. The deploy was the first check
+that exercised the whole thing, and it found in one run what four targeted
+probes had missed.

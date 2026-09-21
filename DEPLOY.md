@@ -292,15 +292,31 @@ docker compose down && docker compose up -d      # a subnet change needs the
                                                  # network RECREATED
 ```
 
-`docker compose up -d` on its own is not enough, and worse than not enough: a
-changed network config makes Compose remove and recreate the network
-mid-command. It will do that even under a `docker compose run` (the upgrade's
-`alembic` step), leaving a still-running Postgres re-addressed and no longer
-resolvable by name. `scripts/upgrade.sh` detects a changed `COMPOSE_SUBNET` and
-does the down/restart explicitly for this reason. If a container from outside
-this compose project is attached to the network, removal is refused and
-Compose exits **having already stopped the stack** — `upgrade.sh` names those
-containers instead of leaving you with a dead box.
+> ⚠️ **`docker compose down` first is not optional, and a bare
+> `docker compose up -d` fails in a way that looks almost like success.**
+> Measured on Docker 29 while moving this very stack onto the pinned subnet:
+> Compose removed and recreated the network as expected, and the containers it
+> did not have to recreate — `postgres` and `redis` — were **reattached to the
+> new network without their service-name aliases**. `docker network inspect`
+> showed the right subnet with everything attached, every container was
+> running, `postgres` reported healthy — and `getent hosts postgres` from the
+> backend returned nothing, so the backend crashlooped on "waiting for
+> database". An empty alias list means the container is unreachable **by name**
+> even though it is attached and healthy.
+> `docker compose down && docker compose up -d` recreates them and restores the
+> aliases. `./scripts/collect-diagnostics.sh` prints the alias list per
+> container and flags an empty one, because nothing else in Docker's output
+> does.
+
+The same mechanism is why `scripts/upgrade.sh` settles a `COMPOSE_SUBNET`
+change explicitly instead of letting `up -d` do it implicitly: Compose will
+recreate a changed network even under a `docker compose run` — the upgrade's
+`alembic` step — leaving a still-running Postgres re-addressed and no longer
+resolvable, so the migration fails for a reason that has nothing to do with the
+schema. And if a container from outside this compose project is attached to the
+network, removal is refused and Compose exits **having already stopped the
+stack**; `upgrade.sh` names those containers instead of leaving you with a dead
+box.
 
 The host-level alternative, which fixes every compose project and every local
 sensor lab at once, is `"default-address-pools"` in `/etc/docker/daemon.json`
