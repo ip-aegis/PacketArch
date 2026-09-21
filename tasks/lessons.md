@@ -406,3 +406,29 @@ that the *network* ends up correct, not that the *containers* still work on it.
 Testing the artifact is not testing the outcome. The deploy was the first check
 that exercised the whole thing, and it found in one run what four targeted
 probes had missed.
+
+## "CI failed, it built here" is evidence about the cache, not a flake (2026-09-21)
+
+CI's Build Test failed on a release while the same commit built fine locally
+and on the self-hosted runner. My first instinct was to call it a transient
+registry flake. It wasn't: the backend Dockerfile installed poetry into the
+system site-packages and then used poetry to install the project into that same
+directory, where poetry.lock pins downgrades of three of poetry's own
+dependencies. Poetry uninstalled its own dependencies mid-run, and whether that
+survived came down to pip's processing order. Both boxes that "worked" had a
+warm Docker layer cache from before an upstream poetry release; the hosted
+runner had none.
+
+**Rule:** when a build fails in one place and passes in another, the first
+question is what differs about the *environment*, and layer cache is the
+likeliest answer. Reproduce with `--no-cache` before calling anything
+transient. A build that only succeeds with a warm cache is not a build — and
+the cold path is the one every new install takes.
+
+**Second lesson, from my own first fix.** I wrote delete-and-refetch for a
+cache file that failed verification. `rm` unlinks a file even while a process
+has it open, and in this case a running VM had that very file as its disk — so
+my repair would have destroyed that VM on its next boot, to fix a build. The
+lock check has to come first and has to be a hard stop. Before writing any
+cleanup that deletes, ask what else could be holding the thing, and whether the
+remedy is worse than the fault.
