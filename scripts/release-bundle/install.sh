@@ -186,6 +186,36 @@ fi
 # --- bring it up --------------------------------------------------------
 echo "[4/5] Starting stack..."
 cd "${INSTALL_DIR}"
+
+# Clear out any previous attempt's containers before starting. Requested by the
+# first outside installer, who re-attempted over two weeks and kept inheriting
+# state from the runs before.
+#
+# It is not just tidiness. `docker compose up -d` does NOT fully recreate a
+# stack that is already running: it reuses containers whose definition has not
+# changed, and when the NETWORK definition has changed it recreates the network
+# and REATTACHES those containers to it -- without their compose service-name
+# aliases. The subnet is pinned as of v1.21.0, so this is exactly what a re-run
+# over an older attempt hits: right subnet, everything attached and running,
+# and `postgres` no longer resolving. (Measured on Docker 29; see DEPLOY.md.)
+#
+# CONTAINERS AND THE NETWORK ONLY -- never `-v`, never the volumes. The
+# database lives in a volume, and a re-run of an installer is a routine thing
+# to do on a working site. A pre-existing volume whose password no longer
+# matches a regenerated .env is handled separately and deliberately, by telling
+# the operator and handing them fix-db-password.sh, because silently deleting
+# someone's database is not a thing an installer should do.
+# This runs in --upgrade mode too, and should: an upgrade wants every container
+# recreated from the newly loaded images, which is precisely what `up -d` alone
+# does not guarantee.
+if [[ -n "$(docker compose --env-file .env ps -aq 2>/dev/null)" ]]; then
+    echo "  containers from a previous run are present:"
+    docker compose --env-file .env ps -a --format '    {{.Name}}\t{{.Status}}' 2>/dev/null || true
+    echo "  removing them (data volumes are NOT touched)"
+    docker compose --env-file .env down --remove-orphans \
+      || echo "  compose down reported an error; continuing" >&2
+fi
+
 docker compose --env-file .env up -d
 
 if [[ "${DB_VOLUME_PREEXISTED:-0}" -eq 1 ]]; then

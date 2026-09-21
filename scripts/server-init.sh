@@ -224,6 +224,33 @@ if [ -x ./scripts/check-docker-egress.sh ]; then
     fi
 fi
 
+# Clear out any previous attempt's containers before starting. Requested by the
+# first outside installer, who re-attempted over two weeks and kept inheriting
+# state from the runs before.
+#
+# It is not just tidiness. `docker compose up -d` does NOT fully recreate a
+# stack that is already running: it reuses containers whose definition has not
+# changed, and when the NETWORK definition has changed it recreates the network
+# and REATTACHES those containers to it -- without their compose service-name
+# aliases. The subnet is pinned as of v1.21.0, so this is exactly what a re-run
+# over an older attempt hits: right subnet, everything attached and running,
+# and `postgres` no longer resolving. (Measured on Docker 29; see DEPLOY.md.)
+#
+# CONTAINERS AND THE NETWORK ONLY -- never `-v`, never the volumes. The
+# database lives in a volume, and a re-run of an installer is a routine thing
+# to do on a working site. A pre-existing volume whose password no longer
+# matches a regenerated .env is handled separately and deliberately, by telling
+# the operator and handing them fix-db-password.sh, because silently deleting
+# someone's database is not a thing an installer should do.
+if [ -n "$(sudo docker compose ps -aq 2>/dev/null)" ]; then
+    warn "Containers from a previous attempt are present:"
+    sudo docker compose ps -a --format '  {{.Name}}\t{{.Status}}' 2>/dev/null || true
+    info "Removing them (data volumes are NOT touched)..."
+    sudo docker compose down --remove-orphans || warn "compose down reported an error; continuing"
+else
+    info "No previous containers to clear."
+fi
+
 info "Building and starting containers..."
 sudo docker compose up -d --build
 

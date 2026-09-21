@@ -130,6 +130,16 @@ echo "[2/3] Building + starting the stack (first boot can take 10-15 min)..."
 built=0
 for attempt in 1 2 3; do
     echo "  build attempt ${attempt}/3..."
+    # Clear the previous attempt before each retry. Without this the retries
+    # re-`up` over whatever the failed attempt left behind — half-created
+    # containers, and a network the next attempt then reattaches them to
+    # without their service-name aliases. Containers and the network only;
+    # never the volumes, or a retry would discard a database that the first
+    # attempt had already initialised.
+    if [[ -n "$(docker compose ps -aq 2>/dev/null)" ]]; then
+        echo "  clearing containers left by the previous attempt (volumes kept)..."
+        docker compose down --remove-orphans || true
+    fi
     if docker compose up -d --build; then built=1; break; fi
     echo "  attempt ${attempt} failed; retrying in 30s..."
     sleep 30
