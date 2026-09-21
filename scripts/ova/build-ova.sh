@@ -91,6 +91,7 @@ command -v virt-customize >/dev/null || MISSING+=("virt-customize (guestfs-tools
 command -v qemu-img       >/dev/null || MISSING+=("qemu-img (qemu-img)")
 command -v git            >/dev/null || MISSING+=("git")
 command -v curl           >/dev/null || MISSING+=("curl")
+command -v sha256sum      >/dev/null || MISSING+=("sha256sum (coreutils)")
 if [[ ${#MISSING[@]} -gt 0 ]]; then
     echo "ERROR: missing tools:" >&2
     printf '  - %s\n' "${MISSING[@]}" >&2
@@ -127,26 +128,107 @@ echo "  HEAD: $(git -C "${CLONE_STAGE}" describe --tags --always)"
 
 # --- 2. base cloud image ------------------------------------------------
 log "[2/7] Fetching Ubuntu cloud image"
-if [[ ! -f "${BASE_IMG}" ]]; then
-    echo "  downloading ${UBUNTU_IMG_URL}"
+
+# The cache is a fixed path outside the workspace, which means anything else on
+# the build host can reach it — and something did. A VM on the runner was
+# created with this very file as its disk rather than a copy of it, so the
+# "pristine cloud image" had been resized to 30G and was being written to
+# live. Two consequences, and the second is the dangerous one:
+#   1. `qemu-img info` fails with "Failed to get shared write lock", which is
+#      how the build broke.
+#   2. If the lock were released, the appliance would be built FROM THAT VM'S
+#      DISK — its cloud-init seed, its SSH host keys, whatever it holds — and
+#      shipped publicly.
+# So the cache is no longer trusted just because the file exists. It is
+# verified against a checksum recorded at download time; a mismatch means
+# something modified it and it is re-fetched rather than used.
+# Is the cache file held open by something else? This is checked FIRST and it
+# is a hard stop, because the remedy for a bad cache is to delete and re-fetch
+# it — and `rm` on Linux unlinks a file even while a process has it open. Doing
+# that to a running VM's disk would destroy that VM on its next boot, which is
+# a far worse outcome than the build failure being fixed here.
+base_in_use() {
+    [[ -f "${BASE_IMG}" ]] || return 1
+    qemu-img info "${BASE_IMG}" >/dev/null 2>"${WORK}/qemu-img.err" && return 1
+    grep -qi 'lock' "${WORK}/qemu-img.err"
+}
+
+# Does the cache still match what was downloaded? Existence is not evidence.
+base_is_pristine() {
+    [[ -f "${BASE_IMG}" ]] || return 1
+    [[ -f "${BASE_IMG}.sha256" ]] || { echo "  cache has no checksum sidecar"; return 1; }
+    local want have
+    want="$(cut -d' ' -f1 < "${BASE_IMG}.sha256")"
+    have="$(sha256sum "${BASE_IMG}" | cut -d' ' -f1)"
+    if [[ "${want}" != "${have}" ]]; then
+        echo "  cached image does NOT match the checksum taken when it was downloaded:"
+        echo "    expected ${want}"
+        echo "    actual   ${have}"
+        echo "  something on this host modified it."
+        return 1
+    fi
+    qemu-img info "${BASE_IMG}" >/dev/null 2>"${WORK}/qemu-img.err" && return 0
+    echo "  cached image is checksum-clean but cannot be opened:"
+    sed 's/^/    /' "${WORK}/qemu-img.err"
+    return 1
+}
+
+if base_in_use; then
+    echo "  ${BASE_IMG} is LOCKED by another process:" >&2
+    sed 's/^/    /' "${WORK}/qemu-img.err" >&2
+    echo "" >&2
+    if command -v virsh >/dev/null 2>&1; then
+        echo "  Almost always a VM was created with this file as its disk instead of" >&2
+        echo "  a copy of it. Find it:" >&2
+        echo "      for v in \$(virsh list --name); do virsh domblklist \"\$v\"; done" >&2
+        echo "  Then repoint that VM at its own copy of the image." >&2
+    fi
+    echo "" >&2
+    echo "  Refusing to touch it. The repair for a bad cache is delete-and-refetch," >&2
+    echo "  and unlinking a file a running VM has open would destroy that VM on its" >&2
+    echo "  next boot. Set OVA_CACHE_DIR=<other path> to build without waiting." >&2
+    die "base image cache is in use by another process"
+fi
+
+if base_is_pristine; then
+    echo "  cached: ${BASE_IMG} (checksum verified)"
+else
+    echo "  fetching a clean copy: ${UBUNTU_IMG_URL}"
+    rm -f "${BASE_IMG}" "${BASE_IMG}.sha256"
     curl -fSL --retry 3 -o "${BASE_IMG}.partial" "${UBUNTU_IMG_URL}"
     mv "${BASE_IMG}.partial" "${BASE_IMG}"
-else
-    echo "  cached: ${BASE_IMG}"
+    sha256sum "${BASE_IMG}" > "${BASE_IMG}.sha256"
+    echo "  recorded checksum: $(cut -d' ' -f1 < "${BASE_IMG}.sha256")"
 fi
+
+# Work from a PRIVATE COPY, never the shared cache. virt-resize's source is
+# opened by libguestfs, so building straight off the cache both takes a lock on
+# it and makes the build hostage to anything else touching it. A copy costs one
+# sparse ~600MB write and makes the build independent of the host's other uses
+# of that directory.
+BASE_COPY="${WORK}/base-$(basename "${BASE_IMG}")"
+echo "  copying base image into the work dir"
+rm -f "${BASE_COPY}"
+cp --sparse=always "${BASE_IMG}" "${BASE_COPY}"
 
 echo "  preparing ${DISK_SIZE} target disk and expanding root filesystem"
 # NOTE: a bare `qemu-img resize` grows only the DISK — the guest root
 # filesystem stays at the cloud image's ~2GB, and building images on first
 # boot needs far more. virt-resize grows the partition AND the filesystem.
 # --long already reports Size in bytes; pick the largest partition as root.
-ROOT_PART="${ROOT_PART:-$(virt-filesystems -a "${BASE_IMG}" --partitions --long 2>/dev/null \
+#
+# stderr is NOT discarded here. It used to be, and the result was that this
+# whole step reported a bare "exit 1" with no cause at all — the actual message
+# ("Failed to get shared write lock") was thrown away, and diagnosing a failed
+# release build meant reproducing it by hand on the runner.
+ROOT_PART="${ROOT_PART:-$(virt-filesystems -a "${BASE_COPY}" --partitions --long \
     | awk 'NR>1 {print $4, $1}' | sort -n | tail -1 | awk '{print $2}')}"
-[[ -n "${ROOT_PART}" ]] || die "could not detect root partition in ${BASE_IMG} (set ROOT_PART=/dev/sdaN)"
+[[ -n "${ROOT_PART}" ]] || die "could not detect root partition in ${BASE_COPY} (set ROOT_PART=/dev/sdaN)"
 echo "  root partition: ${ROOT_PART}"
 rm -f "${QCOW}"
 qemu-img create -f qcow2 "${QCOW}" "${DISK_SIZE}" >/dev/null
-virt-resize --expand "${ROOT_PART}" "${BASE_IMG}" "${QCOW}"
+virt-resize --expand "${ROOT_PART}" "${BASE_COPY}" "${QCOW}"
+rm -f "${BASE_COPY}"
 
 # --- 3. customize -------------------------------------------------------
 log "[3/7] Customizing image (Docker CE + clone + first-boot unit)"
