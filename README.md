@@ -51,6 +51,14 @@ self-signed by default, so expect a browser trust warning.
 firewall requirements, TLS certificates, upgrades, backup/restore and
 troubleshooting.
 
+If the install misbehaves, run the two read-only checks before anything else —
+between them they name every cause we have actually seen in the field:
+
+```bash
+./scripts/check-docker-egress.sh      # can containers build, route and RESOLVE?
+./scripts/collect-diagnostics.sh      # one redacted file to send
+```
+
 ### Prerequisites
 
 - **Docker Engine + Compose plugin** — the only requirement for the stack above.

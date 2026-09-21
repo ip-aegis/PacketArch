@@ -197,6 +197,48 @@ curl -fsSL https://<server>/agent/install.sh | sudo bash -s -- \
 
 ---
 
+## Collecting diagnostics
+
+One command, one redacted file, no need to know which install layout you are
+on:
+
+```bash
+./scripts/collect-diagnostics.sh          # offline bundle: ./collect-diagnostics.sh
+```
+
+It writes `packetarch-diag-<utc>.txt` into the current directory and prints
+the path. It is **read-only** — it starts nothing and restarts nothing.
+
+What it collects: install layout and version (`git describe`, or the bundle's
+`VERSION`), `.env` **key names only**, container states with **restart
+counts** and the *text of every healthcheck* (so you can see what a green check
+actually executes), the reachability chain a user takes (host → 443 → nginx →
+`backend:8001`), Docker embedded-DNS resolution between services, declared vs
+live network subnet, host routes/rules/listeners, the NAT rules if run with
+`sudo`, a re-run of the egress preflight, the last 300 log lines per service,
+and the appliance first-boot log *only if this is an appliance*.
+
+**Secrets:** every secret value in `.env` is replaced with
+`<redacted:KEY>` throughout the file — including inside container logs, so a
+password a traceback printed in a DSN is scrubbed too. Skim it before sending;
+it is plain text.
+
+### Which install path am I on?
+
+Support one-liners keep guessing at this, so check it first — the three layouts
+put things in different places.
+
+| Layout | Install dir | Tell | Helper scripts | Upgrade |
+|--------|-------------|------|----------------|---------|
+| **Git clone** (README / this guide, `server-init.sh`) | wherever you cloned — usually `~/packetarch` | `.git/` present | `./scripts/<name>.sh` | `./scripts/upgrade.sh`, or **Settings → Updates** |
+| **Offline bundle** (`install.sh` from a release tarball) | `/opt/packetarch` by default (`--install-dir` overrides) | `VERSION` file, no `.git/` | `./<name>.sh` — staged **flat** beside `docker-compose.yml` | re-run `install.sh --upgrade` from a newer bundle |
+| **Virtual appliance (OVA)** | `/opt/packetarch` | `/var/log/packetarch-firstboot.log` and `/opt/packetarch/.firstboot-done` | as the bundle | as the bundle |
+
+`collect-diagnostics.sh`, `fix-db-password.sh` and `upgrade.sh` all locate the
+install from their own path, so they work in any of the three without being
+told. `collect-diagnostics.sh` prints which one it detected in the report
+header.
+
 ## When the host's network overlaps Docker's
 
 This is the failure that looks like nothing is wrong. On a VPN'd corporate

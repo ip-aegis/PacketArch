@@ -334,9 +334,13 @@ fi
 echo ""
 if (( FOUND )); then
   echo -e "${YELLOW}Problems found — see the fixes above.${NC}"
+  echo "To send the full picture rather than this summary:"
+  echo "     ./scripts/collect-diagnostics.sh"
   echo "Three of the four causes also break RUNTIME egress (Cyber Vision, CML, AI"
   echo "providers), so prefer the daemon.json fix over DOCKER_BUILD_NETWORK=host."
   exit 1
 fi
 echo -e "${GREEN}No egress problems found.${NC}"
+echo "If the install still misbehaves, collect everything in one redacted file:"
+echo "     ./scripts/collect-diagnostics.sh"
 exit 0

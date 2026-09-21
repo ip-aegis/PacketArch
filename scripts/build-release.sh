@@ -201,8 +201,15 @@ cp "${REPO_ROOT}/scripts/packetarch-restore.sh" "${STAGE}/packetarch-restore.sh"
 # than .env, so postgres rejects the generated password) is an INSTALL-time
 # problem — the operator hits it before they have anything else to work with.
 cp "${REPO_ROOT}/scripts/fix-db-password.sh"    "${STAGE}/fix-db-password.sh"
+# Same reasoning: both of these are wanted at INSTALL time, on a box where the
+# operator has no repo to hunt through and possibly no working UI to ask.
+# check-docker-egress.sh answers "can this host even build/route/resolve",
+# collect-diagnostics.sh produces the one redacted file to send back.
+cp "${REPO_ROOT}/scripts/check-docker-egress.sh"  "${STAGE}/check-docker-egress.sh"
+cp "${REPO_ROOT}/scripts/collect-diagnostics.sh"  "${STAGE}/collect-diagnostics.sh"
 chmod +x "${STAGE}/install.sh" "${STAGE}/packetarch-backup.sh" \
-         "${STAGE}/packetarch-restore.sh" "${STAGE}/fix-db-password.sh"
+         "${STAGE}/packetarch-restore.sh" "${STAGE}/fix-db-password.sh" \
+         "${STAGE}/check-docker-egress.sh" "${STAGE}/collect-diagnostics.sh"
 
 # Portable scenario authoring kit — schema, registry snapshot, spec doc,
 # and the ready-to-use LLM prompt. Ships in every install so airgapped

@@ -86,6 +86,11 @@ PY
 [entrypoint]
 [entrypoint]     docker compose down -v && docker compose up -d
 [entrypoint]
+[entrypoint] If that is not it, collect everything in one redacted file and
+[entrypoint] send that instead of guessing:
+[entrypoint]
+[entrypoint]     ./scripts/collect-diagnostics.sh
+[entrypoint]
 [entrypoint] ============================================================
 
 MSG
@@ -97,6 +102,10 @@ MSG
       echo "[entrypoint] database never became reachable after 60s" >&2
       echo "[entrypoint] last error from the connection attempt:" >&2
       printf '%s\n' "$DB_ERR" | tail -5 >&2
+      echo "[entrypoint]" >&2
+      echo "[entrypoint] 'postgres' not resolving is the usual cause on a VPN'd host." >&2
+      echo "[entrypoint] Collect the evidence in one redacted file:" >&2
+      echo "[entrypoint]     ./scripts/collect-diagnostics.sh" >&2
       exit 1
     fi
     sleep 2
