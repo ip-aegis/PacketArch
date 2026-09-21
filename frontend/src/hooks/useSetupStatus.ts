@@ -15,12 +15,21 @@ import { useSetupStatusStore } from '../stores/setupStatusStore';
 export function useSetupStatus() {
   const status = useSetupStatusStore((s) => s.status);
   const loaded = useSetupStatusStore((s) => s.loaded);
+  const statusUnavailable = useSetupStatusStore((s) => s.statusUnavailable);
+  const statusErrorCode = useSetupStatusStore((s) => s.statusErrorCode);
   return {
     setupComplete: status === null ? true : status.setup_complete,
     buildVariant: status?.build_variant ?? 'full',
     aiSupported: status?.ai_supported ?? true,
     liveTrafficSupported: status?.live_traffic_supported ?? true,
     loaded,
+    /**
+     * `setupComplete` is a fail-open guess when this is true — /setup/status
+     * could not be read, so the normal app shell is being shown as a fallback.
+     * Surface it; do not let it look like a healthy install.
+     */
+    statusUnavailable,
+    statusErrorCode,
   };
 }
 

@@ -148,6 +148,15 @@ export function extractErrorMessage(
     if (status === 429) {
       return 'Too many requests. Please wait a moment.';
     }
+    // 502/503/504 without a parseable body is nginx answering, not the app:
+    // it could not reach the backend at all. "Server error" sent one operator
+    // looking for an application bug for two weeks, when nginx simply could not
+    // resolve `backend` through Docker's embedded DNS. Every legitimate 503 the
+    // app raises (feature gates, setup-incomplete) carries a `detail` and is
+    // returned above, so it never reaches this branch.
+    if (status === 502 || status === 503 || status === 504) {
+      return `Backend unreachable (HTTP ${status}). The web server is running but cannot reach the application. Run ./scripts/collect-diagnostics.sh on the server.`;
+    }
     if (status >= 500) {
       return 'Server error. Please try again later.';
     }
