@@ -238,11 +238,46 @@ describe('extractErrorMessage', () => {
     expect(extractErrorMessage(error)).toBe('Server error. Please try again later.');
   });
 
-  it('returns server error for 502', () => {
+  // 502/503/504 with no parseable body is nginx answering, not the app: it
+  // could not reach the backend at all. Calling that "Server error" sent an
+  // operator hunting an application bug for two weeks when the real cause was
+  // that nginx could not resolve the backend service name.
+  it.each([502, 503, 504])('names the gateway failure for %i', (status) => {
     const error = makeAxiosError({
-      response: { status: 502, data: {} },
+      response: { status, data: {} },
     });
-    expect(extractErrorMessage(error)).toBe('Server error. Please try again later.');
+    const msg = extractErrorMessage(error);
+    expect(msg).toContain('Backend unreachable');
+    expect(msg).toContain(`HTTP ${status}`);
+    expect(msg).toContain('collect-diagnostics.sh');
+  });
+
+  // The guard that makes the above safe: every 503 the application itself
+  // raises (the AI, live-traffic, multi-sensor and Mimic feature gates, and
+  // setup-incomplete) carries a `detail`, which is returned before the
+  // status-code branch. Those must NOT be relabelled as unreachable.
+  it('keeps the API detail for a 503 that has one', () => {
+    const error = makeAxiosError({
+      response: {
+        status: 503,
+        data: { detail: 'AI features are disabled in this deployment.' },
+      },
+    });
+    expect(extractErrorMessage(error)).toBe(
+      'AI features are disabled in this deployment.'
+    );
+  });
+
+  it('keeps the API message for a 502 in PacketArch error format', () => {
+    const error = makeAxiosError({
+      response: {
+        status: 502,
+        data: { error: 'ExternalServiceError', message: 'Cyber Vision Center refused the connection.' },
+      },
+    });
+    expect(extractErrorMessage(error)).toBe(
+      'Cyber Vision Center refused the connection.'
+    );
   });
 
   // Axios: fallback to message
