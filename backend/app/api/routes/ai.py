@@ -424,6 +424,9 @@ async def chat_with_ai(
                 tools=tools_list,
                 max_tokens=16384,
                 tracking=tracking_ctx,
+                # Up to 15 iterations of accumulated tool results is
+                # exactly what server-side context management is for.
+                manage_context=True,
             )
 
             # Log the full response for debugging
@@ -693,27 +696,67 @@ async def chat_with_ai_stream(
                 scenario_id=uuid.UUID(scenario_id),
             )
             for iteration in range(max_iterations):
-                yield f"data: {json.dumps({'type': 'thinking', 'iteration': iteration + 1, 'message': f'AI processing (iteration {iteration + 1})...'})}\n\n"
+                # Consume the model's own stream rather than calling the
+                # blocking endpoint and replaying the finished answer.
+                # This route always claimed to stream; until now it sent
+                # one 'AI processing (iteration N)...' placeholder, waited
+                # for the whole turn, then emitted the text in a single
+                # chunk. Text now arrives as Claude writes it, and the
+                # 'thinking' events carry Claude's actual summarized
+                # reasoning instead of an invented status line.
+                response: dict[str, Any] | None = None
+                response_text = ""
+                tool_calls_this_round = []
+                block_types: dict[int, str] = {}
+                reasoning_buffer: dict[int, str] = {}
 
-                response = await provider.chat(
+                async for event in provider.stream_chat(
                     messages=current_messages,
                     tools=tools_list,
                     max_tokens=16384,
                     tracking=tracking_ctx,
-                )
+                    manage_context=True,
+                ):
+                    event_type = event.get("type")
 
-                # Extract text and tool calls
-                response_text = ""
-                tool_calls_this_round = []
+                    if event_type == "content_block_start":
+                        index = event.get("index")
+                        block_types[index] = event.get("content_block", {}).get("type")
+
+                    elif event_type == "content_block_delta":
+                        delta = event.get("delta", {})
+                        text_chunk = delta.get("text")
+                        if text_chunk:
+                            response_text += text_chunk
+                            yield f"data: {json.dumps({'type': 'text', 'content': text_chunk})}\n\n"
+                        reasoning_chunk = delta.get("thinking")
+                        if reasoning_chunk:
+                            index = event.get("index")
+                            reasoning_buffer[index] = (
+                                reasoning_buffer.get(index, "") + reasoning_chunk
+                            )
+
+                    elif event_type == "content_block_stop":
+                        # Emit reasoning once per block rather than per
+                        # delta — the UI shows one status line, and
+                        # per-delta events would just thrash it.
+                        index = event.get("index")
+                        reasoning = reasoning_buffer.pop(index, "").strip()
+                        if reasoning and block_types.get(index) == "thinking":
+                            yield f"data: {json.dumps({'type': 'thinking', 'iteration': iteration + 1, 'message': reasoning})}\n\n"
+
+                    elif event_type == "final":
+                        response = event["message"]
+
+                if response is None:
+                    # The SDK always yields a final message on a clean
+                    # stream, so this means the stream died mid-turn.
+                    raise RuntimeError(
+                        "AI stream ended without a final message"
+                    )
 
                 for content in response.get("content", []):
-                    if content["type"] == "text":
-                        text_chunk = content["text"]
-                        response_text += text_chunk
-                        # Stream text chunks
-                        if text_chunk:
-                            yield f"data: {json.dumps({'type': 'text', 'content': text_chunk})}\n\n"
-                    elif content["type"] == "tool_use":
+                    if content["type"] == "tool_use":
                         tool_calls_this_round.append({
                             "id": content["id"],
                             "name": content["name"],
