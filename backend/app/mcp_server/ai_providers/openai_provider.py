@@ -67,6 +67,7 @@ class OpenAIProvider(AIProvider):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: AIUsageContext | None = None,
+        manage_context: bool = False,  # noqa: ARG002 — no server-side equivalent
     ) -> dict[str, Any]:
         """Send a chat request to OpenAI.
 
@@ -152,6 +153,7 @@ class OpenAIProvider(AIProvider):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: AIUsageContext | None = None,
+        manage_context: bool = False,  # noqa: ARG002 — no server-side equivalent
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to OpenAI.
 

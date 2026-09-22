@@ -152,6 +152,7 @@ class CircuitProvider(AIProvider):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: AIUsageContext | None = None,
+        manage_context: bool = False,  # noqa: ARG002 — no server-side equivalent
     ) -> dict[str, Any]:
         if tools:
             # CIRCUIT exposes the Azure OpenAI surface so tool/function
@@ -249,6 +250,7 @@ class CircuitProvider(AIProvider):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: AIUsageContext | None = None,
+        manage_context: bool = False,  # noqa: ARG002 — no server-side equivalent
     ) -> AsyncIterator[dict[str, Any]]:
         # CIRCUIT's gateway accepts stream=true on the same endpoint
         # and returns Server-Sent Events. Until a call site needs

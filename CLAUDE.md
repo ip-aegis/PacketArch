@@ -106,10 +106,17 @@ is whatever was baked at build time, so a test file added since the last
 exits 0. Drop the `-m "not integration"` filter to include integration tests
 (they need Postgres/Redis up).
 
-**Testing uncommitted app code?** Add `cp -r /src/app/. /app/app/` to that
-command as well. The recipe above copies only the tests, so the suite runs the
-*image's* `app/`, and a test importing something you just wrote fails with a
+**Testing uncommitted app code?** Add `cp -r /src/app/. /app/app/ || true` to
+that command as well. The recipe above copies only the tests, so the suite runs
+the *image's* `app/`, and a test importing something you just wrote fails with a
 confusing `ImportError` for a symbol that is plainly in the file.
+
+The `|| true` is load-bearing. `app/static/agent` is a bind mount, so `cp`
+hits `'/src/app/./static/agent' and '/app/app/./static/agent' are the same
+file`, copies everything else, and still exits 1. Chained with `&&`, that
+non-zero exit skips the *tests* copy, and pytest then reports
+`ERROR: file or directory not found: tests_live` — which reads like a typo in
+the recipe rather than a partial failure three commands earlier.
 
 ### Stopping Services
 

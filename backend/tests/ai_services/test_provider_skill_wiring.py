@@ -36,7 +36,7 @@ def test_build_system_blocks_prepends_skills(tmp_path: Path, monkeypatch) -> Non
         lambda: tmp_registry,
     )
 
-    provider = AnthropicProvider(api_key="not-used", model="claude-opus-4-7")
+    provider = AnthropicProvider(api_key="not-used", model="claude-opus-5-5")
     blocks = provider._build_system_blocks(
         system_message="task-specific",
         skills=["alpha", "beta"],
@@ -47,9 +47,13 @@ def test_build_system_blocks_prepends_skills(tmp_path: Path, monkeypatch) -> Non
     assert blocks[0]["text"] == "alpha body"
     assert blocks[1]["text"] == "beta body"
     assert blocks[2]["text"] == "task-specific"
-    # Every block is cacheable so repeated calls benefit.
-    for block in blocks:
-        assert block["cache_control"] == {"type": "ephemeral"}
+    # Exactly two breakpoints: one closing the skill prefix, one on the
+    # task prompt. Caching is a prefix match, so marking "alpha" as well
+    # would cover nothing extra and would spend from the per-request
+    # budget of four.
+    assert "cache_control" not in blocks[0]
+    assert blocks[1]["cache_control"] == {"type": "ephemeral"}
+    assert blocks[2]["cache_control"] == {"type": "ephemeral"}
 
 
 def test_build_system_blocks_skips_missing_skill(
@@ -61,7 +65,7 @@ def test_build_system_blocks_skips_missing_skill(
         lambda: tmp_registry,
     )
 
-    provider = AnthropicProvider(api_key="not-used", model="claude-opus-4-7")
+    provider = AnthropicProvider(api_key="not-used", model="claude-opus-5-5")
     blocks = provider._build_system_blocks(
         system_message=None,
         skills=["alpha", "nonexistent"],
@@ -79,6 +83,6 @@ def test_build_system_blocks_returns_none_when_empty(tmp_path: Path, monkeypatch
         lambda: tmp_registry,
     )
 
-    provider = AnthropicProvider(api_key="not-used", model="claude-opus-4-7")
+    provider = AnthropicProvider(api_key="not-used", model="claude-opus-5-5")
     assert provider._build_system_blocks(None, None) is None
     assert provider._build_system_blocks(None, []) is None

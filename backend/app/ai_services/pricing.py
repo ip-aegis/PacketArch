@@ -40,10 +40,28 @@ class ModelPrice:
 # Keys are (provider, model). Provider strings match what the audit
 # recorder writes (``anthropic`` / ``openai`` / ``circuit``).
 PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
-    # Anthropic — verified 2026-05-14 against claude.com/docs/.../pricing.
-    # Cache write rate is the **5-minute** tier (1.25x input). The 1-hour
-    # tier (2x input) is not currently used by PacketArch.
+    # Anthropic — verified 2026-09-22 against platform.claude.com/docs/
+    # en/about-claude/pricing. Cache write rate is the **5-minute** tier
+    # (1.25x input). The 1-hour tier (2x input) is not currently used by
+    # PacketArch.
     #
+    # Cache READS are 0.1x input on every model EXCEPT Opus 5.5 (0.05x)
+    # and the Fable line (0.025x) — do not derive them, read them off
+    # the pricing page.
+    #
+    # Opus 5.5: $4 / $20 per M — the current flagship, and cheaper than
+    # the Opus 5 it replaces.
+    ("anthropic", "claude-opus-5-5"): ModelPrice(
+        input=4.0, output=20.0, cache_read=0.20, cache_write=5.0,
+    ),
+    # Fable line: $10 / $50 per M. Not routed to by default; priced so a
+    # hand-selected run still lands with a cost instead of NULL.
+    ("anthropic", "claude-fable-5-1"): ModelPrice(
+        input=10.0, output=50.0, cache_read=0.25, cache_write=12.5,
+    ),
+    ("anthropic", "claude-fable-5"): ModelPrice(
+        input=10.0, output=50.0, cache_read=1.0, cache_write=12.5,
+    ),
     # Opus 4.5 / 4.6 / 4.7 / 4.8 / 5: $5 / $25 per M (NEW tokenizer in 4.7 can
     # use ~35% more tokens for the same text — that's a token-count effect,
     # not a per-token price change). 4.8 and 5 hold the same per-token tier.
@@ -66,10 +84,13 @@ PRICE_TABLE: dict[tuple[str, str], ModelPrice] = {
     ("anthropic", "claude-opus-4-1"): ModelPrice(
         input=15.0, output=75.0, cache_read=1.5, cache_write=18.75,
     ),
-    # Sonnet 5: $3 / $15 per M standard (intro $2 / $10 through 2026-08-31;
-    # we bill at standard to avoid under-reporting cost).
+    # Sonnet 5: $2 / $10 per M. This was booked as an introductory rate
+    # due to rise to $3 / $15 on 2026-09-01, and we billed the higher
+    # number to avoid under-reporting. Anthropic cancelled the increase
+    # and $2 / $10 is now the standard price, so the defensive rounding
+    # had turned into a 50% over-report on every Sonnet 5 row.
     ("anthropic", "claude-sonnet-5"): ModelPrice(
-        input=3.0, output=15.0, cache_read=0.3, cache_write=3.75,
+        input=2.0, output=10.0, cache_read=0.2, cache_write=2.5,
     ),
     # Sonnet 4.5 / 4.6: $3 / $15 per M.
     ("anthropic", "claude-sonnet-4-6"): ModelPrice(

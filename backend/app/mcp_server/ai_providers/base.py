@@ -23,6 +23,7 @@ class AIProvider(ABC):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: "AIUsageContext | None" = None,
+        manage_context: bool = False,
     ) -> dict[str, Any]:
         """Send a chat request to the AI.
 
@@ -36,6 +37,10 @@ class AIProvider(ABC):
                 Providers that support Agent Skills load each skill's
                 body and emit it as cacheable context. Providers without
                 skill support may ignore this parameter.
+            manage_context: Ask the provider to manage conversation
+                context server-side (dropping stale tool results from a
+                long agentic loop). Providers without an equivalent
+                feature ignore it.
             tracking: Optional attribution metadata. When provided, the
                 provider writes a row to ``ai_call_audit`` after the
                 call (success or failure) so spend can be aggregated
@@ -57,6 +62,7 @@ class AIProvider(ABC):
         output_config: dict[str, Any] | None = None,
         skills: list[str] | None = None,
         tracking: "AIUsageContext | None" = None,
+        manage_context: bool = False,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream a chat request to the AI.
 

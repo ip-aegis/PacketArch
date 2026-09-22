@@ -432,3 +432,32 @@ my repair would have destroyed that VM on its next boot, to fix a build. The
 lock check has to come first and has to be a hard stop. Before writing any
 cleanup that deletes, ask what else could be holding the thing, and whether the
 remedy is worse than the fault.
+
+## A capability allowlist keyed on exact model ids fails in the wrong direction (2026-09-22)
+
+`anthropic_provider.py` gated extended thinking on two exact-match sets of
+model ids. Adding Opus 5.5 to the Settings dropdown — a one-line change that
+looks complete — would have shipped a flagship running with *no thinking at
+all*, silently and with no error. Adding it to the other set would have been a
+hard 400, because `budget_tokens` is rejected on every model since Opus 4.7.
+
+The allowlist encoded "I have personally verified this model" and defaulted the
+unverified case to the *least* capable behaviour. But an unrecognised model id
+in practice means "released after this build", and every model released in the
+last year takes adaptive thinking and effort and rejects sampling parameters.
+The safe default was the permissive one all along.
+
+**Rule:** when a table gates optional capabilities by version or id, work out
+which way an unknown entry should fail before writing it. If unknown means
+"newer", default to the newest behaviour and list only the *exceptions* — then
+the table shrinks over time instead of needing an edit per release. Reserve
+fail-closed for cases where guessing wrong is destructive rather than merely
+degraded.
+
+**Corollary, same file:** the cache-breakpoint bug hid the same way. Marking
+every skill block cacheable looked thorough, but caching is a prefix match, so
+the extra marks bought nothing and quietly consumed a hard budget of four per
+request — three skills plus the system prompt was already at the cap, and the
+next skill anyone added would have been a 400 with no clue pointing here.
+Redundant-but-harmless is worth a second look when the thing being spent is
+rationed.

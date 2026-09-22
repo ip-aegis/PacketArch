@@ -15,6 +15,7 @@ from app.mcp_server.ai_providers.openai_provider import OpenAIProvider
 from app.mcp_server.ai_providers.model_router import (
     AITask,
     FALLBACK_MODEL,
+    select_effort,
     select_model,
 )
 
@@ -101,13 +102,14 @@ class AIProviderFactory:
                 raise ValueError("Anthropic API key not configured")
 
             api_key = decrypt_value(api_key_setting.value)
-            model = await _resolve_model("anthropic_model") or "claude-opus-5"
+            model = await _resolve_model("anthropic_model") or "claude-opus-5-5"
+            effort = select_effort(task)
 
             logger.info(
-                "Creating Anthropic provider for task=%s with model: %s",
-                task.value if task else "unspecified", model,
+                "Creating Anthropic provider for task=%s with model: %s (effort=%s)",
+                task.value if task else "unspecified", model, effort or "model default",
             )
-            return AnthropicProvider(api_key=api_key, model=model)
+            return AnthropicProvider(api_key=api_key, model=model, effort=effort)
 
         elif provider == "openai":
             # Get OpenAI API key

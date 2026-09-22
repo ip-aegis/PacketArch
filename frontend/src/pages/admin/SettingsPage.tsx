@@ -293,11 +293,13 @@ const AIProviderTab: React.FC<{
     }
   };
 
-  // Ordered by recommended default → fastest/cheapest. Opus 5 is the
-  // best fit for scenario generation + deep tool use; Sonnet 5 is a
-  // strong cost-conscious alternative; Haiku is fastest / cheapest.
+  // Ordered by recommended default → fastest/cheapest. Opus 5.5 is the
+  // best fit for scenario generation + deep tool use (and cheaper than
+  // the Opus 5 it replaces); Sonnet 5 is a strong cost-conscious
+  // alternative; Haiku is fastest / cheapest.
   const anthropicModels = [
-    { value: 'claude-opus-5', label: 'Claude Opus 5 (Latest · most capable)' },
+    { value: 'claude-opus-5-5', label: 'Claude Opus 5.5 (Latest · most capable)' },
+    { value: 'claude-opus-5', label: 'Claude Opus 5 (previous flagship)' },
     { value: 'claude-sonnet-5', label: 'Claude Sonnet 5 (balanced · lower cost)' },
     { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fastest)' },
     { value: 'claude-opus-4-8', label: 'Claude Opus 4.8 (legacy)' },

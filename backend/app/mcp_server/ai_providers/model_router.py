@@ -17,6 +17,13 @@ Centralising the table here means every call site that needs an AI
 model passes an :class:`AITask` instead of hardcoding a model string —
 swap models in one place and every feature picks it up.
 
+The same table also carries the per-task *effort* level
+(:data:`TASK_EFFORT`). Effort is the primary cost/quality lever on
+current-generation Claude models and its default is not uniform —
+Opus 5.5 defaults to ``medium`` where Opus 5 defaulted to ``high`` —
+so PacketArch states it explicitly rather than inheriting whatever
+the model of the day happens to pick.
+
 CIRCUIT's appkey entitlement varies; today Rocky's dev appkey allows
 only ``gpt-5-nano`` and ``gemini-3.1-flash-lite``. We default to
 ``gpt-5-nano`` for every task because Gemini-via-CIRCUIT requires a
@@ -67,11 +74,12 @@ class AITask(str, Enum):
 # upstream gateway.
 TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
     "anthropic": {
-        # Flagship Opus 5 for the heavy lifters — tool use,
-        # multi-turn reasoning, design review.
-        AITask.CHAT: "claude-opus-5",
-        AITask.SCENARIO_GENERATION: "claude-opus-5",
-        AITask.SCENARIO_REVIEW: "claude-opus-5",
+        # Flagship Opus 5.5 for the heavy lifters — tool use,
+        # multi-turn reasoning, design review. Newer AND cheaper than
+        # Opus 5 ($4/$20 per M vs $5/$25, cache reads $0.20 vs $0.50).
+        AITask.CHAT: "claude-opus-5-5",
+        AITask.SCENARIO_GENERATION: "claude-opus-5-5",
+        AITask.SCENARIO_REVIEW: "claude-opus-5-5",
         # Sonnet 5 for medium-complexity prose generation (current-gen
         # balanced tier; adaptive thinking on, manual budget_tokens removed).
         AITask.DESCRIPTION_GENERATION: "claude-sonnet-5",
@@ -114,10 +122,51 @@ TASK_MODEL_MAP: dict[str, dict[AITask, str]] = {
 # task is given. Keeps the legacy "pick one model from settings"
 # behaviour working when the router can't decide.
 FALLBACK_MODEL: dict[str, str] = {
-    "anthropic": "claude-opus-5",
+    "anthropic": "claude-opus-5-5",
     "openai": "gpt-5.6-sol",
     "circuit": "gpt-5-nano",
 }
+
+
+# Task → ``output_config.effort`` level.
+#
+# Effort trades thoroughness against token spend WITHIN one model, and
+# it is the lever to reach for before swapping models. Two reasons this
+# table exists rather than letting the model default:
+#
+# 1. The default is not stable across models. Opus 5.5 defaults to
+#    ``medium``; Opus 5 and everything before it defaulted to ``high``.
+#    Silently inheriting that would have made the 5.5 upgrade look like
+#    a quality regression.
+# 2. The tasks genuinely differ. Designing a 40-device scenario that has
+#    to satisfy five realism dimensions deserves ``high``; inventing a
+#    site name does not.
+#
+# Providers that don't understand effort ignore it — only the Anthropic
+# provider consumes this today, and it drops the key for models whose
+# API rejects it (Haiku 4.5, Sonnet 4.5).
+TASK_EFFORT: dict[AITask, str] = {
+    AITask.CHAT: "high",
+    AITask.SCENARIO_GENERATION: "high",
+    AITask.SCENARIO_REVIEW: "high",
+    AITask.DESCRIPTION_GENERATION: "medium",
+    AITask.AI_HELP: "medium",
+    AITask.DEVICE_NAMING: "low",
+    AITask.SITE_IDENTITY: "low",
+}
+
+
+def select_effort(task: AITask | None) -> str | None:
+    """Return the effort level for ``task``, or ``None`` when unknown.
+
+    ``None`` means "say nothing about effort" — the provider then omits
+    ``output_config.effort`` entirely and the model's own default
+    applies. That is the right behaviour for a caller that didn't
+    declare a task.
+    """
+    if task is None:
+        return None
+    return TASK_EFFORT.get(task)
 
 
 def select_model(provider: str, task: AITask | None) -> str | None:
@@ -142,4 +191,12 @@ def list_routing(provider: str) -> list[tuple[str, str]]:
     return [(task.value, model) for task, model in mapping.items()]
 
 
-__all__ = ["AITask", "TASK_MODEL_MAP", "FALLBACK_MODEL", "select_model", "list_routing"]
+__all__ = [
+    "AITask",
+    "TASK_MODEL_MAP",
+    "TASK_EFFORT",
+    "FALLBACK_MODEL",
+    "select_model",
+    "select_effort",
+    "list_routing",
+]
