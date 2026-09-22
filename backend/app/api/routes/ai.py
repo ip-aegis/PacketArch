@@ -99,16 +99,54 @@ def _strip_scenario_id(schema: dict) -> dict:
     return out
 
 
+# Tools that stay loaded in context at all times, so an ordinary chat
+# turn never has to search before it can act. Ordered reads-then-writes;
+# the write set matches the most common actions the convergence summary
+# below already tracks.
+_ALWAYS_LOADED_TOOLS = frozenset(
+    {
+        "get_scenario_summary",
+        "list_devices",
+        "add_device",
+        "update_device",
+        "remove_device",
+        "add_flow",
+    }
+)
+
+# BM25 rather than regex: Claude queries this one in natural language,
+# which matches how our tool descriptions are written. The regex variant
+# would want it to guess our naming scheme instead.
+_TOOL_SEARCH_TOOL = {
+    "type": "tool_search_tool_bm25_20251119",
+    "name": "tool_search_tool_bm25",
+}
+
+
 def _build_chat_tools_list() -> list[dict]:
-    """Build the MCP tools list with ``scenario_id`` hidden from the model."""
-    return [
-        {
+    """Build the MCP tools list with ``scenario_id`` hidden from the model.
+
+    All 69 MCP tools are still *sent* on every request — the API needs
+    the definitions server-side to run a search — but everything outside
+    :data:`_ALWAYS_LOADED_TOOLS` is marked ``defer_loading`` and stays
+    out of the model's context until it searches for it.
+
+    Two reasons this is worth it. The obvious one is cost: the chat loop
+    runs up to 15 iterations and was paying for 69 tool schemas on every
+    one of them. The less obvious one is accuracy — tool selection
+    degrades past roughly 30-50 visible tools, and we were at 69.
+    """
+    tools: list[dict] = [dict(_TOOL_SEARCH_TOOL)]
+    for tool_name, tool_info in mcp_server._tools.items():
+        tool: dict = {
             "name": tool_name,
             "description": tool_info["description"],
             "input_schema": _strip_scenario_id(tool_info["input_schema"]),
         }
-        for tool_name, tool_info in mcp_server._tools.items()
-    ]
+        if tool_name not in _ALWAYS_LOADED_TOOLS:
+            tool["defer_loading"] = True
+        tools.append(tool)
+    return tools
 
 
 # Tools whose count should appear in the post-convergence summary the
