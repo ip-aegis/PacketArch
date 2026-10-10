@@ -9,6 +9,74 @@ from datetime import date
 
 
 TEMPLATES: list[DeviceTemplate] = [
+    # A dcim_cisco scenario places several CRAC units and the catalog held one
+    # cooling fingerprint (Schneider InRow DX), so they all merged in Cyber
+    # Vision. Liebert is the other name in that room.
+    #
+    # Vertiv has no IEEE block of its own; 00:08:77 is registered to
+    # "Liebert-Hiross Spa", Liebert's precision-cooling arm and the direct
+    # ancestor of this product line, so it is the defensible owner. The SNMP
+    # tree is Liebert's real one: 1.3.6.1.4.1.476.1.42 decodes as
+    # emerson(476).liebertCorp(1).liebertGlobalProducts(42).
+    #
+    # No firmware_variants: the iCOM control firmware is distributed through
+    # Vertiv's iCOM Service Tool and its release notes are not public. The
+    # installer manual documents the version STRING (the PA2.05.31R line
+    # superseding PA1.XX.XXXSTD) but publishes no release date, and
+    # FirmwareVariant requires one — so rather than stamp a real version with
+    # an invented date, this ships with none. The fingerprint that matters for
+    # de-duplication (OUI, model, sysObjectID, stack) is fully grounded.
+    DeviceTemplate(
+        id="vertiv/liebert/pdx",
+        vendor="Vertiv",
+        vendor_family="Liebert",
+        model="PDX",
+        model_name="Liebert PDX Precision Cooling Unit",
+        device_type="crac_unit",
+        description="Perimeter precision cooling unit with iCOM control",
+
+        oui_prefixes=["00:08:77"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 16384,
+            "mss": 1460,
+            "sack_permitted": True,
+        },
+
+        response_timing={
+            "min_ms": 8.0,
+            "max_ms": 120.0,
+            "mean_ms": 40.0,
+            "std_dev_ms": 20.0,
+            "distribution": "gaussian",
+        },
+
+        # iCOM speaks SNMP v1/v2c/v3 natively and adds Modbus and BACnet
+        # through the IntelliSlot card.
+        supported_protocols=["snmp", "modbus_tcp", "bacnet"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="VRT{10NUM}",
+            station_name_pattern="crac-{location}-{seq}",
+            vendor_short="VRT",
+            model_short="PDX",
+        ),
+
+        snmp_identity={
+            "sys_descr": "Vertiv Liebert PDX Precision Cooling Unit",
+            "sys_object_id": "1.3.6.1.4.1.476.1.42",
+            "sys_name": "LIEBER-PDX-001",
+            "sys_location": "Data Center",
+        },
+
+        modbus_identity={
+            "vendor_name": "Vertiv",
+            "product_code": "PDX",
+            "product_name": "Liebert PDX Precision Cooling Unit",
+            "model_name": "Liebert PDX",
+        },
+    ),
     DeviceTemplate(
         id="johnson-controls/metasys/nae55",
         vendor="Johnson Controls",

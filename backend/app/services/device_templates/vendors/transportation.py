@@ -9,6 +9,62 @@ from datetime import date
 
 
 TEMPLATES: list[DeviceTemplate] = [
+    # An atms_ntcip scenario places up to four roadside units and the catalog
+    # held one RSU fingerprint (Q-Free RSU 5000), so they all merged in Cyber
+    # Vision. The MK6 is the natural second: Cohda's 6th-generation RSU and the
+    # first C-V2X roadside unit OmniAir-certified for US deployment, so it is
+    # what sits next to a DSRC unit on a real corridor during the changeover.
+    #
+    # sysObjectID is Cohda's own IANA enterprise number (26181 = Cohda
+    # Wireless Ltd) and stops there: no public MIB documents a sub-branch, and
+    # inventing one would put a fabricated OID on the wire.
+    #
+    # No firmware_variants: Cohda publishes MK6 releases only through its
+    # customer support portal. The one public firmware string is for the
+    # previous-generation MK5, which would be wrong on this device.
+    DeviceTemplate(
+        id="cohda/mk6/rsu",
+        vendor="Cohda",
+        vendor_family="MK6",
+        model="MK6 RSU",
+        model_name="MK6 Roadside Unit",
+        device_type="toll_rsu",
+        description="Dual-mode DSRC and C-V2X roadside unit for tolling and V2X",
+
+        oui_prefixes=["04:E5:48"],
+
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+        },
+
+        response_timing={
+            "min_ms": 0.3,
+            "max_ms": 12.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.5,
+            "distribution": "gaussian",
+        },
+
+        supported_protocols=["snmp"],
+
+        instance_rules=InstanceGenerationRules(
+            serial_format="MK6{10NUM}",
+            station_name_pattern="rsu-{location}-{seq}",
+            vendor_short="COH",
+            model_short="MK6",
+        ),
+
+        snmp_identity={
+            "sys_descr": "Cohda Wireless MK6 Roadside Unit",
+            "sys_object_id": "1.3.6.1.4.1.26181",
+            "sys_name": "COHDA-MK6-001",
+            "sys_location": "Roadside Cabinet",
+        },
+    ),
     DeviceTemplate(
         id="econolite/asc3/cobalt",
         vendor="Econolite",

@@ -65,14 +65,24 @@ CORRECTLY_SINGLE_VENDOR: set[tuple[str, str]] = {
 #
 # Shrink this list; never grow it. A new entry is a regression.
 #
-# 4 entries, from 31 when the ratchet was written. Everything closable by
-# pinning models the catalog already had is done; what is left genuinely needs
-# new device templates.
+# 1 entry, from 31 when the ratchet was written.
+#
+# The three that closed got real second templates rather than a re-pointed pin:
+# a Siemens SINUMERIK 840D sl NCU for the CNC cells, a Cohda MK6 dual
+# DSRC/C-V2X roadside unit next to the DSRC-only Q-Free, and a Vertiv Liebert
+# PDX beside the Schneider InRow. Every identifier on those is registry-checked
+# (IEEE OUI, IANA enterprise number, PROFINET vendor id).
+#
+# The last one stays open for a reason worth recording, so nobody spends the
+# afternoon rediscovering it: there is no second toll LANE CONTROLLER that can
+# be sourced honestly. Neology and Q-Free both ship one, but neither publishes
+# a model designation to put in `model=`. The obvious-looking candidate,
+# TransCore's Encompass 6, is a 915 MHz RFID READER that mounts *into* a lane
+# controller — pinning it here would repeat the Honeywell STT850 mistake of
+# labelling a device as something it is not. Closing this needs a real model
+# number from a vendor datasheet, not another catalog entry.
 KNOWN_SINGLE_MODEL: set[tuple[str, str]] = {
-    ("multi_vendor", "cnc_controller"),          # up to 4
     ("atms_ntcip", "toll_lane_controller"),      # up to 4
-    ("atms_ntcip", "toll_rsu"),                  # up to 4
-    ("dcim_cisco", "crac_unit"),                 # up to 4
 }
 
 MIN_INSTANCES = 4
