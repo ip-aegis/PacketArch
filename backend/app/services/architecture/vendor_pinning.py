@@ -211,10 +211,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "LXM32MD18M2"),
     ),
     (VendorProfile.SCHNEIDER_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),                 # pressure / DP
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),     # electromagnetic flow
         ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     (VendorProfile.SCHNEIDER_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -243,10 +245,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "CI501"),
     ),
     (VendorProfile.ABB_SHOP, "field_instrument"): (
-        ("emerson", "3051S"),                 # pressure / DP
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),     # electromagnetic flow
         ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     (VendorProfile.ABB_SHOP, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -289,10 +293,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("honeywell", "Safety Manager"),  # speaks modbus_tcp like MD Plus
     ),
     (VendorProfile.DCS_EMERSON, "field_instrument"): (
-        ("emerson", "3051S"),
-        ("emerson", "5700"),
-        ("yokogawa", "EJA530A"),
-        ("endress_hauser", "Promag 400"),
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
+        ("emerson", "5700"),                  # coriolis flow
+        ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
     ),
     (VendorProfile.DCS_EMERSON, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -344,10 +350,14 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # vendors fixes both that and the merge problem; a Honeywell-DCS plant with
     # Emerson and Yokogawa instruments on it is entirely ordinary.
     (VendorProfile.DCS_HONEYWELL, "field_instrument"): (
-        ("emerson", "3051S"),
-        ("yokogawa", "EJA530A"),
-        ("emerson", "5700"),
-        ("endress_hauser", "Promag 400"),
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
+        ("yokogawa", "EJA530A"),              # pressure
+        ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        # An Experion plant reads level on Honeywell's own radar gauge before
+        # it reaches for a third party.
+        ("honeywell", "Optiflex 6000"),       # radar level gauge
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
     ),
     # Was ("honeywell", "STT850") — an STT850 is a Honeywell TEMPERATURE
     # transmitter, not a valve actuator, and it is absent from the device
@@ -402,9 +412,18 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     (VendorProfile.DCS_YOKOGAWA, "safety_controller"): (
         ("yokogawa", "SSC60D"),
     ),
+    # Yokogawa's own flow and level instruments (RotaMASS, EJX, FLEX) are not
+    # in the device catalog, so this profile could only ever read pressure and
+    # composition. Third-party transmitters under a CENTUM DCS are ordinary --
+    # the same argument this file already makes for drives and valve
+    # positioners -- so the gap is closed cross-vendor rather than left to the
+    # measurement fallback, which would have put a pH analyser on a level tag.
     (VendorProfile.DCS_YOKOGAWA, "field_instrument"): (
-        ("yokogawa", "EJA530A"),
-        ("yokogawa", "FLXA402"),
+        ("yokogawa", "EJA530A"),              # pressure
+        ("yokogawa", "FLXA402"),              # liquid analyser (composition)
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
     ),
     # Was pinned to a Yokogawa EJA530A, which is a PRESSURE TRANSMITTER, not a
     # valve actuator — the same mis-assignment class as the Honeywell STT850
@@ -446,10 +465,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("abb", "800xA Operator Workplace 6.1.1"),
     ),
     (VendorProfile.DCS_ABB, "field_instrument"): (
-        ("emerson", "3051S"),                 # pressure / DP
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),     # electromagnetic flow
         ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     (VendorProfile.DCS_ABB, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -510,10 +531,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # ("smart transmitter — temperature, pressure, level, flow"); analysers are
     # a different role and are deliberately not pulled in here.
     (VendorProfile.MIXED_FIELD, "field_instrument"): (
-        ("emerson", "3051S"),                    # pressure / DP
+        ("emerson", "3051S"),                    # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),                 # pressure
+        ("endress_hauser", "PMC71"),             # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),        # electromagnetic flow
         ("emerson", "5700"),                     # coriolis flow
+        ("endress_hauser", "FMP50"),             # guided-wave radar level
     ),
     (VendorProfile.MIXED_FIELD, "valve_actuator"): (
         ("emerson", "DVC6200"),
@@ -590,10 +613,17 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
     # room sensors are actual BAS field devices; the E+H process transmitters
     # are added because a campus plant room genuinely has pressure and flow
     # instrumentation alongside the room sensing.
+    # Once the pick became measurement-aware this list left 13 flow tags on a
+    # single Promag and 12 pressure tags on a single Cerabar, because the room
+    # sensor measures neither. A DP transmitter across a chilled-water loop and
+    # a radar gauge on a cooling-tower basin are both ordinary central-plant
+    # instrumentation, and they give every measurement a second model.
     (VendorProfile.BAS_TRIDIUM, "field_instrument"): (
-        ("belimo", "22RTH-5U00A"),
-        ("endress_hauser", "PMC71"),
-        ("endress_hauser", "Promag 400"),
+        ("belimo", "22RTH-5U00A"),            # room temperature + humidity
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
+        ("endress_hauser", "Promag 400"),     # electromagnetic flow
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     # Up to 19 HVAC drives per scenario. ABB's ACS580 and Schneider's ATV
     # range are both ordinary in a plant room.
@@ -677,10 +707,12 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("schneider", "ATV930D15N4"),  # stand-in for smart PDU
     ),
     (VendorProfile.DCIM_CISCO, "field_instrument"): (
-        ("emerson", "3051S"),                 # pressure / DP
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),     # electromagnetic flow
         ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     (VendorProfile.DCIM_CISCO, "bms_field_controller"): (
         ("honeywell", "JACE 8000"),
@@ -879,10 +911,12 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("rockwell", "1734-AENT"),
     ),
     "field_instrument": (
-        ("emerson", "3051S"),                 # pressure / DP
+        ("emerson", "3051S"),                 # pressure / DP -> P, level, flow
         ("yokogawa", "EJA530A"),              # pressure
+        ("endress_hauser", "PMC71"),          # pressure (Cerabar)
         ("endress_hauser", "Promag 400"),     # electromagnetic flow
         ("emerson", "5700"),                  # coriolis flow
+        ("endress_hauser", "FMP50"),          # guided-wave radar level
     ),
     "valve_actuator": (
         ("emerson", "DVC6200"),
@@ -1002,6 +1036,48 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
 
 
 # ---------------------------------------------------------------------------
+# What each instrument pin can actually measure
+# ---------------------------------------------------------------------------
+
+# The generator stamps every field instrument with a `measurement` — level,
+# flow or pressure. Nothing connected that to the pin rotation, so a tag
+# labelled `level` could land on a Promag 400: an electromagnetic flow meter,
+# which cannot measure level at all. The pin lists above already recorded each
+# model's measurement in prose comments ("# electromagnetic flow", "# pressure
+# / DP") — the knowledge was there, just not in a form the picker could act
+# on. This table is that prose turned into data.
+#
+# A model may serve several measurements when the real instrument does. A
+# Rosemount 3051S is a differential-pressure transmitter, and DP is the classic
+# way to infer level (hydrostatic head in a vessel) and flow (across an orifice
+# plate) as well as to read line pressure directly, so it earns all three. A
+# Promag is electromagnetic: flow and nothing else.
+#
+# A pin ABSENT from this table is unconstrained — it stays eligible for every
+# measurement. That way adding an instrument pin can never silently make it
+# unpickable; the failure mode of forgetting an entry is the behavior we had
+# before, not a device that vanishes.
+_PIN_MEASUREMENTS: dict[VendorPin, frozenset[str]] = {
+    ("emerson", "3051S"): frozenset({"pressure", "level", "flow"}),
+    ("emerson", "5700"): frozenset({"flow"}),         # Coriolis mass flow
+    ("endress_hauser", "Promag 400"): frozenset({"flow"}),   # electromagnetic
+    ("endress_hauser", "FMP50"): frozenset({"level"}),       # guided-wave radar
+    ("endress_hauser", "PMC71"): frozenset({"pressure"}),    # Cerabar
+    ("yokogawa", "EJA530A"): frozenset({"pressure"}),        # gauge pressure
+    ("honeywell", "Optiflex 6000"): frozenset({"level"}),    # radar level gauge
+    # Instruments that measure none of the three. Analysers read composition —
+    # pH, conductivity, gas species — and a room sensor reads temperature and
+    # humidity. Declaring them empty keeps them out of a measured tag's
+    # candidate list while leaving them in the pin lists, where they still
+    # serve instruments an archetype places without a measurement.
+    ("endress_hauser", "CM442"): frozenset(),
+    ("yokogawa", "FLXA402"): frozenset(),
+    ("yokogawa", "GC8000"): frozenset(),
+    ("yokogawa", "TDLS8000"): frozenset(),
+    ("belimo", "22RTH-5U00A"): frozenset(),
+}
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -1041,3 +1117,30 @@ def round_robin_pick(
     if not candidates:
         return None
     return candidates[index % len(candidates)]
+
+
+def filter_by_measurement(
+    candidates: tuple[VendorPin, ...], measurement: str | None,
+) -> tuple[VendorPin, ...]:
+    """Narrow instrument candidates to the models that can make `measurement`.
+
+    Returns `candidates` untouched in two cases:
+
+    * `measurement` is None — every role other than `field_instrument`, which
+      must keep its rotation exactly as it was.
+    * no candidate can make it — a profile whose instrument pins simply do not
+      cover this measurement (a Yokogawa DCS with only a pressure transmitter
+      and an analyser has nothing that reads level) keeps its existing
+      rotation rather than losing its instruments entirely.
+
+    The second case is a deliberate widening, not an error: emitting a
+    less-apt instrument is strictly better than emitting a device with no
+    fingerprint. It also means the caller never has to handle an empty result.
+    """
+    if not measurement:
+        return candidates
+    suited = tuple(
+        pin for pin in candidates
+        if pin not in _PIN_MEASUREMENTS or measurement in _PIN_MEASUREMENTS[pin]
+    )
+    return suited or candidates
