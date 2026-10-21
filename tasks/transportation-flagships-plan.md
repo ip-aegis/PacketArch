@@ -74,6 +74,23 @@
 | 2 | **F3** and **F4**. NTCIP 1209 sensor objects from the ITE MIB. The Cyber Vision decode check (plan 0.9) sets the priority between NTCIP depth and identity depth. | Four flagships |
 | 3 | New engines: real HTTP requests (camera and controller web UIs), RTSP video sessions, syslog, ambient DNS. | Richer non-SNMP traffic in every flagship |
 
+## 4a. Status (2026-10-21)
+
+- **Wave 0: done** (`0204550`, `1850806`).
+- **Wave 1: done, except the runbooks.**
+  - Catalog (`2ae1a4a`): Centracs ATMS, Genetec VMS, Q-Free Intelight 2070LX/MAXTIME (CVE-2025-1100), McCain ATC eX2/Omni eX, RUGGEDCOM RS900, Cradlepoint IBR900 and Sierra RV55. All are verified against IEEE, IANA, NVD/CISA and vendor documents.
+  - **Not added, by design:** the EDI MMU and video detection.
+    - The MMU has no IEEE OUI registered to EDI, and it speaks EDI's ECcom protocol rather than SNMP.
+    - Iteris and Autoscope expose only RTSP/ONVIF, and Autoscope's MAC vendor is unverified.
+    - Both wait for Wave 3 engines.
+  - F1 Metro Arterial (131 devices) and F2 Twin-Bore Tunnel (85 devices) shipped in `f1b59b3`. The tunnel runs on the `road_tunnel` process model (`192d4c9`, `dab7e4f`).
+  - **Platform fixes found on the way:**
+    - SNMP polls are no longer promoted to HTTPS (`0845231`).
+    - Process values bind to protocol slots by name (`dab7e4f`).
+    - The transportation site identity now follows the template (`fa41054`).
+  - **Demo runbooks (`docs/demos/`): not written.** Left to the operator.
+- **Known leftover:** the OT engineering workstation fingerprint lists client-only protocols with no identity blocks. That causes one readiness warning on every template that uses it.
+
 ## 5. Decisions
 
 1. Flagship order. Default: F1, F2, F3, F4.
