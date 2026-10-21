@@ -2,7 +2,7 @@
   "$schema": "https://packetarch.io/schemas/fingerprint-registry.v1.json",
   "format_version": "1.0",
   "description": "Static snapshot of the PacketArch device template catalog for offline / airgapped portable scenario authoring. Use entries here to populate `fingerprint_model` in a .pascenario.json file. The live equivalent is GET /api/v1/fingerprints/registry.",
-  "entry_count": 357,
+  "entry_count": 358,
   "vendors": [
     "abb",
     "advantech",
@@ -701,7 +701,8 @@
         "ethernet_ip",
         "ssh",
         "telnet",
-        "https"
+        "https",
+        "syslog"
       ],
       "description": "8x GE copper + 3x GE SFP compact industrial switch (non-PoE)"
     },
@@ -782,7 +783,8 @@
         "ethernet_ip",
         "ssh",
         "telnet",
-        "https"
+        "https",
+        "syslog"
       ],
       "description": "24x GE PoE+ RJ45 + 4x 10G SFP+ industrial switch with Network Essentials"
     },
@@ -799,7 +801,8 @@
         "ethernet_ip",
         "ssh",
         "telnet",
-        "https"
+        "https",
+        "syslog"
       ],
       "description": "24x GE copper RJ45 + 4x 10G SFP+ industrial switch"
     },
@@ -873,7 +876,8 @@
       "protocols": [
         "snmp",
         "https",
-        "ssh"
+        "ssh",
+        "syslog"
       ],
       "description": "Cellular backhaul for cabinets beyond the fiber plant (NetCloud OS)"
     },
@@ -1975,6 +1979,18 @@
     },
     {
       "vendor": "microsoft",
+      "model": "Domain Controller 2022",
+      "model_name": "Windows Server 2022 Domain Controller (AD DS + DNS)",
+      "device_type": "server",
+      "protocols": [
+        "snmp",
+        "dns",
+        "rdp"
+      ],
+      "description": "Active Directory domain controller and DNS server for the OT/ops domain"
+    },
+    {
+      "vendor": "microsoft",
       "model": "Jump Server 2008 R2 (Vulnerable)",
       "model_name": "Jump Server 2008 R2 (Vulnerable)",
       "device_type": "server",
@@ -2183,7 +2199,8 @@
         "https",
         "http",
         "icmp",
-        "wmi"
+        "wmi",
+        "syslog"
       ],
       "description": "Paessler PRTG Network Monitor \u2014 NMS appliance"
     },
@@ -2667,7 +2684,8 @@
       "protocols": [
         "snmp",
         "ssh",
-        "https"
+        "https",
+        "syslog"
       ],
       "description": "Hardened 9-port cabinet switch running ROS"
     },
@@ -3549,7 +3567,8 @@
       "model_name": "XM-400",
       "device_type": "network_switch",
       "protocols": [
-        "snmp"
+        "snmp",
+        "syslog"
       ],
       "description": "Siemens XM-400"
     },
@@ -3927,7 +3946,8 @@
       "protocols": [
         "snmp",
         "https",
-        "ssh"
+        "ssh",
+        "syslog"
       ],
       "description": "Industrial cellular router (ALEOS) for remote cabinets"
     },

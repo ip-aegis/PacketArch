@@ -76,6 +76,7 @@ FP = {
     "thermal_detector": "flir/trafione/sensor",
     "bore_camera": "axis/camera/p1448-le",
     "jump_patched": "microsoft/windows-server/jump-server-2019",
+    "domain_controller": "microsoft/windows-server/domain-controller-2022",
     # Freeway (F3)
     "mainline_radar": "wavetronix/smartsensor/hd",
     "ramp_meter": "mccain/2070/atc",
@@ -241,6 +242,7 @@ def _metro_arterial() -> dict[str, Any]:
         device("TMC_NMS", "nms", "tmc", "nms", ["snmp", "https", "syslog"]),
         device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https"]),
         device("TMC_Core_SW", "network_switch", "tmc", "core_switch", ["snmp", "syslog"]),
+        device("TMC_Domain_Controller", "domain_controller", "tmc", "domain_controller", ["snmp", "dns", "rdp"]),
         device("EOC_ATMS_Standby", "atms_server", "backup_tmc", "atms_centracs", ["snmp", "https"]),
         device("EOC_Core_SW", "network_switch", "backup_tmc", "core_switch", ["snmp", "syslog"]),
         device("DMZ_Jump_Host", "jump_server", "idmz", "jump_vulnerable", ["snmp", "rdp", "https"]),
@@ -284,7 +286,7 @@ def _metro_arterial() -> dict[str, Any]:
         flow("https", ["reverse_proxy"], ["atms_server"], 30000, target_zones=["tmc"]),
         flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
         flow("https", ["jump_server"], ["atms_server"], 300000, target_zones=["tmc"]),
-        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server"], 60000),
+        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server", "domain_controller"], 60000),
     ]
 
     conduits = [
@@ -375,6 +377,8 @@ def _road_tunnel() -> dict[str, Any]:
         device("TCR_NMS", "nms", "control_room", "nms", ["snmp", "https", "syslog"]),
         device("TCR_Video_Mgmt", "vms_server", "control_room", "vms", ["snmp", "https"]),
         device("TCR_Core_SW", "network_switch", "control_room", "core_switch", ["snmp", "syslog"]),
+        device("TCR_Domain_Controller", "domain_controller", "control_room", "domain_controller",
+               ["snmp", "dns", "rdp"]),
         device("Vent_Plant_SW", "network_switch", "ventilation", "plant_switch", ["snmp", "syslog"]),
         device("Vent_Fire_Mode_SPLC", "safety_plc", "ventilation", "vent_safety_plc",
                ["s7comm", "profinet"]),
@@ -458,7 +462,7 @@ def _road_tunnel() -> dict[str, Any]:
         flow("ethernet_ip", ["engineering_workstation"], ["plc"], 600000, target_zones=["drainage"]),
         flow("snmp", ["nms"], plant_switches + ["camera", "ups", "building_controller", "thermal_sensor"],
              60000),
-        flow("snmp", ["nms"], ["remote_gateway", "jump_server"], 60000),
+        flow("snmp", ["nms"], ["remote_gateway", "jump_server", "domain_controller"], 60000),
         flow("syslog", ["network_switch"], ["nms"], 120000),
         flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
     ]
@@ -577,6 +581,7 @@ def _freeway_corridor() -> dict[str, Any]:
         # The core still runs IOS XE 17.9.3: web UI exposed (CVE-2023-20198).
         device("TMC_Core_SW", "network_switch", "tmc", "freeway_core_switch", ["snmp", "syslog"],
                firmware="17.9.3"),
+        device("TMC_Domain_Controller", "domain_controller", "tmc", "domain_controller", ["snmp", "dns", "rdp"]),
         device("DMZ_Jump_Host", "jump_server", "idmz", "jump_patched", ["snmp", "rdp", "https"]),
         device("DMZ_Traveler_Info_Proxy", "reverse_proxy", "idmz", "reverse_proxy", ["snmp", "https"]),
         device("DMZ_Vendor_Remote", "remote_gateway", "idmz", "remote_gateway", ["snmp"]),
@@ -608,7 +613,7 @@ def _freeway_corridor() -> dict[str, Any]:
         # Center plumbing.
         flow("https", ["reverse_proxy"], ["atms_server"], 30000, target_zones=["tmc"]),
         flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
-        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server"], 60000),
+        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server", "domain_controller"], 60000),
     ]
     conduits = [
         conduit("tmc", hub, ["snmp", "https", "syslog"], "ATMS NTCIP collection, video, NMS and syslog, "
@@ -698,6 +703,8 @@ def _toll_express_lanes() -> dict[str, Any]:
         device("TOC_NMS", "nms", "toll_ops", "nms", ["snmp", "https", "syslog"]),
         device("TOC_Eng_WS", "engineering_workstation", "toll_ops", "ews", ["snmp", "rdp", "https"]),
         device("TOC_Core_SW", "network_switch", "toll_ops", "core_switch", ["snmp", "syslog"]),
+        device("TOC_Domain_Controller", "domain_controller", "toll_ops", "domain_controller",
+               ["snmp", "dns", "rdp"]),
         device("DMZ_Jump_Host", "jump_server", "idmz", "jump_patched", ["snmp", "rdp", "https"]),
         device("DMZ_Back_Office_Proxy", "reverse_proxy", "idmz", "reverse_proxy", ["snmp", "https"]),
         device("DMZ_Vendor_Remote", "remote_gateway", "idmz", "remote_gateway", ["snmp"]),
@@ -720,7 +727,7 @@ def _toll_express_lanes() -> dict[str, Any]:
         # Network operations and engineering.
         flow("snmp", ["nms"], ["network_switch", "toll_controller", "toll_rsu"], 60000),
         flow("syslog", ["network_switch"], ["nms"], 120000),
-        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server"], 60000),
+        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server", "domain_controller"], 60000),
         flow("https", ["engineering_workstation"], ["classification_sensor"], 600000, target_zones=gantry_ids),
         # Back-office link and admin access.
         flow("https", ["reverse_proxy"], ["toll_host"], 15000, target_zones=["toll_ops"]),

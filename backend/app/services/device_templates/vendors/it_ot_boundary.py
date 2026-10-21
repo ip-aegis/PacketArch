@@ -307,6 +307,48 @@ TEMPLATES: list[DeviceTemplate] = [
             },
     ),
     DeviceTemplate(
+        # Active Directory domain controller and the site's DNS server. The
+        # Windows SNMP agent reports Windows Server 2016+ as "Version 6.3"
+        # with the real build number; windowsNTDomainController is
+        # 1.3.6.1.4.1.311.1.1.3.1.3 in Microsoft's SNMP MIB.
+        id="microsoft/windows-server/domain-controller-2022",
+        vendor="Microsoft",
+        vendor_family="Windows Server",
+        model="Domain Controller 2022",
+        model_name="Windows Server 2022 Domain Controller (AD DS + DNS)",
+        device_type="server",
+        description="Active Directory domain controller and DNS server for the OT/ops domain",
+        oui_prefixes=["00:03:FF", "00:12:5A", "00:15:5D", "00:17:FA"],
+        tcp_stack={
+                "ttl": 128,
+                "window_size": 65535,
+                "mss": 1460,
+                "sack_permitted": True,
+                "timestamps_enabled": True,
+                "df_flag": True,
+            },
+        response_timing={
+                "min_ms": 0.5,
+                "max_ms": 10.0,
+                "mean_ms": 2.0,
+                "std_dev_ms": 1.0,
+                "distribution": "gaussian",
+            },
+        supported_protocols=['snmp', 'dns', 'rdp'],
+        firmware_variants=[FirmwareVariant(
+            # Windows Server 2022 (build 20348) general availability.
+            version="10.0.20348",
+            release_date=date(2021, 8, 18),
+            is_default=True,
+            is_latest=True,
+        )],
+        snmp_identity={
+                "sys_descr": "Hardware: Intel64 Family 6 Model 106 Stepping 6 AT/AT COMPATIBLE - Software: Windows Version 6.3 (Build 20348 Multiprocessor Free)",
+                "sys_object_id": "1.3.6.1.4.1.311.1.1.3.1.3",
+                "sys_name": "{device_name}",
+            },
+    ),
+    DeviceTemplate(
         id="microsoft/windows-server/wsus-server-2022",
         vendor="Microsoft",
         vendor_family="Windows Server",

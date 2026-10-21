@@ -98,6 +98,8 @@ class AmbientConfig:
     snmp_trap_enabled: bool = True     # coldStart one-shot at boot
     snmp_discovery_enabled: bool = True  # periodic SNMP GET/Response for CV fingerprinting
     snmp_discovery_interval_s: float = 300.0  # 5 minutes
+    dns_enabled: bool = True             # only when the scenario has a DNS server
+    dns_interval_s: float = 90.0
     igmp_enabled: bool = True
     igmp_interval_s: float = 125.0
     cdp_enabled: bool = True
@@ -132,8 +134,12 @@ class BackgroundNoiseGenerator:
         cell_isolation_mode: str = "off",
         cell_levels: frozenset[int] = frozenset({0, 1, 2}),
         clean_demo_mode: bool = False,
+        dns_domain: str | None = None,
     ) -> None:
         self.devices = devices
+        # Site DNS domain (SiteIdentity.domain_suffix); names are queried as
+        # <canonical-hostname>.<domain>.
+        self._dns_domain = (dns_domain or "").strip(".") or None
         self.config = config or AmbientConfig()
         self._device_map: dict[str, AmbientDevice] = {
             d.device_id: d for d in devices
@@ -221,6 +227,17 @@ class BackgroundNoiseGenerator:
                     "type": "ambient_ntp_query",
                     "device_id": device.device_id,
                 })
+
+        # Phase 3b: DNS. Only against a real scenario DNS server (a device
+        # whose fingerprint serves dns); hosts that resolve names are the
+        # central / Windows-class systems, not field devices on static IPs.
+        if self.config.dns_enabled and self._dns_server() is not None:
+            for device in self.devices:
+                if self._is_dns_client(device):
+                    scheduler.schedule(warmup_ms + random.uniform(500.0, 8000.0), {
+                        "type": "ambient_dns_query",
+                        "device_id": device.device_id,
+                    })
 
         # Phase 4: Periodic broadcast types (staggered per device)
         #
@@ -364,6 +381,7 @@ class BackgroundNoiseGenerator:
     _HANDLER_MAP: dict[str, str] = {
         "ambient_gratuitous_arp": "_handle_gratuitous_arp",
         "ambient_ntp_query": "_handle_ntp_query",
+        "ambient_dns_query": "_handle_dns_query",
         "ambient_lldp": "_handle_lldp",
         "ambient_stp_bpdu": "_handle_stp_bpdu",
         "ambient_cdp": "_handle_cdp",
@@ -566,6 +584,76 @@ class BackgroundNoiseGenerator:
         ]
         self._reschedule(scheduler, current_time_ms, self.config.ntp_interval_s, event)
         return packets
+
+    # ------------------------------------------------------------------
+    # Handlers: DNS
+    # ------------------------------------------------------------------
+
+    def _dns_server(self) -> AmbientDevice | None:
+        for d in self.devices:
+            supported = (d.vendor_fingerprint or {}).get("supported_protocols") or []
+            if "dns" in supported:
+                return d
+        return None
+
+    def _is_dns_client(self, device: AmbientDevice) -> bool:
+        server = self._dns_server()
+        return (server is not None and device.device_id != server.device_id
+                and device.device_type in self._MANAGER_TYPES | {"jump_server", "vms_server", "reverse_proxy"})
+
+    def _handle_dns_query(
+        self,
+        device: AmbientDevice,
+        current_time_ms: float,
+        scheduler: Any,
+        event: dict[str, Any],
+    ) -> list[PacketEvent]:
+        """A host resolves a peer it talks to (or, on a Windows domain, the
+        DC locator SRV record) at the site DNS server."""
+        from app.protocol_engines import canonical_identity
+        from app.protocol_engines.ambient.dns import (
+            build_dns_a_response,
+            build_dns_query,
+            build_dns_srv_response,
+        )
+
+        self._reschedule(scheduler, current_time_ms, self.config.dns_interval_s, event)
+        server = self._dns_server()
+        if server is None:
+            return []
+        peers = [d for d in self.devices if d.device_id not in (device.device_id, server.device_id)]
+        if not peers:
+            return []
+
+        def fqdn(d: AmbientDevice) -> str:
+            host = canonical_identity.canonical_hostname(d.device_name or d.device_id)
+            return f"{host}.{self._dns_domain}" if self._dns_domain else host
+
+        ttl = int(((device.vendor_fingerprint or {}).get("tcp_stack") or {}).get("ttl", 64))
+        windows = ttl == 128
+        txid, port = random.randint(0, 0xFFFF), random.randint(49152, 65535)
+        delay = random.uniform(0.3, 4.0)
+        q = dict(src_mac=device.mac_address, src_ip=device.ip_address,
+                 dst_mac=server.mac_address, dst_ip=server.ip_address, src_port=port, txid=txid, ttl=ttl)
+        r = dict(src_mac=server.mac_address, src_ip=server.ip_address,
+                 dst_mac=device.mac_address, dst_ip=device.ip_address, dst_port=port, txid=txid)
+        if windows and self._dns_domain and random.random() < 0.25:
+            qname = f"_ldap._tcp.dc._msdcs.{self._dns_domain}"
+            query = build_dns_query(qname=qname, qtype="SRV", **q)
+            reply = build_dns_srv_response(qname=qname, target=fqdn(server), address=server.ip_address,
+                                           port=389, **r)
+        else:
+            peer = random.choice(peers)
+            qname = fqdn(peer)
+            query = build_dns_query(qname=qname, **q)
+            reply = build_dns_a_response(qname=qname, address=peer.ip_address, **r)
+        flow_id = f"ambient_dns_{device.device_id}"
+        return [
+            PacketEvent(timestamp_ms=current_time_ms, flow_id=flow_id, packet_bytes=query,
+                        direction="request", metadata={"type": "dns_query", "device_id": device.device_id}),
+            PacketEvent(timestamp_ms=current_time_ms + delay, flow_id=flow_id, packet_bytes=reply,
+                        direction="response", metadata={"type": "dns_response", "device_id": device.device_id}),
+        ]
 
     # ------------------------------------------------------------------
     # Handlers: LLDP

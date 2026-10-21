@@ -193,6 +193,8 @@ class TrafficOrchestrator:
                     clean_demo_mode=self.config.clean_demo_mode,
                     cell_isolation_mode=iso.get("mode", "off"),
                     cell_levels=frozenset(iso.get("cell_levels", (0, 1, 2))),
+                    dns_domain=next((fc.config.get("_site_domain") for fc in self._flow_contexts
+                                     if isinstance(fc.config, dict) and fc.config.get("_site_domain")), None),
                 )
                 unified.register_ambient_generator(ambient)
             elif seen_devices:

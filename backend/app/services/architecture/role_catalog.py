@@ -2131,6 +2131,7 @@ _DEFAULT_ROLE_BY_TYPE: dict[str, str] = {
     "ramp_meter": "traffic_controller",
     "atms_server": "scada_primary",
     "cellular_router": "wan_edge_router",
+    "domain_controller": "ot_domain_controller",
     # Network infra
     "switch": "cell_switch",
     "core_switch": "core_switch",

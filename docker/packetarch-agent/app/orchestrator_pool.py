@@ -633,6 +633,9 @@ class OrchestratorPool:
                             clean_demo_mode=bool(
                                 ctx.definition.get("clean_demo_mode", False)
                             ),
+                            dns_domain=(ctx.definition.get("site_identity") or {}).get(
+                                "domain_suffix"
+                            ),
                         )
                         orchestrator.register_ambient_generator(ambient)
                         logger.info(

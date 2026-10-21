@@ -593,6 +593,7 @@ def _build_flow_contexts(
     conduits_raw = scenario_definition.get("conduits", {})
     clean_demo_mode = bool(scenario_definition.get("clean_demo_mode", False))
     site_timezone = scenario_definition.get("site_timezone")
+    site_domain = (scenario_definition.get("site_identity") or {}).get("domain_suffix")
     process_sim = scenario_definition.get("process_sim") or {}
     process_model = process_sim.get("vertical") if process_sim.get("enabled") else None
     isolation = parse_isolation_config(scenario_definition)
@@ -774,6 +775,8 @@ def _build_flow_contexts(
             flow_config = {**flow_config, "_site_timezone": site_timezone}
         if process_model:
             flow_config = {**flow_config, "_process_model": process_model}
+        if site_domain:
+            flow_config = {**flow_config, "_site_domain": site_domain}
         flow_config = {**flow_config, "_cell_isolation": {
             "mode": isolation.get("mode", "off"), "cell_levels": sorted(isolation.get("cell_levels", {0, 1, 2}))}}
 
