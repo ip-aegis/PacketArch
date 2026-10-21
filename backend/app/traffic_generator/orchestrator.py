@@ -167,9 +167,13 @@ class TrafficOrchestrator:
                             ip_address=ctx.ip_address,
                             gateway_ip=ctx.ip_address.rsplit(".", 1)[0] + ".1",
                             protocols=[fc.protocol.value],
-                            device_type=fp.get("device_type", ""),
+                            # Scenario type, zone and level, as the agent passes
+                            # them: the ambient generator picks pollers by these.
+                            device_type=ctx.device_type or fp.get("device_type", ""),
                             vendor=fp.get("vendor", ""),
                             device_name=getattr(ctx, "device_name", "") or ctx.device_id,
+                            zone_id=ctx.zone_id,
+                            purdue_level=ctx.purdue_level,
                             vendor_fingerprint=fp,
                             # Carry scenario_id so the ambient FingerprintApplicator
                             # resolves the SAME canonical identity the protocol
@@ -182,9 +186,13 @@ class TrafficOrchestrator:
                         if fc.protocol.value not in dev.protocols:
                             dev.protocols.append(fc.protocol.value)
             if seen_devices and self.config.broadcast_traffic_enabled:
+                iso = next((fc.config.get("_cell_isolation") for fc in self._flow_contexts
+                            if isinstance(fc.config, dict) and fc.config.get("_cell_isolation")), None) or {}
                 ambient = BackgroundNoiseGenerator(
                     list(seen_devices.values()),
                     clean_demo_mode=self.config.clean_demo_mode,
+                    cell_isolation_mode=iso.get("mode", "off"),
+                    cell_levels=frozenset(iso.get("cell_levels", (0, 1, 2))),
                 )
                 unified.register_ambient_generator(ambient)
             elif seen_devices:

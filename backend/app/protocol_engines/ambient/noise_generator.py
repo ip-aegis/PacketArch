@@ -1684,6 +1684,9 @@ class BackgroundNoiseGenerator:
     _MANAGER_TYPES = frozenset({
         "hmi", "workstation", "server", "scada_server", "engineering_workstation",
         "engineering_station", "historian", "gateway", "fleet_manager",
+        # Central systems that really poll field devices.
+        "scada", "master_station", "atms_server", "nms", "nms_server", "bms_server",
+        "toll_host", "dcim_server",
     })
 
     def _pick_query_source(self, target: AmbientDevice) -> AmbientDevice | None:
@@ -1700,10 +1703,6 @@ class BackgroundNoiseGenerator:
         # Pass 1: preferred type in same zone
         for d in zone_peers:
             if d.device_id != target.device_id and d.device_type in self._MANAGER_TYPES:
-                return d
-        # Pass 2: any peer in same zone
-        for d in zone_peers:
-            if d.device_id != target.device_id:
                 return d
 
         # Pass 3 onwards crosses zones. If the target is in a cell zone and
@@ -1735,6 +1734,12 @@ class BackgroundNoiseGenerator:
         # Pass 3: preferred type, anywhere northbound-allowed
         for d in self.devices:
             if _allowed(d) and d.device_type in self._MANAGER_TYPES:
+                return d
+        # Pass 3b: any peer in the same zone, only after a real manager was
+        # looked for northbound. Otherwise a cabinet's radar or switch "polls"
+        # its controller and Cyber Vision tags it a management server.
+        for d in zone_peers:
+            if d.device_id != target.device_id:
                 return d
         # Pass 4: any device that satisfies the cell guard
         for d in self.devices:

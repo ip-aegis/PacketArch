@@ -90,6 +90,11 @@ class DeviceContext:
     # source's.
     device_type: str | None = None
 
+    # Scenario zone and its Purdue level (floored, 3.5 IDMZ -> 3). Used by
+    # the ambient generator to pick realistic pollers, as the agent does.
+    zone_id: str | None = None
+    purdue_level: int | None = None
+
     # Fingerprint applicator (lazy-loaded)
     _fingerprint_applicator: "FingerprintApplicator | None" = field(
         default=None, repr=False, compare=False

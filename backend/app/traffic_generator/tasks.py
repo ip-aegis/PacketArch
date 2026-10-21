@@ -612,6 +612,17 @@ def _build_flow_contexts(
         # Array format: [{flow data}, ...]
         flows = flows_raw
 
+    # Zone -> floored Purdue level (same rule as the agent's ambient set-up).
+    zone_levels: dict[str, int | None] = {}
+    for z in (zones_raw.values() if isinstance(zones_raw, dict) else zones_raw or []):
+        try:
+            zone_levels[z.get("id", "")] = int(float(z["level"])) if z.get("level") is not None else None
+        except (TypeError, ValueError):
+            zone_levels[z.get("id", "")] = None
+
+    def _zone_of(device: dict) -> str | None:
+        return device.get("zoneId") or device.get("zone_id") or device.get("zone")
+
     # Create device lookup
     device_map = {}
     for device in devices:
@@ -731,6 +742,8 @@ def _build_flow_contexts(
             # Pass device_name for unique identifier generation
             device_name=get_device_name(source_device),
             device_type=source_device.get("type"),
+            zone_id=_zone_of(source_device),
+            purdue_level=zone_levels.get(_zone_of(source_device) or ""),
         )
 
         destination_context = DeviceContext(
@@ -747,6 +760,8 @@ def _build_flow_contexts(
             # Pass device_name for unique identifier generation
             device_name=get_device_name(destination_device),
             device_type=destination_device.get("type"),
+            zone_id=_zone_of(destination_device),
+            purdue_level=zone_levels.get(_zone_of(destination_device) or ""),
         )
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)
@@ -759,6 +774,8 @@ def _build_flow_contexts(
             flow_config = {**flow_config, "_site_timezone": site_timezone}
         if process_model:
             flow_config = {**flow_config, "_process_model": process_model}
+        flow_config = {**flow_config, "_cell_isolation": {
+            "mode": isolation.get("mode", "off"), "cell_levels": sorted(isolation.get("cell_levels", {0, 1, 2}))}}
 
         flow_context = FlowContext(
             flow_id=flow.get("id", str(uuid.uuid4())),
