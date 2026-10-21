@@ -7,9 +7,28 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.1.3"
+VERSION = "4.2.0"
 
 # Version history:
+# 4.2.0 - Roadway ITS: real NTCIP on the wire. Signal controllers, DMS and
+#   RWIS previously answered only MIB-II (no flow ever selected the NTCIP
+#   code, and that code matched OIDs with a broken substring test, so every
+#   value was INTEGER 0 under the wrong arc). The SNMP engine now resolves
+#   the destination's NTCIP kind (DeviceContext.device_type, else the
+#   sysObjectID arc) and polls MIB-verified 1201/1202/1203/1204 objects as
+#   multi-varbind status blocks, with a per-poller profile (ATMS status /
+#   historian data collection / workstation config / jump server MIB-II).
+#   Values come from deterministic device models: NEMA dual-ring phase
+#   sequencing with TOD patterns, detector volume/occupancy, DMS travel-time
+#   and incident messages with spec CRCs, and regional weather. SNMP wire
+#   fixes across all verticals: Counter32/Gauge32/TimeTicks BER tags (v1
+#   traps build again), startup responses paired with the request port,
+#   sysUpTime on the run clock. Agent: protocol aliases/ports/timing now come
+#   from the shared app.protocol_engines.protocols helpers ("ntcip" resolves
+#   to snmp/161 instead of being dropped or framed on 44818).
+#   NOTE: master carries an uncommitted 4.1.4 (LiveOutput persistent
+#   socket); reconcile on merge — whichever lands second takes the next
+#   version. Live NTCIP timing needs that fix to run at wall-clock rate.
 # 4.1.3 - Lint-only: dropped an unused `from binascii import crc32` in
 #   protocol_engines/atcs/codeline.py (the vital CRC is computed by the
 #   module's own 31-bit routine, never by binascii). protocol_engines/ is

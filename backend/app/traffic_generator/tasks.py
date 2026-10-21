@@ -721,6 +721,7 @@ def _build_flow_contexts(
             scenario_id=scenario_id,
             # Pass device_name for unique identifier generation
             device_name=get_device_name(source_device),
+            device_type=source_device.get("type"),
         )
 
         destination_context = DeviceContext(
@@ -736,6 +737,7 @@ def _build_flow_contexts(
             scenario_id=scenario_id,
             # Pass device_name for unique identifier generation
             device_name=get_device_name(destination_device),
+            device_type=destination_device.get("type"),
         )
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)

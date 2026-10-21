@@ -410,7 +410,7 @@ class TestOIDs:
         """Test NTCIP 1202 traffic controller OIDs are defined."""
         assert len(TRAFFIC_CONTROLLER_POLL_OIDS) > 0
         for oid in TRAFFIC_CONTROLLER_POLL_OIDS:
-            assert oid.startswith("1.3.6.1.4.1.1206.4.2.2")
+            assert oid.startswith("1.3.6.1.4.1.1206.4.2.1.")  # NTCIP 1202 asc node
 
     def test_dms_poll_oids(self):
         """Test NTCIP 1203 DMS OIDs are defined."""
@@ -987,15 +987,15 @@ class TestSnmpEngine:
 
         events = list(engine.generate_poll_cycle(flow_context, state, 5000.0))
 
-        # Normal poll: GetRequest + GetResponse = 2 events
-        assert len(events) == 2
-        assert events[0].direction == "request"
-        assert events[0].metadata["type"] == "snmp_get_request"
-        assert events[1].direction == "response"
-        assert events[1].metadata["type"] == "snmp_get_response"
-
-        # Response should be after request
-        assert events[1].timestamp_ms > events[0].timestamp_ms
+        # Each GetRequest is answered by a GetResponse (an NTCIP poll may
+        # send several status blocks in one cycle).
+        assert events and len(events) % 2 == 0
+        for req, resp in zip(events[::2], events[1::2]):
+            assert req.direction == "request"
+            assert req.metadata["type"] == "snmp_get_request"
+            assert resp.direction == "response"
+            assert resp.metadata["type"] == "snmp_get_response"
+            assert resp.timestamp_ms > req.timestamp_ms
 
         # State should return to POLLING
         assert state.state_name == SNMPState.POLLING.value
@@ -1017,8 +1017,9 @@ class TestSnmpEngine:
         state.state_name = SNMPState.POLLING.value
 
         initial_txn_id = state.transaction_id
-        list(engine.generate_poll_cycle(flow_context, state, 5000.0))
-        assert state.transaction_id == (initial_txn_id + 1) % 2147483647
+        events = list(engine.generate_poll_cycle(flow_context, state, 5000.0))
+        requests = sum(1 for e in events if e.direction == "request")
+        assert state.transaction_id == (initial_txn_id + requests) % 2147483647
 
     def test_poll_cycle_rotates_oids(self, engine, flow_context):
         """Test that poll cycles rotate through configured OIDs."""
@@ -1095,9 +1096,9 @@ class TestSnmpEngine:
         state.state_name = SNMPState.POLLING.value
 
         events = list(engine.generate_poll_cycle(v3_flow_context, state, 5000.0))
-        assert len(events) == 2
-        # Check metadata mentions SNMPv3
-        assert events[1].metadata.get("snmp_version") == "V3"
+        responses = [e for e in events if e.direction == "response"]
+        assert responses and len(responses) * 2 == len(events)
+        assert all(e.metadata.get("snmp_version") == "V3" for e in responses)
 
 
 class TestSnmpEngineDeviceTypes:
@@ -1178,24 +1179,18 @@ class TestSnmpEngineNtcipValues:
     """Test NTCIP-specific value generation."""
 
     def test_ntcip_asc_phase_status(self, engine, flow_context):
-        """Test NTCIP 1202 phase status value generation."""
+        """phaseStatusGroupReds.1 comes from the controller model, not a constant."""
         state = engine.create_initial_state(flow_context)
-        oid = f"{NTCIP_ASC}.1.4.1.0"
-        varbind = engine._generate_ntcip_value(flow_context, state, oid)
-        assert isinstance(varbind, VarBind)
-        assert varbind.oid == oid
-        assert varbind.value_type == "integer"
-        assert 0 <= varbind.value <= 255
+        oid = f"{NTCIP_ASC}.1.4.1.2.1"  # phaseStatusGroupReds, group 1
+        reds = {engine._generate_ntcip_value(flow_context, state, oid, t * 1000.0).value for t in range(0, 240, 3)}
+        assert all(isinstance(v, int) and 0 <= v <= 255 for v in reds)
+        assert len(reds) > 1  # phases change over two cycles
 
-    def test_ntcip_asc_value_is_integer(self, engine, flow_context):
-        """Test NTCIP 1202 ASC OIDs return integer values."""
+    def test_ntcip_unmodelled_ntcip_oid_is_null(self, engine, flow_context):
+        """An NTCIP OID the model does not implement answers NULL, not a fake 0."""
         state = engine.create_initial_state(flow_context)
-        # Use a clear NTCIP ASC OID that won't be ambiguous with substring matching
-        oid = f"{NTCIP_ASC}.1.4.1.0"  # phaseStatusGroupReds
-        varbind = engine._generate_ntcip_value(flow_context, state, oid)
-        assert isinstance(varbind, VarBind)
-        assert varbind.value_type == "integer"
-        assert 0 <= varbind.value <= 255
+        varbind = engine._generate_ntcip_value(flow_context, state, f"{NTCIP_ASC}.99.1.0")
+        assert varbind.value_type == "null"
 
     def test_ntcip_asc_returns_integer_values(self, engine, flow_context):
         """Test NTCIP 1202 ASC OIDs consistently return integer values."""

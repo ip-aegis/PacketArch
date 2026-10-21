@@ -20,9 +20,11 @@ from collections.abc import Iterator
 
 from app.protocol_engines import register_engine
 from app.protocol_engines.base import ProtocolEngine
+from app.protocol_engines.snmp import ntcip
 from app.protocol_engines.snmp.oids import (
     DISCOVERY_OIDS,
     DMS_POLL_OIDS,
+    ESS_POLL_OIDS,
     TRAFFIC_CONTROLLER_POLL_OIDS,
     SystemOIDs,
 )
@@ -169,22 +171,62 @@ class SnmpEngine(ProtocolEngine):
         return flow_config
 
     def _get_poll_oids(self, flow: FlowContext) -> list[str]:
-        """Get appropriate poll OIDs based on device type."""
+        """Static OID list for a flow: configured poll_oids, else the NTCIP
+        status block for the destination's kind, else MIB-II discovery."""
         config = flow.config
-        device_type = config.get("device_type", "generic")
-
-        # Use configured poll OIDs if provided
         if config.get("poll_oids"):
             return config["poll_oids"]
-
-        # Select OIDs based on device type
-        if device_type in ("traffic_controller", "asc"):
+        kind = self._ntcip_kind(flow)
+        if kind == "asc":
             return TRAFFIC_CONTROLLER_POLL_OIDS
-        elif device_type == "dms":
+        if kind == "dms":
             return DMS_POLL_OIDS
-        else:
-            # Default to system OIDs for discovery
-            return DISCOVERY_OIDS
+        if kind == "ess":
+            return ESS_POLL_OIDS
+        return DISCOVERY_OIDS
+
+    # ------------------------------------------------------------------
+    # NTCIP
+    # ------------------------------------------------------------------
+
+    def _ntcip_kind(self, flow: FlowContext) -> str | None:
+        """NTCIP kind (asc/dms/ess) of the destination, or None."""
+        applicator = flow.destination.fingerprint_applicator
+        sys_oid = None
+        if hasattr(applicator, "get_sys_object_id"):
+            sys_oid = applicator.get_sys_object_id()
+        if not isinstance(sys_oid, str):
+            fp = flow.destination.vendor_fingerprint or {}
+            sys_oid = (fp.get("snmp_identity") or {}).get("sys_object_id")
+        return ntcip.resolve_kind(flow.config, flow.destination, sys_oid)
+
+    def _ntcip_context(
+        self, flow: FlowContext, state: ConversationState
+    ) -> tuple[str, str, ntcip.NtcipDevice] | None:
+        """(kind, poller profile, device) when this flow polls NTCIP objects.
+
+        None when poll_oids are configured explicitly, the destination is not
+        an NTCIP device, or the poller only reads MIB-II (jump server, NMS).
+        Cached on the conversation state: it cannot change during a run.
+        """
+        if "ntcip_ctx" not in state.custom_data:
+            ctx = None
+            if not flow.config.get("poll_oids"):
+                kind = self._ntcip_kind(flow)
+                profile = ntcip.resolve_profile(flow.config, flow.source) if kind else None
+                if kind and profile:
+                    ctx = (kind, profile, ntcip.make_device(flow.destination))
+            state.custom_data["ntcip_ctx"] = ctx
+        return state.custom_data["ntcip_ctx"]
+
+    def _ntcip_clock(
+        self, flow: FlowContext, state: ConversationState, t_ms: float
+    ) -> ntcip.NtcipClock:
+        epoch = self._epoch_s(flow, state, t_ms)
+        offset = flow.config.get("_ntcip_utc_offset_s")
+        if offset is None:
+            offset = time.localtime(epoch).tm_gmtoff
+        return ntcip.NtcipClock(epoch_s=epoch, utc_offset_s=int(offset))
 
     @staticmethod
     def _device_seed(flow: FlowContext) -> int:
@@ -301,55 +343,192 @@ class SnmpEngine(ProtocolEngine):
             return self._generate_ntcip_value(flow, state, oid)
 
     def _generate_ntcip_value(
-        self, flow: FlowContext, state: ConversationState, oid: str
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        oid: str,
+        t_ms: float | None = None,
     ) -> VarBind:
-        """Generate NTCIP-specific values for traffic controller OIDs."""
-        # NTCIP 1202 - Traffic Signal Controller OIDs
-        if ".1.3.6.1.4.1.1206.4.2.2" in oid:
-            # Phase status OIDs
-            if "1.4.1" in oid:  # phaseStatusGroupReds
-                # Random phase status bitmask (8 phases)
-                return VarBind(oid=oid, value=random.randint(0, 255), value_type="integer")
-            elif "1.4.2" in oid:  # phaseStatusGroupYellows
-                return VarBind(oid=oid, value=random.randint(0, 255), value_type="integer")
-            elif "1.4.3" in oid:  # phaseStatusGroupGreens
-                return VarBind(oid=oid, value=random.randint(0, 255), value_type="integer")
-            elif "1.4.7" in oid:  # phaseStatusGroupVehCalls
-                return VarBind(oid=oid, value=random.randint(0, 255), value_type="integer")
-            elif "3.1" in oid:  # currentTimingPlan
-                return VarBind(oid=oid, value=random.randint(1, 16), value_type="integer")
-            elif "3.3" in oid:  # localCycleCounter
-                # Increment cycle counter
-                cycle = state.custom_data.get("cycle_counter", 0) + 1
-                state.custom_data["cycle_counter"] = cycle
-                return VarBind(oid=oid, value=cycle % 256, value_type="integer")
+        """Value for a non-MIB-II OID: exact lookup in the device's NTCIP model.
 
-        # NTCIP 1203 - DMS OIDs
-        elif ".1.3.6.1.4.1.1206.4.2.3" in oid:
-            if "5.1" in oid:  # dmsMessageStatus
-                return VarBind(oid=oid, value=2, value_type="integer")  # displayed
-            elif "5.3" in oid:  # dmsMessageMultiString
-                return VarBind(
-                    oid=oid, value="[np]LANE CLOSED[nl]MERGE LEFT", value_type="string"
-                )
-            elif "9.3" in oid:  # dmsLampStatus
-                return VarBind(oid=oid, value=1, value_type="integer")  # all good
-            elif "9.6" in oid:  # dmsAmbientTemperature
-                return VarBind(
-                    oid=oid, value=random.randint(20, 35), value_type="integer"
-                )
-            elif "7.2" in oid:  # dmsIllumBrightLevelStatus
-                return VarBind(
-                    oid=oid, value=random.randint(1, 255), value_type="integer"
-                )
-
-        # NTCIP 1204 - Environmental Sensor OIDs
-        elif ".1.3.6.1.4.1.1206.4.2.4" in oid:
-            # Weather data
-            return VarBind(oid=oid, value=random.randint(0, 100), value_type="integer")
-
-        # Default - return integer value
+        Unmodelled NTCIP OIDs answer NULL rather than an invented INTEGER 0
+        (scapy cannot emit the v2c noSuchObject exception; see SPEC_NEEDS.md).
+        """
+        kind = self._ntcip_kind(flow)
+        if kind:
+            clock = self._ntcip_clock(flow, state, t_ms if t_ms is not None else 0.0)
+            snap = ntcip.snapshot(kind, ntcip.make_device(flow.destination), clock)
+            if oid in snap:
+                val, value_type = snap[oid]
+                return VarBind(oid=oid, value=val, value_type=value_type)
+        if oid.startswith(ntcip.NTCIP_ROOT + "."):
+            return VarBind(oid=oid, value=None, value_type="null")
         return VarBind(oid=oid, value=0, value_type="integer")
+
+    def _ntcip_poll_cycle(
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        config: SNMPFlowConfig,
+        cycle_time_ms: float,
+        kind: str,
+        profile: str,
+        dev: ntcip.NtcipDevice,
+    ) -> Iterator[PacketEvent]:
+        """One central-system poll: each due PollGroup is one multi-varbind GET.
+
+        Values come from the device model at the response timestamp, so every
+        poller of a device sees the same intersection / sign / station.
+        """
+        due = state.custom_data.setdefault("ntcip_due", {})
+        t = cycle_time_ms
+        state.state_name = SNMPState.POLLING.value
+        for group in ntcip.POLL_PLANS[(kind, profile)]:
+            clock = self._ntcip_clock(flow, state, t)
+            if group.period_s:
+                bucket = int(clock.epoch_s // group.period_s)
+                if due.get(group.name) == bucket:
+                    continue
+                due[group.name] = bucket
+            oids = group.oids(dev, clock)
+            if not oids:
+                continue
+
+            src_port = random.randint(49152, 65535)
+            request_packet = self._build_get_request(flow, config, state, src_port, oids)
+            yield PacketEvent(
+                timestamp_ms=t,
+                flow_id=flow.flow_id,
+                packet_bytes=request_packet,
+                direction="request",
+                metadata={
+                    "type": "snmp_get_request",
+                    "request_id": state.transaction_id,
+                    "oids": oids,
+                    "poll_cycle": state.sequence_number,
+                    "ntcip_kind": kind,
+                    "ntcip_group": group.name,
+                },
+            )
+
+            applicator = flow.destination.fingerprint_applicator
+            if hasattr(applicator, "should_timeout") and applicator.should_timeout():
+                yield PacketEvent(
+                    timestamp_ms=t + config.timeout_ms,
+                    flow_id=flow.flow_id,
+                    packet_bytes=b"",
+                    direction="timeout",
+                    metadata={"type": "snmp_timeout", "request_id": state.transaction_id, "oids": oids},
+                )
+                state.transaction_id = (state.transaction_id + 1) % 2147483647
+                break
+
+            response_delay = flow.destination.get_response_delay_ms()
+            if response_delay == 0:
+                response_delay = random.uniform(5, 50)
+            # Larger PDUs take the controller a little longer to assemble.
+            response_delay += 0.4 * len(oids)
+            response_time = t + response_delay
+
+            snap = ntcip.snapshot(kind, dev, self._ntcip_clock(flow, state, response_time))
+            var_binds = []
+            for oid in oids:
+                if oid in snap:
+                    val, value_type = snap[oid]
+                    var_binds.append(VarBind(oid=oid, value=val, value_type=value_type))
+                else:
+                    var_binds.append(self._generate_snmp_values(flow, state, oid, response_time))
+
+            response_packet = self._build_get_response(flow, config, state, src_port, var_binds)
+            yield PacketEvent(
+                timestamp_ms=response_time,
+                flow_id=flow.flow_id,
+                packet_bytes=response_packet,
+                direction="response",
+                metadata={
+                    "type": "snmp_get_response",
+                    "request_id": state.transaction_id,
+                    "oids": oids,
+                    "values": {vb.oid: vb.value for vb in var_binds},
+                    "response_delay_ms": response_delay,
+                    "poll_cycle": state.sequence_number,
+                    "snmp_version": config.version.name,
+                    "ntcip_kind": kind,
+                    "ntcip_group": group.name,
+                },
+            )
+            state.transaction_id = (state.transaction_id + 1) % 2147483647
+            # Central sends the next PDU of the cycle once this one returns.
+            t = response_time + random.uniform(3, 25)
+
+        state.sequence_number += 1
+        state.state_name = SNMPState.POLLING.value
+
+    def _build_get_request(
+        self,
+        flow: FlowContext,
+        config: SNMPFlowConfig,
+        state: ConversationState,
+        src_port: int,
+        oids: list[str],
+    ) -> bytes:
+        if config.version == SNMPVersion.V3 and config.v3_credentials:
+            return build_snmpv3_get_request_packet(
+                src_mac=flow.source.mac_address,
+                dst_mac=flow.destination.mac_address,
+                src_ip=flow.source.ip_address,
+                dst_ip=flow.destination.ip_address,
+                src_port=src_port,
+                dst_port=SNMP_AGENT_PORT,
+                credentials=config.v3_credentials,
+                request_id=state.transaction_id,
+                oids=oids,
+            )
+        return build_snmp_get_request_packet(
+            src_mac=flow.source.mac_address,
+            dst_mac=flow.destination.mac_address,
+            src_ip=flow.source.ip_address,
+            dst_ip=flow.destination.ip_address,
+            src_port=src_port,
+            dst_port=SNMP_AGENT_PORT,
+            community=config.community,
+            request_id=state.transaction_id,
+            oids=oids,
+            version=config.version,
+        )
+
+    def _build_get_response(
+        self,
+        flow: FlowContext,
+        config: SNMPFlowConfig,
+        state: ConversationState,
+        dst_port: int,
+        var_binds: list[VarBind],
+    ) -> bytes:
+        if config.version == SNMPVersion.V3 and config.v3_credentials:
+            return build_snmpv3_get_response_packet(
+                src_mac=flow.destination.mac_address,
+                dst_mac=flow.source.mac_address,
+                src_ip=flow.destination.ip_address,
+                dst_ip=flow.source.ip_address,
+                src_port=SNMP_AGENT_PORT,
+                dst_port=dst_port,
+                credentials=config.v3_credentials,
+                request_id=state.transaction_id,
+                var_binds=var_binds,
+            )
+        return build_snmp_get_response_packet(
+            src_mac=flow.destination.mac_address,
+            dst_mac=flow.source.mac_address,
+            src_ip=flow.destination.ip_address,
+            dst_ip=flow.source.ip_address,
+            src_port=SNMP_AGENT_PORT,
+            dst_port=dst_port,
+            community=config.community,
+            request_id=state.transaction_id,
+            var_binds=var_binds,
+            version=config.version,
+        )
 
     def generate_startup_sequence(
         self,
@@ -483,16 +662,22 @@ class SnmpEngine(ProtocolEngine):
     ) -> Iterator[PacketEvent]:
         """Generate SNMP poll cycle (GetRequest/GetResponse pair).
 
-        Polls device-specific OIDs based on device type:
-        - Traffic Controller: Phase status, timing plan, cycle counter
-        - DMS: Message status, brightness, temperature
-        - Weather Station: Environmental readings
+        NTCIP devices (signal controller, DMS, ESS) are polled the way the
+        poller would poll them — see ``ntcip.POLL_PLANS`` — with one
+        multi-varbind GetRequest per status block. Everything else rotates
+        one MIB-II discovery OID (or a configured ``poll_oids`` entry) per
+        cycle.
 
         The sysDescr in responses contains fingerprinted firmware version
         for Cyber Vision vulnerability detection.
         """
         config = self._get_snmp_config(flow)
-        poll_oids = self._get_poll_oids(flow)
+        ctx = self._ntcip_context(flow, state)
+        if ctx is not None:
+            yield from self._ntcip_poll_cycle(flow, state, config, cycle_time_ms, *ctx)
+            return
+
+        poll_oids = self._get_poll_oids(flow) if flow.config.get("poll_oids") else DISCOVERY_OIDS
 
         state.state_name = SNMPState.POLLING.value
 

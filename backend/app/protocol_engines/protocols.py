@@ -125,6 +125,8 @@ PROTOCOL_ALIASES: dict[str, str] = {
     # (and runtime ProtocolType value) is "emp".
     "itc":         "emp",
     "ptc":         "emp",
+    # NTCIP is SNMP: comm-matrix entries and role catalogs name it "ntcip".
+    "ntcip":       "snmp",
 }
 
 

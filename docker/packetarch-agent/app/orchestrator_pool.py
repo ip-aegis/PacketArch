@@ -116,17 +116,9 @@ PROTOCOL_PORTS = {
     "https": 443,
 }
 
-# Map variant/safety protocol names to their parent engine ProtocolType values.
-# Scenario templates use specific protocol strings (e.g. "profisafe", "s7comm_plus")
-# but the traffic engine only has parent protocol implementations.
-PROTOCOL_ALIASES = {
-    "profisafe": "profinet",       # PROFIsafe uses PROFINET engine
-    "s7comm_plus": "s7comm",       # S7comm+ uses S7comm engine
-    "cip_safety": "ethernet_ip",   # CIP Safety uses EtherNet/IP engine
-    "modbus": "modbus_tcp",        # Generic modbus alias
-    "enip": "ethernet_ip",         # Short alias
-    "bacnet_ip": "bacnet",         # BACnet/IP alias
-}
+# Variant/alias protocol names (s7comm_plus, profisafe, ntcip, ...) resolve
+# through the shared map in app.protocol_engines.protocols — the same one the
+# PCAP path uses — so live and PCAP never disagree about which engine runs.
 
 
 class OrchestratorPool:
@@ -776,7 +768,8 @@ class OrchestratorPool:
             protocol_str = flow_def.get("protocol", "modbus_tcp")
 
             # Map variant protocol names to their parent engine type
-            engine_protocol_str = PROTOCOL_ALIASES.get(protocol_str, protocol_str)
+            from app.protocol_engines.protocols import resolve_protocol
+            engine_protocol_str = resolve_protocol(protocol_str)
 
             # Map protocol string to ProtocolType enum
             try:
@@ -785,7 +778,11 @@ class OrchestratorPool:
                 logger.warning(f"Unknown protocol '{protocol_str}', skipping flow")
                 return None
 
-            default_port = PROTOCOL_PORTS.get(protocol_str, 44818)
+            # Alias names (e.g. "ntcip") have no port entry of their own;
+            # fall back to the engine protocol's port, not EtherNet/IP's.
+            default_port = PROTOCOL_PORTS.get(protocol_str) or PROTOCOL_PORTS.get(
+                engine_protocol_str, 44818
+            )
 
             # Build source DeviceContext
             src_network = source_device.get("network", {})
@@ -804,6 +801,7 @@ class OrchestratorPool:
                 vendor_fingerprint=src_fingerprint,
                 scenario_id=scenario_id,
                 device_name=source_device.get("name"),
+                device_type=source_device.get("type"),
             )
 
             # Build destination DeviceContext
@@ -844,6 +842,7 @@ class OrchestratorPool:
                     vendor_fingerprint=dst_fingerprint,
                     scenario_id=scenario_id,
                     device_name=target_device.get("name"),
+                    device_type=target_device.get("type"),
                 )
 
             # Timing model (shared with the PCAP builder)
