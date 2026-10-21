@@ -55,4 +55,4 @@ The tiers follow the rail convention:
 - Confirm the 1202 v03 MIB (ANSI webstore / ITE). It adds objects under the same nodes, and we don't expect renumbering.
 - NTCIP 1207 ramp meter objects are not modelled; ramp meters answer MIB-II only.
 - NTCIP 1218 RSU arc (`.18`?) and the 1205 CCTV arc are unverified. Neither is modelled yet (Phases 3 and 4).
-- Does Cisco Cyber Vision decode NTCIP objects, or treat them as generic SNMP? This is plan item 0.9. If it doesn't decode them, the labeled-corpus field map (1.8) carries the demo.
+- ~~Does Cisco Cyber Vision decode NTCIP?~~ **Yes (CV 5.6, 2026-10-21 replay).** It tags ASC/DMS/ESS/TSS by kind, reads `unitFlashStatus` and `dmsMessageOwner`, and extracts no firmware version from NTCIP devices. Use these properties for CV-facing realism checks.

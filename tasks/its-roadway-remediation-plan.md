@@ -54,7 +54,13 @@
   - Add a phase-consistency property test: no phase is in two colours, ring and barrier rules hold.
   - Promote `tasks/audit-results/its-ntcip/e2e_ntcip.py` into `backend/tests/integration/test_its_ntcip_on_wire.py`. It should assert more than zero NTCIP varbinds per controller, DMS and ESS, and nonzero, plausible values.
 - [x] **0.8 Bump** `docker/packetarch-agent/app/version.py` (MINOR).
-- [ ] **0.9 Find out what Cyber Vision actually decodes.** `docs/cyber-vision/` has no evidence either way. Replay the post-fix PCAP into one of the running CV sensors and record whether CV classifies or decodes NTCIP objects or treats them as generic SNMP. If CV does not decode them, the labeled corpus and parser guide (1.8) carry the demo, and 1.8 moves up to run right after Phase 0. This mirrors how the rail work went.
+- [x] **0.9 Find out what Cyber Vision actually decodes.** *Done 2026-10-21.* Three flagship PCAPs were replayed into the CV 5.6 Center (10.10.20.115) through the classic `/pcapReplays` TUS upload. **CV has NTCIP DPI:**
+  - **ASC:** "ITS Actuated traffic Signal Controller", with `snmp-ntcip-device-type=asc` and `snmp-ntcip-unit-flash-status`, on all four controller vendors.
+  - **DMS:** "ITS Dynamic Message Signs", with `dms` and `snmp-ntcip-dms-message-owner`.
+  - **ESS:** "ITS Environmental Sensor Station", with `ess`.
+  - **TSS:** "ITS Transportation Sensor System", with `tss`.
+  - **No firmware from NTCIP devices.** CV extracts no firmware or `fw-version` from them (neither from sysDescr nor from 1201 `moduleVersion`), so their CVEs (EOS 3.2.20, MAXTIME 2.11.0) do not match in CV. Cisco IOS XE and ControlLogix CVEs do match.
+  - **Fixes from the replay:** ambient pollers, the Windows sysDescr, and the S7 SZL/TSAP framing (`6e1e56a`, `02d5905`, `e412edf`).
 
 **Demoable after Phase 0:** a corridor PCAP or live deploy in which Wireshark, with the NTCIP MIBs loaded, shows controllers answering 1202 phase status, DMS signs returning their current MULTI message, and RWIS returning air and pavement readings. Whether Cyber Vision shows the same depends on the result of 0.9.
 
