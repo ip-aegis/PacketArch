@@ -523,7 +523,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Vaisala RWIS500 Road Weather Station V2.5.0",
-            "sys_object_id": "1.3.6.1.4.1.10395.1.1",
+            "sys_object_id": "1.3.6.1.4.1.16961",  # IANA PEN 16961 = Vaisala
         },
     ),
     DeviceTemplate(

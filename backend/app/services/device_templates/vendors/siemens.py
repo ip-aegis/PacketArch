@@ -1217,7 +1217,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced Transportation Controller (ATC) for intersection signal control",
 
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
 
         tcp_stack={
             "ttl": 64,
@@ -2288,7 +2288,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced Transportation Controller with NTCIP support",
 
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
 
         tcp_stack={
             "ttl": 64,
@@ -3163,7 +3163,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-LIGHT",
         device_type="tunnel_controller",
         description="Siemens TCS-LIGHT",
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3206,7 +3206,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-VENT",
         device_type="tunnel_controller",
         description="Siemens TCS-VENT",
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,

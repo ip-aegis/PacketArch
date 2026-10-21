@@ -399,7 +399,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Wavetronix SmartSensor HD Radar Detector V7.5.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.4",  # NTCIP 1209 TSS (no vendor PEN)
         },
     ),
     DeviceTemplate(
@@ -454,7 +454,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Wavetronix SmartSensor Advance Vehicle Classifier V4.5.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5.1",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.4",  # NTCIP 1209 TSS (no vendor PEN)
         },
     ),
     DeviceTemplate(
@@ -510,7 +510,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "FLIR TrafiOne Thermal Traffic Sensor V2.8.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
+            "sys_object_id": "1.3.6.1.4.1.34674",  # IANA PEN 34674 = FLIR Systems
         },
     ),
     DeviceTemplate(
@@ -565,7 +565,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Q-Free RSU 5000 Roadside Unit V4.2.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_object_id": "1.3.6.1.4.1.15889",  # IANA PEN 15889 = Q-Free ASA
         },
     ),
     DeviceTemplate(
@@ -621,7 +621,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Kapsch TCS 2000 Toll Collection System V5.4.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_object_id": "1.3.6.1.4.1.13182",  # IANA PEN 13182 = Kapsch TrafficCom
         },
     ),
     DeviceTemplate(
@@ -834,7 +834,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ptz_camera",
         description="High-speed PTZ dome camera for surveillance",
 
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # Schneider Electric (Pelco parent)
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # TODO(0b): Schneider OUIs; real Pelco OUI is 00:04:7D — needs adding to vendor_oui "pelco" first
 
         tcp_stack={
             "ttl": 64,
@@ -877,7 +877,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Pelco Spectra Enhanced PTZ Camera V2.8.3",
-            "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",  # Pelco enterprise OID
+            "sys_object_id": "1.3.6.1.4.1.25066",  # IANA PEN 25066 = PELCO
         },
     ),
     DeviceTemplate(
@@ -961,7 +961,7 @@ TEMPLATES: list[DeviceTemplate] = [
         )],
         snmp_identity={
                 "sys_descr": "FLIR TrafiSense Multi-Lane Detector V3.5.0",
-                "sys_object_id": "1.3.6.1.4.1.28846.1.2.1",
+                "sys_object_id": "1.3.6.1.4.1.34674",  # IANA PEN 34674 = FLIR Systems
                 "sys_name": "THERMAL-ML-001",
                 "ntcip_device_type": "sensor",
             },
@@ -974,7 +974,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Spectra Enhanced",
         device_type="camera",
         description="Pelco Spectra Enhanced",
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # TODO(0b): Schneider OUIs; real Pelco OUI is 00:04:7D — needs adding to vendor_oui "pelco" first
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -1003,7 +1003,7 @@ TEMPLATES: list[DeviceTemplate] = [
         )],
         snmp_identity={
                 "sys_descr": "Pelco Spectra Enhanced PTZ Camera V1.32",
-                "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",
+                "sys_object_id": "1.3.6.1.4.1.25066",  # IANA PEN 25066 = PELCO
                 "sys_name": "PTZ-PELCO-001",
                 "sys_location": "Tunnel Portal",
                 "ntcip_device_type": "camera",
