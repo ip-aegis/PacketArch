@@ -166,6 +166,14 @@ _VERTICAL_SITE_BANK: dict[str, list[dict[str, str]]] = {
          "location": "Oakland, California, USA", "operator": "Bay Area Tunnel Authority",
          "domain": "ebtun.bay-tunnel.gov",
          "context": "tunnel ventilation + jet fan SCADA"},
+        {"site_code": "RVC-TOC", "plant_name": "River City Traffic Operations Center",
+         "location": "Sacramento, California, USA", "operator": "River City Department of Transportation",
+         "domain": "toc.rivercity-dot.gov",
+         "context": "arterial signal system"},
+        {"site_code": "GP-SUB", "plant_name": "Great Plains Subdivision",
+         "location": "North Platte, Nebraska, USA", "operator": "Great Plains Railway",
+         "domain": "gpsub.gp-railway.com",
+         "context": "freight rail subdivision (PTC + wayside signaling)"},
     ],
     "building_automation": [
         {"site_code": "HQ-CHI", "plant_name": "Chicago HQ Campus",
@@ -332,9 +340,22 @@ def filter_bank_for_template(
     bank = list(_VERTICAL_SITE_BANK.get(vertical) or _VERTICAL_SITE_BANK["testing"])
     if not template_name:
         return bank
+    tn = template_name.lower()
+    if vertical == "transportation":
+        # Keyword -> site context, first match wins; freeway/corridor ITS
+        # falls through to the active-traffic-management TMC.
+        for keys, context in (
+            (("toll", "express"), "toll"),
+            (("tunnel",), "tunnel"),
+            (("ptc", "atcs", "rail", "freight"), "rail"),
+            (("arterial", "intersection", "urban", "signal"), "arterial"),
+        ):
+            if any(k in tn for k in keys):
+                sub = [b for b in bank if context in b["context"].lower()]
+                return sub or bank
+        return [b for b in bank if "traffic management" in b["context"]] or bank
     if vertical != "manufacturing":
         return bank
-    tn = template_name.lower()
     sub: list[dict[str, str]] = []
     if "pharma" in tn or "biorea" in tn or "vaccine" in tn:
         sub = [b for b in bank if "GMP" in b["context"] or "biolog" in b["context"]]
