@@ -347,7 +347,7 @@ something has to talk back.
 ### How it works
 
 - **Cell** = the unit of deployment: one or more personas sharing a segment,
-  able to poll each other. Personas reuse the same 348-template fingerprint
+  able to poll each other. Personas reuse the same 353-template fingerprint
   substrate as scenarios, so OUI, identity strings and firmware match the
   claimed device.
 - **Persona** (`mimic/persona.py`) binds identity + transport + process model +
@@ -566,7 +566,7 @@ Each scenario gets a unique `/16` range: `10.{n}.0.0/16` (n = 1-254). Hosts star
 
 ## Device Templates
 
-Unified fingerprint/signature data in `backend/app/services/device_templates/` package (348 templates across 24 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
+Unified fingerprint/signature data in `backend/app/services/device_templates/` package (353 templates across 24 vendor modules). Sources: `VENDOR_BUILTIN` and `USER_CREATED`. Contains network signatures, protocol identities, response timings, behavioral patterns. Each template carries `firmware_variants` (version + cves + population_weight) that drive per-instance firmware/CVE selection.
 
 ---
 
@@ -671,7 +671,7 @@ Domain procedural knowledge is packaged as Claude Agent Skills under
 Shipped skills:
 
 - `packetarch-scenario-authoring` — Purdue levels, IEC 62443 conduits, vendor-protocol affinity, flow coverage, poll timing
-- `packetarch-fingerprint-validator` — 348-template catalog, OUI rules, protocol identity matrix, remediation actions
+- `packetarch-fingerprint-validator` — 353-template catalog, OUI rules, protocol identity matrix, remediation actions
 - `packetarch-ics-attack-playbooks` — 9 playbooks, kill-chain vocabulary, action generator catalog
 - `packetarch-device-naming` — process-aware naming rules + vertical vocabulary
 - `packetarch-scenario-review` — scoring guide, categories, remediation action schemas

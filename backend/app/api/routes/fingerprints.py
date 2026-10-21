@@ -603,7 +603,7 @@ class FirmwareVariantResponse(BaseModel):
     """Firmware variant information."""
 
     version: str
-    release_date: str
+    release_date: str | None
     is_latest: bool
     is_default: bool
     cves: list[str]
@@ -1128,7 +1128,7 @@ def _firmware_to_response(fw: FirmwareVariant) -> FirmwareVariantResponse:
     """Convert a FirmwareVariant to a response."""
     return FirmwareVariantResponse(
         version=fw.version,
-        release_date=fw.release_date.isoformat(),
+        release_date=fw.release_date.isoformat() if fw.release_date else None,
         is_latest=fw.is_latest,
         is_default=fw.is_default,
         cves=fw.cves,

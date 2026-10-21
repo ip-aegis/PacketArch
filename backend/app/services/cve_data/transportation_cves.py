@@ -277,4 +277,41 @@ TRANSPORTATION_CVES: list[dict] = [
             },
         ],
     },
+    # CVE-2025-1100 - Q-Free MAXTIME hard-coded root password (Nozomi
+    # Networks, 2025-02-11; one of ~40 MAXTIME findings published together).
+    # NVD CPE: q-free:maxtime versionEndIncluding 2.11.0. No fixed version
+    # had been communicated by the vendor at publication.
+    {
+        "cve_id": "CVE-2025-1100",
+        "title": "Q-Free MAXTIME Hard-coded Root Password",
+        "description": (
+            "A CWE-259 \"Use of Hard-coded Password\" for the root account in "
+            "Q-Free MaxTime less than or equal to version 2.11.0 allows an "
+            "unauthenticated remote attacker to execute arbitrary code with "
+            "root privileges via SSH."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Q-Free",
+        "product_family": "MAXTIME",
+        "affected_models": ["Intelight 2070LX", "MAXTIME"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": "2.11.0",
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://www.nozominetworks.com/labs/vulnerability-advisories-cve-2025-1100",
+        "references": [],
+        "mitre_techniques": ["T0859", "T0866"],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2025, 2, 12),
+        "vulnerable_variants": [
+            {
+                "display_name": "Intelight 2070LX MAXTIME 2.11.0 (CVE-2025-1100)",
+                "firmware_version": "2.11.0",
+            },
+        ],
+    },
 ]

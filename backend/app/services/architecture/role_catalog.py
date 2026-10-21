@@ -2126,6 +2126,10 @@ _DEFAULT_ROLE_BY_TYPE: dict[str, str] = {
     "ptz_camera": "ptz_camera",
     "anpr_camera": "anpr_camera",
     "video_detector": "cctv_camera",
+    "radar_detector": "discrete_sensor",
+    "mmu": "cabinet_controller",
+    "atms_server": "scada_primary",
+    "cellular_router": "wan_edge_router",
     # Network infra
     "switch": "cell_switch",
     "core_switch": "core_switch",

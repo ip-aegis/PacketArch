@@ -3626,4 +3626,49 @@ TEMPLATES: list[DeviceTemplate] = [
             "station_name": "sinamics-s210",
         },
     ),
+    DeviceTemplate(
+        # ROS platform services per the ROS v5.5 configuration manual: SSH,
+        # HTTPS and SNTP on by default; SNMP (v1/v2c/v3) off until enabled.
+        id="siemens/ruggedcom/rs900",
+        # The IEEE registrant (and so the MAC vendor CV shows) is RuggedCom.
+        vendor="RuggedCom",
+        vendor_family="RUGGEDCOM",
+        model="RS900 (32M)",
+        model_name="Siemens RUGGEDCOM RS900 (32M) Managed Ethernet Switch",
+        device_type="network_switch",
+        description="Hardened 9-port cabinet switch running ROS",
+        oui_prefixes=["00:0A:DC", "00:13:D5", "94:B8:C5"],  # IEEE: RuggedCom Inc.
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 20.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "ssh", "https"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="RUG{8NUM}",
+            station_name_pattern="cabsw-{location}-{seq}",
+            vendor_short="RUG",
+            model_short="RS900",
+        ),
+        firmware_variants=[
+            # ROS V5.10.1: fix level for every RS900 (32M) V5.X advisory
+            # through ICSA-26-015-05 (CVE-2025-40935).
+            FirmwareVariant(version="V5.10.1", release_date=date(2025, 12, 1), is_latest=True,
+                            is_default=True, cves=[]),
+        ],
+        snmp_identity={
+            "sys_descr": "RuggedCom RS900 ROS v5.10.1",
+            "sys_object_id": "1.3.6.1.4.1.15004",  # IANA PEN: RuggedCom Inc.
+        },
+    ),
 ]

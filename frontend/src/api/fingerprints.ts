@@ -108,7 +108,7 @@ export interface FingerprintStats {
 
 export interface FirmwareVariant {
   version: string;
-  release_date: string;
+  release_date: string | null;
   is_latest: boolean;
   is_default: boolean;
   cves: string[];

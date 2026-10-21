@@ -1,7 +1,7 @@
 # PacketArch — OT Traffic Simulation Platform
 # Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
 # Licensed under GPL-3.0. See LICENSE at the repo root.
-"""Transportation / ITS device templates (Econolite, McCain, Daktronics, Wavetronix, FLIR, Q-Free, Kapsch, Axis, Hikvision, Pelco)."""
+"""Transportation / ITS device templates (Econolite, McCain, Daktronics, Wavetronix, FLIR, Q-Free, Kapsch, Axis, Hikvision, Pelco, Genetec, Cradlepoint, Sierra Wireless)."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
 
@@ -652,7 +652,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp"],
+        supported_protocols=["snmp", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ACCC8E{6HEX}",
@@ -724,7 +724,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp"],
+        supported_protocols=["snmp", "https"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ACCC8E{6HEX}",
@@ -1008,5 +1008,282 @@ TEMPLATES: list[DeviceTemplate] = [
                 "sys_location": "Tunnel Portal",
                 "ntcip_device_type": "camera",
             },
+    ),
+    # ------------------------------------------------------------------
+    # Roadway flagship additions (2026-10-21). OUIs and PENs checked
+    # against the IEEE and IANA registries on that date; versions and CVEs
+    # from vendor release notes, NVD and CISA (see the plan in
+    # tasks/transportation-flagships-plan.md). Where a vendor publishes
+    # only its enterprise root, sys_object_id is that root: the product
+    # suffix is not public.
+    # ------------------------------------------------------------------
+    DeviceTemplate(
+        # Centracs is ATMS software (application + communication servers);
+        # Econolite does not publish a host OS spec. The host here is a
+        # Windows Server VM, as for the other central software templates.
+        id="econolite/centracs/atms-server",
+        vendor="Econolite",
+        vendor_family="Centracs",
+        model="Centracs ATMS",
+        model_name="Econolite Centracs Advanced Traffic Management System Server",
+        device_type="server",
+        description="Central traffic management system: signal timing, NTCIP polling, alarms",
+        oui_prefixes=["00:04:81"],  # IEEE: VMware; VMware; Microsoft (Hyper-V) — software on a virtual host
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "sack_permitted": True,
+            "window_scaling": 8,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 30.0,
+            "mean_ms": 2.0,
+            "std_dev_ms": 1.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https", "rdp"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="VMware-{8HEX}",
+            station_name_pattern="atms-{location}-{seq}",
+            vendor_short="ECO",
+            model_short="CTRX",
+        ),
+        firmware_variants=[
+            # Centracs 2.x (Econolite Centracs 2.0 datasheet; 2.x not EOL per
+            # Econolite's Centracs FAQ). Finer build numbers are not public.
+            FirmwareVariant(version="2.0", release_date=None, is_latest=True,
+                            is_default=True, cves=[]),
+        ],
+        snmp_identity={
+            "sys_descr": "Hardware: Intel64 Family 6 Model 85 Stepping 7 AT/AT COMPATIBLE - Software: Windows Version 6.3 (Build 17763 Multiprocessor Free)",
+            "sys_object_id": "1.3.6.1.4.1.311.1.1.3.1.2",
+            "sys_name": "{device_name}",
+        },
+    ),
+    DeviceTemplate(
+        id="genetec/security-center/vms-server",
+        vendor="Genetec",
+        vendor_family="Security Center",
+        model="Security Center 5",
+        model_name="Genetec Security Center Video Management Server",
+        device_type="server",
+        description="Video management system (Directory + Archiver) for traffic CCTV",
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],  # IEEE: VMware; VMware; Microsoft (Hyper-V) — software on a virtual host
+        tcp_stack={
+            "ttl": 128,
+            "window_size": 65535,
+            "mss": 1460,
+            "sack_permitted": True,
+            "window_scaling": 8,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 40.0,
+            "mean_ms": 3.0,
+            "std_dev_ms": 1.5,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https", "rdp"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="VMware-{8HEX}",
+            station_name_pattern="vms-{location}-{seq}",
+            vendor_short="GEN",
+            model_short="SC5",
+        ),
+        firmware_variants=[
+            # 5.14.1.2 is the fix level for CVE-2026-65422 on the 5.14 line;
+            # 5.12.2.22 is its 5.12 fix and is past every other published
+            # 5.12 Security Center fix (CVE-2024-7059, CVE-2025-43027,
+            # CVE-2026-40619). Genetec product-release and advisory pages.
+            FirmwareVariant(version="5.14.1.2", release_date=None, is_latest=True,
+                            is_default=True, cves=[], population_weight=0.5),
+            FirmwareVariant(version="5.12.2.22", release_date=None, cves=[],
+                            population_weight=0.5),
+        ],
+        snmp_identity={
+            # Security Center 5.12 lists Windows Server 2022 as supported.
+            "sys_descr": "Hardware: Intel64 Family 6 Model 106 Stepping 6 AT/AT COMPATIBLE - Software: Windows Version 6.3 (Build 20348 Multiprocessor Free)",
+            "sys_object_id": "1.3.6.1.4.1.311.1.1.3.1.2",
+            "sys_name": "{device_name}",
+        },
+    ),
+    DeviceTemplate(
+        # MAXTIME is Intelight's (Q-Free since 2016) Linux controller
+        # software; the 2070LX is one of the controllers it ships on.
+        id="qfree/intelight-2070lx/maxtime",
+        vendor="Q-Free",
+        vendor_family="Intelight MAXTIME",
+        model="Intelight 2070LX",
+        model_name="Q-Free Intelight 2070LX ATC with MAXTIME",
+        device_type="traffic_controller",
+        description="Type 2070 ATC running MAXTIME intersection control software (NTCIP 1202 v03A)",
+        oui_prefixes=["00:12:8E", "64:55:63"],  # IEEE: Q-Free America, Inc.; Q-Free ASA
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 50.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 4.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https", "ssh"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="QF{10NUM}",
+            station_name_pattern="atc-{location}-{seq}",
+            vendor_short="QFR",
+            model_short="2070LX",
+        ),
+        firmware_variants=[
+            # Every MAXTIME release through 2.11.0 carries the February 2025
+            # Nozomi findings (CVE-2025-1100 and others); no fixed version had
+            # been announced (NVD CPE versionEndIncluding 2.11.0).
+            FirmwareVariant(version="2.11.0", release_date=None, is_latest=True,
+                            is_default=True, cves=["CVE-2025-1100"]),
+        ],
+        snmp_identity={
+            "sys_descr": "Q-Free Intelight 2070LX MAXTIME 2.11.0",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",  # NTCIP ASC node
+        },
+    ),
+    DeviceTemplate(
+        # McCain controller hardware now sold under SWARCO; the software is
+        # Omni eX Intersection Control Software (manual v3.3.0).
+        id="mccain/atc-ex2/omni-ex",
+        vendor="McCain",
+        vendor_family="ATC eX",
+        model="ATC eX2 NEMA",
+        model_name="McCain ATC eX2 NEMA Controller with Omni eX",
+        device_type="traffic_controller",
+        description="NEMA TS2 ATC running Omni eX; NTCIP over SNMP 161, HTTPS web UI",
+        oui_prefixes=["10:10:B6"],  # IEEE: McCain Inc
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 50.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 4.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="MCC{9NUM}",
+            station_name_pattern="atc-{location}-{seq}",
+            vendor_short="MCC",
+            model_short="EX2",
+        ),
+        firmware_variants=[
+            FirmwareVariant(version="3.3.0", release_date=date(2021, 4, 1), is_latest=True,
+                            is_default=True, cves=[], population_weight=0.7),
+            FirmwareVariant(version="2.00.00.0005", release_date=date(2020, 4, 1), cves=[],
+                            population_weight=0.3),
+        ],
+        snmp_identity={
+            "sys_descr": "McCain ATC eX2 NEMA Omni eX 3.3.0",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",  # NTCIP ASC node (McCain holds no PEN)
+        },
+    ),
+    DeviceTemplate(
+        id="cradlepoint/ibr900/router",
+        vendor="Cradlepoint",
+        vendor_family="IBR900",
+        model="IBR900-600M",
+        model_name="Cradlepoint IBR900-600M Ruggedized LTE Router",
+        device_type="router",
+        description="Cellular backhaul for cabinets beyond the fiber plant (NetCloud OS)",
+        oui_prefixes=["00:30:44", "00:E0:1C"],  # IEEE: CradlePoint, Inc
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 200.0,
+            "mean_ms": 25.0,
+            "std_dev_ms": 12.5,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https", "ssh"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="WA{9NUM}",
+            station_name_pattern="cell-{location}-{seq}",
+            vendor_short="CPT",
+            model_short="IBR900",
+        ),
+        firmware_variants=[
+            # NCOS 7.MM.NN monthly releases; both are past the CVE-2021-37471
+            # fix (7.21.10).
+            FirmwareVariant(version="7.23.40", release_date=date(2023, 4, 1), is_latest=True,
+                            is_default=True, cves=[], population_weight=0.6),
+            FirmwareVariant(version="7.22.101", release_date=date(2022, 10, 1), cves=[],
+                            population_weight=0.4),
+        ],
+        snmp_identity={
+            "sys_descr": "Cradlepoint IBR900-600M NCOS 7.23.40",
+            "sys_object_id": "1.3.6.1.4.1.20992",  # IANA PEN: CradlePoint, Inc.
+        },
+    ),
+    DeviceTemplate(
+        id="sierra/airlink-rv55/router",
+        vendor="Sierra Wireless",
+        vendor_family="AirLink",
+        model="RV55",
+        model_name="Sierra Wireless AirLink RV55 LTE-A Pro Router",
+        device_type="router",
+        description="Industrial cellular router (ALEOS) for remote cabinets",
+        oui_prefixes=["00:A0:D5", "28:A3:31", "50:13:9D"],  # IEEE: Sierra Wireless
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 0.5,
+            "max_ms": 200.0,
+            "mean_ms": 25.0,
+            "std_dev_ms": 12.5,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https", "ssh"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="{14NUM}",
+            station_name_pattern="cell-{location}-{seq}",
+            vendor_short="SWI",
+            model_short="RV55",
+        ),
+        firmware_variants=[
+            # 4.17.0.12 fixed the 2023 ALEOS set (CVE-2023-40458..40465,
+            # ICSA-23-341-06); 4.18.0.012 (4.18.0.011 was recalled).
+            FirmwareVariant(version="4.18.0.012", release_date=date(2025, 3, 1), is_latest=True,
+                            is_default=True, cves=[], population_weight=0.5),
+            FirmwareVariant(version="4.17.0.12", release_date=date(2023, 10, 1), cves=[],
+                            population_weight=0.5),
+        ],
+        snmp_identity={
+            "sys_descr": "Sierra Wireless AirLink RV55 ALEOS 4.18.0.012",
+            "sys_object_id": "1.3.6.1.4.1.31322",  # IANA PEN: Sierra Wireless, Inc.
+        },
     ),
 ]

@@ -17,7 +17,8 @@ class FirmwareVariant:
     """A specific firmware version for a device template."""
 
     version: str
-    release_date: date
+    # None when the vendor does not publish a date; never guess one.
+    release_date: date | None
     is_latest: bool = False
     is_default: bool = False  # Suggested for new scenarios
     cves: list[str] = field(default_factory=list)

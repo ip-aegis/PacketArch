@@ -2,7 +2,7 @@
   "$schema": "https://packetarch.io/schemas/fingerprint-registry.v1.json",
   "format_version": "1.0",
   "description": "Static snapshot of the PacketArch device template catalog for offline / airgapped portable scenario authoring. Use entries here to populate `fingerprint_model` in a .pascenario.json file. The live equivalent is GET /api/v1/fingerprints/registry.",
-  "entry_count": 346,
+  "entry_count": 353,
   "vendors": [
     "abb",
     "advantech",
@@ -21,6 +21,7 @@
     "carrier",
     "cisco",
     "cognex",
+    "cradlepoint",
     "daktronics",
     "danfoss",
     "delta controls",
@@ -36,6 +37,7 @@
     "flir",
     "ge",
     "ge transportation",
+    "genetec",
     "hikvision",
     "hitachi rail",
     "hms",
@@ -63,12 +65,14 @@
     "raritan",
     "rockwell",
     "rotork",
+    "ruggedcom",
     "schneider",
     "sel",
     "sick",
     "siemens",
     "siemens its",
     "siemens mobility",
+    "sierra wireless",
     "trane",
     "vaisala",
     "wabtec",
@@ -140,6 +144,7 @@
     "robot_controller",
     "room_controller",
     "room_sensor",
+    "router",
     "rtu",
     "safety_plc",
     "scada",
@@ -468,7 +473,8 @@
       "model_name": "AXIS P1455-LE Network Camera",
       "device_type": "camera",
       "protocols": [
-        "snmp"
+        "snmp",
+        "https"
       ],
       "description": "Outdoor bullet camera for traffic monitoring"
     },
@@ -478,7 +484,8 @@
       "model_name": "AXIS P1448-LE Network Camera",
       "device_type": "ip_camera",
       "protocols": [
-        "snmp"
+        "snmp",
+        "https"
       ],
       "description": "4K outdoor network camera with IR illumination"
     },
@@ -857,6 +864,18 @@
       "description": "Cognex In-Sight 7802"
     },
     {
+      "vendor": "cradlepoint",
+      "model": "IBR900-600M",
+      "model_name": "Cradlepoint IBR900-600M Ruggedized LTE Router",
+      "device_type": "router",
+      "protocols": [
+        "snmp",
+        "https",
+        "ssh"
+      ],
+      "description": "Cellular backhaul for cabinets beyond the fiber plant (NetCloud OS)"
+    },
+    {
       "vendor": "daktronics",
       "model": "VF-2020",
       "model_name": "Vanguard VF-2020 Walk-In DMS",
@@ -967,6 +986,18 @@
         "snmp"
       ],
       "description": "Managed universal-input rack PDU with outlet switching and metering"
+    },
+    {
+      "vendor": "econolite",
+      "model": "Centracs ATMS",
+      "model_name": "Econolite Centracs Advanced Traffic Management System Server",
+      "device_type": "server",
+      "protocols": [
+        "snmp",
+        "https",
+        "rdp"
+      ],
+      "description": "Central traffic management system: signal timing, NTCIP polling, alarms"
     },
     {
       "vendor": "econolite",
@@ -1382,6 +1413,18 @@
         "emp"
       ],
       "description": "Incremental Train Control System wayside controller; EMP messaging to onboard equipment"
+    },
+    {
+      "vendor": "genetec",
+      "model": "Security Center 5",
+      "model_name": "Genetec Security Center Video Management Server",
+      "device_type": "server",
+      "protocols": [
+        "snmp",
+        "https",
+        "rdp"
+      ],
+      "description": "Video management system (Directory + Archiver) for traffic CCTV"
     },
     {
       "vendor": "hikvision",
@@ -1848,6 +1891,17 @@
       "description": "Type 2070 Advanced Transportation Controller"
     },
     {
+      "vendor": "mccain",
+      "model": "ATC eX2 NEMA",
+      "model_name": "McCain ATC eX2 NEMA Controller with Omni eX",
+      "device_type": "traffic_controller",
+      "protocols": [
+        "snmp",
+        "https"
+      ],
+      "description": "NEMA TS2 ATC running Omni eX; NTCIP over SNMP 161, HTTPS web UI"
+    },
+    {
       "vendor": "microsoft",
       "model": "OT Engineering Workstation",
       "model_name": "OT Engineering Workstation",
@@ -2129,6 +2183,18 @@
         "snmp"
       ],
       "description": "DSRC roadside unit for tolling and V2X"
+    },
+    {
+      "vendor": "q-free",
+      "model": "Intelight 2070LX",
+      "model_name": "Q-Free Intelight 2070LX ATC with MAXTIME",
+      "device_type": "traffic_controller",
+      "protocols": [
+        "snmp",
+        "https",
+        "ssh"
+      ],
+      "description": "Type 2070 ATC running MAXTIME intersection control software (NTCIP 1202 v03A)"
     },
     {
       "vendor": "raritan",
@@ -2559,6 +2625,18 @@
         "profinet"
       ],
       "description": "Intelligent multi-turn electric valve actuator for isolation or regulating duty, with integrated industrial Ethernet"
+    },
+    {
+      "vendor": "ruggedcom",
+      "model": "RS900 (32M)",
+      "model_name": "Siemens RUGGEDCOM RS900 (32M) Managed Ethernet Switch",
+      "device_type": "network_switch",
+      "protocols": [
+        "snmp",
+        "ssh",
+        "https"
+      ],
+      "description": "Hardened 9-port cabinet switch running ROS"
     },
     {
       "vendor": "schneider",
@@ -3797,6 +3875,18 @@
         "atcs"
       ],
       "description": "ATCS base communications package (BCP); relays codeline between office and wayside MCPs"
+    },
+    {
+      "vendor": "sierra wireless",
+      "model": "RV55",
+      "model_name": "Sierra Wireless AirLink RV55 LTE-A Pro Router",
+      "device_type": "router",
+      "protocols": [
+        "snmp",
+        "https",
+        "ssh"
+      ],
+      "description": "Industrial cellular router (ALEOS) for remote cabinets"
     },
     {
       "vendor": "trane",

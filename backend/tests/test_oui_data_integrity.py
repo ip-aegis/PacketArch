@@ -83,6 +83,10 @@ def test_yokogawa_ouis_are_really_yokogawa(oui: str) -> None:
     assert _company(_registry(), oui).startswith("Yokogawa")
 
 
+# VMware x2 + Microsoft Hyper-V (scripts/generate_vendor_ouis.py VIRTUALIZATION_OUIS).
+_VIRTUALIZATION_OUIS = {"00:50:56", "00:0C:29", "00:15:5D"}
+
+
 def test_no_template_oui_is_a_known_foreign_brand() -> None:
     """Each template's oui_prefixes must be inside its vendor's grounded set."""
     bad: list[str] = []
@@ -91,6 +95,10 @@ def test_no_template_oui_is_a_known_foreign_brand() -> None:
         allowed = {o.upper() for o in VENDOR_OUIS.get(vendor, [])}
         if not allowed:
             continue
+        if fp.get("device_type") == "server":
+            # Vendor software on a virtual host (e.g. an ATMS on a VM) shows the
+            # hypervisor's OUI, whoever the vendor is.
+            allowed |= _VIRTUALIZATION_OUIS
         for oui in fp.get("oui_prefixes") or []:
             if oui.upper() not in allowed:
                 bad.append(f"{fp.get('id', '?')} ({vendor}): {oui}")

@@ -44,6 +44,8 @@ MAX_PER_TEMPLATE = 4        # cap template oui_prefixes
 PATTERNS: dict[str, list[str]] = {
     "siemens": [r"\bsiemens ag\b", r"siemens industrial", r"siemens numerical"],
     "siemens its": [r"\bsiemens ag\b", r"siemens industrial"],
+    # Siemens-owned since 2012, but the IEEE blocks stay registered to RuggedCom.
+    "ruggedcom": [r"ruggedcom"],
     "rockwell": [r"rockwell automation", r"allen-bradley"],
     "schneider": [r"schneider electric", r"telemecanique", r"\bmodicon\b", r"square d company"],
     "abb": [r"\babb\b"],
