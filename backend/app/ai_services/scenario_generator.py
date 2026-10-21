@@ -213,7 +213,7 @@ VERTICAL_TEMPLATES = {
                 "count_range": (1, 10),
                 "vendors": ["daktronics"],
                 "fingerprint_models": {
-                    "daktronics": "Venus 1500",
+                    "daktronics": "VX-2420",
                 },
                 "error_config": {"exception_rate": 0.002, "timeout_rate": 0.003},
             },
@@ -238,7 +238,7 @@ VERTICAL_TEMPLATES = {
                 "count_range": (1, 10),
                 "vendors": ["vaisala"],
                 "fingerprint_models": {
-                    "vaisala": "RWIS500",
+                    "vaisala": "RWS200",
                 },
             },
             "camera": {

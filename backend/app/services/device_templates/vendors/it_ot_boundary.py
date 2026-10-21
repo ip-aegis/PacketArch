@@ -17,7 +17,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="MIC IP 7100i",
         device_type="camera",
         description="Bosch MIC IP 7100i",
-        oui_prefixes=["00:01:31", "00:04:63", "00:0B:0F", "00:0D:5C"],
+        oui_prefixes=["00:01:31", "00:04:63"],  # IEEE: Bosch Security Systems
         tcp_stack={
                 "ttl": 64,
                 "window_size": 32768,
@@ -37,7 +37,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['snmp', 'ssh', 'telnet', 'rdp', 'https'],
+        supported_protocols=['snmp', 'ssh', 'telnet', 'https'],
         firmware_variants=[FirmwareVariant(
             version="7.82.0127",
             release_date=date(2024, 1, 1),
@@ -46,7 +46,7 @@ TEMPLATES: list[DeviceTemplate] = [
         )],
         snmp_identity={
                 "sys_descr": "Bosch MIC IP 7100i PTZ Camera 7.82.0127",
-                "sys_object_id": "1.3.6.1.4.1.3246.1.1.7100",
+                "sys_object_id": "1.3.6.1.4.1.3967",  # IANA PEN 3967 = Bosch Sicherheitssysteme
                 "sys_name": "CAM-BOSCH-001",
                 "ntcip_device_type": "camera",
             },

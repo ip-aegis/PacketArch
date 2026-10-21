@@ -619,6 +619,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("econolite", "ASC/3-2100 Cobalt"),
     ),
     # Up to 10 cabinets. A real signal system is a mix of controller generations and makes — the catalog held 11 traffic_controller templates and this pin used one.
+    # TODO(its-phase3): a cabinet's auxiliary devices are a conflict monitor
+    # (MMU/CMU), detector cards and a cabinet switch, not a second signal
+    # controller. The catalog has no MMU or detector templates yet, so this
+    # role still borrows the traffic controllers.
     (VendorProfile.ATMS_NTCIP, "cabinet_controller"): (
         ("econolite", "Cobalt ATC"),
         ("mccain", "2070 ATC"),
@@ -626,11 +630,16 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("siemens_its", "M60"),
         ("econolite", "ASC/3-2100"),
     ),
+    # The TMC central is an ATMS (Centracs, KITS, ATMS.now, TransSuite) on a
+    # Windows server, not an energy SCADA (was Geo SCADA Expert) or a PLC
+    # programming suite (was EcoStruxure Control Expert). Until ATMS
+    # templates exist, use the generic Windows Server 2019 / engineering
+    # workstation templates; the device name carries the ATMS role.
     (VendorProfile.ATMS_NTCIP, "scada_primary"): (
-        ("schneider", "Geo SCADA Expert 2022"),
+        ("microsoft", "Jump Server 2019"),
     ),
     (VendorProfile.ATMS_NTCIP, "engineering_workstation"): (
-        ("schneider", "EcoStruxure Control Expert 16"),
+        ("microsoft", "OT Engineering Workstation"),
     ),
     # ITS field equipment — all present in catalog.
     (VendorProfile.ATMS_NTCIP, "cctv_camera"): (
@@ -650,8 +659,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("axis", "P1448-LE"),
     ),
     (VendorProfile.ATMS_NTCIP, "dms_sign"): (
-        ("daktronics", "Venus 7000"),
-        ("daktronics", "Venus 1500"),
+        ("daktronics", "VF-2020"),
+        ("daktronics", "VX-2420"),
     ),
     (VendorProfile.ATMS_NTCIP, "toll_rsu"): (
         ("q-free", "RSU 5000"),
@@ -660,7 +669,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("kapsch", "TCS 2000"),
     ),
     (VendorProfile.ATMS_NTCIP, "rwis_station"): (
-        ("vaisala", "RWIS500"),
+        ("vaisala", "RWS200"),
     ),
 
     # ====================================================================
@@ -907,7 +916,7 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("hikvision", "DS-2CD7A26G0/P"),
     ),
     "dms_sign": (
-        ("daktronics", "Venus 7000"),
+        ("daktronics", "VF-2020"),
     ),
     "toll_rsu": (
         ("q-free", "RSU 5000"),
@@ -916,7 +925,7 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("kapsch", "TCS 2000"),
     ),
     "rwis_station": (
-        ("vaisala", "RWIS500"),
+        ("vaisala", "RWS200"),
     ),
     # BAS terminal-unit roles (Phase 9 vertical audit).
     "vav_controller": (

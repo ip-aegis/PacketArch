@@ -25,11 +25,14 @@ from scapy.layers.snmp import (
     SNMPvarbind,
 )
 from scapy.asn1.asn1 import (
+    ASN1_COUNTER32,
+    ASN1_GAUGE32,
     ASN1_OID,
     ASN1_INTEGER,
     ASN1_STRING,
     ASN1_NULL,
     ASN1_IPADDRESS,
+    ASN1_TIME_TICKS,
 )
 from scapy.packet import Raw
 
@@ -142,20 +145,28 @@ def _value_to_asn1(value: Any, value_type: str) -> Any:
     if value_type == "string" or (value_type == "auto" and isinstance(value, str)):
         return ASN1_STRING(value)
 
+    if value_type == "octets" or (value_type == "auto" and isinstance(value, bytes)):
+        # Binary OCTET STRING (e.g. NTCIP 1203 MessageIDCode)
+        return ASN1_STRING(bytes(value))
+
     if value_type == "oid":
         return ASN1_OID(value)
 
     if value_type == "ipaddress":
         return ASN1_IPADDRESS(value)
 
+    # SMI application types carry their own BER tags (RFC 2578 §7.1):
+    # Counter32 0x41, Gauge32 0x42, TimeTicks 0x43. Encoding them as a
+    # universal INTEGER (0x02) makes Wireshark/DPI decode sysUpTime as a
+    # plain integer.
     if value_type == "counter":
-        return ASN1_INTEGER(value)  # Scapy uses INTEGER for Counter32
+        return ASN1_COUNTER32(int(value) & 0xFFFFFFFF)
 
     if value_type == "gauge":
-        return ASN1_INTEGER(value)  # Scapy uses INTEGER for Gauge32
+        return ASN1_GAUGE32(int(value) & 0xFFFFFFFF)
 
     if value_type == "timeticks":
-        return ASN1_INTEGER(value)  # TimeTicks as INTEGER
+        return ASN1_TIME_TICKS(int(value) & 0xFFFFFFFF)
 
     # Default to string
     return ASN1_STRING(str(value))
@@ -382,7 +393,7 @@ def build_snmp_trap_v1(
         agent_addr=ASN1_IPADDRESS(agent_addr),
         generic_trap=ASN1_INTEGER(generic_trap),
         specific_trap=ASN1_INTEGER(specific_trap),
-        time_stamp=ASN1_INTEGER(timestamp),
+        time_stamp=ASN1_TIME_TICKS(int(timestamp) & 0xFFFFFFFF),
         varbindlist=scapy_varbinds,
     )
 

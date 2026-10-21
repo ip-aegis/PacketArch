@@ -84,6 +84,12 @@ class DeviceContext:
     # Used for BACnet object_name, PROFINET station_name, SNMP sys_name
     device_name: str | None = None
 
+    # Scenario device type (e.g. "traffic_controller", "dms", "historian").
+    # Lets engines answer as the device class — NTCIP picks the 1202/1203/
+    # 1204 model from the destination's type and the poll profile from the
+    # source's.
+    device_type: str | None = None
+
     # Fingerprint applicator (lazy-loaded)
     _fingerprint_applicator: "FingerprintApplicator | None" = field(
         default=None, repr=False, compare=False

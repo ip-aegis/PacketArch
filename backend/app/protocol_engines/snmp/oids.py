@@ -20,17 +20,15 @@ MGMT = f"{INTERNET}.2"
 MIB2 = f"{MGMT}.1"
 ENTERPRISES = f"{INTERNET}.4.1"
 
-# NTCIP Enterprise Base (NEMA)
+# NTCIP Enterprise Base (NEMA). Device arcs verified against the NTCIP MIB
+# files (ite-org/NTCIP-12xx, ASC-MIB1) — see snmp/ntcip/SPEC_NEEDS.md.
 NEMA_ENTERPRISE = f"{ENTERPRISES}.1206"
 NTCIP_DEVICES = f"{NEMA_ENTERPRISE}.4"
-NTCIP_GLOBAL = f"{NTCIP_DEVICES}.2.1"       # NTCIP 1201 - Global Objects
-NTCIP_ASC = f"{NTCIP_DEVICES}.2.2"          # NTCIP 1202 - Traffic Signal Controllers
+NTCIP_ASC = f"{NTCIP_DEVICES}.2.1"          # NTCIP 1202 - Actuated Signal Controllers
 NTCIP_DMS = f"{NTCIP_DEVICES}.2.3"          # NTCIP 1203 - Dynamic Message Signs
-NTCIP_ESS = f"{NTCIP_DEVICES}.2.4"          # NTCIP 1204 - Environmental Sensors
-NTCIP_CCTV = f"{NTCIP_DEVICES}.2.5"         # NTCIP 1205 - CCTV
-NTCIP_RAMP_METER = f"{NTCIP_DEVICES}.2.6"   # NTCIP 1206 - Ramp Metering
-NTCIP_TSS = f"{NTCIP_DEVICES}.2.10"         # NTCIP 1209 - Transportation Sensors
-
+NTCIP_TSS = f"{NTCIP_DEVICES}.2.4"          # NTCIP 1209 - Transportation Sensor Systems
+NTCIP_ESS = f"{NTCIP_DEVICES}.2.5"          # NTCIP 1204 - Environmental Sensor Stations
+NTCIP_GLOBAL = f"{NTCIP_DEVICES}.2.6"       # NTCIP 1201 - Global Objects
 
 @dataclass
 class OIDDefinition:
@@ -147,6 +145,7 @@ SNMP_TRAP_OID = f"{INTERNET}.6.3.1.1.4.1.0"  # snmpTrapOID.0
 SNMP_TRAP_ENTERPRISE = f"{INTERNET}.6.3.1.1.4.3.0"  # snmpTrapEnterprise.0
 
 # Standard enterprise OIDs for traffic control vendors
+# PENs verified against the IANA registry (2026-10-21).
 VENDOR_ENTERPRISE_OIDS = {
     "nema": NEMA_ENTERPRISE,
     "ntcip": NTCIP_DEVICES,
@@ -156,15 +155,15 @@ VENDOR_ENTERPRISE_OIDS = {
     "mccain": f"{ENTERPRISES}.1206.4.2",     # Uses NTCIP base
     "peek_traffic": f"{ENTERPRISES}.1206.4.2",
     "trafficware": f"{ENTERPRISES}.1206",
-    "kapsch": f"{ENTERPRISES}.22706",
-    "q_free": f"{ENTERPRISES}.32055",
-    "daktronics": f"{ENTERPRISES}.2407",
+    "kapsch": f"{ENTERPRISES}.13182",      # Kapsch TrafficCom AG
+    "q_free": f"{ENTERPRISES}.15889",      # Q-Free ASA
+    "daktronics": f"{ENTERPRISES}.5083",   # Daktronics
     "axis": f"{ENTERPRISES}.368",
-    "pelco": f"{ENTERPRISES}.17685",
+    "pelco": f"{ENTERPRISES}.25066",       # PELCO
     "hikvision": f"{ENTERPRISES}.39165",
-    "bosch": f"{ENTERPRISES}.3246",
-    "flir": f"{ENTERPRISES}.28846",
-    "wavetronix": f"{ENTERPRISES}.34362",
+    "bosch": f"{ENTERPRISES}.3967",        # Bosch Sicherheitssysteme
+    "flir": f"{ENTERPRISES}.34674",        # FLIR Systems, Inc.
+    "wavetronix": NTCIP_TSS,                 # no IANA PEN; NTCIP 1209 node
 }
 
 
@@ -276,21 +275,12 @@ DISCOVERY_OIDS = [
     SystemOIDs.SYS_LOCATION.oid,
 ]
 
-# Default OIDs for traffic controller polling
-TRAFFIC_CONTROLLER_POLL_OIDS = [
-    f"{NTCIP_ASC}.1.4.1.0",   # phaseStatusGroupReds
-    f"{NTCIP_ASC}.1.4.2.0",   # phaseStatusGroupYellows
-    f"{NTCIP_ASC}.1.4.3.0",   # phaseStatusGroupGreens
-    f"{NTCIP_ASC}.1.4.7.0",   # phaseStatusGroupVehCalls
-    f"{NTCIP_ASC}.3.1.0",     # currentTimingPlan
-    f"{NTCIP_ASC}.3.3.0",     # localCycleCounter
-]
+# NTCIP status blocks a central system reads each poll (one multi-varbind
+# GetRequest). Defined with the device models; re-exported here.
+from app.protocol_engines.snmp.ntcip.ntcip_1202 import STATUS_BLOCK as _ASC_STATUS  # noqa: E402
+from app.protocol_engines.snmp.ntcip.ntcip_1203 import STATUS_BLOCK as _DMS_STATUS  # noqa: E402
+from app.protocol_engines.snmp.ntcip.ntcip_1204 import STATUS_BLOCK as _ESS_STATUS  # noqa: E402
 
-# Default OIDs for DMS polling
-DMS_POLL_OIDS = [
-    f"{NTCIP_DMS}.5.1.0",     # dmsMessageStatus
-    f"{NTCIP_DMS}.5.3.0",     # dmsMessageMultiString
-    f"{NTCIP_DMS}.9.3.0",     # dmsLampStatus
-    f"{NTCIP_DMS}.9.6.0",     # dmsAmbientTemperature
-    f"{NTCIP_DMS}.7.2.0",     # dmsIllumBrightLevelStatus
-]
+TRAFFIC_CONTROLLER_POLL_OIDS = list(_ASC_STATUS)
+DMS_POLL_OIDS = list(_DMS_STATUS)
+ESS_POLL_OIDS = list(_ESS_STATUS)

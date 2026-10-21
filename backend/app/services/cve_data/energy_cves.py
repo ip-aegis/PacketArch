@@ -783,4 +783,42 @@ ENERGY_CVES: list[dict] = [
         ],
     },
 
+    # ==================== Siemens SICAM A8000 CVEs ====================
+
+    # CVE-2023-28489 - SICAM A8000 CP-8031/CP-8050 web server command injection
+    # (NVD + SSA-472454). Previously mis-filed under transportation as a
+    # "CP-8000 traffic management" CVE. No device template models CP-8031/8050
+    # yet, so this row is Browser-only until one is curated.
+    {
+        "cve_id": "CVE-2023-28489",
+        "title": "Siemens SICAM A8000 CP-8031/CP-8050 Web Server Command Injection",
+        "description": (
+            "CP-8031 MASTER MODULE and CP-8050 MASTER MODULE (SICAM A8000), all "
+            "versions < CPCI85 V05, are vulnerable to command injection via the "
+            "web server on port 443/tcp if the parameter \"Remote Operation\" is "
+            "enabled (disabled by default). An unauthenticated remote attacker "
+            "could execute arbitrary code on the device."
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Siemens",
+        "product_family": "SICAM A8000",
+        "affected_models": ["CP-8031", "CP-8050"],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": "CPCI85 V05",
+        "cyber_vision_detectable": True,
+        "detection_method": "protocol_identity",
+        "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-472454.pdf",
+        "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-28489",
+        ],
+        "mitre_techniques": ["T0866", "T0882"],
+        "exploit_available": True,
+        "exploit_complexity": "low",
+        "published_date": datetime(2023, 4, 11),
+        "vulnerable_variants": [],
+    },
+
 ]

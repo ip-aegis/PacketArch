@@ -201,15 +201,18 @@ ROCKWELL_CVES: list[dict] = [
     # CVE-2022-1161 - ControlLogix/CompactLogix Code Execution via CIP
     {
         "cve_id": "CVE-2022-1161",
-        "title": "Rockwell ControlLogix/CompactLogix Remote Code Execution",
+        "title": "Rockwell Logix Controllers User Program Code Modification",
         "description": (
-            "A maliciously crafted CIP packet sent to an affected device may result "
-            "in arbitrary code execution. This allows an attacker to gain remote "
-            "access to the running memory of the controller."
+            "An attacker able to modify a user program may change user program "
+            "code on some ControlLogix, CompactLogix and GuardLogix controllers: "
+            "Studio 5000 Logix Designer writes the user-readable program text to a "
+            "separate location from the executed compiled code, so one can be "
+            "changed without the other. NVD scores this 9.8; the CNA (CISA "
+            "ICS-CERT) scored it 10.0."
         ),
         "severity": "critical",
-        "cvss_score": 10.0,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         "vendor": "Rockwell",
         "product_family": "ControlLogix",
         "affected_models": [

@@ -17,7 +17,11 @@ from app.models.scenario import Scenario
 from app.models.generation_job import GenerationJob as GenerationJobModel, GenerationJobStatus
 from app.protocol_engines.cell_isolation import parse_config as parse_isolation_config, should_drop_flow as should_drop_for_isolation
 from app.protocol_engines.cloud_service.packets import gateway_mac_for_subnet
-from app.protocol_engines.protocols import get_default_port, resolve_protocol
+from app.protocol_engines.protocols import (
+    flow_timing_model,
+    get_default_port,
+    resolve_protocol,
+)
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 from app.traffic_generator.models import GenerationJob, JobStatus
 from app.traffic_generator.orchestrator import GenerationConfig, TrafficOrchestrator
@@ -717,6 +721,7 @@ def _build_flow_contexts(
             scenario_id=scenario_id,
             # Pass device_name for unique identifier generation
             device_name=get_device_name(source_device),
+            device_type=source_device.get("type"),
         )
 
         destination_context = DeviceContext(
@@ -732,6 +737,7 @@ def _build_flow_contexts(
             scenario_id=scenario_id,
             # Pass device_name for unique identifier generation
             device_name=get_device_name(destination_device),
+            device_type=destination_device.get("type"),
         )
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)
@@ -747,7 +753,7 @@ def _build_flow_contexts(
             destination=destination_context,
             protocol=protocol,
             config=flow_config,
-            timing_model=flow.get("timing_model", {}),
+            timing_model=flow_timing_model(flow),
             payload_template=flow.get("payload_template"),
         )
 

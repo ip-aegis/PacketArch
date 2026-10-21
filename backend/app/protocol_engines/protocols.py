@@ -125,6 +125,8 @@ PROTOCOL_ALIASES: dict[str, str] = {
     # (and runtime ProtocolType value) is "emp".
     "itc":         "emp",
     "ptc":         "emp",
+    # NTCIP is SNMP: comm-matrix entries and role catalogs name it "ntcip".
+    "ntcip":       "snmp",
 }
 
 
@@ -137,6 +139,30 @@ def resolve_protocol(name: str) -> str:
     do (typically: try `ProtocolType(name)` and warn on ValueError).
     """
     return PROTOCOL_ALIASES.get(name, name)
+
+
+def flow_timing_model(flow: dict) -> dict:
+    """Engine ``timing_model`` for a scenario flow spec.
+
+    Scenario definitions (canvas, templates, archetype generator) carry
+    timing as ``{"timing": {"intervalMs", "responseDelayMs", "jitterMs"}}``.
+    An explicit ``timing_model`` wins. Shared by the PCAP builder and the
+    live agent so both poll each flow at its configured rate.
+    """
+    explicit = flow.get("timing_model")
+    if explicit:
+        return explicit
+    timing = flow.get("timing") or {}
+    jitter_ms = timing.get("jitterMs", 50)
+    return {
+        "poll_interval_ms": timing.get("intervalMs", 1000),
+        "response_delay_ms": timing.get("responseDelayMs", 5.0),
+        "jitter": {
+            "type": "uniform",
+            "min_ms": -abs(jitter_ms) * 0.5,
+            "max_ms": abs(jitter_ms) * 0.5,
+        },
+    }
 
 
 # Canonical protocol → server-side TCP/UDP port map.
