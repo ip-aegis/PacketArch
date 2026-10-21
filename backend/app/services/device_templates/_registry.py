@@ -53,8 +53,18 @@ def _register_all() -> None:
         robotics_logistics, fieldbus_networking, it_ot_boundary,
         japanese_plc, carlo_gavazzi, janitza, elvaco, danfoss, rail,
     ]
+    # A duplicate id used to be silently last-wins: the later copy replaced
+    # the earlier one, which is how a traffic_controller-typed stub clobbered
+    # the real TBox RTU. Fail loudly instead.
+    seen: dict[str, str] = {}
     for mod in all_modules:
         for template in mod.TEMPLATES:
+            if template.id in seen:
+                raise RuntimeError(
+                    f"Duplicate device template id {template.id!r} in "
+                    f"{mod.__name__} (already registered by {seen[template.id]})"
+                )
+            seen[template.id] = mod.__name__
             _register_template(template)
 
     _count = len(DEVICE_TEMPLATES)

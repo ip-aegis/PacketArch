@@ -328,12 +328,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V33.013",
                 release_date=date(2022, 11, 20),
-                cves=["CVE-2022-3157"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V32.011",
                 release_date=date(2021, 9, 10),
-                cves=["CVE-2022-3157", "CVE-2022-1161"],
+                cves=["CVE-2022-1161"],
             ),
         ],
 
@@ -423,7 +423,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V33.013",
                 release_date=date(2022, 11, 20),
-                cves=["CVE-2022-3157"],
+                cves=[],
             ),
         ],
 
@@ -703,12 +703,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V8.00",
                 release_date=date(2022, 6, 20),
-                cves=["CVE-2022-2848"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V6.00",
                 release_date=date(2020, 9, 10),
-                cves=["CVE-2022-2848", "CVE-2020-14480"],
+                cves=[],
             ),
         ],
 
@@ -941,66 +941,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_descr": "Rockwell Automation PanelView Plus 7 - 10 inch V13.0",
             "sys_object_id": "1.3.6.1.4.1.53148.330.51",
             "sys_name": "PANELV-PLUS-001",
-            "sys_location": "Control Room",
-        },
-    ),
-    DeviceTemplate(
-        id="rockwell/panelview/800",
-        vendor="Rockwell",
-        vendor_family="PanelView",
-        model="2711R-T7T",
-        model_name="PanelView 800",
-        device_type="hmi",
-        description="7-inch color touchscreen HMI for Micro800 systems",
-
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 16384,
-            "mss": 1460,
-            "sack_permitted": True,
-        },
-
-        response_timing={
-            "min_ms": 5.0,
-            "max_ms": 100.0,
-            "mean_ms": 25.0,
-            "std_dev_ms": 15.0,
-            "distribution": "lognormal",
-        },
-
-        supported_protocols=["ethernet_ip"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="PV8{8HEX}",
-            station_name_pattern="hmi-pv800-{seq}",
-            vendor_short="ROC",
-            model_short="PV800",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V8.0",
-                release_date=date(2023, 6, 1),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-        ],
-
-        ethernet_ip_identity={
-            "vendor_id": 1,
-            "device_type": 24,
-            "product_code": 800,
-            "product_name": "2711R-T7T PANELVIEW 800",
-            "state": 3,
-        },
-
-        snmp_identity={
-            "sys_descr": "Rockwell Automation PanelView 800 V8.0",
-            "sys_object_id": "1.3.6.1.4.1.53148.3.2",
-            "sys_name": "PANELV-800-001",
             "sys_location": "Control Room",
         },
     ),
@@ -1323,154 +1263,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.53148.544.31",
             "sys_name": "POINT-I-O-001",
             "sys_location": "Industrial Network",
-        },
-    ),
-    DeviceTemplate(
-        id="rockwell/controllogix/l85e",
-        vendor="Rockwell",
-        vendor_family="ControlLogix",
-        model="1756-L85E",
-        model_name="ControlLogix 5580",
-        device_type="plc",
-        description="High-performance ControlLogix controller with 80MB memory",
-
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
-
-        tcp_stack={
-            "ttl": 128,
-            "window_size": 64240,
-            "mss": 1460,
-            "window_scaling": 8,
-            "sack_permitted": True,
-            "timestamps_enabled": True,
-            "df_flag": True,
-        },
-
-        response_timing={
-            "min_ms": 0.3,
-            "max_ms": 12.0,
-            "mean_ms": 2.5,
-            "std_dev_ms": 1.5,
-            "distribution": "gaussian",
-        },
-
-        # ControlLogix 5580 supports OPC UA Server via Studio 5000 v32+.
-        supported_protocols=["ethernet_ip", "modbus_tcp", "opc_ua", "snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="0x{8HEX}",
-            station_name_pattern="{model_short}_{role}_{seq}",
-            vendor_short="ROC",
-            model_short="L85E",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V35.011",
-                release_date=date(2024, 1, 15),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V34.011",
-                release_date=date(2023, 6, 1),
-                cves=[],
-            ),
-        ],
-
-        modbus_identity={
-            "vendor_name": "Rockwell Automation/Allen-Bradley",
-            "product_code": "1756-L85E",
-            "product_name": "1756-L85E LOGIX5585E",
-            "model_name": "ControlLogix 5580",
-        },
-
-        ethernet_ip_identity={
-            "vendor_id": 1,
-            "device_type": 14,
-            "product_code": 85,
-            "product_name": "1756-L85E LOGIX5580",
-            "state": 3,
-        },
-
-        snmp_identity={
-            "sys_descr": "Rockwell Automation 1756-L85E ControlLogix 5580 V35.011",
-            "sys_object_id": "1.3.6.1.4.1.8072.3.2.10",
-        },
-
-        opc_ua_identity={
-            "application_name": "Rockwell Automation Logix5580 OPC UA Server",
-            "application_uri": "urn:RockwellAutomation:Logix5580:1756-L85E",
-            "product_uri": "http://www.rockwellautomation.com/products/logix5580",
-            "manufacturer_name": "Rockwell Automation",
-            "product_name": "ControlLogix 5580 OPC UA Server",
-            "software_version": "35.011",
-            "build_number": "V35.011",
-            "build_date": "2024-01-15T00:00:00Z",
-        },
-    ),
-    DeviceTemplate(
-        id="rockwell/guardlogix/l83es",
-        vendor="Rockwell",
-        vendor_family="GuardLogix",
-        model="1756-L83ES",
-        model_name="GuardLogix 5580S",
-        device_type="safety_plc",
-        description="Safety-rated ControlLogix controller for SIL3/PLe applications",
-
-        oui_prefixes=["00:00:BC", "00:1D:9C", "08:61:95", "18:4C:08"],
-
-        tcp_stack={
-            "ttl": 128,
-            "window_size": 64240,
-            "mss": 1460,
-            "window_scaling": 8,
-            "sack_permitted": True,
-            "timestamps_enabled": True,
-            "df_flag": True,
-        },
-
-        response_timing={
-            "min_ms": 0.3,
-            "max_ms": 12.0,
-            "mean_ms": 2.5,
-            "std_dev_ms": 1.5,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["ethernet_ip", "cip_safety"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="0x{8HEX}",
-            station_name_pattern="{model_short}_{role}_{seq}",
-            vendor_short="ROC",
-            model_short="L83ES",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V35.011",
-                release_date=date(2024, 1, 15),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-        ],
-
-        ethernet_ip_identity={
-            "vendor_id": 1,
-            "device_type": 14,
-            "product_code": 183,
-            "product_name": "1756-L83ES/B GUARDLOGIX",
-            "state": 3,
-        },
-
-        snmp_identity={
-            "sys_descr": "Rockwell Automation GuardLogix 5580S V35.011",
-            "sys_object_id": "1.3.6.1.4.1.53148.956.43",
-            "sys_name": "GUARDL-5580S-001",
-            "sys_location": "Safety Cabinet",
         },
     ),
     DeviceTemplate(
