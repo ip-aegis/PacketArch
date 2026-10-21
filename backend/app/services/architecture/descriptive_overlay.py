@@ -52,6 +52,11 @@ async def apply_descriptive_overlay(
     devices = definition.get("devices") or {}
     if not devices:
         return 0
+    if any(isinstance(d, dict) and d.get("_curated_name") for d in devices.values()):
+        # Curated templates name every asset deliberately; an AI re-label
+        # would throw that away.
+        logger.info("Descriptive overlay skipped — template uses curated names")
+        return 0
 
     try:
         ai_provider = await AIProviderFactory.create(db, task=AITask.DEVICE_NAMING)

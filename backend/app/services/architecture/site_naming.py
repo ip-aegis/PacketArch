@@ -15,6 +15,7 @@ identity matches PacketArch-side naming.
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from typing import Any
 
@@ -124,6 +125,43 @@ _ROLE_ABBR: dict[str, str] = {
     "toll_rsu": "RSU",
     "toll_lane_controller": "LANE",
     "rwis_station": "RWIS",
+    # Device-type roles that hand templates resolve to (no catalog pattern).
+    "discrete_sensor": "SNS",
+    "remote_gateway": "RGW",
+    "instrument": "XMTR",
+    "transmitter": "XMTR",
+    "room_controller": "RC",
+    "heat_substation_controller": "HSC",
+    "meter_data_concentrator": "MDC",
+    "vav_controller": "VAV",
+    "ahu_controller": "AHU",
+    "remote_io": "RIO",
+    "wayside_interface_unit": "WIU",
+    "rfid_reader": "RFID",
+    "network_switch": "SW",
+    "camera_anpr": "LPR",
+    "camera_fixed": "CAM",
+    "camera_ptz": "PTZ",
+    "pdu": "PDU",
+    "chiller_controller": "CHLR",
+    "field_controller": "FC",
+    "controller": "CTRL",
+    "crac_unit": "CRAC",
+    "level_sensor": "LT",
+    "pressure_sensor": "PT",
+    "flow_sensor": "FT",
+    "server": "SRV",
+    "locomotive_computer": "LOCO",
+    "atcs_base_station": "BTS",
+    "atcs_office": "ATCS-OFC",
+    "back_office_server": "BOS",
+    "hvac_controller": "HVAC",
+    "ups_unit": "UPS",
+    "vision_sensor": "VIS",
+    "wayside_signal_controller": "WSC",
+    "dcim_server": "DCIM",
+    "plant_controller": "PLC",
+    "amr_fleet_manager": "FLEET",
 }
 
 
@@ -133,10 +171,16 @@ def _vendor_abbr(vendor: str | None) -> str:
     return _VENDOR_ABBR.get(vendor.strip().lower(), vendor[:3].upper())
 
 
+_ROLE_ID = re.compile(r"[a-z][a-z0-9_]*")
+
+
 def _role_abbr(role: str | None) -> str:
     if not role:
         return "DEV"
-    return _ROLE_ABBR.get(role, role.upper().replace("_", "-")[:6])
+    if role in _ROLE_ABBR:
+        return _ROLE_ABBR[role]
+    token = re.sub(r"[^A-Z0-9]+", "-", role.upper()).strip("-")
+    return token[:6].rstrip("-") or "DEV"
 
 
 def _pattern_for_role(identity: SiteIdentity, role: str | None) -> str:
@@ -146,7 +190,9 @@ def _pattern_for_role(identity: SiteIdentity, role: str | None) -> str:
         return identity.role_patterns[role]
     if role in DEFAULT_ROLE_PATTERNS:
         return DEFAULT_ROLE_PATTERNS[role]
-    return "{site}-" + _role_abbr(role) + "-{nnn}"
+    # Counters are per (zone, role), so the zone code keeps same-role
+    # devices in different zones from colliding.
+    return "{site}-{zone}-" + _role_abbr(role) + "-{nnn}"
 
 
 def _zone_code(identity: SiteIdentity, zone_id: str | None) -> str:
@@ -161,16 +207,26 @@ def _zone_code(identity: SiteIdentity, zone_id: str | None) -> str:
 
 
 def _device_role(device: dict[str, Any]) -> str | None:
-    # The archetype scenario_generator stores the canonical role_id on
-    # `architectural_role`; `role` carries the human-readable role
-    # display name (e.g. "Jump Server" vs id "jump_server"). Prefer the
-    # canonical id so DEFAULT_ROLE_PATTERNS lookups match.
-    return (
-        device.get("architectural_role")
-        or device.get("role_id")
-        or device.get("_role")
-        or device.get("role")
-    )
+    """Canonical role id for naming.
+
+    The archetype generator stores the role id on ``architectural_role``;
+    the create-from-template route writes ``architecturalRole``. Hand
+    templates often put display text there ("ANPR Camera"), which is not a
+    role id, so fall back to the catalog default for the device type.
+    """
+    for key in ("architectural_role", "architecturalRole", "role_id", "_role"):
+        value = device.get(key)
+        if isinstance(value, str) and _ROLE_ID.fullmatch(value):
+            return value
+    from app.services.architecture.role_catalog import default_role_for_device_type
+
+    dtype = device.get("type")
+    default = default_role_for_device_type(dtype) if dtype else None
+    if default:
+        return default
+    if isinstance(dtype, str) and _ROLE_ID.fullmatch(dtype):
+        return dtype
+    return device.get("role")
 
 
 def _device_zone(device: dict[str, Any]) -> str | None:
@@ -202,26 +258,39 @@ def apply_site_identity(
     # always assigns the same counter to the same device.
     devs_iter.sort(key=lambda d: str(d.get("id", "")))
 
-    counters: dict[tuple[str | None, str | None], int] = defaultdict(int)
+    counters: dict[str, int] = defaultdict(int)
     used_names: set[str] = set()
 
     for device in devs_iter:
         role = _device_role(device)
         zone_id = _device_zone(device)
         pattern = _pattern_for_role(identity, role)
-
-        counters[(zone_id, role)] += 1
-        n = counters[(zone_id, role)]
+        curated = device.get("_curated_name")
+        if curated:
+            # Template opted into curated names (``naming: "curated"``):
+            # keep the authored asset name, prefixed with this scenario's
+            # site code so two scenarios built from one template never
+            # emit the same hostname (Cyber Vision merges on it).
+            pattern = "{site}-" + "_".join(str(curated).split()).replace("{", "").replace("}", "")
 
         slots = {
             "site": identity.site_code,
             "zone": _zone_code(identity, zone_id),
-            "n": n,
-            "nn": f"{n:02d}",
-            "nnn": f"{n:03d}",
             "vendor": _vendor_abbr(device.get("vendor")),
             "role_abbr": _role_abbr(role),
         }
+        # Number per rendered prefix (the name minus its counter), so devices
+        # whose names would otherwise coincide — two roles sharing an
+        # abbreviation, a zone-less pattern used in two zones, two zones
+        # deriving the same zone code — share one sequence instead of
+        # colliding and getting "-2" suffixes.
+        try:
+            counter_key = pattern.format(**slots, n="#", nn="#", nnn="#")
+        except (KeyError, IndexError):
+            counter_key = f"{zone_id}|{pattern}"
+        counters[counter_key] += 1
+        n = counters[counter_key]
+        slots.update({"n": n, "nn": f"{n:02d}", "nnn": f"{n:03d}"})
         try:
             new_name = pattern.format(**slots)
         except (KeyError, IndexError) as e:
