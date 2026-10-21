@@ -1237,3 +1237,9 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
         "total_duration_ms": 300000,  # 5 minutes
     },
 }
+
+
+# Flagship roadway demos (factory-built; see transportation_flagships.py).
+from app.scenario_templates.transportation_flagships import FLAGSHIP_TEMPLATES  # noqa: E402
+
+TRANSPORTATION_TEMPLATES.update(FLAGSHIP_TEMPLATES)

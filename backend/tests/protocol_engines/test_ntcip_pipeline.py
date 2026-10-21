@@ -86,7 +86,10 @@ def _definition_from_hand_template(name: str) -> dict:
     resolve fingerprints by vendor+model, round-robin flows by
     (type, zone) with ``timing.intervalMs``. IPs/MACs are synthetic."""
     from app.scenario_templates.transportation import TRANSPORTATION_TEMPLATES
-    from app.services.device_templates import get_fingerprint_by_vendor_model
+    from app.services.device_templates import (
+        get_fingerprint_by_vendor_model,
+        get_fingerprint_from_template,
+    )
 
     template = TRANSPORTATION_TEMPLATES[name]
     devices = {}
@@ -100,7 +103,10 @@ def _definition_from_hand_template(name: str) -> dict:
                 "type": spec["type"],
                 "zoneId": spec.get("zone"),
                 "group": spec.get("group"),
-                "vendorFingerprint": get_fingerprint_by_vendor_model(spec.get("vendor"), spec.get("fingerprint_model")) or {},
+                "vendorFingerprint": (
+                    get_fingerprint_from_template(spec["fingerprint_id"]) if spec.get("fingerprint_id")
+                    else get_fingerprint_by_vendor_model(spec.get("vendor"), spec.get("fingerprint_model"))
+                ) or {},
                 "network": {"ipAddress": f"10.77.{n // 250}.{n % 250 + 2}", "macAddress": f"02:00:00:00:{n // 256:02x}:{n % 256:02x}"},
             }
     from app.services.template_flows import expand_template_flows
