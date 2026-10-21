@@ -1372,29 +1372,6 @@ class BackgroundNoiseGenerator:
         if not fp:
             return []
 
-        # Get SZL identity data via FingerprintApplicator
-        try:
-            applicator = FingerprintApplicator(fingerprint=fp)
-            response = applicator.get_identity_response("s7", szl_id=0x0011)
-            szl_data = response.raw_bytes
-        except Exception:
-            logger.debug("Failed to get S7 identity for %s", device.device_id)
-            return []
-
-        if not szl_data:
-            return []
-
-        # Build SZL request/response (TPKT+COTP+S7 application layer)
-        pdu_ref = random.randint(1, 65535)
-        try:
-            szl_req = build_s7_szl_request(pdu_ref=pdu_ref, szl_id=0x0011)
-            szl_resp = build_s7_szl_response(
-                pdu_ref=pdu_ref, szl_id=0x0011, szl_data=szl_data,
-            )
-        except Exception:
-            logger.debug("Failed to build S7 SZL for %s", device.device_id)
-            return []
-
         # Wrap in TCP packets — use real device as S7 engineering station
         mgr_dev = self._pick_query_source(device)
         mgr_ip = mgr_dev.ip_address if mgr_dev else (device.gateway_ip or "10.0.0.1")
@@ -1413,41 +1390,48 @@ class BackgroundNoiseGenerator:
 
         seq = random.randint(1000, 0xFFFFFF)
         ack = random.randint(1000, 0xFFFFFF)
-
-        try:
-            req_bytes = build_tcp_packet(
-                src=mgr_ctx, dst=dev_ctx,
-                payload=szl_req,
-                seq=seq, ack=ack, flags="PA",
-            )
-            resp_bytes = build_tcp_packet(
-                src=dev_ctx, dst=mgr_ctx,
-                payload=szl_resp,
-                seq=ack, ack=seq + len(szl_req), flags="PA",
-            )
-        except Exception:
-            logger.debug("Failed to build TCP for S7 %s", device.device_id)
-            return []
-
         flow_id = f"ambient_s7_{device.device_id}"
-        resp_delay = random.uniform(5.0, 30.0)
-
-        return [
-            PacketEvent(
-                timestamp_ms=current_time_ms,
-                flow_id=flow_id,
-                packet_bytes=req_bytes,
-                direction="request",
-                metadata={"type": "s7_discovery_req", "device_id": device.device_id},
-            ),
-            PacketEvent(
-                timestamp_ms=current_time_ms + resp_delay,
-                flow_id=flow_id,
-                packet_bytes=resp_bytes,
-                direction="response",
-                metadata={"type": "s7_discovery_resp", "device_id": device.device_id},
-            ),
-        ]
+        t = current_time_ms
+        events: list[PacketEvent] = []
+        applicator = FingerprintApplicator(fingerprint=fp)
+        # Module identification (order code, firmware), then component
+        # identification (module type, serial), as a scan reads them.
+        for szl_id in (0x0011, 0x001C):
+            try:
+                szl_data = applicator.get_identity_response("s7", szl_id=szl_id).raw_bytes
+                if not szl_data:
+                    return events
+                pdu_ref = random.randint(1, 65535)
+                szl_req = build_s7_szl_request(pdu_ref=pdu_ref, szl_id=szl_id)
+                szl_resp = build_s7_szl_response(pdu_ref=pdu_ref, szl_id=szl_id, szl_data=szl_data)
+                req_bytes = build_tcp_packet(src=mgr_ctx, dst=dev_ctx, payload=szl_req,
+                                             seq=seq, ack=ack, flags="PA")
+                resp_bytes = build_tcp_packet(src=dev_ctx, dst=mgr_ctx, payload=szl_resp,
+                                              seq=ack, ack=seq + len(szl_req), flags="PA")
+            except Exception:
+                logger.debug("Failed to build S7 SZL %#06x for %s", szl_id, device.device_id)
+                return events
+            seq += len(szl_req)
+            ack += len(szl_resp)
+            resp_delay = random.uniform(5.0, 30.0)
+            events += [
+                PacketEvent(
+                    timestamp_ms=t,
+                    flow_id=flow_id,
+                    packet_bytes=req_bytes,
+                    direction="request",
+                    metadata={"type": "s7_discovery_req", "device_id": device.device_id, "szl_id": szl_id},
+                ),
+                PacketEvent(
+                    timestamp_ms=t + resp_delay,
+                    flow_id=flow_id,
+                    packet_bytes=resp_bytes,
+                    direction="response",
+                    metadata={"type": "s7_discovery_resp", "device_id": device.device_id, "szl_id": szl_id},
+                ),
+            ]
+            t += resp_delay + random.uniform(50.0, 200.0)
+        return events
 
     # ------------------------------------------------------------------
     # Handlers: DHCP boot (one-shot)

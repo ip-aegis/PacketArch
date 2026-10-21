@@ -219,8 +219,24 @@ class TestS7IdentityBuilder:
 
         raw = builder.build_raw_response(identity, szl_id=0x0011)
 
-        assert len(raw) > 0
-        assert raw[0:2] == b"\x00\x11"  # SZL ID
+        # LENTHDR 28, N_DR 3; SZL-ID/INDEX are written by the userdata wrapper.
+        assert raw[:4] == b"\x00\x1c\x00\x03"
+        records = [raw[4 + 28 * i: 4 + 28 * (i + 1)] for i in range(3)]
+        assert [r[:2] for r in records] == [b"\x00\x01", b"\x00\x06", b"\x00\x07"]
+        assert records[0][2:22] == b"6ES7 516-3AN01-0AB0 "
+        assert records[2][24:28] == b"V\x03\x00\x00"   # firmware V3.0.0
+
+    def test_build_szl_001c_response(self):
+        builder = S7IdentityBuilder()
+        raw = builder.build_raw_response(
+            {"module_type": "CPU 1516-3 PN/DP", "serial_number": "S V-P92001234", "plc_name": "line1-plc"},
+            szl_id=0x001C,
+        )
+        assert raw[:4] == b"\x00\x22\x00\x05"   # LENTHDR 34, five records
+        by_index = {raw[4 + 34 * i: 6 + 34 * i]: raw[6 + 34 * i: 38 + 34 * i].rstrip(b"\x00") for i in range(5)}
+        assert by_index[b"\x00\x01"] == b"line1-plc"
+        assert by_index[b"\x00\x05"] == b"S V-P92001234"
+        assert by_index[b"\x00\x07"] == b"CPU 1516-3 PN/DP"
 
 
 class TestSNMPIdentityBuilder:

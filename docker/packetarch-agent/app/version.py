@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.4.0"
+VERSION = "4.4.1"
 
 # Version history:
+# 4.4.1 - Fixes found by replaying flagship PCAPs into Cyber Vision.
+#   S7: the SZL payload repeated its SZL-ID/INDEX header, so every field
+#   after it was shifted (CV read rack/slot as "r"/":"); SZL 0x0011 now uses
+#   standard 28-byte records (module, hardware, firmware with the version in
+#   Ausbg/Ausbe), 0x001C is read too (module type, serial), and the COTP CC
+#   echoes the TSAPs. Ambient discovery no longer makes a field device poll
+#   its manager (pollers prefer real northbound managers).
 # 4.4.0 - NTCIP 1209 detection stations. Radar detectors (radar_detector /
 #   radar_sensor, or an NTCIP 1206.4.2.4 sysObjectID) now answer the 1209
 #   sampleDataTable (per-lane volume, occupancy, speed per 30 s sample) and

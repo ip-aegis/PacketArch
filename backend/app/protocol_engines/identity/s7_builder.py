@@ -19,6 +19,7 @@ Key identity fields for Cyber Vision detection:
 """
 
 import logging
+import re
 import struct
 from typing import Any
 
@@ -137,48 +138,47 @@ class S7IdentityBuilder(ProtocolIdentityBuilder):
             logger.warning(f"Unsupported SZL ID: {szl_id:#06x}")
             return b""
 
+    # SZL partial-list payload as the S7UserdataResponse wrapper expects it:
+    # the wrapper writes SZL-ID and INDEX; the builder writes LENTHDR (bytes
+    # per record), N_DR (record count) and the records. Record layouts follow
+    # Siemens' SZL definitions (as read by Cyber Vision, Wireshark, snap7):
+    #   W#16#xy11  index WORD, MlfB CHAR[20], BGTyp WORD, Ausbg WORD, Ausbe WORD
+    #   W#16#xy1C  index WORD, text CHAR[32] (or serial number)
+
+    @staticmethod
+    def _version_words(firmware_version: str) -> tuple[int, int]:
+        """("V3.0.3") -> (Ausbg, Ausbe) = ('V' << 8 | 3, 0 << 8 | 3)."""
+        nums = [int(n) for n in re.findall(r"\d+", firmware_version)[:3]] + [0, 0, 0]
+        major, minor, patch = (min(n, 255) for n in nums[:3])
+        return (ord("V") << 8) | major, (minor << 8) | patch
+
     def _build_szl_0011(self, identity: dict[str, Any]) -> bytes:
-        """Build SZL 0x0011 Module identification response.
-
-        Contains order code, serial number, firmware version, and module type.
-        """
-        order_code = identity.get("order_code", "6ES7 516-3AN01-0AB0").encode("ascii")[:20]
-        serial_number = identity.get("serial_number", "S V-P92001234").encode("ascii")[:12]
-        firmware_version = identity.get("firmware_version", "V3.0.0").encode("ascii")[:8]
-        module_type = identity.get("module_type", "CPU 1516-3 PN/DP").encode("ascii")[:24]
-
-        # Pad strings to fixed lengths
-        order_code = order_code.ljust(20, b"\x00")
-        serial_number = serial_number.ljust(12, b"\x00")
-        firmware_version = firmware_version.ljust(8, b"\x00")
-        module_type = module_type.ljust(24, b"\x00")
-
-        # Build SZL 0x0011 response
-        szl_data = struct.pack(">HH", 0x0011, 0x0000)  # SZL ID, Index
-        szl_data += struct.pack(">HH", 64, 1)  # Data length, Element count
-        szl_data += order_code
-        szl_data += serial_number
-        szl_data += firmware_version
-        szl_data += module_type
-
-        return szl_data
+        """SZL 0x0011, module identification: module (index 1), basic
+        hardware (index 6) and basic firmware (index 7, which carries the
+        version)."""
+        order_code = identity.get("order_code", "6ES7 516-3AN01-0AB0").encode("ascii")[:20].ljust(20, b" ")
+        ausbg, ausbe = self._version_words(identity.get("firmware_version", "V3.0.0"))
+        records = [
+            struct.pack(">H", 0x0001) + order_code + struct.pack(">HHH", 0x0000, 0x0000, 0x0001),
+            struct.pack(">H", 0x0006) + order_code + struct.pack(">HHH", 0x0000, 0x0000, 0x0001),
+            struct.pack(">H", 0x0007) + b" " * 20 + struct.pack(">HHH", 0x0000, ausbg, ausbe),
+        ]
+        return struct.pack(">HH", 28, len(records)) + b"".join(records)
 
     def _build_szl_001c(self, identity: dict[str, Any]) -> bytes:
-        """Build SZL 0x001C Component identification response.
-
-        Contains module name and copyright information.
-        """
-        component_name = identity.get("module_type", "CPU 1516-3 PN/DP").encode("ascii")[:32]
-        copyright_info = b"SIEMENS AG".ljust(26, b"\x00")
-
-        component_name = component_name.ljust(32, b"\x00")
-
-        szl_data = struct.pack(">HH", 0x001C, 0x0000)  # SZL ID, Index
-        szl_data += struct.pack(">HH", 58, 1)  # Data length, Element count
-        szl_data += component_name
-        szl_data += copyright_info
-
-        return szl_data
+        """SZL 0x001C, component identification: station name (1), module
+        name (2), copyright (4), serial number (5), module type name (7)."""
+        module_type = identity.get("module_type", "CPU 1516-3 PN/DP")
+        texts = [
+            (0x0001, identity.get("plc_name") or identity.get("station_name") or module_type),
+            (0x0002, module_type),
+            (0x0004, "Original Siemens Equipment"),
+            (0x0005, identity.get("serial_number", "S V-P92001234")),
+            (0x0007, module_type),
+        ]
+        records = [struct.pack(">H", idx) + str(text).encode("ascii", "replace")[:32].ljust(32, b"\x00")
+                   for idx, text in texts]
+        return struct.pack(">HH", 34, len(records)) + b"".join(records)
 
     def get_order_code(self, identity: dict[str, Any]) -> str:
         """Get S7 order code (MLFB)."""

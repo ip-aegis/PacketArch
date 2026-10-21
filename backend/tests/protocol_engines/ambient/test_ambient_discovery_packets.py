@@ -481,7 +481,7 @@ class TestS7DiscoveryPackets:
         gen = _build_gen(device, manager)
         packets = _call_handler(gen, "ambient_s7_discovery", device)
 
-        assert len(packets) == 2, "Should have 1 request + 1 response"
+        assert len(packets) == 4, "SZL 0x0011 then 0x001C: two request/response pairs"
         response_raw = packets[1].packet_bytes
 
         pkt = Ether(response_raw)
@@ -510,12 +510,13 @@ class TestS7DiscoveryPackets:
         gen = _build_gen(device, manager)
         packets = _call_handler(gen, "ambient_s7_discovery", device)
 
-        response_raw = packets[1].packet_bytes
+        # The module type is component identification (SZL 0x001C).
+        response_raw = packets[3].packet_bytes
         pkt = Ether(response_raw)
         payload = bytes(pkt[TCP].payload)
 
         assert b"CPU 1517-3 PN/DP" in payload, (
-            "SZL response must contain module type"
+            "SZL 0x001C response must contain module type"
         )
 
     def test_s7_no_identity_returns_empty(self):

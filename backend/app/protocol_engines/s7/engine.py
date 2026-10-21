@@ -241,6 +241,9 @@ class S7Engine(ProtocolEngine):
         cotp_cc_payload = build_cotp_cc_packet(
             dst_ref=state.custom_data["cotp_src_ref"],
             src_ref=cotp_dst_ref,
+            rack=config.rack,
+            slot=config.slot,
+            connection_type=config.connection_type,
         )
         cotp_cc_packet = _build_tcp_packet(
             flow.destination, flow.source, cotp_cc_payload, server_seq, client_seq, "PA",
@@ -335,6 +338,12 @@ class S7Engine(ProtocolEngine):
         current_time += random.uniform(10.0, 50.0)
         yield from self.generate_szl_query_sequence(
             flow, state, start_time_ms=current_time,
+        )
+        # Then SZL 0x001C (component identification: module type, serial),
+        # as a scanner or TIA Portal reads it.
+        current_time += random.uniform(150.0, 300.0)
+        yield from self.generate_szl_query_sequence(
+            flow, state, start_time_ms=current_time, szl_id=0x001C,
         )
 
     def generate_szl_query_sequence(

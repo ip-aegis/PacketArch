@@ -392,14 +392,14 @@ class TestS7Engine:
         state = engine.create_initial_state(flow_context)
         events = list(engine.generate_startup_sequence(flow_context, state, 0.0))
 
-        # Expect: 3 TCP + 2 COTP + 2 S7 Setup + 2 SZL = 9 events.
-        # The trailing SZL (System Status List) request/response carries
-        # the module identification Cyber Vision reads to fingerprint S7.
-        assert len(events) == 9
+        # Expect: 3 TCP + 2 COTP + 2 S7 Setup + 2x2 SZL = 11 events.
+        # The trailing SZL (System Status List) reads carry the module
+        # (0x0011) and component (0x001C) identification Cyber Vision reads.
+        assert len(events) == 11
 
-        # SZL module-identification query closes out the startup handshake.
-        assert events[7].metadata["type"] == "s7_szl_request"
-        assert events[8].metadata["type"] == "s7_szl_response"
+        assert [e.metadata["type"] for e in events[7:]] == [
+            "s7_szl_request", "s7_szl_response", "s7_szl_request", "s7_szl_response"]
+        assert [e.metadata["szl_id"] for e in events[7:]] == [0x0011, 0x0011, 0x001C, 0x001C]
 
         # Check TCP handshake
         assert events[0].metadata["type"] == "tcp_syn"
@@ -422,10 +422,10 @@ class TestS7Engine:
         for i in range(1, len(events)):
             assert events[i].timestamp_ms >= events[i - 1].timestamp_ms
 
-        # State should be updated. pdu_ref has advanced to 2: the S7 setup
-        # consumed ref 0 and the trailing SZL query consumed ref 1.
+        # State should be updated. pdu_ref has advanced to 3: the S7 setup
+        # consumed ref 0 and the two SZL queries refs 1 and 2.
         assert state.state_name == "connected"
-        assert state.custom_data["pdu_ref"] == 2
+        assert state.custom_data["pdu_ref"] == 3
 
     def test_generate_poll_cycle_read(self, engine: S7Engine, flow_context: FlowContext):
         """Test read poll cycle generation."""
@@ -566,3 +566,45 @@ class TestS7Engine:
             assert len(event.packet_bytes) > 0, (
                 f"Event {event.metadata.get('type')} has empty packet bytes"
             )
+
+
+def test_identity_frames_parse_like_a_real_cpu():
+    """A 2026-10 Cyber Vision replay showed rack/slot as 'r' and ':' and the
+    COTP TSAP as empty: the CC carried no TSAPs and the SZL payload repeated
+    its SZL-ID/INDEX header, shifting every field."""
+    import struct
+
+    from scapy.all import TCP, Ether
+
+    src = DeviceContext(device_id="hmi", mac_address="00:11:22:33:44:55", ip_address="192.168.1.10", port=50000)
+    dst = DeviceContext(
+        device_id="plc", mac_address="00:1b:1b:00:00:01", ip_address="192.168.1.20", port=102,
+        vendor_fingerprint={"vendor": "Siemens", "model": "S7-1500", "s7_identity": {
+            "order_code": "6ES7 516-3AN02-0AB0", "firmware_version": "V3.0.3",
+            "module_type": "CPU 1516-3 PN/DP", "serial_number": "S V-L9N12345"}},
+    )
+    flow = FlowContext(flow_id="f", source=src, destination=dst, protocol=ProtocolType.S7COMM,
+                       config={"rack": 0, "slot": 1}, timing_model={"response_delay_ms": 5})
+    engine = S7Engine()
+    events = list(engine.generate_startup_sequence(flow, engine.create_initial_state(flow), 0.0))
+    payload = {e.metadata["type"] + str(e.metadata.get("szl_id", "")): bytes(Ether(e.packet_bytes)[TCP].payload)
+               for e in events}
+
+    cc = payload["cotp_cc"]
+    assert b"\xc1\x02\x01\x00" in cc and b"\xc2\x02\x01\x01" in cc   # TSAPs echoed
+
+    def szl(resp: bytes) -> tuple[int, int, int, int, bytes]:
+        data = resp[resp.index(b"\xff\x09") + 4:]          # return code, transport size, length
+        return (*struct.unpack(">HHHH", data[:8]), data[8:])
+
+    szl_id, index, lenthdr, n_dr, recs = szl(payload["s7_szl_response17"])
+    assert (szl_id, index, lenthdr, n_dr) == (0x0011, 0, 28, 3)
+    assert recs[2:22] == b"6ES7 516-3AN02-0AB0 "
+    assert recs[2 * 28 + 24: 3 * 28] == b"V\x03\x00\x03"            # index 7: firmware V3.0.3
+
+    szl_id, index, lenthdr, n_dr, recs = szl(payload["s7_szl_response28"])
+    assert (szl_id, lenthdr, n_dr) == (0x001C, 34, 5)
+    records = {recs[i:i + 2]: recs[i + 2:i + 34].rstrip(b"\x00") for i in range(0, 5 * 34, 34)}
+    assert records[b"\x00\x07"] == b"CPU 1516-3 PN/DP"
+    # The serial is made unique per device by the identity enricher.
+    assert records[b"\x00\x05"].startswith(b"S ")

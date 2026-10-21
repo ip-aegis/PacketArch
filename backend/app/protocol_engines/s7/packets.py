@@ -125,11 +125,15 @@ class COTPConnectionConfirm:
     dst_ref: int = 0x0001
     src_ref: int = 0x0000
     tpdu_size: int = 1024
+    # A CPU echoes the requester's TSAPs in its confirm (calling, called).
+    src_tsap: bytes = b"\x01\x00"
+    dst_tsap: bytes = b"\x01\x01"
 
     def build(self) -> bytes:
         """Build COTP CC PDU."""
-        # Parameters
         params = bytes([0xC0, 0x01, 0x0A])  # TPDU size
+        params += bytes([0xC1, len(self.src_tsap)]) + self.src_tsap
+        params += bytes([0xC2, len(self.dst_tsap)]) + self.dst_tsap
 
         header = bytes(
             [
@@ -689,9 +693,14 @@ def build_cotp_cr_packet(
 def build_cotp_cc_packet(
     dst_ref: int = 0x0001,
     src_ref: int = 0x0000,
+    rack: int = 0,
+    slot: int = 1,
+    connection_type: int = S7ConnectionType.PG,
 ) -> bytes:
-    """Build COTP Connection Confirm packet."""
-    cc = COTPConnectionConfirm(dst_ref=dst_ref, src_ref=src_ref)
+    """Build COTP Connection Confirm packet (echoing the CR's TSAPs)."""
+    cr = COTPConnectionRequest.for_s7(rack, slot, connection_type)
+    cc = COTPConnectionConfirm(dst_ref=dst_ref, src_ref=src_ref,
+                               src_tsap=cr.src_tsap, dst_tsap=cr.dst_tsap)
     tpkt = TPKTPacket(payload=cc.build())
     return tpkt.build()
 
