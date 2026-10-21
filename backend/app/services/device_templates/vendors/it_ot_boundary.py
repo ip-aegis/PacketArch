@@ -545,7 +545,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 3.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['snmp', 'https', 'http', 'icmp', 'wmi'],
+        supported_protocols=['snmp', 'https', 'http', 'icmp', 'wmi', 'syslog'],
         protocol_quirks={
                 "snmp": {
                     "community_string": "public",

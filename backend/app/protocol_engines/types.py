@@ -47,6 +47,7 @@ class ProtocolType(str, Enum):
     TELNET = "telnet"  # Telnet — TCP/23
     RDP = "rdp"        # Microsoft RDP — TCP/3389
     HTTPS = "https"    # HTTPS / TLS — TCP/443
+    SYSLOG = "syslog"  # Syslog — UDP/514 (device -> collector)
 
 
 @dataclass
@@ -1359,6 +1360,7 @@ def create_conversation_state(
         ProtocolType.TELNET: CloudServiceConversationState,
         ProtocolType.RDP: CloudServiceConversationState,
         ProtocolType.HTTPS: CloudServiceConversationState,
+        ProtocolType.SYSLOG: ConversationState,
     }
 
     state_class = state_classes.get(protocol)

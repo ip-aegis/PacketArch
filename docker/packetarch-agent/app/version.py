@@ -17,6 +17,8 @@ VERSION = "4.5.0"
 #   SSH: identification strings, KEXINIT, curve25519 exchange, NEWKEYS,
 #   encrypted packets; RDP: X.224 CR with mstshash cookie + RDP_NEG_REQ/RSP
 #   then TLS; Telnet: option negotiation. Cloud heartbeats are unchanged.
+#   New syslog engine (UDP 514, device -> collector): Cisco IOS devices send
+#   the IOS line format with documented mnemonics, others RFC 5424.
 # 4.4.1 - Fixes found by replaying flagship PCAPs into Cyber Vision.
 #   S7: the SZL payload repeated its SZL-ID/INDEX header, so every field
 #   after it was shifted (CV read rack/slot as "r"/":"); SZL 0x0011 now uses

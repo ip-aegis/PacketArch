@@ -210,6 +210,7 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "telnet":        23,
     "rdp":           3389,
     "https":         443,
+    "syslog":        514,   # UDP
     # ── ICS / OT (UDP) ─────────────────────────────────────────
     "snmp":         161,
     "bacnet":       47808,

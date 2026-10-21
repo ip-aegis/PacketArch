@@ -855,7 +855,7 @@ def repair_flow_protocols(definition: dict[str, Any]) -> dict[str, Any]:
         # "better": promoting an NMS or NTCIP SNMP poll to HTTPS would
         # replace real polling with an empty TLS session.
         _GENERIC = {"snmp", "http", "telnet"}
-        _IT_SHAPES = {"https", "ssh", "rdp", "icmp", "wmi", "lldp", "cdp"}
+        _IT_SHAPES = {"https", "ssh", "rdp", "icmp", "wmi", "lldp", "cdp", "syslog", "rtsp", "dns"}
         if (
             current
             and current in src_supp

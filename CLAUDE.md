@@ -111,6 +111,16 @@ that command as well. The recipe above copies only the tests, so the suite runs
 the *image's* `app/`, and a test importing something you just wrote fails with a
 confusing `ImportError` for a symbol that is plainly in the file.
 
+**Testing uncommitted scripts?** `backend/scripts/` (template lint, scenario
+builder) is also baked into the image, so lint tests run the stale copy. Add
+`cp -r /src/scripts/. /app/scripts/` as well.
+
+**Agent-source tests** (e.g. `test_agent_port_parity.py`) skip in this recipe:
+the backend container mounts the *deployed* `docker/packetarch-agent` at
+`/docker/packetarch-agent`, which shadows a branch. To run them against a
+worktree, lay it out as in the repo (`cp -r /src /work/backend`, mount the
+worktree's `docker/` at `/work/docker`) and run pytest from `/work/backend`.
+
 The `|| true` is load-bearing. `app/static/agent` is a bind mount, so `cp`
 hits `'/src/app/./static/agent' and '/app/app/./static/agent' are the same
 file`, copies everything else, and still exits 1. Chained with `&&`, that

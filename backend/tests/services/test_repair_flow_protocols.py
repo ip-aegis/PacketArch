@@ -32,3 +32,8 @@ def test_snmp_poll_is_not_promoted_to_an_it_management_shape():
 def test_snmp_is_still_promoted_when_an_industrial_protocol_is_shared():
     out = repair_flow_protocols(_definition(["snmp", "modbus_tcp"], ["snmp", "modbus_tcp"], "snmp"))
     assert _protocol(out) == "modbus_tcp"
+
+
+def test_snmp_poll_is_not_promoted_to_syslog():
+    out = repair_flow_protocols(_definition(["snmp", "https", "syslog"], ["snmp", "https", "syslog"], "snmp"))
+    assert _protocol(out) == "snmp"

@@ -121,6 +121,7 @@ PROTOCOL_PORTS = {
     "telnet": 23,
     "rdp": 3389,
     "https": 443,
+    "syslog": 514,
 }
 
 # Variant/alias protocol names (s7comm_plus, profisafe, ntcip, ...) resolve

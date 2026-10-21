@@ -1367,7 +1367,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 12.5,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "https", "ssh"],
+        supported_protocols=["snmp", "https", "ssh", "syslog"],
         instance_rules=InstanceGenerationRules(
             serial_format="WA{9NUM}",
             station_name_pattern="cell-{location}-{seq}",
@@ -1411,7 +1411,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 12.5,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "https", "ssh"],
+        supported_protocols=["snmp", "https", "ssh", "syslog"],
         instance_rules=InstanceGenerationRules(
             serial_format="{14NUM}",
             station_name_pattern="cell-{location}-{seq}",

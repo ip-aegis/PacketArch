@@ -3269,7 +3269,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['snmp'],
+        supported_protocols=['snmp', 'syslog'],
         firmware_variants=[FirmwareVariant(
             version="V6.3.0",
             release_date=date(2024, 1, 1),
@@ -3653,7 +3653,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 1.0,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "ssh", "https"],
+        supported_protocols=["snmp", "ssh", "https", "syslog"],
         instance_rules=InstanceGenerationRules(
             serial_format="RUG{8NUM}",
             station_name_pattern="cabsw-{location}-{seq}",
