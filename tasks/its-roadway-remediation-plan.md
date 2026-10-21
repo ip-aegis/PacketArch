@@ -13,9 +13,16 @@
 
 ## Phase 0: Put correct NTCIP on the wire (P1, ship as one unit)
 
+> **Status 2026-10-21 (branch `its-ntcip-phase0`):** 0.1–0.8 are done, except the
+> noSuchObject response (NULL instead, see SPEC_NEEDS.md) and the `rtsp` comm-matrix
+> handling (deferred to Phase 4). Three further defects were fixed along the way:
+> SMI application tags (SNMPv1 traps could not be built at all), and PCAP flows
+> that ignored `timing.intervalMs` in every vertical. **TSS is arc `.4`, not `.10`**:
+> the audit's arc table was wrong on that point. 0.9 (CV decode check) is still open.
+
 **Why atomic:** setting `device_type` alone yields 330 zero-valued varbinds under the ramp-meter arc (see the audit counterfactual). That is worse than today. The items below land together.
 
-- [ ] **0.1 Confirm the arc map** against the NTCIP 1201/1202/1203/1204 MIB files before writing code. The expected map, which is the acceptance gate:
+- [x] **0.1 Confirm the arc map** against the NTCIP 1201/1202/1203/1204 MIB files before writing code. The expected map, which is the acceptance gate:
 
   | Arc | Standard |
   |---|---|
@@ -25,28 +32,28 @@
   | .5 | ESS |
   | .6 | Global |
   | .7 | CCTV |
-  | .10 | TSS |
+  | .4 | TSS |
   | .18 | RSU |
 
   Record the MIB revision used in a new `protocol_engines/snmp/ntcip/SPEC_NEEDS.md`, using the rail convention with confidence tiers `spec` / `spec_legacy` / `provisional` / `synthetic`.
-- [ ] **0.2 Fix the constants** in `snmp/oids.py:26-32` and the definitions in `ntcip_1202.py`, `ntcip_1203.py` and `ntcip_1204.py`. Model the objects as table columns with real indices: `phaseStatusGroupGreens.<group>`, `dmsMessageMultiString.<memType>.<msgNum>`, and so on. Replace the invented `.0` scalars.
-- [ ] **0.3 Replace substring matching with exact-OID dispatch** in `engine.py:263-312`: a dict from OID to value-provider. Unknown NTCIP OIDs should return `noSuchObject`, not `INTEGER 0`. Emit the correct ASN.1 types: OCTET STRING for MULTI, Counter or Gauge where the MIB says so.
-- [ ] **0.4 Derive `device_type` at runtime** in the shared enrichment layer (`services/scenario_enrichment.py`), so saved scenarios and the hand-authored template path also benefit. Use this precedence:
+- [x] **0.2 Fix the constants** in `snmp/oids.py:26-32` and the definitions in `ntcip_1202.py`, `ntcip_1203.py` and `ntcip_1204.py`. Model the objects as table columns with real indices: `phaseStatusGroupGreens.<group>`, `dmsMessageMultiString.<memType>.<msgNum>`, and so on. Replace the invented `.0` scalars.
+- [x] **0.3 Replace substring matching with exact-OID dispatch** in `engine.py:263-312`: a dict from OID to value-provider. Unknown NTCIP OIDs should return `noSuchObject`, not `INTEGER 0`. Emit the correct ASN.1 types: OCTET STRING for MULTI, Counter or Gauge where the MIB says so.
+- [x] **0.4 Derive `device_type` at runtime** in the shared enrichment layer (`services/scenario_enrichment.py`), so saved scenarios and the hand-authored template path also benefit. Use this precedence:
   1. Explicit `flow.config.device_type`
   2. The destination template's `snmp_identity.ntcip_device_type`
   3. A role/type map: traffic_controller→asc, dms→dms, weather_station/rwis→ess, radar/thermal→tss, ptz/cctv→cctv, rsu→rsu, ramp_meter→rmc
 
   Call it from both `tasks.py` and the agent deploy path. Add the missing ESS branch to `_get_poll_oids`. **Phase 0 covers ASC, DMS and ESS only**, because those already have object files. The TSS, CCTV, RSU and RMC branches need new object definitions, so they land with their devices in Phases 3 and 4. Until then those roles keep the MIB-II fallback.
-- [ ] **0.5 Make phase displays physically consistent.** Interim step: a deterministic 8-phase dual-ring/barrier sequencer keyed on the virtual clock. Reds, yellows and greens must be mutually exclusive per phase, with exactly one green or yellow phase per ring and barrier-compatible pairs (1+5, 2+6, 3+7, 4+8). Phase 1 replaces this with the full engine.
-- [ ] **0.6 Small wire fixes**:
+- [x] **0.5 Make phase displays physically consistent.** Interim step: a deterministic 8-phase dual-ring/barrier sequencer keyed on the virtual clock. Reds, yellows and greens must be mutually exclusive per phase, with exactly one green or yellow phase per ring and barrier-compatible pairs (1+5, 2+6, 3+7, 4+8). Phase 1 replaces this with the full engine.
+- [x] **0.6 Small wire fixes**:
   - Startup responses: set the response `dst_port` to the request's source port (`engine.py:398, 410`).
   - `sysUpTime` from virtual time (`engine.py:185-189`).
   - Add the `ntcip→snmp` alias. Either add `rtsp` to the types or stop the comm matrix from selecting it, so flows are not silently dropped at `orchestrator_pool.py:783`.
-- [ ] **0.7 Tests**:
+- [x] **0.7 Tests**:
   - Rewrite `tests/protocol_engines/test_snmp.py:410-419` and `:1186-1215` to assert the correct arcs and that the branch was taken. A constant 0 must fail.
   - Add a phase-consistency property test: no phase is in two colours, ring and barrier rules hold.
   - Promote `tasks/audit-results/its-ntcip/e2e_ntcip.py` into `backend/tests/integration/test_its_ntcip_on_wire.py`. It should assert more than zero NTCIP varbinds per controller, DMS and ESS, and nonzero, plausible values.
-- [ ] **0.8 Bump** `docker/packetarch-agent/app/version.py` (MINOR).
+- [x] **0.8 Bump** `docker/packetarch-agent/app/version.py` (MINOR).
 - [ ] **0.9 Find out what Cyber Vision actually decodes.** `docs/cyber-vision/` has no evidence either way. Replay the post-fix PCAP into one of the running CV sensors and record whether CV classifies or decodes NTCIP objects or treats them as generic SNMP. If CV does not decode them, the labeled corpus and parser guide (1.8) carry the demo, and 1.8 moves up to run right after Phase 0. This mirrors how the rail work went.
 
 **Demoable after Phase 0:** a corridor PCAP or live deploy in which Wireshark, with the NTCIP MIBs loaded, shows controllers answering 1202 phase status, DMS signs returning their current MULTI message, and RWIS returning air and pavement readings. Whether Cyber Vision shows the same depends on the result of 0.9.
