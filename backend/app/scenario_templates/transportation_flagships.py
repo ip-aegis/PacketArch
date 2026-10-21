@@ -216,10 +216,10 @@ def _f1_cabinet(hub: str, corridor: str, cross: str, index: int, atc: str,
     if index % 2 == 1:
         # Two cameras still run AXIS OS 10.6.0 (CVE-2021-31986).
         cam_fw = "10.6.0" if (hub, index) in _F1_VULNERABLE_CAMERAS else "11.6.94"
-        specs.append(device(f"{short}_CCTV", "camera", hub, "camera", ["snmp", "https"], group=group,
+        specs.append(device(f"{short}_CCTV", "camera", hub, "camera", ["snmp", "https", "rtsp"], group=group,
                             firmware=cam_fw))
     if index == 1:
-        specs.append(device(f"{short}_PTZ", "ptz_camera", hub, "ptz_camera", ["snmp", "https"], group=group))
+        specs.append(device(f"{short}_PTZ", "ptz_camera", hub, "ptz_camera", ["snmp", "https", "rtsp"], group=group))
     if index == 6:
         # The far end of each corridor is not on fiber: cellular backhaul.
         specs.append(device(f"{short}_Cell", "cellular_router", hub, cell, ["snmp", "https", "syslog"], group=group))
@@ -240,7 +240,7 @@ def _metro_arterial() -> dict[str, Any]:
         device("TMC_Historian", "historian", "tmc", "historian", ["snmp", "https"]),
         device("TMC_Signal_Eng_WS", "engineering_workstation", "tmc", "ews", ["snmp", "rdp", "https"]),
         device("TMC_NMS", "nms", "tmc", "nms", ["snmp", "https", "syslog"]),
-        device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https"]),
+        device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https", "rtsp"]),
         device("TMC_Core_SW", "network_switch", "tmc", "core_switch", ["snmp", "syslog"]),
         device("TMC_Domain_Controller", "domain_controller", "tmc", "domain_controller", ["snmp", "dns", "rdp"]),
         device("EOC_ATMS_Standby", "atms_server", "backup_tmc", "atms_centracs", ["snmp", "https"]),
@@ -278,6 +278,7 @@ def _metro_arterial() -> dict[str, Any]:
         flow("syslog", ["network_switch", "cellular_router"], ["nms"], 120000),
         # Video management sessions to every camera.
         flow("https", ["vms_server"], ["camera", "ptz_camera"], 10000, target_zones=hub_ids),
+        flow("rtsp", ["vms_server"], ["camera", "ptz_camera"], 2000, target_zones=hub_ids),
         # Cellular routers report to the ATMS over the carrier link.
         flow("https", ["cellular_router"], ["atms_server"], 120000, target_zones=["tmc"]),
         # Center plumbing: EOC replication, traveler-info feed, admin access.
@@ -290,7 +291,7 @@ def _metro_arterial() -> dict[str, Any]:
     ]
 
     conduits = [
-        conduit("tmc", hub, ["snmp", "https", "syslog"], "ATMS NTCIP polling, VMS video sessions, NMS "
+        conduit("tmc", hub, ["snmp", "https", "syslog", "rtsp"], "ATMS NTCIP polling, VMS video sessions, NMS "
                 "monitoring and syslog, cellular router check-in") for hub in hub_ids
     ] + [
         conduit("backup_tmc", hub, ["snmp"], "EOC standby ATMS NTCIP watch") for hub in hub_ids
@@ -375,7 +376,7 @@ def _road_tunnel() -> dict[str, Any]:
                ["s7comm", "ethernet_ip", "rdp", "snmp"]),
         device("TCR_BMS_Server", "bms_server", "control_room", "bms_server", ["bacnet"]),
         device("TCR_NMS", "nms", "control_room", "nms", ["snmp", "https", "syslog"]),
-        device("TCR_Video_Mgmt", "vms_server", "control_room", "vms", ["snmp", "https"]),
+        device("TCR_Video_Mgmt", "vms_server", "control_room", "vms", ["snmp", "https", "rtsp"]),
         device("TCR_Core_SW", "network_switch", "control_room", "core_switch", ["snmp", "syslog"]),
         device("TCR_Domain_Controller", "domain_controller", "control_room", "domain_controller",
                ["snmp", "dns", "rdp"]),
@@ -424,7 +425,7 @@ def _road_tunnel() -> dict[str, Any]:
         devices.append(device(f"Bore_{b}_Thermal_Det", "thermal_sensor", "traffic_control",
                               "thermal_detector", ["snmp"]))
         for i in range(1, 7):
-            devices.append(device(f"Bore_{b}_CCTV_{i:02d}", "camera", "cctv", "bore_camera", ["snmp", "https"]))
+            devices.append(device(f"Bore_{b}_CCTV_{i:02d}", "camera", "cctv", "bore_camera", ["snmp", "https", "rtsp"]))
 
     plant_switches = ["network_switch"]
     flows = [
@@ -457,6 +458,7 @@ def _road_tunnel() -> dict[str, Any]:
         flow("opc_ua", ["historian"], ["scada"], 5000),
         # Video.
         flow("https", ["vms_server"], ["camera"], 10000, target_zones=["cctv"]),
+        flow("rtsp", ["vms_server"], ["camera"], 2000, target_zones=["cctv"]),
         # Engineering and network operations.
         flow("s7comm", ["engineering_workstation"], ["plc", "safety_plc"], 600000, target_zones=["ventilation"]),
         flow("ethernet_ip", ["engineering_workstation"], ["plc"], 600000, target_zones=["drainage"]),
@@ -474,7 +476,7 @@ def _road_tunnel() -> dict[str, Any]:
         conduit("control_room", "power_lighting", ["modbus_tcp", "bacnet", "snmp", "syslog"],
                 "UPS Modbus, BMS BACnet, NMS"),
         conduit("control_room", "traffic_control", ["snmp", "syslog"], "ATMS NTCIP sign/signal/RWIS control; NMS"),
-        conduit("control_room", "cctv", ["https", "snmp", "syslog"], "Video management; NMS"),
+        conduit("control_room", "cctv", ["https", "snmp", "syslog", "rtsp"], "Video management and streams; NMS"),
         conduit("idmz", "control_room", ["rdp", "snmp"], "Jump host RDP to engineering; NMS"),
     ]
 
@@ -554,10 +556,10 @@ def _f3_hub(hub: str, start_mp: int, end_mp: int, rwis: bool) -> list[dict[str, 
             device(f"MP{mp:02d}_Ramp_CabSW", "network_switch", hub, "cabinet_switch", ["snmp", "syslog"], group=group),
         ]
     specs.append(device(f"MP{start_mp + 2:02d}_TravelTime_DMS", "dms", hub, "travel_time_dms", ["snmp"]))
-    specs += [device(f"MP{start_mp + k:02d}_PTZ", "ptz_camera", hub, "ptz_camera", ["snmp", "https"])
+    specs += [device(f"MP{start_mp + k:02d}_PTZ", "ptz_camera", hub, "ptz_camera", ["snmp", "https", "rtsp"])
               for k in (1, 3)]
     cam_fw = "10.6.0" if hub == _F3_VULNERABLE_CAMERA_HUB else "11.6.94"
-    specs.append(device(f"MP{start_mp + 2:02d}_CCTV", "camera", hub, "camera", ["snmp", "https"],
+    specs.append(device(f"MP{start_mp + 2:02d}_CCTV", "camera", hub, "camera", ["snmp", "https", "rtsp"],
                         firmware=cam_fw))
     if rwis:
         specs.append(device(f"MP{start_mp + 2:02d}_RWIS", "weather_station", hub, "rwis", ["snmp"]))
@@ -577,7 +579,7 @@ def _freeway_corridor() -> dict[str, Any]:
         device("TMC_Historian", "historian", "tmc", "historian", ["snmp", "https"]),
         device("TMC_Ops_Eng_WS", "engineering_workstation", "tmc", "ews", ["snmp", "rdp", "https"]),
         device("TMC_NMS", "nms", "tmc", "nms", ["snmp", "https", "syslog"]),
-        device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https"]),
+        device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https", "rtsp"]),
         # The core still runs IOS XE 17.9.3: web UI exposed (CVE-2023-20198).
         device("TMC_Core_SW", "network_switch", "tmc", "freeway_core_switch", ["snmp", "syslog"],
                firmware="17.9.3"),
@@ -607,6 +609,7 @@ def _freeway_corridor() -> dict[str, Any]:
         flow("snmp", ["engineering_workstation"], ["ramp_meter", "dms"], 600000, target_zones=hub_ids),
         # Video, network operations, cellular check-in.
         flow("https", ["vms_server"], ["camera", "ptz_camera"], 10000, target_zones=hub_ids),
+        flow("rtsp", ["vms_server"], ["camera", "ptz_camera"], 2000, target_zones=hub_ids),
         flow("snmp", ["nms"], field_infra, 60000),
         flow("syslog", ["network_switch", "cellular_router"], ["nms"], 120000),
         flow("https", ["cellular_router"], ["atms_server"], 120000, target_zones=["tmc"]),
@@ -616,7 +619,7 @@ def _freeway_corridor() -> dict[str, Any]:
         flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server", "domain_controller"], 60000),
     ]
     conduits = [
-        conduit("tmc", hub, ["snmp", "https", "syslog"], "ATMS NTCIP collection, video, NMS and syslog, "
+        conduit("tmc", hub, ["snmp", "https", "syslog", "rtsp"], "ATMS NTCIP collection, video, NMS and syslog, "
                 "cellular check-in")
         for hub in hub_ids
     ] + [

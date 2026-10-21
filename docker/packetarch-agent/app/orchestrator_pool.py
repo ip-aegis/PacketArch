@@ -122,6 +122,7 @@ PROTOCOL_PORTS = {
     "rdp": 3389,
     "https": 443,
     "syslog": 514,
+    "rtsp": 554,
 }
 
 # Variant/alias protocol names (s7comm_plus, profisafe, ntcip, ...) resolve

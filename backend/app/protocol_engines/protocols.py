@@ -211,6 +211,7 @@ PROTOCOL_DEFAULT_PORTS: dict[str, int] = {
     "rdp":           3389,
     "https":         443,
     "syslog":        514,   # UDP
+    "rtsp":          554,
     # ── ICS / OT (UDP) ─────────────────────────────────────────
     "snmp":         161,
     "bacnet":       47808,

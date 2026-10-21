@@ -23,6 +23,9 @@ VERSION = "4.5.0"
 #   serves dns), central/Windows-class hosts resolve real peers'
 #   <canonical-host>.<site domain> names (and the AD DC locator SRV record)
 #   at that server; the agent passes the SiteIdentity domain.
+#   New RTSP engine (TCP 554): OPTIONS/DESCRIBE(SDP, H.264)/SETUP (TCP
+#   interleaved)/PLAY, then a deliberately sparse RTP slice per cycle, RTCP
+#   sender reports and GET_PARAMETER keepalives; TEARDOWN at shutdown.
 # 4.4.1 - Fixes found by replaying flagship PCAPs into Cyber Vision.
 #   S7: the SZL payload repeated its SZL-ID/INDEX header, so every field
 #   after it was shifted (CV read rack/slot as "r"/":"); SZL 0x0011 now uses

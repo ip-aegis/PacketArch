@@ -48,6 +48,7 @@ class ProtocolType(str, Enum):
     RDP = "rdp"        # Microsoft RDP — TCP/3389
     HTTPS = "https"    # HTTPS / TLS — TCP/443
     SYSLOG = "syslog"  # Syslog — UDP/514 (device -> collector)
+    RTSP = "rtsp"      # RTSP video session — TCP/554 (VMS/NVR -> camera)
 
 
 @dataclass
@@ -1361,6 +1362,7 @@ def create_conversation_state(
         ProtocolType.RDP: CloudServiceConversationState,
         ProtocolType.HTTPS: CloudServiceConversationState,
         ProtocolType.SYSLOG: ConversationState,
+        ProtocolType.RTSP: ConversationState,
     }
 
     state_class = state_classes.get(protocol)

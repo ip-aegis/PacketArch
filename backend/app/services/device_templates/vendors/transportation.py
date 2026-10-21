@@ -715,7 +715,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 6.0,
             "distribution": "lognormal",
         },
-        supported_protocols=["https"],
+        supported_protocols=["https", "rtsp"],
         instance_rules=InstanceGenerationRules(
             serial_format="SV{8NUM}",
             station_name_pattern="alpr-{location}-{seq}",
@@ -808,7 +808,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "https"],
+        supported_protocols=["snmp", "https", "rtsp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ACCC8E{6HEX}",
@@ -880,7 +880,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "https"],
+        supported_protocols=["snmp", "https", "rtsp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="ACCC8E{6HEX}",
@@ -1230,7 +1230,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 1.5,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "https", "rdp"],
+        supported_protocols=["snmp", "https", "rdp", "rtsp"],
         instance_rules=InstanceGenerationRules(
             serial_format="VMware-{8HEX}",
             station_name_pattern="vms-{location}-{seq}",

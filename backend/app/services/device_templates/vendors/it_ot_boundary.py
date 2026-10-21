@@ -37,7 +37,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "retry_behavior": True,
                 "max_retries": 3,
             },
-        supported_protocols=['snmp', 'ssh', 'telnet', 'https'],
+        supported_protocols=['snmp', 'ssh', 'telnet', 'https', 'rtsp'],
         firmware_variants=[FirmwareVariant(
             version="7.82.0127",
             release_date=date(2024, 1, 1),
