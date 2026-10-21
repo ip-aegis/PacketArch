@@ -44,3 +44,13 @@ Any `https` / `ssh` / `rdp` / `telnet` flow without `config.hostname` emits TCP 
 - Full suite.
 - One commit per engine.
 - One batched Cyber Vision replay at the end, only after the operator agrees to it, with fresh MACs.
+
+## Status (2026-10-21)
+
+- [x] 1. Session shapes: HTTPS / SSH / RDP / Telnet (`1ab3641`)
+- [x] 2. syslog (`0910cc7`)
+- [x] 3. Ambient DNS plus a Windows Server 2022 DC in each flagship (`1c0d3e6`)
+- [x] 4. RTSP (`999d948`). Metro arterial: 5.4x before, 5.1x after real time; 6.0 MB before, 8.9 MB after per 2 min.
+- [x] 5. HTTP (`b886fb2`)
+- [x] Frontend: extended color/label maps plus conduit options. The `ProtocolType` union is unchanged; `tsc` is clean.
+- [ ] Batched Cyber Vision replay. Waiting on operator approval.

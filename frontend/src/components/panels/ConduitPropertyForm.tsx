@@ -47,6 +47,11 @@ const ALL_PROTOCOL_OPTIONS: { value: string; label: string }[] = [
   { value: 'snmp', label: 'SNMP' },
   { value: 'https', label: 'HTTPS' },
   { value: 'rdp', label: 'RDP' },
+  { value: 'ssh', label: 'SSH' },
+  { value: 'telnet', label: 'Telnet' },
+  { value: 'http', label: 'HTTP' },
+  { value: 'rtsp', label: 'RTSP (video)' },
+  { value: 'syslog', label: 'Syslog' },
 ];
 
 interface ConduitPropertyFormProps {
