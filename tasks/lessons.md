@@ -461,3 +461,17 @@ request — three skills plus the system prompt was already at the cap, and the
 next skill anyone added would have been a 400 with no clue pointing here.
 Redundant-but-harmless is worth a second look when the thing being spent is
 rationed.
+
+## A multi-edit script that aborts halfway leaves a lie behind (2026-10-21)
+
+One Python script made several edits: revert the OUI generator's rewrites in
+siemens.py, then restore Centracs's VM OUIs in transportation.py. The first
+assertion failed, the script exited, and I fixed siemens.py by hand. I never
+re-ran the second half. Centracs shipped to master with Econolite's hardware
+OUI under a comment that says "VMware ... software on a virtual host". The
+tests passed because Econolite's OUI is a valid Econolite OUI. Nothing
+checked the intent.
+
+**Rule:** after a multi-edit script fails, re-check every edit it was meant
+to make, not only the one that failed. When a comment states a fact about
+data (here, "VM OUIs"), assert that fact in the verification step.

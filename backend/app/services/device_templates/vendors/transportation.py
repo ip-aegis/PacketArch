@@ -1,7 +1,7 @@
 # PacketArch — OT Traffic Simulation Platform
 # Copyright (c) 2026 Rocky Smith <rocky.d.smith@proton.me>
 # Licensed under GPL-3.0. See LICENSE at the repo root.
-"""Transportation / ITS device templates (Econolite, McCain, Daktronics, Wavetronix, FLIR, Q-Free, Kapsch, Axis, Hikvision, Pelco, Genetec, Cradlepoint, Sierra Wireless)."""
+"""Transportation / ITS device templates (Econolite, McCain, Daktronics, Wavetronix, FLIR, Q-Free, Kapsch, Axis, Hikvision, Pelco, Genetec, Cradlepoint, Sierra Wireless, SICK)."""
 
 from app.services.device_templates._types import DeviceTemplate, FirmwareVariant, InstanceGenerationRules
 
@@ -513,115 +513,271 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_object_id": "1.3.6.1.4.1.34674",  # IANA PEN 34674 = FLIR Systems
         },
     ),
+    # ------------------------------------------------------------------
+    # Tolling and V2X (2026-10-21). These replace "Kapsch TCS 2000" and
+    # "Q-Free RSU 5000", which match no real product, and whose firmware
+    # was invented. Sources: Kapsch's LSIORB technical proposal (Indiana
+    # Finance Authority, 2014), Kapsch JANUS and RIS-9260 datasheets, NVD /
+    # CVE records. Unpublished release dates are left empty.
+    # ------------------------------------------------------------------
     DeviceTemplate(
-        id="qfree/rsu/5000",
-        vendor="Q-Free",
-        vendor_family="RSU",
-        model="RSU 5000",
-        model_name="RSU 5000 Roadside Unit",
-        device_type="toll_rsu",
-        description="DSRC roadside unit for tolling and V2X",
-
-        oui_prefixes=["00:12:8E", "64:55:63"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 32768,
-            "mss": 1460,
-            "sack_permitted": True,
-        },
-
-        response_timing={
-            "min_ms": 0.5,
-            "max_ms": 15.0,
-            "mean_ms": 3.0,
-            "std_dev_ms": 2.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="RSU5{10NUM}",
-            station_name_pattern="rsu-{location}-{seq}",
-            vendor_short="QFR",
-            model_short="RSU5",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V4.2.0",
-                release_date=date(2024, 1, 30),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V4.0.0",
-                release_date=date(2022, 8, 15),
-                cves=[],
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "Q-Free RSU 5000 Roadside Unit V4.2.0",
-            "sys_object_id": "1.3.6.1.4.1.15889",  # IANA PEN 15889 = Q-Free ASA
-        },
-    ),
-    DeviceTemplate(
-        id="kapsch/tcs/2000",
+        id="kapsch/tzc/toll-zone-controller",
         vendor="Kapsch",
-        vendor_family="TCS",
-        model="TCS 2000",
-        model_name="TCS 2000 Toll Controller",
+        vendor_family="Toll Zone Controller",
+        model="Toll Zone Controller",
+        model_name="Kapsch TrafficCom Toll Zone Controller",
         device_type="toll_controller",
-        description="Central toll collection system controller",
-
-        oui_prefixes=["00:E0:6A"],
-
+        description="AET toll zone (lane) controller: builds transactions from reader, camera and classifier events",
+        oui_prefixes=["00:E0:6A"],  # IEEE: KAPSCH AG (the group registrant; Kapsch TrafficCom holds no block)
         tcp_stack={
             "ttl": 64,
-            "window_size": 32768,
+            "window_size": 29200,
             "mss": 1460,
             "sack_permitted": True,
             "timestamps_enabled": True,
+            "window_scaling": 7,
         },
-
         response_timing={
             "min_ms": 1.0,
-            "max_ms": 30.0,
-            "mean_ms": 6.0,
-            "std_dev_ms": 4.0,
-            "distribution": "gaussian",
+            "max_ms": 60.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
         },
-
         supported_protocols=["snmp"],
-
         instance_rules=InstanceGenerationRules(
-            serial_format="KAP{10NUM}",
-            station_name_pattern="toll-{location}-{seq}",
-            vendor_short="KAP",
-            model_short="TCS2",
+            serial_format="KTZ{8NUM}",
+            station_name_pattern="tzc-{location}-{seq}",
+            vendor_short="KTC",
+            model_short="TZC",
         ),
-
         firmware_variants=[
-            FirmwareVariant(
-                version="V5.4.0",
-                release_date=date(2024, 2, 5),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V5.2.0",
-                release_date=date(2022, 9, 10),
-                cves=[],
-            ),
+            # "Current release is version 1.2.0.3", released 26-Feb-2014 (LBJ /
+            # NTE managed lanes). Later versions are not public.
+            FirmwareVariant(version="1.2.0.3", release_date=date(2014, 2, 26), is_latest=True,
+                            is_default=True, cves=[]),
         ],
-
         snmp_identity={
-            "sys_descr": "Kapsch TCS 2000 Toll Collection System V5.4.0",
-            "sys_object_id": "1.3.6.1.4.1.13182",  # IANA PEN 13182 = Kapsch TrafficCom
+            "sys_descr": "Kapsch Toll Zone Controller 1.2.0.3",
+            "sys_object_id": "1.3.6.1.4.1.13182",  # IANA PEN 13182 = kapsch TrafficCom AG
+        },
+    ),
+    DeviceTemplate(
+        id="kapsch/janus/mpr2.4",
+        vendor="Kapsch",
+        vendor_family="JANUS",
+        model="JANUS MPR2.4",
+        model_name="Kapsch JANUS Multi-Protocol Reader MPR2.4",
+        device_type="toll_rsu",
+        description="Multi-protocol toll tag reader (TDM/E-ZPass, 6C, 6B, SeGo, ATA); health to MOMS over SNMP",
+        oui_prefixes=["00:E0:6A"],  # IEEE: KAPSCH AG (the group registrant; Kapsch TrafficCom holds no block)
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 60.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="MPR{8NUM}",
+            station_name_pattern="mpr-{location}-{seq}",
+            vendor_short="KTC",
+            model_short="MPR24",
+        ),
+        firmware_variants=[
+            # The only public build string ("2014mar06a-MPR2", 27-Mar-2014).
+            FirmwareVariant(version="2014mar06a-MPR2", release_date=date(2014, 3, 27), is_latest=True,
+                            is_default=True, cves=[]),
+        ],
+        snmp_identity={
+            "sys_descr": "Kapsch JANUS MPR2.4 2014mar06a-MPR2",
+            "sys_object_id": "1.3.6.1.4.1.13182",
+        },
+    ),
+    DeviceTemplate(
+        id="kapsch/ris/9260",
+        vendor="Kapsch",
+        vendor_family="RIS",
+        model="RIS-9260",
+        model_name="Kapsch TrafficCom RIS-9260 V2X Roadside Unit",
+        device_type="rsu",
+        description="Connected-vehicle (V2X) roadside unit",
+        oui_prefixes=["00:E0:6A"],  # IEEE: KAPSCH AG (the group registrant; Kapsch TrafficCom holds no block)
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 60.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="RIS{8NUM}",
+            station_name_pattern="rsu-{location}-{seq}",
+            vendor_short="KTC",
+            model_short="RIS9260",
+        ),
+        firmware_variants=[
+            # The versions named in the 2025-08-26 CVE records; no fixed
+            # version has been published.
+            FirmwareVariant(version="4.6.0.1211.28", release_date=None, is_latest=True, is_default=True,
+                            cves=["CVE-2025-25734", "CVE-2025-25736"], population_weight=0.6),
+            FirmwareVariant(version="3.8.0.1119.42", release_date=None,
+                            cves=["CVE-2025-25734", "CVE-2025-25736"], population_weight=0.4),
+        ],
+        snmp_identity={
+            "sys_descr": "Kapsch RIS-9260 RSU 4.6.0.1211.28",
+            "sys_object_id": "1.3.6.1.4.1.13182",
+        },
+    ),
+    DeviceTemplate(
+        # Back office on VMware (HP blades) per the 2014 proposal.
+        id="kapsch/facility-host/moms",
+        vendor="Kapsch",
+        vendor_family="Facility Host",
+        model="Facility Host / MOMS",
+        model_name="Kapsch Facility Host with MOMS",
+        device_type="server",
+        description="Toll facility host: transactions, toll rates to pricing signs, maintenance online monitoring (MOMS)",
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],  # IEEE: VMware; VMware; Microsoft (Hyper-V) — software on a virtual host
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 40.0,
+            "mean_ms": 4.0,
+            "std_dev_ms": 3.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["snmp", "https"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="VMware-{8HEX}",
+            station_name_pattern="tollhost-{location}-{seq}",
+            vendor_short="KTC",
+            model_short="FHOST",
+        ),
+        firmware_variants=[
+            # MOMS "version 4.0.9", released 5-Feb-2014.
+            FirmwareVariant(version="4.0.9", release_date=date(2014, 2, 5), is_latest=True,
+                            is_default=True, cves=[]),
+        ],
+        snmp_identity={
+            "sys_descr": "Kapsch Facility Host MOMS 4.0.9",
+            "sys_object_id": "1.3.6.1.4.1.13182",
+        },
+    ),
+    DeviceTemplate(
+        # Ports per the SharpV administrator guide: HTTPS 443 among others.
+        # SNMP is not documented, so none is claimed.
+        id="genetec/autovu/sharpv",
+        vendor="Genetec",
+        vendor_family="AutoVu",
+        model="AutoVu SharpV",
+        model_name="Genetec AutoVu SharpV ALPR Camera",
+        device_type="anpr_camera",
+        description="Fixed ALPR camera with on-board plate reading",
+        oui_prefixes=["0C:BF:15", "00:BF:15"],  # IEEE: Genetec Inc.
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 60.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["https"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="SV{8NUM}",
+            station_name_pattern="alpr-{location}-{seq}",
+            vendor_short="GEN",
+            model_short="SHARPV",
+        ),
+        firmware_variants=[
+            FirmwareVariant(version="14.5.3", release_date=None, is_latest=True, is_default=True, cves=[]),
+        ],
+        # The platform answers SNMP for every vendor device (fingerprint
+        # SNMP carve-out); this makes that answer carry Genetec's real PEN.
+        # SharpV's own SNMP support is not documented.
+        snmp_identity={
+            "sys_descr": "Genetec AutoVu SharpV 14.5.3",
+            "sys_object_id": "1.3.6.1.4.1.17475",  # IANA PEN 17475 = Genetec Information Systems
+        },
+    ),
+    DeviceTemplate(
+        # Traffic Information Collector: Traffic Controller + 2x LMS511 SE.
+        # Web configuration (TEMS Manager) over HTTP/HTTPS; TEMS Info
+        # Interface on TCP 54345 (not modelled).
+        id="sick/tic502/master",
+        vendor="SICK",
+        vendor_family="TIC",
+        model="TIC502 Master",
+        model_name="SICK TIC502 Traffic Information Collector",
+        device_type="classification_sensor",
+        description="Laser vehicle detection and classification at toll gantries (2x LMS511 SE)",
+        oui_prefixes=["00:06:77"],  # IEEE: SICK AG
+        tcp_stack={
+            "ttl": 64,
+            "window_size": 29200,
+            "mss": 1460,
+            "sack_permitted": True,
+            "timestamps_enabled": True,
+            "window_scaling": 7,
+        },
+        response_timing={
+            "min_ms": 1.0,
+            "max_ms": 60.0,
+            "mean_ms": 8.0,
+            "std_dev_ms": 6.0,
+            "distribution": "lognormal",
+        },
+        supported_protocols=["https"],
+        instance_rules=InstanceGenerationRules(
+            serial_format="{8NUM}",
+            station_name_pattern="tic-{location}-{seq}",
+            vendor_short="SCK",
+            model_short="TIC502",
+        ),
+        firmware_variants=[
+            # TEMS platform >= V2.8.0 per the TIC operating instructions. The
+            # LMS5xx findings below affect all LMS5xx firmware (SCA-2023-0007).
+            FirmwareVariant(version="2.8.0", release_date=None, is_latest=True, is_default=True,
+                            cves=["CVE-2023-4418", "CVE-2023-4420", "CVE-2023-31412"],
+                            notes="LMS511 SE sensors: CVE-2023-4418/4420/31412 affect all LMS5xx versions"),
+        ],
+        # As for SharpV: the platform's SNMP answer, under SICK's real PEN.
+        snmp_identity={
+            "sys_descr": "SICK TIC502 Master TEMS 2.8.0",
+            "sys_object_id": "1.3.6.1.4.1.52203",  # IANA PEN 52203 = SICK AG
         },
     ),
     DeviceTemplate(
@@ -800,28 +956,17 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="ANPR",
         ),
 
+        # V5.6.11 build 200609 is the only build seen in public integration
+        # notes. The earlier V5.7.14 / V5.6.5 / V5.5.0 set was unsourced, and
+        # CVE-2021-36260 was attached although Hikvision's advisory
+        # (HSRC-202109-01) lists no DS-2CD7xxx model.
         firmware_variants=[
-            FirmwareVariant(
-                version="V5.7.14",
-                release_date=date(2024, 2, 10),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V5.6.5",
-                release_date=date(2022, 9, 20),
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V5.5.0",
-                release_date=date(2021, 4, 15),
-                cves=["CVE-2021-36260"],
-            ),
+            FirmwareVariant(version="V5.6.11", release_date=date(2020, 6, 9), is_latest=True,
+                            is_default=True, cves=[]),
         ],
 
         snmp_identity={
-            "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera V5.7.14",
+            "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera V5.6.11",
             "sys_object_id": "1.3.6.1.4.1.39165.1.1",
         },
     ),
@@ -1028,7 +1173,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Econolite Centracs Advanced Traffic Management System Server",
         device_type="server",
         description="Central traffic management system: signal timing, NTCIP polling, alarms",
-        oui_prefixes=["00:04:81"],  # IEEE: VMware; VMware; Microsoft (Hyper-V) — software on a virtual host
+        oui_prefixes=["00:50:56", "00:0C:29", "00:15:5D"],  # IEEE: VMware; VMware; Microsoft (Hyper-V) — software on a virtual host
         tcp_stack={
             "ttl": 128,
             "window_size": 65535,

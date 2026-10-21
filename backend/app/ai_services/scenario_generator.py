@@ -219,10 +219,9 @@ VERTICAL_TEMPLATES = {
             },
             "rsu": {
                 "count_range": (2, 20),
-                "vendors": ["q-free", "kapsch"],
+                "vendors": ["kapsch"],
                 "fingerprint_models": {
-                    "q-free": "RSU 5000",
-                    "kapsch": "TCS 2000",
+                    "kapsch": "RIS-9260",
                 },
                 "error_config": {"exception_rate": 0.001, "timeout_rate": 0.001},
             },

@@ -663,10 +663,10 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("daktronics", "VX-2420"),
     ),
     (VendorProfile.ATMS_NTCIP, "toll_rsu"): (
-        ("q-free", "RSU 5000"),
+        ("kapsch", "JANUS MPR2.4"),
     ),
     (VendorProfile.ATMS_NTCIP, "toll_lane_controller"): (
-        ("kapsch", "TCS 2000"),
+        ("kapsch", "Toll Zone Controller"),
     ),
     (VendorProfile.ATMS_NTCIP, "rwis_station"): (
         ("vaisala", "RWS200"),
@@ -919,10 +919,10 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("daktronics", "VF-2020"),
     ),
     "toll_rsu": (
-        ("q-free", "RSU 5000"),
+        ("kapsch", "JANUS MPR2.4"),
     ),
     "toll_lane_controller": (
-        ("kapsch", "TCS 2000"),
+        ("kapsch", "Toll Zone Controller"),
     ),
     "rwis_station": (
         ("vaisala", "RWS200"),

@@ -130,10 +130,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Remote Access Gateway",
              "external_comms": True},
 
-            # Roadside Unit - Q-Free RSU 5000
-            {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
+            # V2X Roadside Unit - Kapsch RIS-9260
+            {"type": "rsu", "vendor": "kapsch", "count": 1, "zone": "external",
              "name": "Highway_V2X_Roadside_Unit", "protocols": ["snmp"],
-             "fingerprint_model": "RSU 5000",
+             "fingerprint_model": "RIS-9260",
              "role": "V2X Roadside Unit"},
         ],
         "flows": [
@@ -659,10 +659,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Remote Access Gateway",
              "external_comms": True},
 
-            # Roadside Unit - Q-Free RSU 5000
-            {"type": "rsu", "vendor": "q_free", "count": 1, "zone": "external",
+            # V2X Roadside Unit - Kapsch RIS-9260
+            {"type": "rsu", "vendor": "kapsch", "count": 1, "zone": "external",
              "name": "Tunnel_Entry_V2X_Roadside_Unit", "protocols": ["snmp"],
-             "fingerprint_model": "RSU 5000",
+             "fingerprint_model": "RIS-9260",
              "role": "Tunnel Entry RSU"},
         ],
         "flows": [
@@ -873,16 +873,16 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ETC LANES ZONE (Level 2) - 10 devices
             # Electronic Toll Collection lanes
             # ============================================================
-            # Toll Controllers - Kapsch TCS 2000
+            # Toll Zone Controllers - Kapsch
             {"type": "toll_controller", "vendor": "kapsch", "count": 6, "zone": "etc_lanes",
              "name_pattern": "ETC_Lane_Toll_Controller_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "TCS 2000",
+             "fingerprint_model": "Toll Zone Controller",
              "role": "ETC Lane Controller"},
 
-            # Roadside Units - Q-Free RSU 5000
-            {"type": "rsu", "vendor": "q_free", "count": 4, "zone": "etc_lanes",
+            # Toll tag readers - Kapsch JANUS MPR2.4
+            {"type": "rsu", "vendor": "kapsch", "count": 4, "zone": "etc_lanes",
              "name_pattern": "ETC_Lane_Roadside_Unit_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "RSU 5000",
+             "fingerprint_model": "JANUS MPR2.4",
              "role": "ETC Roadside Unit"},
 
             # ============================================================

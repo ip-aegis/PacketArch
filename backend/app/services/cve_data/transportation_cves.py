@@ -226,57 +226,10 @@ TRANSPORTATION_CVES: list[dict] = [
     # HIKVISION - ANPR CAMERAS
     # ==========================================================================
 
-    # CVE-2021-36260 - Hikvision IP Camera Command Injection
-    {
-        "cve_id": "CVE-2021-36260",
-        "title": "Hikvision IP Camera Command Injection Vulnerability",
-        "description": (
-            "Hikvision IP cameras including ANPR models contain a command "
-            "injection vulnerability in the web server that allows remote "
-            "attackers to execute arbitrary commands via crafted requests."
-        ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "vendor": "Hikvision",
-        "product_family": "ANPR Camera",
-        "affected_models": ["DS-2CD7A26G0/P", "DS-2CD4A26FWD-IZHS", "DS-2CD6365G0-IVS"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V5.7.2",
-        "fixed_firmware_version": "V5.7.4",
-        "cyber_vision_detectable": True,
-        "detection_method": "snmp_sysdescr",
-        "advisory_url": "https://www.cisa.gov/news-events/ics-advisories/icsa-21-265-02",
-        "references": [
-            "https://nvd.nist.gov/vuln/detail/CVE-2021-36260",
-        ],
-        "mitre_techniques": ["T0866", "T0882"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2021, 9, 22),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V5.7.2",
-                "display_name": "Hikvision DS-2CD7A26G0/P ANPR (CVE-2021-36260)",
-                "snmp_identity_override": {
-                    "sys_descr": "Hikvision DS-2CD7A26G0/P ANPR Camera V5.7.2",
-                    "sys_object_id": "1.3.6.1.4.1.39165.1.1.1",
-                    "sys_name": "ANPR-TOLL-001",
-                    "sys_location": "Toll Plaza Lane 1",
-                },
-            },
-            {
-                "firmware_version": "V5.6.8",
-                "display_name": "Hikvision DS-2CD4A26FWD ANPR (CVE-2021-36260)",
-                "snmp_identity_override": {
-                    "sys_descr": "Hikvision DS-2CD4A26FWD-IZHS ANPR Camera V5.6.8",
-                    "sys_object_id": "1.3.6.1.4.1.39165.1.1.2",
-                    "sys_name": "ANPR-TOLL-002",
-                    "sys_location": "Toll Plaza Lane 2",
-                },
-            },
-        ],
-    },
+    # CVE-2021-36260 (Hikvision web-server command injection) was removed
+    # 2026-10-21: the record pinned it to three ANPR models (DS-2CD7A26G0/P,
+    # DS-2CD4A26FWD-IZHS, DS-2CD6365G0-IVS) that Hikvision's advisory
+    # HSRC-202109-01 does not list (it names DS-2CD4xx6FWD as non-ANPR only).
     # CVE-2025-1100 - Q-Free MAXTIME hard-coded root password (Nozomi
     # Networks, 2025-02-11; one of ~40 MAXTIME findings published together).
     # NVD CPE: q-free:maxtime versionEndIncluding 2.11.0. No fixed version
@@ -311,6 +264,170 @@ TRANSPORTATION_CVES: list[dict] = [
             {
                 "display_name": "Intelight 2070LX MAXTIME 2.11.0 (CVE-2025-1100)",
                 "firmware_version": "2.11.0",
+            },
+        ],
+    },
+    # SICK LMS5xx (SICK advisory SCA-2023-0007, 2023-08-24). These three
+    # affect all LMS5xx firmware with no fix, so they carry no version bounds.
+    # The TIC502 traffic collector is built on two LMS511 SE scanners.
+    {
+        "cve_id": "CVE-2023-4418",
+        "title": "SICK LMS5xx TCP SYN Flood Denial of Service",
+        "description": (
+            'A remote unprivileged attacker can send multiple packets to the LMS5xx to disrupt its availability through a TCP SYN-based denial-of-service attack.'
+        ),
+        "severity": "high",
+        "cvss_score": 7.5,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        "vendor": "SICK",
+        "product_family": "LMS5xx",
+        "affected_models": ['LMS5xx', 'TIC502 Master'],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://sick.com/.well-known/csaf/white/2023/sca-2023-0007.pdf",
+        "references": [],
+        "mitre_techniques": ['T0814'],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2023, 8, 24),
+        "vulnerable_variants": [
+            {
+                "display_name": "SICK TIC502 (LMS511 SE) TEMS 2.8.0",
+                "firmware_version": "2.8.0",
+            },
+        ],
+    },
+    {
+        "cve_id": "CVE-2023-4420",
+        "title": "SICK LMS5xx Missing Transport Encryption",
+        "description": (
+            'A remote unprivileged attacker can intercept the communication, e.g. by man-in-the-middle, due to the absence of Transport Layer Security (TLS) in the SICK LMS5xx.'
+        ),
+        "severity": "critical",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "SICK",
+        "product_family": "LMS5xx",
+        "affected_models": ['LMS5xx', 'TIC502 Master'],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://sick.com/.well-known/csaf/white/2023/sca-2023-0007.pdf",
+        "references": [],
+        "mitre_techniques": ['T0830'],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2023, 8, 24),
+        "vulnerable_variants": [
+            {
+                "display_name": "SICK TIC502 (LMS511 SE) TEMS 2.8.0",
+                "firmware_version": "2.8.0",
+            },
+        ],
+    },
+    {
+        "cve_id": "CVE-2023-31412",
+        "title": "SICK LMS5xx Weak Password Hashing",
+        "description": (
+            'The LMS5xx uses weak hash generation methods, resulting in insecure hashes. An attacker who retrieves a hash could mount collision attacks and potentially recover the password.'
+        ),
+        "severity": "high",
+        "cvss_score": 7.5,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+        "vendor": "SICK",
+        "product_family": "LMS5xx",
+        "affected_models": ['LMS5xx', 'TIC502 Master'],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://sick.com/.well-known/csaf/white/2023/sca-2023-0007.pdf",
+        "references": [],
+        "mitre_techniques": ['T0859'],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2023, 8, 24),
+        "vulnerable_variants": [
+            {
+                "display_name": "SICK TIC502 (LMS511 SE) TEMS 2.8.0",
+                "firmware_version": "2.8.0",
+            },
+        ],
+    },
+    # Kapsch RIS-9160 / RIS-9260 V2X RSUs (CVE records 2025-08-26). Both are
+    # physical-access findings; the records list affected builds
+    # 3.2.0.829.23, 3.8.0.1119.42 and 4.6.0.1211.28 and no fixed version.
+    {
+        "cve_id": "CVE-2025-25734",
+        "title": "Kapsch RIS-9260 Unauthenticated EFI Shell",
+        "description": (
+            'Kapsch TrafficCom RIS-9160 and RIS-9260 roadside units v3.2.0.829.23, v3.8.0.1119.42 and v4.6.0.1211.28 contain an unauthenticated EFI shell that allows attackers to execute arbitrary code or escalate privileges during the boot process.'
+        ),
+        "severity": "medium",
+        "cvss_score": 6.8,
+        "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Kapsch",
+        "product_family": "RIS",
+        "affected_models": ['RIS-9260', 'RIS-9160'],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://www.cve.org/CVERecord?id=CVE-2025-25734",
+        "references": [],
+        "mitre_techniques": ['T0839'],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2025, 8, 26),
+        "vulnerable_variants": [
+            {
+                "display_name": "Kapsch RIS-9260 4.6.0.1211.28",
+                "firmware_version": "4.6.0.1211.28",
+            },
+            {
+                "display_name": "Kapsch RIS-9260 3.8.0.1119.42",
+                "firmware_version": "3.8.0.1119.42",
+            },
+        ],
+    },
+    {
+        "cve_id": "CVE-2025-25736",
+        "title": "Kapsch RIS-9260 ADB Enabled by Default",
+        "description": (
+            'Kapsch TrafficCom RIS-9260 RSU LEO v3.2.0.829.23, v3.8.0.1119.42 and v4.6.0.1211.28 ship with Android Debug Bridge pre-installed and enabled by default, allowing an unauthenticated root shell.'
+        ),
+        "severity": "medium",
+        "cvss_score": 6.8,
+        "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "vendor": "Kapsch",
+        "product_family": "RIS",
+        "affected_models": ['RIS-9260'],
+        "affected_firmware_min": None,
+        "affected_firmware_max": None,
+        "fixed_firmware_version": None,
+        "cyber_vision_detectable": True,
+        "detection_method": "snmp_sysdescr",
+        "advisory_url": "https://www.cve.org/CVERecord?id=CVE-2025-25736",
+        "references": [],
+        "mitre_techniques": ['T0886'],
+        "exploit_available": False,
+        "exploit_complexity": "low",
+        "published_date": datetime(2025, 8, 26),
+        "vulnerable_variants": [
+            {
+                "display_name": "Kapsch RIS-9260 4.6.0.1211.28",
+                "firmware_version": "4.6.0.1211.28",
+            },
+            {
+                "display_name": "Kapsch RIS-9260 3.8.0.1119.42",
+                "firmware_version": "3.8.0.1119.42",
             },
         ],
     },

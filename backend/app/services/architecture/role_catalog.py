@@ -1158,7 +1158,7 @@ _ROLES: tuple[Role, ...] = (
         required_protocols=("snmp",),
         optional_protocols=("https",),
         typical_partners=("toll_lane_controller", "scada_primary"),
-        examples=("Q-Free RSU 5000",),
+        examples=("Kapsch JANUS MPR2.4", "TransCore Encompass 6"),
     ),
 
     Role(
@@ -1181,7 +1181,7 @@ _ROLES: tuple[Role, ...] = (
         required_protocols=("snmp",),
         optional_protocols=("https",),
         typical_partners=("toll_rsu", "anpr_camera", "scada_primary"),
-        examples=("Kapsch TCS 2000",),
+        examples=("Kapsch Toll Zone Controller", "TransCore Infinity lane server"),
     ),
 
     # =====================================================================

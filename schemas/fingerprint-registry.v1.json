@@ -2,7 +2,7 @@
   "$schema": "https://packetarch.io/schemas/fingerprint-registry.v1.json",
   "format_version": "1.0",
   "description": "Static snapshot of the PacketArch device template catalog for offline / airgapped portable scenario authoring. Use entries here to populate `fingerprint_model` in a .pascenario.json file. The live equivalent is GET /api/v1/fingerprints/registry.",
-  "entry_count": 353,
+  "entry_count": 357,
   "vendors": [
     "abb",
     "advantech",
@@ -97,6 +97,7 @@
     "bms_server",
     "building_controller",
     "camera",
+    "classification_sensor",
     "cnc_controller",
     "communication_module",
     "controller",
@@ -145,6 +146,7 @@
     "room_controller",
     "room_sensor",
     "router",
+    "rsu",
     "rtu",
     "safety_plc",
     "scada",
@@ -1416,6 +1418,16 @@
     },
     {
       "vendor": "genetec",
+      "model": "AutoVu SharpV",
+      "model_name": "Genetec AutoVu SharpV ALPR Camera",
+      "device_type": "anpr_camera",
+      "protocols": [
+        "https"
+      ],
+      "description": "Fixed ALPR camera with on-board plate reading"
+    },
+    {
+      "vendor": "genetec",
       "model": "Security Center 5",
       "model_name": "Genetec Security Center Video Management Server",
       "device_type": "server",
@@ -1770,13 +1782,44 @@
     },
     {
       "vendor": "kapsch",
-      "model": "TCS 2000",
-      "model_name": "TCS 2000 Toll Controller",
+      "model": "RIS-9260",
+      "model_name": "Kapsch TrafficCom RIS-9260 V2X Roadside Unit",
+      "device_type": "rsu",
+      "protocols": [
+        "snmp"
+      ],
+      "description": "Connected-vehicle (V2X) roadside unit"
+    },
+    {
+      "vendor": "kapsch",
+      "model": "Facility Host / MOMS",
+      "model_name": "Kapsch Facility Host with MOMS",
+      "device_type": "server",
+      "protocols": [
+        "snmp",
+        "https"
+      ],
+      "description": "Toll facility host: transactions, toll rates to pricing signs, maintenance online monitoring (MOMS)"
+    },
+    {
+      "vendor": "kapsch",
+      "model": "Toll Zone Controller",
+      "model_name": "Kapsch TrafficCom Toll Zone Controller",
       "device_type": "toll_controller",
       "protocols": [
         "snmp"
       ],
-      "description": "Central toll collection system controller"
+      "description": "AET toll zone (lane) controller: builds transactions from reader, camera and classifier events"
+    },
+    {
+      "vendor": "kapsch",
+      "model": "JANUS MPR2.4",
+      "model_name": "Kapsch JANUS Multi-Protocol Reader MPR2.4",
+      "device_type": "toll_rsu",
+      "protocols": [
+        "snmp"
+      ],
+      "description": "Multi-protocol toll tag reader (TDM/E-ZPass, 6C, 6B, SeGo, ATA); health to MOMS over SNMP"
     },
     {
       "vendor": "kepware",
@@ -2173,16 +2216,6 @@
         "profinet"
       ],
       "description": "Linux-based open automation controller"
-    },
-    {
-      "vendor": "q-free",
-      "model": "RSU 5000",
-      "model_name": "RSU 5000 Roadside Unit",
-      "device_type": "toll_rsu",
-      "protocols": [
-        "snmp"
-      ],
-      "description": "DSRC roadside unit for tolling and V2X"
     },
     {
       "vendor": "q-free",
@@ -3283,6 +3316,16 @@
         "ethernet_ip"
       ],
       "description": "SICK SICK CLV650"
+    },
+    {
+      "vendor": "sick",
+      "model": "TIC502 Master",
+      "model_name": "SICK TIC502 Traffic Information Collector",
+      "device_type": "classification_sensor",
+      "protocols": [
+        "https"
+      ],
+      "description": "Laser vehicle detection and classification at toll gantries (2x LMS511 SE)"
     },
     {
       "vendor": "sick",

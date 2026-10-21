@@ -89,13 +89,17 @@ _VIRTUALIZATION_OUIS = {"00:50:56", "00:0C:29", "00:15:5D"}
 
 def test_no_template_oui_is_a_known_foreign_brand() -> None:
     """Each template's oui_prefixes must be inside its vendor's grounded set."""
+    from app.services.device_templates import get_all_templates
+
+    # Fingerprint dicts carry no device_type; read it from the templates.
+    _SERVER_TEMPLATES = {(t.vendor, t.model) for t in get_all_templates() if t.device_type == "server"}
     bad: list[str] = []
     for fp in get_all_fingerprints():
         vendor = normalize_vendor(fp.get("vendor") or "")
         allowed = {o.upper() for o in VENDOR_OUIS.get(vendor, [])}
         if not allowed:
             continue
-        if fp.get("device_type") == "server":
+        if (fp.get("vendor"), fp.get("model")) in _SERVER_TEMPLATES:
             # Vendor software on a virtual host (e.g. an ATMS on a VM) shows the
             # hypervisor's OUI, whoever the vendor is.
             allowed |= _VIRTUALIZATION_OUIS
