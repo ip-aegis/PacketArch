@@ -851,8 +851,11 @@ def repair_flow_protocols(definition: dict[str, Any]) -> dict[str, Any]:
         # poor when a real industrial protocol is also available. If the
         # flow's current protocol is generic but shared has something
         # better, promote — likely a degraded snap from when one endpoint
-        # had narrower supported_protocols.
+        # had narrower supported_protocols. IT management shapes are not
+        # "better": promoting an NMS or NTCIP SNMP poll to HTTPS would
+        # replace real polling with an empty TLS session.
         _GENERIC = {"snmp", "http", "telnet"}
+        _IT_SHAPES = {"https", "ssh", "rdp", "icmp", "wmi", "lldp", "cdp"}
         if (
             current
             and current in src_supp
@@ -865,7 +868,7 @@ def repair_flow_protocols(definition: dict[str, Any]) -> dict[str, Any]:
             current
             and current in _GENERIC
             and current in shared
-            and not (shared - _GENERIC)
+            and not (shared - _GENERIC - _IT_SHAPES)
         ):
             # Generic is the only choice — keep it.
             new_flows[fid] = flow

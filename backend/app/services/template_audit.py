@@ -186,6 +186,20 @@ _GENERIC_ONLY_PROTOCOLS: frozenset[str] = frozenset({
     "snmp", "http", "telnet",
 })
 
+
+def _is_ntcip_device(device_type: str, fingerprint: dict) -> bool:
+    """NTCIP field devices (signals, signs, RWIS, detection stations) are
+    managed over SNMP: for them SNMP is the industrial protocol, not an
+    admin fallback. Same rule the SNMP engine uses to pick NTCIP objects:
+    the device type, else an NTCIP (1206.4) sysObjectID."""
+    from app.protocol_engines.snmp.ntcip import KIND_BY_DEVICE_TYPE
+
+    if device_type in KIND_BY_DEVICE_TYPE:
+        return True
+    identity = fingerprint.get("snmp_identity") or {}
+    oid = str(identity.get("sys_object_id") or "").lstrip(".")
+    return oid.startswith("1.3.6.1.4.1.1206.4.")
+
 # Source device types where a generic-only protocol IS the correct shape
 # (admins / jump servers / management stations / vertical-specific NMS).
 # When source is one of these, generic-only flows are not flagged.
@@ -362,6 +376,7 @@ def audit_irrational_flows(
             proto
             and proto in _GENERIC_ONLY_PROTOCOLS
             and src_type not in _GENERIC_OK_SOURCE_TYPES
+            and not (proto == "snmp" and _is_ntcip_device(tgt_type, tgt_fp))
         ):
             src_supp = {p.lower() for p in get_supported_protocols(src_fp)}
             tgt_supp = {p.lower() for p in get_supported_protocols(tgt_fp)}
