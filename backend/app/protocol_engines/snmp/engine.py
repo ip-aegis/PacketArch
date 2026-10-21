@@ -449,7 +449,10 @@ class SnmpEngine(ProtocolEngine):
                     "type": "snmp_get_response",
                     "request_id": state.transaction_id,
                     "oids": oids,
-                    "values": {vb.oid: vb.value for vb in var_binds},
+                    "values": {
+                        vb.oid: vb.value.hex() if isinstance(vb.value, bytes) else vb.value
+                        for vb in var_binds
+                    },
                     "response_delay_ms": response_delay,
                     "poll_cycle": state.sequence_number,
                     "snmp_version": config.version.name,

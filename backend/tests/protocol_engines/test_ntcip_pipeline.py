@@ -78,3 +78,65 @@ def test_its_devices_answer_ntcip_on_the_wire(archetype):
     for dev in ntcip_devices:
         assert ntcip_by_device[dev["id"]] > 0, f"{dev['type']} {dev['id']} answered no NTCIP"
         assert nonzero_by_device[dev["id"]] > 0, f"{dev['type']} {dev['id']} NTCIP values all zero"
+
+
+def _definition_from_hand_template(name: str) -> dict:
+    """Mirror api/routes/templates.py create-from-template for a curated
+    template with explicit devices/flows: expand device specs by count,
+    resolve fingerprints by vendor+model, round-robin flows by
+    (type, zone) with ``timing.intervalMs``. IPs/MACs are synthetic."""
+    from app.scenario_templates.transportation import TRANSPORTATION_TEMPLATES
+    from app.services.device_templates import get_fingerprint_by_vendor_model
+
+    template = TRANSPORTATION_TEMPLATES[name]
+    devices, by_type_zone = {}, collections.defaultdict(list)
+    for spec in template["devices"]:
+        for _ in range(spec.get("count", 1)):
+            n = len(devices) + 1
+            dev_id = f"device_{n:03d}"
+            devices[dev_id] = {
+                "id": dev_id,
+                "name": spec.get("name") or f"{spec['type']}-{n:03d}",
+                "type": spec["type"],
+                "zoneId": spec.get("zone", ""),
+                "vendorFingerprint": get_fingerprint_by_vendor_model(spec.get("vendor"), spec.get("fingerprint_model")) or {},
+                "network": {"ipAddress": f"10.77.{n // 250}.{n % 250 + 2}", "macAddress": f"02:00:00:00:{n // 256:02x}:{n % 256:02x}"},
+            }
+            by_type_zone[(spec["type"], spec.get("zone", ""))].append(dev_id)
+    flows = {}
+    for spec in template["flows"]:
+        timing = {"intervalMs": spec.get("interval_ms", 1000)}
+        for st in spec.get("source_types", []):
+            for tt in spec.get("target_types", []):
+                srcs = [d for z in spec.get("source_zones") or {k[1] for k in by_type_zone if k[0] == st} for d in by_type_zone.get((st, z), [])]
+                dsts = [d for z in spec.get("target_zones") or {k[1] for k in by_type_zone if k[0] == tt} for d in by_type_zone.get((tt, z), [])]
+                for i in range(max(len(srcs), len(dsts)) if srcs and dsts else 0):
+                    s, t = srcs[i % len(srcs)], dsts[i % len(dsts)]
+                    if s != t:
+                        fid = f"flow_{len(flows) + 1:03d}"
+                        flows[fid] = {"id": fid, "sourceDeviceId": s, "targetDeviceId": t,
+                                      "protocol": spec["protocol"], "timing": timing, "config": {}}
+    return {"devices": devices, "flows": flows, "zones": {}, "conduits": {}}
+
+
+@pytest.mark.parametrize(
+    "template", ["highway_corridor_its", "urban_intersection_network", "tunnel_control_system", "toll_plaza_operations"],
+)
+def test_hand_authored_templates_answer_ntcip(template):
+    d = repair_flow_protocols(auto_repair_protocols(_definition_from_hand_template(template)))
+    by_ip = {dev["network"]["ipAddress"]: dev for dev in d["devices"].values()}
+    out = _Capture()
+    orch = UnifiedOrchestrator(out, duration_ms=60_000)
+    for fc in _build_flow_contexts(d, scenario_id="00000000-0000-0000-0000-0000000000bb", vertical="transportation"):
+        orch.add_flow(fc)
+    orch.run()
+    answered = collections.Counter()
+    for raw in out.packets:
+        pkt = Ether(raw)
+        if SNMP in pkt and UDP in pkt and pkt[UDP].sport == 161:
+            for vb in pkt[SNMP].PDU.varbindlist:
+                if vb.oid.val.startswith(NTCIP) and vb.value.val:
+                    answered[by_ip[pkt[IP].src]["type"]] += 1
+    expected = {t for t in ("traffic_controller", "dms_sign", "weather_station")
+                if any(dev["type"] == t for dev in d["devices"].values())}
+    assert expected and expected <= set(answered), (expected, dict(answered))

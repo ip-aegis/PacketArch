@@ -74,11 +74,13 @@ I ran `tasks/audit-results/its-ntcip/e2e_forced.py`. It produced **330 NTCIP var
 | 1206.4.2.1 | ASC (1202) |
 | .2 | Ramp meter (1207) |
 | .3 | DMS (1203) |
+| .4 | TSS (1209) |
 | .5 | ESS (1204) |
 | .6 | Global (1201) |
 | .7 | CCTV (1205) |
-| .10 | TSS (1209) |
 | .18 | RSU (1218) |
+
+> **Correction (2026-10-21, Phase 0):** the NTCIP MIB files confirm ASC .1, DMS .3, ESS .5 and Global .6, and put **TSS at .4, not .10**. RMC .2, CCTV .7 and RSU .18 are still unverified. Sources: `backend/app/protocol_engines/snmp/ntcip/SPEC_NEEDS.md`.
 
 ---
 

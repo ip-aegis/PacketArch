@@ -129,7 +129,7 @@ class UnifiedOrchestrator:
             flow_context: Flow context to add
         """
         if isinstance(flow_context.config, dict):
-            flow_context.config.setdefault("_epoch_anchor_s", self.epoch_anchor_s)
+            flow_context.config["_epoch_anchor_s"] = self.epoch_anchor_s
         engine = get_engine(flow_context.protocol)
         conversation_state = engine.create_initial_state(flow_context)
 

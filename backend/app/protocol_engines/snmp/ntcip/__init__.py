@@ -44,6 +44,7 @@ KIND_BY_DEVICE_TYPE = {
     "signal_controller": "asc",
     "traffic_signal_controller": "asc",
     "dms": "dms",
+    "dms_sign": "dms",
     "vms": "dms",
     "cms": "dms",
     "message_sign": "dms",

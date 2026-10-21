@@ -168,6 +168,8 @@ def _ctx(device_type=None, sys_oid=None):
     [
         ({}, "traffic_controller", None, "asc"),
         ({}, "dms", None, "dms"),
+        ({}, "dms_sign", None, "dms"),
+        ({}, "wayside_signal_controller", None, None),             # rail, not NTCIP
         ({}, "weather_station", None, "ess"),
         ({}, "controller", "1.3.6.1.4.1.1206.4.2.1", "asc"),       # generic type -> arc
         ({}, None, "1.3.6.1.4.1.1206.4.2.3.2", "dms"),
