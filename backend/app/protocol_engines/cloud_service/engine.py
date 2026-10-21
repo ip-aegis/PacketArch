@@ -16,6 +16,7 @@ from collections.abc import Iterator
 from dataclasses import replace
 
 from app.protocol_engines.base import ProtocolEngine
+from app.protocol_engines.cloud_service import sessions
 from app.protocol_engines.cloud_service.packets import (
     build_tcp_ack,
     build_tcp_fin,
@@ -28,6 +29,7 @@ from app.protocol_engines.tcp_builder import build_tcp_packet
 from app.protocol_engines.types import (
     CloudServiceConversationState,
     ConversationState,
+    DeviceContext,
     FlowContext,
     PacketEvent,
     ProtocolType,
@@ -36,6 +38,21 @@ from app.protocol_engines.types import (
 # Import register_engine here to avoid circular imports
 # (engine files are imported by __init__.py after register_engine is defined)
 from app.protocol_engines import register_engine
+
+
+def _server_hostname(server: DeviceContext) -> str:
+    """SNI for a session to a scenario device: its canonical hostname."""
+    from app.protocol_engines import canonical_identity
+
+    return canonical_identity.canonical_hostname(server.device_name or server.device_id)
+
+
+def _ssh_server_banner(server: DeviceContext) -> bytes:
+    """The device's SSH identification string when its fingerprint sources
+    one (``ssh_banner``); otherwise the generic default."""
+    fp = server.vendor_fingerprint or {}
+    banner = fp.get("ssh_banner") or (fp.get("ssh_identity") or {}).get("banner")
+    return (banner.rstrip("\r\n") + "\r\n").encode() if banner else sessions.SSH_DEFAULT_SERVER_BANNER
 
 
 @register_engine(ProtocolType.CLOUD_SERVICE)
@@ -138,8 +155,15 @@ class CloudServiceEngine(ProtocolEngine):
         client_seq += 1
         server_seq += 1
 
+        if flow.protocol != ProtocolType.CLOUD_SERVICE:
+            # Interactive sessions carry their protocol's real opening
+            # exchange (see sessions.py); cloud heartbeats keep the
+            # ClientHello/ServerHello shape below unchanged.
+            t, client_seq, server_seq = yield from self._session_exchange(
+                flow, state, client, server, t, client_seq, server_seq,
+            )
         # TLS handshake
-        if state.tls_enabled and state.hostname:
+        elif state.tls_enabled and state.hostname:
             client_hello_payload = build_tls_client_hello_payload(
                 state.hostname, state.tls_profile,
             )
@@ -203,6 +227,70 @@ class CloudServiceEngine(ProtocolEngine):
 
         # Rotate source port for the next independent connection
         state.src_port = random.randint(49152, 65535)
+
+    # ------------------------------------------------------------------
+    # Interactive sessions (HTTPS, SSH, RDP, Telnet)
+    # ------------------------------------------------------------------
+
+    def _session_exchange(self, flow, state, client, server, t, client_seq, server_seq):
+        """Yield one session's application exchange; return (t, seqs)."""
+        seq = {"c": client_seq, "s": server_seq}
+
+        def send(from_client: bool, payload: bytes, gap: tuple[float, float]):
+            nonlocal t
+            src, dst = (client, server) if from_client else (server, client)
+            mine, theirs = ("c", "s") if from_client else ("s", "c")
+            t += random.uniform(*gap)
+            pkt = build_tcp_packet(src, dst, payload, seq[mine], seq[theirs], "PA",
+                                   src.fingerprint_applicator.get_tcp_options())
+            seq[mine] += len(payload)
+            return PacketEvent(timestamp_ms=t, flow_id=flow.flow_id, packet_bytes=pkt,
+                               direction="request" if from_client else "response")
+
+        def ack(from_client: bool):
+            nonlocal t
+            src, dst = (client, server) if from_client else (server, client)
+            mine, theirs = ("c", "s") if from_client else ("s", "c")
+            t += random.uniform(0.2, 2.0)
+            return PacketEvent(timestamp_ms=t, flow_id=flow.flow_id,
+                               packet_bytes=build_tcp_ack(src, dst, seq[mine], seq[theirs]),
+                               direction="request" if from_client else "response")
+
+        def tls(hostname: str):
+            yield send(True, build_tls_client_hello_payload(hostname, state.tls_profile), (2, 10))
+            yield send(False, sessions.tls_server_flight(state.tls_profile), (5, 40))
+            yield send(True, sessions.tls_client_finish(), (2, 10))
+            yield send(False, sessions.tls_server_finish(), (2, 15))
+
+        proto = flow.protocol
+        if proto == ProtocolType.HTTPS:
+            yield from tls(state.hostname or _server_hostname(server))
+            for _ in range(random.randint(1, 3)):
+                yield send(True, sessions.tls_application_data(random.randint(220, 720)), (5, 30))
+                yield send(False, sessions.tls_application_data(random.randint(300, 1350)), (10, 120))
+                yield ack(True)
+        elif proto == ProtocolType.SSH:
+            yield send(False, _ssh_server_banner(server), (1, 10))
+            yield send(True, sessions.SSH_CLIENT_BANNER, (1, 10))
+            yield send(True, sessions.ssh_kexinit(), (1, 5))
+            yield send(False, sessions.ssh_kexinit(), (1, 10))
+            yield send(True, sessions.ssh_ecdh_init(), (1, 5))
+            yield send(False, sessions.ssh_ecdh_reply() + sessions.ssh_newkeys(), (5, 30))
+            yield send(True, sessions.ssh_newkeys(), (1, 5))
+            for _ in range(random.randint(2, 4)):
+                yield send(True, sessions.ssh_encrypted(random.randint(48, 160)), (20, 400))
+                yield send(False, sessions.ssh_encrypted(random.randint(64, 900)), (5, 60))
+        elif proto == ProtocolType.RDP:
+            yield send(True, sessions.rdp_connection_request("operator"), (1, 5))
+            yield send(False, sessions.rdp_connection_confirm(), (2, 15))
+            yield from tls(_server_hostname(server))
+            for _ in range(random.randint(2, 4)):
+                yield send(False, sessions.tls_application_data(random.randint(400, 1350)), (10, 80))
+                yield send(True, sessions.tls_application_data(random.randint(60, 300)), (20, 300))
+        elif proto == ProtocolType.TELNET:
+            yield send(False, sessions.telnet_server_greeting(), (1, 10))
+            yield send(True, sessions.telnet_client_negotiation(), (1, 10))
+        return t, seq["c"], seq["s"]
 
     def generate_shutdown_sequence(
         self,

@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.4.1"
+VERSION = "4.5.0"
 
 # Version history:
+# 4.5.0 - Interactive IT sessions carry their real opening exchange. An
+#   https/ssh/rdp/telnet flow without config.hostname used to put only a
+#   TCP handshake and teardown on the wire. HTTPS: full TLS 1.2 ECDHE
+#   handshake (SNI = the server's canonical hostname) then application data;
+#   SSH: identification strings, KEXINIT, curve25519 exchange, NEWKEYS,
+#   encrypted packets; RDP: X.224 CR with mstshash cookie + RDP_NEG_REQ/RSP
+#   then TLS; Telnet: option negotiation. Cloud heartbeats are unchanged.
 # 4.4.1 - Fixes found by replaying flagship PCAPs into Cyber Vision.
 #   S7: the SZL payload repeated its SZL-ID/INDEX header, so every field
 #   after it was shifted (CV read rack/slot as "r"/":"); SZL 0x0011 now uses
