@@ -76,6 +76,11 @@ FP = {
     "thermal_detector": "flir/trafione/sensor",
     "bore_camera": "axis/camera/p1448-le",
     "jump_patched": "microsoft/windows-server/jump-server-2019",
+    # Freeway (F3)
+    "mainline_radar": "wavetronix/smartsensor/hd",
+    "ramp_meter": "mccain/2070/atc",
+    "travel_time_dms": "daktronics/vanguard/vx-2420",
+    "freeway_core_switch": "cisco/ie9320/24p4x",
 }
 
 
@@ -497,7 +502,148 @@ def _road_tunnel() -> dict[str, Any]:
     }
 
 
+# ===========================================================================
+# F3 — Freeway Management Corridor
+# ===========================================================================
+
+# (zone id, display name, subnet offset, mileposts, has RWIS)
+_F3_HUBS = [
+    ("hub_mp00", "Hub MP 0-4", 10, (0, 4), True),
+    ("hub_mp04", "Hub MP 4-8", 11, (4, 8), False),
+    ("hub_mp08", "Hub MP 8-12", 12, (8, 12), True),
+    ("hub_mp12", "Hub MP 12-16", 13, (12, 16), False),
+    ("hub_mp16", "Hub MP 16-20", 14, (16, 20), True),
+]
+_F3_STATIONS_PER_HUB = 8
+_F3_CELLULAR_HUB = "hub_mp16"        # past the end of the fiber plant
+_F3_VULNERABLE_CAMERA_HUB = "hub_mp08"
+
+
+def _f3_hub(hub: str, start_mp: int, end_mp: int, rwis: bool) -> list[dict[str, Any]]:
+    specs = [device(f"MP{start_mp:02d}_Hub_SW", "network_switch", hub, "hub_switch", ["snmp"])]
+    span = (end_mp - start_mp) / _F3_STATIONS_PER_HUB
+    for i in range(_F3_STATIONS_PER_HUB):
+        mp = start_mp + span * (i + 0.5)
+        tag = f"MP{mp:04.1f}".replace(".", "_")
+        group = f"{hub}_ds{i + 1:02d}"
+        specs += [
+            device(f"{tag}_Detector", "radar_detector", hub, "mainline_radar", ["snmp"], group=group),
+            device(f"{tag}_CabSW", "network_switch", hub, "cabinet_switch", ["snmp"], group=group),
+        ]
+        if hub == _F3_CELLULAR_HUB and i >= _F3_STATIONS_PER_HUB - 2:
+            specs.append(device(f"{tag}_Cell", "cellular_router", hub, "cell_sierra", ["snmp", "https"],
+                                group=group))
+    for j, mp in enumerate((start_mp + 1, start_mp + 3), start=1):
+        group = f"{hub}_rm{j}"
+        specs += [
+            device(f"MP{mp:02d}_Ramp_Meter", "ramp_meter", hub, "ramp_meter", ["snmp"], group=group),
+            device(f"MP{mp:02d}_Ramp_CabSW", "network_switch", hub, "cabinet_switch", ["snmp"], group=group),
+        ]
+    specs.append(device(f"MP{start_mp + 2:02d}_TravelTime_DMS", "dms", hub, "travel_time_dms", ["snmp"]))
+    specs += [device(f"MP{start_mp + k:02d}_PTZ", "ptz_camera", hub, "ptz_camera", ["snmp", "https"])
+              for k in (1, 3)]
+    cam_fw = "10.6.0" if hub == _F3_VULNERABLE_CAMERA_HUB else "11.6.94"
+    specs.append(device(f"MP{start_mp + 2:02d}_CCTV", "camera", hub, "camera", ["snmp", "https"],
+                        firmware=cam_fw))
+    if rwis:
+        specs.append(device(f"MP{start_mp + 2:02d}_RWIS", "weather_station", hub, "rwis", ["snmp"]))
+    return specs
+
+
+def _freeway_corridor() -> dict[str, Any]:
+    zones = [
+        {"id": "idmz", "name": "Industrial DMZ", "level": 3.5, "subnet_offset": 0, "vlan": 100,
+         "security_level": "critical"},
+        {"id": "tmc", "name": "Freeway Traffic Management Center", "level": 3, "subnet_offset": 1,
+         "vlan": 110, "security_level": "critical"},
+    ]
+    devices: list[dict[str, Any]] = [
+        device("TMC_ATMS_Primary", "atms_server", "tmc", "atms_centracs", ["snmp", "https"]),
+        device("TMC_ATMS_Standby", "atms_server", "tmc", "atms_centracs", ["snmp", "https"]),
+        device("TMC_Historian", "historian", "tmc", "historian", ["snmp", "https"]),
+        device("TMC_Ops_Eng_WS", "engineering_workstation", "tmc", "ews", ["snmp", "rdp", "https"]),
+        device("TMC_NMS", "nms", "tmc", "nms", ["snmp", "https"]),
+        device("TMC_Video_Mgmt", "vms_server", "tmc", "vms", ["snmp", "https"]),
+        # The core still runs IOS XE 17.9.3: web UI exposed (CVE-2023-20198).
+        device("TMC_Core_SW", "network_switch", "tmc", "freeway_core_switch", ["snmp"],
+               firmware="17.9.3"),
+        device("DMZ_Jump_Host", "jump_server", "idmz", "jump_patched", ["snmp", "rdp", "https"]),
+        device("DMZ_Traveler_Info_Proxy", "reverse_proxy", "idmz", "reverse_proxy", ["snmp", "https"]),
+        device("DMZ_Vendor_Remote", "remote_gateway", "idmz", "remote_gateway", ["snmp"]),
+    ]
+    hub_ids = []
+    for hub, display, offset, (start_mp, end_mp), rwis in _F3_HUBS:
+        hub_ids.append(hub)
+        zones.append({"id": hub, "name": display, "level": 2, "subnet_offset": offset,
+                      "vlan": 200 + 10 * (offset - 9), "security_level": "high"})
+        devices.extend(_f3_hub(hub, start_mp, end_mp, rwis))
+
+    field_infra = ["network_switch", "camera", "ptz_camera", "cellular_router"]
+    flows = [
+        # NTCIP 1209: the ATMS collects every 30 s sample; the standby and
+        # the historian keep their own copies.
+        flow("snmp", ["atms_server"], ["radar_detector"], 30000, target_zones=hub_ids),
+        flow("snmp", ["historian"], ["radar_detector"], 60000, target_zones=hub_ids),
+        # NTCIP 1203 travel-time signs, 1204 RWIS, ramp meters (MIB-II only
+        # until NTCIP 1207 is modelled).
+        flow("snmp", ["atms_server"], ["dms"], 30000, target_zones=hub_ids),
+        flow("snmp", ["atms_server"], ["weather_station"], 300000, target_zones=hub_ids),
+        flow("snmp", ["atms_server"], ["ramp_meter"], 30000, target_zones=hub_ids),
+        flow("snmp", ["engineering_workstation"], ["ramp_meter", "dms"], 600000, target_zones=hub_ids),
+        # Video, network operations, cellular check-in.
+        flow("https", ["vms_server"], ["camera", "ptz_camera"], 10000, target_zones=hub_ids),
+        flow("snmp", ["nms"], field_infra, 60000),
+        flow("https", ["cellular_router"], ["atms_server"], 120000, target_zones=["tmc"]),
+        # Center plumbing.
+        flow("https", ["reverse_proxy"], ["atms_server"], 30000, target_zones=["tmc"]),
+        flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
+        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server"], 60000),
+    ]
+    conduits = [
+        conduit("tmc", hub, ["snmp", "https"], "ATMS NTCIP collection, video, NMS, cellular check-in")
+        for hub in hub_ids
+    ] + [
+        conduit("idmz", "tmc", ["rdp", "https", "snmp"], "Jump host RDP; traveler-info feed; NMS"),
+    ]
+
+    return {
+        "name": "Freeway Management Corridor",
+        "description": (
+            "Twenty-mile freeway corridor run from a freeway TMC over five fiber hubs. Every half "
+            "mile a Wavetronix SmartSensor HD station reports NTCIP 1209 lane volume, occupancy "
+            "and speed every 30 s; McCain 2070 ramp meters; Daktronics travel-time signs (NTCIP "
+            "1203); Vaisala RWIS (NTCIP 1204); Bosch PTZ and Axis fixed CCTV; the last stations "
+            "past the fiber plant backhaul over Sierra Wireless cellular. Centracs ATMS primary/"
+            "standby, PI historian, Genetec VMS, PRTG; IDMZ with jump host, traveler-information "
+            "proxy and vendor remote access. " + _summary(devices, zones)
+        ),
+        "vertical": "transportation",
+        "naming": "curated",
+        "honor_flow_config": True,
+        "phase_preset": "standard",
+        "cell_isolation": {"mode": "conduit_gated"},
+        "zones": zones,
+        "conduits": conduits,
+        "devices": devices,
+        "flows": flows,
+        "cloud_services": [
+            {"provider": "talk2m", "region": "us-west", "device_types": ["remote_gateway"],
+             "heartbeat_interval_ms": 30000},
+        ],
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "Every hub exposes SNMP on detection, sign and ramp-meter cabinets"},
+            {"playbook_id": "its_signal_disruption", "relevance": "high",
+             "rationale": "Travel-time signs and ramp meters are managed over SNMP from the TMC"},
+            {"playbook_id": "volt_typhoon_like", "relevance": "medium",
+             "rationale": "Internet-facing core switch web UI and cellular edge routers"},
+        ],
+        "total_duration_ms": 3600000,
+    }
+
+
 FLAGSHIP_TEMPLATES: dict[str, dict[str, Any]] = {
     "metro_arterial_signal_system": _metro_arterial(),
     "twin_bore_road_tunnel": _road_tunnel(),
+    "freeway_management_corridor": _freeway_corridor(),
 }

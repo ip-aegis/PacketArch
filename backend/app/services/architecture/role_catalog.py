@@ -2128,6 +2128,7 @@ _DEFAULT_ROLE_BY_TYPE: dict[str, str] = {
     "video_detector": "cctv_camera",
     "radar_detector": "discrete_sensor",
     "mmu": "cabinet_controller",
+    "ramp_meter": "traffic_controller",
     "atms_server": "scada_primary",
     "cellular_router": "wan_edge_router",
     # Network infra

@@ -141,6 +141,10 @@ def test_hand_authored_templates_answer_ntcip(template):
             for vb in pkt[SNMP].PDU.varbindlist:
                 if vb.oid.val.startswith(NTCIP) and vb.value.val:
                     answered[by_ip[pkt[IP].src]["type"]] += 1
+    # Only kinds polled inside the 60 s run (RWIS is often read every 5 min).
+    flows = d["flows"].values() if isinstance(d["flows"], dict) else d["flows"]
+    polled = {d["devices"][f["targetDeviceId"]]["type"] for f in flows
+              if (f.get("timing") or {}).get("intervalMs", 1000) <= 60_000}
     expected = {t for t in ("traffic_controller", "dms_sign", "dms", "weather_station", "radar_detector")
-                if any(dev["type"] == t for dev in d["devices"].values())}
+                if t in polled}
     assert expected and expected <= set(answered), (expected, dict(answered))
