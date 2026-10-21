@@ -1197,8 +1197,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.2.0",
                 release_date=date(2022, 3, 15),
-                cves=["CVE-2016-7987", "CVE-2015-5386"],
-                notes="Vulnerable to command injection",
+                cves=[],
             ),
         ],
 

@@ -55,12 +55,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V7.10",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2023-0452", "CVE-2023-0451"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V6.45",
                 release_date=date(2020, 9, 20),
-                cves=["CVE-2023-0452", "CVE-2023-0451"],
+                cves=[],
             ),
         ],
 
@@ -105,18 +105,30 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="COBT",
         ),
 
+        # Cobalt runs Econolite EOS (3.x). 3.2.23 is the fixed build named in
+        # CISA ICSA-23-026-02 for CVE-2023-0451/0452 ("EOS versions prior to
+        # 3.2.23"). 3.2.20 is an illustrative pre-fix 3.2.x build; its exact
+        # build number is not published.
         firmware_variants=[
             FirmwareVariant(
-                version="V7.16",
-                release_date=date(2024, 2, 1),
+                version="3.2.23",
+                release_date=date(2023, 1, 26),
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.6,
+            ),
+            FirmwareVariant(
+                version="3.2.20",
+                release_date=date(2022, 6, 1),
+                cves=["CVE-2023-0451", "CVE-2023-0452"],
+                notes="Pre-3.2.23 EOS: unauthenticated READONLY file access and MD5 credential hashes (ICSA-23-026-02)",
+                population_weight=0.4,
             ),
         ],
 
         snmp_identity={
-            "sys_descr": "Econolite Cobalt ATC Traffic Signal Controller V7.16",
+            "sys_descr": "Econolite Cobalt ATC EOS 3.2.23",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),

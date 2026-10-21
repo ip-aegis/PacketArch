@@ -325,7 +325,7 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # Econolite Cobalt ATC Controllers
             {"type": "traffic_controller", "vendor": "econolite", "count": 6, "zone": "intersection_main",
              "name_pattern": "Main_Arterial_Signal_Controller_Econolite_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "Cobalt ATC", "firmware_version": "V7.10",
+             "fingerprint_model": "Cobalt ATC", "firmware_version": "3.2.20",
              "role": "Traffic Signal Controller (Main)"},
 
             # McCain 2070 ATC Controllers
