@@ -34,7 +34,8 @@ The tiers follow the rail convention:
 | 1203 `dmsMessageCRC` | spec | CRC-16 X.25 over MULTI + beacon + pixelService octets, byte-swapped (IRIS `DmsMessageCRC`). Check vector `"123456789"` → `0x906E`. |
 | 1204 humidity, wind, precip rate, pressure | spec_legacy | We answer the `essBufr*` objects (`1206.4.2.5.1.*`). v04 marks them **deprecated**, but deployed central software still polls them (IRIS `MIB1204`), so they are what a sensor sees on real networks. |
 | 1201 `globalTime` as Counter32 | spec | SYNTAX `Counter`. |
-| Signal phase sequencing | provisional | NEMA dual-ring, eight phases, leading lefts, coordinated fixed splits, TOD plans (free at night). No actuated gap-out or phase skip; pattern changes jump at the plan boundary with no transition cycles. Phase 1 replaces this. |
+| Signal phase sequencing | provisional | NEMA dual-ring, eight phases, leading lefts, coordinated fixed splits, TOD plans (free at night). At a plan change the running cycle finishes, then one transition cycle (shortway when the phase minimums allow, otherwise dwell) lands the new offset. The display never jumps (guard test). No actuated gap-out or phase skip yet. |
+| Site time of day | spec | `site.timezone` (IANA, DST-aware) reaches the engine as `_site_timezone` on both the PCAP and live paths. Without it the engine falls back to container-local time, which is UTC. |
 | Calls, detector presence, volume/occupancy | synthetic | Derived from a time-of-day demand curve. Not yet bound to `process_sim` (Phase 1.2). |
 | Phases not served at a four-phase intersection | provisional | Masked out of every status bitmap (no red bit). Real controllers vary. |
 | DMS message schedule (travel times / incidents / blank) | synthetic | |

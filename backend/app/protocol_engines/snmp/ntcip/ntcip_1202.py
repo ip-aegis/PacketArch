@@ -19,9 +19,10 @@ odd phases the protected lefts (omitted at simple four-phase intersections).
 Both rings cross a barrier together, so concurrent phases are always
 compatible and each phase is in exactly one of red / yellow / green.
 
-Interim model (plan Phase 0.5): coordinated fixed splits with calls and
-detector data derived from demand. Actuated gap-out / skip and pattern
-transition cycles land in Phase 1 (``asc_state``); see SPEC_NEEDS.md.
+Coordinated fixed splits with calls and detector data derived from demand.
+Time-of-day plan changes run a transition cycle (shortway or dwell), so the
+display never jumps. Actuated gap-out / skip lands in Phase 1; see
+SPEC_NEEDS.md.
 """
 
 from __future__ import annotations
@@ -96,10 +97,7 @@ def _plan(dev: NtcipDevice, clock: NtcipClock) -> tuple[int, int]:
     for start, pat, nominal in TOD_PLANS:
         if hour >= start:
             pattern, cycle = pat, nominal
-    if pattern != FREE_PATTERN:
-        # Every intersection of a scenario shares the pattern's cycle length.
-        cycle += 10 * int(unit(dev.region_seed, "cycle", pattern) * 2)
-    return pattern, cycle
+    return pattern, _plan_cycle(dev, pattern, cycle)
 
 
 MIN_LEFT_GREEN_S = 7.0
@@ -180,9 +178,73 @@ def _bits(phases) -> int:
     return mask
 
 
+def _plan_cycle(dev: NtcipDevice, pattern: int, nominal: int) -> int:
+    if pattern == FREE_PATTERN:
+        return nominal
+    # Every intersection of a scenario shares the pattern's cycle length.
+    return nominal + 10 * int(unit(dev.region_seed, "cycle", pattern) * 2)
+
+
+def _local_pos(ix: Intersection, pattern: int, cycle: int, local_s: float) -> float:
+    """Steady-state local cycle position of ``pattern`` at local time ``local_s``."""
+    offset = 0.0 if pattern == FREE_PATTERN else ix.offset_frac * cycle
+    return ((local_s % 86400) % cycle - offset) % cycle
+
+
+def _transition(dev: NtcipDevice, ix: Intersection, clock: NtcipClock):
+    """Where the controller is relative to the latest time-of-day plan change.
+
+    A controller never jumps its cycle position. When the plan changes it
+    finishes the cycle in progress, then runs ONE transition cycle whose
+    length lands the new pattern exactly on its offset: "shortway" (the
+    coordinated phases 2/6 are shortened) when the phase minimums still fit,
+    otherwise "dwell" (2/6 are extended by up to one cycle).
+
+    Returns ``(mode, data)``: ``("old", (pattern, cycle))`` while finishing the
+    previous plan's cycle, ``("transition", (start_local_s, length_s,
+    pattern, cycle))`` during the transition cycle, or ``("steady", None)``.
+    """
+    hour = clock.hour
+    idx = max(i for i, (start, _p, _c) in enumerate(TOD_PLANS) if hour >= start)
+    start_h, pattern, nominal = TOD_PLANS[idx]
+    _ps, prev_pattern, prev_nominal = TOD_PLANS[idx - 1]   # idx 0 wraps to 22:00
+    new_cycle = _plan_cycle(dev, pattern, nominal)
+    old_cycle = _plan_cycle(dev, prev_pattern, prev_nominal)
+    if (prev_pattern, old_cycle) == (pattern, new_cycle):
+        return "steady", None
+
+    t_b = clock.local_s - clock.seconds_of_day + start_h * 3600
+    end_old = t_b + (old_cycle - _local_pos(ix, prev_pattern, old_cycle, t_b)) % old_cycle
+    if clock.local_s < end_old:
+        return "old", (prev_pattern, old_cycle)
+
+    gap = (-_local_pos(ix, pattern, new_cycle, end_old)) % new_cycle
+    if gap < 1e-6:
+        return "steady", None
+    splits = _splits(ix, new_cycle)
+    shortfall = new_cycle - gap
+    fits = all(splits[p] - shortfall >= _phase_min(ix, p) for p in COORD_PHASES)
+    length = gap if fits else gap + new_cycle
+    if clock.local_s < end_old + length:
+        return "transition", (end_old, length, pattern, new_cycle)
+    return "steady", None
+
+
 def _cycle_state(dev: NtcipDevice, clock: NtcipClock):
     ix = _intersection(dev)
-    pattern, cycle = _plan(dev, clock)
+    mode, data = _transition(dev, ix, clock)
+    if mode == "transition":
+        start, length, pattern, cycle = data
+        splits = _splits(ix, cycle)
+        extra = length - cycle
+        splits[2] += extra
+        splits[6] += extra
+        pos = clock.local_s - start
+        return ix, pattern, length, splits, splits[1] + splits[2], clock.seconds_of_day % cycle, pos, int(start)
+    if mode == "old":
+        pattern, cycle = data
+    else:
+        pattern, cycle = _plan(dev, clock)
     splits = _splits(ix, cycle)
     a_s = splits[1] + splits[2]
     sync = clock.seconds_of_day % cycle                      # since system reference

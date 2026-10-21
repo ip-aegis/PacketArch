@@ -273,3 +273,77 @@ def test_global_time_is_counter32_on_the_wire():
     from scapy.asn1.asn1 import ASN1_Codecs
     enc = ASN1_OID(oid).enc(ASN1_Codecs.BER)
     assert raw[raw.index(enc) + len(enc)] == 0x41
+
+
+# --------------------------------------------------------------------------
+# Time-of-day plan transitions and site time zone
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_plan_changes_never_jump_the_display(seed):
+    """Every TOD boundary: no green->red without yellow, no yellow->green,
+    and every green that ends runs at least its programmed minimum."""
+    dev = _dev(seed, region=seed % 5)
+    ix = ntcip_1202._intersection(dev)
+    min_green = {p: ntcip_1202._phase_min(ix, p) - ix.yellow[p] - ix.red_clear[p] for p in range(1, 9)}
+    step = 0.25
+    for start_h, _pattern, _cycle in ntcip_1202.TOD_PLANS:
+        prev, green_since = None, {}
+        for i in range(int(-300 / step), int(700 / step)):
+            t = i * step
+            st = ntcip_1202.phase_status(dev, _clock(start_h, t))
+            greens = _phases(st["greens"])
+            if prev is not None:
+                assert not _phases(prev["greens"]) & _phases(st["reds"]), (start_h, t)
+                assert not _phases(prev["yellows"]) & greens, (start_h, t)
+                for p in _phases(prev["greens"]) - greens:
+                    if p in green_since:
+                        assert t - green_since.pop(p) >= min_green[p] - step, (start_h, t, p)
+            for p in greens:
+                if prev is not None and p not in _phases(prev["greens"]):
+                    green_since[p] = t
+            prev = st
+
+
+def test_transition_lands_on_the_new_offset():
+    dev = _dev(4242)
+    ix = ntcip_1202._intersection(dev)
+    clock = _clock(6.5, 600)          # well after the 06:30 change has settled
+    pattern, cycle = ntcip_1202._plan(dev, clock)
+    assert ntcip_1202._transition(dev, ix, clock)[0] == "steady"
+    pos = ntcip_1202._cycle_state(dev, clock)[6]
+    assert abs(pos - ntcip_1202._local_pos(ix, pattern, cycle, clock.local_s)) < 1e-6
+
+
+def test_site_timezone_offset_is_dst_aware():
+    winter, summer = 1767225600, 1782864000      # 2026-01-01, 2026-07-01 UTC
+    assert ntcip.utc_offset_s("America/Chicago", winter) == -6 * 3600
+    assert ntcip.utc_offset_s("America/Chicago", summer) == -5 * 3600
+    assert ntcip.utc_offset_s("No/Such_Zone", winter) == ntcip.utc_offset_s(None, winter)
+
+
+def test_engine_clock_uses_the_site_timezone():
+    flow = _flow("scada_server", "traffic_controller", "tz")
+    flow.config.pop("_ntcip_utc_offset_s")
+    flow.config["_site_timezone"] = "America/Los_Angeles"
+    engine = SnmpEngine()
+    clock = engine._ntcip_clock(flow, engine.create_initial_state(flow), 0.0)
+    assert clock.utc_offset_s == ntcip.utc_offset_s("America/Los_Angeles", clock.epoch_s)
+
+
+def test_site_timezone_reaches_flow_config():
+    from app.traffic_generator.tasks import _build_flow_contexts
+    fp = {"vendor": "Generic", "model": "Test"}
+    definition = {
+        "site_timezone": "America/Denver",
+        "devices": {
+            "a": {"id": "a", "type": "scada_server", "vendor_fingerprint": fp,
+                  "network": {"ipAddress": "10.1.0.10", "macAddress": "02:00:00:00:00:0a"}},
+            "b": {"id": "b", "type": "traffic_controller", "vendor_fingerprint": fp,
+                  "network": {"ipAddress": "10.1.0.11", "macAddress": "02:00:00:00:00:0b"}},
+        },
+        "flows": {"f": {"id": "f", "sourceDeviceId": "a", "targetDeviceId": "b", "protocol": "snmp"}},
+        "zones": {}, "conduits": {},
+    }
+    (fc,) = _build_flow_contexts(definition)
+    assert fc.config["_site_timezone"] == "America/Denver"

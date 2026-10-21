@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cloud_service import CloudServiceEndpoint, CloudServiceProvider
+from app.models.settings import SystemSetting
 
 logger = logging.getLogger(__name__)
 
@@ -920,3 +921,21 @@ def repair_flow_protocols(definition: dict[str, Any]) -> dict[str, Any]:
     else:
         new_def["flows"] = new_flows
     return new_def
+
+
+async def stamp_site_timezone(db: AsyncSession, definition: dict[str, Any]) -> dict[str, Any]:
+    """Copy the site's IANA time zone (``site.timezone``) into the definition.
+
+    Engines that model time-of-day behaviour (NTCIP signal timing plans, DMS
+    message schedules, weather) read it from flow config; without it they
+    fall back to container-local time, which is UTC in every image. A
+    definition that already names a zone (e.g. a portable scenario) keeps it.
+    """
+    if definition.get("site_timezone"):
+        return definition
+    result = await db.execute(select(SystemSetting).where(SystemSetting.key == "site.timezone"))
+    row = result.scalar_one_or_none()
+    tz = (row.value or "").strip() if row else ""
+    if not tz:
+        return definition
+    return {**definition, "site_timezone": tz}

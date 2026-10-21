@@ -406,6 +406,7 @@ class OrchestratorPool:
                     clean_demo_mode=bool(
                         ctx.definition.get("clean_demo_mode", False)
                     ),
+                    site_timezone=ctx.definition.get("site_timezone"),
                 )
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
@@ -746,6 +747,7 @@ class OrchestratorPool:
         vertical: str | None = None,
         scenario_id: str | None = None,
         clean_demo_mode: bool = False,
+        site_timezone: str | None = None,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -856,6 +858,8 @@ class OrchestratorPool:
                 merged_config["_vertical"] = vertical
             if clean_demo_mode:
                 merged_config["clean_demo_mode"] = True
+            if site_timezone:
+                merged_config["_site_timezone"] = site_timezone
 
             return FlowContext(
                 flow_id=flow_def.get("id", ""),

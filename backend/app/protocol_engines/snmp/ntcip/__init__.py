@@ -23,9 +23,12 @@ NMS sticks to MIB-II.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.protocol_engines.snmp.ntcip import ntcip_1201, ntcip_1202, ntcip_1203, ntcip_1204
 from app.protocol_engines.snmp.ntcip._model import NtcipClock, NtcipDevice, stable_seed
@@ -148,6 +151,21 @@ _KIND_SNAPSHOT = {
 }
 
 
+def utc_offset_s(timezone: str | None, epoch_s: float) -> int:
+    """UTC offset (s, DST-aware) of the site's IANA zone at ``epoch_s``.
+
+    Falls back to container-local time, which is UTC in every PacketArch
+    image, when the zone is unset or unknown.
+    """
+    if timezone:
+        try:
+            offset = datetime.fromtimestamp(epoch_s, ZoneInfo(timezone)).utcoffset()
+            return int(offset.total_seconds()) if offset is not None else 0
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return time.localtime(epoch_s).tm_gmtoff
+
+
 def make_device(destination: Any) -> NtcipDevice:
     """NtcipDevice for a DeviceContext (seeded by scenario + device id)."""
     fp = getattr(destination, "vendor_fingerprint", None) or {}
@@ -180,4 +198,5 @@ __all__ = [
     "resolve_kind",
     "resolve_profile",
     "snapshot",
+    "utc_offset_s",
 ]

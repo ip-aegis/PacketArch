@@ -25,6 +25,7 @@ from app.services.scenario_enrichment import (
     auto_repair_protocols,
     ensure_device_flow_coverage,
     ensure_remote_access_cloud_links,
+    stamp_site_timezone,
     repair_flow_protocols,
 )
 
@@ -949,6 +950,10 @@ class AgentManager:
             # external heartbeat traffic even when the scenario forgot to wire a
             # cloud link.
             definition = await ensure_remote_access_cloud_links(db, definition)
+
+            # Site time zone for time-of-day device behaviour (NTCIP signal
+            # plans, DMS schedules); the agent container runs on UTC.
+            definition = await stamp_site_timezone(db, definition)
 
             # Guarantee no orphan devices — every device gets at least one flow
             # with a rational partner so CV can fingerprint it. Cell-isolation aware.

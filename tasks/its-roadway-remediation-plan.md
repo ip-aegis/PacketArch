@@ -100,8 +100,8 @@ These items don't depend on Phase 0. Each is a small, separately reviewable chan
 
 ## Phase 1: Closed-loop intersection behaviour (P1)
 
-- [ ] **1.0 Pattern transitions (do first).** At time-of-day plan changes the Phase 0 sequencer jumps cycle position. Measured over 40 controllers × 6 boundaries: **94 of 240 boundary crossings show green → red with no yellow.** Steady state shows 0. A real controller transitions over a few cycles (dwell / shortway). An illegal display is a false-positive seed for detection baselines, so fix it before anything else in Phase 1.
-- [ ] **1.0b Site time zone.** Backend, celery and agent containers run on **UTC**, and the model uses container-local time when `_ntcip_utc_offset_s` is not set. A US-afternoon demo would therefore show night behaviour (signs blank, corridor in free). Inject `site.timezone` from system settings into both flow builders.
+- [x] **1.0 Pattern transitions (do first).** *Done 2026-10-21: finish-cycle + shortway/dwell transition; 0 illegal displays across 60 controllers × 7 boundaries.* At time-of-day plan changes the Phase 0 sequencer jumps cycle position. Measured over 40 controllers × 6 boundaries: **94 of 240 boundary crossings show green → red with no yellow.** Steady state shows 0. A real controller transitions over a few cycles (dwell / shortway). An illegal display is a false-positive seed for detection baselines, so fix it before anything else in Phase 1.
+- [x] **1.0b Site time zone.** *Done 2026-10-21: `stamp_site_timezone` on both deploy paths.* Backend, celery and agent containers run on **UTC**, and the model uses container-local time when `_ntcip_utc_offset_s` is not set. A US-afternoon demo would therefore show night behaviour (signs blank, corridor in free). Inject `site.timezone` from system settings into both flow builders.
 
 - [ ] **1.1 Signal phase engine.** Add `protocol_engines/snmp/ntcip/asc_state.py` as a NEMA dual-ring model. It reads the pattern (cycle, split, offset) per intersection and handles:
   - min green, yellow and red clearance

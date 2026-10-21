@@ -446,6 +446,7 @@ async def _generate_traffic_async(
                 ensure_device_flow_coverage,
                 ensure_remote_access_cloud_links,
                 repair_flow_protocols,
+                stamp_site_timezone,
             )
             # Defense-in-depth: legacy scenarios may have protocol/fingerprint
             # mismatches and flow-protocol mismatches; repair before
@@ -455,6 +456,11 @@ async def _generate_traffic_async(
             # Auto-attach cloud links for EWON / jump server / remote
             # gateway / cloud connector devices.
             effective_definition = await ensure_remote_access_cloud_links(
+                session, effective_definition
+            )
+            # Site time zone drives time-of-day device behaviour (NTCIP signal
+            # plans, DMS schedules); containers run on UTC.
+            effective_definition = await stamp_site_timezone(
                 session, effective_definition
             )
             # And guarantee every device has at least one flow so CV /
@@ -586,6 +592,7 @@ def _build_flow_contexts(
     zones_raw = scenario_definition.get("zones", {})
     conduits_raw = scenario_definition.get("conduits", {})
     clean_demo_mode = bool(scenario_definition.get("clean_demo_mode", False))
+    site_timezone = scenario_definition.get("site_timezone")
     isolation = parse_isolation_config(scenario_definition)
 
     # Normalize to list format - support both Record<id, obj> and array formats
@@ -746,6 +753,8 @@ def _build_flow_contexts(
             flow_config = {**flow_config, "_vertical": vertical}
         if clean_demo_mode:
             flow_config = {**flow_config, "clean_demo_mode": True}
+        if site_timezone:
+            flow_config = {**flow_config, "_site_timezone": site_timezone}
 
         flow_context = FlowContext(
             flow_id=flow.get("id", str(uuid.uuid4())),

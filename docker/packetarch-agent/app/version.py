@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.2.0"
+VERSION = "4.2.1"
 
 # Version history:
+# 4.2.1 - NTCIP signal controllers no longer jump their display at a
+#   time-of-day plan change: the running cycle finishes, then one
+#   shortway/dwell transition cycle lands the new pattern's offset (before
+#   this, ~40% of plan changes went green -> red with no yellow). The agent
+#   now passes the scenario's site_timezone into flow config, so TOD
+#   behaviour follows the site's IANA zone (DST-aware) instead of the
+#   container's UTC clock.
 # 4.2.0 - Roadway ITS: real NTCIP on the wire. Signal controllers, DMS and
 #   RWIS previously answered only MIB-II (no flow ever selected the NTCIP
 #   code, and that code matched OIDs with a broken substring test, so every

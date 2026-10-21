@@ -225,7 +225,7 @@ class SnmpEngine(ProtocolEngine):
         epoch = self._epoch_s(flow, state, t_ms)
         offset = flow.config.get("_ntcip_utc_offset_s")
         if offset is None:
-            offset = time.localtime(epoch).tm_gmtoff
+            offset = ntcip.utc_offset_s(flow.config.get("_site_timezone"), epoch)
         return ntcip.NtcipClock(epoch_s=epoch, utc_offset_s=int(offset))
 
     @staticmethod

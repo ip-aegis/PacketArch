@@ -55,3 +55,20 @@ def test_ntcip_alias_resolves_to_the_snmp_engine():
     ids = {fc.flow_id: fc for fc in _build_flow_contexts(_scenario())}
     assert ids["alias"].protocol.value == "snmp"
     assert ids["alias"].destination.port == 161
+
+
+def test_stamp_site_timezone_copies_the_setting():
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.services.scenario_enrichment import stamp_site_timezone
+
+    row = MagicMock(value="America/Chicago")
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = row
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=result)
+    out = asyncio.run(stamp_site_timezone(db, {"devices": {}}))
+    assert out["site_timezone"] == "America/Chicago"
+    kept = asyncio.run(stamp_site_timezone(db, {"site_timezone": "Europe/Oslo"}))
+    assert kept["site_timezone"] == "Europe/Oslo"
