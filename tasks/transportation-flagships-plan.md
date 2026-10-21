@@ -89,6 +89,18 @@
     - Process values bind to protocol slots by name (`dab7e4f`).
     - The transportation site identity now follows the template (`fa41054`).
   - **Demo runbooks (`docs/demos/`): not written.** Left to the operator.
+- **Wave 2: done.**
+  - NTCIP 1209 detection stations (`c1388de`, agent 4.4.0).
+  - F3 Freeway Management Corridor, 140 devices (`2c4e419`).
+  - F4 All-Electronic Toll and Express Lanes, 48 devices (`f87a66c`).
+  - Catalog corrections (`7097ae9`):
+    - The invented Kapsch "TCS 2000" and Q-Free "RSU 5000" are replaced by verified Kapsch products.
+    - The misattributed Hikvision CVE-2021-36260 record is removed.
+    - The Centracs OUI is fixed.
+  - **Not done:**
+    - Plan item 0.9 (Cyber Vision decode check) was skipped at the operator's request.
+    - NTCIP 1207 ramp meters still answer MIB-II only.
+    - The toll zone controller's transaction protocol, the TEMS Info Interface (TCP 54345) and the E6 reader UDP protocol are not modelled.
 - **Known leftover:** the OT engineering workstation fingerprint lists client-only protocols with no identity blocks. That causes one readiness warning on every template that uses it.
 
 ## 5. Decisions
