@@ -145,6 +145,7 @@ SNMP_TRAP_OID = f"{INTERNET}.6.3.1.1.4.1.0"  # snmpTrapOID.0
 SNMP_TRAP_ENTERPRISE = f"{INTERNET}.6.3.1.1.4.3.0"  # snmpTrapEnterprise.0
 
 # Standard enterprise OIDs for traffic control vendors
+# PENs verified against the IANA registry (2026-10-21).
 VENDOR_ENTERPRISE_OIDS = {
     "nema": NEMA_ENTERPRISE,
     "ntcip": NTCIP_DEVICES,
@@ -154,15 +155,15 @@ VENDOR_ENTERPRISE_OIDS = {
     "mccain": f"{ENTERPRISES}.1206.4.2",     # Uses NTCIP base
     "peek_traffic": f"{ENTERPRISES}.1206.4.2",
     "trafficware": f"{ENTERPRISES}.1206",
-    "kapsch": f"{ENTERPRISES}.22706",
-    "q_free": f"{ENTERPRISES}.32055",
-    "daktronics": f"{ENTERPRISES}.2407",
+    "kapsch": f"{ENTERPRISES}.13182",      # Kapsch TrafficCom AG
+    "q_free": f"{ENTERPRISES}.15889",      # Q-Free ASA
+    "daktronics": f"{ENTERPRISES}.5083",   # Daktronics
     "axis": f"{ENTERPRISES}.368",
-    "pelco": f"{ENTERPRISES}.17685",
+    "pelco": f"{ENTERPRISES}.25066",       # PELCO
     "hikvision": f"{ENTERPRISES}.39165",
-    "bosch": f"{ENTERPRISES}.3246",
-    "flir": f"{ENTERPRISES}.28846",
-    "wavetronix": f"{ENTERPRISES}.34362",
+    "bosch": f"{ENTERPRISES}.3967",        # Bosch Sicherheitssysteme
+    "flir": f"{ENTERPRISES}.34674",        # FLIR Systems, Inc.
+    "wavetronix": NTCIP_TSS,                 # no IANA PEN; NTCIP 1209 node
 }
 
 

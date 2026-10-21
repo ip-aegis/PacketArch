@@ -562,13 +562,13 @@ VENDOR_ENTERPRISE_OIDS: dict[str, str] = {
     "trane": "1.3.6.1.4.1.11108",
     "delta_controls": "1.3.6.1.4.1.12412",
     "distech": "1.3.6.1.4.1.37567",
-    "daktronics": "1.3.6.1.4.1.5765",
-    "kapsch": "1.3.6.1.4.1.28846",
+    "daktronics": "1.3.6.1.4.1.5083",     # Daktronics (5765 is aXess-pro)
+    "kapsch": "1.3.6.1.4.1.13182",        # Kapsch TrafficCom AG (28846 is Univ. of Malaga)
     "axis": "1.3.6.1.4.1.368",
-    "vaisala": "1.3.6.1.4.1.39165",
+    "vaisala": "1.3.6.1.4.1.16961",       # Vaisala (39165 is Hikvision)
     "kuka": "1.3.6.1.4.1.25882",
     "cognex": "1.3.6.1.4.1.10642",
-    "fanuc": "1.3.6.1.4.1.5765",
+    "fanuc": "1.3.6.1.4.1.60019",         # FANUC America Corporation (5765 is aXess-pro)
     "endress+hauser": "1.3.6.1.4.1.8714",
     "econolite": "1.3.6.1.4.1.1206.4.2",
     "siemens_its": "1.3.6.1.4.1.1206.4.2",
