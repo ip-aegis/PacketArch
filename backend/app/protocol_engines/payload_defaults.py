@@ -90,6 +90,8 @@ def _clone_as(
             trend_period=base.trend_period,
             step_size=base.step_size,
             unit=base.unit,
+            source=base.name,
+            source_scale=scale,
         )
     # For FLOAT32 / FLOAT64, keep as-is
     return SensorProfile(
@@ -104,6 +106,7 @@ def _clone_as(
         trend_period=base.trend_period,
         step_size=base.step_size,
         unit=base.unit,
+        source=base.name,
     )
 
 

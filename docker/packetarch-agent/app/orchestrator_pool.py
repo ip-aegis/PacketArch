@@ -17,6 +17,13 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 
+
+def _scenario_process_model(definition: dict[str, Any]) -> str | None:
+    """The scenario's chosen process model, if it names one (same rule as
+    the PCAP path in traffic_generator/tasks.py)."""
+    process_sim = definition.get("process_sim") or {}
+    return process_sim.get("vertical") if process_sim.get("enabled") else None
+
 class ScenarioState(str, Enum):
     """State of a scenario in the pool."""
 
@@ -407,6 +414,7 @@ class OrchestratorPool:
                         ctx.definition.get("clean_demo_mode", False)
                     ),
                     site_timezone=ctx.definition.get("site_timezone"),
+                    process_model=_scenario_process_model(ctx.definition),
                 )
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
@@ -748,6 +756,7 @@ class OrchestratorPool:
         scenario_id: str | None = None,
         clean_demo_mode: bool = False,
         site_timezone: str | None = None,
+        process_model: str | None = None,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -860,6 +869,8 @@ class OrchestratorPool:
                 merged_config["clean_demo_mode"] = True
             if site_timezone:
                 merged_config["_site_timezone"] = site_timezone
+            if process_model:
+                merged_config["_process_model"] = process_model
 
             return FlowContext(
                 flow_id=flow_def.get("id", ""),

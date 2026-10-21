@@ -176,6 +176,23 @@ class VariableBinder:
             bound_sensors: set[str] = set()
             bound_vars: set[str] = set()
 
+            # Pass 0: protocol slots cloned from a profile named after the
+            # variable (reg_3 cloned from "co_ppm"), in the slot's encoding.
+            for var_name, _ in all_variables:
+                for sensor_name in sensor_names:
+                    if sensor_name in bound_sensors:
+                        continue
+                    profile = gen.profiles[sensor_name]
+                    if profile.source == var_name:
+                        bindings.append(VariableBinding(
+                            variable_name=var_name,
+                            flow_id=flow_id,
+                            sensor_name=sensor_name,
+                            scale=profile.source_scale,
+                        ))
+                        bound_sensors.add(sensor_name)
+                        bound_vars.add(var_name)
+
             # Pass 1: match by name substring
             for var_name, var in all_variables:
                 if var_name in bound_vars:

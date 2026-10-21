@@ -153,7 +153,12 @@ class UnifiedOrchestrator:
                 config=flow_context.config
                 if not isinstance(flow_context.config, dict)
                 else flow_context.config,
-                vertical=flow_context.config.get("_vertical")
+                # A scenario process model (e.g. road_tunnel) names its
+                # own sensor profiles; otherwise use the vertical's.
+                vertical=(
+                    flow_context.config.get("_process_model")
+                    or flow_context.config.get("_vertical")
+                )
                 if isinstance(flow_context.config, dict)
                 else None,
             )

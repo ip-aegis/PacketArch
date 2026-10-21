@@ -66,3 +66,28 @@ def test_incident_congestion_raises_fan_demand():
     base, _ = _run(2400)
     incident, _ = _run(2400, fault="incident_congestion", at=1200)
     assert incident.get_value("jet_fan_speed") > base.get_value("jet_fan_speed") + 5.0
+
+
+@pytest.mark.parametrize("protocol", ["MODBUS_TCP", "S7COMM", "ETHERNET_IP"])
+def test_tunnel_values_reach_protocol_slots_by_name(protocol):
+    """Each slot carries the variable its profile was cloned from, in the
+    slot's encoding, instead of whichever variable came first positionally."""
+    from app.protocol_engines.payload_defaults import create_default_payload_generator
+    from app.protocol_engines.process_sim.binder import VariableBinder
+    from app.protocol_engines.types import ProtocolType
+
+    gen = create_default_payload_generator(ProtocolType[protocol], {}, vertical="road_tunnel")
+    model = rt.build_model()
+    for _ in range(600):
+        model.step(1.0)
+    binder = VariableBinder.auto_bind({"t": model}, {"f": gen})
+    binder.push_values({"t": model}, {"f": gen})
+
+    checked = 0
+    for name, profile in gen.profiles.items():
+        assert profile.source in model.variables, name
+        expected = model.get_value(profile.source) * profile.source_scale
+        assert gen.states[name].current_value == pytest.approx(
+            max(profile.min_value, min(profile.max_value, expected)))
+        checked += 1
+    assert checked

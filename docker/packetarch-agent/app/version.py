@@ -15,6 +15,9 @@ VERSION = "4.3.0"
 #   "road_tunnel" (twin-bore ventilation on CO/visibility, drainage sump with
 #   start/stop level hysteresis, input-driven faults: jet-fan trip, pump
 #   failure in a storm, incident congestion).
+#   Process values now bind to Modbus/S7/EtherNet/IP slots by the profile
+#   each slot was cloned from, in the slot's integer scale (before this the
+#   binder paired them by position, so registers carried the wrong variable).
 # 4.2.1 - NTCIP signal controllers no longer jump their display at a
 #   time-of-day plan change: the running cycle finishes, then one
 #   shortway/dwell transition cycle lands the new pattern's offset (before

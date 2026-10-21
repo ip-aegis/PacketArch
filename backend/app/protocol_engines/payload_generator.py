@@ -89,6 +89,8 @@ class SensorProfile:
         trend_period: Period in seconds for sinusoidal/step trends
         step_size: Size of discrete steps for STEP trend type
         unit: Engineering unit for display (e.g., "°C", "bar")
+        source: Name of the profile a protocol slot was cloned from
+        source_scale: Physical-to-raw factor applied when cloning
     """
 
     name: str
@@ -103,6 +105,11 @@ class SensorProfile:
     step_size: float | None = None  # for STEP trend
     unit: str = ""
     byte_order: str = "big"  # "big" or "little"
+    # Set on per-protocol slot clones (reg_0, s7_val_0, io_0): the profile
+    # the slot was cloned from and the factor from its physical units to the
+    # slot's raw encoding, so the process-sim binder can pair by name.
+    source: str | None = None
+    source_scale: float = 1.0
 
     def get_format_string(self) -> str:
         """Get struct format string with correct byte order."""
@@ -717,6 +724,32 @@ OIL_GAS_PROFILES: list[SensorProfile] = [
 ]
 
 
+# Road tunnel life-safety plant. Names match the road_tunnel process model's
+# variables so the binder pairs them by name, in the model's own units.
+ROAD_TUNNEL_PROFILES: list[SensorProfile] = [
+    SensorProfile(name="co_ppm", data_type=DataType.FLOAT32, min_value=0, max_value=250,
+                  nominal_value=25, noise_std=0.5, trend_type=TrendType.STABLE, unit="ppm"),
+    SensorProfile(name="visibility_k", data_type=DataType.FLOAT32, min_value=0, max_value=12,
+                  nominal_value=1.5, noise_std=0.05, trend_type=TrendType.STABLE, unit="1/km"),
+    SensorProfile(name="jet_fan_speed", data_type=DataType.FLOAT32, min_value=0, max_value=100,
+                  nominal_value=50, noise_std=0.5, trend_type=TrendType.STABLE, unit="%"),
+    SensorProfile(name="traffic_flow", data_type=DataType.UINT16, min_value=0, max_value=120,
+                  nominal_value=60, noise_std=2, trend_type=TrendType.STABLE, unit="veh/min"),
+    SensorProfile(name="air_temperature", data_type=DataType.FLOAT32, min_value=-10, max_value=45,
+                  nominal_value=14, noise_std=0.1, trend_type=TrendType.STABLE, unit="°C"),
+    SensorProfile(name="sump_level", data_type=DataType.FLOAT32, min_value=0, max_value=100,
+                  nominal_value=30, noise_std=0.1, trend_type=TrendType.STABLE, unit="%"),
+    SensorProfile(name="inflow_rate", data_type=DataType.FLOAT32, min_value=0, max_value=60,
+                  nominal_value=4, noise_std=0.2, trend_type=TrendType.STABLE, unit="L/s"),
+    SensorProfile(name="pump_flow", data_type=DataType.FLOAT32, min_value=0, max_value=80,
+                  nominal_value=0, noise_std=0.2, trend_type=TrendType.STABLE, unit="L/s"),
+    SensorProfile(name="pump_running", data_type=DataType.UINT16, min_value=0, max_value=1,
+                  nominal_value=0, noise_std=0, trend_type=TrendType.STABLE, unit=""),
+    SensorProfile(name="lighting_power", data_type=DataType.FLOAT32, min_value=0, max_value=400,
+                  nominal_value=240, noise_std=1, trend_type=TrendType.STABLE, unit="kW"),
+]
+
+
 def get_profiles_for_vertical(vertical: str) -> list[SensorProfile]:
     """Get predefined sensor profiles for an industry vertical.
 
@@ -735,5 +768,6 @@ def get_profiles_for_vertical(vertical: str) -> list[SensorProfile]:
         "oil_gas": OIL_GAS_PROFILES,
         "oil": OIL_GAS_PROFILES,
         "gas": OIL_GAS_PROFILES,
+        "road_tunnel": ROAD_TUNNEL_PROFILES,
     }
     return profiles_map.get(vertical.lower(), [])
