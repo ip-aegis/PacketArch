@@ -33,7 +33,7 @@ ROOTS = {
 }
 
 FILES = ["1202ASC.mib", "NTCIP1201-Glo.mib", "ntcip1201-Global.mib",
-         "NTCIP1203-Dms.mib", "NTCIP1204-Ess.mib"]
+         "NTCIP1203-Dms.mib", "NTCIP1204-Ess.mib", "ntcip1209-Tss.mib"]
 
 WANT = {
     "1201": """globalTime globalDaylightSaving globalLocalTimeDifferential controllerLocalTime
@@ -62,6 +62,11 @@ WANT = {
         essPrecipSituation essAtmosphericPressure essVisibility essVisibilitySituation
         numEssPavementSensors essSurfaceStatus essSurfaceTemperature
         essPavementTemperature essSurfaceFreezePoint essSurfaceBlackIceSignal""",
+    "1209": """sensorSystemStatus maxSensorZones sensorZoneNumber sensorZoneSamplePeriod
+        sensorZoneLabel sensorZoneStatus clockAvailable sensorTechnology maxSampleDataEntries
+        numSampleDataEntries numSensorZoneClass sampleEndTime sampleVolumeData
+        samplePercentOccupancy sampleSpeedData sampleZoneStatus sampleSequenceNumber
+        endTime volumeData percentOccupancy speedData zoneStatus""",
 }
 
 # SMI syntax -> engine VarBind.value_type

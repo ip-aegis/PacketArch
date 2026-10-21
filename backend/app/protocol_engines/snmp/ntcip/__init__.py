@@ -9,6 +9,7 @@ Device models (each a pure function of device seed + wall-clock time):
 - NTCIP 1202 Actuated Signal Controller — ``asc`` (``ntcip_1202``)
 - NTCIP 1203 Dynamic Message Sign — ``dms`` (``ntcip_1203``)
 - NTCIP 1204 Environmental Sensor Station / RWIS — ``ess`` (``ntcip_1204``)
+- NTCIP 1209 Transportation Sensor System (detection station) — ``tss`` (``ntcip_1209``)
 
 OIDs come from ``_mib_table`` (generated from the NTCIP MIB files by
 ``scripts/ntcip/gen_mib_table.py``). Sources and open questions:
@@ -30,13 +31,14 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.protocol_engines.snmp.ntcip import ntcip_1201, ntcip_1202, ntcip_1203, ntcip_1204
+from app.protocol_engines.snmp.ntcip import ntcip_1201, ntcip_1202, ntcip_1203, ntcip_1204, ntcip_1209
 from app.protocol_engines.snmp.ntcip._model import NtcipClock, NtcipDevice, stable_seed
 
 NTCIP_ROOT = "1.3.6.1.4.1.1206.4.2"
 NTCIP_ARC_KIND = {
     f"{NTCIP_ROOT}.1": "asc",
     f"{NTCIP_ROOT}.3": "dms",
+    f"{NTCIP_ROOT}.4": "tss",
     f"{NTCIP_ROOT}.5": "ess",
 }
 
@@ -56,6 +58,11 @@ KIND_BY_DEVICE_TYPE = {
     "rwis": "ess",
     "weather_station": "ess",
     "environmental_sensor": "ess",
+    "tss": "tss",
+    "radar_detector": "tss",
+    "radar_sensor": "tss",
+    "detection_station": "tss",
+    "vehicle_detector": "tss",
 }
 # Device types too generic to decide from; fall back to the sysObjectID arc.
 GENERIC_DEVICE_TYPES = {"", "controller", "cabinet_controller", "field_device", "unknown", "generic", "device"}
@@ -142,12 +149,16 @@ POLL_PLANS: dict[tuple[str, str], list[PollGroup]] = {
     ("ess", STATUS): [PollGroup("ess_status", 0, _static(ntcip_1204.STATUS_BLOCK)), _CLOCK],
     ("ess", DATA_COLLECTION): [PollGroup("ess_status", 0, _static(ntcip_1204.STATUS_BLOCK))],
     ("ess", CONFIG): [_IDENTITY, PollGroup("ess_config", 0, _static(ntcip_1204.CONFIG_BLOCK))],
+    ("tss", STATUS): [PollGroup("tss_samples", 0, ntcip_1209.status_block), _CLOCK],
+    ("tss", DATA_COLLECTION): [PollGroup("tss_samples", 0, ntcip_1209.status_block)],
+    ("tss", CONFIG): [_IDENTITY, PollGroup("tss_config", 0, ntcip_1209.config_block)],
 }
 
 _KIND_SNAPSHOT = {
     "asc": ntcip_1202.snapshot,
     "dms": ntcip_1203.snapshot,
     "ess": ntcip_1204.snapshot,
+    "tss": ntcip_1209.snapshot,
 }
 
 

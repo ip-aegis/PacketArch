@@ -7,9 +7,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.3.0"
+VERSION = "4.4.0"
 
 # Version history:
+# 4.4.0 - NTCIP 1209 detection stations. Radar detectors (radar_detector /
+#   radar_sensor, or an NTCIP 1206.4.2.4 sysObjectID) now answer the 1209
+#   sampleDataTable (per-lane volume, occupancy, speed per 30 s sample) and
+#   the deprecated dataCollectionTable that mirrors it, instead of MIB-II only.
 # 4.3.0 - Per-scenario process models. A scenario's process_sim.vertical may
 #   now name a model other than its industry vertical's default; the first is
 #   "road_tunnel" (twin-bore ventilation on CO/visibility, drainage sump with

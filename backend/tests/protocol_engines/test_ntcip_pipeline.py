@@ -141,6 +141,6 @@ def test_hand_authored_templates_answer_ntcip(template):
             for vb in pkt[SNMP].PDU.varbindlist:
                 if vb.oid.val.startswith(NTCIP) and vb.value.val:
                     answered[by_ip[pkt[IP].src]["type"]] += 1
-    expected = {t for t in ("traffic_controller", "dms_sign", "dms", "weather_station")
+    expected = {t for t in ("traffic_controller", "dms_sign", "dms", "weather_station", "radar_detector")
                 if any(dev["type"] == t for dev in d["devices"].values())}
     assert expected and expected <= set(answered), (expected, dict(answered))

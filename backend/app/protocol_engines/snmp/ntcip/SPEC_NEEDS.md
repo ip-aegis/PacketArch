@@ -13,7 +13,7 @@ behaviour is modelled, not taken from a standard, and is tiered below.
 | NTCIP 1202 ASC | `1202ASC.mib` (ASC-MIB1, v01-era) | github.com/igorpopovicz/SnmpGetAPI `mibs/` | v01 |
 | NTCIP 1203 DMS | `NTCIP1203-Dms.mib` | github.com/ite-org/NTCIP-1203 | LAST-UPDATED 2025-04-02 (v04 draft) |
 | NTCIP 1204 ESS | `NTCIP1204-Ess.mib` | github.com/ite-org/NTCIP-1204 | v04 |
-| NTCIP 1209 TSS | `ntcip1209-Tss.mib` | github.com/ite-org/NTCIP-1209 | (arc only) |
+| NTCIP 1209 TSS | `ntcip1209-Tss.mib` | github.com/ite-org/NTCIP-1209 | no revision clause in the file |
 
 I cross-checked everything against MnDOT IRIS (github.com/mnit-rtmc/iris), a production ATMS that talks to real controllers, signs and RWIS: `comm/ntcip/mib120{1,2,3,4}`, `MessageIDCode`, `DmsMessageCRC` and `CRCStream`.
 
@@ -34,6 +34,10 @@ The tiers follow the rail convention:
 | 1203 `dmsMessageCRC` | spec | CRC-16 X.25 over MULTI + beacon + pixelService octets, byte-swapped (IRIS `DmsMessageCRC`). Check vector `"123456789"` → `0x906E`. |
 | 1204 humidity, wind, precip rate, pressure | spec_legacy | We answer the `essBufr*` objects (`1206.4.2.5.1.*`). v04 marks them **deprecated**, but deployed central software still polls them (IRIS `MIB1204`), so they are what a sensor sees on real networks. |
 | 1201 `globalTime` as Counter32 | spec | SYNTAX `Counter`. |
+| 1209 object OIDs, `sampleDataTable` indexing (zone, entry, class) | spec | From the ITE file; the OIDs match the ones written in each object's own DESCRIPTION. |
+| 1209 deprecated `dataCollectionTable` kept and mirroring entry 2 / class 1 | spec | The MIB says a device that still supports it must report the same data as the new table. |
+| 1209 poll pattern (central reads entry 2 of every zone once per 30 s sample period) | provisional | IRIS has no 1209 driver to cross-check against. Per-class bins are not modelled (`numSensorZoneClass` = 1). |
+| 1209 lane volume / occupancy / speed | synthetic | Time-of-day demand, a seeded 30 % of stations break down at the peak, occupancy from density times a 6.5 m effective length. Not yet bound to `process_sim`. |
 | Signal phase sequencing | provisional | NEMA dual-ring, eight phases, leading lefts, coordinated fixed splits, TOD plans (free at night). At a plan change the running cycle finishes, then one transition cycle (shortway when the phase minimums allow, otherwise dwell) lands the new offset. The display never jumps (guard test). No actuated gap-out or phase skip yet. |
 | Site time of day | spec | `site.timezone` (IANA, DST-aware) reaches the engine as `_site_timezone` on both the PCAP and live paths. Without it the engine falls back to container-local time, which is UTC. |
 | Calls, detector presence, volume/occupancy | synthetic | Derived from a time-of-day demand curve. Not yet bound to `process_sim` (Phase 1.2). |
@@ -49,5 +53,6 @@ The tiers follow the rail convention:
 ## Open items
 
 - Confirm the 1202 v03 MIB (ANSI webstore / ITE). It adds objects under the same nodes, and we don't expect renumbering.
+- NTCIP 1207 ramp meter objects are not modelled; ramp meters answer MIB-II only.
 - NTCIP 1218 RSU arc (`.18`?) and the 1205 CCTV arc are unverified. Neither is modelled yet (Phases 3 and 4).
 - Does Cisco Cyber Vision decode NTCIP objects, or treat them as generic SNMP? This is plan item 0.9. If it doesn't decode them, the labeled-corpus field map (1.8) carries the demo.

@@ -16,7 +16,7 @@ from scapy.layers.snmp import SNMP
 
 from app.protocol_engines.snmp import ntcip
 from app.protocol_engines.snmp.engine import SnmpEngine
-from app.protocol_engines.snmp.ntcip import ntcip_1202, ntcip_1203
+from app.protocol_engines.snmp.ntcip import ntcip_1202, ntcip_1203, ntcip_1209
 from app.protocol_engines.snmp.ntcip._mib_table import MIB_OBJECTS
 from app.protocol_engines.snmp.ntcip._model import NtcipClock, NtcipDevice
 from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
@@ -24,7 +24,7 @@ from app.protocol_engines.types import DeviceContext, FlowContext, ProtocolType
 # 2026-10-21 00:00 local (UTC-5); the tests sweep the whole day from here.
 MIDNIGHT = 1792558800
 UTC_OFFSET = -5 * 3600
-KINDS = ("asc", "dms", "ess")
+KINDS = ("asc", "dms", "ess", "tss")
 SEEDS = (1, 77, 4242, 90001, 3735928559)
 
 
@@ -45,6 +45,8 @@ def test_device_arcs_match_the_mib_files():
     assert arcs["phaseStatusGroupGreens"].startswith("1.3.6.1.4.1.1206.4.2.1.")
     assert arcs["dmsMessageMultiString"].startswith("1.3.6.1.4.1.1206.4.2.3.")
     assert arcs["essAirTemperature"].startswith("1.3.6.1.4.1.1206.4.2.5.")
+    assert arcs["sampleVolumeData"] == "1.3.6.1.4.1.1206.4.2.4.3.4.1.4"
+    assert arcs["volumeData"] == "1.3.6.1.4.1.1206.4.2.4.3.1.1.2"
     assert arcs["globalTime"].startswith("1.3.6.1.4.1.1206.4.2.6.")
     assert arcs["phaseStatusGroupGreens"] == "1.3.6.1.4.1.1206.4.2.1.1.4.1.4"
     assert arcs["dmsMsgTableSource"] == "1.3.6.1.4.1.1206.4.2.3.6.5"
@@ -173,7 +175,8 @@ def _ctx(device_type=None, sys_oid=None):
         ({}, "weather_station", None, "ess"),
         ({}, "controller", "1.3.6.1.4.1.1206.4.2.1", "asc"),       # generic type -> arc
         ({}, None, "1.3.6.1.4.1.1206.4.2.3.2", "dms"),
-        ({}, "radar_detector", "1.3.6.1.4.1.1206.4.2.5", None),      # typed, not an ESS
+        ({}, "radar_detector", "1.3.6.1.4.1.1206.4.2.5", "tss"),     # type wins over the arc
+        ({}, None, "1.3.6.1.4.1.1206.4.2.4", "tss"),
         ({}, "camera", None, None),
         ({}, None, "1.3.6.1.4.1.9.1.1", None),
         ({"device_type": "dms"}, "traffic_controller", None, "dms"),  # explicit wins
@@ -347,3 +350,51 @@ def test_site_timezone_reaches_flow_config():
     }
     (fc,) = _build_flow_contexts(definition)
     assert fc.config["_site_timezone"] == "America/Denver"
+
+
+# --------------------------------------------------------------------------
+# NTCIP 1209 detection station
+# --------------------------------------------------------------------------
+
+def _lane_rows(dev, clock, entry=2):
+    snap = ntcip.snapshot("tss", dev, clock)
+    rows = []
+    for z in range(1, ntcip_1209.zone_count(dev) + 1):
+        idx = f".{z}.{entry}.1"
+        get = lambda name: snap[MIB_OBJECTS[name][0] + idx][0]
+        rows.append((get("sampleVolumeData"), get("samplePercentOccupancy"), get("sampleSpeedData")))
+    return rows
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_detection_station_reports_plausible_freeway_lanes(seed):
+    dev = _dev(seed)
+    night, peak = _lane_rows(dev, _clock(3.0)), _lane_rows(dev, _clock(17.0))
+    assert 4 <= len(peak) <= 8
+    for vol, occ, spd in night + peak:
+        assert 0 <= vol <= 25                       # <= ~3000 veh/h/lane over 30 s
+        assert 0 <= occ <= 1000
+        assert spd == 65535 or 200 <= spd <= 1300   # tenths of km/h
+    assert sum(v for v, _, _ in peak) > 2 * sum(v for v, _, _ in night)
+    assert sum(o for _, o, _ in peak) > sum(o for _, o, _ in night)
+
+
+def test_some_stations_break_down_at_the_peak():
+    slow = [s for s in range(200) if max(sp for _, _, sp in _lane_rows(_dev(s), _clock(17.0))) < 600]
+    assert 20 < len(slow) < 120   # roughly the 30% bottleneck share
+
+
+def test_deprecated_table_mirrors_the_last_completed_sample():
+    dev, clock = _dev(77), _clock(8.0, 12.0)
+    snap = ntcip.snapshot("tss", dev, clock)
+    for z in range(1, ntcip_1209.zone_count(dev) + 1):
+        for old, new in (("volumeData", "sampleVolumeData"), ("percentOccupancy", "samplePercentOccupancy"),
+                         ("speedData", "sampleSpeedData"), ("endTime", "sampleEndTime")):
+            assert snap[MIB_OBJECTS[old][0] + f".{z}"] == snap[MIB_OBJECTS[new][0] + f".{z}.2.1"]
+
+
+def test_sample_sequence_advances_once_per_period():
+    dev = _dev(4242)
+    seq = lambda c: ntcip.snapshot("tss", dev, c)[MIB_OBJECTS["sampleSequenceNumber"][0] + ".1.2.1"][0]
+    a, b, c = seq(_clock(9.0, 1.0)), seq(_clock(9.0, 29.0)), seq(_clock(9.0, 31.0))
+    assert a == b and c == (a + 1) % 65536

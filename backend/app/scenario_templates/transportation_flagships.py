@@ -255,8 +255,8 @@ def _metro_arterial() -> dict[str, Any]:
              source_zones=["backup_tmc"], target_zones=hub_ids),
         flow("snmp", ["historian"], ["traffic_controller"], 60000, target_zones=hub_ids),
         flow("snmp", ["engineering_workstation"], ["traffic_controller"], 600000, target_zones=hub_ids),
-        # Detection stations report to the ATMS.
-        flow("snmp", ["atms_server"], ["radar_detector"], 60000,
+        # Detection stations: the ATMS collects each 30 s NTCIP 1209 sample.
+        flow("snmp", ["atms_server"], ["radar_detector"], 30000,
              source_zones=["tmc"], target_zones=hub_ids),
         # Network operations: MIB-II health of every field asset.
         flow("snmp", ["nms"], field_mgmt, 60000),

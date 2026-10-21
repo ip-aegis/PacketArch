@@ -190,7 +190,7 @@ class SnmpEngine(ProtocolEngine):
     # ------------------------------------------------------------------
 
     def _ntcip_kind(self, flow: FlowContext) -> str | None:
-        """NTCIP kind (asc/dms/ess) of the destination, or None."""
+        """NTCIP kind (asc/dms/ess/tss) of the destination, or None."""
         applicator = flow.destination.fingerprint_applicator
         sys_oid = None
         if hasattr(applicator, "get_sys_object_id"):

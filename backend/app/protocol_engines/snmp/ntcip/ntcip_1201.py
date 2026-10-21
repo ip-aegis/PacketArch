@@ -19,6 +19,7 @@ BASE_STANDARDS = {
     "asc": "NTCIP 1201 v03, NTCIP 1202 v03",
     "dms": "NTCIP 1201 v03, NTCIP 1203 v03",
     "ess": "NTCIP 1201 v03, NTCIP 1204 v04",
+    "tss": "NTCIP 1201 v03, NTCIP 1209",
 }
 
 # globalDaylightSaving: enableUSDST(3)
