@@ -46,10 +46,13 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # TMC CORE ZONE (Level 3) - 4 devices
             # Traffic Management Center servers, switches
             # ============================================================
-            # Master Station - Siemens CP-8000
-            {"type": "master_station", "vendor": "siemens_its", "count": 2, "zone": "tmc_core",
-             "name_pattern": "TMC_Master_Station_{n}", "protocols": ["snmp", "modbus_tcp"],
-             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+            # Master Station - ATMS central server. Was a Siemens CP-8000,
+            # which is a SICAM A8000 energy RTU. A generic Windows server
+            # stands in until ATMS central templates (Centracs, KITS, ...)
+            # land. All of this zone's master-station flows are SNMP.
+            {"type": "master_station", "vendor": "microsoft", "count": 2, "zone": "tmc_core",
+             "name_pattern": "TMC_ATMS_Central_Server_{n}", "protocols": ["snmp"],
+             "fingerprint_model": "Jump Server 2019",
              "role": "Traffic Management Center Master Station"},
 
             # Core Switches - Cisco IE-9320-24T4X-E
@@ -277,10 +280,11 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # ATMS CORE ZONE (Level 3) - 4 devices
             # Advanced Traffic Management System core
             # ============================================================
-            # Coordination Master - Siemens CP-8000
-            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
+            # Coordination Master - ATMS central server (generic Windows
+            # server stand-in; was a SICAM A8000 CP-8000 energy RTU)
+            {"type": "master_station", "vendor": "microsoft", "count": 1, "zone": "atms_core",
              "name": "ATMS_Coordination_Master_Station", "protocols": ["snmp"],
-             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+             "fingerprint_model": "Jump Server 2019",
              "role": "ATMS Coordination Master"},
 
             # Distribution Switches - Cisco IE-3500-8P3S-E
@@ -297,15 +301,15 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
              "role": "Remote Access Gateway",
              "external_comms": True},
 
-            # Standby Coordination Master - Siemens CP-8000 (hot standby;
+            # Standby Coordination Master - ATMS standby server (hot standby;
             # scada_standby role, mirrors the primary and takes over on
             # failover). Catalog-known type distinct from the primary's
             # master_station so the primary->standby sync flow resolves
             # against it in the template builder (same-type same-zone pairs
             # are self-skipped by the zip-by-index flow expansion).
-            {"type": "scada_server", "vendor": "siemens_its", "count": 1, "zone": "atms_core",
+            {"type": "scada_server", "vendor": "microsoft", "count": 1, "zone": "atms_core",
              "name": "ATMS_Standby_Coordination_Master", "protocols": ["snmp"],
-             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+             "fingerprint_model": "Jump Server 2019",
              "architectural_role": "scada_standby",
              "role": "ATMS Standby Coordination Master"},
 
@@ -544,10 +548,12 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # TUNNEL MASTER ZONE (Level 3) - 5 devices
             # Central control room and master station
             # ============================================================
-            # Master Station - Siemens CP-8000
-            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "tunnel_master",
+            # Master Station - tunnel SCADA server (Geo SCADA Expert; was a
+            # SICAM A8000 CP-8000 energy RTU). Neither speaks BACnet, so the
+            # master->lighting BACnet flow is no less supported than before.
+            {"type": "master_station", "vendor": "schneider", "count": 1, "zone": "tunnel_master",
              "name": "Tunnel_Master_Control_Station", "protocols": ["snmp", "modbus_tcp", "bacnet"],
-             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+             "fingerprint_model": "Geo SCADA Expert 2022",
              "role": "Tunnel Master Control Station"},
 
             # Core Switches - Cisco IE-9320-24T4X-E
@@ -843,10 +849,11 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # TOLL CENTER ZONE (Level 3) - 4 devices
             # Central toll processing and audit
             # ============================================================
-            # Toll Master Station - Siemens CP-8000
-            {"type": "master_station", "vendor": "siemens_its", "count": 1, "zone": "toll_center",
+            # Toll Master Station - toll host server (generic Windows server
+            # stand-in; was a SICAM A8000 CP-8000 energy RTU)
+            {"type": "master_station", "vendor": "microsoft", "count": 1, "zone": "toll_center",
              "name": "Toll_Plaza_Master_Station", "protocols": ["snmp"],
-             "fingerprint_model": "CP-8000", "firmware_version": "V11.0.0",
+             "fingerprint_model": "Jump Server 2019",
              "role": "Toll Plaza Master Station"},
 
             # Distribution Switches - Cisco IE-3500-8P3S-E

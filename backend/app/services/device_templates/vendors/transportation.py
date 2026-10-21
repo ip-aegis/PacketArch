@@ -188,13 +188,13 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="mccain/170e/detector",
+        id="mccain/170e/controller",
         vendor="McCain",
         vendor_family="170E",
         model="170E",
-        model_name="170E Detector Rack",
-        device_type="detector_rack",
-        description="170E cabinet detector rack for vehicle detection",
+        model_name="170E Traffic Controller",
+        device_type="traffic_controller",
+        description="Type 170E traffic signal controller",
 
         oui_prefixes=["10:10:B6"],
 
@@ -217,7 +217,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         instance_rules=InstanceGenerationRules(
             serial_format="170E{6NUM}",
-            station_name_pattern="det-{location}-{seq}",
+            station_name_pattern="tsc-{location}-{seq}",
             vendor_short="MCC",
             model_short="170E",
         ),
@@ -233,8 +233,8 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "McCain 170E Detector Rack V2.5",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_descr": "McCain 170E Traffic Signal Controller V2.5",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
     DeviceTemplate(
