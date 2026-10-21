@@ -123,6 +123,7 @@ PROTOCOL_PORTS = {
     "https": 443,
     "syslog": 514,
     "rtsp": 554,
+    "http": 80,
 }
 
 # Variant/alias protocol names (s7comm_plus, profisafe, ntcip, ...) resolve

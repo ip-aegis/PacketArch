@@ -672,7 +672,7 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 3.0,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "https"],
+        supported_protocols=["snmp", "https", "http"],
         instance_rules=InstanceGenerationRules(
             serial_format="VMware-{8HEX}",
             station_name_pattern="tollhost-{location}-{seq}",
@@ -760,7 +760,9 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 6.0,
             "distribution": "lognormal",
         },
-        supported_protocols=["https"],
+        # Hardware Traffic Controller: HTTP 80 is required (TEMS Manager);
+        # HTTPS once a certificate is uploaded.
+        supported_protocols=["http", "https"],
         instance_rules=InstanceGenerationRules(
             serial_format="{8NUM}",
             station_name_pattern="tic-{location}-{seq}",

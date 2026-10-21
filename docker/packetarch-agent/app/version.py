@@ -26,6 +26,8 @@ VERSION = "4.5.0"
 #   New RTSP engine (TCP 554): OPTIONS/DESCRIBE(SDP, H.264)/SETUP (TCP
 #   interleaved)/PLAY, then a deliberately sparse RTP slice per cycle, RTCP
 #   sender reports and GET_PARAMETER keepalives; TEARDOWN at shutdown.
+#   New HTTP engine (TCP 80): one page load per cycle (GET /, 200 page or a
+#   301 to https:// per the device's http profile; no invented Server header).
 # 4.4.1 - Fixes found by replaying flagship PCAPs into Cyber Vision.
 #   S7: the SZL payload repeated its SZL-ID/INDEX header, so every field
 #   after it was shifted (CV read rack/slot as "r"/":"); SZL 0x0011 now uses

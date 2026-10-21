@@ -34,7 +34,7 @@ from app.protocol_engines.types import ProtocolType
 # Flows using these are silently dropped today; the linter must flag them
 # so the template author can either remove the flow or move it to
 # `cloud_services` (which has its own runtime path).
-_NON_ENGINE_PROTOCOLS = {"https", "rdp", "http", "ssh", "ftp"}
+_NON_ENGINE_PROTOCOLS = {"ftp"}
 
 _VALID_RUNTIME_PROTOCOLS: set[str] = {p.value for p in ProtocolType}
 

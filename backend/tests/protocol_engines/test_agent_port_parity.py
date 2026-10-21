@@ -30,6 +30,6 @@ def _agent_ports() -> dict[str, int]:
 
 
 @pytest.mark.skipif(not _IN_CHECKOUT, reason="agent source not beside this backend checkout")
-@pytest.mark.parametrize("protocol", ["ssh", "telnet", "rdp", "https", "syslog", "rtsp"])
+@pytest.mark.parametrize("protocol", ["ssh", "telnet", "rdp", "https", "syslog", "rtsp", "http"])
 def test_agent_and_pcap_agree_on_it_protocol_ports(protocol):
     assert _agent_ports()[protocol] == PROTOCOL_DEFAULT_PORTS[protocol]

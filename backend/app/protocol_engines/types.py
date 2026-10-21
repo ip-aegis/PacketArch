@@ -49,6 +49,7 @@ class ProtocolType(str, Enum):
     HTTPS = "https"    # HTTPS / TLS — TCP/443
     SYSLOG = "syslog"  # Syslog — UDP/514 (device -> collector)
     RTSP = "rtsp"      # RTSP video session — TCP/554 (VMS/NVR -> camera)
+    HTTP = "http"      # Cleartext HTTP/1.1 — TCP/80 (device web interface)
 
 
 @dataclass
@@ -1363,6 +1364,7 @@ def create_conversation_state(
         ProtocolType.HTTPS: CloudServiceConversationState,
         ProtocolType.SYSLOG: ConversationState,
         ProtocolType.RTSP: ConversationState,
+        ProtocolType.HTTP: ConversationState,
     }
 
     state_class = state_classes.get(protocol)

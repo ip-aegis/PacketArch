@@ -682,7 +682,7 @@ def _f4_gantry(zone: str, lanes: int, express: bool) -> list[dict[str, Any]]:
     specs = [
         device(f"{tag}_Toll_Zone_Ctrl", "toll_controller", zone, "toll_zone_controller", ["snmp"]),
         device(f"{tag}_Tag_Reader", "toll_rsu", zone, "toll_reader", ["snmp"]),
-        device(f"{tag}_Classifier", "classification_sensor", zone, "classifier", ["https"]),
+        device(f"{tag}_Classifier", "classification_sensor", zone, "classifier", ["http", "https"]),
         device(f"{tag}_Gantry_SW", "network_switch", zone, "cabinet_switch", ["snmp", "syslog"]),
     ]
     for lane in range(1, lanes + 1):
@@ -701,10 +701,10 @@ def _toll_express_lanes() -> dict[str, Any]:
          "security_level": "critical"},
     ]
     devices: list[dict[str, Any]] = [
-        device("TOC_Facility_Host_A", "toll_host", "toll_ops", "toll_host", ["snmp", "https"]),
-        device("TOC_Facility_Host_B", "toll_host", "toll_ops", "toll_host", ["snmp", "https"]),
+        device("TOC_Facility_Host_A", "toll_host", "toll_ops", "toll_host", ["snmp", "https", "http"]),
+        device("TOC_Facility_Host_B", "toll_host", "toll_ops", "toll_host", ["snmp", "https", "http"]),
         device("TOC_NMS", "nms", "toll_ops", "nms", ["snmp", "https", "syslog"]),
-        device("TOC_Eng_WS", "engineering_workstation", "toll_ops", "ews", ["snmp", "rdp", "https"]),
+        device("TOC_Eng_WS", "engineering_workstation", "toll_ops", "ews", ["snmp", "rdp", "https", "http"]),
         device("TOC_Core_SW", "network_switch", "toll_ops", "core_switch", ["snmp", "syslog"]),
         device("TOC_Domain_Controller", "domain_controller", "toll_ops", "domain_controller",
                ["snmp", "dns", "rdp"]),
@@ -724,20 +724,20 @@ def _toll_express_lanes() -> dict[str, Any]:
         flow("snmp", ["toll_host"], ["toll_controller", "toll_rsu"], 60000, target_zones=gantry_ids),
         # Plate images from the ALPR cameras; classifier status (TEMS web).
         flow("https", ["toll_host"], ["anpr_camera"], 5000, target_zones=gantry_ids),
-        flow("https", ["toll_host"], ["classification_sensor"], 60000, target_zones=gantry_ids),
+        flow("http", ["toll_host"], ["classification_sensor"], 60000, target_zones=gantry_ids),
         # Dynamic pricing: the facility host drives the express-lane signs (NTCIP 1203).
         flow("snmp", ["toll_host"], ["dms"], 30000, target_zones=gantry_ids),
         # Network operations and engineering.
         flow("snmp", ["nms"], ["network_switch", "toll_controller", "toll_rsu"], 60000),
         flow("syslog", ["network_switch"], ["nms"], 120000),
         flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server", "domain_controller"], 60000),
-        flow("https", ["engineering_workstation"], ["classification_sensor"], 600000, target_zones=gantry_ids),
+        flow("http", ["engineering_workstation"], ["classification_sensor"], 600000, target_zones=gantry_ids),
         # Back-office link and admin access.
         flow("https", ["reverse_proxy"], ["toll_host"], 15000, target_zones=["toll_ops"]),
         flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
     ]
     conduits = [
-        conduit("toll_ops", g, ["snmp", "https", "syslog"], "MOMS, ALPR images, classifier, pricing signs, "
+        conduit("toll_ops", g, ["snmp", "https", "http", "syslog"], "MOMS, ALPR images, classifier, pricing signs, "
                 "NMS and syslog")
         for g in gantry_ids
     ] + [

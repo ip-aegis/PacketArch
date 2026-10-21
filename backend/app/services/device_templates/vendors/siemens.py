@@ -3653,7 +3653,9 @@ TEMPLATES: list[DeviceTemplate] = [
             "std_dev_ms": 1.0,
             "distribution": "lognormal",
         },
-        supported_protocols=["snmp", "ssh", "https", "syslog"],
+        supported_protocols=["snmp", "ssh", "https", "syslog", "http"],
+        # ROS's port-80 server only redirects to HTTPS (ROS configuration manual).
+        protocol_quirks={"http": {"profile": "redirect_https"}},
         instance_rules=InstanceGenerationRules(
             serial_format="RUG{8NUM}",
             station_name_pattern="cabsw-{location}-{seq}",

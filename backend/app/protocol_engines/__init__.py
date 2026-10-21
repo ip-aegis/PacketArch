@@ -85,6 +85,7 @@ from app.protocol_engines.emp.engine import EmpEngine  # noqa: E402, F401
 from app.protocol_engines.atcs.engine import AtcsEngine  # noqa: E402, F401
 from app.protocol_engines.syslog.engine import SyslogEngine  # noqa: E402, F401
 from app.protocol_engines.rtsp.engine import RtspEngine  # noqa: E402, F401
+from app.protocol_engines.http.engine import HttpEngine  # noqa: E402, F401
 
 __all__ = [
     "ProtocolEngine",
@@ -119,4 +120,5 @@ __all__ = [
     "AtcsEngine",
     "SyslogEngine",
     "RtspEngine",
+    "HttpEngine",
 ]

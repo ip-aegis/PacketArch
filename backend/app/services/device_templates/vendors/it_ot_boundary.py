@@ -229,7 +229,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "std_dev_ms": 2.0,
                 "distribution": "gaussian",
             },
-        supported_protocols=['snmp', 'rdp', 'https', 'ethernet_ip', 's7comm', 'opc_ua'],
+        supported_protocols=['snmp', 'rdp', 'https', 'ethernet_ip', 's7comm', 'opc_ua', 'http'],
         protocol_quirks={
                 "snmp": {
                     "community_string": "public",
