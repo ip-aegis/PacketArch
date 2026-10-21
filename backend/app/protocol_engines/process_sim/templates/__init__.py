@@ -34,6 +34,7 @@ def _register() -> None:
         energy,
         manufacturing,
         oil_gas,
+        road_tunnel,
         transportation,
         water,
     )
@@ -49,6 +50,8 @@ def _register() -> None:
     _REGISTRY["energy_power"] = (energy.build_model, energy.build_faults)
     _REGISTRY["energy"] = (energy.build_model, energy.build_faults)
     _REGISTRY["transportation"] = (transportation.build_model, transportation.build_faults)
+    # Per-scenario process models (selected by a template's ``process_model``).
+    _REGISTRY["road_tunnel"] = (road_tunnel.build_model, road_tunnel.build_faults)
     _REGISTRY["distribution_logistics"] = (
         distribution_logistics.build_model,
         distribution_logistics.build_faults,

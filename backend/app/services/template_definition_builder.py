@@ -306,6 +306,8 @@ def populate_definition_from_template(
         definition["external_comms"] = template["external_comms"]
     if template.get("cell_isolation"):
         definition["cell_isolation"] = template["cell_isolation"]
+    if template.get("process_model"):
+        definition["process_sim"] = {"enabled": True, "vertical": template["process_model"]}
 
     # Apply the same auto-repair passes the production create-scenario
     # route runs (routes/templates.py:create_scenario_from_template).

@@ -7,9 +7,14 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.2.1"
+VERSION = "4.3.0"
 
 # Version history:
+# 4.3.0 - Per-scenario process models. A scenario's process_sim.vertical may
+#   now name a model other than its industry vertical's default; the first is
+#   "road_tunnel" (twin-bore ventilation on CO/visibility, drainage sump with
+#   start/stop level hysteresis, input-driven faults: jet-fan trip, pump
+#   failure in a storm, incident congestion).
 # 4.2.1 - NTCIP signal controllers no longer jump their display at a
 #   time-of-day plan change: the running cycle finishes, then one
 #   shortway/dwell transition cycle lands the new pattern's offset (before

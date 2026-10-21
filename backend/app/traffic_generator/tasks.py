@@ -593,6 +593,8 @@ def _build_flow_contexts(
     conduits_raw = scenario_definition.get("conduits", {})
     clean_demo_mode = bool(scenario_definition.get("clean_demo_mode", False))
     site_timezone = scenario_definition.get("site_timezone")
+    process_sim = scenario_definition.get("process_sim") or {}
+    process_model = process_sim.get("vertical") if process_sim.get("enabled") else None
     isolation = parse_isolation_config(scenario_definition)
 
     # Normalize to list format - support both Record<id, obj> and array formats
@@ -755,6 +757,8 @@ def _build_flow_contexts(
             flow_config = {**flow_config, "clean_demo_mode": True}
         if site_timezone:
             flow_config = {**flow_config, "_site_timezone": site_timezone}
+        if process_model:
+            flow_config = {**flow_config, "_process_model": process_model}
 
         flow_context = FlowContext(
             flow_id=flow.get("id", str(uuid.uuid4())),

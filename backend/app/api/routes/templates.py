@@ -655,6 +655,12 @@ async def create_scenario_from_template(
     # Propagate Purdue cell-isolation default if the template declares one.
     # This makes templates that intentionally enforce strict L0-L2 isolation
     # (e.g. strict_purdue_segmented) boot into the right mode at creation.
+    # A template may pick a non-default process model (e.g. "road_tunnel").
+    # The descriptive ``process_sim`` blocks on older templates are not
+    # runtime config and are deliberately not copied.
+    if template.get("process_model"):
+        definition["process_sim"] = {"enabled": True, "vertical": template["process_model"]}
+
     cell_isolation = template.get("cell_isolation")
     if cell_isolation:
         definition["cell_isolation"] = cell_isolation

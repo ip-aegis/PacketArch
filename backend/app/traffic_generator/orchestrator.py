@@ -198,7 +198,9 @@ class TrafficOrchestrator:
                 vertical = None
                 for fc in self._flow_contexts:
                     if isinstance(fc.config, dict):
-                        vertical = fc.config.get("_vertical")
+                        # A scenario-level process model (template
+                        # ``process_model``) wins over the vertical default.
+                        vertical = fc.config.get("_process_model") or fc.config.get("_vertical")
                         if vertical:
                             break
                 if vertical:
