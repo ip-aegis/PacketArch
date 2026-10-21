@@ -86,7 +86,9 @@ def populate_definition_from_template(
         get_archetype_config,
     )
     arch_cfg = get_archetype_config(vertical, template_name)
-    if arch_cfg is not None:
+    # Same rule as the create route: a template that lists its own devices
+    # is built from that list, so the audit inspects what users get.
+    if arch_cfg is not None and not template.get("devices"):
         from app.services.architecture.scenario_generator import (
             generate_from_archetype,
         )
@@ -157,6 +159,10 @@ def populate_definition_from_template(
                 "fingerprintModel": device_spec.get("fingerprint_model"),
                 "network": {},
             }
+            if device_spec.get("group"):
+                device["group"] = device_spec["group"]
+            if template.get("naming") == "curated" and device_spec.get("name"):
+                device["_curated_name"] = device_spec["name"]
 
             from app.services.architecture.role_catalog import (
                 default_role_for_device_type,
@@ -267,73 +273,13 @@ def populate_definition_from_template(
         conduits = generate_default_conduits(zones)
 
     # ---- Flows ----------------------------------------------------------
-    flows: dict[str, dict[str, Any]] = {}
-    flow_index = 0
+    from app.services.template_flows import expand_template_flows
 
-    devices_by_type: dict[str, list[str]] = {}
-    devices_by_type_zone: dict[tuple[str, str], list[str]] = {}
-    for did, dev in devices.items():
-        dtype = dev.get("type", "unknown")
-        dzone = dev.get("zoneId", "") or ""
-        devices_by_type.setdefault(dtype, []).append(did)
-        devices_by_type_zone.setdefault((dtype, dzone), []).append(did)
-
-    for flow_spec in template.get("flows", []):
-        source_types = flow_spec.get("source_types", [])
-        target_types = flow_spec.get("target_types", [])
-        source_zones = flow_spec.get("source_zones", [])
-        target_zones = flow_spec.get("target_zones", [])
-        protocol = flow_spec.get("protocol")
-        interval_ms = flow_spec.get("interval_ms", 1000)
-
-        timing: dict[str, Any] = {"intervalMs": interval_ms}
-        if flow_spec.get("jitter_ms"):
-            timing["jitterMs"] = flow_spec["jitter_ms"]
-        if flow_spec.get("jitter_type"):
-            timing["jitterType"] = flow_spec["jitter_type"]
-
-        for source_type in source_types:
-            for target_type in target_types:
-                if source_zones:
-                    sources = []
-                    for sz in source_zones:
-                        sources.extend(
-                            devices_by_type_zone.get((source_type, sz), [])
-                        )
-                else:
-                    sources = devices_by_type.get(source_type, [])
-
-                if target_zones:
-                    targets = []
-                    for tz in target_zones:
-                        targets.extend(
-                            devices_by_type_zone.get((target_type, tz), [])
-                        )
-                else:
-                    targets = devices_by_type.get(target_type, [])
-
-                if not sources or not targets:
-                    continue
-
-                n = max(len(sources), len(targets))
-                for i in range(n):
-                    sid = sources[i % len(sources)]
-                    tid = targets[i % len(targets)]
-                    if sid == tid:
-                        continue
-                    flow_index += 1
-                    fid = f"flow_{flow_index:03d}"
-                    flow_obj: dict[str, Any] = {
-                        "id": fid,
-                        "sourceDeviceId": sid,
-                        "targetDeviceId": tid,
-                        "protocol": protocol,
-                        "timing": timing,
-                        "config": {},
-                    }
-                    if flow_spec.get("auto_repair_skip"):
-                        flow_obj["auto_repair_skip"] = True
-                    flows[fid] = flow_obj
+    flows = expand_template_flows(
+        template.get("flows", []),
+        devices,
+        honor_config=bool(template.get("honor_flow_config")),
+    )
 
     # ---- Cloud-service links (sync, BUILTIN catalog) --------------------
     cloud_service_links = _build_cloud_links_sync(template, devices)

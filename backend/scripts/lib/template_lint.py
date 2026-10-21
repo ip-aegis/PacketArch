@@ -73,6 +73,15 @@ def lint_template(template_key: str, template: dict[str, Any]) -> list[LintIssue
     3. ``flow_proto_not_on_target`` (error) — same as #2 for `target_types`.
     4. ``device_proto_orphaned`` (warning) — a device declares a protocol
        that no flow ever uses. Cosmetic; useful for cleanup.
+    5. ``flow_pairing_unknown`` (error) — a flow's ``pairing`` is not one of
+       round_robin / fan_out / same_group.
+    6. ``flow_same_group_empty`` (error) — a ``same_group`` flow pairs no
+       devices (no source and target share a ``group``).
+    7. ``flow_duplicate`` (warning) — the expanded template yields the same
+       (source, target, protocol) flow more than once.
+    8. ``device_firmware_no_variant`` (warning) — a pinned
+       ``firmware_version`` matches none of the fingerprint's
+       firmware_variants, so the device silently carries no CVEs.
     """
     issues: list[LintIssue] = []
     flows: list[dict[str, Any]] = template.get("flows", []) or []
@@ -208,6 +217,77 @@ def lint_template(template_key: str, template: dict[str, Any]) -> list[LintIssue
                     )
                 )
 
+    issues.extend(_lint_expansion(template_key, template))
+    issues.extend(_lint_firmware_pins(template_key, devices))
+    return issues
+
+
+def _lint_expansion(template_key: str, template: dict[str, Any]) -> list[LintIssue]:
+    """Checks that need the concrete flows the create route would build."""
+    from app.services.template_flows import PAIRINGS, SAME_GROUP, expand_template_flows
+
+    issues: list[LintIssue] = []
+    devices: dict[str, dict[str, Any]] = {}
+    for spec in template.get("devices", []) or []:
+        for _ in range(spec.get("count", 1)):
+            did = f"device_{len(devices) + 1:03d}"
+            devices[did] = {"type": spec.get("type", "plc"), "zoneId": spec.get("zone"),
+                            "group": spec.get("group")}
+    for idx, spec in enumerate(template.get("flows", []) or []):
+        pairing = spec.get("pairing")
+        if pairing and pairing not in PAIRINGS:
+            issues.append(LintIssue(
+                template_key=template_key, severity="error", code="flow_pairing_unknown",
+                message=f"flow pairing {pairing!r} is not one of {list(PAIRINGS)}",
+                flow_index=idx, detail={"pairing": pairing},
+            ))
+            continue
+        if pairing == SAME_GROUP and not expand_template_flows([spec], devices):
+            issues.append(LintIssue(
+                template_key=template_key, severity="error", code="flow_same_group_empty",
+                message="same_group flow pairs no devices — no source and target share a `group`",
+                flow_index=idx,
+            ))
+    if any(i.code == "flow_pairing_unknown" for i in issues):
+        return issues
+    seen: dict[tuple[str, str, str], int] = {}
+    for flow in expand_template_flows(template.get("flows", []) or [], devices).values():
+        key = (flow["sourceDeviceId"], flow["targetDeviceId"], resolve_protocol(flow["protocol"] or ""))
+        seen[key] = seen.get(key, 0) + 1
+    dupes = sum(n - 1 for n in seen.values() if n > 1)
+    if dupes:
+        issues.append(LintIssue(
+            template_key=template_key, severity="warning", code="flow_duplicate",
+            message=f"{dupes} duplicate (source, target, protocol) flow(s) after expansion",
+            detail={"duplicates": dupes},
+        ))
+    return issues
+
+
+def _lint_firmware_pins(template_key: str, devices: list[dict[str, Any]]) -> list[LintIssue]:
+    from app.services.device_templates import get_template_by_id, get_template_by_vendor_model
+
+    issues: list[LintIssue] = []
+    for spec in devices:
+        pinned = spec.get("firmware_version")
+        if not pinned:
+            continue
+        tpl = None
+        if spec.get("fingerprint_id"):
+            tpl = get_template_by_id(spec["fingerprint_id"])
+        elif spec.get("vendor") and spec.get("fingerprint_model"):
+            tpl = get_template_by_vendor_model(spec["vendor"], spec["fingerprint_model"])
+        variants = getattr(tpl, "firmware_variants", None) or []
+        versions = {getattr(v, "version", None) for v in variants}
+        if tpl is not None and versions and pinned not in versions:
+            issues.append(LintIssue(
+                template_key=template_key, severity="warning", code="device_firmware_no_variant",
+                message=(
+                    f"{spec.get('name') or spec.get('type')!r} pins firmware {pinned!r}; "
+                    f"fingerprint variants are {sorted(v for v in versions if v)} — no CVEs will attach"
+                ),
+                detail={"firmware_version": pinned},
+            ))
     return issues
 
 

@@ -153,6 +153,7 @@ def build_scenario_from_template(
                 "vendorFingerprint": fingerprint or {},
                 "protocols": spec.get("protocols", []),
                 "zone": zone_id,
+                "group": spec.get("group"),
                 "role": spec.get("role", ""),
                 "cve_ids": spec.get("cve_ids", []),
                 "external_comms": spec.get("external_comms", False),
@@ -167,60 +168,33 @@ def build_scenario_from_template(
     flows: list[dict[str, Any]] = []
     target_protocols: dict[str, set[str]] = {did: set() for did in devices}
 
-    # Group devices by (type, zone) for source_types/target_types matching
-    devices_by_type_zone: dict[tuple[str, str], list[str]] = {}
-    devices_by_type: dict[str, list[str]] = {}
-    for did, dev in devices.items():
-        dtype = dev["type"]
-        dzone = dev["zone"]
-        devices_by_type_zone.setdefault((dtype, dzone), []).append(did)
-        devices_by_type.setdefault(dtype, []).append(did)
+    # Same expansion the create-from-template route uses (pairing modes,
+    # zone filters), so validation exercises the flows users actually get.
+    from app.services.template_flows import expand_template_flows
 
-    flow_counter = 0
-    for fspec in flow_specs:
-        protocol_raw = fspec.get("protocol", "modbus_tcp")
-        source_types = fspec.get("source_types", [])
-        target_types = fspec.get("target_types", [])
-        source_zones = fspec.get("source_zones")  # Optional zone filter
-        target_zones = fspec.get("target_zones")  # Optional zone filter
-
-        # Collect matching source and target device IDs
-        sources = _match_devices(
-            devices, devices_by_type, devices_by_type_zone,
-            source_types, source_zones,
-        )
-        targets = _match_devices(
-            devices, devices_by_type, devices_by_type_zone,
-            target_types, target_zones,
-        )
-
-        if not sources or not targets:
-            continue
-
-        # Avoid self-flows for same-type combinations
-        # (e.g., PLC-to-PLC where source and target overlap)
-        pairs = _build_flow_pairs(sources, targets, fspec)
-
-        for src_id, dst_id in pairs:
-            flow_counter += 1
-            flow_id = f"flow_{flow_counter:04d}"
-
-            flow_dict = {
-                "id": flow_id,
-                "sourceDeviceId": src_id,
-                "targetDeviceId": dst_id,
-                "protocol": protocol_raw,
-                "config": {
-                    "poll_interval_ms": fspec.get("interval_ms", 1000),
-                    "jitter_ms": fspec.get("jitter_ms", 0),
-                },
-            }
-            flows.append(flow_dict)
-
-            # Track target protocols for validation
-            target_protocols.setdefault(dst_id, set()).add(protocol_raw)
-            # Source may also serve identity in some bidirectional protocols
-            target_protocols.setdefault(src_id, set())
+    shim = {
+        did: {"type": dev["type"], "zoneId": dev["zone"], "group": dev.get("group")}
+        for did, dev in devices.items()
+    }
+    expanded = expand_template_flows(
+        flow_specs, shim, honor_config=bool(template.get("honor_flow_config"))
+    )
+    for flow in expanded.values():
+        spec_timing = flow["timing"]
+        flow_dict = {
+            "id": flow["id"],
+            "sourceDeviceId": flow["sourceDeviceId"],
+            "targetDeviceId": flow["targetDeviceId"],
+            "protocol": flow["protocol"],
+            "config": {
+                **flow["config"],
+                "poll_interval_ms": spec_timing.get("intervalMs", 1000),
+                "jitter_ms": spec_timing.get("jitterMs", 0),
+            },
+        }
+        flows.append(flow_dict)
+        target_protocols.setdefault(flow["targetDeviceId"], set()).add(flow["protocol"])
+        target_protocols.setdefault(flow["sourceDeviceId"], set())
 
     # ── Step 4: Build FlowContexts ───────────────────────────────
     flow_contexts: list[FlowContext] = []
@@ -309,66 +283,6 @@ def _make_device_id(spec: dict, index: int, existing: dict) -> str:
     if candidate in existing:
         candidate = f"{candidate}_{random.randint(1000, 9999)}"
     return candidate
-
-
-def _match_devices(
-    devices: dict[str, dict],
-    devices_by_type: dict[str, list[str]],
-    devices_by_type_zone: dict[tuple[str, str], list[str]],
-    type_list: list[str],
-    zone_filter: list[str] | None,
-) -> list[str]:
-    """Match devices by type and optional zone filter."""
-    matched: list[str] = []
-    for dtype in type_list:
-        if zone_filter:
-            for zone in zone_filter:
-                matched.extend(devices_by_type_zone.get((dtype, zone), []))
-        else:
-            matched.extend(devices_by_type.get(dtype, []))
-    return matched
-
-
-def _build_flow_pairs(
-    sources: list[str],
-    targets: list[str],
-    fspec: dict,
-) -> list[tuple[str, str]]:
-    """Build (source, target) pairs with round-robin distribution.
-
-    Avoids self-flows where source == target.
-    """
-    pairs: list[tuple[str, str]] = []
-
-    # For each source, assign targets round-robin
-    if len(sources) <= len(targets):
-        # Each source gets one or more targets
-        for i, src in enumerate(sources):
-            # Distribute targets across sources
-            assigned_targets = [
-                t for j, t in enumerate(targets) if t != src
-            ]
-            if not assigned_targets:
-                continue
-            # Assign proportionally
-            chunk_size = max(1, len(assigned_targets) // len(sources))
-            start = (i * chunk_size) % len(assigned_targets)
-            for k in range(min(chunk_size, len(assigned_targets))):
-                idx = (start + k) % len(assigned_targets)
-                pairs.append((src, assigned_targets[idx]))
-    else:
-        # More sources than targets — each target gets flows from sources
-        for i, tgt in enumerate(targets):
-            assigned_sources = [s for s in sources if s != tgt]
-            if not assigned_sources:
-                continue
-            chunk_size = max(1, len(assigned_sources) // len(targets))
-            start = (i * chunk_size) % len(assigned_sources)
-            for k in range(min(chunk_size, len(assigned_sources))):
-                idx = (start + k) % len(assigned_sources)
-                pairs.append((assigned_sources[idx], tgt))
-
-    return pairs
 
 
 def _build_flow_context(

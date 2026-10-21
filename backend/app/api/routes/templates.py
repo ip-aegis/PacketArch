@@ -368,6 +368,10 @@ async def create_scenario_from_template(
                 "fingerprintModel": device_spec.get("fingerprint_model"),
                 "network": {},
             }
+            if device_spec.get("group"):
+                device["group"] = device_spec["group"]
+            if template.get("naming") == "curated" and device_spec.get("name"):
+                device["_curated_name"] = device_spec["name"]
 
             # Stamp architectural_role so role-aware readiness / audit
             # checks work for legacy templates that haven't been migrated
@@ -604,84 +608,16 @@ async def create_scenario_from_template(
             logger.info(f"Added {len(cloud_service_links)} cloud service links")
 
     else:
-        # Template-driven flow generation (respects zone constraints)
-        flow_index = 0
+        # Template-driven flow generation (respects zone constraints and
+        # the spec's pairing mode; one implementation shared with the
+        # audit builder and validation scripts).
+        from app.services.template_flows import expand_template_flows
 
-        # Group devices by (type, zone) for zone-aware flow matching
-        devices_by_type: dict[str, list[str]] = {}
-        devices_by_type_zone: dict[tuple[str, str], list[str]] = {}
-        for device_id, device in devices.items():
-            dtype = device.get("type", "unknown")
-            dzone = device.get("zoneId", "")
-            if dtype not in devices_by_type:
-                devices_by_type[dtype] = []
-            devices_by_type[dtype].append(device_id)
-            key = (dtype, dzone)
-            if key not in devices_by_type_zone:
-                devices_by_type_zone[key] = []
-            devices_by_type_zone[key].append(device_id)
-
-        for flow_spec in template.get("flows", []):
-            source_types = flow_spec.get("source_types", [])
-            target_types = flow_spec.get("target_types", [])
-            source_zones = flow_spec.get("source_zones", [])
-            target_zones = flow_spec.get("target_zones", [])
-            protocol = flow_spec.get("protocol")
-            interval_ms = flow_spec.get("interval_ms", 1000)
-
-            # Build jitter config if present
-            timing: dict[str, Any] = {"intervalMs": interval_ms}
-            if flow_spec.get("jitter_ms"):
-                timing["jitterMs"] = flow_spec["jitter_ms"]
-            if flow_spec.get("jitter_type"):
-                timing["jitterType"] = flow_spec["jitter_type"]
-
-            # Create flows between matching device types, respecting zone constraints
-            for source_type in source_types:
-                for target_type in target_types:
-                    # Filter by zones when specified
-                    if source_zones:
-                        source_devices = []
-                        for sz in source_zones:
-                            source_devices.extend(
-                                devices_by_type_zone.get((source_type, sz), [])
-                            )
-                    else:
-                        source_devices = devices_by_type.get(source_type, [])
-
-                    if target_zones:
-                        target_devices = []
-                        for tz in target_zones:
-                            target_devices.extend(
-                                devices_by_type_zone.get((target_type, tz), [])
-                            )
-                    else:
-                        target_devices = devices_by_type.get(target_type, [])
-
-                    if not source_devices or not target_devices:
-                        continue
-
-                    # Round-robin flow distribution
-                    n_flows = max(len(source_devices), len(target_devices))
-
-                    for i in range(n_flows):
-                        source_id = source_devices[i % len(source_devices)]
-                        target_id = target_devices[i % len(target_devices)]
-
-                        if source_id != target_id:
-                            flow_index += 1
-                            flow_id = f"flow_{flow_index:03d}"
-                            flow_obj: dict[str, Any] = {
-                                "id": flow_id,
-                                "sourceDeviceId": source_id,
-                                "targetDeviceId": target_id,
-                                "protocol": protocol,
-                                "timing": timing,
-                                "config": {},
-                            }
-                            if flow_spec.get("auto_repair_skip"):
-                                flow_obj["auto_repair_skip"] = True
-                            flows[flow_id] = flow_obj
+        flows = expand_template_flows(
+            template.get("flows", []),
+            devices,
+            honor_config=bool(template.get("honor_flow_config")),
+        )
 
         # Also create cloud service links for legacy path
         cloud_service_links = await _create_cloud_service_links_from_template(

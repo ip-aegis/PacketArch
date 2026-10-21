@@ -89,7 +89,7 @@ def _definition_from_hand_template(name: str) -> dict:
     from app.services.device_templates import get_fingerprint_by_vendor_model
 
     template = TRANSPORTATION_TEMPLATES[name]
-    devices, by_type_zone = {}, collections.defaultdict(list)
+    devices = {}
     for spec in template["devices"]:
         for _ in range(spec.get("count", 1)):
             n = len(devices) + 1
@@ -98,30 +98,28 @@ def _definition_from_hand_template(name: str) -> dict:
                 "id": dev_id,
                 "name": spec.get("name") or f"{spec['type']}-{n:03d}",
                 "type": spec["type"],
-                "zoneId": spec.get("zone", ""),
+                "zoneId": spec.get("zone"),
+                "group": spec.get("group"),
                 "vendorFingerprint": get_fingerprint_by_vendor_model(spec.get("vendor"), spec.get("fingerprint_model")) or {},
                 "network": {"ipAddress": f"10.77.{n // 250}.{n % 250 + 2}", "macAddress": f"02:00:00:00:{n // 256:02x}:{n % 256:02x}"},
             }
-            by_type_zone[(spec["type"], spec.get("zone", ""))].append(dev_id)
-    flows = {}
-    for spec in template["flows"]:
-        timing = {"intervalMs": spec.get("interval_ms", 1000)}
-        for st in spec.get("source_types", []):
-            for tt in spec.get("target_types", []):
-                srcs = [d for z in spec.get("source_zones") or {k[1] for k in by_type_zone if k[0] == st} for d in by_type_zone.get((st, z), [])]
-                dsts = [d for z in spec.get("target_zones") or {k[1] for k in by_type_zone if k[0] == tt} for d in by_type_zone.get((tt, z), [])]
-                for i in range(max(len(srcs), len(dsts)) if srcs and dsts else 0):
-                    s, t = srcs[i % len(srcs)], dsts[i % len(dsts)]
-                    if s != t:
-                        fid = f"flow_{len(flows) + 1:03d}"
-                        flows[fid] = {"id": fid, "sourceDeviceId": s, "targetDeviceId": t,
-                                      "protocol": spec["protocol"], "timing": timing, "config": {}}
+    from app.services.template_flows import expand_template_flows
+
+    flows = expand_template_flows(
+        template["flows"], devices, honor_config=bool(template.get("honor_flow_config"))
+    )
     return {"devices": devices, "flows": flows, "zones": {}, "conduits": {}}
 
 
-@pytest.mark.parametrize(
-    "template", ["highway_corridor_its", "urban_intersection_network", "tunnel_control_system", "toll_plaza_operations"],
-)
+def _roadway_templates():
+    from app.scenario_templates.transportation import TRANSPORTATION_TEMPLATES
+
+    kinds = {"traffic_controller", "dms_sign", "dms", "weather_station"}
+    return sorted(k for k, t in TRANSPORTATION_TEMPLATES.items()
+                  if any(d.get("type") in kinds for d in t.get("devices", [])))
+
+
+@pytest.mark.parametrize("template", _roadway_templates())
 def test_hand_authored_templates_answer_ntcip(template):
     d = repair_flow_protocols(auto_repair_protocols(_definition_from_hand_template(template)))
     by_ip = {dev["network"]["ipAddress"]: dev for dev in d["devices"].values()}
@@ -137,6 +135,6 @@ def test_hand_authored_templates_answer_ntcip(template):
             for vb in pkt[SNMP].PDU.varbindlist:
                 if vb.oid.val.startswith(NTCIP) and vb.value.val:
                     answered[by_ip[pkt[IP].src]["type"]] += 1
-    expected = {t for t in ("traffic_controller", "dms_sign", "weather_station")
+    expected = {t for t in ("traffic_controller", "dms_sign", "dms", "weather_station")
                 if any(dev["type"] == t for dev in d["devices"].values())}
     assert expected and expected <= set(answered), (expected, dict(answered))
