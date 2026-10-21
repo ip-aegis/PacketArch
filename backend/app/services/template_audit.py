@@ -214,6 +214,8 @@ _GENERIC_OK_SOURCE_TYPES: frozenset[str] = frozenset({
     # not just admin-style).
     "master_station", "traffic_controller", "atms_master",
     "toll_controller", "cabinet_controller",
+    # Toll facility hosts run MOMS: SNMP maintenance monitoring of the roadside.
+    "toll_host",
     # Data-center infrastructure management — DCIM servers monitor PDUs,
     # UPSes, switches via SNMP as their primary protocol.
     "dcim_server",

@@ -81,6 +81,13 @@ FP = {
     "ramp_meter": "mccain/2070/atc",
     "travel_time_dms": "daktronics/vanguard/vx-2420",
     "freeway_core_switch": "cisco/ie9320/24p4x",
+    # Tolling (F4)
+    "toll_zone_controller": "kapsch/tzc/toll-zone-controller",
+    "toll_reader": "kapsch/janus/mpr2.4",
+    "alpr_camera": "genetec/autovu/sharpv",
+    "classifier": "sick/tic502/master",
+    "toll_host": "kapsch/facility-host/moms",
+    "pricing_dms": "daktronics/vanguard/vx-2420",
 }
 
 
@@ -642,8 +649,121 @@ def _freeway_corridor() -> dict[str, Any]:
     }
 
 
+# ===========================================================================
+# F4 — All-Electronic Toll and Express Lanes
+# ===========================================================================
+
+# (zone id, display name, subnet offset, lanes, express)
+_F4_GANTRIES = [
+    ("gantry_ort_nb", "ORT Gantry NB (MP 12.4)", 10, 3, False),
+    ("gantry_ort_sb", "ORT Gantry SB (MP 12.4)", 11, 3, False),
+    ("gantry_el_nb", "Express Lanes Gantry NB (MP 18.1)", 12, 2, True),
+    ("gantry_el_sb", "Express Lanes Gantry SB (MP 18.1)", 13, 2, True),
+]
+
+
+def _f4_gantry(zone: str, lanes: int, express: bool) -> list[dict[str, Any]]:
+    """One tolling point: zone controller, reader, ALPR front/rear per lane,
+    laser classifier, cabinet switch; express entries add pricing signs."""
+    tag = zone.replace("gantry_", "").upper()
+    specs = [
+        device(f"{tag}_Toll_Zone_Ctrl", "toll_controller", zone, "toll_zone_controller", ["snmp"]),
+        device(f"{tag}_Tag_Reader", "toll_rsu", zone, "toll_reader", ["snmp"]),
+        device(f"{tag}_Classifier", "classification_sensor", zone, "classifier", ["https"]),
+        device(f"{tag}_Gantry_SW", "network_switch", zone, "cabinet_switch", ["snmp"]),
+    ]
+    for lane in range(1, lanes + 1):
+        for side in ("Front", "Rear"):
+            specs.append(device(f"{tag}_L{lane}_ALPR_{side}", "anpr_camera", zone, "alpr_camera", ["https"]))
+    if express:
+        specs += [device(f"{tag}_Pricing_DMS_{i}", "dms", zone, "pricing_dms", ["snmp"]) for i in (1, 2)]
+    return specs
+
+
+def _toll_express_lanes() -> dict[str, Any]:
+    zones = [
+        {"id": "idmz", "name": "Industrial DMZ (Back-Office Link)", "level": 3.5, "subnet_offset": 0,
+         "vlan": 100, "security_level": "critical"},
+        {"id": "toll_ops", "name": "Toll Operations Center", "level": 3, "subnet_offset": 1, "vlan": 110,
+         "security_level": "critical"},
+    ]
+    devices: list[dict[str, Any]] = [
+        device("TOC_Facility_Host_A", "toll_host", "toll_ops", "toll_host", ["snmp", "https"]),
+        device("TOC_Facility_Host_B", "toll_host", "toll_ops", "toll_host", ["snmp", "https"]),
+        device("TOC_NMS", "nms", "toll_ops", "nms", ["snmp", "https"]),
+        device("TOC_Eng_WS", "engineering_workstation", "toll_ops", "ews", ["snmp", "rdp", "https"]),
+        device("TOC_Core_SW", "network_switch", "toll_ops", "core_switch", ["snmp"]),
+        device("DMZ_Jump_Host", "jump_server", "idmz", "jump_patched", ["snmp", "rdp", "https"]),
+        device("DMZ_Back_Office_Proxy", "reverse_proxy", "idmz", "reverse_proxy", ["snmp", "https"]),
+        device("DMZ_Vendor_Remote", "remote_gateway", "idmz", "remote_gateway", ["snmp"]),
+    ]
+    gantry_ids = []
+    for zone, display, offset, lanes, express in _F4_GANTRIES:
+        gantry_ids.append(zone)
+        zones.append({"id": zone, "name": display, "level": 2, "subnet_offset": offset,
+                      "vlan": 200 + 10 * (offset - 9), "security_level": "high"})
+        devices.extend(_f4_gantry(zone, lanes, express))
+
+    flows = [
+        # MOMS: maintenance monitoring of zone controllers and readers over SNMP.
+        flow("snmp", ["toll_host"], ["toll_controller", "toll_rsu"], 60000, target_zones=gantry_ids),
+        # Plate images from the ALPR cameras; classifier status (TEMS web).
+        flow("https", ["toll_host"], ["anpr_camera"], 5000, target_zones=gantry_ids),
+        flow("https", ["toll_host"], ["classification_sensor"], 60000, target_zones=gantry_ids),
+        # Dynamic pricing: the facility host drives the express-lane signs (NTCIP 1203).
+        flow("snmp", ["toll_host"], ["dms"], 30000, target_zones=gantry_ids),
+        # Network operations and engineering.
+        flow("snmp", ["nms"], ["network_switch", "toll_controller", "toll_rsu"], 60000),
+        flow("snmp", ["nms"], ["remote_gateway", "reverse_proxy", "jump_server"], 60000),
+        flow("https", ["engineering_workstation"], ["classification_sensor"], 600000, target_zones=gantry_ids),
+        # Back-office link and admin access.
+        flow("https", ["reverse_proxy"], ["toll_host"], 15000, target_zones=["toll_ops"]),
+        flow("rdp", ["jump_server"], ["engineering_workstation"], 300000),
+    ]
+    conduits = [
+        conduit("toll_ops", g, ["snmp", "https"], "MOMS, ALPR images, classifier, pricing signs, NMS")
+        for g in gantry_ids
+    ] + [
+        conduit("idmz", "toll_ops", ["https", "rdp", "snmp"], "Back-office transaction link; jump host; NMS"),
+    ]
+
+    return {
+        "name": "All-Electronic Toll and Express Lanes",
+        "description": (
+            "Open-road tolling on a freeway with priced express lanes. Four gantries (two 3-lane "
+            "general-purpose, two 2-lane express) each carry a Kapsch Toll Zone Controller, a "
+            "Kapsch JANUS multi-protocol tag reader, front and rear Genetec AutoVu SharpV ALPR "
+            "cameras per lane, a SICK TIC502 laser classifier and a RUGGEDCOM switch; Daktronics "
+            "pricing signs ahead of the express entries. A Kapsch Facility Host pair runs MOMS "
+            "(SNMP monitoring of the roadside), pulls plate images and drives the pricing signs; "
+            "the back office is reached across the IDMZ. " + _summary(devices, zones)
+        ),
+        "vertical": "transportation",
+        "naming": "curated",
+        "honor_flow_config": True,
+        "phase_preset": "standard",
+        "cell_isolation": {"mode": "conduit_gated"},
+        "zones": zones,
+        "conduits": conduits,
+        "devices": devices,
+        "flows": flows,
+        "cloud_services": [
+            {"provider": "talk2m", "region": "us-west", "device_types": ["remote_gateway"],
+             "heartbeat_interval_ms": 30000},
+        ],
+        "recommended_attack_playbooks": [
+            {"playbook_id": "network_recon", "relevance": "high",
+             "rationale": "Every gantry exposes SNMP-managed controllers and readers to the TOC"},
+            {"playbook_id": "insider_threat", "relevance": "medium",
+             "rationale": "Back-office link and vendor remote access reach the toll operations center"},
+        ],
+        "total_duration_ms": 3600000,
+    }
+
+
 FLAGSHIP_TEMPLATES: dict[str, dict[str, Any]] = {
     "metro_arterial_signal_system": _metro_arterial(),
     "twin_bore_road_tunnel": _road_tunnel(),
     "freeway_management_corridor": _freeway_corridor(),
+    "toll_express_lanes": _toll_express_lanes(),
 }
