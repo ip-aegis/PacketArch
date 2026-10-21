@@ -846,18 +846,9 @@ class OrchestratorPool:
                     device_name=target_device.get("name"),
                 )
 
-            # Timing model
-            timing = flow_def.get("timing", {})
-            jitter_ms = timing.get("jitterMs", 50)
-            timing_model = {
-                "poll_interval_ms": timing.get("intervalMs", 1000),
-                "response_delay_ms": timing.get("responseDelayMs", 5.0),
-                "jitter": {
-                    "type": "uniform",
-                    "min_ms": -abs(jitter_ms) * 0.5,
-                    "max_ms": abs(jitter_ms) * 0.5,
-                },
-            }
+            # Timing model (shared with the PCAP builder)
+            from app.protocol_engines.protocols import flow_timing_model
+            timing_model = flow_timing_model(flow_def)
 
             # Merge flow config into protocolConfig
             merged_config = flow_def.get("protocolConfig", {}).copy()
