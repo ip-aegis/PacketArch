@@ -171,8 +171,14 @@ class SplitPcapOutput:
 class LiveOutput:
     """Inject packets onto a live network interface using Scapy.
 
-    Uses real-time scheduling: sleeps until the packet's timestamp,
-    then injects via scapy.sendp(). Designed for the remote agent.
+    Uses real-time scheduling: sleeps until the packet's timestamp, then
+    injects on a persistent L2 socket. Designed for the remote agent.
+
+    The socket is opened once and reused. ``scapy.sendp()`` opens and tears
+    down a raw socket per call (~12 ms), which capped every live scenario at
+    ~55 pps: the orchestrator's virtual clock fell ~18x behind wall time, so
+    slow polls (30 s SNMP, 60 s Modbus) went out every 9-18 minutes and the
+    devices they carry looked absent to the sensor.
     """
 
     def __init__(self, interface: str) -> None:
@@ -181,6 +187,7 @@ class LiveOutput:
         self.bytes_sent = 0
         self._start_time: float | None = None
         self._first_event_ms: float | None = None
+        self._sock: Any = None
 
     def write_packet(
         self,
@@ -189,9 +196,6 @@ class LiveOutput:
         is_attack: bool = False,
         flow_id: str | None = None,
     ) -> None:
-        from scapy.packet import Raw
-        from scapy.sendrecv import sendp
-
         now = time.monotonic()
 
         # Initialize timing anchor on first packet
@@ -207,14 +211,33 @@ class LiveOutput:
         if wait_ms > 1.0:  # Only sleep if > 1ms to avoid overhead
             time.sleep(wait_ms / 1000.0)
 
-        sendp(Raw(packet_bytes), iface=self.interface, verbose=False)
+        if self._sock is None:
+            from scapy.arch import L2Socket
+
+            self._sock = L2Socket(iface=self.interface)
+        try:
+            self._sock.send(packet_bytes)
+        except OSError:
+            # Drop the socket so the next packet reopens it (e.g. the veth
+            # was recreated under us); the orchestrator logs the failure.
+            self._close_socket()
+            raise
         self.packet_count += 1
         self.bytes_sent += len(packet_bytes)
 
         if self.packet_count % 100 == 0:
             logger.info(f"Injected {self.packet_count} packets on {self.interface}")
 
+    def _close_socket(self) -> None:
+        if self._sock is not None:
+            try:
+                self._sock.close()
+            except Exception:
+                pass
+            self._sock = None
+
     def close(self) -> None:
+        self._close_socket()
         logger.info(
             f"Live output closed: {self.packet_count} packets "
             f"injected on {self.interface}"

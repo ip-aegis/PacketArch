@@ -7,9 +7,19 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.1.3"
+VERSION = "4.1.4"
 
 # Version history:
+# 4.1.4 - Live injection throughput fix. LiveOutput called scapy.sendp() per
+#   packet, which opens and tears down a raw socket each call (~12.5 ms
+#   measured in the agent container). That capped EVERY live scenario at
+#   ~55 pps, so the orchestrator's virtual clock ran ~0.14x wall time:
+#   500 ms polls went out every ~9 s, 30 s SNMP polls every ~9 min, and
+#   devices carried only by slow flows (switches, historians, RFID readers)
+#   looked absent to the sensor for many minutes. LiveOutput now holds one
+#   persistent L2Socket (the pattern LiveTopologyOutput already used);
+#   benchmarked at 0.99x wall time / ~920 pps for the Distribution Center
+#   scenario, and 0.99x for DC + Water Treatment sharing one agent.
 # 4.1.3 - Lint-only: dropped an unused `from binascii import crc32` in
 #   protocol_engines/atcs/codeline.py (the vital CRC is computed by the
 #   module's own 31-bit routine, never by binascii). protocol_engines/ is
