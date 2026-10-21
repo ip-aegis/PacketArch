@@ -55,12 +55,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V7.10",
                 release_date=date(2022, 6, 15),
-                cves=["CVE-2023-0452", "CVE-2023-0451"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V6.45",
                 release_date=date(2020, 9, 20),
-                cves=["CVE-2023-0452", "CVE-2023-0451"],
+                cves=[],
             ),
         ],
 
@@ -105,18 +105,30 @@ TEMPLATES: list[DeviceTemplate] = [
             model_short="COBT",
         ),
 
+        # Cobalt runs Econolite EOS (3.x). 3.2.23 is the fixed build named in
+        # CISA ICSA-23-026-02 for CVE-2023-0451/0452 ("EOS versions prior to
+        # 3.2.23"). 3.2.20 is an illustrative pre-fix 3.2.x build; its exact
+        # build number is not published.
         firmware_variants=[
             FirmwareVariant(
-                version="V7.16",
-                release_date=date(2024, 2, 1),
+                version="3.2.23",
+                release_date=date(2023, 1, 26),
                 is_latest=True,
                 is_default=True,
                 cves=[],
+                population_weight=0.6,
+            ),
+            FirmwareVariant(
+                version="3.2.20",
+                release_date=date(2022, 6, 1),
+                cves=["CVE-2023-0451", "CVE-2023-0452"],
+                notes="Pre-3.2.23 EOS: unauthenticated READONLY file access and MD5 credential hashes (ICSA-23-026-02)",
+                population_weight=0.4,
             ),
         ],
 
         snmp_identity={
-            "sys_descr": "Econolite Cobalt ATC Traffic Signal Controller V7.16",
+            "sys_descr": "Econolite Cobalt ATC EOS 3.2.23",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
@@ -176,13 +188,13 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="mccain/170e/detector",
+        id="mccain/170e/controller",
         vendor="McCain",
         vendor_family="170E",
         model="170E",
-        model_name="170E Detector Rack",
-        device_type="detector_rack",
-        description="170E cabinet detector rack for vehicle detection",
+        model_name="170E Traffic Controller",
+        device_type="traffic_controller",
+        description="Type 170E traffic signal controller",
 
         oui_prefixes=["10:10:B6"],
 
@@ -205,7 +217,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         instance_rules=InstanceGenerationRules(
             serial_format="170E{6NUM}",
-            station_name_pattern="det-{location}-{seq}",
+            station_name_pattern="tsc-{location}-{seq}",
             vendor_short="MCC",
             model_short="170E",
         ),
@@ -221,18 +233,18 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "McCain 170E Detector Rack V2.5",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_descr": "McCain 170E Traffic Signal Controller V2.5",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
     DeviceTemplate(
-        id="daktronics/venus/1500",
+        id="daktronics/vanguard/vx-2420",
         vendor="Daktronics",
-        vendor_family="Venus",
-        model="Venus 1500",
-        model_name="Venus 1500 DMS Controller",
+        vendor_family="Vanguard",
+        model="VX-2420",
+        model_name="Vanguard VX-2420 Front-Access DMS",
         device_type="dms",
-        description="Dynamic Message Sign controller for transportation",
+        description="Vanguard front-access dynamic message sign for lane control and compact messaging (NTCIP 1203)",
 
         oui_prefixes=["00:09:EC"],
 
@@ -254,10 +266,10 @@ TEMPLATES: list[DeviceTemplate] = [
         supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
-            serial_format="VNS15{8NUM}",
+            serial_format="VX24{8NUM}",
             station_name_pattern="dms-{location}-{seq}",
             vendor_short="DAK",
-            model_short="V1500",
+            model_short="VX2420",
         ),
 
         firmware_variants=[
@@ -276,18 +288,18 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 1500 Dynamic Message Sign V8.3.0",
+            "sys_descr": "Daktronics Vanguard VX-2420 Dynamic Message Sign V8.3.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
     DeviceTemplate(
-        id="daktronics/venus/7000",
+        id="daktronics/vanguard/vf-2020",
         vendor="Daktronics",
-        vendor_family="Venus",
-        model="Venus 7000",
-        model_name="Venus 7000 Large DMS Controller",
+        vendor_family="Vanguard",
+        model="VF-2020",
+        model_name="Vanguard VF-2020 Walk-In DMS",
         device_type="dms",
-        description="Large format dynamic message sign controller",
+        description="Vanguard walk-in full-matrix dynamic message sign (NTCIP 1203)",
 
         oui_prefixes=["00:09:EC"],
 
@@ -309,10 +321,10 @@ TEMPLATES: list[DeviceTemplate] = [
         supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
-            serial_format="VNS70{8NUM}",
+            serial_format="VF20{8NUM}",
             station_name_pattern="dms-{location}-{seq}",
             vendor_short="DAK",
-            model_short="V7000",
+            model_short="VF2020",
         ),
 
         firmware_variants=[
@@ -331,7 +343,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 7000 Large Format DMS V12.1.0",
+            "sys_descr": "Daktronics Vanguard VF-2020 Dynamic Message Sign V12.1.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
@@ -387,7 +399,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Wavetronix SmartSensor HD Radar Detector V7.5.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.4",  # NTCIP 1209 TSS (no vendor PEN)
         },
     ),
     DeviceTemplate(
@@ -442,7 +454,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Wavetronix SmartSensor Advance Vehicle Classifier V4.5.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5.1",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.4",  # NTCIP 1209 TSS (no vendor PEN)
         },
     ),
     DeviceTemplate(
@@ -498,7 +510,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "FLIR TrafiOne Thermal Traffic Sensor V2.8.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
+            "sys_object_id": "1.3.6.1.4.1.34674",  # IANA PEN 34674 = FLIR Systems
         },
     ),
     DeviceTemplate(
@@ -553,7 +565,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Q-Free RSU 5000 Roadside Unit V4.2.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_object_id": "1.3.6.1.4.1.15889",  # IANA PEN 15889 = Q-Free ASA
         },
     ),
     DeviceTemplate(
@@ -609,7 +621,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Kapsch TCS 2000 Toll Collection System V5.4.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.6",
+            "sys_object_id": "1.3.6.1.4.1.13182",  # IANA PEN 13182 = Kapsch TrafficCom
         },
     ),
     DeviceTemplate(
@@ -651,7 +663,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V11.6.94",
+                version="11.6.94",
                 release_date=date(2024, 1, 20),
                 is_latest=True,
                 is_default=True,
@@ -663,7 +675,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 # was an AXIS License Plate Verifier ACAP application flaw
                 # (LPV <= 2.8.3), NOT a camera-firmware vulnerability, so it is
                 # removed from this firmware variant. See verified_corrections.
-                version="V11.3.64",
+                version="11.3.64",
                 release_date=date(2022, 7, 15),
                 cves=[],
             ),
@@ -680,7 +692,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1455-LE Network Camera V11.6.94",
+            "sys_descr": "AXIS P1455-LE Network Camera 11.6.94",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),
@@ -723,7 +735,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V11.8.92",
+                version="11.8.92",
                 release_date=date(2024, 2, 1),
                 is_latest=True,
                 is_default=True,
@@ -731,7 +743,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 population_weight=0.66,
             ),
             FirmwareVariant(
-                version="V11.5.64",
+                version="11.5.64",
                 release_date=date(2022, 8, 15),
                 cves=[],
             ),
@@ -748,7 +760,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1448-LE Network Camera V11.8.92",
+            "sys_descr": "AXIS P1448-LE Network Camera 11.8.92",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),
@@ -822,7 +834,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="ptz_camera",
         description="High-speed PTZ dome camera for surveillance",
 
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # Schneider Electric (Pelco parent)
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # TODO(0b): Schneider OUIs; real Pelco OUI is 00:04:7D — needs adding to vendor_oui "pelco" first
 
         tcp_stack={
             "ttl": 64,
@@ -865,7 +877,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         snmp_identity={
             "sys_descr": "Pelco Spectra Enhanced PTZ Camera V2.8.3",
-            "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",  # Pelco enterprise OID
+            "sys_object_id": "1.3.6.1.4.1.25066",  # IANA PEN 25066 = PELCO
         },
     ),
     DeviceTemplate(
@@ -949,7 +961,7 @@ TEMPLATES: list[DeviceTemplate] = [
         )],
         snmp_identity={
                 "sys_descr": "FLIR TrafiSense Multi-Lane Detector V3.5.0",
-                "sys_object_id": "1.3.6.1.4.1.28846.1.2.1",
+                "sys_object_id": "1.3.6.1.4.1.34674",  # IANA PEN 34674 = FLIR Systems
                 "sys_name": "THERMAL-ML-001",
                 "ntcip_device_type": "sensor",
             },
@@ -962,7 +974,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="Spectra Enhanced",
         device_type="camera",
         description="Pelco Spectra Enhanced",
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
+        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],  # TODO(0b): Schneider OUIs; real Pelco OUI is 00:04:7D — needs adding to vendor_oui "pelco" first
         tcp_stack={
                 "ttl": 64,
                 "window_size": 16384,
@@ -991,7 +1003,7 @@ TEMPLATES: list[DeviceTemplate] = [
         )],
         snmp_identity={
                 "sys_descr": "Pelco Spectra Enhanced PTZ Camera V1.32",
-                "sys_object_id": "1.3.6.1.4.1.17685.1.1.1",
+                "sys_object_id": "1.3.6.1.4.1.25066",  # IANA PEN 25066 = PELCO
                 "sys_name": "PTZ-PELCO-001",
                 "sys_location": "Tunnel Portal",
                 "ntcip_device_type": "camera",

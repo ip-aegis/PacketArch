@@ -1151,70 +1151,13 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="siemens/traffic/cp-8000",
+        id="siemens/climatix/c600",
         vendor="Siemens",
-        vendor_family="SITRAFFIC",
-        model="6NH3112-3BA00-0XX0",
-        model_name="CP-8000",
-        device_type="traffic_controller",
-        description="Central traffic management controller for ITS applications",
-
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
-
-        tcp_stack={
-            "ttl": 64,
-            "window_size": 32768,
-            "mss": 1460,
-            "sack_permitted": True,
-            "timestamps_enabled": True,
-        },
-
-        response_timing={
-            "min_ms": 1.0,
-            "max_ms": 50.0,
-            "mean_ms": 10.0,
-            "std_dev_ms": 8.0,
-            "distribution": "gaussian",
-        },
-
-        supported_protocols=["snmp"],
-
-        instance_rules=InstanceGenerationRules(
-            serial_format="CP8-{8HEX}",
-            station_name_pattern="tmc-cp8000-{seq}",
-            vendor_short="SIE",
-            model_short="CP8000",
-        ),
-
-        firmware_variants=[
-            FirmwareVariant(
-                version="V1.3.0",
-                release_date=date(2023, 5, 1),
-                is_latest=True,
-                is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V1.2.0",
-                release_date=date(2022, 3, 15),
-                cves=["CVE-2016-7987", "CVE-2015-5386"],
-                notes="Vulnerable to command injection",
-            ),
-        ],
-
-        snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC CP-8000 Traffic Controller V1.3.0",
-            "sys_object_id": "1.3.6.1.4.1.4329.10.8000",
-        },
-    ),
-    DeviceTemplate(
-        id="siemens/traffic/c600",
-        vendor="Siemens",
-        vendor_family="SITRAFFIC",
+        vendor_family="Climatix",
         model="C600",
-        model_name="Siemens C600 Controller",
-        device_type="traffic_controller",
-        description="Field traffic signal controller with NTCIP support",
+        model_name="Climatix C600 Controller",
+        device_type="building_controller",
+        description="Climatix C600 (POL6xx) HVAC controller with BACnet/IP",
 
         oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
@@ -1237,15 +1180,16 @@ TEMPLATES: list[DeviceTemplate] = [
 
         instance_rules=InstanceGenerationRules(
             serial_format="C6-{8HEX}",
-            station_name_pattern="signal-c600-{seq}",
+            station_name_pattern="hvac-c600-{seq}",
             vendor_short="SIE",
             model_short="C600",
         ),
 
         firmware_variants=[
             FirmwareVariant(
-                version="V2.5",
-                release_date=date(2023, 2, 1),
+                # BTL listing 31380 (2025): C600 x0 models on firmware 11.70.
+                version="11.70",
+                release_date=date(2025, 3, 1),
                 is_latest=True,
                 is_default=True,
                 cves=[],
@@ -1253,15 +1197,15 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC C600 Signal Controller V2.5",
+            "sys_descr": "Siemens Climatix C600 11.70",
             "sys_object_id": "1.3.6.1.4.1.4329.10.600",
         },
 
         bacnet_identity={
             "vendor_id": 7,
-            "device_type": "Traffic Controller",
-            "model_name": "SITRAFFIC C600",
-            "firmware_revision": "V2.5",
+            "device_type": "Application Specific Controller",
+            "model_name": "Climatix C600",
+            "firmware_revision": "11.70",
         },
     ),
     DeviceTemplate(
@@ -1269,11 +1213,11 @@ TEMPLATES: list[DeviceTemplate] = [
         vendor="Siemens",
         vendor_family="SITRAFFIC",
         model="M60",
-        model_name="Siemens M60 Master",
-        device_type="master_station",
-        description="Master traffic signal controller for intersection coordination",
+        model_name="M60 ATC Traffic Controller",
+        device_type="traffic_controller",
+        description="Advanced Transportation Controller (ATC) for intersection signal control",
 
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
 
         tcp_stack={
             "ttl": 64,
@@ -1295,7 +1239,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         instance_rules=InstanceGenerationRules(
             serial_format="M60-{8HEX}",
-            station_name_pattern="master-m60-{seq}",
+            station_name_pattern="tsc-{location}-{seq}",
             vendor_short="SIE",
             model_short="M60",
         ),
@@ -1312,13 +1256,12 @@ TEMPLATES: list[DeviceTemplate] = [
                 version="V2.8",
                 release_date=date(2021, 9, 15),
                 cves=[],
-                notes="Vulnerable to denial of service",
             ),
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens SITRAFFIC M60 Master Controller V3.1",
-            "sys_object_id": "1.3.6.1.4.1.4329.10.60",
+            "sys_descr": "Siemens M60 ATC Traffic Signal Controller V3.1",
+            "sys_object_id": "1.3.6.1.4.1.1206.4.2.1",
         },
     ),
     DeviceTemplate(
@@ -2345,7 +2288,7 @@ TEMPLATES: list[DeviceTemplate] = [
         device_type="traffic_controller",
         description="Advanced Transportation Controller with NTCIP support",
 
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
 
         tcp_stack={
             "ttl": 64,
@@ -2392,23 +2335,24 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="siemens-its/cp-8000/central",
-        vendor="Siemens ITS",
-        vendor_family="CP-8000",
+        # SICAM A8000 CP-8000 master module — an energy/utility RTU. It used to
+        # be framed as an ITS "central traffic controller" (siemens-its/
+        # cp-8000/central) and stood in for the TMC in every ITS scenario.
+        id="siemens/sicam-a8000/cp-8000",
+        vendor="Siemens",
+        vendor_family="SICAM A8000",
         model="CP-8000",
-        model_name="CP-8000 Central Controller",
-        device_type="traffic_controller",
-        description="Central traffic management controller for arterial coordination",
+        model_name="SICAM A8000 CP-8000 Master Module",
+        device_type="rtu",
+        description="SICAM A8000 CP-8000 master module (RTU) for substation and distribution automation",
 
         oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
 
         tcp_stack={
-            "ttl": 128,
-            "window_size": 65535,
+            "ttl": 64,
+            "window_size": 16384,
             "mss": 1460,
-            "window_scaling": 8,
             "sack_permitted": True,
-            "timestamps_enabled": True,
         },
 
         response_timing={
@@ -2419,26 +2363,23 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "gaussian",
         },
 
-        supported_protocols=["snmp", "modbus_tcp"],
+        supported_protocols=["iec104", "snmp"],
 
         instance_rules=InstanceGenerationRules(
             serial_format="CP8K{10NUM}",
-            station_name_pattern="central-{location}-{seq}",
+            station_name_pattern="rtu-{location}-{seq}",
             vendor_short="SIE",
             model_short="CP8K",
         ),
 
         firmware_variants=[
             FirmwareVariant(
-                version="V12.5.0",
-                release_date=date(2024, 2, 1),
+                # First CPC80 build fixing CVE-2022-29884 (NVD: < CPC80 V16.30);
+                # also >= V14, the CVE-2018-13798 fix.
+                version="V16.30",
+                release_date=date(2022, 7, 12),
                 is_latest=True,
                 is_default=True,
-                cves=[],
-            ),
-            FirmwareVariant(
-                version="V12.2.0",
-                release_date=date(2022, 7, 15),
                 cves=[],
             ),
             FirmwareVariant(
@@ -2449,14 +2390,14 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Siemens CP-8000 Central Traffic Controller V12.5.0",
-            "sys_object_id": "1.3.6.1.4.1.1206.4.2.5",
+            "sys_descr": "Siemens SICAM A8000 CP-8000 V16.30",
+            "sys_object_id": "1.3.6.1.4.1.4329",
         },
 
-        modbus_identity={
+        iec104_identity={
             "vendor_name": "Siemens AG",
-            "product_code": "CP-8000",
-            "product_name": "CP-8000 Central Controller",
+            "device_name": "SICAM A8000 CP-8000",
+            "hardware_version": "CP-8000",
         },
     ),
     DeviceTemplate(
@@ -3215,49 +3156,6 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="siemens/traffic-management/cp-8000",
-        vendor="Siemens",
-        vendor_family="Traffic Management",
-        model="CP-8000",
-        model_name="CP-8000",
-        device_type="traffic_controller",
-        description="Siemens CP-8000",
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
-        tcp_stack={
-                "ttl": 128,
-                "window_size": 65535,
-                "mss": 1460,
-            },
-        response_timing={
-                "min_ms": 2.0,
-                "max_ms": 30.0,
-                "mean_ms": 8.0,
-                "std_dev_ms": 4.0,
-                "distribution": "gaussian",
-                "outlier_probability": 0.005,
-                "outlier_multiplier": 4.0,
-            },
-        error_behavior={
-                "timeout_probability": 0.0003,
-                "retry_behavior": True,
-                "max_retries": 3,
-            },
-        supported_protocols=['snmp'],
-        firmware_variants=[FirmwareVariant(
-            version="V5.30",
-            release_date=date(2024, 1, 1),
-            is_default=True,
-            is_latest=True,
-        )],
-        snmp_identity={
-                "sys_descr": "Siemens SICAM CP-8000 Master Station V5.30",
-                "sys_object_id": "1.3.6.1.4.1.4329.6.1.2",
-                "sys_name": "CP8000-TMC-001",
-                "sys_location": "Traffic Management Center",
-                "ntcip_device_type": "master",
-            },
-    ),
-    DeviceTemplate(
         id="siemens/tunnel-system/tcs-light",
         vendor="Siemens",
         vendor_family="Tunnel System",
@@ -3265,7 +3163,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-LIGHT",
         device_type="tunnel_controller",
         description="Siemens TCS-LIGHT",
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3308,7 +3206,7 @@ TEMPLATES: list[DeviceTemplate] = [
         model_name="TCS-VENT",
         device_type="tunnel_controller",
         description="Siemens TCS-VENT",
-        oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
+        oui_prefixes=["00:19:28", "00:0E:8C"],  # IEEE: Siemens AG Transportation Systems; Siemens AG
         tcp_stack={
                 "ttl": 128,
                 "window_size": 65535,
@@ -3349,7 +3247,7 @@ TEMPLATES: list[DeviceTemplate] = [
         vendor_family="SCALANCE",
         model="XM-400",
         model_name="XM-400",
-        device_type="traffic_controller",
+        device_type="network_switch",
         description="Siemens XM-400",
         oui_prefixes=["00:01:E3", "00:0B:A3", "00:0D:41", "00:0E:8C"],
         tcp_stack={
@@ -3382,7 +3280,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 "sys_descr": "Siemens SCALANCE XM-400 Industrial Ethernet Switch V6.3.0",
                 "sys_object_id": "1.3.6.1.4.1.4329.3.2.1",
                 "sys_name": "CORE-SW-001",
-                "sys_location": "ITS Equipment Room",
+                "sys_location": "Network Equipment Room",
                 "sys_services": 78,
             },
     ),

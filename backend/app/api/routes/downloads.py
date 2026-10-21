@@ -3,6 +3,7 @@
 # Licensed under GPL-3.0. See LICENSE at the repo root.
 """Routes for serving downloadable resources."""
 
+import json
 import os
 import re
 from pathlib import Path
@@ -123,10 +124,30 @@ AVAILABLE_DOWNLOADS = {
     "fingerprint-registry": {
         "name": "Fingerprint Registry Snapshot (v1)",
         "filename": "fingerprint-registry.v1.json",
-        "description": "Static snapshot of the device template catalog (~300 entries, 18 vendors). Use only when you want to pin specific `fingerprint_model` values. Capability-mode authoring doesn't need this file — the importer resolves vendor and model from the live catalog.",
+        "description": "Static snapshot of the device template catalog{counts}. Use only when you want to pin specific `fingerprint_model` values. Capability-mode authoring doesn't need this file — the importer resolves vendor and model from the live catalog.",
         "category": "authoring",
     },
 }
+
+
+def _registry_counts(path: Path) -> str:
+    """" (N entries, M vendors)" read from the snapshot itself, so the
+    description can never drift from the file it describes (it said "~300
+    entries, 18 vendors" long after the catalog had moved on)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        entries = data.get("entries") or []
+        vendors = data.get("vendors") or sorted({e.get("vendor") for e in entries})
+        return f" ({len(entries)} entries, {len(vendors)} vendors)"
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def _describe(key: str, meta: dict, file_path: Path) -> str:
+    description = meta["description"]
+    if key == "fingerprint-registry":
+        return description.format(counts=_registry_counts(file_path))
+    return description
 
 
 def scan_appliance_ovas() -> List[Path]:
@@ -183,7 +204,7 @@ async def list_downloads():
                 DownloadableFile(
                     name=meta["name"],
                     filename=resolved,
-                    description=meta["description"],
+                    description=_describe(key, meta, file_path),
                     size_bytes=size_bytes,
                     size_human=get_human_size(size_bytes),
                     category=meta["category"],

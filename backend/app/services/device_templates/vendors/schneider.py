@@ -733,12 +733,12 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V1.6IE18",
                 release_date=date(2022, 5, 20),
-                cves=["CVE-2022-22804"],
+                cves=[],
             ),
             FirmwareVariant(
                 version="V1.4IE12",
                 release_date=date(2020, 10, 10),
-                cves=["CVE-2022-22804", "CVE-2020-7571"],
+                cves=[],
             ),
         ],
 
@@ -1899,6 +1899,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
+        error_behavior={
+            "timeout_probability": 0.002,
+            "retry_behavior": True,
+            "max_retries": 3,
+        },
+
         supported_protocols=["modbus_tcp", "dnp3"],
 
         instance_rules=InstanceGenerationRules(
@@ -1919,7 +1925,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V5.1.0",
                 release_date=date(2022, 8, 20),
-                cves=["CVE-2022-45788"],
+                cves=[],
             ),
         ],
 
@@ -2106,6 +2112,12 @@ TEMPLATES: list[DeviceTemplate] = [
             "distribution": "lognormal",
         },
 
+        error_behavior={
+            "timeout_probability": 0.002,
+            "retry_behavior": True,
+            "max_retries": 3,
+        },
+
         supported_protocols=["modbus_tcp", "dnp3"],
 
         instance_rules=InstanceGenerationRules(
@@ -2126,7 +2138,7 @@ TEMPLATES: list[DeviceTemplate] = [
             FirmwareVariant(
                 version="V2.5.0",
                 release_date=date(2022, 5, 20),
-                cves=["CVE-2022-45788"],
+                cves=[],
             ),
         ],
 
@@ -2147,56 +2159,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "vendor_name": "Schneider Electric",
             "device_name": "TBox LT2 Lite RTU",
             "hardware_version": "LT2",
-        },
-    ),
-    DeviceTemplate(
-        id="schneider/altivar/atv320",
-        vendor="Schneider",
-        vendor_family="Altivar",
-        model="ATV320",
-        model_name="ATV320",
-        device_type="drive",
-        description="Schneider ATV320",
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
-        tcp_stack={
-                "ttl": 64,
-                "window_size": 4096,
-                "mss": 1460,
-            },
-        response_timing={
-                "min_ms": 3.0,
-                "max_ms": 30.0,
-                "mean_ms": 10.0,
-                "std_dev_ms": 5.0,
-                "distribution": "gaussian",
-                "outlier_probability": 0.008,
-                "outlier_multiplier": 3.0,
-            },
-        error_behavior={
-                "supported_exception_codes": [1, 2, 3, 4],
-                "exception_probability": 0.0008,
-                "timeout_probability": 0.0003,
-            },
-        supported_protocols=['modbus_tcp'],
-        firmware_variants=[FirmwareVariant(
-            version="V1.7IE18",
-            release_date=date(2024, 1, 1),
-            is_default=True,
-            is_latest=True,
-        )],
-        modbus_identity={
-                "vendor_name": "Schneider Electric",
-                "product_code": "ATV320",
-                "major_minor_revision": "V1.7IE18",
-                "product_name": "Altivar Machine ATV320",
-                "model_name": "ATV320",
-            },
-
-        snmp_identity={
-            "sys_descr": "Schneider Electric ATV320 V1.7IE18",
-            "sys_object_id": "1.3.6.1.4.1.3833.47.88",
-            "sys_name": "ATV320-001",
-            "sys_location": "Motor Control Center",
         },
     ),
     DeviceTemplate(
@@ -2381,53 +2343,6 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="schneider/tbox/lt2",
-        vendor="Schneider",
-        vendor_family="TBox",
-        model="LT2",
-        model_name="LT2",
-        device_type="controller",
-        description="Schneider LT2",
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
-        tcp_stack={
-                "ttl": 64,
-                "window_size": 8192,
-                "mss": 1460,
-            },
-        response_timing={
-                "min_ms": 10.0,
-                "max_ms": 100.0,
-                "mean_ms": 30.0,
-                "std_dev_ms": 15.0,
-                "distribution": "gaussian",
-                "outlier_probability": 0.025,
-                "outlier_multiplier": 3.5,
-            },
-        error_behavior={
-                "timeout_probability": 0.003,
-                "retry_behavior": True,
-                "max_retries": 3,
-            },
-        supported_protocols=['modbus_tcp', 'snmp'],
-        firmware_variants=[FirmwareVariant(
-            version="V1.48.520",
-            release_date=date(2024, 1, 1),
-            is_default=True,
-            is_latest=True,
-        )],
-        modbus_identity={
-                "vendor_name": "Schneider Electric",
-                "product_code": "TBox LT2",
-                "major_minor_revision": "V1.48.520",
-            },
-        snmp_identity={
-                "sys_descr": "Schneider Electric TBox LT2 RTU V1.48.520",
-                "sys_object_id": "1.3.6.1.4.1.3833.2.1.2",
-                "sys_name": "TBOX-LT2-001",
-                "sys_location": "Field Cabinet",
-            },
-    ),
-    DeviceTemplate(
         id="schneider/lexium-32/lxm32md18m2",
         vendor="Schneider",
         vendor_family="Lexium 32",
@@ -2488,54 +2403,6 @@ TEMPLATES: list[DeviceTemplate] = [
             "sys_name": "LXM32MD18M2-001",
             "sys_location": "Motor Control Center",
         },
-    ),
-    DeviceTemplate(
-        id="schneider/tbox/ms-cpu32",
-        vendor="Schneider",
-        vendor_family="TBox",
-        model="MS-CPU32",
-        model_name="MS-CPU32",
-        device_type="traffic_controller",
-        description="Schneider MS-CPU32",
-        oui_prefixes=["00:00:54", "00:00:6C", "00:01:23", "00:03:74"],
-        tcp_stack={
-                "ttl": 64,
-                "window_size": 8192,
-                "mss": 1460,
-            },
-        response_timing={
-                "min_ms": 8.0,
-                "max_ms": 80.0,
-                "mean_ms": 25.0,
-                "std_dev_ms": 12.0,
-                "distribution": "gaussian",
-                "outlier_probability": 0.02,
-                "outlier_multiplier": 3.5,
-            },
-        error_behavior={
-                "timeout_probability": 0.002,
-                "retry_behavior": True,
-                "max_retries": 3,
-            },
-        supported_protocols=['modbus_tcp', 'snmp'],
-        firmware_variants=[FirmwareVariant(
-            version="V1.50.598",
-            release_date=date(2024, 1, 1),
-            is_default=True,
-            is_latest=True,
-        )],
-        modbus_identity={
-                "vendor_name": "Schneider Electric",
-                "product_code": "TBox MS-CPU32",
-                "major_minor_revision": "V1.50.598",
-            },
-        snmp_identity={
-                "sys_descr": "Schneider Electric TBox MS-CPU32 RTU V1.50.598",
-                "sys_object_id": "1.3.6.1.4.1.3833.2.1.1",
-                "sys_name": "TBOX-001",
-                "sys_location": "Tunnel Monitoring",
-                "ntcip_device_type": "rtu",
-            },
     ),
     # --- Power protection & substation automation portfolio (MiCOM / Easergy / PowerLogic) ---
     DeviceTemplate(

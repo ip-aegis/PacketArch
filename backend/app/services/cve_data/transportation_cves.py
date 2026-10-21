@@ -21,62 +21,10 @@ Detection Method:
 from datetime import datetime
 
 TRANSPORTATION_CVES: list[dict] = [
-    # ==========================================================================
-    # SIEMENS TRAFFIC MANAGEMENT
-    # ==========================================================================
-
-    # CVE-2023-28489 - Siemens CP-8000 Master Station
-    {
-        "cve_id": "CVE-2023-28489",
-        "title": "Siemens SICAM CP-8000 Traffic Management Vulnerability",
-        "description": (
-            "A vulnerability in Siemens SICAM CP-8000/CP-8021/CP-8022 master "
-            "stations allows remote attackers to execute arbitrary code via "
-            "crafted network packets. Affects traffic management center systems."
-        ),
-        "severity": "critical",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "vendor": "Siemens",
-        "product_family": "Traffic Management",
-        "affected_models": ["CP-8000", "CP-8021", "CP-8022"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V5.20",
-        "fixed_firmware_version": "V5.30",
-        "cyber_vision_detectable": True,
-        "detection_method": "snmp_sysdescr",
-        "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-333517.pdf",
-        "references": [
-            "https://www.cisa.gov/news-events/ics-advisories/icsa-23-103-09",
-        ],
-        "mitre_techniques": ["T0866", "T0882"],
-        "exploit_available": True,
-        "exploit_complexity": "low",
-        "published_date": datetime(2023, 4, 11),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V5.20",
-                "display_name": "Siemens CP-8000 Master Station (CVE-2023-28489)",
-                "snmp_identity_override": {
-                    "sys_descr": "Siemens SICAM CP-8000 Master Station V5.20",
-                    "sys_object_id": "1.3.6.1.4.1.4329.6.1.2",
-                    "sys_name": "CP8000-TMC-001",
-                    "sys_location": "Traffic Management Center",
-                    "sys_contact": "its-admin@example.gov",
-                },
-            },
-            {
-                "firmware_version": "V5.11",
-                "display_name": "Siemens CP-8021 RTU (CVE-2023-28489)",
-                "snmp_identity_override": {
-                    "sys_descr": "Siemens SICAM CP-8021 RTU V5.11",
-                    "sys_object_id": "1.3.6.1.4.1.4329.6.1.3",
-                    "sys_name": "CP8021-FIELD-001",
-                    "sys_location": "Intersection #47",
-                },
-            },
-        ],
-    },
+    # CVE-2023-28489 (SICAM A8000 CP-8031/CP-8050) used to sit here framed as
+    # "traffic management". NVD lists only the CP-8031/CP-8050 master modules,
+    # which are energy RTUs, so it now lives in energy_cves.py.
+    # CVE-2020-25230 was removed: NVD lists it for LOGO! 8 BM, not M60.
 
     # CVE-2023-20198 - Cisco IOS XE Web UI Privilege Escalation
     {
@@ -325,60 +273,6 @@ TRANSPORTATION_CVES: list[dict] = [
                     "sys_object_id": "1.3.6.1.4.1.39165.1.1.2",
                     "sys_name": "ANPR-TOLL-002",
                     "sys_location": "Toll Plaza Lane 2",
-                },
-            },
-        ],
-    },
-
-    # ==========================================================================
-    # SIEMENS - TRAFFIC SIGNAL CONTROLLERS
-    # ==========================================================================
-
-    # CVE-2020-25230 - Siemens Traffic Controller
-    {
-        "cve_id": "CVE-2020-25230",
-        "title": "Siemens Mobility Traffic Controller Vulnerability",
-        "description": (
-            "Siemens Mobility traffic signal controllers including M60 and "
-            "M50 series contain a vulnerability in the web interface that "
-            "allows unauthenticated access to sensitive configuration data."
-        ),
-        "severity": "high",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-        "vendor": "Siemens",
-        "product_family": "Traffic Controller",
-        "affected_models": ["M60", "M50", "M40"],
-        "affected_firmware_min": None,
-        "affected_firmware_max": "V3.2.0",
-        "fixed_firmware_version": "V3.3.0",
-        "cyber_vision_detectable": True,
-        "detection_method": "snmp_sysdescr",
-        "advisory_url": "https://cert-portal.siemens.com/productcert/pdf/ssa-423808.pdf",
-        "references": [],
-        "mitre_techniques": ["T0859", "T0888"],
-        "exploit_available": False,
-        "exploit_complexity": "low",
-        "published_date": datetime(2020, 11, 10),
-        "vulnerable_variants": [
-            {
-                "firmware_version": "V3.2.0",
-                "display_name": "Siemens M60 Traffic Controller (CVE-2020-25230)",
-                "snmp_identity_override": {
-                    "sys_descr": "Siemens Mobility M60 Traffic Controller V3.2.0",
-                    "sys_object_id": "1.3.6.1.4.1.4329.6.1.4",
-                    "sys_name": "M60-MASTER-001",
-                    "sys_location": "Traffic Operations Center",
-                },
-            },
-            {
-                "firmware_version": "V3.1.5",
-                "display_name": "Siemens M50 Traffic Controller (CVE-2020-25230)",
-                "snmp_identity_override": {
-                    "sys_descr": "Siemens Mobility M50 Traffic Controller V3.1.5",
-                    "sys_object_id": "1.3.6.1.4.1.4329.6.1.5",
-                    "sys_name": "M50-INT-001",
-                    "sys_location": "Intersection Cabinet",
                 },
             },
         ],
