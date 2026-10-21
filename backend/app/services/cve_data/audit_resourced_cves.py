@@ -2850,7 +2850,7 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "product_family": "P-Series",
         "affected_models": ["P1455-LE", "AXIS License Plate Verifier"],
         "affected_firmware_min": None,
-        "affected_firmware_max": "V11.3.64",
+        "affected_firmware_max": "11.3.64",
         "fixed_firmware_version": "2.9.0",
         "cyber_vision_detectable": True,
         "detection_method": "protocol_identity",
@@ -2862,8 +2862,8 @@ AUDIT_RESOURCED_CVES: list[dict] = [
         "published_date": datetime(2023, 8, 3),
         "vulnerable_variants": [
             {
-                "display_name": "P-Series V11.3.64 (CVE-2023-21412)",
-                "firmware_version": "V11.3.64",
+                "display_name": "P-Series 11.3.64 (CVE-2023-21412)",
+                "firmware_version": "11.3.64",
             },
         ],
     },

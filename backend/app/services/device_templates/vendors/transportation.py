@@ -238,13 +238,13 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="daktronics/venus/1500",
+        id="daktronics/vanguard/vx-2420",
         vendor="Daktronics",
-        vendor_family="Venus",
-        model="Venus 1500",
-        model_name="Venus 1500 DMS Controller",
+        vendor_family="Vanguard",
+        model="VX-2420",
+        model_name="Vanguard VX-2420 Front-Access DMS",
         device_type="dms",
-        description="Dynamic Message Sign controller for transportation",
+        description="Vanguard front-access dynamic message sign for lane control and compact messaging (NTCIP 1203)",
 
         oui_prefixes=["00:09:EC"],
 
@@ -266,10 +266,10 @@ TEMPLATES: list[DeviceTemplate] = [
         supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
-            serial_format="VNS15{8NUM}",
+            serial_format="VX24{8NUM}",
             station_name_pattern="dms-{location}-{seq}",
             vendor_short="DAK",
-            model_short="V1500",
+            model_short="VX2420",
         ),
 
         firmware_variants=[
@@ -288,18 +288,18 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 1500 Dynamic Message Sign V8.3.0",
+            "sys_descr": "Daktronics Vanguard VX-2420 Dynamic Message Sign V8.3.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
     DeviceTemplate(
-        id="daktronics/venus/7000",
+        id="daktronics/vanguard/vf-2020",
         vendor="Daktronics",
-        vendor_family="Venus",
-        model="Venus 7000",
-        model_name="Venus 7000 Large DMS Controller",
+        vendor_family="Vanguard",
+        model="VF-2020",
+        model_name="Vanguard VF-2020 Walk-In DMS",
         device_type="dms",
-        description="Large format dynamic message sign controller",
+        description="Vanguard walk-in full-matrix dynamic message sign (NTCIP 1203)",
 
         oui_prefixes=["00:09:EC"],
 
@@ -321,10 +321,10 @@ TEMPLATES: list[DeviceTemplate] = [
         supported_protocols=["snmp"],
 
         instance_rules=InstanceGenerationRules(
-            serial_format="VNS70{8NUM}",
+            serial_format="VF20{8NUM}",
             station_name_pattern="dms-{location}-{seq}",
             vendor_short="DAK",
-            model_short="V7000",
+            model_short="VF2020",
         ),
 
         firmware_variants=[
@@ -343,7 +343,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Daktronics Venus 7000 Large Format DMS V12.1.0",
+            "sys_descr": "Daktronics Vanguard VF-2020 Dynamic Message Sign V12.1.0",
             "sys_object_id": "1.3.6.1.4.1.1206.4.2.3",
         },
     ),
@@ -663,7 +663,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V11.6.94",
+                version="11.6.94",
                 release_date=date(2024, 1, 20),
                 is_latest=True,
                 is_default=True,
@@ -675,7 +675,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 # was an AXIS License Plate Verifier ACAP application flaw
                 # (LPV <= 2.8.3), NOT a camera-firmware vulnerability, so it is
                 # removed from this firmware variant. See verified_corrections.
-                version="V11.3.64",
+                version="11.3.64",
                 release_date=date(2022, 7, 15),
                 cves=[],
             ),
@@ -692,7 +692,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1455-LE Network Camera V11.6.94",
+            "sys_descr": "AXIS P1455-LE Network Camera 11.6.94",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),
@@ -735,7 +735,7 @@ TEMPLATES: list[DeviceTemplate] = [
 
         firmware_variants=[
             FirmwareVariant(
-                version="V11.8.92",
+                version="11.8.92",
                 release_date=date(2024, 2, 1),
                 is_latest=True,
                 is_default=True,
@@ -743,7 +743,7 @@ TEMPLATES: list[DeviceTemplate] = [
                 population_weight=0.66,
             ),
             FirmwareVariant(
-                version="V11.5.64",
+                version="11.5.64",
                 release_date=date(2022, 8, 15),
                 cves=[],
             ),
@@ -760,7 +760,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "AXIS P1448-LE Network Camera V11.8.92",
+            "sys_descr": "AXIS P1448-LE Network Camera 11.8.92",
             "sys_object_id": "1.3.6.1.4.1.368.1.1",
         },
     ),

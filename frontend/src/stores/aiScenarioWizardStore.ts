@@ -39,7 +39,7 @@ export const VENDORS = [
   { id: 'wavetronix', name: 'Wavetronix', aka: 'SmartSensor Radar' },
   { id: 'flir', name: 'FLIR', aka: 'TrafiOne Thermal' },
   { id: 'axis', name: 'Axis Communications', aka: 'ITS Cameras' },
-  { id: 'daktronics', name: 'Daktronics', aka: 'Venus DMS' },
+  { id: 'daktronics', name: 'Daktronics', aka: 'Vanguard DMS' },
   { id: 'kapsch', name: 'Kapsch TrafficCom', aka: 'Toll Systems' },
   { id: 'q-free', name: 'Q-Free', aka: 'RSU/Tolling' },
   // Building Automation / BMS vendors

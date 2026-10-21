@@ -472,11 +472,11 @@ TEMPLATES: list[DeviceTemplate] = [
         },
     ),
     DeviceTemplate(
-        id="vaisala/rwis/500",
+        id="vaisala/rws/200",
         vendor="Vaisala",
-        vendor_family="RWIS",
-        model="RWIS500",
-        model_name="Road Weather Information System",
+        vendor_family="RWS",
+        model="RWS200",
+        model_name="RWS200 Road Weather Station",
         device_type="weather_station",
         description="Road weather station for transportation applications",
 
@@ -503,7 +503,7 @@ TEMPLATES: list[DeviceTemplate] = [
             serial_format="VWS{10NUM}",
             station_name_pattern="rwis-{location}-{seq}",
             vendor_short="VAI",
-            model_short="RW500",
+            model_short="RWS200",
         ),
 
         firmware_variants=[
@@ -522,7 +522,7 @@ TEMPLATES: list[DeviceTemplate] = [
         ],
 
         snmp_identity={
-            "sys_descr": "Vaisala RWIS500 Road Weather Station V2.5.0",
+            "sys_descr": "Vaisala RWS200 Road Weather Station V2.5.0",
             "sys_object_id": "1.3.6.1.4.1.16961",  # IANA PEN 16961 = Vaisala
         },
     ),

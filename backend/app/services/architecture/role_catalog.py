@@ -1134,7 +1134,7 @@ _ROLES: tuple[Role, ...] = (
         required_protocols=("snmp",),
         optional_protocols=("ntcip", "https"),
         typical_partners=("scada_primary",),
-        examples=("Daktronics Venus 1500", "Daktronics Venus 7000"),
+        examples=("Daktronics Vanguard VX-2420", "Daktronics Vanguard VF-2020"),
     ),
 
     Role(
@@ -1624,7 +1624,7 @@ _ROLES: tuple[Role, ...] = (
         required_protocols=("snmp",),
         optional_protocols=("ntcip", "https"),
         typical_partners=("scada_primary",),
-        examples=("Vaisala RWIS500",),
+        examples=("Vaisala RWS200",),
     ),
 
     Role(

@@ -65,16 +65,16 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # DMS CORRIDOR ZONE (Level 2) - 8 devices
             # Dynamic Message Signs for traffic information
             # ============================================================
-            # Large DMS - Daktronics Venus 7000
+            # Large DMS - Daktronics Vanguard VF-2020
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
              "name_pattern": "Highway_Full_Matrix_DMS_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 7000",
+             "fingerprint_model": "VF-2020",
              "role": "Dynamic Message Sign (Full Matrix)"},
 
-            # Smaller DMS - Daktronics Venus 1500
+            # Smaller DMS - Daktronics Vanguard VX-2420
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "dms_corridor",
              "name_pattern": "Highway_Compact_DMS_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 1500",
+             "fingerprint_model": "VX-2420",
              "role": "Dynamic Message Sign (Compact)"},
 
             # ============================================================
@@ -97,10 +97,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # WEATHER ZONE (Level 2) - 4 devices
             # Environmental Sensor Stations (ESS)
             # ============================================================
-            # Weather Stations - Vaisala RWIS500
+            # Weather Stations - Vaisala RWS200
             {"type": "weather_station", "vendor": "vaisala", "count": 4, "zone": "weather_zone",
              "name_pattern": "Highway_Road_Weather_Station_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "RWIS500",
+             "fingerprint_model": "RWS200",
              "role": "Road Weather Information Station"},
 
             # ============================================================
@@ -636,10 +636,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # PORTAL ZONE (Level 1) - 6 devices
             # Entry/exit DMS and barriers
             # ============================================================
-            # Portal DMS - Daktronics Venus 1500
+            # Portal DMS - Daktronics Vanguard VX-2420
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "portal_zone",
              "name_pattern": "Tunnel_Portal_Message_Sign_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 1500",
+             "fingerprint_model": "VX-2420",
              "role": "Portal Message Sign"},
 
             # Portal Controllers - McCain 170E
@@ -909,10 +909,10 @@ TRANSPORTATION_TEMPLATES: dict[str, dict[str, Any]] = {
             # SIGNAGE ZONE (Level 1) - 4 devices
             # Lane status and pricing displays
             # ============================================================
-            # Lane Status Signs - Daktronics Venus 1500
+            # Lane Status Signs - Daktronics Vanguard VX-2420
             {"type": "dms_sign", "vendor": "daktronics", "count": 4, "zone": "signage_zone",
              "name_pattern": "Toll_Lane_Status_Display_{n}", "protocols": ["snmp"],
-             "fingerprint_model": "Venus 1500",
+             "fingerprint_model": "VX-2420",
              "role": "Lane Status Display"},
         ],
         "flows": [

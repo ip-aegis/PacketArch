@@ -650,8 +650,8 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("axis", "P1448-LE"),
     ),
     (VendorProfile.ATMS_NTCIP, "dms_sign"): (
-        ("daktronics", "Venus 7000"),
-        ("daktronics", "Venus 1500"),
+        ("daktronics", "VF-2020"),
+        ("daktronics", "VX-2420"),
     ),
     (VendorProfile.ATMS_NTCIP, "toll_rsu"): (
         ("q-free", "RSU 5000"),
@@ -660,7 +660,7 @@ _PINNING: dict[tuple[VendorProfile, str], tuple[VendorPin, ...]] = {
         ("kapsch", "TCS 2000"),
     ),
     (VendorProfile.ATMS_NTCIP, "rwis_station"): (
-        ("vaisala", "RWIS500"),
+        ("vaisala", "RWS200"),
     ),
 
     # ====================================================================
@@ -907,7 +907,7 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("hikvision", "DS-2CD7A26G0/P"),
     ),
     "dms_sign": (
-        ("daktronics", "Venus 7000"),
+        ("daktronics", "VF-2020"),
     ),
     "toll_rsu": (
         ("q-free", "RSU 5000"),
@@ -916,7 +916,7 @@ _PROFILE_AGNOSTIC: dict[str, tuple[VendorPin, ...]] = {
         ("kapsch", "TCS 2000"),
     ),
     "rwis_station": (
-        ("vaisala", "RWIS500"),
+        ("vaisala", "RWS200"),
     ),
     # BAS terminal-unit roles (Phase 9 vertical audit).
     "vav_controller": (
