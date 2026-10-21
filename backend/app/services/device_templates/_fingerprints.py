@@ -214,7 +214,10 @@ def get_fingerprint_from_template(
                 # ONLY when the firmware parses cleanly as a numeric version;
                 # non-standard formats (e.g. "R520.2") must be left untouched or
                 # the replacement corrupts the string.
-                if merged.get("sys_descr"):
+                # A Windows SNMP agent's sys_descr carries the OS version
+                # ("Windows Version 6.3 (Build 17763 ...)"), never the version
+                # of the application it hosts (an ATMS, a VMS), so leave it.
+                if merged.get("sys_descr") and "Software: Windows Version" not in merged["sys_descr"]:
                     from app.protocol_engines.firmware_version_deriver import (
                         FirmwareVersionDeriver,
                         FirmwareVersionParser,
