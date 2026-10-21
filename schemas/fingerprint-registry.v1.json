@@ -1,40 +1,51 @@
 {
   "$schema": "https://packetarch.io/schemas/fingerprint-registry.v1.json",
   "format_version": "1.0",
-  "description": "Static snapshot of the PacketArch device template catalog for offline / airgapped portable scenario authoring. Use entries here to populate fingerprint_model in a .pascenario.json file. The live equivalent is GET /api/v1/fingerprints/registry.",
-  "entry_count": 301,
+  "description": "Static snapshot of the PacketArch device template catalog for offline / airgapped portable scenario authoring. Use entries here to populate `fingerprint_model` in a .pascenario.json file. The live equivalent is GET /api/v1/fingerprints/registry.",
+  "entry_count": 346,
   "vendors": [
     "abb",
     "advantech",
+    "alstom",
     "automated logic",
     "aveva",
     "axis",
     "b&r",
     "beckhoff",
+    "beckwith electric",
+    "belimo",
     "bosch",
     "broadcom",
     "carel",
+    "carlo gavazzi",
     "carrier",
     "cisco",
     "cognex",
     "daktronics",
+    "danfoss",
     "delta controls",
     "dematic",
     "distech controls",
+    "eaton",
     "econolite",
+    "elvaco",
     "emerson",
     "endress+hauser",
     "f5 networks",
     "fanuc",
     "flir",
     "ge",
+    "ge transportation",
     "hikvision",
+    "hitachi rail",
     "hms",
     "honeywell",
     "impinj",
+    "janitza",
     "johnson controls",
     "kapsch",
     "kepware",
+    "kmc controls",
     "kuka",
     "lansweeper",
     "lutron",
@@ -49,14 +60,18 @@
     "pelco",
     "phoenix contact",
     "q-free",
+    "raritan",
     "rockwell",
+    "rotork",
     "schneider",
     "sel",
     "sick",
     "siemens",
     "siemens its",
+    "siemens mobility",
     "trane",
     "vaisala",
+    "wabtec",
     "wago",
     "wavetronix",
     "yokogawa",
@@ -68,8 +83,12 @@
     "analyzer",
     "anpr_camera",
     "appliance",
+    "atcs_base_station",
+    "atcs_office",
     "bac",
+    "back_office_server",
     "barcode_scanner",
+    "bay_controller",
     "bms_controller",
     "bms_server",
     "building_controller",
@@ -79,10 +98,10 @@
     "controller",
     "crac_unit",
     "dcs_controller",
-    "detector_rack",
     "dms",
     "drive",
     "engineering_station",
+    "engineering_workstation",
     "field_controller",
     "field_instrument",
     "fire_panel",
@@ -90,6 +109,7 @@
     "flow_meter",
     "flow_sensor",
     "gateway",
+    "heat_substation_controller",
     "historian",
     "hmi",
     "hvac_controller",
@@ -100,7 +120,9 @@
     "level_gauge",
     "level_sensor",
     "lighting_controller",
-    "master_station",
+    "locomotive_computer",
+    "meter",
+    "meter_data_concentrator",
     "motion_controller",
     "motor",
     "network_switch",
@@ -117,6 +139,7 @@
     "rfid_reader",
     "robot_controller",
     "room_controller",
+    "room_sensor",
     "rtu",
     "safety_plc",
     "scada",
@@ -124,6 +147,7 @@
     "server",
     "servo",
     "substation_controller",
+    "tap_changer",
     "thermal_sensor",
     "thermostat",
     "toll_controller",
@@ -136,11 +160,26 @@
     "vav_controller",
     "vision_sensor",
     "vision_system",
+    "wayside_interface_unit",
+    "wayside_mcp",
+    "wayside_signal_controller",
     "weather_station",
     "workstation",
     "zone_controller"
   ],
   "entries": [
+    {
+      "vendor": "abb",
+      "model": "HPG800",
+      "model_name": "ABB Symphony Plus HPG800",
+      "device_type": "controller",
+      "protocols": [
+        "modbus_tcp",
+        "opc_ua",
+        "snmp"
+      ],
+      "description": "Symphony Plus Harmony Process Gateway DCS controller for power generation"
+    },
     {
       "vendor": "abb",
       "model": "ACS580",
@@ -243,6 +282,18 @@
     },
     {
       "vendor": "abb",
+      "model": "RED615",
+      "model_name": "ABB RED615 Line Differential Protection",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "Relion 615 series line differential protection relay (87L)"
+    },
+    {
+      "vendor": "abb",
       "model": "REF615",
       "model_name": "REF615 Feeder Protection Relay",
       "device_type": "protection_relay",
@@ -251,6 +302,31 @@
         "iec61850"
       ],
       "description": "Feeder protection and control relay for distribution"
+    },
+    {
+      "vendor": "abb",
+      "model": "REL630",
+      "model_name": "ABB REL630 Line Distance Protection",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "Relion 630 series distance protection relay for sub-transmission lines"
+    },
+    {
+      "vendor": "abb",
+      "model": "REL670",
+      "model_name": "ABB REL670 Line Distance Protection",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "iec104"
+      ],
+      "description": "Relion 670 series high-end transmission line distance protection IED"
     },
     {
       "vendor": "abb",
@@ -307,6 +383,26 @@
         "modbus_tcp"
       ],
       "description": "16-channel digital I/O module with Modbus/TCP"
+    },
+    {
+      "vendor": "alstom",
+      "model": "ATCS Office Dispatch System",
+      "model_name": "Alstom ATCS Office Dispatch System",
+      "device_type": "atcs_office",
+      "protocols": [
+        "atcs"
+      ],
+      "description": "Dispatch/CTC office system; subscribes to the ATCS codeline feed from base stations to display track and signal status"
+    },
+    {
+      "vendor": "alstom",
+      "model": "ATCS Wayside MCP",
+      "model_name": "Alstom ATCS Wayside Message/Control Point",
+      "device_type": "wayside_mcp",
+      "protocols": [
+        "atcs"
+      ],
+      "description": "ATCS (AAR Spec 200) wayside message/control point; radio codeline indications and controls"
     },
     {
       "vendor": "automated logic",
@@ -408,6 +504,63 @@
       "description": "Fanless Intel Atom-based embedded PC controller"
     },
     {
+      "vendor": "beckwith electric",
+      "model": "M-7679",
+      "model_name": "Beckwith M-7679 Transformer Monitor",
+      "device_type": "meter",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "snmp"
+      ],
+      "description": "Power transformer monitor with thermal modeling and LTC condition assessment"
+    },
+    {
+      "vendor": "beckwith electric",
+      "model": "M-3425A",
+      "model_name": "Beckwith M-3425A Generator Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "Integrated generator protection relay for synchronous machines"
+    },
+    {
+      "vendor": "beckwith electric",
+      "model": "M-2001D",
+      "model_name": "Beckwith M-2001D Digital Tap-Changer Control",
+      "device_type": "tap_changer",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3"
+      ],
+      "description": "Microprocessor-based load tap-changer control for voltage regulation"
+    },
+    {
+      "vendor": "belimo",
+      "model": "22RTH-5U00A",
+      "model_name": "Belimo 22RTH-5U00A Room Sensor",
+      "device_type": "room_sensor",
+      "protocols": [
+        "bacnet",
+        "modbus_tcp"
+      ],
+      "description": "Room air sensor measuring temperature and relative humidity, with Modbus and BACnet output"
+    },
+    {
+      "vendor": "belimo",
+      "model": "EV065F+BAC",
+      "model_name": "Belimo Energy Valve EV065F+BAC",
+      "device_type": "valve_positioner",
+      "protocols": [
+        "bacnet",
+        "modbus_tcp"
+      ],
+      "description": "Pressure-independent characterised control valve with integrated thermal energy meter, native BACnet/IP and Modbus TCP"
+    },
+    {
       "vendor": "bosch",
       "model": "MIC IP 7100i",
       "model_name": "MIC IP 7100i",
@@ -416,7 +569,6 @@
         "snmp",
         "ssh",
         "telnet",
-        "rdp",
         "https"
       ],
       "description": "Bosch MIC IP 7100i"
@@ -444,6 +596,26 @@
         "bacnet"
       ],
       "description": "Programmable controller for HVAC applications"
+    },
+    {
+      "vendor": "carlo gavazzi",
+      "model": "VMU-C EM",
+      "model_name": "VMU-C EM Data Concentrator",
+      "device_type": "meter_data_concentrator",
+      "protocols": [
+        "modbus_tcp"
+      ],
+      "description": "Multi-meter data concentrator aggregating up to 32 RS-485 sub-meters onto Modbus TCP/IP with a built-in web/FTP portal; typically one per building riser or floor cluster"
+    },
+    {
+      "vendor": "carlo gavazzi",
+      "model": "EM24DINAV23XE1X",
+      "model_name": "EM24-Ethernet Energy Meter",
+      "device_type": "power_meter",
+      "protocols": [
+        "modbus_tcp"
+      ],
+      "description": "DIN-rail three-phase energy meter with native Ethernet/Modbus TCP, the standard per-tenant electrical sub-meter for EU commercial real-estate billing retrofits"
     },
     {
       "vendor": "carrier",
@@ -686,23 +858,33 @@
     },
     {
       "vendor": "daktronics",
-      "model": "Venus 1500",
-      "model_name": "Venus 1500 DMS Controller",
+      "model": "VF-2020",
+      "model_name": "Vanguard VF-2020 Walk-In DMS",
       "device_type": "dms",
       "protocols": [
         "snmp"
       ],
-      "description": "Dynamic Message Sign controller for transportation"
+      "description": "Vanguard walk-in full-matrix dynamic message sign (NTCIP 1203)"
     },
     {
       "vendor": "daktronics",
-      "model": "Venus 7000",
-      "model_name": "Venus 7000 Large DMS Controller",
+      "model": "VX-2420",
+      "model_name": "Vanguard VX-2420 Front-Access DMS",
       "device_type": "dms",
       "protocols": [
         "snmp"
       ],
-      "description": "Large format dynamic message sign controller"
+      "description": "Vanguard front-access dynamic message sign for lane control and compact messaging (NTCIP 1203)"
+    },
+    {
+      "vendor": "danfoss",
+      "model": "ECL Comfort 310",
+      "model_name": "ECL Comfort 310 District Heating Controller",
+      "device_type": "heat_substation_controller",
+      "protocols": [
+        "modbus_tcp"
+      ],
+      "description": "Weather-compensated district heating/cooling substation (\"energy center\") controller for up to 4 circuits; native Ethernet/Modbus TCP to the BMS, local M-Bus port (not modeled as a separate IP device) for its wired heat meter. No native BACnet \u2014 BACnet requires a discontinued third-party gateway."
     },
     {
       "vendor": "delta controls",
@@ -777,6 +959,16 @@
       "description": "Distech Controls ECY-VAV"
     },
     {
+      "vendor": "eaton",
+      "model": "EVMAGU23X-3",
+      "model_name": "Eaton ePDU G3 Universal Input Rack PDU",
+      "device_type": "pdu",
+      "protocols": [
+        "snmp"
+      ],
+      "description": "Managed universal-input rack PDU with outlet switching and metering"
+    },
+    {
       "vendor": "econolite",
       "model": "ASC/3-2100",
       "model_name": "ASC/3-2100",
@@ -805,6 +997,17 @@
         "snmp"
       ],
       "description": "Advanced traffic signal controller with NTCIP support"
+    },
+    {
+      "vendor": "elvaco",
+      "model": "CMe3100",
+      "model_name": "CMe3100 M-Bus Metering Gateway",
+      "device_type": "meter_data_concentrator",
+      "protocols": [
+        "modbus_tcp",
+        "bacnet"
+      ],
+      "description": "M-Bus/wireless M-Bus (EN 13757) to BACnet/IP and Modbus TCP metering gateway for up to 512 wired meters; marketed specifically for EU EED remote-reading compliance of heat, hot-water, and cold-water sub-meters"
     },
     {
       "vendor": "emerson",
@@ -1090,6 +1293,42 @@
     },
     {
       "vendor": "ge",
+      "model": "B30",
+      "model_name": "GE Multilin B30 Bus Differential Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "UR-series bus differential protection relay with low-impedance algorithm"
+    },
+    {
+      "vendor": "ge",
+      "model": "D60",
+      "model_name": "GE Multilin D60 Line Distance Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "UR-series line distance protection relay for transmission lines"
+    },
+    {
+      "vendor": "ge",
+      "model": "F60",
+      "model_name": "GE Multilin F60 Feeder Management Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "UR-series feeder management relay with comprehensive protection and control"
+    },
+    {
+      "vendor": "ge",
       "model": "F650",
       "model_name": "Multilin F650 Digital Bay Controller",
       "device_type": "protection_relay",
@@ -1098,6 +1337,19 @@
         "dnp3"
       ],
       "description": "Digital bay controller with comprehensive protection"
+    },
+    {
+      "vendor": "ge",
+      "model": "P145",
+      "model_name": "MiCOM P40 Agile P145 Feeder Management Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "iec104"
+      ],
+      "description": "Overcurrent and feeder management protection relay for MV distribution feeders (GE Vernova Grid Solutions, formerly Alstom/Areva MiCOM)"
     },
     {
       "vendor": "ge",
@@ -1122,6 +1374,16 @@
       "description": "GE Proficy Historian 7.2"
     },
     {
+      "vendor": "ge transportation",
+      "model": "ITCS Wayside Controller",
+      "model_name": "GE Transportation ITCS Wayside Controller",
+      "device_type": "wayside_interface_unit",
+      "protocols": [
+        "emp"
+      ],
+      "description": "Incremental Train Control System wayside controller; EMP messaging to onboard equipment"
+    },
+    {
       "vendor": "hikvision",
       "model": "DS-2CD7A26G0/P",
       "model_name": "DS-2CD7A26G0/P ANPR Camera",
@@ -1130,6 +1392,16 @@
         "snmp"
       ],
       "description": "2MP ANPR camera with deep learning license plate recognition"
+    },
+    {
+      "vendor": "hitachi rail",
+      "model": "Wayside Signal Controller",
+      "model_name": "Hitachi Rail Wayside Signal Controller",
+      "device_type": "wayside_signal_controller",
+      "protocols": [
+        "atcs"
+      ],
+      "description": "Wayside signal/interlocking controller with ATCS codeline reporting (US&S heritage)"
     },
     {
       "vendor": "hms",
@@ -1305,13 +1577,13 @@
     },
     {
       "vendor": "honeywell",
-      "model": "LCNP4M",
-      "model_name": "ControlEdge PLC",
+      "model": "900CP1",
+      "model_name": "ControlEdge 900 Controller",
       "device_type": "plc",
       "protocols": [
         "modbus_tcp"
       ],
-      "description": "High-performance process controller"
+      "description": "ControlEdge 900 platform process controller (Modbus TCP)"
     },
     {
       "vendor": "honeywell",
@@ -1349,7 +1621,9 @@
       "model_name": "Experion PKS Server",
       "device_type": "scada_server",
       "protocols": [
-        "modbus_tcp"
+        "modbus_tcp",
+        "opc_ua",
+        "snmp"
       ],
       "description": "Experion PKS application server for DCS operation"
     },
@@ -1385,6 +1659,18 @@
         "snmp"
       ],
       "description": "Impinj Speedway R700"
+    },
+    {
+      "vendor": "janitza",
+      "model": "UMG 604-PRO",
+      "model_name": "UMG 604-PRO Power Quality Analyzer",
+      "device_type": "power_meter",
+      "protocols": [
+        "modbus_tcp",
+        "bacnet",
+        "snmp"
+      ],
+      "description": "Main-incomer power quality analyzer and energy management hub; natively speaks Modbus TCP, BACnet/IP, and SNMP over Ethernet"
     },
     {
       "vendor": "johnson controls",
@@ -1463,6 +1749,16 @@
       "description": "OPC UA gateway for multi-protocol industrial connectivity"
     },
     {
+      "vendor": "kmc controls",
+      "model": "BAC-A1616BC",
+      "model_name": "KMC Controls BAC-A1616BC BACnet Building Controller",
+      "device_type": "ahu_controller",
+      "protocols": [
+        "bacnet"
+      ],
+      "description": "Native BACnet building controller with integrated router and web server, 16x16 expandable I/O, for air-handling and plant duty"
+    },
+    {
       "vendor": "kuka",
       "model": "KMP 1500",
       "model_name": "KMP 1500",
@@ -1534,12 +1830,12 @@
     {
       "vendor": "mccain",
       "model": "170E",
-      "model_name": "170E Detector Rack",
-      "device_type": "detector_rack",
+      "model_name": "170E Traffic Controller",
+      "device_type": "traffic_controller",
       "protocols": [
         "snmp"
       ],
-      "description": "170E cabinet detector rack for vehicle detection"
+      "description": "Type 170E traffic signal controller"
     },
     {
       "vendor": "mccain",
@@ -1550,6 +1846,21 @@
         "snmp"
       ],
       "description": "Type 2070 Advanced Transportation Controller"
+    },
+    {
+      "vendor": "microsoft",
+      "model": "OT Engineering Workstation",
+      "model_name": "OT Engineering Workstation",
+      "device_type": "engineering_workstation",
+      "protocols": [
+        "snmp",
+        "rdp",
+        "https",
+        "ethernet_ip",
+        "s7comm",
+        "opc_ua"
+      ],
+      "description": "Windows OT engineering workstation \u2014 runs vendor PLC programming software (Studio 5000 / TIA Portal), so it originates CIP/S7comm/OPC-UA engineering traffic in addition to Windows remote access (RDP/HTTPS) and SNMP management."
     },
     {
       "vendor": "microsoft",
@@ -1820,6 +2131,17 @@
       "description": "DSRC roadside unit for tolling and V2X"
     },
     {
+      "vendor": "raritan",
+      "model": "PX3-5660",
+      "model_name": "Raritan PX3-5660 Intelligent Rack PDU",
+      "device_type": "pdu",
+      "protocols": [
+        "snmp",
+        "modbus_tcp"
+      ],
+      "description": "Intelligent switched rack power distribution unit with per-outlet metering"
+    },
+    {
       "vendor": "rockwell",
       "model": "1756-EN2T",
       "model_name": "1756-EN2T",
@@ -1905,12 +2227,12 @@
     {
       "vendor": "rockwell",
       "model": "2711R-T7T",
-      "model_name": "PanelView 800",
+      "model_name": "PanelView 800 - 7 inch",
       "device_type": "hmi",
       "protocols": [
         "ethernet_ip"
       ],
-      "description": "7-inch color touchscreen HMI for Micro800 systems"
+      "description": "Compact 7-inch graphic terminal"
     },
     {
       "vendor": "rockwell",
@@ -2011,7 +2333,7 @@
         "opc_ua",
         "snmp"
       ],
-      "description": "High-performance ControlLogix controller with 80MB memory"
+      "description": "High-end ControlLogix controller with 80MB memory"
     },
     {
       "vendor": "rockwell",
@@ -2157,13 +2479,13 @@
     {
       "vendor": "rockwell",
       "model": "1756-L83ES",
-      "model_name": "GuardLogix 5580S",
+      "model_name": "GuardLogix 5580 Safety",
       "device_type": "safety_plc",
       "protocols": [
         "ethernet_ip",
         "cip_safety"
       ],
-      "description": "Safety-rated ControlLogix controller for SIL3/PLe applications"
+      "description": "Safety controller with integrated SIL 3/PLe safety"
     },
     {
       "vendor": "rockwell",
@@ -2216,6 +2538,42 @@
       "description": "Integrated servo drive for motion control applications"
     },
     {
+      "vendor": "rockwell",
+      "model": "2198-S086-ERS4",
+      "model_name": "Kinetix 5700 Single-Axis Servo Drive",
+      "device_type": "servo",
+      "protocols": [
+        "ethernet_ip",
+        "cip_motion"
+      ],
+      "description": "Single-axis servo drive, 43 A continuous, CIP Motion over EtherNet/IP"
+    },
+    {
+      "vendor": "rotork",
+      "model": "IQ3 Pro",
+      "model_name": "Rotork IQ3 Pro Integrated Ethernet Actuator",
+      "device_type": "valve_positioner",
+      "protocols": [
+        "modbus_tcp",
+        "ethernet_ip",
+        "profinet"
+      ],
+      "description": "Intelligent multi-turn electric valve actuator for isolation or regulating duty, with integrated industrial Ethernet"
+    },
+    {
+      "vendor": "schneider",
+      "model": "C264",
+      "model_name": "MiCOM C264 Substation Bay Computer",
+      "device_type": "bay_controller",
+      "protocols": [
+        "modbus_tcp",
+        "iec61850",
+        "iec104",
+        "snmp"
+      ],
+      "description": "Substation bay computer providing control, monitoring and protocol gateway functions"
+    },
+    {
       "vendor": "schneider",
       "model": "CX9680",
       "model_name": "Andover Continuum CX9680",
@@ -2225,17 +2583,6 @@
         "modbus_tcp"
       ],
       "description": "Advanced BMS controller for building automation"
-    },
-    {
-      "vendor": "schneider",
-      "model": "LT2",
-      "model_name": "LT2",
-      "device_type": "controller",
-      "protocols": [
-        "modbus_tcp",
-        "snmp"
-      ],
-      "description": "Schneider LT2"
     },
     {
       "vendor": "schneider",
@@ -2251,13 +2598,13 @@
     },
     {
       "vendor": "schneider",
-      "model": "ATV320",
-      "model_name": "ATV320",
+      "model": "ATV320U22N4C",
+      "model_name": "Altivar Machine ATV320",
       "device_type": "drive",
       "protocols": [
         "modbus_tcp"
       ],
-      "description": "Schneider ATV320"
+      "description": "Compact variable frequency drive for OEM machine builders"
     },
     {
       "vendor": "schneider",
@@ -2498,6 +2845,18 @@
     },
     {
       "vendor": "schneider",
+      "model": "ION9000",
+      "model_name": "PowerLogic ION9000 Power Quality Meter",
+      "device_type": "power_meter",
+      "protocols": [
+        "modbus_tcp",
+        "ethernet_ip",
+        "snmp"
+      ],
+      "description": "Revenue-class power quality meter for utility and critical-facility metering"
+    },
+    {
+      "vendor": "schneider",
       "model": "PM8000",
       "model_name": "PowerLogic PM8000",
       "device_type": "power_meter",
@@ -2507,6 +2866,55 @@
         "snmp"
       ],
       "description": "Advanced power quality and energy meter with communications"
+    },
+    {
+      "vendor": "schneider",
+      "model": "P1F30",
+      "model_name": "Easergy P1 Feeder Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "iec61850"
+      ],
+      "description": "Entry-level feeder protection relay for MV distribution networks"
+    },
+    {
+      "vendor": "schneider",
+      "model": "P3U30",
+      "model_name": "Easergy P3 Universal Feeder Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850"
+      ],
+      "description": "Universal feeder, motor and transformer protection relay for utility and industrial MV"
+    },
+    {
+      "vendor": "schneider",
+      "model": "P543",
+      "model_name": "MiCOM P543 Line Differential Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "iec104"
+      ],
+      "description": "Two-ended line differential protection relay for transmission line protection"
+    },
+    {
+      "vendor": "schneider",
+      "model": "P746",
+      "model_name": "MiCOM P746 Busbar Differential Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "iec104"
+      ],
+      "description": "Numerical busbar differential protection relay for distributed substation architectures"
     },
     {
       "vendor": "schneider",
@@ -2529,6 +2937,41 @@
         "dnp3"
       ],
       "description": "Compact RTU for remote monitoring and control"
+    },
+    {
+      "vendor": "schneider",
+      "model": "T300",
+      "model_name": "Easergy T300 Feeder RTU",
+      "device_type": "rtu",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec104",
+        "snmp"
+      ],
+      "description": "Modular feeder remote terminal unit for MV smart grid monitoring and FLISR automation"
+    },
+    {
+      "vendor": "schneider",
+      "model": "TBox LT2",
+      "model_name": "TBox LT2 Lite RTU",
+      "device_type": "rtu",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3"
+      ],
+      "description": "Compact RTU for small-scale remote monitoring"
+    },
+    {
+      "vendor": "schneider",
+      "model": "TBox MS-CPU32",
+      "model_name": "TBox MS RTU",
+      "device_type": "rtu",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3"
+      ],
+      "description": "High-performance RTU for SCADA applications"
     },
     {
       "vendor": "schneider",
@@ -2591,17 +3034,6 @@
     },
     {
       "vendor": "schneider",
-      "model": "MS-CPU32",
-      "model_name": "MS-CPU32",
-      "device_type": "traffic_controller",
-      "protocols": [
-        "modbus_tcp",
-        "snmp"
-      ],
-      "description": "Schneider MS-CPU32"
-    },
-    {
-      "vendor": "schneider",
       "model": "Galaxy VM",
       "model_name": "Galaxy VM UPS",
       "device_type": "ups",
@@ -2610,6 +3042,18 @@
         "modbus_tcp"
       ],
       "description": "Three-phase modular UPS for data centers"
+    },
+    {
+      "vendor": "sel",
+      "model": "SEL-735",
+      "model_name": "SEL-735 Power Quality and Revenue Meter",
+      "device_type": "meter",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "snmp"
+      ],
+      "description": "Class 0.2 revenue meter with IEEE 1159 power-quality recording"
     },
     {
       "vendor": "sel",
@@ -2622,6 +3066,19 @@
         "iec61850"
       ],
       "description": "Distance relay for transmission line protection"
+    },
+    {
+      "vendor": "sel",
+      "model": "SEL-411L",
+      "model_name": "SEL-411L Line Current Differential System",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "c37118"
+      ],
+      "description": "Line current differential and distance protection with integrated synchrophasor PMU"
     },
     {
       "vendor": "sel",
@@ -2661,6 +3118,19 @@
     },
     {
       "vendor": "sel",
+      "model": "SEL-787",
+      "model_name": "SEL-787 Transformer Protection Relay",
+      "device_type": "protection_relay",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "c37118"
+      ],
+      "description": "Two-winding transformer differential protection with synchrophasor PMU"
+    },
+    {
+      "vendor": "sel",
       "model": "SEL-3530",
       "model_name": "SEL-3530 RTAC",
       "device_type": "rtu",
@@ -2671,6 +3141,21 @@
         "iec104"
       ],
       "description": "Real-Time Automation Controller for substation automation"
+    },
+    {
+      "vendor": "sel",
+      "model": "SEL-3555",
+      "model_name": "SEL-3555 RTAC",
+      "device_type": "rtu",
+      "protocols": [
+        "modbus_tcp",
+        "dnp3",
+        "iec61850",
+        "iec104",
+        "snmp",
+        "c37118"
+      ],
+      "description": "Next-generation Real-Time Automation Controller with expanded protocol support"
     },
     {
       "vendor": "sel",
@@ -2753,6 +3238,17 @@
         "bacnet"
       ],
       "description": "Integrated building management platform"
+    },
+    {
+      "vendor": "siemens",
+      "model": "C600",
+      "model_name": "Climatix C600 Controller",
+      "device_type": "building_controller",
+      "protocols": [
+        "snmp",
+        "bacnet"
+      ],
+      "description": "Climatix C600 (POL6xx) HVAC controller with BACnet/IP"
     },
     {
       "vendor": "siemens",
@@ -2928,13 +3424,13 @@
     },
     {
       "vendor": "siemens",
-      "model": "M60",
-      "model_name": "Siemens M60 Master",
-      "device_type": "master_station",
+      "model": "XM-400",
+      "model_name": "XM-400",
+      "device_type": "network_switch",
       "protocols": [
         "snmp"
       ],
-      "description": "Master traffic signal controller for intersection coordination"
+      "description": "Siemens XM-400"
     },
     {
       "vendor": "siemens",
@@ -3108,6 +3604,32 @@
     },
     {
       "vendor": "siemens",
+      "model": "7SS85",
+      "model_name": "SIPROTEC 7SS85 Busbar Differential",
+      "device_type": "protection_relay",
+      "protocols": [
+        "s7comm",
+        "iec61850",
+        "modbus_tcp",
+        "snmp"
+      ],
+      "description": "Distributed busbar differential protection relay"
+    },
+    {
+      "vendor": "siemens",
+      "model": "7UM85",
+      "model_name": "SIPROTEC 7UM85 Generator Protection",
+      "device_type": "protection_relay",
+      "protocols": [
+        "s7comm",
+        "iec61850",
+        "modbus_tcp",
+        "snmp"
+      ],
+      "description": "Generator protection relay with comprehensive machine protection functions"
+    },
+    {
+      "vendor": "siemens",
       "model": "7UT87",
       "model_name": "SIPROTEC 7UT87 Transformer Differential",
       "device_type": "protection_relay",
@@ -3119,6 +3641,19 @@
     },
     {
       "vendor": "siemens",
+      "model": "7VK87",
+      "model_name": "SIPROTEC 7VK87 Autoreclose / Synchrocheck",
+      "device_type": "protection_relay",
+      "protocols": [
+        "s7comm",
+        "iec61850",
+        "modbus_tcp",
+        "snmp"
+      ],
+      "description": "Autoreclose and synchrocheck relay for line bay applications"
+    },
+    {
+      "vendor": "siemens",
       "model": "DXR2.E12",
       "model_name": "Desigo DXR2 Room Controller",
       "device_type": "room_controller",
@@ -3127,6 +3662,17 @@
         "modbus_tcp"
       ],
       "description": "Compact room automation controller for HVAC"
+    },
+    {
+      "vendor": "siemens",
+      "model": "CP-8000",
+      "model_name": "SICAM A8000 CP-8000 Master Module",
+      "device_type": "rtu",
+      "protocols": [
+        "iec104",
+        "snmp"
+      ],
+      "description": "SICAM A8000 CP-8000 master module (RTU) for substation and distribution automation"
     },
     {
       "vendor": "siemens",
@@ -3193,44 +3739,24 @@
     },
     {
       "vendor": "siemens",
-      "model": "6NH3112-3BA00-0XX0",
-      "model_name": "CP-8000",
+      "model": "S210",
+      "model_name": "SINAMICS S210 Servo Drive",
+      "device_type": "servo",
+      "protocols": [
+        "profinet",
+        "ethernet_ip"
+      ],
+      "description": "0.1-7 kW servo drive with integrated PROFINET IRT and web server"
+    },
+    {
+      "vendor": "siemens",
+      "model": "M60",
+      "model_name": "M60 ATC Traffic Controller",
       "device_type": "traffic_controller",
       "protocols": [
         "snmp"
       ],
-      "description": "Central traffic management controller for ITS applications"
-    },
-    {
-      "vendor": "siemens",
-      "model": "C600",
-      "model_name": "Siemens C600 Controller",
-      "device_type": "traffic_controller",
-      "protocols": [
-        "snmp",
-        "bacnet"
-      ],
-      "description": "Field traffic signal controller with NTCIP support"
-    },
-    {
-      "vendor": "siemens",
-      "model": "CP-8000",
-      "model_name": "CP-8000",
-      "device_type": "traffic_controller",
-      "protocols": [
-        "snmp"
-      ],
-      "description": "Siemens CP-8000"
-    },
-    {
-      "vendor": "siemens",
-      "model": "XM-400",
-      "model_name": "XM-400",
-      "device_type": "traffic_controller",
-      "protocols": [
-        "snmp"
-      ],
-      "description": "Siemens XM-400"
+      "description": "Advanced Transportation Controller (ATC) for intersection signal control"
     },
     {
       "vendor": "siemens",
@@ -3254,17 +3780,6 @@
     },
     {
       "vendor": "siemens its",
-      "model": "CP-8000",
-      "model_name": "CP-8000 Central Controller",
-      "device_type": "traffic_controller",
-      "protocols": [
-        "snmp",
-        "modbus_tcp"
-      ],
-      "description": "Central traffic management controller for arterial coordination"
-    },
-    {
-      "vendor": "siemens its",
       "model": "M60",
       "model_name": "M60 ATC Traffic Controller",
       "device_type": "traffic_controller",
@@ -3272,6 +3787,16 @@
         "snmp"
       ],
       "description": "Advanced Transportation Controller with NTCIP support"
+    },
+    {
+      "vendor": "siemens mobility",
+      "model": "ATCS Base Communications Package",
+      "model_name": "Siemens Mobility ATCS Base Communications Package",
+      "device_type": "atcs_base_station",
+      "protocols": [
+        "atcs"
+      ],
+      "description": "ATCS base communications package (BCP); relays codeline between office and wayside MCPs"
     },
     {
       "vendor": "trane",
@@ -3306,13 +3831,43 @@
     },
     {
       "vendor": "vaisala",
-      "model": "RWIS500",
-      "model_name": "Road Weather Information System",
+      "model": "RWS200",
+      "model_name": "RWS200 Road Weather Station",
       "device_type": "weather_station",
       "protocols": [
         "snmp"
       ],
       "description": "Road weather station for transportation applications"
+    },
+    {
+      "vendor": "wabtec",
+      "model": "I-ETMS Back Office Server",
+      "model_name": "Wabtec I-ETMS Back Office Server",
+      "device_type": "back_office_server",
+      "protocols": [
+        "emp"
+      ],
+      "description": "I-ETMS Positive Train Control back-office server; exchanges EMP messages with wayside units and locomotives"
+    },
+    {
+      "vendor": "wabtec",
+      "model": "I-ETMS Train Management Computer",
+      "model_name": "Wabtec I-ETMS Locomotive Train Management Computer",
+      "device_type": "locomotive_computer",
+      "protocols": [
+        "emp"
+      ],
+      "description": "I-ETMS onboard train management computer; enforces movement authorities from EMP messages"
+    },
+    {
+      "vendor": "wabtec",
+      "model": "I-ETMS Wayside Interface Unit",
+      "model_name": "Wabtec I-ETMS Wayside Interface Unit",
+      "device_type": "wayside_interface_unit",
+      "protocols": [
+        "emp"
+      ],
+      "description": "I-ETMS wayside interface unit; broadcasts signal/switch status as EMP messages to approaching locomotives"
     },
     {
       "vendor": "wago",
