@@ -629,9 +629,6 @@ class TestSnmpPackets:
         assert isinstance(packet, bytes)
         assert len(packet) > 42
 
-    @pytest.mark.xfail(
-        reason="Scapy SNMPtrapv1 time_stamp requires ASN1_TIME_TICKS, not ASN1_INTEGER"
-    )
     def test_build_snmp_trap_v1(self):
         """Test building SNMPv1 trap PDU."""
         trap_bytes = build_snmp_trap_v1(
@@ -671,9 +668,6 @@ class TestSnmpPackets:
         assert isinstance(trap_bytes, bytes)
         assert len(trap_bytes) > 0
 
-    @pytest.mark.xfail(
-        reason="Scapy SNMPtrapv1 time_stamp requires ASN1_TIME_TICKS, not ASN1_INTEGER"
-    )
     def test_build_snmp_trap_packet_v1(self):
         """Test building complete SNMPv1 trap packet."""
         packet = build_snmp_trap_packet(

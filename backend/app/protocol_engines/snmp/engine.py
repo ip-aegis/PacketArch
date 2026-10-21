@@ -15,6 +15,7 @@ Key features:
 
 import random
 import time
+import zlib
 from collections.abc import Iterator
 
 from app.protocol_engines import register_engine
@@ -80,6 +81,9 @@ class SnmpEngine(ProtocolEngine):
             sequence_number=0,  # Poll cycle counter
             custom_data={
                 "start_time_ms": time.time() * 1000,
+                # Fallback run clock when the flow was not added through
+                # UnifiedOrchestrator (which stamps config["_epoch_anchor_s"]).
+                "start_wall_s": time.time(),
                 "sys_uptime_ticks": 0,  # TimeTicks (hundredths of seconds)
                 "pending_request": None,
                 "oid_index": 0,
@@ -182,14 +186,50 @@ class SnmpEngine(ProtocolEngine):
             # Default to system OIDs for discovery
             return DISCOVERY_OIDS
 
-    def _get_uptime_ticks(self, state: ConversationState) -> int:
-        """Calculate current sysUpTime in TimeTicks (hundredths of seconds)."""
-        start_time = state.custom_data.get("start_time_ms", time.time() * 1000)
-        elapsed_ms = time.time() * 1000 - start_time
-        return int(elapsed_ms / 10)  # Convert to hundredths of seconds
+    @staticmethod
+    def _device_seed(flow: FlowContext) -> int:
+        """Stable per-device seed (same for every poller, process and run).
+
+        ``hash()`` is salted per process, so it would give the PCAP path, the
+        live agent and a restarted agent different devices; crc32 does not.
+        """
+        dst = flow.destination
+        return zlib.crc32(f"{dst.scenario_id or ''}:{dst.device_id}".encode())
+
+    @staticmethod
+    def _epoch_s(flow: FlowContext, state: ConversationState, t_ms: float) -> float:
+        """Wall-clock epoch seconds for virtual time ``t_ms`` of this run."""
+        anchor = flow.config.get("_epoch_anchor_s") if isinstance(flow.config, dict) else None
+        if anchor is None:
+            anchor = state.custom_data.get("start_wall_s", time.time())
+        return float(anchor) + t_ms / 1000.0
+
+    def _get_uptime_ticks(
+        self,
+        state: ConversationState,
+        flow: FlowContext | None = None,
+        t_ms: float | None = None,
+    ) -> int:
+        """sysUpTime in TimeTicks (hundredths of seconds) at virtual time ``t_ms``.
+
+        Field devices have been running for a while when monitoring starts,
+        so each device gets a stable boot time 2 h – 60 days before the run.
+        Driven by the run clock (not ``time.time()``) so PCAP mode — which
+        generates far faster than real time — still shows uptime advancing
+        with the packet timestamps, and every poller of a device agrees.
+        """
+        if flow is None or t_ms is None:
+            start_time = state.custom_data.get("start_time_ms", time.time() * 1000)
+            return int((time.time() * 1000 - start_time) / 10)
+        boot_age_s = 7200 + (self._device_seed(flow) % (60 * 86400 - 7200))
+        return int((boot_age_s + t_ms / 1000.0) * 100)
 
     def _generate_snmp_values(
-        self, flow: FlowContext, state: ConversationState, oid: str
+        self,
+        flow: FlowContext,
+        state: ConversationState,
+        oid: str,
+        t_ms: float | None = None,
     ) -> VarBind:
         """Generate appropriate SNMP value for an OID.
 
@@ -228,7 +268,7 @@ class SnmpEngine(ProtocolEngine):
             return VarBind(oid=oid, value=value, value_type="oid")
 
         elif oid == SystemOIDs.SYS_UPTIME.oid:
-            value = self._get_uptime_ticks(state)
+            value = self._get_uptime_ticks(state, flow, t_ms)
             return VarBind(oid=oid, value=value, value_type="timeticks")
 
         elif oid == SystemOIDs.SYS_NAME.oid:
@@ -385,7 +425,7 @@ class SnmpEngine(ProtocolEngine):
             response_time = current_time + response_delay
 
             # Get value for this OID from fingerprint
-            var_bind = self._generate_snmp_values(flow, state, oid)
+            var_bind = self._generate_snmp_values(flow, state, oid, response_time)
 
             # Build response - use v3 builder if SNMPv3
             if config.version == SNMPVersion.V3 and config.v3_credentials:
@@ -395,7 +435,7 @@ class SnmpEngine(ProtocolEngine):
                     src_ip=flow.destination.ip_address,
                     dst_ip=flow.source.ip_address,
                     src_port=SNMP_AGENT_PORT,
-                    dst_port=random.randint(49152, 65535),
+                    dst_port=src_port,
                     credentials=config.v3_credentials,
                     request_id=state.transaction_id,
                     var_binds=[var_bind],
@@ -407,7 +447,7 @@ class SnmpEngine(ProtocolEngine):
                     src_ip=flow.destination.ip_address,
                     dst_ip=flow.source.ip_address,
                     src_port=SNMP_AGENT_PORT,
-                    dst_port=random.randint(49152, 65535),
+                    dst_port=src_port,
                     community=config.community,
                     request_id=state.transaction_id,
                     var_binds=[var_bind],
@@ -536,7 +576,7 @@ class SnmpEngine(ProtocolEngine):
         response_time = cycle_time_ms + response_delay
 
         # Get value for this OID
-        var_bind = self._generate_snmp_values(flow, state, oid)
+        var_bind = self._generate_snmp_values(flow, state, oid, response_time)
 
         # Build response - use v3 builder if SNMPv3
         if config.version == SNMPVersion.V3 and config.v3_credentials:
@@ -620,7 +660,7 @@ class SnmpEngine(ProtocolEngine):
             community=config.trap_community,
             trap_type=trap_type,
             enterprise_oid=enterprise_oid,
-            uptime_ticks=self._get_uptime_ticks(state),
+            uptime_ticks=self._get_uptime_ticks(state, flow, trap_time_ms),
             var_binds=var_binds or [],
             version=config.version,
         )

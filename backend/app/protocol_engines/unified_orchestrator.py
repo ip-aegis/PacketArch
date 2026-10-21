@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import random
 import threading
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -90,6 +91,13 @@ class UnifiedOrchestrator:
         self.flows: list[FlowState] = []
         self.scheduler = EventScheduler()
         self.current_time_ms = 0.0
+        # Wall-clock epoch that virtual time 0 maps to. Every flow of this
+        # run shares it (stamped into flow.config by add_flow), so engines
+        # that model a device's state over real time — NTCIP signal phases,
+        # DMS schedules, sysUpTime — answer every poller identically and
+        # line up with the packet timestamps (PcapWriter also anchors at
+        # wall-clock run start; live output IS wall clock).
+        self.epoch_anchor_s = time.time()
         self._flow_map: dict[str, FlowState] = {}
         self.stats = TrafficStats()
         self._adaptive_controller: AdaptiveController | None = None
@@ -120,6 +128,8 @@ class UnifiedOrchestrator:
         Args:
             flow_context: Flow context to add
         """
+        if isinstance(flow_context.config, dict):
+            flow_context.config.setdefault("_epoch_anchor_s", self.epoch_anchor_s)
         engine = get_engine(flow_context.protocol)
         conversation_state = engine.create_initial_state(flow_context)
 
