@@ -356,6 +356,9 @@ class OrchestratorPool:
             flows = ctx.definition.get("flows", {})
             zones = ctx.definition.get("zones", {})
             conduits = ctx.definition.get("conduits", {})
+            from app.protocol_engines.canonical_identity import device_sys_locations
+
+            sys_locations = device_sys_locations(ctx.definition)
             isolation = parse_isolation_config(ctx.definition)
             # Topology (single-conductor) mode: cross-zone flows are the whole
             # point — force cell isolation OFF so they are routed per the plan,
@@ -418,6 +421,7 @@ class OrchestratorPool:
                     ),
                     site_timezone=ctx.definition.get("site_timezone"),
                     process_model=_scenario_process_model(ctx.definition),
+                    sys_locations=sys_locations,
                 )
                 if flow_ctx:
                     orchestrator.add_flow(flow_ctx)
@@ -624,6 +628,7 @@ class OrchestratorPool:
                                         zone_id=dev_zone if dev_zone else None,
                                         vlan_id=zone_vlan_map.get(dev_zone),
                                         purdue_level=zone_level_map.get(dev_zone),
+                                        sys_location=sys_locations.get(dev_id),
                                         vendor_fingerprint=fp,
                                         scenario_id=ctx.scenario_id,
                                     )
@@ -763,6 +768,7 @@ class OrchestratorPool:
         clean_demo_mode: bool = False,
         site_timezone: str | None = None,
         process_model: str | None = None,
+        sys_locations: dict[str, str] | None = None,
     ) -> Any | None:
         """Create a FlowContext from flow definition."""
         try:
@@ -819,6 +825,7 @@ class OrchestratorPool:
                 scenario_id=scenario_id,
                 device_name=source_device.get("name"),
                 device_type=source_device.get("type"),
+                sys_location=(sys_locations or {}).get(source_device.get("id", "")),
             )
 
             # Build destination DeviceContext
@@ -860,6 +867,7 @@ class OrchestratorPool:
                     scenario_id=scenario_id,
                     device_name=target_device.get("name"),
                     device_type=target_device.get("type"),
+                    sys_location=(sys_locations or {}).get(target_device.get("id", "")),
                 )
 
             # Timing model (shared with the PCAP builder)

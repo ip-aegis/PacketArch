@@ -7,9 +7,16 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.5.1"
+VERSION = "4.5.2"
 
 # Version history:
+# 4.5.2 - SNMP sysLocation comes from the scenario: "<zone name>, <site
+#   plant_name>" (an explicit device snmp_config.sys_location wins), shared
+#   by the template SNMP engine and ambient discovery via
+#   canonical_identity.device_sys_locations. Replaces the "Industrial Site"
+#   placeholder and plant-flavoured catalog values; with no zone or site the
+#   fingerprint value or an empty string is used. Unparseable firmware
+#   version strings log at debug, not warning.
 # 4.5.1 - SNMP sysName is the canonical hostname (rvc-toc-main-1st-atc),
 #   not the raw display name (RVC-TOC-Main_1st_ATC), matching LLDP, DNS,
 #   TLS SNI and the ambient pollers. A device polled by both used to answer

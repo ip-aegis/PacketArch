@@ -621,6 +621,10 @@ def _build_flow_contexts(
         except (TypeError, ValueError):
             zone_levels[z.get("id", "")] = None
 
+    from app.protocol_engines.canonical_identity import device_sys_locations
+
+    sys_locations = device_sys_locations(scenario_definition)
+
     def _zone_of(device: dict) -> str | None:
         return device.get("zoneId") or device.get("zone_id") or device.get("zone")
 
@@ -745,6 +749,7 @@ def _build_flow_contexts(
             device_type=source_device.get("type"),
             zone_id=_zone_of(source_device),
             purdue_level=zone_levels.get(_zone_of(source_device) or ""),
+            sys_location=sys_locations.get(source_device["id"]),
         )
 
         destination_context = DeviceContext(
@@ -763,6 +768,7 @@ def _build_flow_contexts(
             device_type=destination_device.get("type"),
             zone_id=_zone_of(destination_device),
             purdue_level=zone_levels.get(_zone_of(destination_device) or ""),
+            sys_location=sys_locations.get(destination_device["id"]),
         )
 
         # Build flow context (inject vertical for PayloadGenerator auto-selection)

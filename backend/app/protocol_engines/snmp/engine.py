@@ -327,8 +327,10 @@ class SnmpEngine(ProtocolEngine):
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_LOCATION.oid:
+            # The scenario's location wins; the fingerprint value is a catalog
+            # default. With neither, empty, as on a device nobody configured.
             fp = flow.destination.vendor_fingerprint or {}
-            value = (fp.get("snmp_identity") or {}).get("sys_location", "Unknown")
+            value = flow.destination.sys_location or (fp.get("snmp_identity") or {}).get("sys_location", "")
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_CONTACT.oid:

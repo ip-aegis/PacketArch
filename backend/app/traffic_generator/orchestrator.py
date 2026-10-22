@@ -174,6 +174,7 @@ class TrafficOrchestrator:
                             device_name=getattr(ctx, "device_name", "") or ctx.device_id,
                             zone_id=ctx.zone_id,
                             purdue_level=ctx.purdue_level,
+                            sys_location=ctx.sys_location,
                             vendor_fingerprint=fp,
                             # Carry scenario_id so the ambient FingerprintApplicator
                             # resolves the SAME canonical identity the protocol

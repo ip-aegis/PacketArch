@@ -98,6 +98,9 @@ class DeviceContext:
     zone_id: str | None = None
     purdue_level: int | None = None
 
+    # SNMP sysLocation from the scenario (canonical_identity.device_sys_locations).
+    sys_location: str | None = None
+
     # Fingerprint applicator (lazy-loaded)
     _fingerprint_applicator: "FingerprintApplicator | None" = field(
         default=None, repr=False, compare=False

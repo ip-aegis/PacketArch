@@ -62,6 +62,9 @@ class AmbientDevice:
     vlan_id: int | None = None
     purdue_level: int | None = None
 
+    # SNMP sysLocation from the scenario (canonical_identity.device_sys_locations).
+    sys_location: str | None = None
+
     # Optional fingerprint for protocol-specific builders
     vendor_fingerprint: dict[str, Any] = field(default_factory=dict)
 
@@ -1143,7 +1146,7 @@ class BackgroundNoiseGenerator:
         sys_name = canonical_identity.canonical_hostname(
             device.device_name or snmp_id.get("sys_name") or device.device_id
         )
-        sys_location = snmp_id.get("sys_location", "Industrial Site")
+        sys_location = device.sys_location or snmp_id.get("sys_location", "")
 
         # MIB-II system OIDs to poll
         oid_values = [
@@ -1749,7 +1752,6 @@ class BackgroundNoiseGenerator:
             "sys_name": canonical_identity.canonical_hostname(
                 device.device_name or device.device_id
             ),
-            "sys_location": "Industrial Site",
         }
 
     # Preferred device types for management station role (most → least realistic)

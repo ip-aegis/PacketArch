@@ -109,7 +109,8 @@ class FirmwareVersionParser:
                 )
 
         # Fallback: return unparsed
-        logger.warning(f"Could not parse firmware version: {version}")
+        # Many vendors use non-dotted schemes (R520.2, 2023 R2, V53); not an error.
+        logger.debug(f"Could not parse firmware version: {version}")
         return ParsedVersion(raw=version, major=0, minor=0)
 
 

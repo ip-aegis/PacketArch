@@ -190,3 +190,41 @@ def profinet_vendor_id(vendor: str | None, fallback: int | None = None) -> int |
         if vid is not None:
             return vid
     return fallback
+
+
+SNMP_SYS_LOCATION_MAX = 255  # SNMPv2-MIB sysLocation DisplayString
+
+
+def device_sys_locations(definition: dict) -> dict[str, str]:
+    """SNMP sysLocation for every device in a scenario definition.
+
+    sysLocation is free text an operator types into each device, so it is
+    a property of the site, not of the vendor. It is built only from the
+    scenario's own data: ``"<zone name>, <site plant_name>"``, e.g.
+    ``"ORT Gantry NB (MP 12.4), TX-130 Toll Plaza"``. An explicit
+    ``device.snmp_config.sys_location`` wins. A device with neither a named
+    zone nor a site name is left out, so the engines fall back to the
+    fingerprint value or an empty string, never a made-up placeholder.
+
+    Shared by the PCAP builder and the live agent so both emit the same text.
+    """
+    devices = definition.get("devices") or {}
+    devices = devices.values() if isinstance(devices, dict) else devices
+    zones = definition.get("zones") or {}
+    zones = zones.values() if isinstance(zones, dict) else zones
+    zone_names = {z.get("id"): (z.get("name") or "").strip() for z in zones if isinstance(z, dict)}
+    plant = ((definition.get("site_identity") or {}).get("plant_name") or "").strip()
+
+    out: dict[str, str] = {}
+    for dev in devices:
+        if not isinstance(dev, dict):
+            continue
+        dev_id = dev.get("id") or dev.get("deviceId")
+        if not dev_id:
+            continue
+        explicit = ((dev.get("snmp_config") or {}).get("sys_location") or "").strip()
+        zone = zone_names.get(dev.get("zoneId") or dev.get("zone_id") or dev.get("zone"), "")
+        text = explicit or ", ".join(p for p in (zone, plant) if p)
+        if text:
+            out[dev_id] = text[:SNMP_SYS_LOCATION_MAX]
+    return out
