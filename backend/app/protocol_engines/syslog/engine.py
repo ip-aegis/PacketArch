@@ -53,12 +53,11 @@ class SyslogEngine(ProtocolEngine):
                             + cycle_time_ms / 1000.0)
         device = flow.source
         hostname = canonical_identity.canonical_hostname(device.device_name or device.device_id)
-        peer = flow.destination.ip_address
         if messages.is_cisco_ios(device.vendor_fingerprint or {}):
             state.custom_data["seq"] += 1
-            line = messages.cisco_line(state.custom_data["seq"], hostname, when, peer)
+            line = messages.cisco_line(state.custom_data["seq"], hostname, when)
         else:
-            line = messages.rfc5424_line(hostname, when, peer)
+            line = messages.rfc5424_line(hostname, when)
         yield PacketEvent(
             timestamp_ms=cycle_time_ms,
             flow_id=flow.flow_id,

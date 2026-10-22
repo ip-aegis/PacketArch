@@ -7,9 +7,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.5.2"
+VERSION = "4.5.3"
 
 # Version history:
+# 4.5.3 - Syslog messages no longer name another host. Every {peer} was the
+#   collector, so switches logged "time synchronized to <NMS>" while their
+#   NTP went elsewhere, and SSH/web logins that never appear on the wire.
+#   Kept: link up/down, configuration saved, IOS CONFIG_I from the console.
 # 4.5.2 - SNMP sysLocation comes from the scenario: "<zone name>, <site
 #   plant_name>" (an explicit device snmp_config.sys_location wins), shared
 #   by the template SNMP engine and ambient discovery via

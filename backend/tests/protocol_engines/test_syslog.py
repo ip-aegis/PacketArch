@@ -47,3 +47,19 @@ def test_cisco_ios_devices_send_ios_format_with_rising_sequence():
         assert int(m.group(1)) // 8 == 23           # facility local7
         seqs.append(int(line.split(b">")[1].split(b":")[0]))
     assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)
+
+
+def test_messages_never_name_another_host():
+    """The engine only knows the collector; naming a peer would invent activity.
+
+    A 2026-10-22 live run had switches logging "time synchronized to <NMS>"
+    while their NTP went to the ATMS, plus SSH logins with no SSH on the wire.
+    """
+    import re
+    from app.protocol_engines.syslog import messages
+
+    when = messages.utc(1_792_600_000)
+    for _ in range(300):
+        for line in (messages.cisco_line(1, "sw", when), messages.rfc5424_line("sw", when)):
+            text = line.decode()
+            assert not re.search(r"\d+\.\d+\.\d+\.\d+", text.split(" ", 3)[-1] if "%" not in text else text.split("%", 1)[1]), text
