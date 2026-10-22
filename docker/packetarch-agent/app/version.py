@@ -7,9 +7,13 @@
 # - MAJOR: Breaking changes to agent/server protocol
 # - MINOR: New features, backward compatible
 # - PATCH: Bug fixes, minor improvements
-VERSION = "4.5.0"
+VERSION = "4.5.1"
 
 # Version history:
+# 4.5.1 - SNMP sysName is the canonical hostname (rvc-toc-main-1st-atc),
+#   not the raw display name (RVC-TOC-Main_1st_ATC), matching LLDP, DNS,
+#   TLS SNI and the ambient pollers. A device polled by both used to answer
+#   two different sysNames; Cyber Vision labelled it with the raw one.
 # 4.5.0 - Interactive IT sessions carry their real opening exchange. An
 #   https/ssh/rdp/telnet flow without config.hostname used to put only a
 #   TCP handshake and teardown on the wire. HTTPS: full TLS 1.2 ECDHE

@@ -1244,11 +1244,21 @@ class TestSnmpEngineIdentityValues:
         assert varbind.value_type == "timeticks"
 
     def test_sys_name_from_device_name(self, engine, flow_context):
-        """Test sysName uses device_name when available."""
+        """sysName is the canonical hostname of device_name (matches LLDP/ambient)."""
         state = engine.create_initial_state(flow_context)
         varbind = engine._generate_snmp_values(flow_context, state, SystemOIDs.SYS_NAME.oid)
-        assert varbind.value == "TC-Intersection-Main"
+        assert varbind.value == "tc-intersection-main"
         assert varbind.value_type == "string"
+
+    def test_sys_name_matches_the_ambient_poller(self, engine, flow_context):
+        """A template poll and an ambient poll must answer the same sysName."""
+        from app.protocol_engines import canonical_identity
+
+        flow_context.destination.device_name = "RVC-TOC-Main_1st_ATC"
+        state = engine.create_initial_state(flow_context)
+        varbind = engine._generate_snmp_values(flow_context, state, SystemOIDs.SYS_NAME.oid)
+        assert varbind.value == "rvc-toc-main-1st-atc"
+        assert varbind.value == canonical_identity.canonical_hostname("RVC-TOC-Main_1st_ATC")
 
     def test_sys_location_from_fingerprint(self, engine, flow_context):
         """Test sysLocation is retrieved from fingerprint data."""

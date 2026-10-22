@@ -314,15 +314,16 @@ class SnmpEngine(ProtocolEngine):
             return VarBind(oid=oid, value=value, value_type="timeticks")
 
         elif oid == SystemOIDs.SYS_NAME.oid:
-            # Use device_name for unique sysName per device
-            # Fall back to fingerprint sys_name or device_id if not set
-            if flow.destination.device_name:
-                value = flow.destination.device_name
-            else:
-                fp = flow.destination.vendor_fingerprint or {}
-                value = (fp.get("snmp_identity") or {}).get(
-                    "sys_name", f"device-{flow.destination.device_id[:8]}"
-                )
+            # sysName is the canonical hostname, the same string LLDP, DNS,
+            # TLS SNI and the ambient pollers carry, so Cyber Vision sees one
+            # name per device. Fall back to fingerprint sys_name or device_id.
+            from app.protocol_engines import canonical_identity
+
+            fp = flow.destination.vendor_fingerprint or {}
+            name = flow.destination.device_name or (fp.get("snmp_identity") or {}).get(
+                "sys_name", f"device-{flow.destination.device_id[:8]}"
+            )
+            value = canonical_identity.snmp_sys_name(canonical_identity.canonical_hostname(name))
             return VarBind(oid=oid, value=value, value_type="string")
 
         elif oid == SystemOIDs.SYS_LOCATION.oid:
