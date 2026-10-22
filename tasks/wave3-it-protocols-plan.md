@@ -53,4 +53,10 @@ Any `https` / `ssh` / `rdp` / `telnet` flow without `config.hostname` emits TCP 
 - [x] 4. RTSP (`999d948`). Metro arterial: 5.4x before, 5.1x after real time; 6.0 MB before, 8.9 MB after per 2 min.
 - [x] 5. HTTP (`b886fb2`)
 - [x] Frontend: extended color/label maps plus conduit options. The `ProtocolType` union is unchanged; `tsc` is clean.
-- [ ] Batched Cyber Vision replay. Waiting on operator approval.
+- [x] Batched Cyber Vision replay (2026-10-22): F1 + F4, 5 min each, MACs and IPs remapped to 10.97/10.96 so no component is re-used. 181 devices → 181 components.
+  - RTSP: every camera tagged Video Sender, the VMS Video Receiver.
+  - DNS: both domain controllers tagged DNS Server.
+  - HTTP/HTTPS: cameras, ANPR and classifiers tagged Web Server; the toll host HTTP Client; heartbeat and proxy devices HTTPS Client.
+  - Syslog: CV assigns no tag for it, so a replay can't confirm it.
+  - Found and fixed: the template SNMP engine answered sysName with the raw display name, not the canonical hostname. CV labelled 147/181 components with it, and polled devices answered two different names. Agent 4.5.1 (e4bcdcf).
+  - Still open: sysLocation falls back to "Industrial Site" (170/181), and some fingerprints carry plant-flavoured locations ("Plant Operations - NMS") in an ITS TOC.
