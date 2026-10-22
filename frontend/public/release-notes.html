@@ -579,25 +579,25 @@ code {
     </div>
     <h1 class="cover-title">Release Notes</h1>
     <p class="cover-sub">
-      Feature releases and patches from v1.10.0 through v1.21.1,
-      covering June 17 &ndash; September 21, 2026.
+      Feature releases and patches from v1.10.0 through v1.22.0,
+      covering June 17 &ndash; October 22, 2026.
     </p>
     <div class="cover-stats">
       <div class="cover-stat">
         <div class="cover-stat-label">Releases</div>
-        <div class="cover-stat-value">25</div>
+        <div class="cover-stat-value">26</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Version span</div>
-        <div class="cover-stat-value">1.10.0 &rarr; 1.20.2</div>
+        <div class="cover-stat-value">1.10.0 &rarr; 1.22.0</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Agent</div>
-        <div class="cover-stat-value">2.1.4 &rarr; 4.1.3</div>
+        <div class="cover-stat-value">2.1.4 &rarr; 4.5.3</div>
       </div>
       <div class="cover-stat">
         <div class="cover-stat-label">Generated</div>
-        <div class="cover-stat-value">2026-09-18</div>
+        <div class="cover-stat-value">2026-10-22</div>
       </div>
     </div>
   </header>
@@ -731,6 +731,11 @@ code {
           <td>v1.21.1</td>
           <td>Installers clear a previous attempt instead of starting on top of it</td>
           <td>Sep 21, 2026</td>
+        </tr>
+        <tr>
+          <td>v1.22.0</td>
+          <td>Roadway transportation: real NTCIP on the wire, four flagship scenarios, and the IT traffic around them</td>
+          <td>Oct 22, 2026</td>
         </tr>
       </tbody>
     </table>
@@ -2256,10 +2261,150 @@ code {
     </div>
   </section>
 
+  <section class="release" id="v1.22.0">
+    <div class="release-header">
+      <div class="release-ver-col">
+        <div class="release-version">v1.22.0</div>
+        <div class="release-date">2026-10-22</div>
+      </div>
+      <div class="release-content-col">
+        <div class="release-category">Transportation &middot; Protocols</div>
+        <div class="release-headline">Roadway transportation: real NTCIP on the wire, four flagship scenarios, and the IT traffic around them</div>
+      </div>
+    </div>
+    <p class="release-note">
+      Roadway ITS scenarios used to look right on the canvas and wrong on the
+      wire: signal controllers answered only basic SNMP, every NTCIP value was
+      zero, and device names came out garbled. This release puts real NTCIP
+      objects on the wire, adds four large roadway scenarios built device by
+      device from sourced fingerprints, and surrounds them with the IT traffic
+      a real traffic network carries. Every scenario was replayed into Cisco
+      Cyber Vision, and one was run live from the UI through a local sensor
+      lab, to confirm what it classifies. Agent 4.1.3 &rarr; 4.5.3.
+    </p>
+    <div class="change-groups">
+      <div class="change-group" data-t="feat">
+        <div class="change-type-label">New</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>Four roadway flagship scenarios.</strong> Metro Arterial
+            Signal System (a traffic management center, a backup center and
+            five corridor hubs of signals, detection and cameras), Twin-Bore
+            Road Tunnel (ventilation, drainage, lighting and life safety under
+            a control room), Freeway Management Corridor, and All-Electronic
+            Toll and Express Lanes. Each is zoned, conduit-checked and named
+            for its site.
+          </li>
+          <li class="change-item">
+            <strong>NTCIP 1201, 1202, 1203, 1204 and 1209 objects on the
+            wire.</strong> Signal controllers, message signs, weather stations
+            and detection stations answer with real object identifiers taken
+            from the NTCIP MIB files, with values that move: signal plans change
+            on schedule in the site&rsquo;s time zone, and detection stations
+            report volume, occupancy and speed. Cyber Vision decodes all five.
+          </li>
+          <li class="change-item">
+            <strong>IT protocols for the networks around the field
+            devices.</strong> HTTPS, SSH, RDP and Telnet flows now carry a real
+            opening exchange instead of an empty connection. New engines add
+            syslog from switches and routers to the management server, RTSP
+            video pulls from cameras to the video management system, HTTP to
+            device web interfaces, and DNS against a real domain controller.
+            The Studio labels and colours these protocols and allows them on
+            conduits.
+          </li>
+          <li class="change-item">
+            <strong>A road tunnel process model.</strong> Traffic drives carbon
+            monoxide and visibility, and ventilation responds. A template can
+            now choose its own process model instead of its vertical&rsquo;s
+            default, and PCAP and live runs use the same one.
+          </li>
+          <li class="change-item">
+            <strong>Roadway device catalog corrected and extended.</strong>
+            Seven new roadway fingerprints and verified tolling devices, with
+            invented toll and V2X entries replaced. Enterprise numbers,
+            hardware address prefixes, product names, firmware schemes and
+            vulnerability assignments for ITS devices were each checked against
+            IANA, IEEE, the vendor or NVD.
+          </li>
+          <li class="change-item">
+            <strong>The chat assistant streams, and finds its own
+            tools.</strong> Replies appear as they are written, with the
+            model&rsquo;s actual reasoning as the status line. Instead of
+            loading all 69 tools on every step, the assistant keeps six to hand
+            and searches for the rest. Chat, scenario generation and scenario
+            review now run on Claude Opus 5.5, and the cost dashboard no longer
+            over-reports Sonnet 5 by half.
+          </li>
+        </ul>
+      </div>
+      <div class="change-group" data-t="fix">
+        <div class="change-type-label">Bug Fixes</div>
+        <ul class="change-list">
+          <li class="change-item">
+            <strong>SNMP is encoded correctly in every vertical.</strong>
+            Counters, gauges and uptime went out as plain integers, so
+            inspection tools decoded uptime as a number. They now carry their
+            proper types, and uptime follows the run clock.
+          </li>
+          <li class="change-item">
+            <strong>A device tells every protocol the same name and
+            location.</strong> The SNMP system name now matches the hostname
+            the device gives in LLDP, DNS, TLS and syslog. The system location
+            is the device&rsquo;s zone and site, where it used to be
+            &ldquo;Industrial Site&rdquo; for everything.
+          </li>
+          <li class="change-item">
+            <strong>Template scenarios get proper device names.</strong> Names
+            built from a template came out truncated and garbled (an ATMS
+            server became <code>TX130-TOLL-TRAFFI-001</code>) and could contain
+            spaces or collide. Every template scenario now gets readable,
+            unique names that fit its site.
+          </li>
+          <li class="change-item">
+            <strong>PCAP flows poll at the interval the scenario asks
+            for.</strong> Every PCAP flow polled once a second, whatever its
+            setting, while the live agent honoured it. Both now read the same
+            timing.
+          </li>
+          <li class="change-item">
+            <strong>Live scenarios are no longer capped at about 55 packets a
+            second.</strong> The agent opened a new raw socket for every
+            packet. It now keeps one open, so slow-polling devices no longer
+            appear absent to a sensor for minutes.
+          </li>
+          <li class="change-item">
+            <strong>Background discovery traffic comes from real
+            managers.</strong> On the PCAP path, any device could end up
+            polling the others or serving them time, so Cyber Vision labelled
+            signal controllers as management and time servers. Discovery now
+            comes from the management stations, in PCAP output as live.
+          </li>
+          <li class="change-item">
+            <strong>S7 PLCs identify themselves like a real CPU.</strong>
+            Identity records were shifted four bytes and the connection did not
+            echo its endpoints, so Cyber Vision showed garbled rack, slot and
+            endpoint values for every S7-1500.
+          </li>
+          <li class="change-item">
+            <strong>Smaller corrections.</strong> SNMP health polls are no
+            longer turned into empty TLS sessions; process values land in the
+            right register, scaled to its units; a Windows server keeps its
+            operating system version in its description; duplicate device
+            template ids now fail the build, and the six that existed are
+            resolved; syslog messages never name another device on the network;
+            and the from-scratch install guide now runs the build-network check
+            before the first build.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
     <div class="footer-brand"><span class="accent">PacketArch</span> &middot; OT Traffic Simulation Platform</div>
-    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-09-21</div>
+    <div class="footer-meta">GPL-3.0 &middot; &copy; 2026 Rocky Smith &middot; Generated 2026-10-22</div>
   </footer>
 
 </div>
