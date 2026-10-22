@@ -59,4 +59,4 @@ Any `https` / `ssh` / `rdp` / `telnet` flow without `config.hostname` emits TCP 
   - HTTP/HTTPS: cameras, ANPR and classifiers tagged Web Server; the toll host HTTP Client; heartbeat and proxy devices HTTPS Client.
   - Syslog: CV assigns no tag for it, so a replay can't confirm it.
   - Found and fixed: the template SNMP engine answered sysName with the raw display name, not the canonical hostname. CV labelled 147/181 components with it, and polled devices answered two different names. Agent 4.5.1 (e4bcdcf).
-  - Still open: sysLocation falls back to "Industrial Site" (170/181), and some fingerprints carry plant-flavoured locations ("Plant Operations - NMS") in an ITS TOC.
+  - Found and fixed: sysLocation fell back to "Industrial Site" (170/181), and catalog values like "Plant Operations - NMS" appeared in an ITS TOC. It is now "<zone name>, <site plant_name>" from the scenario. Agent 4.5.2 (d41bfab).
