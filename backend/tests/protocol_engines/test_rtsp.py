@@ -39,11 +39,11 @@ def test_control_session_follows_rfc2326():
     resps = [t for t in text if t.startswith(b"RTSP/1.0 200 OK")]
     assert len(resps) == len(reqs)
     for req, resp in zip(reqs, resps):
-        cseq = [l for l in req.split(b"\r\n") if l.startswith(b"CSeq:")][0]
+        cseq = [ln for ln in req.split(b"\r\n") if ln.startswith(b"CSeq:")][0]
         assert cseq in resp.split(b"\r\n")
     describe = resps[1]
     head, body = describe.split(b"\r\n\r\n", 1)
-    assert int([l for l in head.split(b"\r\n") if l.startswith(b"Content-Length")][0].split(b":")[1]) == len(body)
+    assert int([ln for ln in head.split(b"\r\n") if ln.startswith(b"Content-Length")][0].split(b":")[1]) == len(body)
     assert b"a=rtpmap:96 H264/90000" in body
     assert b"interleaved=0-1" in resps[2] and b"Session:" in resps[2]
 

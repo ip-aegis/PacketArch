@@ -40,10 +40,8 @@ from app.services.architecture.vendor_pinning import (
     _PROFILE_AGNOSTIC,
     get_pin_candidates,
 )
+from app.services.architecture.scenario_generator import generate_from_archetype
 from app.services.device_templates import get_template_by_vendor_model
-from app.services.template_definition_builder import (
-    populate_definition_from_template,
-)
 
 # Roles that stay single-model until the device catalog gains alternatives.
 # Shrink this list; never grow it.
@@ -99,16 +97,25 @@ def test_every_pinned_model_exists_in_the_device_catalog():
 
 
 def _high_multiplicity_roles():
-    """(profile, role) pairs that a real generated scenario emits >= 4 of."""
+    """(profile, role) pairs that a generated archetype scenario emits >= 4 of.
+
+    Runs the archetype generator directly. Vendor pinning chooses models only
+    there: a template that lists its own devices is built from that list (by
+    the create route and the audit builder alike), so going through the
+    template would judge pinning by models it never picked.
+    """
     seen: dict[tuple[str, str], int] = {}
     for vertical, templates in VERTICAL_TEMPLATES.items():
         for name in templates:
             cfg = get_archetype_config(vertical, name)
             if cfg is None:
                 continue
-            defn = populate_definition_from_template(vertical, name)
-            if not defn:
-                continue
+            defn = generate_from_archetype(
+                cfg.archetype_id,
+                vendor_profile=cfg.vendor_profile,
+                scale=cfg.scale,
+                overrides=cfg.overrides,
+            )
             counts = collections.Counter(
                 d.get("architectural_role")
                 for d in defn["devices"].values()

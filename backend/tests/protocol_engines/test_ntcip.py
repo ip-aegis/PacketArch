@@ -242,7 +242,8 @@ def test_every_poller_sees_the_same_controller():
 
 
 def test_profiles_poll_different_objects():
-    groups = lambda src: {e.metadata["ntcip_group"] for e in _poll(_flow(src, "traffic_controller", src), 0.0)}
+    def groups(src):
+        return {e.metadata["ntcip_group"] for e in _poll(_flow(src, "traffic_controller", src), 0.0)}
     assert groups("scada_server") == {"asc_status", "asc_volume", "clock"}
     assert groups("historian") == {"asc_volume"}
     assert groups("workstation") == {"identity", "asc_config"}
@@ -361,7 +362,8 @@ def _lane_rows(dev, clock, entry=2):
     rows = []
     for z in range(1, ntcip_1209.zone_count(dev) + 1):
         idx = f".{z}.{entry}.1"
-        get = lambda name: snap[MIB_OBJECTS[name][0] + idx][0]
+        def get(name):
+            return snap[MIB_OBJECTS[name][0] + idx][0]
         rows.append((get("sampleVolumeData"), get("samplePercentOccupancy"), get("sampleSpeedData")))
     return rows
 
@@ -395,6 +397,7 @@ def test_deprecated_table_mirrors_the_last_completed_sample():
 
 def test_sample_sequence_advances_once_per_period():
     dev = _dev(4242)
-    seq = lambda c: ntcip.snapshot("tss", dev, c)[MIB_OBJECTS["sampleSequenceNumber"][0] + ".1.2.1"][0]
+    def seq(c):
+        return ntcip.snapshot("tss", dev, c)[MIB_OBJECTS["sampleSequenceNumber"][0] + ".1.2.1"][0]
     a, b, c = seq(_clock(9.0, 1.0)), seq(_clock(9.0, 29.0)), seq(_clock(9.0, 31.0))
     assert a == b and c == (a + 1) % 65536

@@ -5,7 +5,6 @@
 
 import uuid
 
-import pytest
 from scapy.all import DNS, IP, UDP, rdpcap
 
 from app.services.template_definition_builder import populate_definition_from_template
